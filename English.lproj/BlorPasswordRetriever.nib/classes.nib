@@ -1,0 +1,25 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {cancelAction = id; importAction = id; }; 
+            CLASS = BlorPasswordRetriever; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                cancelButton = NSButton; 
+                helpStringField = NSTextField; 
+                importButton = NSButton; 
+                passphraseField = NSTextField; 
+                window = NSPanel; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {"" = id; }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = NSDatePicker; LANGUAGE = ObjC; SUPERCLASS = NSControl; }
+    ); 
+    IBVersion = 1; 
+}

@@ -1,0 +1,3 @@
+#do in ~/Projects/*Compiled/Development/ : 
+gprof -S Notation.app/Contents/MacOS/Notation gmon.out > gmon.summary
+cat callo.order | awk -F: '{print $2$3$4$5$6$7$8$9$10$11$12$13$14}' > ../../Notation/Notation.launchorder

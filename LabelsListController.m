@@ -1,0 +1,124 @@
+//
+//  LabelsListController.m
+//  Notation
+//
+//  Created by Zachary Schneirov on 1/10/06.
+//  Copyright 2006 Zachary Schneirov. All rights reserved.
+//
+
+#import "LabelsListController.h"
+#import "LabelObject.h"
+#import "NoteObject.h"
+#import "NSCollection_utils.h"
+
+
+@implementation LabelsListController
+
+- (id)init {
+	if ([super init]) {
+	    
+	    allLabels = [[NSCountedSet alloc] init]; //authoritative
+	    //for faster(?) filtering during search
+	    filteredLabels = [[NSCountedSet alloc] init];
+		
+	    removeIndicies = NULL;
+	}
+	
+	return self;
+}
+
+- (void)unfilterLabels {
+    [filteredLabels setSet:allLabels];
+    
+    if ([filteredLabels count] > count) {
+		count = [filteredLabels count];
+		objects = (id*)realloc(objects, count * sizeof(id));
+    }
+    [filteredLabels getObjects:objects];
+    
+}
+
+- (void)filterLabelSet:(NSSet*)labelSet {
+	[filteredLabels minusSet:labelSet];
+}
+
+- (void)recomputeListFromFilteredSet {
+    //we can ignore our objectsArray here as we never use it and just sort directly on our C-array
+	[filteredLabels getObjects:objects];
+	count = [filteredLabels count];
+	
+	//cfstringcompare here; strings always sorted alphabetically
+	mergesort((void *)objects, (size_t)count, sizeof(id), (int (*)(const void *, const void *))compareLabel);
+}
+
+
+//NotationController will probably want to filter these further if there is already a search in progress
+- (NSSet*)notesAtFilteredIndex:(int)labelIndex {
+    return [objects[labelIndex] noteSet];
+}
+
+//figure out which notes to display given some selected labels
+- (NSSet*)notesAtFilteredIndexes:(NSIndexSet*)anIndexSet {
+    unsigned int i, numLabels = [anIndexSet count];
+    unsigned int *labelsBuffer = malloc(numLabels * sizeof(unsigned int));
+    
+    NSRange range = NSMakeRange([anIndexSet firstIndex], ([anIndexSet lastIndex]-[anIndexSet firstIndex]) + 1);
+    [anIndexSet getIndexes:labelsBuffer maxCount:numLabels inIndexRange:&range];
+    
+    NSMutableSet *notesOfLabels = [[NSMutableSet alloc] init];
+
+    for (i=0; i<numLabels; i++) {
+	int labelIndex = labelsBuffer[i];
+	[notesOfLabels unionSet:[objects[labelIndex] noteSet]];
+    }
+    
+    return [notesOfLabels autorelease];
+}
+
+
+/* these next two methods do NOT sync. object counts with the corresponding LabelObject(s) in allLabels;
+   it's up to the sender to ensure that any given note is not added or removed from a label unnecessarily */
+
+//called when deleting labels in a note
+- (void)removeLabelSet:(NSSet*)labelSet fromNote:(NoteObject*)note {
+    
+    //labelSet in this case is probably not the prototype labelSet, so all that may be necessary is to call removeNote: on it
+    //HOWEVER, don't know this for sure, assuming this API is to remain non-permeable
+    
+    [allLabels minusSet:labelSet];
+    
+    //we narrow down the set to make sure that we operate on the actual objects within it, and note the objects used as prototypes
+    //these will be any labels that were shared by notes other than this one
+    NSMutableSet *existingLabels = [allLabels setIntersectedWithSet:labelSet];
+    [existingLabels makeObjectsPerformSelector:@selector(removeNote:) withObject:note];
+}
+
+//called for labels added to a note
+- (void)addLabelSet:(NSSet*)labelSet toNote:(NoteObject*)note {
+    
+    [allLabels unionSet:labelSet];
+    
+    NSMutableSet *existingLabels = [allLabels setIntersectedWithSet:labelSet];
+    [existingLabels makeObjectsPerformSelector:@selector(addNote:) withObject:note];
+    [note replaceMatchingLabelSet:existingLabels]; //link back for the existing note, so that it knows about the other notes in this label
+}
+
+
+//useful for moving groups of notes from one label to another
+- (void)removeLabelSet:(NSSet*)labelSet fromNoteSet:(NSSet*)notes {    
+    [allLabels minusSet:labelSet];
+    
+    NSMutableSet *existingLabels = [allLabels setIntersectedWithSet:labelSet];
+    [existingLabels makeObjectsPerformSelector:@selector(removeNoteSet:) withObject:notes];
+}
+
+- (void)addLabelSet:(NSSet*)labelSet toNoteSet:(NSSet*)notes {
+    [allLabels unionSet:labelSet];
+    
+    NSMutableSet *existingLabels = [allLabels setIntersectedWithSet:labelSet];
+    [existingLabels makeObjectsPerformSelector:@selector(addNoteSet:) withObject:notes];
+    [notes makeObjectsPerformSelector:@selector(replaceMatchingLabelSet:) withObject:existingLabels];
+}
+
+
+@end

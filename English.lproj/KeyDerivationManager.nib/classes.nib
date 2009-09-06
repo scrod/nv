@@ -1,0 +1,24 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {"" = id; }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = KeyDerivationDelaySlider; LANGUAGE = ObjC; SUPERCLASS = NSSlider; }, 
+        {
+            ACTIONS = {sliderChanged = id; }; 
+            CLASS = KeyDerivationManager; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                hashDurationField = NSTextField; 
+                slider = KeyDerivationDelaySlider; 
+                view = NSView; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = NSDatePicker; LANGUAGE = ObjC; SUPERCLASS = NSControl; }
+    ); 
+    IBVersion = 1; 
+}

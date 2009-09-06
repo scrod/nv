@@ -1,0 +1,45 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {"" = id; }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = NSDatePicker; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
+        {
+            ACTIONS = {cancelNewPassword = id; discloseAdvancedSettings = id; okNewPassword = id; }; 
+            CLASS = PassphraseChangerController; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                advancedHelpField = NSTextField; 
+                advancedView = NSView; 
+                cancelChangedButton = NSButton; 
+                changePassphraseWindow = NSPanel; 
+                currentPasswordField = NSSecureTextField; 
+                disclosureButton = NSButton; 
+                dismissalButtonsView = NSView; 
+                newPasswordField = NSSecureTextField; 
+                okChangeButton = NSButton; 
+                rememberChangeButton = NSButton; 
+                upperButtonsView = NSView; 
+                verifyChangedPasswordField = NSSecureTextField; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {showPasswordAssistantPanel = id; }; 
+            CLASS = SFPasswordAssistantInspectorController; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                "_baseWindow" = NSWindow; 
+                "_newPassword" = NSTextField; 
+                "_originalPassword" = NSTextField; 
+                "_verifyPassword" = NSTextField; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = SFPasswordAsstView; LANGUAGE = ObjC; SUPERCLASS = NSView; }
+    ); 
+    IBVersion = 1; 
+}

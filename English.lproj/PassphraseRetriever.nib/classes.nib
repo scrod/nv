@@ -1,0 +1,27 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {"" = id; }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = NSDatePicker; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
+        {
+            ACTIONS = {cancelAction = id; differentNotes = id; okAction = id; }; 
+            CLASS = PassphraseRetriever; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                cancelButton = NSButton; 
+                differentFolderButton = NSButton; 
+                helpStringField = NSTextField; 
+                okButton = NSButton; 
+                passphraseField = NSTextField; 
+                rememberKeychainButton = NSButton; 
+                window = NSPanel; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }
+    ); 
+    IBVersion = 1; 
+}

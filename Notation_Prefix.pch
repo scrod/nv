@@ -1,0 +1,37 @@
+//
+// Prefix header for all source files of the 'Notation' target in the 'Notation' project
+//
+
+#define VAR_STR(x) @#x
+
+#define SEL_STR(name) NSStringFromSelector(@selector(name))
+
+#define force_inline __attribute__((always_inline))
+
+#define UTXT_TYPE_ID 0x75747874
+#define TEXT_TYPE_ID 0x54455854
+#define HTML_TYPE_ID 0x48544D4C
+#define RTF_TYPE_ID 0x52544620
+#define RTFD_TYPE_ID 0x52544644
+#define WORD_DOC_TYPE_ID 0x5738424E
+#define PDF_TYPE_ID 0x50444620
+
+//faux carbon errors
+#define kCoderErr -818
+#define kJournalingError -819
+#define kWriteJournalErr -820
+#define kNoAuthErr -821
+#define kCompressionErr -822
+#define kPassCanceledErr -823
+#define kDataFormattingErr -824
+
+#define VERIFY_SALT "Salt for verifying master key in a single iteration"
+#define LOG_SESSION_SALT "Salt for encrypting a write-ahead-log session"
+
+#ifndef NSAppKitVersionNumber10_3
+#define NSAppKitVersionNumber10_3 743
+#endif
+
+#define RunningTigerAppKitOrHigher (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_3)
+
+#define USE_KEYED_ARCHIVING 0

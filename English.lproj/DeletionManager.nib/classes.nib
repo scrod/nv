@@ -1,0 +1,19 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {deleteAction = id; restoreAction = id; }; 
+            CLASS = DeletionManager; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {tableView = NSTableView; window = NSPanel; }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {"" = id; }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = NSDatePicker; LANGUAGE = ObjC; SUPERCLASS = NSControl; }
+    ); 
+    IBVersion = 1; 
+}

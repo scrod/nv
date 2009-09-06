@@ -1,0 +1,25 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {cancelAction = id; chooseEncoding = id; okAction = id; }; 
+            CLASS = EncodingsManager; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                encodingsPopUpButton = NSPopUpButton; 
+                helpStringField = NSTextField; 
+                okButton = NSButton; 
+                textView = NSTextView; 
+                window = NSPanel; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {"" = id; }; 
+            CLASS = FirstResponder; 
+            LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {CLASS = NSDatePicker; LANGUAGE = ObjC; SUPERCLASS = NSControl; }
+    ); 
+    IBVersion = 1; 
+}

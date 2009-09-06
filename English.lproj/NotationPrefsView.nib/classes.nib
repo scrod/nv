@@ -1,0 +1,56 @@
+{
+    IBClasses = (
+        {
+            CLASS = FileKindListView; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {storageFormatPopupButton = NSPopUpButton; }; 
+            SUPERCLASS = NSTableView; 
+        }, 
+        {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }, 
+        {
+            ACTIONS = {
+                addedExtension = id; 
+                addedType = id; 
+                changePassphrase = id; 
+                changedFileDeletionWarningSettings = id; 
+                changedFileStorageFormat = id; 
+                changedKeyLength = id; 
+                changedKeychainSettings = id; 
+                changedSecureTextEntry = id; 
+                createNotationalAccount = id; 
+                removeFromKeychain = id; 
+                removedExtension = id; 
+                removedType = id; 
+                showWebOptions = id; 
+                toggledEncryption = id; 
+                verifySyncAccount = id; 
+            }; 
+            CLASS = NotationPrefsViewController; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                allowedExtensionsTable = NSTableView; 
+                allowedTypesTable = NSTableView; 
+                changePasswordButton = NSButton; 
+                confirmFileDeletionButton = NSButton; 
+                enableEncryptionButton = NSButton; 
+                fileAttributesHelpText = NSTextField; 
+                keyLengthField = NSTextField; 
+                keyLengthStepper = NSStepper; 
+                newExtensionButton = NSButton; 
+                newTypeButton = NSButton; 
+                notationalAccountField = NSTextField; 
+                notationalPasswordField = NSTextField; 
+                passwordSettingsMatrix = NSMatrix; 
+                removeExtensionButton = NSButton; 
+                removeFromKeychainButton = NSButton; 
+                removeTypeButton = NSButton; 
+                secureTextEntryButton = NSButton; 
+                storageFormatPopupButton = NSPopUpButton; 
+                view = NSView; 
+                webOptionsWindow = NSWindow; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }
+    ); 
+    IBVersion = 1; 
+}
