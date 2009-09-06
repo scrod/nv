@@ -47,7 +47,7 @@
 		2144957A0ADCC06300E2A2B6 /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
 		214495870ADCC07E00E2A2B6 /* PassphraseChanger.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */; };
 		21469C8C0BEBA6A10094835F /* TemporaryFileCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */; };
-		214F73520B137086001B3439 /* deselect_document.tif in Resources */ = {isa = PBXBuildFile; fileRef = 214F73510B137085001B3439 /* deselect_document.tif */; };
+		214C6C59105445410085D386 /* Notality.icns in Resources */ = {isa = PBXBuildFile; fileRef = 214C6C58105445410085D386 /* Notality.icns */; };
 		21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
 		21544FC10B06332600C0D1D5 /* KeyDerivationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */; };
 		215452080B06541800C0D1D5 /* PassphraseChanger.m in Sources */ = {isa = PBXBuildFile; fileRef = 215450F80B06509600C0D1D5 /* PassphraseChanger.m */; };
@@ -95,7 +95,6 @@
 		21C737950B50C73E0048C08A /* MultiplePageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 21C737940B50C73E0048C08A /* MultiplePageView.m */; };
 		21D583620B78F0CC00245E29 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21D5834D0B78F0CC00245E29 /* ApplicationServices.framework */; };
 		21D60128098FDB46007440DF /* GlobalPrefs.m in Sources */ = {isa = PBXBuildFile; fileRef = 21D60127098FDB46007440DF /* GlobalPrefs.m */; };
-		21DAB0240B2784C10083EB0C /* SovietApplicationIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 21DAB0230B2784C00083EB0C /* SovietApplicationIcon.icns */; };
 		21DC788F097894B600E59B09 /* NSCollection_utils.m in Sources */ = {isa = PBXBuildFile; fileRef = 21DC788E097894B600E59B09 /* NSCollection_utils.m */; };
 		21E6B09B0B6E6D0C001ABEDC /* URLGetter.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21E6B0950B6E6D0B001ABEDC /* URLGetter.nib */; };
 		21E6B09F0B6E6D18001ABEDC /* URLGetter.m in Sources */ = {isa = PBXBuildFile; fileRef = 21E6B09D0B6E6D18001ABEDC /* URLGetter.m */; };
@@ -193,7 +192,7 @@
 		2144987D0AE192F900E2A2B6 /* PassphraseChanger.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PassphraseChanger.h; sourceTree = "<group>"; };
 		21469C890BEBA6A10094835F /* TemporaryFileCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCache.h; sourceTree = "<group>"; };
 		21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCache.m; sourceTree = "<group>"; };
-		214F73510B137085001B3439 /* deselect_document.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = deselect_document.tif; sourceTree = "<group>"; };
+		214C6C58105445410085D386 /* Notality.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Notality.icns; sourceTree = "<group>"; };
 		21544FB90B06331800C0D1D5 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
 		21544FBF0B06332600C0D1D5 /* KeyDerivationManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = KeyDerivationManager.h; sourceTree = "<group>"; };
 		21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = KeyDerivationManager.m; sourceTree = "<group>"; };
@@ -273,7 +272,6 @@
 		21D5834D0B78F0CC00245E29 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = /System/Library/Frameworks/ApplicationServices.framework; sourceTree = "<absolute>"; };
 		21D60126098FDB46007440DF /* GlobalPrefs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GlobalPrefs.h; sourceTree = "<group>"; };
 		21D60127098FDB46007440DF /* GlobalPrefs.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GlobalPrefs.m; sourceTree = "<group>"; };
-		21DAB0230B2784C00083EB0C /* SovietApplicationIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = SovietApplicationIcon.icns; path = Images/SovietApplicationIcon.icns; sourceTree = "<group>"; };
 		21DC788D097894B600E59B09 /* NSCollection_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSCollection_utils.h; sourceTree = "<group>"; };
 		21DC788E097894B600E59B09 /* NSCollection_utils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSCollection_utils.m; sourceTree = "<group>"; };
 		21E6B0960B6E6D0B001ABEDC /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/URLGetter.nib; sourceTree = "<group>"; };
@@ -528,8 +526,7 @@
 			isa = PBXGroup;
 			children = (
 				213FB0230B3CB1C4004C74BD /* PTKeyboardIcon.tiff */,
-				21DAB0230B2784C00083EB0C /* SovietApplicationIcon.icns */,
-				214F73510B137085001B3439 /* deselect_document.tif */,
+				214C6C58105445410085D386 /* Notality.icns */,
 				2144950D0ADC883000E2A2B6 /* PasswordAssistantButton.tif */,
 				2144950E0ADC883000E2A2B6 /* PasswordAssistantButtonPressed.tif */,
 				215DEE1209F1AA4C009A710B /* Editing.tiff */,
@@ -696,8 +693,6 @@
 				214495870ADCC07E00E2A2B6 /* PassphraseChanger.nib in Resources */,
 				21973A290AFE447A0046683E /* PassphraseRetriever.nib in Resources */,
 				21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */,
-				214F73520B137086001B3439 /* deselect_document.tif in Resources */,
-				21DAB0240B2784C10083EB0C /* SovietApplicationIcon.icns in Resources */,
 				211344C00B3551BD0081B064 /* BlorPasswordRetriever.nib in Resources */,
 				21F1CD700B3A38DB001FB5F6 /* PTKeyCodes.plist in Resources */,
 				21F1CD9F0B3A3F88001FB5F6 /* PTKeyComboPanel.nib in Resources */,
@@ -712,6 +707,7 @@
 				2111A3C00B88FEFD006A1691 /* Excruciatingly Useful Shortcuts.nvhelp in Resources */,
 				2111A3C10B88FEFD006A1691 /* How does this thing work?.nvhelp in Resources */,
 				213621ED0B92413F008C0830 /* FindPanel.nib in Resources */,
+				214C6C59105445410085D386 /* Notality.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
