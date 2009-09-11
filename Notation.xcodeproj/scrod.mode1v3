@@ -226,8 +226,6 @@
 			<key>Layout</key>
 			<array>
 				<dict>
-					<key>BecomeActive</key>
-					<true/>
 					<key>ContentConfiguration</key>
 					<dict>
 						<key>PBXBottomSmartGroupGIDs</key>
@@ -328,7 +326,7 @@
 								<key>PBXProjectModuleGUID</key>
 								<string>1CE0B20306471E060097A5F4</string>
 								<key>PBXProjectModuleLabel</key>
-								<string>Notality.icns</string>
+								<string>NotationPrefsViewController.m</string>
 								<key>PBXSplitModuleInNavigatorKey</key>
 								<dict>
 									<key>Split0</key>
@@ -336,11 +334,11 @@
 										<key>PBXProjectModuleGUID</key>
 										<string>1CE0B20406471E060097A5F4</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>Notality.icns</string>
+										<string>NotationPrefsViewController.m</string>
 										<key>_historyCapacity</key>
 										<integer>0</integer>
 										<key>bookmark</key>
-										<string>214C6C75105445AD0085D386</string>
+										<string>214C6CCB10544A2A0085D386</string>
 										<key>history</key>
 										<array>
 											<string>21C61FAB10542D40004D5948</string>
@@ -368,7 +366,8 @@
 											<string>21C6207110543D7D004D5948</string>
 											<string>214C6C641054454C0085D386</string>
 											<string>214C6C651054454C0085D386</string>
-											<string>214C6C691054454C0085D386</string>
+											<string>214C6CC810544A2A0085D386</string>
+											<string>214C6CC910544A2A0085D386</string>
 										</array>
 										<key>prevStack</key>
 										<array>
@@ -397,6 +396,7 @@
 											<string>21C6208010543D7D004D5948</string>
 											<string>21C6208110543D7D004D5948</string>
 											<string>214C6C681054454C0085D386</string>
+											<string>214C6CCA10544A2A0085D386</string>
 										</array>
 									</dict>
 									<key>SplitCount</key>
@@ -454,9 +454,9 @@
 			</array>
 			<key>TableOfContents</key>
 			<array>
-				<string>214C6C721054455D0085D386</string>
+				<string>214C6CCC10544A2A0085D386</string>
 				<string>1CE0B1FE06471DED0097A5F4</string>
-				<string>214C6C731054455D0085D386</string>
+				<string>214C6CCD10544A2A0085D386</string>
 				<string>1CE0B20306471E060097A5F4</string>
 				<string>1CE0B20506471E060097A5F4</string>
 			</array>
@@ -588,9 +588,7 @@
 	<integer>5</integer>
 	<key>WindowOrderList</key>
 	<array>
-		<string>1C78EAAD065D492600B07095</string>
-		<string>1CD10A99069EF8BA00B06720</string>
-		<string>21C6208410543D7D004D5948</string>
+		<string>1C530D57069F1CE1000CFCEE</string>
 		<string>/Users/scrod/Projects/Notation/Notation.xcodeproj</string>
 	</array>
 	<key>WindowString</key>
@@ -826,12 +824,14 @@
 							<key>Dock</key>
 							<array>
 								<dict>
+									<key>BecomeActive</key>
+									<true/>
 									<key>ContentConfiguration</key>
 									<dict>
 										<key>PBXProjectModuleGUID</key>
 										<string>1CDD528C0622207200134675</string>
 										<key>PBXProjectModuleLabel</key>
-										<string>&lt;No Editor&gt;</string>
+										<string>NotationPrefsViewController.h</string>
 										<key>StatusBarVisibility</key>
 										<true/>
 									</dict>
@@ -887,8 +887,8 @@
 			<key>TableOfContents</key>
 			<array>
 				<string>1C530D57069F1CE1000CFCEE</string>
-				<string>214C6C621054454A0085D386</string>
-				<string>214C6C631054454A0085D386</string>
+				<string>214C6CCE10544A2A0085D386</string>
+				<string>214C6CCF10544A2A0085D386</string>
 				<string>1CDD528C0622207200134675</string>
 				<string>1CD0528E0623707200166675</string>
 			</array>
@@ -897,7 +897,7 @@
 			<key>WindowToolGUID</key>
 			<string>1C530D57069F1CE1000CFCEE</string>
 			<key>WindowToolIsVisible</key>
-			<false/>
+			<true/>
 		</dict>
 		<dict>
 			<key>FirstTimeWindowDisplayed</key>
