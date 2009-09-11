@@ -66,6 +66,7 @@
 		217EAF0F0B0D56860041A8A9 /* FocusRingScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 217EAF0E0B0D56860041A8A9 /* FocusRingScrollView.m */; };
 		217EB3CE0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m in Sources */ = {isa = PBXBuildFile; fileRef = 217EB3CD0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m */; };
 		2181171309F311110020A252 /* DeletedNoteObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 2181171209F311110020A252 /* DeletedNoteObject.m */; };
+		21813562105AF27400A0AE18 /* Acknowledgements.txt in Resources */ = {isa = PBXBuildFile; fileRef = 21813561105AF27400A0AE18 /* Acknowledgements.txt */; };
 		218D43330AA2ABC600F36CCA /* NotesTableView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2191930209CFBEBD00586B15 /* NotesTableView.m */; };
 		2191858809BEAB6400586B15 /* RBSplitSubview.m in Sources */ = {isa = PBXBuildFile; fileRef = 2191858409BEAB6400586B15 /* RBSplitSubview.m */; };
 		2191858909BEAB6400586B15 /* RBSplitView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2191858609BEAB6400586B15 /* RBSplitView.m */; };
@@ -224,6 +225,7 @@
 		2181171109F311110020A252 /* DeletedNoteObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DeletedNoteObject.h; sourceTree = "<group>"; };
 		2181171209F311110020A252 /* DeletedNoteObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DeletedNoteObject.m; sourceTree = "<group>"; };
 		2181193909FA9CF90020A252 /* SynchronizedNoteProtocol.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SynchronizedNoteProtocol.h; sourceTree = "<group>"; };
+		21813561105AF27400A0AE18 /* Acknowledgements.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Acknowledgements.txt; sourceTree = "<group>"; };
 		2191858309BEAB6400586B15 /* RBSplitSubview.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = RBSplitSubview.h; path = RBSplitView/RBSplitSubview.h; sourceTree = "<group>"; };
 		2191858409BEAB6400586B15 /* RBSplitSubview.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; name = RBSplitSubview.m; path = RBSplitView/RBSplitSubview.m; sourceTree = "<group>"; };
 		2191858509BEAB6400586B15 /* RBSplitView.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = RBSplitView.h; path = RBSplitView/RBSplitView.h; sourceTree = "<group>"; };
@@ -298,7 +300,7 @@
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
 		32CA4F630368D1EE00C91783 /* Notation_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Notation_Prefix.pch; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		8D1107320486CEB800E47090 /* Notation.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Notation.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D1107320486CEB800E47090 /* Notational Velocity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Notational Velocity.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -403,7 +405,7 @@
 		19C28FACFE9D520D11CA2CBB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8D1107320486CEB800E47090 /* Notation.app */,
+				8D1107320486CEB800E47090 /* Notational Velocity.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -594,6 +596,7 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				21813561105AF27400A0AE18 /* Acknowledgements.txt */,
 				217DB1810B7CE5B9008CD564 /* Help Notes */,
 				219196B109D4F1DB00586B15 /* Images */,
 				2114C259095885C800614E74 /* Localizable.strings */,
@@ -648,7 +651,7 @@
 			name = Notation;
 			productInstallPath = "$(HOME)/Applications";
 			productName = Notation;
-			productReference = 8D1107320486CEB800E47090 /* Notation.app */;
+			productReference = 8D1107320486CEB800E47090 /* Notational Velocity.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -708,6 +711,7 @@
 				2111A3C10B88FEFD006A1691 /* How does this thing work?.nvhelp in Resources */,
 				213621ED0B92413F008C0830 /* FindPanel.nib in Resources */,
 				214C6C59105445410085D386 /* Notality.icns in Resources */,
+				21813562105AF27400A0AE18 /* Acknowledgements.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1032,7 +1036,7 @@
 					PDFKit,
 				);
 				PREBINDING = NO;
-				PRODUCT_NAME = Notation;
+				PRODUCT_NAME = "Notational Velocity";
 				WRAPPER_EXTENSION = app;
 				ZERO_LINK = NO;
 			};
@@ -1084,7 +1088,7 @@
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
 				OTHER_LDFLAGS = "";
 				PREBINDING = NO;
-				PRODUCT_NAME = Notation;
+				PRODUCT_NAME = "Notational Velocity";
 				SECTORDER_FLAGS = (
 					"-sectorder",
 					__TEXT,
@@ -1144,7 +1148,7 @@
 					"-weak_framework",
 					PDFKit,
 				);
-				PRODUCT_NAME = Notation;
+				PRODUCT_NAME = "Notational Velocity";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Default;
