@@ -383,18 +383,46 @@ terminateApp:
 }
 
 - (void)deleteSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
+	id retainedDeleteObj = (id)contextInfo;
+	
 	if (returnCode == NSAlertDefaultReturn) {
 		//delete! nil-msgsnd-checking
-		id retainedDeleteObj = (id)contextInfo;
-		
 		if ([retainedDeleteObj isKindOfClass:[NSArray class]]) {
 			[notationController removeNotes:retainedDeleteObj];
 		} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
 			[notationController removeNote:retainedDeleteObj];
 		}
-		[retainedDeleteObj release];
 	}
+	[retainedDeleteObj release];
 }
+
+enum { ALLOW_DELETE_FROM_UNDO, CANCEL_DELETE_FROM_UNDO };
+
+- (void)undoCreateSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
+	id retainedDeleteObj = (id)contextInfo;
+	
+	if (returnCode == ALLOW_DELETE_FROM_UNDO) {
+		//really, really undo the creation of the note(s)
+		
+	//	if ([retainedDeleteObj isKindOfClass:[NSArray class]]) {
+//			[notationController removeNotes:retainedDeleteObj];
+//		} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
+//			[notationController removeNote:retainedDeleteObj];
+//		}
+	} else {
+		//to keep the undomanager stack consistent we must allow the undo and then do a redo
+		
+	}
+	[retainedDeleteObj release];
+}
+
+- (void)deleteNoteByUndoingCreation:(id)obj {
+	//give user a second chance at undoing the creation of a note
+	
+	
+	//run sheet with undoCreateSheetDidEnd callback
+}
+
 
 - (IBAction)deleteNote:(id)sender {
 	

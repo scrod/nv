@@ -48,6 +48,8 @@ void outletObjectAwoke(id sender);
 - (void)runDelayedIUActionsAfterLaunch;
 - (void)updateNoteMenus;
 
+- (void)deleteNoteByUndoingCreation:(id)obj;
+
 - (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard;
 - (IBAction)renameNote:(id)sender;
 - (IBAction)deleteNote:(id)sender;
