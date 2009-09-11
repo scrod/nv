@@ -130,7 +130,9 @@
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
-	<string>Notation</string>
+	<string>Notational Velocity</string>
+	<key>CFBundleGetInfoString</key>
+	<string>2.0 β, Copyright © 2009 Zachary Schneirov, All Rights Reserved.</string>
 	<key>CFBundleIconFile</key>
 	<string>Notality</string>
 	<key>CFBundleIdentifier</key>
@@ -139,14 +141,12 @@
 	<string>6.0</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2.0 β</string>
 	<key>CFBundleSignature</key>
 	<string>N†l√</string>
 	<key>CFBundleVersion</key>
 	<string>2.0 β</string>
-	<key>CFBundleShortVersionString</key>
-	<string>2.0 β</string>
-	<key>CFBundleGetInfoString</key>
-	<string>2.0 β, Copyright © 2009 Zachary Schneirov, All Rights Reserved.</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.3.9</string>
 	<key>NSMainNibFile</key>

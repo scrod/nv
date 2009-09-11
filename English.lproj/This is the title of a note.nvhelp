@@ -12,7 +12,7 @@ This is the body of a note. Your notes can be as long or as short as you want, a
 \i italicize
 \i0 , or \ul underline\ulnone  them. \
 \
-You can create as many notes as you want--NV was designed to hold thousands of them and works best when you distribute information evenly.\
+You can create as many notes as you want--NV can hold thousands of them and works best when information is distributed.\
 \
 If you enable encryption (Preferences > Notes > Security) you can even store passwords and other sensitive information without giving a second thought to computer forensics laboratories.\
 \
