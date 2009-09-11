@@ -957,7 +957,10 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 - (void)checkIfNotationIsTrashed {
 	if ([self notesDirectoryIsTrashed]) {
-		int result = NSRunCriticalAlertPanel(NSLocalizedString(@"Your notes directory appears to be in the Trash.",nil), 
+		
+		NSString *trashLocation = [[NSString pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
+		if (!trashLocation) trashLocation = @"unknown";
+		int result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
 											 NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?",nil),
 											 NSLocalizedString(@"Relocate Notes",nil), NSLocalizedString(@"Quit",nil), NULL);
 		if (result == NSAlertDefaultReturn)
@@ -1003,10 +1006,13 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	//force immediate update
 	[self synchronizeNoteChanges:nil];
 	
-    
-	[undoManager registerUndoWithTarget:self selector:@selector(removeNote:) object:note];
-	if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
-		[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Create Note quotemark%@quotemark",@"undo action name for creating a single note"), titleOfNote(note)]];
+	if ([[self undoManager] isUndoing]) {
+		//prohibit undoing of creation--only redoing of deletion
+		//NSLog(@"registering %s", _cmd);
+		[undoManager registerUndoWithTarget:self selector:@selector(removeNote:) object:note];
+		if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
+			[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Create Note quotemark%@quotemark",@"undo action name for creating a single note"), titleOfNote(note)]];
+	}
     
 	[self resortAllNotes];
     [self refilterNotes];
@@ -1030,7 +1036,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	if ([noteArray count] > 0) {
 		unsigned int i;
 		
-		[undoManager beginUndoGrouping];
+		if ([[self undoManager] isUndoing]) [undoManager beginUndoGrouping];
 		for (i=0; i<[noteArray count]; i++) {
 			NoteObject * note = [noteArray objectAtIndex:i];
 			
@@ -1038,14 +1044,17 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			
 			[note makeNoteDirtyUpdateTime:NO updateFile:YES];
 		}
-		[undoManager endUndoGrouping];
+		if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
 		
 		[self synchronizeNoteChanges:nil];
 		
-		[undoManager registerUndoWithTarget:self selector:@selector(removeNotes:) object:noteArray];
-		if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
-			[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Add %d Notes", @"undo action name for creating multiple notes"), [noteArray count]]];	
-		
+		if ([[self undoManager] isUndoing]) {
+			//prohibit undoing of creation--only redoing of deletion
+			//NSLog(@"registering %s", _cmd);
+			[undoManager registerUndoWithTarget:self selector:@selector(removeNotes:) object:noteArray];		
+			if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
+				[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Add %d Notes", @"undo action name for creating multiple notes"), [noteArray count]]];	
+		}
 		[self resortAllNotes];
 		[self refilterNotes];
 		

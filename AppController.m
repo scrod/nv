@@ -396,22 +396,25 @@ terminateApp:
 	[retainedDeleteObj release];
 }
 
-enum { ALLOW_DELETE_FROM_UNDO, CANCEL_DELETE_FROM_UNDO };
-
+#if 0 //unused; for the moment, allow only undoing and redoing of deletion, not undoing of creation
 - (void)undoCreateSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
 	id retainedDeleteObj = (id)contextInfo;
 	
-	if (returnCode == ALLOW_DELETE_FROM_UNDO) {
-		//really, really undo the creation of the note(s)
-		
-	//	if ([retainedDeleteObj isKindOfClass:[NSArray class]]) {
-//			[notationController removeNotes:retainedDeleteObj];
-//		} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
-//			[notationController removeNote:retainedDeleteObj];
-//		}
+	//always perform the undo to keep the undomanager stack consistent
+	//and then redo the undo if we didn't want it
+	
+	if ([retainedDeleteObj isKindOfClass:[NSArray class]]) {
+		[notationController removeNotes:retainedDeleteObj];
+	} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
+		[notationController removeNote:retainedDeleteObj];
+	}	
+	if (returnCode == NSAlertDefaultReturn) {
+		//the creation of this note is truly undone
+		NSLog(@"allowing note to remain undone");
 	} else {
-		//to keep the undomanager stack consistent we must allow the undo and then do a redo
-		
+		//redo note(s)' creation
+		NSLog(@"re-adding note");
+		[[notationController undoManager] performSelector:@selector(undo) withObject:nil afterDelay:0.0];
 	}
 	[retainedDeleteObj release];
 }
@@ -419,9 +422,16 @@ enum { ALLOW_DELETE_FROM_UNDO, CANCEL_DELETE_FROM_UNDO };
 - (void)deleteNoteByUndoingCreation:(id)obj {
 	//give user a second chance at undoing the creation of a note
 	
-	
-	//run sheet with undoCreateSheetDidEnd callback
+	[obj retain];
+	NSString *warningSingleFormatString = NSLocalizedString(@"Undo adding the note quotemark%@quotemark?", @"alert title when asked to undo the creation of a note");
+	NSString *warningMultipleFormatString = NSLocalizedString(@"Undo adding %d notes?", @"alert title when asked to undo creating multiple notes");
+	NSString *warnString = [obj isKindOfClass:[NoteObject class]] ? [NSString stringWithFormat:warningSingleFormatString, titleOfNote(obj)] : 
+	[NSString stringWithFormat:warningMultipleFormatString, [obj count]];
+	NSBeginAlertSheet(warnString, NSLocalizedString(@"Undo Note", @"name of undo-creating-a-note button"), NSLocalizedString(@"Cancel", @"name of cancel button"), 
+					  nil, window, self, @selector(undoCreateSheetDidEnd:returnCode:contextInfo:), NULL, (void*)obj, 
+					  NSLocalizedString(@"Undoing a note has the effect of deleting it. Use quotemarkRedoquotemark to re-add it.", @"informational undo-this-note? text"));	
 }
+#endif
 
 
 - (IBAction)deleteNote:(id)sender {
@@ -440,7 +450,7 @@ enum { ALLOW_DELETE_FROM_UNDO, CANCEL_DELETE_FROM_UNDO };
 				[NSString stringWithFormat:warningMultipleFormatString, [indexes count]];
 			NSBeginAlertSheet(warnString, NSLocalizedString(@"Delete", @"name of delete button"), NSLocalizedString(@"Cancel", @"name of cancel button"), 
 							  nil, window, self, @selector(deleteSheetDidEnd:returnCode:contextInfo:), NULL, (void*)deleteObj, 
-							  NSLocalizedString(@"You can undo this action at any time.", @"informational delete-this-note? text"));
+							  NSLocalizedString(@"You can undo this action later.", @"informational delete-this-note? text"));
 		} else {
 			//just delete the notes outright			
 			[notationController performSelector:[indexes count] > 1 ? @selector(removeNotes:) : @selector(removeNote:) withObject:deleteObj];
@@ -546,6 +556,13 @@ enum { ALLOW_DELETE_FROM_UNDO, CANCEL_DELETE_FROM_UNDO };
 		//this sets global prefs options, which ultimately calls back to us
 		[notesTableView setStatusForSortedColumn:tableColumn];
     }
+}
+
+- (void)showHelp:(id)sender {
+	NSURL *shortcutsURL = [NSURL fileURLWithPath:[[NSBundle mainBundle] pathForResource:@"Excruciatingly Useful Shortcuts" ofType:@"nvhelp" inDirectory:nil]];
+	[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:shortcutsURL] withAppBundleIdentifier:@"com.apple.TextEdit" 
+									options:NSWorkspaceLaunchDefault additionalEventParamDescriptor:nil launchIdentifiers:NULL];
+	
 }
 
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames {
