@@ -1,0 +1,9 @@
+# Xcode user-settings files
+build/*
+*.pbxuser
+*.mode1v3
+*.mode1
+
+# Mac OS X specific
+.DS_Store
+profile
