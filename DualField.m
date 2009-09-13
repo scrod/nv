@@ -204,7 +204,7 @@
 
 /*
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
-	unichar keyChar = [[anEvent charactersIgnoringModifiers] characterAtIndex:0];
+	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 	
 	if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
 		

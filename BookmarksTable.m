@@ -1,5 +1,6 @@
 #import "BookmarksTable.h"
 #import "BookmarksController.h"
+#import "NSString_NV.h"
 
 @implementation BookmarksTable
 
@@ -15,7 +16,7 @@
 
 - (void)keyDown:(NSEvent*)theEvent {
 	
-	unichar keyChar = [[theEvent characters] characterAtIndex:0];
+	unichar keyChar = [theEvent firstCharacter];
 	
     if (keyChar == NSDeleteCharacter || keyChar == NSDeleteFunctionKey) {
 		[(BookmarksController*)[self dataSource] removeBookmark:nil];

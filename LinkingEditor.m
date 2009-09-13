@@ -748,7 +748,7 @@ copyRTFType:
 
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
 	
-	unichar keyChar = [[anEvent charactersIgnoringModifiers] characterAtIndex:0];
+	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 	
 	if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
 		
@@ -767,7 +767,7 @@ copyRTFType:
 }
 
 - (void)keyDown:(NSEvent*)anEvent {
-	unichar keyChar = [[anEvent charactersIgnoringModifiers] characterAtIndex:0];
+	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 
 	if (keyChar == NSBackTabCharacter) {
 		//apparently interpretKeyEvents: on 10.3 does not call insertBacktab
@@ -775,7 +775,6 @@ copyRTFType:
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
 	}
-	
 	[super keyDown:anEvent];
 }
 - (void)insertTab:(id)sender {

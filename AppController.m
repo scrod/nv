@@ -713,7 +713,7 @@ terminateApp:
 			//control-U is not set to anything by default, so we have to check the event itself for noops
 			NSEvent *event = [window currentEvent];
 			if ([event modifierFlags] & NSControlKeyMask) {
-				if ([[event charactersIgnoringModifiers] characterAtIndex:0] == 'u') {
+				if ([event firstCharacterIgnoringModifiers] == 'u') {
 					//in 1.1.1 this deleted the entire line, like tcsh. this is more in-line with bash
 					[aTextView deleteToBeginningOfLine:nil];
 					return YES;

@@ -6,6 +6,7 @@
 #import "NoteObject.h"
 #import "NSCollection_utils.h"
 #import "HeaderViewWithMenu.h"
+#import "NSString_NV.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
 
@@ -589,7 +590,7 @@
 
 - (void)keyDown:(NSEvent*)theEvent {
 
-	unichar keyChar = [[theEvent characters] characterAtIndex:0];
+	unichar keyChar = [theEvent firstCharacter];
 
     if (keyChar == NSNewlineCharacter || keyChar == NSCarriageReturnCharacter || keyChar == NSEnterCharacter) {
 		unsigned int sel = [self selectedRow];
@@ -673,7 +674,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	unsigned mods = [theEvent modifierFlags];
 	if (mods & NSCommandKeyMask) {
 		
-		unichar keyChar = [[theEvent charactersIgnoringModifiers] characterAtIndex:0];
+		unichar keyChar = [theEvent firstCharacterIgnoringModifiers];
 		
 		if (keyChar == kNext_Tag || keyChar == kPrev_Tag) {
 			

@@ -605,3 +605,20 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 }
 
 @end
+
+
+@implementation NSEvent (NV)
+
+- (unichar)firstCharacter {
+	NSString *chars = [self characters];
+	if ([chars length]) return [chars characterAtIndex:0];
+	return USHRT_MAX;
+}
+
+- (unichar)firstCharacterIgnoringModifiers {
+	NSString *chars = [self charactersIgnoringModifiers];
+	if ([chars length]) return [chars characterAtIndex:0];
+	return USHRT_MAX;
+}
+
+@end

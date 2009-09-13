@@ -48,3 +48,8 @@ void resetCurrentDayTime();
 @interface NSMutableString (NV)
 + (NSMutableString*)getShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding;
 @end
+
+@interface NSEvent (NV)
+- (unichar)firstCharacter;
+- (unichar)firstCharacterIgnoringModifiers;
+@end
