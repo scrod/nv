@@ -117,6 +117,9 @@ static id _sharedHotKeyCenter = nil;
 	//Watch as we ignore 'err':
 
 	[mHotKeys removeObjectForKey: [hotKey name]];
+    NSArray *remKeys = [mHotKeyMap allKeysForObject:hotKey];
+    if (remKeys && [remKeys count] > 0)
+        [mHotKeyMap removeObjectsForKeys:remKeys];
 	
 	[self _updateEventHandler];
     //NSLog(@"Eo unregisterHotKey:");
