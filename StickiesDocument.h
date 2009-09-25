@@ -8,11 +8,26 @@
 
 #import <Cocoa/Cocoa.h>
 
+#if __LP64__
+// Needed for compatability with data created by 32bit app
+typedef struct _NSRect32 {
+	struct {
+		float x;
+		float y;
+	};
+	struct {
+		float width;
+		float height;
+	};
+} NSRect32;
+#else
+typedef NSRect NSRect32;
+#endif
 
 @interface StickiesDocument : NSObject <NSCoding> {
     int mWindowColor;
     int mWindowFlags;
-    NSRect mWindowFrame;
+    NSRect32 mWindowFrame;
     NSData *mRTFDData;
     NSDate *mCreationDate;
     NSDate *mModificationDate;	
@@ -26,6 +41,6 @@
 - (NSData*)RTFDData;
 - (int)windowColor;
 - (int)windowFlags;
-- (NSRect)windowFrame;
+- (NSRect32)windowFrame;
 
 @end

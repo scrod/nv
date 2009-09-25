@@ -454,8 +454,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 																uniqueFilename:nil format:SingleDatabaseFormat] autorelease];				
 				if (noteObject) {
 					[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[doc creationDate])];
-					//[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[doc modificationDate])];
-					//TODO: use the sticky's mod date
+					[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[doc modificationDate])];
 
 					[notes addObject:noteObject];
 				} else {

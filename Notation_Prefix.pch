@@ -36,6 +36,11 @@ typedef short FSIORefNum;
 typedef float CGFloat;
 #endif
 
+#define GCC_VERSION (__GNUC__ * 10000 \
++ __GNUC_MINOR__ * 100 \
++ __GNUC_PATCHLEVEL__)
+
+
 #define VAR_STR(x) @#x
 
 #define SEL_STR(name) NSStringFromSelector(@selector(name))

@@ -30,6 +30,8 @@
 - (id)init {
     if ([super init]) {
 		
+		NSLog(@"gcc version: %d", GCC_VERSION);
+		
 		windowUndoManager = [[NSUndoManager alloc] init];
 		
 		isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
