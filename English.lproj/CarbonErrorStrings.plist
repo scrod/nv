@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>-33</key>
@@ -19,11 +19,11 @@
 	<key>-40</key>
 	<string>a negative file position offset was specified</string>
 	<key>-41</key>
-	<string>the file won't fit in memory</string>
+	<string>the file won&apos;t fit in memory</string>
 	<key>-42</key>
 	<string>there are too many open files</string>
 	<key>-43</key>
-	<string>the file wasn't found</string>
+	<string>the file wasn&apos;t found</string>
 	<key>-44</key>
 	<string>the media is write-protected</string>
 	<key>-45</key>
@@ -41,7 +41,7 @@
 	<key>-51</key>
 	<string>the file reference number is invalid</string>
 	<key>-52</key>
-	<string>the file position offset couldn't be obtained</string>
+	<string>the file position offset couldn&apos;t be obtained</string>
 	<key>-53</key>
 	<string>the volume is no longer present</string>
 	<key>-54</key>
@@ -53,13 +53,13 @@
 	<key>-57</key>
 	<string>the disk is not mac-formatted</string>
 	<key>-58</key>
-	<string>the volume's file system type is not handled</string>
+	<string>the volume&apos;s file system type is not handled</string>
 	<key>-59</key>
 	<string>there was a problem in the middle of renaming</string>
 	<key>-60</key>
 	<string>the master directory block is bad</string>
 	<key>-61</key>
-	<string>the file's permissions prevent you from writing</string>
+	<string>the file&apos;s permissions prevent you from writing</string>
 	<key>-64</key>
 	<string>the drive is not installed</string>
 	<key>-120</key>
@@ -79,17 +79,19 @@
 	<key>-818</key>
 	<string>the data could not be unserialized</string>
 	<key>-819</key>
-	<string>the write-ahead log file could not be initialized</string>
+	<string>the Interim Note-Changes file could not be initialized</string>
 	<key>-820</key>
-	<string>the write-ahead log couldn't be appended-to</string>
+	<string>the Interim Note-Changes file couldn&apos;t be appended-to</string>
 	<key>-821</key>
 	<string>authentication failed</string>
 	<key>-822</key>
-	<string>the data couldn't be decompressed</string>
+	<string>the data couldn&apos;t be decompressed</string>
 	<key>-823</key>
 	<string>you did not enter a passphrase</string>
 	<key>-824</key>
 	<string>the data could not be formatted appropriately</string>
+	<key>-825</key>
+	<string>notes had mis-matching values after decoding</string>
 	<key>-1300</key>
 	<string>the specified file ID was not found on the file system</string>
 	<key>-1301</key>
@@ -101,9 +103,9 @@
 	<key>-1304</key>
 	<string>the catalog changed unexpectedly</string>
 	<key>-1306</key>
-	<string>the file's contents were attempted to be exchanged with itself</string>
+	<string>the file&apos;s contents were attempted to be exchanged with itself</string>
 	<key>-1307</key>
-	<string>the file doesn't match the file ID number</string>
+	<string>the file doesn&apos;t match the file ID number</string>
 	<key>-1308</key>
 	<string>the volume was improperly remounted</string>
 	<key>-1309</key>
@@ -131,11 +133,11 @@
 	<key>-1407</key>
 	<string>a folder was in fact a file</string>
 	<key>-1409</key>
-	<string>the file's requested fork doesn't exist</string>
+	<string>the file&apos;s requested fork doesn&apos;t exist</string>
 	<key>-1410</key>
 	<string>the requested name is too long to be valid</string>
 	<key>-1411</key>
-	<string>the file doesn't have a name</string>
+	<string>the file doesn&apos;t have a name</string>
 	<key>-1412</key>
 	<string>an invalid positioning mode was specified for accessing the file</string>
 	<key>-1413</key>

@@ -13,6 +13,8 @@
 @interface PTHotKeyCenter : NSObject
 {
 	NSMutableDictionary*	mHotKeys; //Keys are NSValue of EventHotKeyRef
+    NSMutableDictionary*    mHotKeyMap;
+    u_int32_t               mNextKeyID;
 	BOOL					mEventHandlerInstalled;
 }
 

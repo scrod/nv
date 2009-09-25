@@ -19,6 +19,7 @@
 + (NSData*)frozenDataWithExistingNotes:(NSMutableArray*)notes 
 						  deletedNotes:(NSMutableArray*)antiNotes 
 								 prefs:(NotationPrefs*)prefs;
+- (NSMutableArray*)unpackedNotesWithPrefs:(NotationPrefs*)somePrefs returningError:(OSStatus*)err;
 - (NSMutableArray*)unpackedNotesReturningError:(OSStatus*)err;
 - (NSMutableArray*)deletedNotes; //these won't need to be encrypted
 - (NotationPrefs*)notationPrefs;

@@ -1,0 +1,113 @@
+{
+    IBClasses =     (
+                {
+            ACTIONS =             {
+                bringFocusToControlField = id;
+                deleteNote = id;
+                exportNote = id;
+                fieldAction = id;
+                fixFileEncoding = id;
+                importNotes = id;
+                newNoteWithClipboard = id;
+                printNote = id;
+                renameNote = id;
+                showPreferencesWindow = id;
+                tagNote = id;
+            };
+            CLASS = AppController;
+            LANGUAGE = ObjC;
+            OUTLETS =             {
+                editorStatusView = EmptyView;
+                field = DualField;
+                notesTableView = NotesTableView;
+                sparkleUpdateItem = NSMenuItem;
+                splitSubview = RBSplitSubview;
+                splitView = RBSplitView;
+                textView = LinkingEditor;
+                window = NSWindow;
+            };
+            SUPERCLASS = NSObject;
+        },
+                {
+            CLASS = DualField;
+            LANGUAGE = ObjC;
+            OUTLETS =             {
+                notesTable = NotesTableView;
+            };
+            SUPERCLASS = NSTextField;
+        },
+                {
+            CLASS = EmptyView;
+            LANGUAGE = ObjC;
+            OUTLETS =             {
+                labelText = NSTextField;
+            };
+            SUPERCLASS = NSView;
+        },
+                {
+            ACTIONS =             {
+                bold = id;
+                defaultStyle = id;
+                deleteToBeginningOfLine = id;
+                deleteWordBackward = id;
+                italic = id;
+                shiftLeftAction = id;
+                shiftRightAction = id;
+                underlineNV = id;
+            };
+            CLASS = FirstResponder;
+            LANGUAGE = ObjC;
+            SUPERCLASS = NSObject;
+        },
+                {
+            CLASS = FocusRingScrollView;
+            LANGUAGE = ObjC;
+            SUPERCLASS = NSScrollView;
+        },
+                {
+            CLASS = HeaderViewWithMenu;
+            LANGUAGE = ObjC;
+            SUPERCLASS = NSTableHeaderView;
+        },
+                {
+            ACTIONS =             {
+                bold = id;
+                italic = id;
+                underlineNV = id;
+            };
+            CLASS = LinkingEditor;
+            LANGUAGE = ObjC;
+            OUTLETS =             {
+                controlField = DualField;
+                notesTableView = id;
+            };
+            SUPERCLASS = NSTextView;
+        },
+                {
+            ACTIONS =             {
+                performFindPanelAction = id;
+            };
+            CLASS = NSTextView;
+            LANGUAGE = ObjC;
+            SUPERCLASS = NSText;
+        },
+                {
+            CLASS = NoteAttributeColumn;
+            LANGUAGE = ObjC;
+            SUPERCLASS = NSTableColumn;
+        },
+                {
+            ACTIONS =             {
+                incrementNoteSelection = id;
+                paste = id;
+            };
+            CLASS = NotesTableView;
+            LANGUAGE = ObjC;
+            OUTLETS =             {
+                controlField = NSTextField;
+            };
+            SUPERCLASS = NSTableView;
+        }
+    );
+    IBVersion = 1;
+}

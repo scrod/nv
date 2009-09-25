@@ -108,7 +108,7 @@ int uncachedDateCount = 0;
 			(CFDictionaryCopyDescriptionCallBack)NULL, (CFDictionaryEqualCallBack)NULL, (CFDictionaryHashCallBack)NULL };
 		dateStringsCache = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &keyCallbacks, &kCFTypeDictionaryValueCallBacks);
 	}
-	int minutesCount = (int)((int)absTime / 60);
+	NSInteger minutesCount = (NSInteger)((NSInteger)absTime / 60);
 	
 	NSString *dateString = (NSString*)CFDictionaryGetValue(dateStringsCache, (const void *)minutesCount);
 	
@@ -243,9 +243,9 @@ int uncachedDateCount = 0;
 
 - (NSURL*)linkForWord {
 	//full of annoying little hacks to catch (hopefully) the most common non-links
-	unsigned length = [self length];
+	NSUInteger length = [self length];
 	
-	unsigned protocolSpecLoc = [self rangeOfString:@"://" options:NSLiteralSearch].location;
+	NSUInteger protocolSpecLoc = [self rangeOfString:@"://" options:NSLiteralSearch].location;
 	if (length >= 5 && protocolSpecLoc != NSNotFound && protocolSpecLoc > 0)
 		return [NSURL URLWithString:self];
 	
@@ -258,11 +258,11 @@ int uncachedDateCount = 0;
 	}
 	
 	if (length >= 5) {
-		unsigned atSignLoc = [self rangeOfString:@"@" options:NSLiteralSearch].location;
+		NSUInteger atSignLoc = [self rangeOfString:@"@" options:NSLiteralSearch].location;
 		if (atSignLoc != NSNotFound && atSignLoc > 0) {
 			//if we contain an @, but do not start with one, and have a period somewhere after the @ but not at the end, then make it an email address
 			
-			unsigned periodLoc = [self rangeOfString:@"." options:NSLiteralSearch range:NSMakeRange(atSignLoc, length - atSignLoc)].location;
+			NSUInteger periodLoc = [self rangeOfString:@"." options:NSLiteralSearch range:NSMakeRange(atSignLoc, length - atSignLoc)].location;
 			if (periodLoc != NSNotFound && periodLoc > atSignLoc + 1 && periodLoc != length - 1) {
 				
 				//make sure it's not some kind of SCP or CVS path
@@ -397,7 +397,7 @@ int uncachedDateCount = 0;
     unsigned spaceCount = 0;
     BOOL done = NO;
     unsigned tabW = tabWidth;
-    unsigned endOfWhiteSpaceIndex = NSNotFound;
+    NSUInteger endOfWhiteSpaceIndex = NSNotFound;
 	
     if (range->length == 0) {
         return 0;
@@ -571,6 +571,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	}
 	
 	//try UTF-8 here, if any bytes are greater than 127
+	//TODO: also use UTF-8 if string is 7-bit (might make ContainsHighAscii() moot here)
 	if (ContainsHighAscii([data bytes], [data length])) {
 		if (RunningTigerAppKitOrHigher) stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] 
 																					   length:[data length] encoding:NSUTF8StringEncoding freeWhenDone:NO];

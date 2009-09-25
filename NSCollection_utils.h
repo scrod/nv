@@ -33,11 +33,11 @@
 @interface NSArray (NoteUtilities)
 //- (NSRange)nextRangeForString:(NSString*)string activeNote:(NoteObject*)startNote options:(unsigned)opts range:(NSRange)inRange;
 - (void)addMenuItemsForURLsInNotes:(NSMenu*)urlsMenu;
-- (unsigned int)indexOfNoteWithUUIDBytes:(CFUUIDBytes*)bytes;
+- (NSUInteger)indexOfNoteWithUUIDBytes:(CFUUIDBytes*)bytes;
 @end
 
 @interface NSMutableArray (Sorting)
 
-- (void)sortUnstableUsingFunction:(int (*)(id *, id *))compare;
-- (void)sortStableUsingFunction:(int (*)(id *, id *))compare usingBuffer:(id **)buffer ofSize:(unsigned int*)bufSize;
+- (void)sortUnstableUsingFunction:(NSInteger (*)(id *, id *))compare;
+- (void)sortStableUsingFunction:(NSInteger (*)(id *, id *))compare usingBuffer:(id **)buffer ofSize:(unsigned int*)bufSize;
 @end

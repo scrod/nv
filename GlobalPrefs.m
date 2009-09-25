@@ -411,11 +411,11 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	
 	if (!noteBodyFont) {
 		retry:
-		NS_DURING
+		@try {
 			noteBodyFont = [[NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:NoteBodyFontKey]] retain];
-		NS_HANDLER
-			NSLog(@"Error trying to unarchive default note body font (%@, %@)", [localException name], [localException reason]);
-		NS_ENDHANDLER
+		} @catch (NSException *e) {
+			NSLog(@"Error trying to unarchive default note body font (%@, %@)", [e name], [e reason]);
+		}
 		
 		if ((!noteBodyFont || ![noteBodyFont isKindOfClass:[NSFont class]]) && !triedOnce) {
 			triedOnce = YES;
@@ -601,7 +601,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	NSRect frame = NSMakeRect(0.0f,0.0f,16.0f,16.0f);
 	
 	[image lockFocus];
-	err = PlotIconRefInContext([[NSGraphicsContext currentContext] graphicsPort], (CGRect *)&frame, nil, nil, nil, nil, iconRef);
+	err = PlotIconRefInContext([[NSGraphicsContext currentContext] graphicsPort], (CGRect *)&frame, 0, 0, nil, 0, iconRef);
 	[image unlockFocus];
 	
 	if (err == noErr)

@@ -31,7 +31,7 @@
     if ([super init]) {
 		logFD = -1;
 		
-		char filename[] = ".Notational_Write_Ahead_Log";
+		char filename[] = "Interim Note-Changes";
 		size_t newPathLength = sizeof(filename) + strlen(path) + 2;
 		
 		journalFile = (char*)malloc(newPathLength);
@@ -73,7 +73,7 @@
 - (BOOL)destroyLogFile {
 
 	journalFile = (char*)realloc(journalFile, 4096 * sizeof(char));
-	int pathIntPtr = (int)journalFile;
+    intptr_t pathIntPtr = (intptr_t)journalFile;
 	
 	//get current path of file descriptor in case the directory was moved
 	if (fcntl(logFD, F_GETPATH, pathIntPtr) < 0) {
@@ -122,7 +122,7 @@
 	
 	//attempt to open/create the file exclusively with write-only and append access
 	
-	if ((logFD = open(journalFile, O_CREAT | O_EXCL | O_WRONLY | O_APPEND, S_IRWXU)) < 0) {
+	if ((logFD = open(journalFile, O_CREAT | O_EXCL | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)) < 0) {
 	    //if this fails, the file probably still exists, or we don't have write permission
 	    //either way, we shouldn't continue
 	    
@@ -154,18 +154,12 @@
     return self;
 }
 
-- (BOOL)writeEstablishedNote:(id<SynchronizedNote>)aNoteObject {
-    [aNoteObject incrementLSN];
-    
-	NSMutableData *noteData = [NSMutableData data];
-#if USE_KEYED_ARCHIVING
+- (BOOL)writeNoteObject:(id<SynchronizedNote>)aNoteObject {
+	//this method serializes a note object, encrypts it, and writes it to the log
+    NSMutableData *noteData = [NSMutableData data];
 	NSKeyedArchiver *archiver = [[[NSKeyedArchiver alloc] initForWritingWithMutableData:noteData] autorelease];
-	[archiver encodeObject:aNoteObject forKey:VAR_STR(aNoteObject)];
+	[archiver encodeObject:aNoteObject forKey:@"aNote"];
 	[archiver finishEncoding];
-#else
-	NSArchiver *archiver = [[[NSArchiver alloc] initForWritingWithMutableData:noteData] autorelease];
-	[archiver encodeRootObject:aNoteObject];
-#endif
 	
     if ([noteData length])
 		return [self _encryptAndWriteData:noteData];
@@ -173,27 +167,28 @@
     return NO;
 }
 
+- (BOOL)writeEstablishedNote:(id<SynchronizedNote>)aNoteObject {
+	[aNoteObject incrementLSN];
+	
+	return [self writeNoteObject:aNoteObject];
+}
+
 - (BOOL)writeRemovalForNote:(id<SynchronizedNote>)aNoteObject {
-    
+	//increment the original note's LSN to ensure it's stored in the final DB
     [aNoteObject incrementLSN];
     
     //construct a "removal object" for this note with some identifying information
-    DeletedNoteObject *removedNote = [[DeletedNoteObject alloc] initWithExistingObject:aNoteObject];
+    DeletedNoteObject *removedNote = [[[DeletedNoteObject alloc] initWithExistingObject:aNoteObject] autorelease];
     
-	NSMutableData *removedData = [NSMutableData data];
-#if USE_KEYED_ARCHIVING
-	NSKeyedArchiver *archiver = [[[NSKeyedArchiver alloc] initForWritingWithMutableData:removedData] autorelease];
-	[archiver encodeObject:removedNote forKey:VAR_STR(removedNote)];
-	[archiver finishEncoding];	
-#else
-	NSArchiver *archiver = [[[NSArchiver alloc] initForWritingWithMutableData:removedData] autorelease];
-	[archiver encodeRootObject:removedNote];
-#endif
-	
-    if ([removedData length])
-		return [self _encryptAndWriteData:removedData];
-    
-    return NO;
+	return [self writeNoteObject:removedNote];	
+}
+
+- (void)writeNoteObjects:(NSArray*)notes {
+	//assume that the LSNs have been incremented already if they needed to be
+	NSUInteger i;
+    for (i=0; i<[notes count]; i++) {
+		[self writeNoteObject:[notes objectAtIndex:i]];
+	}
 }
 
 - (BOOL)_attemptToWriteUnwrittenData {
@@ -343,7 +338,7 @@
 	chmod(journalFile, S_IRUSR);
 	
 	//attempt to open file read-only
-	if ((logFD = open(journalFile, O_EXCL | O_RDONLY, S_IRWXU)) < 0) {
+	if ((logFD = open(journalFile, O_EXCL | O_RDONLY)) < 0) {
 	    NSLog(@"WALRecoveryController: open error for file %s: %s", journalFile, strerror(errno));
 	    return nil;
 	}
@@ -467,15 +462,14 @@
 	
     
     id <SynchronizedNote> object = nil;
-    NS_DURING
-#if USE_KEYED_ARCHIVING
-		object = [NSKeyedUnarchiver unarchiveObjectWithData:presumablySerializedData];
-#else
-		object = [NSUnarchiver unarchiveObjectWithData:presumablySerializedData];
-#endif
-    NS_HANDLER
-		NSLog(@"recoverNextObject got an exception while unarchiving object: %@", [localException reason]);
-    NS_ENDHANDLER
+	@try {
+		NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:presumablySerializedData];
+		object = [unarchiver decodeObjectForKey:@"aNote"];
+		[unarchiver release];	
+    } @catch (NSException *e) {
+		NSLog(@"recoverNextObject got an exception while unarchiving object: %@; returning NSNull to skip", [e reason]);
+		object = (id<SynchronizedNote>)[NSNull null];
+    }
     
     [presumablySerializedData release];
     
@@ -531,7 +525,7 @@ static Boolean SynchronizedNoteIsEqual(const void *o, const void *p) {
 				NSLog(@"object of class %@ recovered that doesn't conform to SynchronizedNote protocol", [(NSObject*)obj className]);
 			}
 		}
-    } while (obj);
+    } while (obj); //|| this note failed because of a deserialization problem, but everything else was fine
     
     
 	return [(NSDictionary*)recoveredNotes autorelease];

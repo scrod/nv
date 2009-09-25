@@ -34,7 +34,7 @@ typedef struct _ViewLocationContext {
 	IBOutlet NSTextField *controlField;
 	NSMutableArray *allColumns;
 	
-	unsigned firstRowIndexBeforeSplitResize;
+	NSInteger firstRowIndexBeforeSplitResize;
 	
 	BOOL viewMenusValid;
 	BOOL hadHighlightInForeground, hadHighlightInBackground;
@@ -57,8 +57,8 @@ typedef struct _ViewLocationContext {
 
 - (ViewLocationContext)viewingLocation;
 - (void)setViewingLocation:(ViewLocationContext)ctx;
-- (void)scrollRowToVisible:(int)rowIndex withVerticalOffset:(float)offset;
-- (void)selectRowAndScroll:(int)row;
+- (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset;
+- (void)selectRowAndScroll:(NSInteger)row;
 //- (BOOL)clickedOnEmptyRegion;
 
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;

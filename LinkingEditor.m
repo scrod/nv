@@ -11,6 +11,11 @@
 #import "NSString_NV.h"
 
 #include <CoreServices/CoreServices.h>
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+#include <Carbon/Carbon.h>
+#endif
+
+static long (*GetGetScriptManagerVariablePointer())(short);
 
 @implementation LinkingEditor
 
@@ -717,7 +722,7 @@ copyRTFType:
 		
 		rowNumber = (tag == NSFindPanelActionPrevious ? totalNotes - 1 : 0);
 		
-    } else if (textFinder && [textFinder lastFindWasSuccessful] == LAST_FIND_NO &&	//if the last find op. didn't work
+    } else if (textFinder && [textFinder nv_lastFindWasSuccessful] == LAST_FIND_NO &&	//if the last find op. didn't work
 			   selectedRangeDuringFind.location == [self selectedRange].location &&	//and user didn't change the selection
 			   noteDuringFind == [controller selectedNoteObject] &&					//or select a different note
 			   [stringDuringFind isEqualToString:currentFindString]) {				//or type a new search string
@@ -857,7 +862,7 @@ copyRTFType:
 	}	
 }*/
 
-- (BOOL)validateMenuItem:(id <NSMenuItem>)menuItem {
+- (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	//need to fix this for better style detection
 	
 	SEL action = [menuItem action];
@@ -953,7 +958,7 @@ copyRTFType:
 	return aLink;
 }
 
-- (void)clickedOnLink:(id)aLink atIndex:(unsigned)charIndex {
+- (void)clickedOnLink:(id)aLink atIndex:(NSUInteger)charIndex {
 	NSEvent *currentEvent = [[self window] currentEvent];
 	
 	if (![prefsController URLsAreClickable] && [currentEvent modifierFlags] & NSCommandKeyMask) {
@@ -1027,13 +1032,13 @@ copyRTFType:
 	
 	//changedRange = NSMakeRange(affectedCharRange.location, affectedCharRange.length);
 	
-	int begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch
+	NSUInteger begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch
 										  range:NSMakeRange(0, affectedCharRange.location)].location;
 	if (begin == NSNotFound) {
 		begin = 0;
 	}
 	
-	int end = [string rangeOfCharacterFromSet:separatorCharacterSet options:0
+	NSUInteger end = [string rangeOfCharacterFromSet:separatorCharacterSet options:0
 										range:NSMakeRange(affectedCharRange.location + affectedCharRange.length, 
 														  [string length] - (affectedCharRange.location + affectedCharRange.length))].location;
 	if (end == NSNotFound) {
@@ -1062,15 +1067,49 @@ copyRTFType:
 	return [super shouldChangeTextInRange:affectedCharRange replacementString:replacementString];
 }
 
+static long (*GetGetScriptManagerVariablePointer())(short) {
+	static long (*_GetScriptManagerVariablePointer)(short) = NULL;
+	if (!_GetScriptManagerVariablePointer) {
+		NSLog(@"looking up");
+		CFBundleRef csBundle = CFBundleCreate(NULL, CFURLCreateWithFileSystemPath(NULL, CFSTR("/System/Library/Frameworks/CoreServices.framework"), kCFURLPOSIXPathStyle, TRUE));
+		if (csBundle) _GetScriptManagerVariablePointer = (long (*)(short))CFBundleGetDataPointerForName(csBundle, CFSTR("GetScriptManagerVariable"));
+	}
+	return _GetScriptManagerVariablePointer;
+}
+
 - (void)fixTypingAttributesForSubstitutedFonts {
-	//this check helps prevent NSTextView from being repeatedly punched in the face when it can't help it
+	//fixes a problem with fonts substituted by non-system input languages that Apple should have fixed themselves
+	
+	//if the user has chosen a default font that does not support the current input script, and then changes back to a language input that _does_
+	//then the font in the typing attributes will be changed back to match. the problem is that this change occurs only upon changing the input language
+	//if the user starts typing in the middle of a block of font-substituted text, the typing attributes will change to that font
+	//the result is that typing english in the middle of a block of japanese will use Hiragino Kaku Gothic instead of whatever else the user had chosen
+	//this method detects these types of spurious font-changes and reverts to the default font, but only if the font would not be immediately switched back
+	//as a result of continuing to type in the native script.
 	
 	//we'd ideally check smKeyScript against available scripts of current note body font:
 	//call RevertTextEncodingToScriptInfo on ATSFontFamilyGetEncoding(ATSFontFamilyFindFromName(CFStringRef([bodyFont familyName]), kATSOptionFlagsDefault))
 	//because someone on a japanese-localized system could see their font changing around a lot if they didn't set their note body font to something suitable for their language
 	
-	if (GetScriptManagerVariable(smSysScript) == GetScriptManagerVariable(smKeyScript)) {
-		//only attempt to restore fonts (with styles of course) if the current script is system default--that is, not using an input manager that would change the font
+	BOOL currentKeyboardInputIsSystemLanguage = NO;
+	
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+	if (IsLeopardOrLater) {
+		TISInputSourceRef inputRef = TISCopyCurrentKeyboardInputSource();
+		NSArray* inputLangs = [[(NSArray*)TISGetInputSourceProperty(inputRef, kTISPropertyInputSourceLanguages) retain] autorelease];
+		CFRelease(inputRef);
+		NSString *preferredLang = [[(NSArray*)CFPreferencesCopyAppValue(CFSTR("AppleLanguages"), kCFPreferencesCurrentApplication) autorelease] objectAtIndex:0];
+		currentKeyboardInputIsSystemLanguage = [inputLangs containsObject:preferredLang];
+	} else {
+		currentKeyboardInputIsSystemLanguage = GetGetScriptManagerVariablePointer()(smSysScript) == GetGetScriptManagerVariablePointer()(smKeyScript);
+	}
+#else
+	currentKeyboardInputIsSystemLanguage = GetScriptManagerVariable(smSysScript) == GetScriptManagerVariable(smKeyScript);
+#endif
+	
+	if (currentKeyboardInputIsSystemLanguage) {
+		//only attempt to restore fonts (with styles of course) if the current script is system default--that is, not using an input method that would change the font
+		//this check helps prevent NSTextView from being repeatedly punched in the face when it can't help it
 		
 		NSFont *currentFont = [prefsController noteBodyFont];
 		if (![[[[self typingAttributes] objectForKey:NSFontAttributeName] familyName] isEqualToString:[currentFont familyName]]) {

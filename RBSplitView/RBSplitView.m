@@ -12,6 +12,7 @@
 
 #import "AppController.h"
 
+
 // Please don't remove this copyright notice!
 static const unsigned char RBSplitView_Copyright[] __attribute__ ((used)) =
 	"RBSplitView 1.1.4 Copyright(c)2004-2006 by Rainer Brockerhoff <rainer@brockerhoff.net>.";
@@ -20,11 +21,11 @@ static const unsigned char RBSplitView_Copyright[] __attribute__ ((used)) =
 static NSCursor* cursors[RBSVCursorTypeCount] = {nil};
 
 // Our own fMIN and fMAX
-static inline float fMIN(float a,float b) {
+static inline CGFloat fMIN(CGFloat a,CGFloat b) {
 	return a<b?a:b;
 }
 
-static inline float fMAX(float a,float b) {
+static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 	return a>b?a:b;
 }
 
@@ -96,8 +97,8 @@ static inline float fMAX(float a,float b) {
 	autosaveName = [aString retain];
 	if (flag) {
 		NSArray* subviews = [self subviews];
-		int subcount = [subviews count];
-		int i;
+		NSInteger subcount = [subviews count];
+		NSInteger i;
 		for (i=0;i<subcount;i++) {
 			RBSplitView* sv = [[subviews objectAtIndex:i] asSplitView];
 			if (sv) {
@@ -171,12 +172,12 @@ static inline float fMAX(float a,float b) {
 // You need to call adjustSubviews after calling this.
 - (BOOL)setStatesFromArray:(NSArray*)array {
 	NSArray* subviews = [self subviews];
-	unsigned int count = [array count];
+	NSUInteger count = [array count];
 	if (count==([subviews count]+1)) {
 		NSString* me = [array objectAtIndex:0];
 		if ([me isKindOfClass:[NSString class]]) {
 			if ([self setStateFromString:me]) {
-				unsigned int i;
+				NSUInteger i;
 				for (i=1;i<count;i++) {
 					NSArray* item = [array objectAtIndex:i];
 					RBSplitView* suv = [[subviews objectAtIndex:i-1] asSplitView];
@@ -200,7 +201,7 @@ static inline float fMAX(float a,float b) {
 // be negative for collapsed subviews), all separated by blanks.
 - (NSString*)stringWithSavedState {
 	NSArray* subviews = [self subviews];
-	NSMutableString* result = [NSMutableString stringWithFormat:@"%d",[subviews count]];
+	NSMutableString* result = [NSMutableString stringWithFormat:@"%lu",(unsigned long)[subviews count]];
 	NSEnumerator* enumerator = [subviews objectEnumerator];
 	RBSplitSubview* sub;
 	while ((sub = [enumerator nextObject])) {
@@ -221,10 +222,10 @@ static inline float fMAX(float a,float b) {
 	if ([aString length]) {
 		NSArray* parts = [aString componentsSeparatedByString:@" "];
 		NSArray* subviews = [self subviews];
-		int subcount = [subviews count];
-		int k = [parts count];
-		if ((k-->1)&&([[parts objectAtIndex:0] intValue]==subcount)&&(k==subcount)) {
-			int i;
+		NSInteger subcount = [subviews count];
+		NSInteger k = [parts count];
+		if ((k-->1)&&((NSInteger)[[parts objectAtIndex:0] intValue]==subcount)&&(k==subcount)) {
+			NSInteger i;
 			NSRect frame = [self frame];
 			BOOL ishor = [self isHorizontal];
 			for (i=0;i<subcount;i++) {
@@ -272,7 +273,7 @@ static inline float fMAX(float a,float b) {
 }
 
 // This convenience initializer adds any number of subviews and adjusts them proportionally.
-- (id)initWithFrame:(NSRect)frame andSubviews:(unsigned)count {
+- (id)initWithFrame:(NSRect)frame andSubviews:(NSUInteger)count {
 	self = [self initWithFrame:frame];
 	if (self) {
 		while (count-->0) {
@@ -436,9 +437,9 @@ static inline float fMAX(float a,float b) {
 }
 
 // Returns the subview at a given position
-- (RBSplitSubview*)subviewAtPosition:(unsigned)position {
+- (RBSplitSubview*)subviewAtPosition:(NSUInteger)position {
 	NSArray* subviews = [super subviews];
-	unsigned int subcount = [subviews count];
+	NSUInteger subcount = [subviews count];
 	if (position<subcount) {
 		return [subviews objectAtIndex:position];
 	}
@@ -482,7 +483,7 @@ static inline float fMAX(float a,float b) {
 
 // This pair of methods gets and sets the divider thickness. It should be an integer value and at least
 // 0.0, so we make sure. Set it to 0.0 to make the image dimensions prevail.
-- (float)dividerThickness {
+- (CGFloat)dividerThickness {
 	if (dividerThickness>0.0) {
 		return dividerThickness;
 	}
@@ -495,9 +496,9 @@ static inline float fMAX(float a,float b) {
 	return 0.0;
 }
 
-- (void)setDividerThickness:(float)thickness {
-	float t = fMAX(0.0,floorf(thickness));
-	if ((int)dividerThickness!=(int)t) {
+- (void)setDividerThickness:(CGFloat)thickness {
+	CGFloat t = fMAX(0.0,floorf(thickness));
+	if ((NSInteger)dividerThickness!=(NSInteger)t) {
 		dividerThickness = t;
 		[self setMustAdjust];
 	}
@@ -532,7 +533,7 @@ static inline float fMAX(float a,float b) {
 	[self setMustAdjust];
 }
 
-- (void)addSubview:(NSView*)aView atPosition:(unsigned)position {
+- (void)addSubview:(NSView*)aView atPosition:(NSUInteger)position {
 	RBSplitSubview* suv = [self subviewAtPosition:position];
 	if (suv) {
 		[self addSubview:aView positioned:NSWindowBelow relativeTo:suv];
@@ -570,10 +571,10 @@ static inline float fMAX(float a,float b) {
 	[self setMustAdjust];
 	if ([delegate respondsToSelector:@selector(splitView:wasResizedFrom:to:)]) {
 		BOOL ishor = [self isHorizontal];
-		float olddim = DIM(oldsize);
-		float newdim = DIM(size);
+		CGFloat olddim = DIM(oldsize);
+		CGFloat newdim = DIM(size);
 // The delegate is not called if the dimension hasn't changed.
-		if (((int)newdim!=(int)olddim)) {
+		if (((NSInteger)newdim!=(NSInteger)olddim)) {
 			[delegate splitView:self wasResizedFrom:olddim to:newdim];
 		}
 	}
@@ -591,7 +592,7 @@ static inline float fMAX(float a,float b) {
 		return;
 	}
 	NSArray* subviews = [self RB___subviews];
-	int subcount = [subviews count];
+	NSInteger subcount = [subviews count];
 	if (subcount<2) {
 		return;
 	}
@@ -602,7 +603,7 @@ static inline float fMAX(float a,float b) {
 	}
 	NSPoint where = [self convertPoint:[theEvent locationInWindow] fromView:nil];
 	BOOL ishor = [self isHorizontal];
-	int i;
+	NSInteger i;
 	--subcount;
 // Loop over the divider rectangles.
 	for (i=0;i<subcount;i++) {
@@ -631,7 +632,7 @@ static inline float fMAX(float a,float b) {
 // If neither are collapsed, we check if both are collapsible.
 						BOOL lcan = [leading canCollapse];
 						BOOL tcan = [trailing canCollapse];
-						float ldim = [leading dimension];
+						CGFloat ldim = [leading dimension];
 						if (lcan&&tcan) {
 // If both are collapsible, we try asking the delegate.
 							if ([delegate respondsToSelector:@selector(splitView:collapseLeading:orTrailing:)]) {
@@ -663,11 +664,11 @@ static inline float fMAX(float a,float b) {
 				}
 			} else {
 // Single click; record the offsets within the divider rectangle and check for nesting.
-				float divt = [self dividerThickness];
-				float offset = DIM(where)-DIM(divdr->origin);
+				CGFloat divt = [self dividerThickness];
+				CGFloat offset = DIM(where)-DIM(divdr->origin);
 // Check if the leading subview is nested and if yes, if one of its two-axis thumbs was hit.
-				int ldivdr = NSNotFound;
-				float loffset = 0.0;
+				NSInteger ldivdr = NSNotFound;
+				CGFloat loffset = 0.0;
 				NSPoint lwhere = where;
 				NSRect lrect = NSZeroRect;
 				if ((leading = [leading coupledSplitView])) {
@@ -678,8 +679,8 @@ static inline float fMAX(float a,float b) {
 					}
 				}
 // Check if the trailing subview is nested and if yes, if one of its two-axis thumbs was hit.
-				int tdivdr = NSNotFound;
-				float toffset = 0.0;
+				NSInteger tdivdr = NSNotFound;
+				CGFloat toffset = 0.0;
 				NSPoint twhere = where;
 				NSRect trect = NSZeroRect;
 				if ((trailing = [trailing coupledSplitView])) {
@@ -753,10 +754,11 @@ static inline float fMAX(float a,float b) {
 	}
 	//called from 
 	//if (![self splitView]) {
-		//[self restoreState:YES];
+	//[self restoreState:YES];
 	//}
 	
 	outletObjectAwoke(self);
+	
 }
 
 // We check if subviews must be adjusted before redisplaying programmatically.
@@ -774,16 +776,16 @@ static inline float fMAX(float a,float b) {
 		return;
 	}
 	NSArray* subviews = [self RB___subviews];
-	int subcount = [subviews count];
+	NSInteger subcount = [subviews count];
 // Return if there are no dividers to draw.
 	if (subcount<2) {
 		return;
 	}
 	--subcount;
-	int i;
+	NSInteger i;
 // Cache the divider image.
 	NSImage* divdr = [self divider];
-	float divt = [self dividerThickness];
+	CGFloat divt = [self dividerThickness];
 // Loop over the divider rectangles.
 	for (i=0;i<subcount;i++) {
 // Check if we need to draw this particular divider.
@@ -863,14 +865,14 @@ static inline float fMAX(float a,float b) {
 	}
 	id del = [delegate respondsToSelector:@selector(splitView:cursorRect:forDivider:)]?delegate:nil;
 	NSArray* subviews = [self RB___subviews];
-	int divcount = [subviews count]-1;
+	NSInteger divcount = [subviews count]-1;
 	if ((divcount<1)||![self divider]) {
 		[del splitView:self cursorRect:NSZeroRect forDivider:0];
 		return;
 	}
-	int i;
+	NSInteger i;
 	NSCursor* cursor = [RBSplitView cursor:[self isVertical]?RBSVVerticalCursor:RBSVHorizontalCursor];
-	float divt = [self dividerThickness];
+	CGFloat divt = [self dividerThickness];
 	for (i=0;i<divcount;i++) {
 		RBSplitView* sub = [[subviews objectAtIndex:i] coupledSplitView];
 // If the leading subview is a nested RBSplitView, add the thumb rectangles first.
@@ -904,7 +906,7 @@ static inline float fMAX(float a,float b) {
 		[coder encodeObject:autosaveName forKey:@"autosaveName"];
 		[coder encodeObject:[divider TIFFRepresentation] forKey:@"divider"];
 		[coder encodeObject:background forKey:@"background"];
-		[coder encodeFloat:dividerThickness forKey:@"dividerThickness"];
+		[coder encodeDouble:dividerThickness forKey:@"dividerThickness"];
 		[coder encodeBool:isHorizontal forKey:@"isHorizontal"];
 		[coder encodeBool:isCoupled forKey:@"isCoupled"];
 	} else {
@@ -921,7 +923,7 @@ static inline float fMAX(float a,float b) {
 - (id)initWithCoder:(NSCoder *)coder {
     if ((self = [super initWithCoder:coder])) {
 		NSData* data = nil;
-		float divt = 0.0;
+		CGFloat divt = 0.0;
 		isCoupled = YES;
 		isDragging = NO;
 		isInScrollView = NO;
@@ -932,7 +934,7 @@ static inline float fMAX(float a,float b) {
 			[self setAutosaveName:[coder decodeObjectForKey:@"autosaveName"] recursively:NO];
 			data = [coder decodeObjectForKey:@"divider"];
 			[self setBackground:[coder decodeObjectForKey:@"background"]];
-			divt = [coder decodeFloatForKey:@"dividerThickness"];
+			divt = [coder decodeDoubleForKey:@"dividerThickness"];
 			isHorizontal = [coder decodeBoolForKey:@"isHorizontal"];
 		} else {
 			[self setDelegate:[coder decodeObject]];
@@ -975,8 +977,8 @@ static inline float fMAX(float a,float b) {
 }
 
 // This returns the number of visible subviews.
-- (unsigned int)RB___numberOfSubviews {
-	unsigned int result = 0;
+- (NSUInteger)RB___numberOfSubviews {
+	NSUInteger result = 0;
 	NSEnumerator* enumerator = [[self subviews] objectEnumerator];
 	RBSplitSubview* sub;
 	while ((sub = [enumerator nextObject])) {
@@ -986,8 +988,8 @@ static inline float fMAX(float a,float b) {
 }
 
 // This returns the origin coordinate of the Nth divider.
-- (float)RB___dividerOrigin:(int)indx {
-	float result = 0.0;
+- (CGFloat)RB___dividerOrigin:(NSInteger)indx {
+	CGFloat result = 0.0;
 	if (dividers) {
 		BOOL ishor = [self isHorizontal];
 		result = DIM(dividers[indx].origin);
@@ -998,7 +1000,7 @@ static inline float fMAX(float a,float b) {
 // This returns an array with all non-hidden subviews.
 - (NSArray*)RB___subviews {
 	NSMutableArray* result = [NSMutableArray arrayWithArray:[self subviews]];
-	int i;
+	NSInteger i;
 	for (i=[result count]-1;i>=0;i--) {
 		RBSplitSubview* view = [result objectAtIndex:i];
 		if ([view isHidden]) {
@@ -1009,12 +1011,12 @@ static inline float fMAX(float a,float b) {
 }
 
 // This returns the actual value set in dividerThickness. 
-- (float)RB___dividerThickness {
+- (CGFloat)RB___dividerThickness {
 	return dividerThickness;
 }
 
 // This method returns the actual dimension occupied by the subviews; that is, without dividers.
-- (float)RB___dimensionWithoutDividers {
+- (CGFloat)RB___dimensionWithoutDividers {
 	BOOL ishor = [self isHorizontal];
 	NSSize size = [self frame].size;
 	return fMAX(1.0,DIM(size)-[self dividerThickness]*([self RB___numberOfSubviews]-1));
@@ -1023,7 +1025,7 @@ static inline float fMAX(float a,float b) {
 // This method returns one of the divider rectangles, or NSZeroRect if the index is invalid.
 // If view is non-nil, the rect will be expressed in that view's coordinates. We assume
 // that view is a superview of self.
-- (NSRect)RB___dividerRect:(unsigned)indx relativeToView:(RBSplitView*)view {
+- (NSRect)RB___dividerRect:(NSUInteger)indx relativeToView:(RBSplitView*)view {
 	if (dividers&&(indx<[self RB___numberOfSubviews]-1)) {
 		NSRect result = dividers[indx];
 		if (view&&(view!=self)) {
@@ -1037,15 +1039,15 @@ static inline float fMAX(float a,float b) {
 // Returns the index of the divider hit by the point, or NSNotFound if none.
 // point is in coordinates relative to view. delta is the divider thickness added
 // to both ends of the divider rect, to accomodate two-axis thumbs.
-- (unsigned)RB___dividerHitBy:(NSPoint)point relativeToView:(RBSplitView*)view thickness:(float)delta {
+- (NSUInteger)RB___dividerHitBy:(NSPoint)point relativeToView:(RBSplitView*)view thickness:(CGFloat)delta {
 	if (!dividers) {
 		return NSNotFound;
 	}
-	int divcount = [self RB___numberOfSubviews]-1;
+	NSInteger divcount = [self RB___numberOfSubviews]-1;
 	if (divcount<1) {
 		return NSNotFound;
 	}
-	int i;
+	NSInteger i;
 	BOOL ishor = [self isHorizontal];
 	point = [self convertPoint:point fromView:view];
 	for (i=0;i<divcount;i++) {
@@ -1066,7 +1068,7 @@ static inline float fMAX(float a,float b) {
 
 // This local method asks the delegate if we should resize the trailing subview or the window
 // when a divider is dragged. Not called if we're inside an NSScrollView.
-- (BOOL)RB___shouldResizeWindowForDivider:(unsigned int)indx betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow {
+- (BOOL)RB___shouldResizeWindowForDivider:(NSUInteger)indx betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow {
 	if (!isInScrollView&&[delegate respondsToSelector:@selector(splitView:shouldResizeWindowForDivider:betweenView:andView:willGrow:)]) {
 		return [delegate splitView:self shouldResizeWindowForDivider:indx betweenView:leading andView:trailing willGrow:grow];
 	}
@@ -1074,7 +1076,7 @@ static inline float fMAX(float a,float b) {
 }
 
 // This local method tries to expand the leading subview (which is assumed to be collapsed). Delta should be positive.
-- (void)RB___tryToExpandLeading:(RBSplitSubview*)leading divider:(unsigned int)indx trailing:(RBSplitSubview*)trailing delta:(float)delta {
+- (void)RB___tryToExpandLeading:(RBSplitSubview*)leading divider:(NSUInteger)indx trailing:(RBSplitSubview*)trailing delta:(CGFloat)delta {
 	NSWindow* window = nil;
 	NSView* document = nil;
 	NSSize maxsize = NSMakeSize(WAYOUT,WAYOUT);
@@ -1098,10 +1100,10 @@ static inline float fMAX(float a,float b) {
 	}
 // The mouse has to move over half of the expanded size (plus hysteresis) and the expansion shouldn't
 // reduce the trailing subview to less than its minimum size (or grow the window beyond its maximum).
-	float limit = [leading minDimension];
-	float dimension = 0.0;
+	CGFloat limit = [leading minDimension];
+	CGFloat dimension = 0.0;
 	if (dowin) {
-		float maxd = fMAX(0.0,(ishor?frame.origin.y-screen.origin.y:(screen.origin.x+screen.size.width)-(frame.origin.x+frame.size.width)));
+		CGFloat maxd = fMAX(0.0,(ishor?frame.origin.y-screen.origin.y:(screen.origin.x+screen.size.width)-(frame.origin.x+frame.size.width)));
 		dimension = fMIN(DIM(maxsize)-DIM(frame.size),maxd);
 	} else {
 		dimension = trailing?[trailing dimension]:WAYOUT;
@@ -1145,7 +1147,7 @@ static inline float fMAX(float a,float b) {
 // This local method tries to shorten the leading subview. Both subviews are assumed to be expanded.
 // delta should be negative. If always is NO, the subview will be shortened only if it might also be
 // collapsed; otherwise, it's shortened as much as possible.
-- (void)RB___tryToShortenLeading:(RBSplitSubview*)leading divider:(unsigned int)indx trailing:(RBSplitSubview*)trailing delta:(float)delta always:(BOOL)always {
+- (void)RB___tryToShortenLeading:(RBSplitSubview*)leading divider:(NSUInteger)indx trailing:(RBSplitSubview*)trailing delta:(CGFloat)delta always:(BOOL)always {
 	NSWindow* window = nil;
 	NSView* document = nil;
 	NSSize minsize = NSZeroSize;
@@ -1166,7 +1168,7 @@ static inline float fMAX(float a,float b) {
 		}
 	}
 // We avoid making the trailing subview larger than its maximum, or the window smaller than its minimum.
-	float limit = 0.0;
+	CGFloat limit = 0.0;
 	if (dowin) {
 		limit = DIM(frame.size)-DIM(minsize);
 	} else {
@@ -1206,7 +1208,7 @@ static inline float fMAX(float a,float b) {
 // This local method tries to shorten the trailing subview. Both subviews are assumed to be expanded.
 // delta should be positive. If always is NO, the subview will be shortened only if it might also be
 // collapsed; otherwise, it's shortened as much as possible.
-- (void)RB___tryToShortenTrailing:(RBSplitSubview*)trailing divider:(unsigned int)indx leading:(RBSplitSubview*)leading delta:(float)delta always:(BOOL)always {
+- (void)RB___tryToShortenTrailing:(RBSplitSubview*)trailing divider:(NSUInteger)indx leading:(RBSplitSubview*)leading delta:(CGFloat)delta always:(BOOL)always {
 	NSWindow* window = nil;
 	NSView* document = nil;
 	NSSize maxsize = NSMakeSize(WAYOUT,WAYOUT);
@@ -1229,9 +1231,9 @@ static inline float fMAX(float a,float b) {
 		}
 	}
 // We avoid making the leading subview larger than its maximum, or the window larger than its maximum.
-	float limit = 0.0;
+	CGFloat limit = 0.0;
 	if (dowin) {
-		float maxd = fMAX(0.0,(ishor?frame.origin.y-screen.origin.y:(screen.origin.x+screen.size.width)-(frame.origin.x+frame.size.width)));
+		CGFloat maxd = fMAX(0.0,(ishor?frame.origin.y-screen.origin.y:(screen.origin.x+screen.size.width)-(frame.origin.x+frame.size.width)));
 		limit = fMIN(DIM(maxsize)-DIM(frame.size),maxd);
 	} else {
 		limit = [leading maxDimension]-[leading dimension];
@@ -1270,12 +1272,12 @@ static inline float fMAX(float a,float b) {
 }
 
 // This method tries to expand the trailing subview (which is assumed to be collapsed).
-- (void)RB___tryToExpandTrailing:(RBSplitSubview*)trailing leading:(RBSplitSubview*)leading delta:(float)delta {
+- (void)RB___tryToExpandTrailing:(RBSplitSubview*)trailing leading:(RBSplitSubview*)leading delta:(CGFloat)delta {
 // The mouse has to move over half of the expanded size (plus hysteresis) and the expansion shouldn't
 // reduce the leading subview to less than its minimum size. If it does, we try to collapse it first.
 // However, we don't collapse if that would cause the trailing subview to become larger than its maximum.
-	float limit = trailing?[trailing minDimension]:0.0;
-	float dimension = [leading dimension];
+	CGFloat limit = trailing?[trailing minDimension]:0.0;
+	CGFloat dimension = [leading dimension];
 	if (limit>dimension) {
 		return;
 	}
@@ -1303,11 +1305,11 @@ static inline float fMAX(float a,float b) {
 // and expressed in local coordinates.
 // base is an offset (x,y) applied to the mouse location (usually will be zero)
 // indx is the number of the divider that's being dragged.
-- (void)RB___trackMouseEvent:(NSEvent*)theEvent from:(NSPoint)where withBase:(NSPoint)base inDivider:(unsigned)indx {
+- (void)RB___trackMouseEvent:(NSEvent*)theEvent from:(NSPoint)where withBase:(NSPoint)base inDivider:(NSUInteger)indx {
 	NSPoint result;
 	NSArray* subviews = [self RB___subviews];
-	int subcount = [subviews count];
-	int k;
+	NSInteger subcount = [subviews count];
+	NSInteger k;
 // leading and trailing point at the subviews immediately leading and trailing the divider being tracked
 	RBSplitSubview* leading = [subviews objectAtIndex:indx];
 	RBSplitSubview* trailing = [subviews objectAtIndex:indx+1];
@@ -1319,7 +1321,7 @@ static inline float fMAX(float a,float b) {
 	result.y = mouse.y-where.y;
 // delta is the actual amount the mouse has moved in the relevant coordinate since the last event.
 	BOOL ishor = [self isHorizontal];
-	float delta = DIM(result);
+	CGFloat delta = DIM(result);
 	if (delta<0.0) {
 // Negative delta means the mouse is being moved left or upwards.
 // firstLeading will point at the first expanded subview to the left (or upwards) of the divider.
@@ -1369,14 +1371,14 @@ static inline float fMAX(float a,float b) {
 }
 
 // This is called for nested RBSplitViews, to add the cursor rects for the two-axis thumbs.
-- (void)RB___addCursorRectsTo:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(float)delta {
+- (void)RB___addCursorRectsTo:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(CGFloat)delta {
 	if (dividers&&[self divider]) {
 		NSArray* subviews = [self RB___subviews];
-		int divcount = [subviews count]-1;
+		NSInteger divcount = [subviews count]-1;
 		if (divcount<1) {
 			return;
 		}
-		int i;
+		NSInteger i;
 		NSCursor* cursor = [RBSplitView cursor:RBSV2WayCursor];
 		BOOL ishor = [self isHorizontal];
 // Loop over the divider rectangles, intersect them with the view's own, and add the thumb rectangle
@@ -1395,16 +1397,16 @@ static inline float fMAX(float a,float b) {
 }
 
 // This is called for nested RBSplitViews, to draw the two-axis thumbs.
-- (void)RB___drawDividersIn:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(float)delta {
+- (void)RB___drawDividersIn:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(CGFloat)delta {
 	if (!dividers) {
 		return;
 	}
 	NSArray* subviews = [self RB___subviews];
-	int divcount = [subviews count]-1;
+	NSInteger divcount = [subviews count]-1;
 	if (divcount<1) {
 		return;
 	}
-	int i;
+	NSInteger i;
 	BOOL ishor = [self isHorizontal];
 // Get the outer split view's divider image.
 	NSImage* image = [masterView divider];
@@ -1442,7 +1444,7 @@ static inline float fMAX(float a,float b) {
 - (void)RB___adjustSubviewsExcepting:(RBSplitSubview*)excepting {
 	mustAdjust = NO;
 	NSArray* subviews = [self RB___subviews];
-	unsigned subcount = [subviews count];
+	NSUInteger subcount = [subviews count];
 	if (subcount<1) {
 		return;
 	}
@@ -1461,7 +1463,7 @@ static inline float fMAX(float a,float b) {
 		[delegate willAdjustSubviews:self];
 		bounds = [self bounds];
 	}
-	unsigned divcount = subcount-1;
+	NSUInteger divcount = subcount-1;
 	if (divcount<1) {
 // No dividers at all.
 		if (dividers) {
@@ -1470,7 +1472,7 @@ static inline float fMAX(float a,float b) {
 		}
 	} else {
 // Try to allocate or resize if we already have a dividers array.
-		unsigned long divsiz = sizeof(NSRect)*divcount;
+		NSUInteger divsiz = sizeof(NSRect)*divcount;
 		dividers = dividers?reallocf(dividers,divsiz):malloc(divsiz);
 		if (!dividers) {
 			return;
@@ -1480,20 +1482,20 @@ static inline float fMAX(float a,float b) {
 	subviewCache* caches = malloc(sizeof(subviewCache)*subcount);
 	double realsize = 0.0;
 	double expsize = 0.0;
-	float newsize = 0.0;
-	float effsize = 0.0;
-	float limit;
+	CGFloat newsize = 0.0;
+	CGFloat effsize = 0.0;
+	CGFloat limit;
 	subviewCache* curr;
-	unsigned int i;
+	NSUInteger i;
 	BOOL ishor = [self isHorizontal];
-	float divt = [self dividerThickness];
+	CGFloat divt = [self dividerThickness];
 // First we loop over subviews and cache their information.
 	for (i=0;i<subcount;i++) {
 		curr = &caches[i];
 		[[subviews objectAtIndex:i] RB___copyIntoCache:curr];
 	}
 // This is a counter to limit the outer loop to three iterations (six if excepting is non-nil).
-	int sanity = excepting?-3:0;
+	NSInteger sanity = excepting?-3:0;
 	while (sanity++<3) {
 // We try to accomodate the exception for the first group of loops, turn it off for the second.
 		if (sanity==1) {
@@ -1501,8 +1503,8 @@ static inline float fMAX(float a,float b) {
 		}
 // newsize is the available space for actual subviews (so dividers don't count). It will be an integer.
 // Same as calling [self RB___dimensionWithoutDividers].
-		unsigned smallest = 0;
-		float smalldim = -1.0;
+		NSUInteger smallest = 0;
+		CGFloat smalldim = -1.0;
 		BOOL haveexp = NO;
 // Loop over subviews and sum the expanded dimensions into expsize, including fractions.
 // Also find the collapsed subview with the smallest minimum dimension.
@@ -1564,7 +1566,7 @@ static inline float fMAX(float a,float b) {
 // Check non-collapsed subviews only.
 						if (!curr->constrain) {
 // Check non-constrained subviews only; calculate the proposed new size.
-							float cursize = (curr->size+curr->fraction)*scale;
+							CGFloat cursize = (curr->size+curr->fraction)*scale;
 // Check if we hit a limit. limit will contain either the max or min dimension, whichever was hit.
 							if (([curr->sub RB___animationData:NO resize:NO]&&((limit = curr->size)>=0.0))||
 								((curr->sub==excepting)&&((limit = [curr->sub dimension])>0.0))||
@@ -1653,8 +1655,7 @@ static inline float fMAX(float a,float b) {
 // divider rectangles as we go along, and collapsing and expanding subviews whenever requested.
 	RBSplitSubview* last = nil;
 // And we make a note if there's any nested RBSplitView.
-	int nested = NSNotFound;
-	newsize = DIM(bounds.size)-divcount*divt;
+	NSInteger nested = NSNotFound;
 	for (i=0;i<subcount;i++) {
 		curr = &caches[i];
 // If we have a nested split view store its index.
@@ -1679,7 +1680,7 @@ static inline float fMAX(float a,float b) {
 		if (i==divcount) {
 // We're at the last subview, so we now check if the actual and calculated dimensions
 // are the same.
-			float remain = DIM(bounds.size)-DIM(newframe.origin);
+			CGFloat remain = DIM(bounds.size)-DIM(newframe.origin);
 			if (last&&(fabsf(remain)>0.0)) {
 // We'll resize the last expanded subview to whatever it takes to squeeze within the frame.
 // Normally the change should be at most one pixel, but if too many subviews were constrained,

@@ -40,8 +40,8 @@
 	NSString *colStrings[] = { NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, NoteDateCreatedColumnString };
 	SEL colMutators[] = { @selector(setTitleString:), @selector(setLabelString:), NULL, NULL };
 	id (*colReferencors[])(id) = { titleOfNote, labelsOfNote, dateModifiedStringOfNote, dateCreatedStringOfNote };
-	int (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
-	int (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
+	NSInteger (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
+	NSInteger (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
 	    compareDateCreatedReverse };
 	
 	unsigned int i;
@@ -62,8 +62,10 @@
 			[self addTableColumn:column];
 		[column updateWidthForHighlight];*/
 	}
-	
-	[self setRowHeight:[font defaultLineHeightForFont] + 1];
+			
+	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
+	[self setRowHeight:[lm defaultLineHeightForFont:font] + 1.0f];
+	[lm release];
 	
 	//[self setAutosaveName:@"notesTable"];
 	//[self setAutosaveTableColumns:YES];
@@ -190,11 +192,13 @@
 		
 		NSFont *font = [NSFont systemFontOfSize:[globalPrefs tableFontSize]];
 		
-		unsigned int i;
+		NSUInteger i;
 		for (i=0; i<[allColumns count]; i++)
 			[[[allColumns objectAtIndex:i] dataCell] setFont:font];
 		
-		[self setRowHeight:[font defaultLineHeightForFont] + 1];
+		NSLayoutManager *lm = [[NSLayoutManager alloc] init];
+		[self setRowHeight:[lm defaultLineHeightForFont:font] + 1.0f];
+		[lm release];
 		
 	}
 }
@@ -233,11 +237,11 @@
 - (void)setViewingLocation:(ViewLocationContext)ctx {
 	if (ctx.nonRetainedPivotObject) {
 		
-		unsigned int pivotIndex = [(FastListDataSource*)[self dataSource] indexOfObjectIdenticalTo:ctx.nonRetainedPivotObject];
+		NSInteger pivotIndex = [(FastListDataSource*)[self dataSource] indexOfObjectIdenticalTo:ctx.nonRetainedPivotObject];
 		if (pivotIndex != NSNotFound) {
 			//figure out how to determine top/bottom condition:
 			//if pivotRow was 0 or nRows-1, and pivotIndex is not either, then scroll maximally in the nearest direction?
-			unsigned int lastRow = [self numberOfRows] - 1;
+			NSInteger lastRow = [self numberOfRows] - 1;
 			
 			if (ctx.pivotRowWasEdge && (pivotIndex != 0 && pivotIndex != lastRow)) {
 				pivotIndex = abs(pivotIndex - 0) < abs(pivotIndex - lastRow) ? 0 : lastRow;
@@ -250,7 +254,7 @@
 	}	
 }
 
-- (void)scrollRowToVisible:(int)rowIndex withVerticalOffset:(float)offset {
+- (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset {
 	NSRect rowRect = [self rectOfRow:rowIndex];
 	
 	rowRect.origin.y -= offset;
@@ -615,7 +619,7 @@
 		return;
 	}
 	
-	unsigned int modifiers = [theEvent modifierFlags];
+	NSUInteger modifiers = [theEvent modifierFlags];
 	
 	if (modifiers & NSCommandKeyMask) {
 		//replicating up/down with option key
@@ -717,7 +721,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	[self scrollRowToVisible:0];
 }
 
-- (void)selectRowAndScroll:(int)row {
+- (void)selectRowAndScroll:(NSInteger)row {
 
 	if (row > -1 && row < [self numberOfRows]) {
 		[self selectRowIndexes:[NSIndexSet indexSetWithIndex:row] byExtendingSelection:NO];
@@ -725,7 +729,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 }
 
-- (void)editColumn:(int)columnIndex row:(int)rowIndex withEvent:(NSEvent *)theEvent select:(BOOL)flag {
+- (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)theEvent select:(BOOL)flag {
 
 	[super editColumn:columnIndex row:rowIndex withEvent:theEvent select:flag];
 	
@@ -770,7 +774,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 - (void)noteFirstVisibleRow {
 	firstRowIndexBeforeSplitResize = NSNotFound;
-	unsigned newFirstRow = [[self selectedRowIndexes] firstIndex];
+	NSUInteger newFirstRow = [[self selectedRowIndexes] firstIndex];
 	NSRange range = [self rowsInRect:[self visibleRect]];
 	
 	if (NSLocationInRange(newFirstRow, range)) {

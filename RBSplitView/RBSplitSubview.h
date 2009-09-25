@@ -24,9 +24,9 @@ typedef enum {
 // Most getter methods simply return the corresponding instance variable, so with some care, subclasses
 // could reference them directly.
 	NSString* identifier;			// An identifier string for the subview, default is @"".
-	int tag;						// A tag integer for the subview, default is 0.
-	float minDimension;				// The minimum dimension. Must be 1.0 or any larger integer.
-	float maxDimension;				// The maximum dimension. Must be at least equal to the minDimension.
+	NSInteger tag;						// A tag integer for the subview, default is 0.
+	CGFloat minDimension;				// The minimum dimension. Must be 1.0 or any larger integer.
+	CGFloat maxDimension;				// The maximum dimension. Must be at least equal to the minDimension.
 									// Set to a large number if there's no maximum.
 	double fraction;				// A fractional part of the dimension, used for proportional resizing.
 									// Normally varies between -0.999... and 0.999...
@@ -35,7 +35,7 @@ typedef enum {
 	NSRect previous;				// Holds the frame rect for the last delegate notification.
 	NSSize savedSize;				// This holds the size the subview had before it was resized beyond
 									// its minimum or maximum limits. Valid if notInLimits is YES.
-	unsigned int actDivider;		// This is set temporarily while an alternate drag view is being dragged.
+	NSUInteger actDivider;		// This is set temporarily while an alternate drag view is being dragged.
 	BOOL canDragWindow;				// This is set temporarily during a mouseDown on a non-opaque subview.
 	BOOL canCollapse;				// YES if the subview can be collapsed.
 	BOOL notInLimits;				// YES if the subview's dimensions are outside the set limits.
@@ -70,11 +70,11 @@ typedef enum {
 - (BOOL)splitViewIsHorizontal;
 
 // Returns the number of subviews. Just a convenience method.
-- (unsigned)numberOfSubviews;
+- (NSUInteger)numberOfSubviews;
 
 // Sets and gets the tag.
-- (void)setTag:(int)theTag;
-- (int)tag;
+- (void)setTag:(NSInteger)theTag;
+- (NSInteger)tag;
 
 // Sets and gets the identifier string. Will never be nil.
 - (void)setIdentifier:(NSString*)aString;
@@ -84,8 +84,8 @@ typedef enum {
 // or top to bottom. Setting it will move the subview to another position without changing its size,
 // status or attributes. Set position to 0 to move it to the start, or to some large number to move it
 // to the end of the RBSplitView.
-- (unsigned)position;
-- (void)setPosition:(unsigned)newPosition;
+- (NSUInteger)position;
+- (void)setPosition:(NSUInteger)newPosition;
 
 // Returns YES if the subview is collapsed. Collapsed subviews are squashed down to zero but never
 // made smaller than the minimum dimension as far as their own subviews are concerned. If the
@@ -107,17 +107,17 @@ typedef enum {
 // Sets and gets the minimum and maximum dimensions. They're set at the same time to make sure values
 // are consistent. Despite being floats, they'll always have integer values. The minimum value for the
 // minimum is 1.0. Pass 0.0 for the maximum to set it to some huge number.
-- (float)minDimension;
-- (float)maxDimension;
-- (void)setMinDimension:(float)newMinDimension andMaxDimension:(float)newMaxDimension;
+- (CGFloat)minDimension;
+- (CGFloat)maxDimension;
+- (void)setMinDimension:(CGFloat)newMinDimension andMaxDimension:(CGFloat)newMaxDimension;
 
 // Call this to expand a subview programmatically. It will return the subview's dimension after
 // expansion.
-- (float)expand;
+- (CGFloat)expand;
 
 // Call this to collapse a subview programmatically. It will return the negative
 // of the subview's dimension _before_ collapsing, or 0.0 if the subview can't be collapsed.
-- (float)collapse;
+- (CGFloat)collapse;
 
 // These calls collapse and expand subviews with animation. They return YES if animation
 // startup was successful.
@@ -131,16 +131,16 @@ typedef enum {
 - (BOOL)expandWithAnimation:(BOOL)animate withResize:(BOOL)resize;
 
 // Returns the current dimension of the subview.
-- (float)dimension;
+- (CGFloat)dimension;
 
 // Sets the current dimension of the subview, subject to the current maximum and minimum.
 // If the subview is collapsed, this has no immediate effect.
-- (void)setDimension:(float)value;
+- (void)setDimension:(CGFloat)value;
 
 // This method is used internally when a divider is dragged. It tries to change the subview's dimension
 // and returns the actual change, collapsing or expanding whenever possible. You usually won't need
 // to call this directly.
-- (float)changeDimensionBy:(float)increment mayCollapse:(BOOL)mayCollapse move:(BOOL)move;
+- (CGFloat)changeDimensionBy:(CGFloat)increment mayCollapse:(BOOL)mayCollapse move:(BOOL)move;
 
 @end
 

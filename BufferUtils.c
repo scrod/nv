@@ -102,12 +102,12 @@ unsigned DumbWordCount(const void *s1, size_t len) {
 	return count;
 }
 
-int genericSortContextFirst(int (*context) (void*, void*), void* one, void* two) {
+NSInteger genericSortContextFirst(int (*context) (void*, void*), void* one, void* two) {
 	
 	return context(one, two);
 }
 
-int genericSortContextLast(void* one, void* two, int (*context) (void*, void*)) {
+NSInteger genericSortContextLast(void* one, void* two, int (*context) (void*, void*)) {
 	
 	return context(&one, &two);
 }
@@ -170,7 +170,7 @@ CFStringRef GetRandomizedFileName() {
     ProcessSerialNumber psn;
     OSStatus err = noErr;
     if ((err = GetCurrentProcess(&psn)) != noErr) {
-	printf("error getting process serial number: %ld\n", err);
+	printf("error getting process serial number: %d\n", (int)err);
 	
 	//just use the location of our memory
 	psn.lowLongOfPSN = (unsigned long)&psn;
@@ -219,7 +219,7 @@ OSStatus FSRefMakeInDirectoryWithString(FSRef *directoryRef, FSRef *childRef, CF
 OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize, void** newBuffer, UInt16 modeOptions) {
     OSStatus err = noErr;
 	HFSUniStr255 dfName; //this is just NULL / 0, anyway
-    SInt16 refNum;
+    FSIORefNum refNum;
     SInt64 forkSize;
     ByteCount readActualCount = 0, totalReadBytes = 0;
 	
@@ -229,7 +229,7 @@ OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize,
 	}
     
     if ((err = FSGetDataForkName(&dfName)) != noErr) {
-		printf("FSGetDataForkName: error %ld\n", err);
+		printf("FSGetDataForkName: error %d\n", (int)err);
 		return err;
     }
     
@@ -238,27 +238,27 @@ OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize,
     //get fork size
 	//read data
     if ((err = FSOpenFork(fsRef, dfName.length, dfName.unicode, fsRdPerm, &refNum)) != noErr) {
-		printf("FSOpenFork: error %ld\n", err);
+		printf("FSOpenFork: error %d\n", (int)err);
 		return err;
     }
     if ((forkSize = *bufferSize) < 1) {
 		if ((err = FSGetForkSize(refNum, &forkSize)) != noErr) {
-			printf("FSGetForkSize: error %ld\n", err);
+			printf("FSGetForkSize: error %d\n", (int)err);
 			return err;
 		}
     }
     
-	long copyBufferSize = MIN(maximumReadSize, forkSize);
+	size_t copyBufferSize = MIN(maximumReadSize, (size_t)forkSize);
     void *fullSizeBuffer = (void*)malloc(forkSize);
     
-    while (noErr == err && totalReadBytes < forkSize) {
+    while (noErr == err && totalReadBytes < (ByteCount)forkSize) {
 		err = FSReadFork(refNum, fsAtMark + modeOptions, 0, copyBufferSize, fullSizeBuffer + totalReadBytes, &readActualCount);
 		totalReadBytes += readActualCount;
     }
     OSErr lastReadErr = err;
 	
 	if ((err = FSCloseFork(refNum)) != noErr)
-		printf("FSCloseFork: error %ld\n", err);
+		printf("FSCloseFork: error %d\n", (int)err);
     
     *newBuffer = fullSizeBuffer;
 	//in case we read less than the expected size or the size was not initially known
@@ -270,7 +270,7 @@ OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize,
 OSStatus FSRefWriteData(FSRef *fsRef, size_t maximumWriteSize, UInt64 bufferSize, const void* buffer, UInt16 modeOptions, Boolean truncateFile) {
 	OSStatus err = noErr;
 	HFSUniStr255 dfName; //this is just NULL / 0, anyway
-    SInt16 refNum;
+    FSIORefNum refNum;
     ByteCount writeActualCount = 0, totalWrittenBytes = 0;
 	
 	if (!buffer || !fsRef) {
@@ -279,14 +279,14 @@ OSStatus FSRefWriteData(FSRef *fsRef, size_t maximumWriteSize, UInt64 bufferSize
 	}
     
     if ((err = FSGetDataForkName(&dfName)) != noErr) {
-		printf("FSGetDataForkName: error %ld\n", err);
+		printf("FSGetDataForkName: error %d\n", (int)err);
 		return err;
     }
     
 	//FSOpenFork
     //get vrefnum or whatever
     if ((err = FSOpenFork(fsRef, dfName.length, dfName.unicode, fsWrPerm, &refNum)) != noErr) {
-		printf("FSOpenFork: error %ld\n", err);
+		printf("FSOpenFork: error %d\n", (int)err);
 		return err;
     }
     
@@ -302,12 +302,12 @@ OSStatus FSRefWriteData(FSRef *fsRef, size_t maximumWriteSize, UInt64 bufferSize
     OSErr writeError = err;
 	
 	if (truncateFile && (err = FSSetForkSize(refNum, fsFromStart, bufferSize))) {
-		printf("FSOpenFork: FSSetForkSize %ld\n", err);
+		printf("FSOpenFork: FSSetForkSize %d\n", (int)err);
 		return err;
 	}
     
 	if ((err = FSCloseFork(refNum)) != noErr)
-		printf("FSCloseFork: error %ld\n", err);
+		printf("FSCloseFork: error %d\n", (int)err);
 	
     return writeError;
 }

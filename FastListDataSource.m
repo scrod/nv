@@ -31,12 +31,12 @@
 	return (const id *)objects;
 }
 
-- (unsigned int)count {
+- (NSUInteger)count {
 	return count;
 }
 
-- (unsigned)indexOfObjectIdenticalTo:(id)address {
-	register unsigned i;
+- (NSUInteger)indexOfObjectIdenticalTo:(id)address {
+	register NSUInteger i;
 	
 	if (address) {
 		for (i=0; i<count; i++) {
@@ -53,9 +53,9 @@
 //figure out which notes are in the indexset
 - (NSArray*)objectsAtFilteredIndexes:(NSIndexSet*)indexSet {
 
-	unsigned int indexBuffer[40];
-	unsigned int bufferIndex;
-	unsigned int indexCount = 1;
+	NSUInteger indexBuffer[40];
+	NSUInteger bufferIndex;
+	NSUInteger indexCount = 1;
 	NSRange range = NSMakeRange([indexSet firstIndex],
 								[indexSet lastIndex]-[indexSet firstIndex]+1);
 	
@@ -64,7 +64,7 @@
 	while ((indexCount = [indexSet getIndexes:indexBuffer maxCount:40 inIndexRange:&range])) {
 		
 		for (bufferIndex=0; bufferIndex < indexCount; bufferIndex++) {
-			unsigned int objIndex = indexBuffer[bufferIndex];
+			NSUInteger objIndex = indexBuffer[bufferIndex];
 			if (objIndex < count)
 				[objectsInIndexSet addObject:objects[objIndex]];
 			else
@@ -79,7 +79,7 @@
 //as long as this class is only used for temporary display, we probably do not need to uncomment the retains and releases
 
 - (void)fillArrayFromArray:(NSArray*)array {
-	unsigned int oldArraySize = count;
+	NSUInteger oldArraySize = count;
 	
 	//release old values
 	//unsigned int i;
@@ -101,7 +101,7 @@
 }
 
 - (BOOL)filterArrayUsingFunction:(BOOL (*)(id, void*))present context:(void*)context {
-	register unsigned int j = 0, i, oldCount = count;
+	register NSUInteger j = 0, i, oldCount = count;
 	
 	if (!objects)
 		return NO;
@@ -122,23 +122,23 @@
 	return (count != oldCount);
 }
 
-- (void)sortStableUsingFunction:(int (*)(id *, id *))compare {
+- (void)sortStableUsingFunction:(NSInteger (*)(id *, id *))compare {
 	
 	mergesort((void *)objects, (size_t)count, sizeof(id), (int (*)(const void *, const void *))compare);
 }
 
 - (void)tableView:(NSTableView *)aTableView setObjectValue:(id)anObject 
-   forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
+   forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	
 	[objects[rowIndex] performSelector:columnAttributeMutator((NoteAttributeColumn*)aTableColumn) withObject:anObject];
 }
 
 
-- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
+- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	return columnAttributeForObject((NoteAttributeColumn*)aTableColumn, objects[rowIndex]);
 }
 
-- (int)numberOfRowsInTableView:(NSTableView *)aTableView {
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {
 	return count;
 }
 

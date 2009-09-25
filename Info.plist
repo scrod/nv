@@ -132,7 +132,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Notational Velocity</string>
 	<key>CFBundleGetInfoString</key>
-	<string>2.0 β0, Copyright © 2009 Zachary Schneirov, All Rights Reserved.</string>
+	<string>2.0 β1, Copyright © 2009 Zachary Schneirov, All Rights Reserved.</string>
 	<key>CFBundleIconFile</key>
 	<string>Notality</string>
 	<key>CFBundleIdentifier</key>
@@ -142,13 +142,28 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.0 β0</string>
+	<string>2.0 β1</string>
 	<key>CFBundleSignature</key>
 	<string>N†l√</string>
 	<key>CFBundleVersion</key>
-	<string>2.0 β0</string>
+	<string>2.0 β1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.3.9</string>
+	<key>LSMinimumSystemVersionByArchitecture</key>
+	<dict>
+		<key>i386</key>
+		<string>10.4.4</string>
+		<key>x86_64</key>
+		<string>10.6.0</string>
+		<key>ppc</key>
+		<string>10.3.9</string>
+	</dict>
+	<key>LSArchitecturePriority</key>
+	<array>
+		<string>x86_64</string>
+		<string>i386</string>
+		<string>ppc</string>
+	</array>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

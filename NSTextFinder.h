@@ -62,6 +62,6 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 @end
 
 @interface NSTextFinder (LastFind)
-- (int)lastFindWasSuccessful;
+- (int)nv_lastFindWasSuccessful;
 @end
 

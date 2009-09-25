@@ -22,12 +22,12 @@
 
 @implementation NotationController
 
-int compareCatalogEntryName(const void *one, const void *two) {
+NSInteger compareCatalogEntryName(const void *one, const void *two) {
     return (int)CFStringCompare((CFStringRef)((*(NoteCatalogEntry **)one)->filename), 
 				(CFStringRef)((*(NoteCatalogEntry **)two)->filename), kCFCompareCaseInsensitive);
 }
 
-int compareCatalogValueNodeID(id *a, id *b) {
+NSInteger compareCatalogValueNodeID(id *a, id *b) {
 	NoteCatalogEntry* aEntry = (NoteCatalogEntry*)[*(id*)a pointerValue];
 	NoteCatalogEntry* bEntry = (NoteCatalogEntry*)[*(id*)b pointerValue];
 	
@@ -163,10 +163,72 @@ int compareCatalogValueNodeID(id *a, id *b) {
 		[self refilterNotes];
 	
 	CFUUIDBytes bytes = [prefsController UUIDBytesOfLastSelectedNote];
-	unsigned noteIndex = [allNotes indexOfNoteWithUUIDBytes:&bytes];
+	NSUInteger noteIndex = [allNotes indexOfNoteWithUUIDBytes:&bytes];
 	if (noteIndex != NSNotFound)
 		[delegate notation:self revealNote:[allNotes objectAtIndex:noteIndex]];
 }
+
+//used to ensure a newly-written Notes & Settings file is valid before finalizing the save
+//read the file back from disk, deserialize it, decrypt and decompress it, and compare the notes roughly to our current notes
+- (NSNumber*)verifyDataAtTemporaryFSRef:(NSValue*)fsRefValue withFinalName:(NSString*)filename {
+	
+	NSDate *date = [NSDate date];
+	
+	NSAssert([filename isEqualToString:@"Notes & Settings"], @"attempting to verify something other than the database");
+	
+	FSRef *notesFileRef = [fsRefValue pointerValue];
+	UInt64 fileSize = 0;
+	char *notesData = NULL;
+	OSStatus err = noErr, result = noErr;
+	if ((err = FSRefReadData(notesFileRef, BlockSizeForNotation(self), &fileSize, (void**)&notesData, 0)) != noErr)
+		return [NSNumber numberWithInt:err];
+	
+	FrozenNotation *frozenNotation = nil;
+	if (fileSize > 0) {
+		NSData *archivedNotation = [[NSData alloc] initWithBytesNoCopy:notesData length:fileSize freeWhenDone:NO];
+		@try {
+			frozenNotation = [NSKeyedUnarchiver unarchiveObjectWithData:archivedNotation];
+		} @catch (NSException *e) {
+			NSLog(@"(VERIFY) Error unarchiving notes and preferences from data (%@, %@)", [e name], [e reason]);
+			result = kCoderErr;
+			goto returnResult;
+		}
+		
+		[archivedNotation autorelease];
+	}
+	NSMutableArray *notesToVerify = nil;
+	
+	//unpack notes using the current NotationPrefs instance (not the just-unarchived one), with which we presumably just used to encrypt it
+	if (!(notesToVerify = [[frozenNotation unpackedNotesWithPrefs:notationPrefs returningError:&err] retain])) {
+		//notesToVerify has no excuse for being nil here
+		if (err != noErr) {
+			result = err;
+			goto returnResult;
+		}
+	} else {
+		//notes were unpacked--now roughly compare notesToVerify with allNotes, plus deletedNotes and notationPrefs
+		if ([notesToVerify count] != [allNotes count] || 
+			[[frozenNotation deletedNotes] count] != [deletedNotes  count] || 
+			[[frozenNotation notationPrefs] notesStorageFormat] != [notationPrefs notesStorageFormat] ||
+			[[frozenNotation notationPrefs] hashIterationCount] != [notationPrefs hashIterationCount]) {
+			result = kItemVerifyErr;
+			goto returnResult;
+		}
+		unsigned int i;
+		for (i=0; i<[notesToVerify count]; i++) {
+			if ([[[notesToVerify objectAtIndex:i] contentString] length] != [[[allNotes objectAtIndex:i] contentString] length]) {
+				result = kItemVerifyErr;
+				goto returnResult;	
+			}
+		}
+	}
+	
+	NSLog(@"verify time: %g", (float)[[NSDate date] timeIntervalSinceDate:date]);
+returnResult:
+	if (notesData) free(notesData);
+	return [NSNumber numberWithInt:result];
+}
+
 
 - (OSStatus)_readAndInitializeSerializedNotes {
 
@@ -183,17 +245,17 @@ int compareCatalogValueNodeID(id *a, id *b) {
 	
 	if (fileSize > 0) {
 		NSData *archivedNotation = [[NSData alloc] initWithBytesNoCopy:notesData length:fileSize freeWhenDone:NO];
-		NS_DURING
+		@try {
 			frozenNotation = [NSKeyedUnarchiver unarchiveObjectWithData:archivedNotation];
-		NS_HANDLER
-			NSLog(@"Error unarchiving notes and preferences from data (%@, %@)", [localException name], [localException reason]);
+		} @catch (NSException *e) {
+			NSLog(@"Error unarchiving notes and preferences from data (%@, %@)", [e name], [e reason]);
 			
 			if (notesData)
 				free(notesData);
 			
 			//perhaps this shouldn't be an error, but the user should instead have the option of overwriting the DB with a new one?
-			NS_VALUERETURN(kCoderErr, OSStatus);
-		NS_ENDHANDLER
+			return kCoderErr;
+		}
 	
 		[archivedNotation autorelease];
 	}
@@ -252,20 +314,24 @@ int compareCatalogValueNodeID(id *a, id *b) {
 			WALRecoveryController *walReader = [[[WALRecoveryController alloc] initWithParentFSRep:(char*)convertedPath encryptionKey:walSessionKey] autorelease];
 			if (walReader) {
 				
+				BOOL databaseCouldNotBeFlushed = NO;
 				NSDictionary *recoveredNotes = [walReader recoveredNotes];
 				if ([recoveredNotes count] > 0) {
 					[self processRecoveredNotes:recoveredNotes];
 					
 					if (![self flushAllNoteChanges]) {
 						//we shouldn't continue because the journal is still the sole record of the unsaved notes, so we can't delete it
+						//BUT: what if the database can't be verified? We should be able to continue, and just keep adding to the WAL
+						//in this case the WAL should be destroyed, re-initialized, and the recovered (and de-duped) notes added back
 						NSLog(@"Unable to flush recovered notes back to database");
-						goto bail;
+						databaseCouldNotBeFlushed = YES;
+						//goto bail;
 					}
 				}
 				//is there a way that recoverNextObject could fail that would indicate a failure with the file as opposed to simple non-recovery?
 				//if so, it perhaps the recoveredNotes method should also return an error condition, to be checked here
 				
-				//there could be other issues, too
+				//there could be other issues, too (1)
 				
 				if (![walReader destroyLogFile]) {
 					//couldn't delete the log file, so we can't create a new one
@@ -275,16 +341,24 @@ int compareCatalogValueNodeID(id *a, id *b) {
 				
 				if (!(walWriter = [[WALStorageController alloc] initWithParentFSRep:(char*)convertedPath encryptionKey:walSessionKey])) {
 					//couldn't create a journal after recovering the old one
+					//if databaseCouldNotBeFlushed is true here, then we've potentially lost notes; perhaps exchangeobjects would be better here?
 					NSLog(@"Unable to create a new write-ahead-log after deleting the old one");
 					goto bail;
 				}
 				
 				if ([recoveredNotes count] > 0) {
+					if (databaseCouldNotBeFlushed) {
+						//re-add the contents of recoveredNotes to walWriter; LSNs should take care of the order; no need to sort
+						//this allows for an ever-growing journal in the case of broken database serialization
+						//it should not be an acceptable condition for permanent use; hopefully an update would come soon
+						//warn the user, perhaps
+						[walWriter writeNoteObjects:[recoveredNotes allValues]];
+					}
 					[self refilterNotes];
 				}
 			} else {
 				NSLog(@"Unable to recover unsaved notes from write-ahead-log");
-				//should we give the user to attempt to remove it without recovery?
+				//1) should we let the user attempt to remove it without recovery?
 				goto bail;
 			}
 		}
@@ -318,7 +392,7 @@ bail:
 	    CFUUIDBytes *objUUIDBytes = (CFUUIDBytes *)keys[i];
 	    id<SynchronizedNote> obj = (id)values[i];
 	    
-	    unsigned int existingNoteIndex = [allNotes indexOfNoteWithUUIDBytes:objUUIDBytes];
+	    NSUInteger existingNoteIndex = [allNotes indexOfNoteWithUUIDBytes:objUUIDBytes];
 	    
 	    if ([obj isKindOfClass:[DeletedNoteObject class]]) {
 		
@@ -418,7 +492,8 @@ bail:
 		
 		//we should have all journal records on disk by now
 		
-		if ([self storeDataAtomicallyInNotesDirectory:serializedData withName:@"Notes & Settings" destinationRef:&noteDatabaseRef] != noErr)
+		if ([self storeDataAtomicallyInNotesDirectory:serializedData withName:@"Notes & Settings" destinationRef:&noteDatabaseRef 
+								   verifyWithSelector:@selector(verifyDataAtTemporaryFSRef:withFinalName:) verificationDelegate:self] != noErr)
 			return NO;
 		
 		[notationPrefs setPreferencesAreStored];
@@ -441,7 +516,7 @@ bail:
 	
 	[self flushAllNoteChanges];
 	
-	NSRunAlertPanel(NSLocalizedString(@"Unable to create or access the write-ahead log. Is another copy of Notational Velocity currently running?",nil), 
+	NSRunAlertPanel(NSLocalizedString(@"Unable to create or access the Interim Note-Changes file. Is another copy of Notational Velocity currently running?",nil), 
 			NSLocalizedString(@"Open Console in /Applications/Utilities/ for more information.",nil), NSLocalizedString(@"Quit",nil), NULL, NULL);
 	
 	
@@ -1148,7 +1223,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     notesChanged = YES;
 }
 
-//TODO: wrap these methods or modify them to allow moving deletion warnings here
 //the gateway methods must always show warnings, or else flash overlay window if show-warnings-pref is off
 - (void)removeNotes:(NSArray*)noteArray {
 	NSEnumerator *enumerator = [noteArray objectEnumerator];
@@ -1197,7 +1271,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote {	
-	//TODO: aNote can be released prematurely via successive undo/redos?
+	//TODO: aNote can be released prematurely via successive undo/redos? cannot reproduce after preventing undo of creation
 	[undoManager registerUndoWithTarget:self selector:@selector(addNewNote:) object:aNote];			
 	if (![undoManager isUndoing] && ![undoManager isRedoing])
 		[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Delete quotemark%@quotemark",@"undo action name for deleting a single note"), titleOfNote(aNote)]];				
@@ -1301,7 +1375,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     BOOL stringHasExistingPrefix = YES;
     BOOL didFilterNotes = NO;
     size_t oldLen = 0, newLen = 0;
-	unsigned int i, initialCount = [notesListDataSource count];
+	NSUInteger i, initialCount = [notesListDataSource count];
     
 	NSAssert(searchString != NULL, @"filterNotesFromUTF8String requires a non-NULL argument");
 	
@@ -1357,7 +1431,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     }
     
 	//PHASE 3: reset found pointers in case have been cleared
-	unsigned int filteredNoteCount = [notesListDataSource count];
+	NSUInteger filteredNoteCount = [notesListDataSource count];
 	NoteObject **notesBuffer = [notesListDataSource immutableObjects];
 	
     if (didFilterNotes) {
@@ -1398,7 +1472,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     return didFilterNotes;
 }
 
-- (unsigned)preferredSelectedNoteIndex {
+- (NSUInteger)preferredSelectedNoteIndex {
     return selectedNoteIndex;
 }
 
@@ -1420,13 +1494,13 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (NSIndexSet*)indexesOfNotes:(NSArray*)noteArray {
 	NSMutableIndexSet *noteIndexes = [[NSMutableIndexSet alloc] init];
 	
-	unsigned int i, noteCount = [noteArray count];
+	NSUInteger i, noteCount = [noteArray count];
 	
 	id *notes = (id*)malloc(noteCount * sizeof(id));
 	[noteArray getObjects:notes];
 	
 	for (i=0; i<noteCount; i++) {
-		unsigned noteIndex = [notesListDataSource indexOfObjectIdenticalTo:notes[i]];
+		NSUInteger noteIndex = [notesListDataSource indexOfObjectIdenticalTo:notes[i]];
 		
 		if (noteIndex != NSNotFound)
 			[noteIndexes addIndex:noteIndex];
@@ -1437,11 +1511,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	return [noteIndexes autorelease];
 }
 
-- (unsigned)indexInFilteredListForNoteIdenticalTo:(NoteObject*)note {
+- (NSUInteger)indexInFilteredListForNoteIdenticalTo:(NoteObject*)note {
 	return [notesListDataSource indexOfObjectIdenticalTo:note];
 }
 
-- (unsigned int)totalNoteCount {
+- (NSUInteger)totalNoteCount {
 	return [allNotes count];
 }
 
@@ -1465,8 +1539,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	NoteAttributeColumn *col = sortColumn;
 	if (col) {
 		BOOL reversed = [prefsController tableIsReverseSorted];
-		int (*sortFunction) (id *, id *) = (reversed ? [col reverseSortFunction] : [col sortFunction]);
-		int (*stringSortFunction) (id*, id*) = (reversed ? compareTitleStringReverse : compareTitleString);
+		NSInteger (*sortFunction) (id *, id *) = (reversed ? [col reverseSortFunction] : [col sortFunction]);
+		NSInteger (*stringSortFunction) (id*, id*) = (reversed ? compareTitleStringReverse : compareTitleString);
 		
 		[allNotes sortStableUsingFunction:stringSortFunction usingBuffer:&allNotesBuffer ofSize:&allNotesBufferSize];
 		if (sortFunction != stringSortFunction)
@@ -1495,8 +1569,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	if (col) {
 		BOOL reversed = [prefsController tableIsReverseSorted];
 	
-		int (*sortFunction) (id*, id*) = (reversed ? [col reverseSortFunction] : [col sortFunction]);
-		int (*stringSortFunction) (id*, id*) = (reversed ? compareTitleStringReverse : compareTitleString);
+		NSInteger (*sortFunction) (id*, id*) = (reversed ? [col reverseSortFunction] : [col sortFunction]);
+		NSInteger (*stringSortFunction) (id*, id*) = (reversed ? compareTitleStringReverse : compareTitleString);
 
 		[allNotes sortStableUsingFunction:stringSortFunction usingBuffer:&allNotesBuffer ofSize:&allNotesBufferSize];
 		if (sortFunction != stringSortFunction)

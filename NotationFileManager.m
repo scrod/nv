@@ -390,9 +390,14 @@ regenerateFSRef:
 	return FSCreateFileIfNotPresentInDirectory(&noteDirectoryRef, childRef, (CFStringRef)filename, (Boolean*)created);
 }
 
+- (OSStatus)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename destinationRef:(FSRef*)destRef {
+	return [self storeDataAtomicallyInNotesDirectory:data withName:filename destinationRef:destRef verifyWithSelector:NULL verificationDelegate:nil];
+}
+
 //either name or destRef must be valid; destRef is declared invalid by filling the struct with 0
 
-- (OSStatus)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename destinationRef:(FSRef*)destRef {
+- (OSStatus)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename destinationRef:(FSRef*)destRef 
+							 verifyWithSelector:(SEL)verificationSel verificationDelegate:(id)verifyDelegate {
     OSStatus err = noErr;
     	
 	FSRef tempFileRef;
@@ -407,6 +412,16 @@ regenerateFSRef:
 		
 		return err;
     }
+	
+	//before we try to swap the data contents of this temp file with the (possibly even soon-to-be-created) Notes & Settings file,
+	//try to read it back and see if it can be decrypted and decoded:
+	if (verifyDelegate && verificationSel) {
+		if (noErr != (err = [[verifyDelegate performSelector:verificationSel withObject:[NSValue valueWithPointer:&tempFileRef] withObject:filename] intValue])) {
+			NSLog(@"couldn't verify written notes, so not continuing to save");
+			(void)FSDeleteObject(&tempFileRef);
+			return err;
+		}
+	}
     
     BOOL retriedCreation = NO;
     
@@ -466,7 +481,7 @@ attemptToCreateFile:
 	
 	 NSString *sillyDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:(NSString*)GetRandomizedFileName()];
 	 [[NSFileManager defaultManager] createDirectoryAtPath:sillyDirectory attributes:nil];
-	 int tag = 0;
+	 NSInteger tag = 0;
 	 [[NSWorkspace sharedWorkspace] performFileOperation:NSWorkspaceRecycleOperation source:NSTemporaryDirectory() destination:@"" 
 												   files:[NSArray arrayWithObject:[sillyDirectory lastPathComponent]] tag:&tag];
 }
@@ -552,8 +567,9 @@ regenerateFSRef:
 		
 		if (err == noErr) {
 			FSCatalogInfo catInfo;
-			
-			err = GetUTCDateTime(&catInfo.contentModDate, kUTCDefaultOptions);
+            
+            CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+			err = UCConvertCFAbsoluteTimeToUTCDateTime(now, &catInfo.contentModDate);
 			if (err == noErr)
 				err = FSSetCatalogInfo(&noteDirectoryRef, kFSCatInfoContentMod, &catInfo);
 			if (err) {

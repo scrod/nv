@@ -47,6 +47,8 @@ typedef union {
 - (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key;
 - (BOOL)writeEstablishedNote:(id<SynchronizedNote>)aNoteObject;
 - (BOOL)writeRemovalForNote:(id<SynchronizedNote>)aNoteObject;
+- (BOOL)writeNoteObject:(id<SynchronizedNote>)aNoteObject;
+- (void)writeNoteObjects:(NSArray*)notes;
 - (BOOL)_attemptToWriteUnwrittenData;
 - (BOOL)_encryptAndWriteData:(NSMutableData*)data;
 - (BOOL)synchronize;

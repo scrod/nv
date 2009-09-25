@@ -59,8 +59,8 @@
 
 //figure out which notes to display given some selected labels
 - (NSSet*)notesAtFilteredIndexes:(NSIndexSet*)anIndexSet {
-    unsigned int i, numLabels = [anIndexSet count];
-    unsigned int *labelsBuffer = malloc(numLabels * sizeof(unsigned int));
+    NSUInteger i, numLabels = [anIndexSet count];
+    NSUInteger *labelsBuffer = malloc(numLabels * sizeof(NSUInteger));
     
     NSRange range = NSMakeRange([anIndexSet firstIndex], ([anIndexSet lastIndex]-[anIndexSet firstIndex]) + 1);
     [anIndexSet getIndexes:labelsBuffer maxCount:numLabels inIndexRange:&range];

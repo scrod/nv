@@ -248,9 +248,9 @@
 	unsigned int startIndex = 0;
 	NSMutableArray *array = [NSMutableArray arrayWithCapacity:1];
 	while (startIndex < [self length]) {
-		id link = [self findNextLinkAtIndex:startIndex effectiveRange:&range];
-		if ([link isKindOfClass:[NSURL class]]) {
-			[array addObject:link];
+		id alink = [self findNextLinkAtIndex:startIndex effectiveRange:&range];
+		if ([alink isKindOfClass:[NSURL class]]) {
+			[array addObject:alink];
 		}
 		startIndex = range.location+range.length;
 	}
@@ -261,19 +261,19 @@
 
 - (id)findNextLinkAtIndex:(unsigned int)startIndex effectiveRange:(NSRange *)range {
 	NSRange linkRange;
-	id link = nil;
-	while (!link && startIndex < [self length]) {
-		link = [self attribute:NSLinkAttributeName atIndex:startIndex effectiveRange:&linkRange];
+	id alink = nil;
+	while (!alink && startIndex < [self length]) {
+		alink = [self attribute:NSLinkAttributeName atIndex:startIndex effectiveRange:&linkRange];
 		startIndex++;
 	}
-	if (link) {
+	if (alink) {
 		range->location = linkRange.location;
 		range->length = linkRange.length;
 	} else {
 		range->location = NSNotFound;
 		range->length = 0;
 	}
-	return link;
+	return alink;
 }
 
 #if SEPARATE_ATTRS

@@ -15,10 +15,10 @@
 
 // This selects the main horizontal or vertical coordinate according to the split view's orientation.
 // It can be used as an lvalue, too. You need to have BOOL ishor declared to use it.
-#define DIM(x) (((float*)&(x))[ishor])
+#define DIM(x) (((CGFloat *)&(x))[ishor])
 
 // This selects the other coordinate.
-#define OTHER(x) (((float*)&(x))[!ishor])
+#define OTHER(x) (((CGFloat *)&(x))[!ishor])
 
 // This value for the view offsets is guaranteed to be out of view for quite some time and is used
 // to mark the view as collapsed.
@@ -32,15 +32,15 @@ typedef struct subviewCache {
 	NSRect rect;					// the subview's frame
 	double fraction;				// fractional extra
 	RBSplitSubview* sub;			// points at the subview
-	float size;						// current dimension (integer)
+	CGFloat size;						// current dimension (integer)
 	BOOL constrain;					// set if constrained
 } subviewCache;
 
 // This struct is used internally for doing collapse/expand animation.
 typedef struct animationData {
 	RBSplitSubview* owner;			// the subview being animated
-	float dimension;				// the subview's starting or ending dimension
-	int stepsDone;					// counts already done animation steps
+	CGFloat dimension;				// the subview's starting or ending dimension
+	NSInteger stepsDone;					// counts already done animation steps
 	NSTimeInterval elapsedTime;		// time already spent in resizing and adjusting subviews
 	NSTimeInterval finishTime;		// the animation should be finished at this time
 	NSTimeInterval totalTime;		// total time the animation should take
@@ -57,17 +57,17 @@ typedef struct animationData {
 - (animationData*)RB___animationData:(BOOL)start resize:(BOOL)resize;
 - (void)RB___stepAnimation;
 - (BOOL)RB___stopAnimation;
-- (float)RB___visibleDimension;
-- (float)RB___setMinAndMaxTo:(float)value savingMin:(float*)oldmin andMax:(float*)oldmax;
-- (float)RB___collapse;
-- (float)RB___expandAndSetToMinimum:(BOOL)setToMinimum;
+- (CGFloat)RB___visibleDimension;
+- (CGFloat)RB___setMinAndMaxTo:(CGFloat)value savingMin:(CGFloat*)oldmin andMax:(CGFloat*)oldmax;
+- (CGFloat)RB___collapse;
+- (CGFloat)RB___expandAndSetToMinimum:(BOOL)setToMinimum;
 - (void)RB___finishCollapse:(NSRect)rect withFraction:(double)value;
 - (void)RB___finishExpand:(NSRect)rect withFraction:(double)value;
 - (void)RB___setFrameSize:(NSSize)size withFraction:(double)value;
 - (void)RB___setFrame:(NSRect)rect withFraction:(double)value notify:(BOOL)notify;
 - (double)RB___fraction;
 - (void)RB___copyIntoCache:(subviewCache*)cache;
-- (void)RB___updateFromCache:(subviewCache*)cache withTotalDimension:(float)value;
+- (void)RB___updateFromCache:(subviewCache*)cache withTotalDimension:(CGFloat)value;
 - (BOOL)RB___clearResponder;
 
 @end
@@ -76,23 +76,23 @@ typedef struct animationData {
 
 - (void)RB___adjustOutermostIfNeeded;
 - (void)RB___setDragging:(BOOL)flag;
-- (float)RB___dividerOrigin:(int)indx;
+- (CGFloat)RB___dividerOrigin:(NSInteger)indx;
 - (NSArray*)RB___subviews;
-- (unsigned int)RB___numberOfSubviews;
+- (NSUInteger)RB___numberOfSubviews;
 - (void)RB___adjustSubviewsExcepting:(RBSplitSubview*)excepting;
-- (float)RB___dimensionWithoutDividers;
-- (float)RB___dividerThickness;
-- (NSRect)RB___dividerRect:(unsigned)indx relativeToView:(RBSplitView*)view;
+- (CGFloat)RB___dimensionWithoutDividers;
+- (CGFloat)RB___dividerThickness;
+- (NSRect)RB___dividerRect:(NSUInteger)indx relativeToView:(RBSplitView*)view;
 - (void)RB___setMustClearFractions;
-- (BOOL)RB___shouldResizeWindowForDivider:(unsigned int)indx betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow;
-- (void)RB___tryToExpandLeading:(RBSplitSubview*)leading divider:(unsigned int)indx trailing:(RBSplitSubview*)trailing delta:(float)delta;
-- (void)RB___tryToShortenLeading:(RBSplitSubview*)leading divider:(unsigned int)indx trailing:(RBSplitSubview*)trailing delta:(float)delta always:(BOOL)always;
-- (void)RB___tryToExpandTrailing:(RBSplitSubview*)trailing leading:(RBSplitSubview*)leading delta:(float)delta;
-- (void)RB___tryToShortenTrailing:(RBSplitSubview*)trailing divider:(unsigned int)indx leading:(RBSplitSubview*)leading delta:(float)delta always:(BOOL)always;
-- (void)RB___trackMouseEvent:(NSEvent*)theEvent from:(NSPoint)where withBase:(NSPoint)base inDivider:(unsigned)indx;
-- (void)RB___addCursorRectsTo:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(float)delta;
-- (unsigned)RB___dividerHitBy:(NSPoint)point relativeToView:(RBSplitView*)view thickness:(float)delta;
-- (void)RB___drawDividersIn:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(float)delta;
+- (BOOL)RB___shouldResizeWindowForDivider:(NSUInteger)indx betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow;
+- (void)RB___tryToExpandLeading:(RBSplitSubview*)leading divider:(NSUInteger)indx trailing:(RBSplitSubview*)trailing delta:(CGFloat)delta;
+- (void)RB___tryToShortenLeading:(RBSplitSubview*)leading divider:(NSUInteger)indx trailing:(RBSplitSubview*)trailing delta:(CGFloat)delta always:(BOOL)always;
+- (void)RB___tryToExpandTrailing:(RBSplitSubview*)trailing leading:(RBSplitSubview*)leading delta:(CGFloat)delta;
+- (void)RB___tryToShortenTrailing:(RBSplitSubview*)trailing divider:(NSUInteger)indx leading:(RBSplitSubview*)leading delta:(CGFloat)delta always:(BOOL)always;
+- (void)RB___trackMouseEvent:(NSEvent*)theEvent from:(NSPoint)where withBase:(NSPoint)base inDivider:(NSUInteger)indx;
+- (void)RB___addCursorRectsTo:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(CGFloat)delta;
+- (NSUInteger)RB___dividerHitBy:(NSPoint)point relativeToView:(RBSplitView*)view thickness:(CGFloat)delta;
+- (void)RB___drawDividersIn:(RBSplitView*)masterView forDividerRect:(NSRect)rect thickness:(CGFloat)delta;
 
 @end
 

@@ -39,6 +39,8 @@ static id _sharedHotKeyCenter = nil;
 	if( self )
 	{
 		mHotKeys = [[NSMutableDictionary alloc] init];
+        mHotKeyMap = [[NSMutableDictionary alloc] init];
+        mNextKeyID = 1;
 	}
 	
 	return self;
@@ -70,13 +72,14 @@ static id _sharedHotKeyCenter = nil;
 		
 	
 	hotKeyID.signature = UTGetOSTypeFromString(CFSTR("PTHk"));
-	hotKeyID.id = (long)hotKey;
+	hotKeyID.id = mNextKeyID;
+    
 	//NSLog(@"registering...");
 	err = RegisterEventHotKey(  [[hotKey keyCombo] keyCode],
 								[[hotKey keyCombo] modifiers],
 								hotKeyID,
 								GetEventDispatcherTarget(),
-								nil,
+								0,
 								&carbonHotKey );
 
 	if( err )
@@ -84,7 +87,11 @@ static id _sharedHotKeyCenter = nil;
         //NSLog(@"error --");
         return NO;
     }
-		
+	
+    NSNumber *kid = [NSNumber numberWithUnsignedInt:mNextKeyID];
+    [mHotKeyMap setObject:hotKey forKey:kid];
+    mNextKeyID += 1;
+    
 
     [hotKey setCarbonHotKey:carbonHotKey];
 	[mHotKeys setObject: hotKey forKey: [hotKey name]];
@@ -210,9 +217,11 @@ static id _sharedHotKeyCenter = nil;
 	
 
 	NSAssert( hotKeyID.signature == UTGetOSTypeFromString(CFSTR("PTHk")), @"Invalid hot key id" );
-	NSAssert( hotKeyID.id != nil, @"Invalid hot key id" );
 
-	hotKey = (PTHotKey*)hotKeyID.id;
+    NSNumber *kid = [NSNumber numberWithUnsignedInt:hotKeyID.id];
+	hotKey = [mHotKeyMap objectForKey:kid];
+    
+    NSAssert( hotKey != nil, @"Invalid hot key id" );
 
 	switch( GetEventKind( event ) )
 	{

@@ -100,7 +100,7 @@
 	}
 }
 
-- (unsigned int)validModesForFontPanel:(NSFontPanel *)fontPanel {
+- (NSUInteger)validModesForFontPanel:(NSFontPanel *)fontPanel {
 	
 	return NSFontPanelSizeModeMask | NSFontPanelCollectionModeMask;
 }

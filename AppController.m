@@ -29,12 +29,12 @@
 
 - (id)init {
     if ([super init]) {
-	
+		
 		windowUndoManager = [[NSUndoManager alloc] init];
-	
+		
 		isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
 		typedString = @"";
-	
+		
     }
     return self;
 }
@@ -86,11 +86,11 @@
 void outletObjectAwoke(id sender) {
 	static NSMutableSet *awokenOutlets = nil;
 	if (!awokenOutlets) awokenOutlets = [[NSMutableSet alloc] init];
-
+	
 	[awokenOutlets addObject:sender];
 	
 	AppController* appDelegate = (AppController*)[NSApp delegate];
-		
+	
 	if (appDelegate && [awokenOutlets containsObject:appDelegate] &&
 		[awokenOutlets containsObject:appDelegate->notesTableView] &&
 		[awokenOutlets containsObject:appDelegate->textView] &&
@@ -109,7 +109,7 @@ void outletObjectAwoke(id sender) {
 	[notationController checkIfNotationIsTrashed];
 	
 	//connect sparkle programmatically to avoid loading its framework at nib awake;
-	if (!NSClassFromString(@"SUUpdater")) {
+	if (RunningTigerAppKitOrHigher && !NSClassFromString(@"SUUpdater")) {
 		NSString *frameworkPath = [[[NSBundle bundleForClass:[self class]] privateFrameworksPath] stringByAppendingPathComponent:@"Sparkle.framework"];
 		if ([[NSBundle bundleWithPath:frameworkPath] load]) {
 			[sparkleUpdateItem setTarget:[[NSClassFromString(@"SUUpdater") alloc] init]];
@@ -122,7 +122,7 @@ void outletObjectAwoke(id sender) {
 
 extern int decodedCount();
 - (void)applicationDidFinishLaunching:(NSNotification*)aNote {
-
+	
     NSDate *before = [NSDate date];
 	prefsWindowController = [[PrefsWindowController alloc] init];
 	
@@ -161,7 +161,7 @@ extern int decodedCount();
 							subMessage, NSLocalizedString(@"Choose another folder",nil),NSLocalizedString(@"Quit",nil),NULL) == NSAlertDefaultReturn) {
 			//show nsopenpanel, defaulting to current default notes dir
 			FSRef notesDirectoryRef;
-			showOpenPanel:
+		showOpenPanel:
 			if (![prefsWindowController getNewNotesRefFromOpenPanel:&notesDirectoryRef returnedPath:&location]) {
 				//they cancelled the open panel, or it was unable to get the path/FSRef of the file
 				goto terminateApp;
@@ -179,7 +179,7 @@ extern int decodedCount();
 	[newNotation release];
 	
 	NSLog(@"load time: %g, ",[[NSDate date] timeIntervalSinceDate:before]);
-//	NSLog(@"version: %s", PRODUCT_NAME);
+	//	NSLog(@"version: %s", PRODUCT_NAME);
 	
 	//import old database(s) here if necessary
 	[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation:newNotation];
@@ -189,7 +189,7 @@ extern int decodedCount();
 		[notesToOpenOnLaunch release];
 		notesToOpenOnLaunch = nil;
 	}
-		
+	
 	//tell us when someone wants to load a new database
 	[prefsController registerForSettingChange:@selector(setAliasDataForDefaultDirectory:sender:) withTarget:self];
 	//tell us when sorting prefs changed
@@ -202,10 +202,10 @@ extern int decodedCount();
 	[self performSelector:@selector(runDelayedIUActionsAfterLaunch) withObject:nil afterDelay:0.1];
 	
 	NSLog(@"decoded 7 bit count: %d", decodedCount());
-
+	
 	return;
 terminateApp:
-		[NSApp terminate:self];
+	[NSApp terminate:self];
 }
 
 - (void)setNotationController:(NotationController*)newNotation {
@@ -248,7 +248,7 @@ terminateApp:
     return NO;
 }
 
-- (BOOL)validateMenuItem:(id <NSMenuItem>)menuItem {
+- (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	SEL selector = [menuItem action];
 	int numberSelected = [notesTableView numberOfSelectedRows];
 	
@@ -271,22 +271,22 @@ terminateApp:
 }
 
 /*
-- (void)menuNeedsUpdate:(NSMenu *)menu {
-	NSLog(@"mama needs update: %@", [menu title]);
-	
-	NSArray *selectedNotes = [notationController notesAtIndexes:[notesTableView selectedRowIndexes]];
-	[selectedNotes setURLsInNotesForMenu:menu];
-}*/
+ - (void)menuNeedsUpdate:(NSMenu *)menu {
+ NSLog(@"mama needs update: %@", [menu title]);
+ 
+ NSArray *selectedNotes = [notationController notesAtIndexes:[notesTableView selectedRowIndexes]];
+ [selectedNotes setURLsInNotesForMenu:menu];
+ }*/
 
 - (void)updateNoteMenus {
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:89] submenu];
-
+	
 	int menuIndex = [notesMenu indexOfItemWithTarget:self andAction:@selector(deleteNote:)];
 	NSMenuItem *deleteItem = nil;
 	if (menuIndex > -1 && (deleteItem = [notesMenu itemAtIndex:menuIndex]))	{
 		NSString *trailingQualifier = [prefsController confirmNoteDeletion] ? NSLocalizedString(@"...", @"ellipsis character") : @"";
 		[deleteItem setTitle:[NSString stringWithFormat:@"%@%@", 
-			NSLocalizedString(@"Delete", nil), trailingQualifier]];
+							  NSLocalizedString(@"Delete", nil), trailingQualifier]];
 	}	
 }
 
@@ -313,13 +313,13 @@ terminateApp:
 	//webkit URL!
 	if ([types containsObject:WebArchivePboardType]) {
 		sourceIdentiferString = [[pasteboard dataForType:WebArchivePboardType] pathURLFromWebArchive];
-	//gecko URL!
+		//gecko URL!
 	} else if ([types containsObject:[NSString customPasteboardTypeOfCode:0x4D5A0003]]) {
 		//lazilly use syntheticTitle to get first line, even though that's not how our API is documented
 		sourceIdentiferString = [[pasteboard stringForType:[NSString customPasteboardTypeOfCode:0x4D5A0003]] syntheticTitle];
 		unichar nullChar = 0x0;
 		sourceIdentiferString = [sourceIdentiferString stringByReplacingOccurrencesOfString:
-									[NSString stringWithCharacters:&nullChar length:1] withString:@""];
+								 [NSString stringWithCharacters:&nullChar length:1] withString:@""];
 	}
 	
 	if ([types containsObject:NSURLPboardType]) {
@@ -447,7 +447,7 @@ terminateApp:
 			NSString *warningSingleFormatString = NSLocalizedString(@"Delete the note titled quotemark%@quotemark?", @"alert title when asked to delete a note");
 			NSString *warningMultipleFormatString = NSLocalizedString(@"Delete %d notes?", @"alert title when asked to delete multiple notes");
 			NSString *warnString = currentNote ? [NSString stringWithFormat:warningSingleFormatString, titleOfNote(currentNote)] : 
-				[NSString stringWithFormat:warningMultipleFormatString, [indexes count]];
+			[NSString stringWithFormat:warningMultipleFormatString, [indexes count]];
 			NSBeginAlertSheet(warnString, NSLocalizedString(@"Delete", @"name of delete button"), NSLocalizedString(@"Cancel", @"name of cancel button"), 
 							  nil, window, self, @selector(deleteSheetDidEnd:returnCode:contextInfo:), NULL, (void*)deleteObj, 
 							  NSLocalizedString(@"You can undo this action later.", @"informational delete-this-note? text"));
@@ -460,7 +460,7 @@ terminateApp:
 
 - (IBAction)exportNote:(id)sender {
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
-
+	
 	NSArray *notes = [notationController notesAtIndexes:indexes];
 	
 	[notationController synchronizeNoteChanges:nil];
@@ -469,7 +469,7 @@ terminateApp:
 
 - (IBAction)printNote:(id)sender {
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
-
+	
 	[MultiplePageView printNotes:[notationController notesAtIndexes:indexes] forWindow:window];
 }
 
@@ -500,6 +500,7 @@ terminateApp:
     
     if ([selectorString isEqualToString:SEL_STR(setAliasDataForDefaultDirectory:sender:)]) {
 		//defaults changed for the database location -- load the new one!
+		//TODO: should remove all actions from windowUndoManager if initialization succeeds
 		
 		OSStatus err = noErr;
 		NotationController *newNotation = nil;
@@ -566,7 +567,7 @@ terminateApp:
 }
 
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames {
-
+	
 	//should check filenames here to see whether notationcontroller already owns these
 	NSArray *notes = [[[[AlienNoteImporter alloc] initWithStoragePaths:filenames] autorelease] importedNotes];
 	
@@ -676,18 +677,18 @@ terminateApp:
 			//[field updateButtonIfNecessaryForEditor:aTextView];
 			return YES;
 		}
-
+		
 		//following actions should also redraw the button, if it is visible
 		//except that this can be much more easily handled by -[DualField reflectScrolledClipView:]
 		/*if (command == @selector(moveLeft:) || command == @selector(moveRight:) ||
-			command == @selector(moveLeftAndModifySelection:) || command == @selector(moveRightAndModifySelection:) ||
-			command == @selector(moveToEndOfParagraph:) || command == @selector(moveToBeginningOfParagraph:) || 
-			command == @selector(moveParagraphForwardAndModifySelection:) || command == @selector(moveParagraphBackwardAndModifySelection:) ||
-			!strncmp((char*)command, "moveWord", 8) || !strncmp((char*)command, "page", 4) || !strncmp((char*)command, "scroll", 6)) {
-			[field updateButtonIfNecessaryForEditor:aTextView];
-			return NO;
-		}*/
-
+		 command == @selector(moveLeftAndModifySelection:) || command == @selector(moveRightAndModifySelection:) ||
+		 command == @selector(moveToEndOfParagraph:) || command == @selector(moveToBeginningOfParagraph:) || 
+		 command == @selector(moveParagraphForwardAndModifySelection:) || command == @selector(moveParagraphBackwardAndModifySelection:) ||
+		 !strncmp((char*)command, "moveWord", 8) || !strncmp((char*)command, "page", 4) || !strncmp((char*)command, "scroll", 6)) {
+		 [field updateButtonIfNecessaryForEditor:aTextView];
+		 return NO;
+		 }*/
+		
 		if (command == @selector(moveToBeginningOfLineAndModifySelection:)) {
 			
 			if ([aTextView respondsToSelector:@selector(moveToBeginningOfDocumentAndModifySelection:)]) {
@@ -720,7 +721,7 @@ terminateApp:
 				}
 			}
 		}
-
+		
 	} else if (control == (NSControl*)notesTableView) {
 		if (command == @selector(insertNewline:)) {
 			//hit return in cell
@@ -791,9 +792,14 @@ terminateApp:
 		
 		if ([fieldString length] > 0) {
 			[field setSnapbackString:nil];
-									
-			unsigned int preferredNoteIndex = [notationController preferredSelectedNoteIndex];
+			
+			NSUInteger preferredNoteIndex = [notationController preferredSelectedNoteIndex];
 			if ([prefsController autoCompleteSearches] && preferredNoteIndex != NSNotFound) {
+				
+				//TODO: select nothing if search string is not equal to title of preferredNoteIndex
+				//e.g., modifying a note's title in the search field deselects it, 
+				//whether a result of back-spacing either an auto-completed entry 
+				//or the title of a manually-selected note
 				
 				[notesTableView selectRowAndScroll:preferredNoteIndex];
 				
@@ -830,14 +836,14 @@ terminateApp:
 			}
 		} else {
 			//selecting nothing; nothing typed
-selectNothing:
+		selectNothing:
 			isFilteringFromTyping = NO;
 			[notesTableView deselectAll:nil];
 			
 			//reloadData could have already de-selected us, and hence this notification would not be sent from -deselectAll:
 			[self processChangedSelectionForTable:notesTableView];
 		}
-
+		
 		isFilteringFromTyping = NO;
 	}
 }
@@ -855,11 +861,11 @@ selectNothing:
 			allowMultipleSelection = YES;
 		}
 	}
-
+	
 	if (allowMultipleSelection != [notesTableView allowsMultipleSelection]) {
 		//we may need to hack some hidden NSTableView instance variables to improve mid-drag flags-changing
 		//NSLog(@"set allows mult: %d", allowMultipleSelection);
-
+		
 		[notesTableView setAllowsMultipleSelection:allowMultipleSelection];
 		
 		//we need this because dragging a selection back to the same note will nto trigger a selectionDidChange notification
@@ -870,7 +876,7 @@ selectNothing:
 		//occasionally changing multiple selection ability in-between selecting multiple items causes total deselection
 		[window makeFirstResponder:notesTableView];
 	}
-
+	
 	[self processChangedSelectionForTable:[aNotification object]];
 }
 
@@ -896,10 +902,10 @@ selectNothing:
 	NSTextView *fieldEditor = (NSTextView*)[field currentEditor];
 	
 	if (table == (NSTableView*)notesTableView) {
-
+		
 		if (selectedRow > -1 && numberSelected == 1) {
 			//if it is uncached, cache the typed string only if we are selecting a note
-
+			
 			[self cacheTypedStringIfNecessary:[fieldEditor string]];
 			
 			//add snapback-button here?
@@ -938,7 +944,7 @@ selectNothing:
 	if (!isFilteringFromTyping) {
 		if (currentNote) {
 			//selected nothing and something is currently selected
-						
+			
 			[self _setCurrentNote:nil];
 			
 			if (typedStringIsCached) {
@@ -973,7 +979,7 @@ selectNothing:
 	BOOL enable = /*numberSelected != 1;*/ state;
 	[textView setHidden:enable];
 	[editorStatusView setHidden:!enable];
-		
+	
 	if (enable) {
 		[editorStatusView setLabelStatus:[notesTableView numberOfSelectedRows]];
 	}
@@ -983,7 +989,7 @@ selectNothing:
 	NoteObject *note = [notationController noteObjectAtFilteredIndex:noteIndex];
 	if (note != currentNote) {
 		[self setEmptyViewState:NO];
-				
+		
 		//actually load the new note
 		[self _setCurrentNote:note];
 		
@@ -1035,7 +1041,7 @@ selectNothing:
 //from linkingeditor
 - (void)textDidChange:(NSNotification *)aNotification {
 	id textObject = [aNotification object];
-
+	
 	if (textObject == textView) {
 		[currentNote setContentString:[textView textStorage]];
 	}
@@ -1061,10 +1067,10 @@ selectNothing:
 }
 
 - (IBAction)fieldAction:(id)sender {
-
+	
 	[self createNoteIfNecessary];
 	[window makeFirstResponder:textView];
-
+	
 }
 
 - (NSUndoManager *)windowWillReturnUndoManager:(NSWindow *)sender {
@@ -1093,7 +1099,7 @@ selectNothing:
     if (!currentNote) {
 		//this assertion not yet valid until labels list changes notes list
 		assert([notesTableView numberOfSelectedRows] != 1);
-	
+		
 		[textView setTypingAttributes:[prefsController noteBodyAttributes]];
 		[textView setFont:[prefsController noteBodyFont]];
 		
@@ -1108,7 +1114,7 @@ selectNothing:
 
 - (void)notation:(NotationController*)notation revealNote:(NoteObject*)note {
 	if (note) {
-		unsigned selectedNoteIndex = [notation indexInFilteredListForNoteIdenticalTo:note];
+		NSUInteger selectedNoteIndex = [notation indexInFilteredListForNoteIdenticalTo:note];
 		
 		if (selectedNoteIndex == NSNotFound) {
 			NSLog(@"Note was not visible--showing all notes and trying again");
@@ -1155,13 +1161,13 @@ selectNothing:
 	}
 }
 
-- (void)splitView:(RBSplitView*)sender wasResizedFrom:(float)oldDimension to:(float)newDimension {
+- (void)splitView:(RBSplitView*)sender wasResizedFrom:(CGFloat)oldDimension to:(CGFloat)newDimension {
 	if (sender == splitView) {
 		[sender adjustSubviewsExcepting:[splitView subviewAtPosition:0]];
 	}
 }
 
-- (BOOL)splitView:(RBSplitView*)sender shouldHandleEvent:(NSEvent*)theEvent inDivider:(unsigned int)divider 
+- (BOOL)splitView:(RBSplitView*)sender shouldHandleEvent:(NSEvent*)theEvent inDivider:(NSUInteger)divider 
 	  betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing {
 	//if upon the first mousedown, the top selected index is visible, snap to it when resizing
 	[notesTableView noteFirstVisibleRow];
@@ -1290,12 +1296,12 @@ selectNothing:
 - (IBAction)bringFocusToControlField:(id)sender {	
 	if (![NSApp isActive])
 		[NSApp activateIgnoringOtherApps:YES];
-
+	
 	if (![window isKeyWindow]) {
 		[window makeKeyAndOrderFront:sender];
 	}
 	[field selectText:sender];
-		
+	
 	[self setEmptyViewState:currentNote == nil];
 }
 

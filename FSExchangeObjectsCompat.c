@@ -4,36 +4,34 @@
  */
 
 #include "FSExchangeObjectsCompat.h"
+#include <sys/attr.h>
+#include <sys/stat.h>
+#include <sys/mount.h>
 
-#define GetVolParmsInfoExtendedAttributes(volParms)  (((volParms)->vMVersion >= 3) ? (volParms)->vMExtendedAttributes : 0)
+__private_extern__ u_int32_t volumeCapabilities(const char *path)
+{
+    struct attrlist alist;
+    bzero(&alist, sizeof(alist));
+    alist.bitmapcount = ATTR_BIT_MAP_COUNT;
+    alist.volattr = ATTR_VOL_INFO|ATTR_VOL_CAPABILITIES; // XXX: VOL_INFO must always be set
 
-OSErr FSGetVolParms(FSVolumeRefNum volRefNum, UInt32 bufferSize, GetVolParmsInfoBuffer *volParmsInfo, UInt32 *actualInfoSize) {
-	OSErr result;
-	HParamBlockRec pb;
-	
-	/* check parameters */
-	require_action((NULL != volParmsInfo) && (NULL != actualInfoSize),
-				   BadParameter, result = paramErr);
-	
-	pb.ioParam.ioNamePtr = NULL;
-	pb.ioParam.ioVRefNum = volRefNum;
-	pb.ioParam.ioBuffer = (Ptr)volParmsInfo;
-	pb.ioParam.ioReqCount = (SInt32)bufferSize;
-	result = PBHGetVolParmsSync(&pb);
-	require_noerr(result, PBHGetVolParmsSync);
-	
-	/* return number of bytes the file system returned in volParmsInfo buffer */
-	*actualInfoSize = (UInt32)pb.ioParam.ioActCount;
-	
-PBHGetVolParmsSync:
-BadParameter:
-		
-		return ( result );
+    struct {
+        u_int32_t v_size;
+       /* Fixed storage */
+       vol_capabilities_attr_t v_caps;
+    } vinfo;
+    bzero(&vinfo, sizeof(vinfo));
+    if (0 == getattrlist(path, &alist, &vinfo, sizeof(vinfo), 0)
+        && 0 != (alist.volattr & ATTR_VOL_CAPABILITIES)) {
+        return (vinfo.v_caps.capabilities[VOL_CAPABILITIES_FORMAT]);
+    }
+    
+    return (0);
 }
 
-Boolean  VolSupportsFSExchangeObjects(const GetVolParmsInfoBuffer *volParms)
+Boolean  VolSupportsFSExchangeObjects(u_int32_t volCapabilities)
 {
-	return ( (GetVolParmsInfoExtendedAttributes(volParms) & (1L << bSupportsFSExchangeObjects)) != 0 );
+	return ( 0 != (volCapabilities & VOL_CAP_INT_EXCHANGEDATA));
 }
 
 
@@ -96,23 +94,19 @@ Dir1PBMakeFSRefUnicodeSyncFailed:
 }
 
 Boolean VolumeOfFSRefSupportsExchangeObjects(const FSRef *fsRef) {
-	OSErr result;
-	GetVolParmsInfoBuffer volParmsInfo;
-	FSCatalogInfo sourceCatalogInfo;
-	UInt32 infoSize;
-	
-	/* get source volume's vRefNum */
-	result = FSGetCatalogInfo(fsRef, kFSCatInfoVolume, &sourceCatalogInfo, NULL, NULL, NULL);
-	require_noerr(result, DetermineSourceVRefNumFailed);
+	/* get source volume's path */
+    char path[PATH_MAX+1];
+    (void)FSRefMakePath(fsRef, (UInt8*)path, PATH_MAX);
+    
+    char root[PATH_MAX+1];
+    root[0] = root[PATH_MAX] = 0;
+    struct statfs sb;
+    if (0 == statfs(path, &sb)) {
+        bcopy(sb.f_mntonname, root, MIN(PATH_MAX, sizeof(sb.f_mntonname)));
+    }
 	
 	/* see if that volume supports FSExchangeObjects */
-	result = FSGetVolParms(sourceCatalogInfo.volume, sizeof(GetVolParmsInfoBuffer),
-						   &volParmsInfo, &infoSize);
-	return (noErr == result) && VolSupportsFSExchangeObjects(&volParmsInfo);
-	
-DetermineSourceVRefNumFailed:  
-
-	return false;
+    return (VolSupportsFSExchangeObjects(volumeCapabilities(root)));
 }
 
 OSErr FSExchangeObjectsEmulate(const FSRef *sourceRef, const FSRef *destRef, FSRef *newSourceRef, FSRef *newDestRef) {

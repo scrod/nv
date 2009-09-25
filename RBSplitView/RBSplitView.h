@@ -27,7 +27,7 @@ typedef enum {
 	NSColor* background;		// The color used to paint the view's background (may be nil).
 	NSImage* divider;			// The image used for the divider "dimple".
 	NSRect* dividers;			// A C array of NSRects, one for each divider.
-	float dividerThickness;		// Actual divider width; should be an integer and at least 1.0.
+	CGFloat dividerThickness;		// Actual divider width; should be an integer and at least 1.0.
 	BOOL mustAdjust;			// Set internally if the subviews need to be adjusted.
 	BOOL mustClearFractions;	// Set internally if fractions should be cleared before adjusting.
 	BOOL isHorizontal;			// The divider's orientation; default is vertical.
@@ -86,7 +86,7 @@ typedef enum {
 - (id)initWithFrame:(NSRect)frame;
 
 // This convenience initializer adds any number of subviews and adjusts them proportionally.
-- (id)initWithFrame:(NSRect)frame andSubviews:(unsigned)count;
+- (id)initWithFrame:(NSRect)frame andSubviews:(NSUInteger)count;
 
 // Sets and gets the delegate. (Delegates aren't retained.) See further down for delegate methods.
 - (void)setDelegate:(id)anObject;
@@ -96,17 +96,17 @@ typedef enum {
 - (RBSplitSubview*)subviewWithIdentifier:(NSString*)anIdentifier;
 
 // Returns the subview at a certain position. Returns nil if the position is invalid.
-- (RBSplitSubview*)subviewAtPosition:(unsigned)position;
+- (RBSplitSubview*)subviewAtPosition:(NSUInteger)position;
 
 // Adds a subview at a certain position.
-- (void)addSubview:(NSView*)aView atPosition:(unsigned)position;
+- (void)addSubview:(NSView*)aView atPosition:(NSUInteger)position;
 
 // Sets and gets the divider thickness, which should be a positive integer or zero.
 // Setting the divider image also resets this automatically, so you would call this
 // only if you want the divider to be larger or smaller than the image. Zero means that
 // the image dimensions will be used.
-- (void)setDividerThickness:(float)thickness;
-- (float)dividerThickness;
+- (void)setDividerThickness:(CGFloat)thickness;
+- (CGFloat)dividerThickness;
 
 // Sets and gets the divider image. The default image can also be set in Interface Builder, so usually
 // there's no need to call this. Passing in nil means that the default divider thickness will be zero,
@@ -181,7 +181,7 @@ typedef enum {
 
 // This method will be called after a RBSplitView is resized with setFrameSize: but before
 // adjustSubviews is called on it.
-- (void)splitView:(RBSplitView*)sender wasResizedFrom:(float)oldDimension to:(float)newDimension;
+- (void)splitView:(RBSplitView*)sender wasResizedFrom:(CGFloat)oldDimension to:(CGFloat)newDimension;
 
 // This method will be called when a divider is double-clicked and both leading and trailing
 // subviews can be collapsed. Return either of the parameters to collapse that subview, or nil
@@ -192,16 +192,16 @@ typedef enum {
 // proposed rect is passed in. Return the actual rect, or NSZeroRect to suppress cursor setting
 // for this divider. This won't be called for two-axis thumbs, however. The rects are in
 // sender's local coordinates.
-- (NSRect)splitView:(RBSplitView*)sender cursorRect:(NSRect)rect forDivider:(unsigned int)divider;
+- (NSRect)splitView:(RBSplitView*)sender cursorRect:(NSRect)rect forDivider:(NSUInteger)divider;
 
 // This method will be called whenever a mouse-down event is received in a divider. Return YES to have
 // the event handled by the split view, NO if you wish to ignore it or handle it in the delegate.
-- (BOOL)splitView:(RBSplitView*)sender shouldHandleEvent:(NSEvent*)theEvent inDivider:(unsigned int)divider betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing;
+- (BOOL)splitView:(RBSplitView*)sender shouldHandleEvent:(NSEvent*)theEvent inDivider:(NSUInteger)divider betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing;
 
 // This method will be called just before a subview will be collapsed or expanded with animation.
 // Return the approximate time the animation should take, or 0.0 to disallow animation.
 // If not implemented, it will use the default of 0.2 seconds per 150 pixels.
-- (NSTimeInterval)splitView:(RBSplitView*)sender willAnimateSubview:(RBSplitSubview*)subview withDimension:(float)dimension;
+- (NSTimeInterval)splitView:(RBSplitView*)sender willAnimateSubview:(RBSplitSubview*)subview withDimension:(CGFloat)dimension;
 
 // This method will be called whenever a subview's frame is changed, usually from inside adjustSubviews' final loop.
 // You'd normally use this to move some auxiliary view to keep it aligned with the subview.
@@ -211,11 +211,11 @@ typedef enum {
 // should act as an alternate drag view. Usually, the delegate will check the point (which is in sender's
 // local coordinates) against the frame of one or several auxiliary views, and return a valid divider number.
 // Returning NSNotFound means the point is not valid.
-- (unsigned int)splitView:(RBSplitView*)sender dividerForPoint:(NSPoint)point inSubview:(RBSplitSubview*)subview;
+- (NSUInteger)splitView:(RBSplitView*)sender dividerForPoint:(NSPoint)point inSubview:(RBSplitSubview*)subview;
 
 // This method is called continuously while a divider is dragged, just before the leading subview is resized.
 // Return NO to resize the trailing view by the same amount, YES to resize the containing window by the same amount.
-- (BOOL)splitView:(RBSplitView*)sender shouldResizeWindowForDivider:(unsigned int)divider betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow;
+- (BOOL)splitView:(RBSplitView*)sender shouldResizeWindowForDivider:(NSUInteger)divider betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow;
 
 // This method is called by each subview's drawRect: method, just after filling it with the background color but
 // before the contained subviews are drawn. Usually you would use this to draw a frame inside the subview.

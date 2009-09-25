@@ -105,7 +105,7 @@
 		NSString* contents;
 		
 		path = [[NSBundle bundleForClass: self] pathForResource: @"PTKeyCodes" ofType: @"plist"];
-		contents = [NSString stringWithContentsOfFile: path];
+		contents = [NSString stringWithContentsOfFile: path encoding:NSUTF8StringEncoding error:nil];
 		keyCodes = [[contents propertyList] retain];
 	}
 	

@@ -41,9 +41,9 @@ typedef struct _NoteCatalogEntry {
 	NoteAttributeColumn* sortColumn;
 	
     NoteObject **allNotesBuffer;
-	unsigned int allNotesBufferSize;
+	unsigned allNotesBufferSize;
     
-    unsigned selectedNoteIndex;
+    NSUInteger selectedNoteIndex;
     char *currentFilterStr, *manglingString;
     int lastWordInFilterStr;
     
@@ -76,8 +76,8 @@ typedef struct _NoteCatalogEntry {
 	NSUndoManager *undoManager;
 }
 
-int compareCatalogEntryName(const void *one, const void *two);
-int compareCatalogValueNodeID(id *a, id *b);
+NSInteger compareCatalogEntryName(const void *one, const void *two);
+NSInteger compareCatalogValueNodeID(id *a, id *b);
 void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription);
 
 - (id)init;
@@ -140,12 +140,12 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)refilterNotes;
 - (BOOL)filterNotesFromString:(NSString*)string;
 - (BOOL)filterNotesFromUTF8String:(const char*)searchString forceUncached:(BOOL)forceUncached;
-- (unsigned)preferredSelectedNoteIndex;
+- (NSUInteger)preferredSelectedNoteIndex;
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex;
 - (NSArray*)notesAtIndexes:(NSIndexSet*)indexSet;
 - (NSIndexSet*)indexesOfNotes:(NSArray*)noteSet;
-- (unsigned)indexInFilteredListForNoteIdenticalTo:(NoteObject*)note;
-- (unsigned int)totalNoteCount;
+- (NSUInteger)indexInFilteredListForNoteIdenticalTo:(NoteObject*)note;
+- (NSUInteger)totalNoteCount;
 
 - (void)scheduleUpdateListForAttribute:(NSString*)attribute;
 - (NoteAttributeColumn*)sortColumn;

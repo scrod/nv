@@ -19,6 +19,16 @@
 
 #define CURRENT_NOTE_ARCHIVING_VERSION 1
 
+#if __LP64__
+// Needed for compatability with data created by 32bit app
+typedef struct NSRange32 {
+    unsigned int location;
+    unsigned int length;
+} NSRange32;
+#else
+typedef NSRange NSRange32;
+#endif
+
 @implementation NoteObject
 
 static NSStringEncoding systemStringEncoding;
@@ -45,6 +55,7 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	modifiedDate = createdDate = 0.0;
 	currentFormatID = SingleDatabaseFormat;
 	nodeID = 0;
+	//TODO: use UTF-8 instead
 	fileEncoding = systemStringEncoding;
 	contentsWere7Bit = NO;
 	
@@ -107,23 +118,23 @@ static FSRef *noteFileRefInit(NoteObject* obj) {
 	return obj->noteFileRef;
 }
 
-int compareFilename(id *one, id *two) {
+NSInteger compareFilename(id *one, id *two) {
     
     return (int)CFStringCompare((CFStringRef)((*(NoteObject**)one)->filename), 
 				(CFStringRef)((*(NoteObject**)two)->filename), kCFCompareCaseInsensitive);
 }
 
-int compareDateModified(id *a, id *b) {
+NSInteger compareDateModified(id *a, id *b) {
     return (*(NoteObject**)a)->modifiedDate - (*(NoteObject**)b)->modifiedDate;
 }
-int compareDateCreated(id *a, id *b) {
+NSInteger compareDateCreated(id *a, id *b) {
     return (*(NoteObject**)a)->createdDate - (*(NoteObject**)b)->createdDate;
 }
-int compareLabelString(id *a, id *b) {    
+NSInteger compareLabelString(id *a, id *b) {    
     return (int)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)a)), 
 								(CFStringRef)(labelsOfNote(*(NoteObject **)b)), kCFCompareCaseInsensitive);
 }
-int compareTitleString(id *a, id *b) {
+NSInteger compareTitleString(id *a, id *b) {
     CFComparisonResult stringResult = CFStringCompare((CFStringRef)(titleOfNote(*(NoteObject**)a)), 
 													  (CFStringRef)(titleOfNote(*(NoteObject**)b)), 
 													  kCFCompareCaseInsensitive);
@@ -138,22 +149,22 @@ int compareTitleString(id *a, id *b) {
 	
 	return (int)stringResult;
 }
-int compareUniqueNoteIDBytes(id *a, id *b) {
+NSInteger compareUniqueNoteIDBytes(id *a, id *b) {
 	return memcmp((&(*(NoteObject**)a)->uniqueNoteIDBytes), (&(*(NoteObject**)b)->uniqueNoteIDBytes), sizeof(CFUUIDBytes));
 }
 
 
-int compareDateModifiedReverse(id *a, id *b) {
+NSInteger compareDateModifiedReverse(id *a, id *b) {
     return (*(NoteObject**)b)->modifiedDate - (*(NoteObject**)a)->modifiedDate;
 }
-int compareDateCreatedReverse(id *a, id *b) {
+NSInteger compareDateCreatedReverse(id *a, id *b) {
     return (*(NoteObject**)b)->createdDate - (*(NoteObject**)a)->createdDate;
 }
-int compareLabelStringReverse(id *a, id *b) {    
+NSInteger compareLabelStringReverse(id *a, id *b) {    
     return (int)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)b)), 
 								(CFStringRef)(labelsOfNote(*(NoteObject **)a)), kCFCompareCaseInsensitive);
 }
-int compareTitleStringReverse(id *a, id *b) {
+NSInteger compareTitleStringReverse(id *a, id *b) {
     CFComparisonResult stringResult = CFStringCompare((CFStringRef)(titleOfNote(*(NoteObject **)b)), 
 													  (CFStringRef)(titleOfNote(*(NoteObject **)a)), 
 													  kCFCompareCaseInsensitive);
@@ -168,7 +179,7 @@ int compareTitleStringReverse(id *a, id *b) {
 	return (int)stringResult;	
 }
 
-int compareNodeID(id *a, id *b) {
+NSInteger compareNodeID(id *a, id *b) {
     return (*(NoteObject**)a)->nodeID - (*(NoteObject**)b)->nodeID;
 }
 
@@ -263,9 +274,9 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 			fileModifiedDate.fraction = [decoder decodeInt32ForKey:@"fileModDateFrac"];
 			fileEncoding = [decoder decodeInt32ForKey:VAR_STR(fileEncoding)];
 
-			unsigned decodedByteCount;
+			NSUInteger decodedByteCount;
 			const uint8_t *decodedBytes = [decoder decodeBytesForKey:VAR_STR(uniqueNoteIDBytes) returnedLength:&decodedByteCount];
-			memcpy(&uniqueNoteIDBytes, decodedBytes, MAX(decodedByteCount, sizeof(CFUUIDBytes)));
+			memcpy(&uniqueNoteIDBytes, decodedBytes, MIN(decodedByteCount, sizeof(CFUUIDBytes)));
 			serverModifiedTime = [decoder decodeInt32ForKey:VAR_STR(serverModifiedTime)];
 			
 			titleString = [[decoder decodeObjectForKey:VAR_STR(titleString)] retain];
@@ -284,20 +295,43 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 				}
 				DidCheckNoteVersion = YES;
 			}
+            NSRange32 range32;
+            #if __LP64__
+            unsigned long longTemp;
+            #endif
 #if DECODE_INDIVIDUALLY
 			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&modifiedDate];
 			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&createdDate];
-			[decoder decodeValueOfObjCType:@encode(NSRange) at:&selectedRange];
+            #if __LP64__
+			[decoder decodeValueOfObjCType:"{_NSRange=II}" at:&range32];
+            #else
+            [decoder decodeValueOfObjCType:@encode(NSRange) at:&range32];
+            #endif
 			[decoder decodeValueOfObjCType:@encode(float) at:&scrolledProportion];
 			
 			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
 			
 			[decoder decodeValueOfObjCType:@encode(int) at:&currentFormatID];
+            #if __LP64__
+            [decoder decodeValueOfObjCType:"L" at:&longTemp];
+            nodeID = (UInt32)longTemp;
+            #else
 			[decoder decodeValueOfObjCType:@encode(UInt32) at:&nodeID];
+            #endif
 			[decoder decodeValueOfObjCType:@encode(UInt16) at:&fileModifiedDate.highSeconds];
-			[decoder decodeValueOfObjCType:@encode(UInt32) at:&fileModifiedDate.lowSeconds];
+            #if __LP64__
+			[decoder decodeValueOfObjCType:"L" at:&longTemp];
+            fileModifiedDate.lowSeconds = (UInt32)longTemp;
+            #else
+            [decoder decodeValueOfObjCType:@encode(UInt32) at:&fileModifiedDate.lowSeconds];
+            #endif
 			[decoder decodeValueOfObjCType:@encode(UInt16) at:&fileModifiedDate.fraction];	
-			[decoder decodeValueOfObjCType:@encode(NSStringEncoding) at:&fileEncoding];
+            
+            #if __LP64__
+            [decoder decodeValueOfObjCType:"I" at:&fileEncoding];
+            #else
+            [decoder decodeValueOfObjCType:@encode(NSStringEncoding) at:&fileEncoding];
+            #endif
 			
 			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
 			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
@@ -307,10 +341,12 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 			contentString = [[decoder decodeObject] retain];
 			filename = [[decoder decodeObject] retain];
 #else 
-			[decoder decodeValuesOfObjCTypes: "dd{NSRange=ii}fIiI{UTCDateTime=SIS}I[16C]I@@@@", &modifiedDate, &createdDate, &selectedRange, 
+			[decoder decodeValuesOfObjCTypes: "dd{NSRange=ii}fIiI{UTCDateTime=SIS}I[16C]I@@@@", &modifiedDate, &createdDate, &range32, 
 				&scrolledProportion, &logSequenceNumber, &currentFormatID, &nodeID, &fileModifiedDate, &fileEncoding, &uniqueNoteIDBytes, 
 				&serverModifiedTime, &titleString, &labelString, &contentString, &filename];
 #endif
+            selectedRange.location = range32.location;
+            selectedRange.length = range32.length;
 		}
 		
 		contentsWere7Bit = (*(unsigned int*)&scrolledProportion) != 0; //hacko wacko
@@ -336,8 +372,8 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		
 		[coder encodeDouble:modifiedDate forKey:VAR_STR(modifiedDate)];
 		[coder encodeDouble:createdDate forKey:VAR_STR(createdDate)];
-		[coder encodeInt32:selectedRange.location forKey:@"selectionRangeLocation"];
-		[coder encodeInt32:selectedRange.length forKey:@"selectionRangeLength"];
+		[coder encodeInt32:(unsigned int)selectedRange.location forKey:@"selectionRangeLocation"];
+		[coder encodeInt32:(unsigned int)selectedRange.length forKey:@"selectionRangeLength"];
 		[coder encodeFloat:scrolledProportion forKey:VAR_STR(scrolledProportion)];
 		
 		[coder encodeInt32:logSequenceNumber forKey:VAR_STR(logSequenceNumber)];
@@ -359,10 +395,12 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		[coder encodeObject:filename forKey:VAR_STR(filename)];
 		
 	} else {
+// 64bit encoding would break 32bit reading - keyed archives should be used
+#if !__LP64__
 #if DECODE_INDIVIDUALLY
 		[coder encodeValueOfObjCType:@encode(CFAbsoluteTime) at:&modifiedDate];
 		[coder encodeValueOfObjCType:@encode(CFAbsoluteTime) at:&createdDate];
-		[coder encodeValueOfObjCType:@encode(NSRange) at:&selectedRange];
+        [coder encodeValueOfObjCType:@encode(NSRange) at:&selectedRange];
 		[coder encodeValueOfObjCType:@encode(float) at:&scrolledProportion];
 		
 		[coder encodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
@@ -383,10 +421,11 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		[coder encodeObject:filename];
 		
 #else
-		[coder encodeValuesOfObjCTypes: "dd{NSRange=ii}fIiI{UTCDateTime=SIS}I[16C]I@@@@", &modifiedDate, &createdDate, &selectedRange, 
+		[coder encodeValuesOfObjCTypes: "dd{NSRange=ii}fIiI{UTCDateTime=SIS}I[16C]I@@@@", &modifiedDate, &createdDate, &range32, 
 			&scrolledProportion, &logSequenceNumber, &currentFormatID, &nodeID, &fileModifiedDate, &fileEncoding, &uniqueNoteIDBytes, 
 			&serverModifiedTime, &titleString, &labelString, &contentString, &filename];
 #endif
+#endif // !__LP64__
 	}
 }
 
@@ -451,7 +490,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		labelString = @""; //I'd like to get labels from getxattr
 		cLabelsFoundPtr = cLabels = strdup("");	
 		
-		createdDate = modifiedDate = CFAbsoluteTimeGetCurrent();
+		createdDate = modifiedDate = CFAbsoluteTimeGetCurrent(); //TODO: use the file's mod/create dates instead
 		dateCreatedString = [dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain] retain];
 		
 		contentString = [[NSMutableAttributedString alloc] initWithString:@""];
@@ -891,6 +930,7 @@ int decodedCount() {
 			[delegate noteDidNotWrite:self errorCode:err];
 			return NO;
 		}
+		//TODO: if writing plaintext set the file encoding with setxattr
 		
 		if (!resetFilename) {
 			NSLog(@"resetting the file name just because.");
@@ -945,6 +985,7 @@ int decodedCount() {
 		NSLog(@"Couldn't update note from file on disk");
 		return NO;
     }
+	//TODO: also grab the com.apple.TextEncoding xattr to help getShortLivedStringFromData: in updateFromData: figure out ambiguous cases
 	
     if ([self updateFromData:data]) {
 		FSCatalogInfo info;

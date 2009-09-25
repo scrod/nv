@@ -66,11 +66,11 @@
 		if (!(keyLengthInBits = [decoder decodeIntForKey:VAR_STR(keyLengthInBits)]))
 			keyLengthInBits = DEFAULT_KEY_LENGTH;
 		
-		NS_DURING
+		@try {
 			baseBodyFont = [[decoder decodeObjectForKey:VAR_STR(baseBodyFont)] retain];
-		NS_HANDLER
-			NSLog(@"Error trying to unarchive default base body font (%@, %@)", [localException name], [localException reason]);
-		NS_ENDHANDLER
+		} @catch (NSException *e) {
+			NSLog(@"Error trying to unarchive default base body font (%@, %@)", [e name], [e reason]);
+		}
 		if (!baseBodyFont || ![baseBodyFont isKindOfClass:[NSFont class]]) {
 			baseBodyFont = [[[GlobalPrefs defaultPrefs] noteBodyFont] retain];
 			NSLog(@"setting base body to current default: %@", baseBodyFont);

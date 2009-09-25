@@ -111,8 +111,8 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 - (BOOL)isEqual:(id)anObject {
     return noteObject == [anObject noteObject];
 }
-- (unsigned)hash {
-    return (unsigned)noteObject;
+- (NSUInteger)hash {
+    return (NSUInteger)noteObject;
 }
 
 @end
@@ -183,7 +183,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (NoteObject*)noteWithUUIDBytes:(CFUUIDBytes)bytes {
-	unsigned noteIndex = [notes indexOfNoteWithUUIDBytes:&bytes];
+	NSUInteger noteIndex = [notes indexOfNoteWithUUIDBytes:&bytes];
 	if (noteIndex != NSNotFound) return [notes objectAtIndex:noteIndex];
 	return nil;
 }
@@ -253,7 +253,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 - (void)selectBookmarkInTableView:(NoteBookmark*)bookmark {
 	if (bookmarksTableView && bookmark) {
 		//find bookmark index and select
-		unsigned bmIndex = [bookmarks indexOfObjectIdenticalTo:bookmark];
+		NSUInteger bmIndex = [bookmarks indexOfObjectIdenticalTo:bookmark];
 		if (bmIndex != NSNotFound) {
 			isSelectingProgrammatically = YES;
 			[bookmarksTableView selectRow:bmIndex byExtendingSelection:NO];
@@ -263,7 +263,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	}
 }
 
-- (BOOL)validateMenuItem:(id <NSMenuItem>)menuItem {
+- (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	//need to fix this for better style detection
 	
 	SEL action = [menuItem action];
@@ -299,7 +299,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	[self restoreNoteBookmark:[sender representedObject]];
 }
 
-- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
+- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	if ([[aTableColumn identifier] isEqualToString:@"description"]) {
 		NSString *description = [[bookmarks objectAtIndex:rowIndex] description];
 		if (description) 
@@ -320,11 +320,11 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	return [NSString stringWithFormat:@"%@%@%@ %d", rowIndex > 17 ? ctrlCharStr : @"", rowIndex > 8 ? shiftCharStr : @"", cmdCharStr, (rowIndex % 9) + 1];
 }
 
-- (int)numberOfRowsInTableView:(NSTableView *)aTableView {
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {
     return [bookmarks count];
 }
 
-- (BOOL)tableView:(NSTableView *)aTableView shouldEditTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
+- (BOOL)tableView:(NSTableView *)aTableView shouldEditTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	return NO;
 }
 
@@ -346,7 +346,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
     return YES;
 }
 
-- (NSDragOperation)tableView:(NSTableView*)tv validateDrop:(id <NSDraggingInfo>)info proposedRow:(int)row
+- (NSDragOperation)tableView:(NSTableView*)tv validateDrop:(id <NSDraggingInfo>)info proposedRow:(NSInteger)row
 	   proposedDropOperation:(NSTableViewDropOperation)op {
     
     NSDragOperation dragOp = ([info draggingSource] == bookmarksTableView) ? NSDragOperationMove : NSDragOperationCopy;
@@ -356,13 +356,13 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
     return dragOp;
 }
 
-- (BOOL)tableView:(NSTableView*)tv acceptDrop:(id <NSDraggingInfo>)info row:(int)row dropOperation:(NSTableViewDropOperation)op {
+- (BOOL)tableView:(NSTableView*)tv acceptDrop:(id <NSDraggingInfo>)info row:(NSInteger)row dropOperation:(NSTableViewDropOperation)op {
     if (row < 0)
 		row = 0;
     
     if ([info draggingSource] == bookmarksTableView) {
 		NSArray *rows = [[info draggingPasteboard] propertyListForType:MovedBookmarksType];
-		int theRow = [[rows objectAtIndex:0] intValue];
+		NSInteger theRow = [[rows objectAtIndex:0] intValue];
 		
 		id object = [[bookmarks objectAtIndex:theRow] retain];
 		
@@ -425,6 +425,9 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	
 	[bookmarksTableView reloadData];
 	[window makeKeyAndOrderFront:self];
+	
+	//TODO: hide bookmarks window if already open
+	//TODO: fix nspanel to not respond to close
 
 	//highlight searches as appropriate while the window is open
 	//selecting a search restores it
@@ -453,7 +456,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 		NoteBookmark *bookmark = [[NoteBookmark alloc] initWithNoteObject:[delegate selectedNoteObject] searchString:newString];
 		if (bookmark) {
 			
-			unsigned existingIndex = [bookmarks indexOfObject:bookmark];
+			NSUInteger existingIndex = [bookmarks indexOfObject:bookmark];
 			if (existingIndex != NSNotFound) {
 				//show them what they've already got
 				NoteBookmark *existingBookmark = [bookmarks objectAtIndex:existingIndex];

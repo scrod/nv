@@ -33,8 +33,14 @@ long BlockSizeForNotation(NotationController *controller);
 - (OSStatus)deleteFileInNotesDirectory:(FSRef*)childRef forFilename:(NSString*)filename;
 - (OSStatus)createFileIfNotPresentInNotesDirectory:(FSRef*)childRef forFilename:(NSString*)filename fileWasCreated:(BOOL*)created;
 - (OSStatus)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename destinationRef:(FSRef*)destRef;
+- (OSStatus)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename destinationRef:(FSRef*)destRef 
+							 verifyWithSelector:(SEL)verifySel verificationDelegate:(id)verifyDelegate;
 + (OSStatus)trashFolderRef:(FSRef*)trashRef forChild:(FSRef*)childRef;
 - (OSStatus)moveFileToTrash:(FSRef *)childRef forFilename:(NSString*)filename;
 - (void)notifyOfChangedTrash;
 
+@end
+
+@interface NSObject (NotationFileManagerDelegate)
+- (NSNumber*)verifyDataAtTemporaryFSRef:(NSValue*)fsRefValue withFinalName:(NSString*)filename;
 @end

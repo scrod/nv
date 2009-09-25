@@ -10,8 +10,13 @@
 
 @implementation NSTextFinder (LastFind)
 
-- (int)lastFindWasSuccessful {
-	int i;
+- (int)nv_lastFindWasSuccessful {
+	#if defined(OBJC2_UNAVAILABLE)
+    NSNumber *success = [self valueForKey:@"lastFindWasSuccessful"];
+    if (success)
+        return ([success boolValue] ? LAST_FIND_YES : LAST_FIND_NO);
+    #else
+    int i;
 	Ivar ivar;
 	
 	//this might not work so well with Obj-C 2
@@ -24,7 +29,8 @@
 			return *lastFind ? LAST_FIND_YES : LAST_FIND_NO;
 		}
 	}
-	
+	#endif
+    
 	NSLog(@"No lastFindWasSuccessful ivars found!");
 	return LAST_FIND_UNKNOWN;
 }

@@ -95,7 +95,7 @@
 	[self updateProgress];
 }
 
-- (void)download:(NSURLDownload *)download didReceiveDataOfLength:(unsigned)length {
+- (void)download:(NSURLDownload *)download didReceiveDataOfLength:(NSUInteger)length {
 	totalReceivedByteCount += length;
 	
 	[self updateProgress];

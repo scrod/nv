@@ -62,20 +62,20 @@ typedef struct _NoteFilterContext {
 }
 
 
-int compareDateModified(id *a, id *b);
-int compareDateCreated(id *a, id *b);
-int compareLabelString(id *a, id *b);
-int compareTitleString(id *a, id *b);
-int compareUniqueNoteIDBytes(id *a, id *b);
+NSInteger compareDateModified(id *a, id *b);
+NSInteger compareDateCreated(id *a, id *b);
+NSInteger compareLabelString(id *a, id *b);
+NSInteger compareTitleString(id *a, id *b);
+NSInteger compareUniqueNoteIDBytes(id *a, id *b);
 
 
-int compareDateModifiedReverse(id *a, id *b);
-int compareDateCreatedReverse(id *a, id *b);
-int compareLabelStringReverse(id *a, id *b);
-int compareTitleStringReverse(id *a, id *b);
+NSInteger compareDateModifiedReverse(id *a, id *b);
+NSInteger compareDateCreatedReverse(id *a, id *b);
+NSInteger compareLabelStringReverse(id *a, id *b);
+NSInteger compareTitleStringReverse(id *a, id *b);
 
-int compareFilename(id *a, id *b);
-int compareNodeID(id *a, id *b);
+NSInteger compareFilename(id *a, id *b);
+NSInteger compareNodeID(id *a, id *b);
 
 //syncing w/ server and from journal
 - (CFUUIDBytes *)uniqueNoteIDBytes;

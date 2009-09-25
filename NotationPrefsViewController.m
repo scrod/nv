@@ -74,10 +74,10 @@
     [self initializeControls];
 }
 
-- (BOOL)tableView:(NSTableView *)aTableView shouldEditTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
+- (BOOL)tableView:(NSTableView *)aTableView shouldEditTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	return (notationPrefs && [notationPrefs notesStorageFormat]);
 }
-- (BOOL)tableView:(NSTableView *)aTableView shouldSelectRow:(int)rowIndex {
+- (BOOL)tableView:(NSTableView *)aTableView shouldSelectRow:(NSInteger)rowIndex {
     return (notationPrefs && [notationPrefs notesStorageFormat]);
 }
 
@@ -163,7 +163,7 @@
 }
 
 - (void)tableView:(NSTableView *)aTableView setObjectValue:(id)anObject 
-   forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
+   forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 
 	if (aTableView == allowedExtensionsTable) {
 		if (![notationPrefs setExtension:anObject atIndex:(unsigned int)rowIndex])
@@ -175,7 +175,7 @@
 }
 
 
-- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex {
+- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 
 	if (aTableView == allowedExtensionsTable)
 		return [notationPrefs pathExtensionAtIndex:rowIndex];
@@ -185,7 +185,7 @@
 	return 0;
 }
 
-- (int)numberOfRowsInTableView:(NSTableView *)aTableView {
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {
 	if (aTableView == allowedExtensionsTable)
 		return [notationPrefs pathExtensionsCount];
 	else if (aTableView == allowedTypesTable)

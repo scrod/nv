@@ -4,8 +4,8 @@
 
 @interface NoteAttributeColumn : NSTableColumn {
 	
-    int (*sortFunction) (id*, id*);
-    int (*reverseSortFunction) (id*, id*);
+    NSInteger (*sortFunction) (id*, id*);
+    NSInteger (*reverseSortFunction) (id*, id*);
     id (*objectAttribute) (id);
     SEL mutateObjectSelector;
 	
@@ -18,9 +18,9 @@ SEL columnAttributeMutator(NoteAttributeColumn *col);
 id columnAttributeForObject(NoteAttributeColumn *col, id object);
 - (void)updateWidthForHighlight;
 - (void)setDereferencingFunction:(id (*)(id))attributeFunction;
-- (void)setSortingFunction:(int (*)(id*, id*))sortFunction;
-- (int (*)(id*, id*))sortFunction;
-- (void)setReverseSortingFunction:(int (*)(id*, id*))aFunction;
-- (int (*)(id*, id*))reverseSortFunction;
+- (void)setSortingFunction:(NSInteger (*)(id*, id*))sortFunction;
+- (NSInteger (*)(id*, id*))sortFunction;
+- (void)setReverseSortingFunction:(NSInteger (*)(id*, id*))aFunction;
+- (NSInteger (*)(id*, id*))reverseSortFunction;
 
 @end

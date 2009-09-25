@@ -44,19 +44,19 @@ id columnAttributeForObject(NoteAttributeColumn *col, id object) {
     objectAttribute = attributeFunction;
 }
 
-- (void)setSortingFunction:(int (*)(id *, id *))aFunction {
+- (void)setSortingFunction:(NSInteger (*)(id *, id *))aFunction {
     sortFunction = aFunction;
 }
 
-- (int (*)(id *, id *))sortFunction {
+- (NSInteger (*)(id *, id *))sortFunction {
     return sortFunction;
 }
 
-- (void)setReverseSortingFunction:(int (*)(id*, id*))aFunction {
+- (void)setReverseSortingFunction:(NSInteger (*)(id*, id*))aFunction {
     reverseSortFunction = aFunction;
 }
 
-- (int (*)(id*, id*))reverseSortFunction {
+- (NSInteger (*)(id*, id*))reverseSortFunction {
     return reverseSortFunction;
 }
 

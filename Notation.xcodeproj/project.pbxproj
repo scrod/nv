@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 42;
+	objectVersion = 45;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -27,7 +27,6 @@
 		2114C2A80958D24800614E74 /* hmacsha1.c in Sources */ = {isa = PBXBuildFile; fileRef = 2114C2A70958D24800614E74 /* hmacsha1.c */; };
 		212089B10B0C24F500A15A69 /* AlienNoteImporter.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089B00B0C24F500A15A69 /* AlienNoteImporter.m */; };
 		212089D80B0C2CA500A15A69 /* StickiesDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089D70B0C2CA500A15A69 /* StickiesDocument.m */; };
-		2127E80A0A86727C00F802AB /* MainMenu.nib in Resources */ = {isa = PBXBuildFile; fileRef = 2127E8080A86727C00F802AB /* MainMenu.nib */; };
 		212850880B56E549005F6E34 /* CarbonErrorStrings.plist in Resources */ = {isa = PBXBuildFile; fileRef = 212850860B56E549005F6E34 /* CarbonErrorStrings.plist */; };
 		212B84620978422300F3597F /* NSString_NV.m in Sources */ = {isa = PBXBuildFile; fileRef = 212B84610978422300F3597F /* NSString_NV.m */; };
 		212DCA470A6AD28700F74E46 /* EncodingsManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 212DCA460A6AD28700F74E46 /* EncodingsManager.m */; };
@@ -67,9 +66,10 @@
 		217EB3CE0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m in Sources */ = {isa = PBXBuildFile; fileRef = 217EB3CD0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m */; };
 		2181171309F311110020A252 /* DeletedNoteObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 2181171209F311110020A252 /* DeletedNoteObject.m */; };
 		21813562105AF27400A0AE18 /* Acknowledgements.txt in Resources */ = {isa = PBXBuildFile; fileRef = 21813561105AF27400A0AE18 /* Acknowledgements.txt */; };
+		2182B39A106B2296008641E4 /* RBSplitSubview.m in Sources */ = {isa = PBXBuildFile; fileRef = 2182B396106B2296008641E4 /* RBSplitSubview.m */; };
+		2182B39B106B2296008641E4 /* RBSplitView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2182B398106B2296008641E4 /* RBSplitView.m */; };
+		2182B3C3106B2509008641E4 /* MainMenu.nib in Resources */ = {isa = PBXBuildFile; fileRef = 2182B3C1106B2509008641E4 /* MainMenu.nib */; };
 		218D43330AA2ABC600F36CCA /* NotesTableView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2191930209CFBEBD00586B15 /* NotesTableView.m */; };
-		2191858809BEAB6400586B15 /* RBSplitSubview.m in Sources */ = {isa = PBXBuildFile; fileRef = 2191858409BEAB6400586B15 /* RBSplitSubview.m */; };
-		2191858909BEAB6400586B15 /* RBSplitView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2191858609BEAB6400586B15 /* RBSplitView.m */; };
 		21918FD009C49B2500586B15 /* EmptyView.m in Sources */ = {isa = PBXBuildFile; fileRef = 21918FCE09C49B2400586B15 /* EmptyView.m */; };
 		219190F109C4A60700586B15 /* DualField.m in Sources */ = {isa = PBXBuildFile; fileRef = 219190F009C4A60700586B15 /* DualField.m */; };
 		2191926409C52A9200586B15 /* libcrypto.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 2191926309C52A9100586B15 /* libcrypto.dylib */; };
@@ -162,7 +162,6 @@
 		212089B00B0C24F500A15A69 /* AlienNoteImporter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AlienNoteImporter.m; sourceTree = "<group>"; };
 		212089D60B0C2CA500A15A69 /* StickiesDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StickiesDocument.h; sourceTree = "<group>"; };
 		212089D70B0C2CA500A15A69 /* StickiesDocument.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StickiesDocument.m; sourceTree = "<group>"; };
-		2127E8090A86727C00F802AB /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/MainMenu.nib; sourceTree = "<group>"; };
 		212850870B56E549005F6E34 /* English */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = text.plist.xml; name = English; path = English.lproj/CarbonErrorStrings.plist; sourceTree = "<group>"; };
 		212B84600978422300F3597F /* NSString_NV.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSString_NV.h; sourceTree = "<group>"; };
 		212B84610978422300F3597F /* NSString_NV.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = NSString_NV.m; sourceTree = "<group>"; };
@@ -226,11 +225,12 @@
 		2181171209F311110020A252 /* DeletedNoteObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DeletedNoteObject.m; sourceTree = "<group>"; };
 		2181193909FA9CF90020A252 /* SynchronizedNoteProtocol.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SynchronizedNoteProtocol.h; sourceTree = "<group>"; };
 		21813561105AF27400A0AE18 /* Acknowledgements.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Acknowledgements.txt; sourceTree = "<group>"; };
-		2191858309BEAB6400586B15 /* RBSplitSubview.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = RBSplitSubview.h; path = RBSplitView/RBSplitSubview.h; sourceTree = "<group>"; };
-		2191858409BEAB6400586B15 /* RBSplitSubview.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; name = RBSplitSubview.m; path = RBSplitView/RBSplitSubview.m; sourceTree = "<group>"; };
-		2191858509BEAB6400586B15 /* RBSplitView.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = RBSplitView.h; path = RBSplitView/RBSplitView.h; sourceTree = "<group>"; };
-		2191858609BEAB6400586B15 /* RBSplitView.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; name = RBSplitView.m; path = RBSplitView/RBSplitView.m; sourceTree = "<group>"; };
-		2191858709BEAB6400586B15 /* RBSplitViewPrivateDefines.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = RBSplitViewPrivateDefines.h; path = RBSplitView/RBSplitViewPrivateDefines.h; sourceTree = "<group>"; };
+		2182B395106B2296008641E4 /* RBSplitSubview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RBSplitSubview.h; path = RBSplitView/RBSplitSubview.h; sourceTree = "<group>"; };
+		2182B396106B2296008641E4 /* RBSplitSubview.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = RBSplitSubview.m; path = RBSplitView/RBSplitSubview.m; sourceTree = "<group>"; };
+		2182B397106B2296008641E4 /* RBSplitView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RBSplitView.h; path = RBSplitView/RBSplitView.h; sourceTree = "<group>"; };
+		2182B398106B2296008641E4 /* RBSplitView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = RBSplitView.m; path = RBSplitView/RBSplitView.m; sourceTree = "<group>"; };
+		2182B399106B2296008641E4 /* RBSplitViewPrivateDefines.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RBSplitViewPrivateDefines.h; path = RBSplitView/RBSplitViewPrivateDefines.h; sourceTree = "<group>"; };
+		2182B3C2106B2509008641E4 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/MainMenu.nib; sourceTree = "<group>"; };
 		21918FCE09C49B2400586B15 /* EmptyView.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = EmptyView.m; sourceTree = "<group>"; };
 		21918FCF09C49B2500586B15 /* EmptyView.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = EmptyView.h; sourceTree = "<group>"; };
 		219190EF09C4A60600586B15 /* DualField.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DualField.h; sourceTree = "<group>"; };
@@ -481,14 +481,14 @@
 			name = "Help Notes";
 			sourceTree = "<group>";
 		};
-		2191857D09BEAB5300586B15 /* RBSplitView */ = {
+		2182B38E106B2286008641E4 /* RBSplitView */ = {
 			isa = PBXGroup;
 			children = (
-				2191858309BEAB6400586B15 /* RBSplitSubview.h */,
-				2191858409BEAB6400586B15 /* RBSplitSubview.m */,
-				2191858509BEAB6400586B15 /* RBSplitView.h */,
-				2191858609BEAB6400586B15 /* RBSplitView.m */,
-				2191858709BEAB6400586B15 /* RBSplitViewPrivateDefines.h */,
+				2182B395106B2296008641E4 /* RBSplitSubview.h */,
+				2182B396106B2296008641E4 /* RBSplitSubview.m */,
+				2182B397106B2296008641E4 /* RBSplitView.h */,
+				2182B398106B2296008641E4 /* RBSplitView.m */,
+				2182B399106B2296008641E4 /* RBSplitViewPrivateDefines.h */,
 			);
 			name = RBSplitView;
 			sourceTree = "<group>";
@@ -577,8 +577,8 @@
 		29B97315FDCFA39411CA2CEA /* Other Sources */ = {
 			isa = PBXGroup;
 			children = (
+				2182B38E106B2286008641E4 /* RBSplitView */,
 				21F1CD490B3A38CB001FB5F6 /* HotKeys */,
-				2191857D09BEAB5300586B15 /* RBSplitView */,
 				211345A10B35D8340081B064 /* Crypto */,
 				32CA4F630368D1EE00C91783 /* Notation_Prefix.pch */,
 				29B97316FDCFA39411CA2CEA /* main.m */,
@@ -603,7 +603,7 @@
 				8D1107310486CEB800E47090 /* Info.plist */,
 				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
 				212850860B56E549005F6E34 /* CarbonErrorStrings.plist */,
-				2127E8080A86727C00F802AB /* MainMenu.nib */,
+				2182B3C1106B2509008641E4 /* MainMenu.nib */,
 				212DCFF50A6E005000F74E46 /* DeletionManager.nib */,
 				212DCB2F0A6AE38500F74E46 /* EncodingsManager.nib */,
 				219195E409D3A20F00586B15 /* Preferences.nib */,
@@ -642,7 +642,6 @@
 				8D11072C0486CEB800E47090 /* Sources */,
 				8D11072E0486CEB800E47090 /* Frameworks */,
 				213FB6AD0B52E1B2004C74BD /* CopyFiles */,
-				2146A4710BF221040094835F /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -660,7 +659,7 @@
 		29B97313FDCFA39411CA2CEA /* Project object */ = {
 			isa = PBXProject;
 			buildConfigurationList = 212B842709780B5000F3597F /* Build configuration list for PBXProject "Notation" */;
-			compatibilityVersion = "Xcode 2.4";
+			compatibilityVersion = "Xcode 3.1";
 			hasScannedForEncodings = 1;
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
@@ -689,7 +688,6 @@
 				215DEE1309F1AA4C009A710B /* Editing.tiff in Resources */,
 				212DCB310A6AE38500F74E46 /* EncodingsManager.nib in Resources */,
 				212DCFF70A6E005000F74E46 /* DeletionManager.nib in Resources */,
-				2127E80A0A86727C00F802AB /* MainMenu.nib in Resources */,
 				2144950F0ADC883100E2A2B6 /* PasswordAssistantButton.tif in Resources */,
 				214495100ADC883100E2A2B6 /* PasswordAssistantButtonPressed.tif in Resources */,
 				2144957A0ADCC06300E2A2B6 /* PassphrasePicker.nib in Resources */,
@@ -712,26 +710,11 @@
 				213621ED0B92413F008C0830 /* FindPanel.nib in Resources */,
 				214C6C59105445410085D386 /* Notality.icns in Resources */,
 				21813562105AF27400A0AE18 /* Acknowledgements.txt in Resources */,
+				2182B3C3106B2509008641E4 /* MainMenu.nib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		2146A4710BF221040094835F /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = "/usr/bin/perl -w";
-			shellScript = "# /usr/bin/perl -w\n#\n# Last updated: 21MAR06, Andy O'Meara and Rob Barris\n#\n# This is an Xcode post-build phase script for devs who sleep better at night knowing\n#    that their deployment binaries are as stripped as possible.  This makes life more difficult\n#    for a hacker/cracker to locate sensitive code to trace, study, and/or extract.\n#\n# This script will execute only if the Xcode \"Deployment Postprocessing\" setting\n#    is set (aka DEPLOYMENT_POSTPROCESSING).\n#\n# The downside to shipping a stripped binary is that your user's crash reports\n#    will be useless unless you have a link map to convert code offsets (from a stack trace)\n#    into proc names.  To address this, this script moves your pre-stripped executable\n#    to the build dir, appending \"_full\" to the filename, allowing you to retain it for\n#    the day you need it in order to decipher a stack trace.  You do this by using 'atos'\n#    with the original generated binary (type 'man atos' for info).\n#\n# Recommended Xcode build settings:\n#    Dead Code Stripping                  YES\n#    Only Link In Essential Symbols       NO\n#    Deployment Postprocessing            YES (this activates this script)\n#    Strip Linked Product                 NO\n#    Use Separate Strip                   NO\n#    Strip Style                          All Symbols\n#    Strip Debug Symbols During Copy      NO\n#    Preserve Private External Symbols    NO\n#    Separate PCH Symbols                 YES\n#    Symbols Hidden By Default            YES (Critical!)\n#    Inline Functions Hidden              YES\n#\n# Note that if you're building a dynamic library, you'll need to explicitly\n#    declare any symbols that you want to be exported.  See the following:\n#    file:///Developer/ADC%20Reference%20Library/documentation/DeveloperTools/Conceptual/CppRuntimeEnv/Articles/SymbolVisibility.html\n#\n\nuse strict;\n\ndie \"$0: Must be run from Xcode\" unless $ENV{\"BUILT_PRODUCTS_DIR\"};\n\n# This script is activated via an Xcode env flag.\nif ( $ENV{DEPLOYMENT_POSTPROCESSING} ne \"YES\" ) {\n   exit 0;\n}\n\nprint \"\\n\\n==================== Commencing external stripping phase...\\n\";\n        \nmy $BINARY       = \"$ENV{BUILT_PRODUCTS_DIR}/$ENV{WRAPPER_NAME}/Contents/MacOS/$ENV{EXECUTABLE_NAME}\";\nmy $BINARY_FULL  = \"$ENV{BUILT_PRODUCTS_DIR}/$ENV{EXECUTABLE_NAME}_full\";\nmy $BINARY_i386  = \"${BINARY}_i386\";\nmy $BINARY_ppc   = \"${BINARY}_ppc\";\n\n       \n# Extract each arch into a \"thin\" binary for stripping\n`lipo \"$BINARY\" -thin  ppc -output \"$BINARY_ppc\" `;\n`lipo \"$BINARY\" -thin i386 -output \"$BINARY_i386\"`;\n\n# Retain the orignal binary for QA and use with the util 'atos'\n`mv -f \"$BINARY\" \"$BINARY_FULL\"`;\n\n# Perform desired stripping on each thin binary.  \n`strip -S -x -o \"${BINARY_ppc}_tmp\"  -r \"$BINARY_ppc\" `;\n`strip -S -x -o \"${BINARY_i386}_tmp\" -r \"$BINARY_i386\"`;\n\n# We're now done with the original thin binaries, so chuck them.\n`rm -f \"$BINARY_ppc\" `;\n`rm -f \"$BINARY_i386\"`;\n\n# Make the new universal binary from our stripped thin pieces.\n`lipo -arch i386 \"${BINARY_i386}_tmp\" -arch ppc \"${BINARY_ppc}_tmp\" -create -output \"$BINARY\"`;\n\n# We're now done with the temp thin binaries, so chuck them.\n`rm -f \"${BINARY_ppc}_tmp\" `;\n`rm -f \"${BINARY_i386}_tmp\"`;\n\n\nprint \"\\n==================== External strip phase complete\\n\";\n\n\n#EOF\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		8D11072C0486CEB800E47090 /* Sources */ = {
@@ -755,8 +738,6 @@
 				2155DF44097C992800163A10 /* AttributedPlainText.m in Sources */,
 				21D60128098FDB46007440DF /* GlobalPrefs.m in Sources */,
 				21A73DC8099712A8009F8A6C /* WALController.m in Sources */,
-				2191858809BEAB6400586B15 /* RBSplitSubview.m in Sources */,
-				2191858909BEAB6400586B15 /* RBSplitView.m in Sources */,
 				21918FD009C49B2500586B15 /* EmptyView.m in Sources */,
 				219190F109C4A60700586B15 /* DualField.m in Sources */,
 				219192D409CFBC8800586B15 /* NoteAttributeColumn.m in Sources */,
@@ -797,6 +778,8 @@
 				217D02D60B77061E0004E02D /* BodyScroller.m in Sources */,
 				213621F20B92414F008C0830 /* MultiTextFinder.m in Sources */,
 				21469C8C0BEBA6A10094835F /* TemporaryFileCache.m in Sources */,
+				2182B39A106B2296008641E4 /* RBSplitSubview.m in Sources */,
+				2182B39B106B2296008641E4 /* RBSplitView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -867,14 +850,6 @@
 			name = Localizable.strings;
 			sourceTree = "<group>";
 		};
-		2127E8080A86727C00F802AB /* MainMenu.nib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				2127E8090A86727C00F802AB /* English */,
-			);
-			name = MainMenu.nib;
-			sourceTree = "<group>";
-		};
 		212850860B56E549005F6E34 /* CarbonErrorStrings.plist */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -931,6 +906,14 @@
 			name = KeyDerivationManager.nib;
 			sourceTree = "<group>";
 		};
+		2182B3C1106B2509008641E4 /* MainMenu.nib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				2182B3C2106B2509008641E4 /* English */,
+			);
+			name = MainMenu.nib;
+			sourceTree = "<group>";
+		};
 		219195E409D3A20F00586B15 /* Preferences.nib */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -985,10 +968,6 @@
 		212B842409780B5000F3597F /* Development */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = (
-					ppc,
-					i386,
-				);
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = NO;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -1045,10 +1024,6 @@
 		212B842509780B5000F3597F /* Deployment */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = (
-					ppc,
-					i386,
-				);
 				COPY_PHASE_STRIP = NO;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -1086,9 +1061,12 @@
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
+				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = "";
 				PREBINDING = NO;
 				PRODUCT_NAME = "Notational Velocity";
+				"SDKROOT[arch=x86_64]" = macosx10.5;
 				SECTORDER_FLAGS = (
 					"-sectorder",
 					__TEXT,
@@ -1106,10 +1084,6 @@
 		212B842609780B5000F3597F /* Default */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = (
-					ppc,
-					i386,
-				);
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
@@ -1157,6 +1131,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = (
+					x86_64,
 					ppc,
 					i386,
 				);
@@ -1165,12 +1140,16 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_THREADSAFE_STATICS = NO;
+				"GCC_VERSION[sdk=macosx10.4][arch=*]" = 4.0;
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.3;
-				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				MACOSX_DEPLOYMENT_TARGET = 10.4;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx10.4;
+				"SDKROOT[arch=x86_64]" = macosx10.5;
 			};
 			name = Development;
 		};
@@ -1178,6 +1157,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = (
+					x86_64,
 					ppc,
 					i386,
 				);
@@ -1186,12 +1166,15 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_THREADSAFE_STATICS = NO;
+				"GCC_VERSION[sdk=macosx10.4][arch=*]" = 4.0;
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.3;
-				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
+				SDKROOT = macosx10.4;
+				"SDKROOT[arch=x86_64]" = macosx10.5;
 			};
 			name = Deployment;
 		};
@@ -1199,6 +1182,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = (
+					x86_64,
 					ppc,
 					i386,
 				);
@@ -1207,12 +1191,15 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_THREADSAFE_STATICS = NO;
+				"GCC_VERSION[sdk=macosx10.4][arch=*]" = 4.0;
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.3;
-				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				MACOSX_DEPLOYMENT_TARGET = 10.4;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
+				SDKROOT = macosx10.4;
+				"SDKROOT[arch=x86_64]" = macosx10.5;
 			};
 			name = Default;
 		};
@@ -1222,22 +1209,22 @@
 		212B842309780B5000F3597F /* Build configuration list for PBXNativeTarget "Notation" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				212B842409780B5000F3597F /* Development */,
 				212B842509780B5000F3597F /* Deployment */,
+				212B842409780B5000F3597F /* Development */,
 				212B842609780B5000F3597F /* Default */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Default;
+			defaultConfigurationName = Deployment;
 		};
 		212B842709780B5000F3597F /* Build configuration list for PBXProject "Notation" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				212B842809780B5000F3597F /* Development */,
 				212B842909780B5000F3597F /* Deployment */,
+				212B842809780B5000F3597F /* Development */,
 				212B842A09780B5000F3597F /* Default */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Default;
+			defaultConfigurationName = Deployment;
 		};
 /* End XCConfigurationList section */
 	};

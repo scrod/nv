@@ -365,6 +365,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 		if (noteObject) {
 			//[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileCreationDate])];
 			//[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileModificationDate])];
+			//TODO: take date/created modified; why throw away information?
 			
 			[attributedStringFromData release];
 			
@@ -454,6 +455,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 				if (noteObject) {
 					[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[doc creationDate])];
 					//[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[doc modificationDate])];
+					//TODO: use the sticky's mod date
 
 					[notes addObject:noteObject];
 				} else {

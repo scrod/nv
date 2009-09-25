@@ -293,7 +293,7 @@ static float defaultTextPadding(void) {
     return YES;
 }
 
-- (NSRect)rectForPage:(int)page {
+- (NSRect)rectForPage:(NSInteger)page {
     return [self documentRectForPageNumber:page-1];  /* Our page numbers start from 0; the kit's from 1 */
 }
 

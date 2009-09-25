@@ -22,19 +22,33 @@
 
 - (id)initWithCoder:(NSCoder*)decoder {
     if ([super init]) {
-		//needs a case for nskeyedarchiver as well; will CFUUIDBytes just be nsdata?
-		[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
-		[decoder decodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
-		[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
+		
+		if ([decoder allowsKeyedCoding]) {
+			NSUInteger decodedByteCount;
+			const uint8_t *decodedBytes = [decoder decodeBytesForKey:VAR_STR(uniqueNoteIDBytes) returnedLength:&decodedByteCount];
+			memcpy(&uniqueNoteIDBytes, decodedBytes, MIN(decodedByteCount, sizeof(CFUUIDBytes)));
+			serverModifiedTime = [decoder decodeInt32ForKey:VAR_STR(serverModifiedTime)];
+			logSequenceNumber = [decoder decodeInt32ForKey:VAR_STR(logSequenceNumber)];
+		} else {
+			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
+			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
+			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
+		}
     }
     return self;
 }
 
 - (void)encodeWithCoder:(NSCoder *)coder {
-    [coder encodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
-    [coder encodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
-    [coder encodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
-    
+	
+	if ([coder allowsKeyedCoding]) {
+		[coder encodeBytes:(const uint8_t *)&uniqueNoteIDBytes length:sizeof(CFUUIDBytes) forKey:VAR_STR(uniqueNoteIDBytes)];
+		[coder encodeInt32:serverModifiedTime forKey:VAR_STR(serverModifiedTime)];
+		[coder encodeInt32:logSequenceNumber forKey:VAR_STR(logSequenceNumber)];
+	} else {
+		[coder encodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
+		[coder encodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
+		[coder encodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
+	}
 }
 
 - (CFUUIDBytes *)uniqueNoteIDBytes {

@@ -83,8 +83,8 @@
 
 @implementation NSArray (NoteUtilities)
 
-- (unsigned int)indexOfNoteWithUUIDBytes:(CFUUIDBytes*)bytes {
-	unsigned int i;
+- (NSUInteger)indexOfNoteWithUUIDBytes:(CFUUIDBytes*)bytes {
+	NSUInteger i;
     for (i=0; i<[self count]; i++) {
 		NoteObject *note = [self objectAtIndex:i];
 		CFUUIDBytes *noteBytes = [note uniqueNoteIDBytes];
@@ -174,12 +174,12 @@
 
 @implementation NSMutableArray (Sorting)
 
-- (void)sortUnstableUsingFunction:(int (*)(id *, id *))compare {
-	[self sortUsingFunction:(int (*)(id, id, void *))genericSortContextLast context:compare];
+- (void)sortUnstableUsingFunction:(NSInteger (*)(id *, id *))compare {
+	[self sortUsingFunction:(NSInteger (*)(id, id, void *))genericSortContextLast context:compare];
 }
 
-- (void)sortStableUsingFunction:(int (*)(id *, id *))compare usingBuffer:(id **)buffer ofSize:(unsigned int*)bufSize {
-	unsigned int count = CFArrayGetCount((CFArrayRef)self);
+- (void)sortStableUsingFunction:(NSInteger (*)(id *, id *))compare usingBuffer:(id **)buffer ofSize:(unsigned int*)bufSize {
+	CFIndex count = CFArrayGetCount((CFArrayRef)self);
 	
 	ResizeBuffer((void***)buffer, count, bufSize);
 	
