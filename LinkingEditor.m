@@ -1098,8 +1098,8 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 		TISInputSourceRef inputRef = TISCopyCurrentKeyboardInputSource();
 		NSArray* inputLangs = [[(NSArray*)TISGetInputSourceProperty(inputRef, kTISPropertyInputSourceLanguages) retain] autorelease];
 		CFRelease(inputRef);
-		NSString *preferredLang = [[(NSArray*)CFPreferencesCopyAppValue(CFSTR("AppleLanguages"), kCFPreferencesCurrentApplication) autorelease] objectAtIndex:0];
-		currentKeyboardInputIsSystemLanguage = [inputLangs containsObject:preferredLang];
+		NSString *preferredLang = [[NSLocale autoupdatingCurrentLocale] objectForKey:NSLocaleLanguageCode];
+		currentKeyboardInputIsSystemLanguage = nil != preferredLang && [inputLangs containsObject:preferredLang];
 	} else {
 		currentKeyboardInputIsSystemLanguage = GetGetScriptManagerVariablePointer()(smSysScript) == GetGetScriptManagerVariablePointer()(smKeyScript);
 	}
