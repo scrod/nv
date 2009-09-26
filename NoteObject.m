@@ -1260,6 +1260,10 @@ BOOL noteTitleHasPrefixOfUTF8String(NoteObject *note, const char* fullString, si
 	return !strncmp(note->cTitle, fullString, stringLen);
 }
 
+BOOL noteTitleMatchesUTF8String(NoteObject *note, const char* fullString) {
+	return !strcmp(note->cTitle, fullString);
+}
+
 - (NSSet*)labelSet {
     return labelSet;
 }

@@ -167,11 +167,11 @@
 	
 	NSMutableData *derivedKey = [NSMutableData dataWithLength:len];
 	
-	NSDate *date = [NSDate date];
+	//NSDate *date = [NSDate date];
 	//when compiled with -Os or greater, this is always faster than OpenSSL version
 	if (!pbkdf2_sha1([self bytes], [self length], [salt bytes], [salt length], (unsigned int)count, [derivedKey mutableBytes], (size_t)len))
 		return nil;
-	NSLog(@"dk_time(%d): %g", count, (float)[[NSDate date] timeIntervalSinceDate:date]);
+	//NSLog(@"dk_time(%d): %g", count, (float)[[NSDate date] timeIntervalSinceDate:date]);
 #if 0
 	if (!PKCS5_PBKDF2_HMAC_SHA1([self bytes], [self length], (unsigned char*)[salt bytes], [salt length], count, len, [derivedKey mutableBytes]))
 		return nil;

@@ -104,6 +104,7 @@ NSInteger compareNodeID(id *a, id *b);
 	void resetFoundPtrsForNote(NoteObject *note);
 	BOOL noteContainsUTF8String(NoteObject *note, NoteFilterContext *context);
 	BOOL noteTitleHasPrefixOfUTF8String(NoteObject *note, const char* fullString, size_t stringLen);
+	BOOL noteTitleMatchesUTF8String(NoteObject *note, const char* fullString);
 
 - (id)delegate;
 - (void)setDelegate:(id)theDelegate;

@@ -141,6 +141,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (BOOL)filterNotesFromString:(NSString*)string;
 - (BOOL)filterNotesFromUTF8String:(const char*)searchString forceUncached:(BOOL)forceUncached;
 - (NSUInteger)preferredSelectedNoteIndex;
+- (BOOL)preferredSelectedNoteMatchesSearchString;
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex;
 - (NSArray*)notesAtIndexes:(NSIndexSet*)indexSet;
 - (NSIndexSet*)indexesOfNotes:(NSArray*)noteSet;
