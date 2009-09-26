@@ -226,10 +226,11 @@ terminateApp:
 			//if we already had a notation, appController should already be bookmarksController's delegate
 			[[prefsController bookmarksController] performSelector:@selector(updateBookmarksUI) withObject:nil afterDelay:0.0];
 		}
-		
-		[notationController setSortColumn:(NoteAttributeColumn*)[notesTableView tableColumnWithIdentifier:[prefsController sortedTableColumnKey]]];
+		[notationController setSortColumn:[notesTableView noteAttributeColumnForIdentifier:[prefsController sortedTableColumnKey]]];
 		[notesTableView setDataSource:[notationController notesListDataSource]];
 		[notationController setDelegate:self];
+		//window's undomanager could be referencing actions from the old notation object
+		[[window undoManager] removeAllActions];
 		[notationController setUndoManager:[window undoManager]];
 		[[DeletionManager sharedManager] setDelegate:notationController];
 		
@@ -502,7 +503,6 @@ terminateApp:
     
     if ([selectorString isEqualToString:SEL_STR(setAliasDataForDefaultDirectory:sender:)]) {
 		//defaults changed for the database location -- load the new one!
-		//TODO: should remove all actions from windowUndoManager if initialization succeeds
 		
 		OSStatus err = noErr;
 		NotationController *newNotation = nil;
@@ -795,13 +795,12 @@ terminateApp:
 		if ([fieldString length] > 0) {
 			[field setSnapbackString:nil];
 			
+
 			NSUInteger preferredNoteIndex = [notationController preferredSelectedNoteIndex];
-			if ([prefsController autoCompleteSearches] && preferredNoteIndex != NSNotFound) {
-				
-				//TODO: select nothing if search string is not equal to title of preferredNoteIndex
-				//e.g., modifying a note's title in the search field deselects it, 
-				//whether a result of back-spacing either an auto-completed entry 
-				//or the title of a manually-selected note
+			
+			//lastLengthReplaced depends on textView:shouldChangeTextInRange:replacementString: being sent before controlTextDidChange: runs			
+			if ([prefsController autoCompleteSearches] && preferredNoteIndex != NSNotFound && 
+				([field lastLengthReplaced] > 0 /*|| [notationController preferredSelectedNoteMatchesSearchString]*/)) {
 				
 				[notesTableView selectRowAndScroll:preferredNoteIndex];
 				
@@ -811,19 +810,17 @@ terminateApp:
 				}
 				
 				NSAssert(currentNote != nil, @"currentNote must not--cannot--be nil!");
-				NSString *remainingTitle = nil;
 				
 				NSRange typingRange = [fieldEditor selectedRange];
 				
-				//fill in the remaining characters of the title and select, only if not removing text
-				//we depend on textView:shouldChangeTextInRange:replacementString: being sent before this notification is posted
+				//fill in the remaining characters of the title and select
 				if ([field lastLengthReplaced] > 0 && typingRange.location < [titleOfNote(currentNote) length]) {
 					
 					[self cacheTypedStringIfNecessary:fieldString];
 					
 					NSAssert([fieldString isEqualToString:[fieldEditor string]], @"I don't think it makes sense for fieldString to change");
 					
-					remainingTitle = [titleOfNote(currentNote) substringFromIndex:typingRange.location];
+					NSString *remainingTitle = [titleOfNote(currentNote) substringFromIndex:typingRange.location];
 					typingRange.length = [fieldString length] - typingRange.location;
 					typingRange.length = MAX(typingRange.length, 0U);
 					
@@ -833,7 +830,7 @@ terminateApp:
 				}
 				
 			} else {
-				//auto-complete is off or shows us nothing
+				//auto-complete is off, search string doesn't prefix any title, or part of the search string is being removed
 				goto selectNothing;
 			}
 		} else {

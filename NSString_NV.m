@@ -246,8 +246,12 @@ int uncachedDateCount = 0;
 	NSUInteger length = [self length];
 	
 	NSUInteger protocolSpecLoc = [self rangeOfString:@"://" options:NSLiteralSearch].location;
-	if (length >= 5 && protocolSpecLoc != NSNotFound && protocolSpecLoc > 0)
-		return [NSURL URLWithString:self];
+	if (length >= 5 && protocolSpecLoc != NSNotFound && protocolSpecLoc > 0) {
+		NSURL *anurl = [NSURL URLWithString:self];
+		//File Reference URLs cannot be safely archived!
+		if ([anurl isFileURL] && [self rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound) return nil;
+		return anurl;
+	}
 	
 	if (length >= 12 && [self rangeOfString:@"mailto:" options:NSAnchoredSearch | NSLiteralSearch].location != NSNotFound)
 		return [NSURL URLWithString:self];

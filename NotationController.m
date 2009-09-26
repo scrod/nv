@@ -1455,6 +1455,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	selectedNoteIndex = NSNotFound;
 	
     if (newLen && [prefsController autoCompleteSearches]) {
+		//TODO: this should match the note with the shortest title first
 		for (i=0; i<filteredNoteCount; i++) {			
 			//because we already searched word-by-word up there, this is just way simpler
 			if (noteTitleHasPrefixOfUTF8String(notesBuffer[i], searchString, newLen)) {
@@ -1474,6 +1475,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 - (NSUInteger)preferredSelectedNoteIndex {
     return selectedNoteIndex;
+}
+- (BOOL)preferredSelectedNoteMatchesSearchString {
+	NoteObject *obj = [self noteObjectAtFilteredIndex:selectedNoteIndex];
+	if (obj) return noteTitleMatchesUTF8String(obj, currentFilterStr);
+	return NO;
 }
 
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex {
