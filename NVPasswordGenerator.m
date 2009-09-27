@@ -90,7 +90,7 @@ static const char nvSymbolSet[] = "!@#$%^&*()-+=?/<>";
     const SEL methods[numSuggestions] = {@selector(strong), @selector(medium), @selector(light), @selector(lightNumeric)};
     
     NSString* suggest[numSuggestions];
-    #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+    #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     dispatch_apply(numSuggestions, dispatch_get_global_queue(0, 0), ^(size_t i) {
     #else
     size_t i;
@@ -98,7 +98,7 @@ static const char nvSymbolSet[] = "!@#$%^&*()-+=?/<>";
     #endif
         suggest[i] = [self performSelector:methods[i]];
     }
-    #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+    #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     );
     #endif
     

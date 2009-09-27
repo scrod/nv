@@ -1132,7 +1132,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	
 	BOOL currentKeyboardInputIsSystemLanguage = NO;
 	
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
     TISInputSourceRef inputRef = TISCopyCurrentKeyboardInputSource();
     NSArray* inputLangs = [[(NSArray*)TISGetInputSourceProperty(inputRef, kTISPropertyInputSourceLanguages) retain] autorelease];
     CFRelease(inputRef);
@@ -1190,7 +1190,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     [self insertText:password];
     @try {
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
-    #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+    #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     NSPasteboardItem *pbitem = [[[NSPasteboardItem alloc] init] autorelease];
     [pbitem setData:password forType:@"public.plain-text"];
     [pb writeObjects:[NSArray arrayWithObject:pbitem]];
