@@ -8,7 +8,7 @@
 
 #include "NVPasswordGenerator.h"
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 #include <dispatch/dispatch.h>
 #endif
 
