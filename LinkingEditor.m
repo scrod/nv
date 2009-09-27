@@ -1067,6 +1067,7 @@ copyRTFType:
 	return [super shouldChangeTextInRange:affectedCharRange replacementString:replacementString];
 }
 
+#ifdef notyet
 static long (*GetGetScriptManagerVariablePointer())(short) {
 	static long (*_GetScriptManagerVariablePointer)(short) = NULL;
 	if (!_GetScriptManagerVariablePointer) {
@@ -1076,6 +1077,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	}
 	return _GetScriptManagerVariablePointer;
 }
+#endif
 
 - (void)fixTypingAttributesForSubstitutedFonts {
 	//fixes a problem with fonts substituted by non-system input languages that Apple should have fixed themselves
@@ -1094,15 +1096,11 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	BOOL currentKeyboardInputIsSystemLanguage = NO;
 	
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
-	if (IsLeopardOrLater) {
-		TISInputSourceRef inputRef = TISCopyCurrentKeyboardInputSource();
-		NSArray* inputLangs = [[(NSArray*)TISGetInputSourceProperty(inputRef, kTISPropertyInputSourceLanguages) retain] autorelease];
-		CFRelease(inputRef);
-		NSString *preferredLang = [[NSLocale autoupdatingCurrentLocale] objectForKey:NSLocaleLanguageCode];
-		currentKeyboardInputIsSystemLanguage = nil != preferredLang && [inputLangs containsObject:preferredLang];
-	} else {
-		currentKeyboardInputIsSystemLanguage = GetGetScriptManagerVariablePointer()(smSysScript) == GetGetScriptManagerVariablePointer()(smKeyScript);
-	}
+    TISInputSourceRef inputRef = TISCopyCurrentKeyboardInputSource();
+    NSArray* inputLangs = [[(NSArray*)TISGetInputSourceProperty(inputRef, kTISPropertyInputSourceLanguages) retain] autorelease];
+    CFRelease(inputRef);
+    NSString *preferredLang = [[NSLocale autoupdatingCurrentLocale] objectForKey:NSLocaleLanguageCode];
+    currentKeyboardInputIsSystemLanguage = nil != preferredLang && [inputLangs containsObject:preferredLang];
 #else
 	currentKeyboardInputIsSystemLanguage = GetScriptManagerVariable(smSysScript) == GetScriptManagerVariable(smKeyScript);
 #endif
