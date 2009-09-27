@@ -282,7 +282,7 @@ terminateApp:
  }*/
 
 - (void)updateNoteMenus {
-	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:89] submenu];
+	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
 	int menuIndex = [notesMenu indexOfItemWithTarget:self andAction:@selector(deleteNote:)];
 	NSMenuItem *deleteItem = nil;

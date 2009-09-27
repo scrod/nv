@@ -73,3 +73,5 @@ typedef float CGFloat;
 #define IsSnowLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_6)
 
 #define USE_KEYED_ARCHIVING 1
+
+#define NOTES_MENU_ID 89

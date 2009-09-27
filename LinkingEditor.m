@@ -9,13 +9,16 @@
 #import "AttributedPlainText.h"
 #import "BodyScroller.h"
 #import "NSString_NV.h"
+#import "NVPasswordGenerator.h"
 
 #include <CoreServices/CoreServices.h>
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
 #include <Carbon/Carbon.h>
 #endif
 
+#ifdef notyet
 static long (*GetGetScriptManagerVariablePointer())(short);
+#endif
 
 @implementation LinkingEditor
 
@@ -84,6 +87,40 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	
 	
 	[self setMenu:theMenu];
+    
+    // Insert Password menus
+    static BOOL passwordSetup = YES;
+    
+    if (passwordSetup) {
+        passwordSetup = NO;
+        
+        NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
+        NSEnumerator *en = [[notesMenu itemArray] objectEnumerator];
+        while ((theMenuItem = [en nextObject])) {
+            if (@selector(deleteNote:) == [theMenuItem action])
+                break;
+        }
+        
+        if (theMenuItem) {
+            NSUInteger i = [notesMenu indexOfItem:theMenuItem]+1;
+            theMenuItem = [[NSMenuItem alloc]
+                initWithTitle:[NSString stringWithFormat:@"%@%C", NSLocalizedString(@"New Password", ""), 0x2026 /*ellipses*/]
+                action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
+            [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
+            [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+            [notesMenu insertItem:theMenuItem atIndex:i];
+            [theMenuItem release];
+            
+            i += 1;
+            theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "")
+                action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
+            [theMenuItem setAlternate:YES];
+            [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
+            [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+            [notesMenu insertItem:theMenuItem atIndex:i];
+            [theMenuItem release];
+        }
+    }
 	
 	[prefsController registerForSettingChange:@selector(setNoteBodyFont:sender:) withTarget:self];
 	[prefsController registerForSettingChange:@selector(setMakeURLsClickable:sender:) withTarget:self];
@@ -1146,6 +1183,37 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 		[self insertText:previousLineWhitespaceString];
 	}
 	[previousLineScanner release];
+}
+
+- (void)insertPassword:(NSString*)password
+{
+    [self insertText:password];
+    @try {
+    NSPasteboard *pb = [NSPasteboard generalPasteboard];
+    #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+    NSPasteboardItem *pbitem = [[[NSPasteboardItem alloc] init] autorelease];
+    [pbitem setData:password forType:@"public.plain-text"];
+    [pb writeObjects:[NSArray arrayWithObject:pbitem]];
+    #else
+    [pb declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
+    [pb setString:password forType:NSStringPboardType];
+    #endif
+    } @catch (NSException *e) {}
+}
+
+- (void)insertGeneratedPassword:(id)sender {
+    NSString *password = [NVPasswordGenerator strong];
+    [self insertPassword:password];
+}
+
+- (void)showGeneratedPasswords:(id)sender {
+    #ifdef notyet
+    NSArray *suggestedPasswords = [NVPasswordGenerator suggestions];
+    
+    // display modal overalay, get user selection and insert it
+    #lse
+    [self insertGeneratedPassword:nil];
+    #endif
 }
 
 @end
