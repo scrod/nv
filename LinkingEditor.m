@@ -1210,7 +1210,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     #ifdef notyet
     NSArray *suggestedPasswords = [NVPasswordGenerator suggestions];
     
-    // display modal overalay, get user selection and insert it
+    // display modal overlay, get user selection and insert it
     #lse
     [self insertGeneratedPassword:nil];
     #endif
