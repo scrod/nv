@@ -94,32 +94,27 @@ static long (*GetGetScriptManagerVariablePointer())(short);
     if (passwordSetup) {
         passwordSetup = NO;
         
-        NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
-        NSEnumerator *en = [[notesMenu itemArray] objectEnumerator];
-        while ((theMenuItem = [en nextObject])) {
-            if (@selector(deleteNote:) == [theMenuItem action])
-                break;
-        }
+        theMenu = [NSApp mainMenu];
+        // Hackish way to get the Edit menu, but it doesn't have a tag and I don't want to fiddle with MainMenu.nib to get it to open IB 3.2.
+        theMenuItem = [theMenu itemAtIndex:[theMenu indexOfItem:[theMenu itemWithTag:NOTES_MENU_ID]]+1];
+        NSMenu *editMenu = [theMenuItem submenu];
+        [editMenu addItem:[NSMenuItem separatorItem]];
         
-        if (theMenuItem) {
-            NSUInteger i = [notesMenu indexOfItem:theMenuItem]+1;
-            theMenuItem = [[NSMenuItem alloc]
-                initWithTitle:[NSString stringWithFormat:@"%@%C", NSLocalizedString(@"New Password", ""), 0x2026 /*ellipses*/]
-                action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
-            [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
-            [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
-            [notesMenu insertItem:theMenuItem atIndex:i];
-            [theMenuItem release];
-            
-            i += 1;
-            theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "")
-                action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
-            [theMenuItem setAlternate:YES];
-            [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
-            [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
-            [notesMenu insertItem:theMenuItem atIndex:i];
-            [theMenuItem release];
-        }
+        theMenuItem = [[NSMenuItem alloc]
+            initWithTitle:[NSString stringWithFormat:@"%@%C", NSLocalizedString(@"New Password", ""), 0x2026 /*ellipses*/]
+            action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
+        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
+        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+        [editMenu addItem:theMenuItem];
+        [theMenuItem release];
+        
+        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "")
+            action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
+        [theMenuItem setAlternate:YES];
+        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
+        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+        [editMenu addItem:theMenuItem];
+        [theMenuItem release];
     }
 	
 	[prefsController registerForSettingChange:@selector(setNoteBodyFont:sender:) withTarget:self];
