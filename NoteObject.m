@@ -120,7 +120,7 @@ static FSRef *noteFileRefInit(NoteObject* obj) {
 
 NSInteger compareFilename(id *one, id *two) {
     
-    return (int)CFStringCompare((CFStringRef)((*(NoteObject**)one)->filename), 
+    return (NSInteger)CFStringCompare((CFStringRef)((*(NoteObject**)one)->filename), 
 				(CFStringRef)((*(NoteObject**)two)->filename), kCFCompareCaseInsensitive);
 }
 
@@ -131,7 +131,7 @@ NSInteger compareDateCreated(id *a, id *b) {
     return (*(NoteObject**)a)->createdDate - (*(NoteObject**)b)->createdDate;
 }
 NSInteger compareLabelString(id *a, id *b) {    
-    return (int)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)a)), 
+    return (NSInteger)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)a)), 
 								(CFStringRef)(labelsOfNote(*(NoteObject **)b)), kCFCompareCaseInsensitive);
 }
 NSInteger compareTitleString(id *a, id *b) {
@@ -140,14 +140,14 @@ NSInteger compareTitleString(id *a, id *b) {
 													  kCFCompareCaseInsensitive);
 	if (stringResult == kCFCompareEqualTo) {
 		
-		int dateResult = compareDateCreated(a, b);
+		NSInteger dateResult = compareDateCreated(a, b);
 		if (!dateResult)
 			return compareUniqueNoteIDBytes(a, b);
 		
 		return dateResult;
 	}
 	
-	return (int)stringResult;
+	return (NSInteger)stringResult;
 }
 NSInteger compareUniqueNoteIDBytes(id *a, id *b) {
 	return memcmp((&(*(NoteObject**)a)->uniqueNoteIDBytes), (&(*(NoteObject**)b)->uniqueNoteIDBytes), sizeof(CFUUIDBytes));
@@ -161,7 +161,7 @@ NSInteger compareDateCreatedReverse(id *a, id *b) {
     return (*(NoteObject**)b)->createdDate - (*(NoteObject**)a)->createdDate;
 }
 NSInteger compareLabelStringReverse(id *a, id *b) {    
-    return (int)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)b)), 
+    return (NSInteger)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)b)), 
 								(CFStringRef)(labelsOfNote(*(NoteObject **)a)), kCFCompareCaseInsensitive);
 }
 NSInteger compareTitleStringReverse(id *a, id *b) {
@@ -170,13 +170,13 @@ NSInteger compareTitleStringReverse(id *a, id *b) {
 													  kCFCompareCaseInsensitive);
 	
 	if (stringResult == kCFCompareEqualTo) {
-		int dateResult = compareDateCreatedReverse(a, b);
+		NSInteger dateResult = compareDateCreatedReverse(a, b);
 		if (!dateResult)
 			return compareUniqueNoteIDBytes(b, a);
 		
 		return dateResult;
 	}
-	return (int)stringResult;	
+	return (NSInteger)stringResult;	
 }
 
 NSInteger compareNodeID(id *a, id *b) {
@@ -552,7 +552,7 @@ static int decoded7Bit = 0;
 			contentsWere7Bit = NO;
 	}
 	
-	int len = -1;
+	size_t len = -1;
 	
 	if (!contentsWere7Bit) {
 		const char *cStringData = [[contentString string] lowercaseUTF8String];
