@@ -93,12 +93,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
     
     if (passwordSetup) {
         passwordSetup = NO;
-        
-        theMenu = [NSApp mainMenu];
-        // Hackish way to get the Edit menu, but it doesn't have a tag and I don't want to fiddle with MainMenu.nib to get it to open IB 3.2.
-        theMenuItem = [theMenu itemAtIndex:[theMenu indexOfItem:[theMenu itemWithTag:NOTES_MENU_ID]]+1];
-        NSMenu *editMenu = [theMenuItem submenu];
-        [editMenu addItem:[NSMenuItem separatorItem]];
+		
+        NSMenu *editMenu = [[[NSApp mainMenu] itemWithTitle:@"Edit"] submenu];
+		[editMenu addItem:[NSMenuItem separatorItem]];
         
         theMenuItem = [[NSMenuItem alloc]
             initWithTitle:[NSString stringWithFormat:@"%@%C", NSLocalizedString(@"New Password", ""), 0x2026 /*ellipses*/]

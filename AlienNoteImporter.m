@@ -413,13 +413,9 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 		return [self _importBlorNotes:filename];
 	} else if ([[filename lastPathComponent] isEqualToString:@"StickiesDatabase"]) {
 		return [self _importStickies:filename];
+	} else if ([extension isEqualToString:@"tsv"]) {
+        return [self _importTSVFile:filename];
 	} else {
-		//but check other special cases, too, like mbox!!
-        
-        NSArray *a = [self _importTSVFile:filename];
-        if ([a count] > 0)
-            return (a);
-		
 		NoteObject *note = [self noteWithFile:filename];
 		if (note)
 			return [NSArray arrayWithObject:note];
@@ -531,14 +527,11 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 
 - (NSArray*)_importTSVFile:(NSString*)filename
 {
-    NSMutableString *contents = [NSMutableString stringWithContentsOfFile:filename encoding:NSUTF8StringEncoding error:nil] ;
-    if (!contents)
-        contents = [NSMutableString stringWithContentsOfFile:filename encoding:NSASCIIStringEncoding error:nil];
-    if (!contents)
-        contents = [NSMutableString stringWithContentsOfFile:filename encoding:NSMacOSRomanStringEncoding error:nil];
-    
-    if (!contents)
-        return ([NSArray array]);
+	NSMutableString *contents = nil;
+	NSStringEncoding defaultEncoding = [NSString defaultCStringEncoding];
+	if (!(contents = [NSMutableString getShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] ofGuessedEncoding:&defaultEncoding])) {
+		return nil;
+	}
     
     // normalize newlines
     [contents replaceOccurrencesOfString:@"\r\n" withString:@"\n" options:0 range:NSMakeRange(0, [contents length])];
@@ -565,15 +558,18 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
                 continue;
             
             NSString *title = [fields objectAtIndex:0];
-            NSAttributedString *body = [[[NSAttributedString alloc] initWithString:s] autorelease];
-            NoteObject *note = [[NoteObject alloc] initWithNoteBody:body title:title uniqueFilename:nil format:SingleDatabaseFormat];
-            CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
-            [note setDateAdded:now];
-            [note setDateModified:now];
-            [notes addObject:note];
-            [note release];
+			NSAttributedString *attributedBody = [[[NSMutableAttributedString alloc] initWithString:s attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
+			
+            NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedBody title:title uniqueFilename:nil format:SingleDatabaseFormat] autorelease];
+			if (note) {
+				CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+				[note setDateAdded:now];
+				[note setDateModified:now];
+				[notes addObject:note];
+			}
         }
     }
+	[contents release];
     
     return (notes);
 }
