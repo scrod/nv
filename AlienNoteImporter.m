@@ -551,9 +551,9 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
     // Assume first entry in line is note title and any other entries go in the note body
     while ((curLine = [en nextObject])) {
         NSArray *fields = [curLine componentsSeparatedByString:@"\t"];
-        if ([fields count] > 1) {
+        NSUInteger count = [fields count];
+        if (count > 1) {
             NSMutableString *s = [NSMutableString string];
-            NSUInteger count = [fields count];
             NSUInteger i;
             for (i = 1; i < count; ++i) {
                 NSString *entry = [fields objectAtIndex:i];
