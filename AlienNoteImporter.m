@@ -24,6 +24,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 @interface AlienNoteImporter (Private)
 - (NSArray*)_importStickies:(NSString*)filename;
 - (NSArray*)_importBlorNotes:(NSString*)filename;
+- (NSArray*)_importTSVFile:(NSString*)filename;
 @end
 
 @implementation AlienNoteImporter
@@ -414,6 +415,10 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 		return [self _importStickies:filename];
 	} else {
 		//but check other special cases, too, like mbox!!
+        
+        NSArray *a = [self _importTSVFile:filename];
+        if ([a count] > 0)
+            return (a);
 		
 		NoteObject *note = [self noteWithFile:filename];
 		if (note)
@@ -522,5 +527,54 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 	[enumerator release];
 	
 	return array;
+}
+
+- (NSArray*)_importTSVFile:(NSString*)filename
+{
+    NSMutableString *contents = [NSMutableString stringWithContentsOfFile:filename encoding:NSUTF8StringEncoding error:nil] ;
+    if (!contents)
+        contents = [NSMutableString stringWithContentsOfFile:filename encoding:NSASCIIStringEncoding error:nil];
+    if (!contents)
+        contents = [NSMutableString stringWithContentsOfFile:filename encoding:NSMacOSRomanStringEncoding error:nil];
+    
+    if (!contents)
+        return ([NSArray array]);
+    
+    // normalize newlines
+    [contents replaceOccurrencesOfString:@"\r\n" withString:@"\n" options:0 range:NSMakeRange(0, [contents length])];
+    [contents replaceOccurrencesOfString:@"\r" withString:@"\n" options:0 range:NSMakeRange(0, [contents length])];
+    
+    NSMutableArray *notes = [NSMutableArray array];
+    NSArray *lines = [contents componentsSeparatedByString:@"\n"];
+    NSEnumerator *en = [lines objectEnumerator];
+    NSString *curLine;
+    // Assume first entry in line is note title and any other entries go in the note body
+    while ((curLine = [en nextObject])) {
+        NSArray *fields = [curLine componentsSeparatedByString:@"\t"];
+        if ([fields count] > 1) {
+            NSMutableString *s = [NSMutableString string];
+            NSUInteger count = [fields count];
+            NSUInteger i;
+            for (i = 1; i < count; ++i) {
+                NSString *entry = [fields objectAtIndex:i];
+                if ([entry length] > 0)
+                    [s appendString:[NSString stringWithFormat:@"%@\n", entry]];
+            }
+            
+            if (0 == [s length])
+                continue;
+            
+            NSString *title = [fields objectAtIndex:0];
+            NSAttributedString *body = [[[NSAttributedString alloc] initWithString:s] autorelease];
+            NoteObject *note = [[NoteObject alloc] initWithNoteBody:body title:title uniqueFilename:nil format:SingleDatabaseFormat];
+            CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+            [note setDateAdded:now];
+            [note setDateModified:now];
+            [notes addObject:note];
+            [note release];
+        }
+    }
+    
+    return (notes);
 }
 @end
