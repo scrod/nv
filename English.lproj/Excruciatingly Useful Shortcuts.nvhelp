@@ -15,10 +15,10 @@ Return		Begin editing note, creating it if necessary\
 Tab			Move insertion point between text areas\
 
 \f1 \uc0\u8984 
-\f0 -K			Select next note in list\
+\f0 -K			Select previous note in list\
 
 \f1 \uc0\u8984 
-\f0 -J			Select previous note in list\
+\f0 -J			Select next note in list\
 
 \f1 \uc0\u8984 
 \f0 -D			De-select current note, restoring the search text\
