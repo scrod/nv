@@ -168,6 +168,35 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSKeyEquivalent</key>
+			<dict>
+				<key>default</key>
+				<string>V</string>
+			</dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Notational Velocity: New Note With Selection</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>createFromSelection</string>
+			<key>NSPortName</key>
+			<string>Notational Velocity</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>NSRTFDPboardType</string>
+				<string>NSRTFPboardType</string>
+				<string>NSStringPboardType</string>
+				<string>NSURLPboardType</string>
+				<string>NSFilenamesPboardType</string>
+				<string>Apple Web Archive pasteboard type</string>
+				<string>com.apple.webarchive</string>
+			</array>
+		</dict>
+	</array>
 	<key>SUCheckAtStartup</key>
 	<false/>
 	<key>SUFeedURL</key>

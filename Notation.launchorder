@@ -371,7 +371,7 @@ _dateCreatedStringOfNote
 -[NotationController updateDateStringsIfNecessary]
 -[RBSplitView viewDidMoveToSuperview]
 -[RBSplitView(RB___ViewAdditions) RB___adjustOutermostIfNeeded]
--[AppController runDelayedIUActionsAfterLaunch]
+-[AppController runDelayedUIActionsAfterLaunch]
 -[BookmarksController setDelegate]
 -[BookmarksController updateBookmarksUI]
 -[GlobalPrefs setBookmarksFromSender]

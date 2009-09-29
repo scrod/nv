@@ -234,7 +234,7 @@ _BlockSizeForNotation
 -[WALController setDelegate]
 _getOptimalBlockSize
 -[AppController windowWillReturnUndoManager]
--[AppController runDelayedIUActionsAfterLaunch]
+-[AppController runDelayedUIActionsAfterLaunch]
 -[PTHotKeyCenter unregisterHotKeyForName]
 -[WALController initWithParentFSRepencryptionKey]
 -[AppController textDidEndEditing]

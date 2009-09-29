@@ -45,7 +45,7 @@ void outletObjectAwoke(id sender);
 - (void)setNotationController:(NotationController*)newNotation;
 
 - (void)setupViewsAfterAppAwakened;
-- (void)runDelayedIUActionsAfterLaunch;
+- (void)runDelayedUIActionsAfterLaunch;
 - (void)updateNoteMenus;
 
 - (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard;

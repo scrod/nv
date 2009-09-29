@@ -101,12 +101,13 @@ void outletObjectAwoke(id sender) {
 	}
 }
 
-- (void)runDelayedIUActionsAfterLaunch {
+- (void)runDelayedUIActionsAfterLaunch {
 	[[prefsController bookmarksController] setDelegate:self];
 	[[prefsController bookmarksController] updateBookmarksUI];
 	[self updateNoteMenus];	
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(bringFocusToControlField:)];
 	[notationController checkIfNotationIsTrashed];
+	[NSApp setServicesProvider:self];
 	
 	//connect sparkle programmatically to avoid loading its framework at nib awake;
 	if (RunningTigerAppKitOrHigher && !NSClassFromString(@"SUUpdater")) {
@@ -199,7 +200,7 @@ extern int decodedCount();
 	//need to know whether "delete note" should have an ellipsis
 	[prefsController registerForSettingChange:@selector(setConfirmNoteDeletion:sender:) withTarget:self];
 	
-	[self performSelector:@selector(runDelayedIUActionsAfterLaunch) withObject:nil afterDelay:0.1];
+	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.1];
 	
 	NSLog(@"decoded 7 bit count: %d", decodedCount());
 	
@@ -289,6 +290,12 @@ terminateApp:
 		[deleteItem setTitle:[NSString stringWithFormat:@"%@%@", 
 							  NSLocalizedString(@"Delete", nil), trailingQualifier]];
 	}	
+}
+
+- (void)createFromSelection:(NSPasteboard *)pboard userData:(NSString *)userData error:(NSString **)error {
+	if (!notationController || ![self addNotesFromPasteboard:pboard]) {
+		*error = NSLocalizedString(@"Error: Couldn't create a note from the selection.", @"error message to set during a Service call when adding a note failed");
+	}
 }
 
 - (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard {
