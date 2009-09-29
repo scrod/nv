@@ -41,7 +41,7 @@ OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef) {
     OSStatus result = noErr;
     
     do {
-	CFStringRef filename = GetRandomizedFileName();
+	CFStringRef filename = CreateRandomizedFileName();
 	nameLength = CFStringGetLength(filename);
 	result = FSRefMakeInDirectoryWithString(parentRef, childTempRef, filename, chars);
 	CFRelease(filename);
@@ -150,6 +150,7 @@ OSErr FSDetermineIfRefIsEnclosedByFolder(short domainOrVRefNum, OSType folderTyp
 				
 				FSRef newParentRef;
 				CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, filename, kCFURLPOSIXPathStyle, true);
+				[(id)url autorelease];
 				if (!url || !CFURLGetFSRef(url, &newParentRef)) {
 					NSRunAlertPanel(NSLocalizedString(@"Unable to create an FSRef from the chosen directory.",nil), 
 									NSLocalizedString(@"Your notes were not moved.",nil), NSLocalizedString(@"OK",nil), NULL, NULL);
@@ -479,7 +480,7 @@ attemptToCreateFile:
 	 else
 		NSLog(@"notifyOfChangedTrash: error getting trash: %d", err);
 	
-	 NSString *sillyDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:(NSString*)GetRandomizedFileName()];
+	 NSString *sillyDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:[(NSString*)CreateRandomizedFileName() autorelease]];
 	 [[NSFileManager defaultManager] createDirectoryAtPath:sillyDirectory attributes:nil];
 	 NSInteger tag = 0;
 	 [[NSWorkspace sharedWorkspace] performFileOperation:NSWorkspaceRecycleOperation source:NSTemporaryDirectory() destination:@"" 

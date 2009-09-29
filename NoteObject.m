@@ -231,6 +231,10 @@ force_inline UTCDateTime fileModifiedDateOfNote(NoteObject *note) {
     return note->fileModifiedDate;
 }
 
+force_inline CFAbsoluteTime modifiedDateOfNote(NoteObject *note) {
+	return note->modifiedDate;
+}
+
 force_inline int storageFormatOfNote(NoteObject *note) {
     return note->currentFormatID;
 }
@@ -490,13 +494,16 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		labelString = @""; //I'd like to get labels from getxattr
 		cLabelsFoundPtr = cLabels = strdup("");	
 		
-		createdDate = modifiedDate = CFAbsoluteTimeGetCurrent(); //TODO: use the file's mod/create dates instead
-		dateCreatedString = [dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain] retain];
+		createdDate = CFAbsoluteTimeGetCurrent();
+		dateCreatedString = [[NSString relativeDateStringWithAbsoluteTime:createdDate] retain];
 		
 		contentString = [[NSMutableAttributedString alloc] initWithString:@""];
 		[self initContentCacheCString];
 		
 		if (![self updateFromCatalogEntry:entry]) {
+			dateModifiedString = [dateCreatedString retain];
+			modifiedDate = createdDate;	
+						
 			//just initialize a blank note for now; if the file becomes readable again we'll be updated
 			//but if we make modifications, well, the original is toast
 			//so warn the user here and offer to trash it?
@@ -558,7 +565,7 @@ static int decoded7Bit = 0;
 		const char *cStringData = [[contentString string] lowercaseUTF8String];
 		cContentsFoundPtr = cContents = cStringData ? strdup(cStringData) : NULL;
 		
-		contentsWere7Bit = !(ContainsHighAscii(cContents, (len = strlen(cContents))));
+		contentsWere7Bit = cContents ? !(ContainsHighAscii(cContents, (len = strlen(cContents)))) : NO;
 	}
 	
 	//if (len < 0) len = strlen(cContents);
@@ -844,6 +851,7 @@ int decodedCount() {
 		}
     } else {
 		NSLog(@"Could not convert dates: %d", err);
+		return NO;
     }
     
     return YES;
@@ -985,7 +993,7 @@ int decodedCount() {
 		NSLog(@"Couldn't update note from file on disk");
 		return NO;
     }
-	//TODO: also grab the com.apple.TextEncoding xattr to help getShortLivedStringFromData: in updateFromData: figure out ambiguous cases
+	//TODO: also grab the com.apple.TextEncoding xattr to help newShortLivedStringFromData: in updateFromData: figure out ambiguous cases
 	
     if ([self updateFromData:data]) {
 		FSCatalogInfo info;
@@ -1013,6 +1021,16 @@ int decodedCount() {
     
     fileModifiedDate = catEntry->lastModified;
     nodeID = catEntry->nodeID;
+
+	OSStatus err = noErr;
+	if (noErr == (err = UCConvertUTCDateTimeToCFAbsoluteTime(&fileModifiedDate, &modifiedDate))) {
+		dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain];
+	} else {
+		NSLog(@"can't get CFAbsTime from lastModified UTCDateTime (%d); using current instead", err);
+		dateModifiedString = [dateCreatedString retain];
+		modifiedDate = createdDate;
+	}	
+	
     return YES;
 }
 
@@ -1033,7 +1051,7 @@ int decodedCount() {
 	    
 	    break;
 	case PlainTextFormat:
-	    if ((stringFromData = [NSMutableString getShortLivedStringFromData:data ofGuessedEncoding:&fileEncoding])) {
+	    if ((stringFromData = [NSMutableString newShortLivedStringFromData:data ofGuessedEncoding:&fileEncoding])) {
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:stringFromData 
 																			  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 			[stringFromData release];
@@ -1072,9 +1090,7 @@ int decodedCount() {
 	
 	//[self updateTablePreviewString];
     
-    modifiedDate = CFAbsoluteTimeGetCurrent();
-    [dateModifiedString release];
-    dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain];
+	//don't update the date modified here, as this could be old data
     
     [attributedStringFromData release];
     

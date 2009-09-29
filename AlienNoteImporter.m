@@ -197,7 +197,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 			NSArray *notes = [self notesInFile:filename];
 			if ([notes count]) {
 				
-				NSMutableAttributedString *content = [[[notes lastObject] contentString] mutableCopy];
+				NSMutableAttributedString *content = [[[[notes lastObject] contentString] mutableCopy] autorelease];
 				if ([[[content string] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length]) {
 					//only add string if it has at least one non-whitespace character
 					[content prefixWithSourceString:[[getter url] absoluteString]];
@@ -223,6 +223,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 															   uniqueFilename:nil format:SingleDatabaseFormat];
 				
 				[receptionDelegate noteImporter:self importedNotes:[NSArray arrayWithObject:noteObject]];
+				[noteObject autorelease];
 			}
 		}			
 		
@@ -321,7 +322,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 		//try PDFKit if on 10.4
 		if (RunningTigerAppKitOrHigher) {
 			Class PdfDocClass = [[self class] PDFDocClass];
-			if (PdfDocClass != Nil) { 
+			if (PdfDocClass != Nil) {
 				id doc = [[PdfDocClass alloc] initWithData:[NSData dataWithContentsOfFile:filename]];
 				if (doc) {
 					id sel = [doc performSelector:@selector(selectionForEntireDocument)];
@@ -343,7 +344,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 		
 		NSMutableString *stringFromData = nil;
 		NSStringEncoding defaultEncoding = [NSString defaultCStringEncoding];
-		if ((stringFromData = [NSMutableString getShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] ofGuessedEncoding:&defaultEncoding])) {
+		if ((stringFromData = [NSMutableString newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] ofGuessedEncoding:&defaultEncoding])) {
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:stringFromData 
 																			  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 			[stringFromData release];
@@ -359,20 +360,18 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 		[attributedStringFromData trimLeadingWhitespace];
 		[attributedStringFromData removeAttachments];
 		[attributedStringFromData santizeForeignStylesForImporting];
+		[attributedStringFromData autorelease];
 		
 		//we do not use filename as uniqueFilename, as we are only importing--not taking ownership
 		NoteObject *noteObject = [[NoteObject alloc] initWithNoteBody:attributedStringFromData title:[[filename lastPathComponent] stringByDeletingPathExtension]
 														uniqueFilename:nil format:SingleDatabaseFormat];				
 		if (noteObject) {
 			//[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileCreationDate])];
-			//[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileModificationDate])];
-			//TODO: take date/created modified; why throw away information?
-			
-			[attributedStringFromData release];
+			[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileModificationDate])];
 			
 			return [noteObject autorelease];
 		} else {
-			NSLog(@"couldn't generate note object from sticky note??");
+			NSLog(@"couldn't generate note object from imported attributed string??");
 		}
 		
 	}
@@ -529,7 +528,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 {
 	NSMutableString *contents = nil;
 	NSStringEncoding defaultEncoding = [NSString defaultCStringEncoding];
-	if (!(contents = [NSMutableString getShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] ofGuessedEncoding:&defaultEncoding])) {
+	if (!(contents = [NSMutableString newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] ofGuessedEncoding:&defaultEncoding])) {
 		return nil;
 	}
     
@@ -558,7 +557,8 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
                 continue;
             
             NSString *title = [fields objectAtIndex:0];
-			NSAttributedString *attributedBody = [[[NSMutableAttributedString alloc] initWithString:s attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
+			NSMutableAttributedString *attributedBody = [[[NSMutableAttributedString alloc] initWithString:s attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
+			[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
 			
             NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedBody title:title uniqueFilename:nil format:SingleDatabaseFormat] autorelease];
 			if (note) {

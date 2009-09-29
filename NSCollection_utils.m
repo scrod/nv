@@ -161,6 +161,7 @@
 				[item setRepresentedObject:[url absoluteString]];
 				[item setTarget:[item representedObject]];
 				[urlsMenu addItem:item];
+				[item release];
 			}
 		}
 	}

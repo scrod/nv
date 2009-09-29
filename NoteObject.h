@@ -90,6 +90,8 @@ NSInteger compareNodeID(id *a, id *b);
 	NSString* filenameOfNote(NoteObject *note);
 	UInt32 fileNodeIDOfNote(NoteObject *note);
 	UTCDateTime fileModifiedDateOfNote(NoteObject *note);
+	CFAbsoluteTime modifiedDateOfNote(NoteObject *note);
+
 
 	NSStringEncoding fileEncodingOfNote(NoteObject *note);
 

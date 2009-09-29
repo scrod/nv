@@ -490,26 +490,26 @@
 - (NSMenu *)defaultNoteCommandsMenuWithTarget:(id)target {
 	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"Contextual Note Commands Menu"] autorelease];
     
-	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:89] submenu];
+	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
 	int menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(renameNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy]];
+	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(tagNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy]];
+	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(deleteNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy]];
+	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(exportNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy]];
+	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(printNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy]];
+	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:[self selectedRowIndexes]];
 	//NSMenuItem *copyURLsItem = [theMenu addItemWithTitle:@"Copy Link to Clipboard" action:NULL keyEquivalent:@""];

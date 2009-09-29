@@ -292,6 +292,7 @@
 		
 		//yes, I know that navigation services uses uses FSRefs, but NSSavePanel saves us much more work
 		CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, filename, kCFURLPOSIXPathStyle, true);
+		[(id)url autorelease];
 		if (!url || !CFURLGetFSRef(url, notesDirectoryRef))
 			return NO;
 		
@@ -313,7 +314,7 @@
     [item setPaletteLabel:name];
     [item setLabel:name];
     //[item setToolTip:@"General settings: appearance and behavior"];
-    [item setImage:[[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForResource:name ofType:@"tiff"]]];
+    [item setImage:[[[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForResource:name ofType:@"tiff"]] autorelease]];
     [item setTarget:self];
     [item setAction:@selector(switchViews:)];
     [items setObject:item forKey:name];
@@ -412,6 +413,8 @@
     
     if (prefsView == databaseView)
 		[folderLocationsMenuButton setMenu:[self directorySelectionMenu]];
+	
+	NSAssert(prefsView != nil, @"switching to a nil prefs view!");
     
 	[[NSFontPanel sharedFontPanel] close];
 	

@@ -19,7 +19,7 @@ unsigned DumbWordCount(const void *s1, size_t len);
 int genericSortContextFirst(int (*context) (void*, void*), void* one, void* two);
 int genericSortContextLast(void* one, void* two, int (*context) (void*, void*));
 void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const void *, const void *));
-CFStringRef GetRandomizedFileName();
+CFStringRef CreateRandomizedFileName();
 OSStatus FSCreateFileIfNotPresentInDirectory(FSRef *directoryRef, FSRef *childRef, CFStringRef filename, Boolean *created);
 OSStatus FSRefMakeInDirectoryWithString(FSRef *directoryRef, FSRef *childRef, CFStringRef filename, UniChar* charsBuffer);
 OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize, void** newBuffer, UInt16 modeOptions);

@@ -30,8 +30,6 @@
 - (id)init {
     if ([super init]) {
 		
-		NSLog(@"gcc version: %d", GCC_VERSION);
-		
 		windowUndoManager = [[NSUndoManager alloc] init];
 		
 		isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
@@ -363,6 +361,7 @@ terminateApp:
 		if (pboardString) newString = [[NSMutableAttributedString alloc] initWithString:pboardString];
 	}
 	
+	[newString autorelease];
 	if ([newString length] > 0) {
 		[newString removeAttachments];
 		
@@ -373,7 +372,6 @@ terminateApp:
 		}
 		[newString santizeForeignStylesForImporting];
 		note = [notationController addNote:newString withTitle:noteTitle];
-		[newString release];
 		return note != nil;
 	}
 	

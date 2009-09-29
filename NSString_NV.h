@@ -46,7 +46,7 @@ void resetCurrentDayTime();
 @end
 
 @interface NSMutableString (NV)
-+ (NSMutableString*)getShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding;
++ (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding;
 @end
 
 @interface NSEvent (NV)

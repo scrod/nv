@@ -622,10 +622,11 @@ copyRTFType:
 						NSLog(@"highlightTermsTemporarily: Invalid range (%@)", range ? NSStringFromRange(*(NSRange*)range) : @"?");
 					}
 				}
+				CFRelease(ranges);
 			}
 		}
+		CFRelease(terms);
 	}
-	
 	return (firstRange);
 }
 

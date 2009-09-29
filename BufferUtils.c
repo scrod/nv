@@ -162,7 +162,7 @@ CFStringRef GetRelativeDateStringFromTimeAndLocaleInfo(CFAbsoluteTime time, CFSt
 }
 #endif
 
-CFStringRef GetRandomizedFileName() {
+CFStringRef CreateRandomizedFileName() {
     static int sequence = 0;
     
     sequence++;

@@ -180,7 +180,7 @@ int uncachedDateCount = 0;
 		}
 		//should sort them all now by location
 		//CFArraySortValues(allRanges, CFRangeMake(0, CFArrayGetCount(allRanges)), <#CFComparatorFunction comparator#>,<#void * context#>);
-		
+		CFRelease(terms);
 		return allRanges;
 	}
 	
@@ -213,7 +213,7 @@ int uncachedDateCount = 0;
 
 + (NSString*)timeDelayStringWithNumberOfSeconds:(double)seconds {
 	unichar ch = 0x2245;
-	NSString *approxCharStr = nil;
+	static NSString *approxCharStr = nil;
 	if (!approxCharStr) approxCharStr = [[NSString stringWithCharacters:&ch length:1] retain];
 	if (seconds < 1.0) {
 		return [NSString stringWithFormat:@"%@ %0.0f ms", approxCharStr, seconds*1000];
@@ -343,7 +343,7 @@ int uncachedDateCount = 0;
 	
 	[bodySummary release];
 	
-	return attributedStringPreview;
+	return [attributedStringPreview autorelease];
 }
 
 //the following three methods + function come courtesy of Mike Ferris' TextExtras
@@ -403,7 +403,7 @@ int uncachedDateCount = 0;
     unsigned tabW = tabWidth;
     NSUInteger endOfWhiteSpaceIndex = NSNotFound;
 	
-    if (range->length == 0) {
+    if (!range || range->length == 0) {
         return 0;
     }
     
@@ -471,7 +471,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	const char *utf8String = [(NSString*)str2 UTF8String];
 	
 	CFRelease(str2);
-	
 	return utf8String;
 }
 
@@ -566,7 +565,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 
 @implementation NSMutableString (NV)
 
-+ (NSMutableString*)getShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding {
++ (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding {
 	
 	//this will fail if data lacks a BOM
 	NSMutableString* stringFromData = [data newStringUsingBOMReturningEncoding:encoding];
