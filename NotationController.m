@@ -748,12 +748,12 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		    
 		    //figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
 		    //if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
-			CFAbsoluteTime timeOnDisk, lastTime;
-			OSStatus err = noErr;
-			if ((err = (UCConvertUTCDateTimeToCFAbsoluteTime(&lastReadDate, &lastTime) == noErr)) &&
-				(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModDate, &timeOnDisk) == noErr))) {
+			//CFAbsoluteTime timeOnDisk, lastTime;
+			//OSStatus err = noErr;
+			//if ((err = (UCConvertUTCDateTimeToCFAbsoluteTime(&lastReadDate, &lastTime) == noErr)) &&
+//				(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModDate, &timeOnDisk) == noErr))) {
 				
-				if (timeOnDisk > lastTime) {
+				//if (timeOnDisk > lastTime) {
 					[aNoteObject updateFromCatalogEntry:catEntry];
 					
 					[delegate contentsUpdatedForNote:aNoteObject];
@@ -761,16 +761,14 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 					[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:NoteDateModifiedColumnString afterDelay:0.0];
 					
 					notesChanged = YES;
-				} else {
-					NSLog(@"File %@ was modified before we could get a chance to save! MERGE!", catEntry->filename);
-				}
+//				}
 				
-				NSLog(@"FILE MODIFIED: %@, %g, %g", catEntry->filename, lastTime, timeOnDisk);
+				NSLog(@"FILE WAS MODIFIED: %@", catEntry->filename);
 				
 				return YES;
-			} else {
-				NSLog(@"modify note: error converting times: %d", err);
-			}
+			//} else {
+//				NSLog(@"modify note: error converting times: %d", err);
+//			}
 		}
 		
 		return NO;
@@ -869,6 +867,10 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 //find renamed notes through unique file IDs
+//TODO: reconcile the "actually" added/deleted files into renames for files with identical content (sort by size)
+//TODO: detect and ignore TextEdit (Autosaved) files unless textedit is not running? grab data from auto-save file in realtime?
+//TODO: parse vi .swp files, too?
+//TODO: use external editor protocol
 - (void)processNotesAdded:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries {
 	unsigned int aSize = [removedEntries count], bSize = [addedEntries count];
     
