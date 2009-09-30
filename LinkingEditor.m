@@ -16,6 +16,8 @@
 #include <Carbon/Carbon.h>
 #endif
 
+#define PASSWORD_SUGGESTIONS 0
+
 #ifdef notyet
 static long (*GetGetScriptManagerVariablePointer())(short);
 #endif
@@ -97,6 +99,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
         NSMenu *editMenu = [[[NSApp mainMenu] itemWithTitle:@"Edit"] submenu];
 		[editMenu addItem:[NSMenuItem separatorItem]];
         
+        #if PASSWORD_SUGGESTIONS
         theMenuItem = [[NSMenuItem alloc]
             initWithTitle:[NSString stringWithFormat:@"%@%C", NSLocalizedString(@"New Password...", "new password command in the edit menu"), 0x2026 /*ellipses*/]
             action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
@@ -104,10 +107,13 @@ static long (*GetGetScriptManagerVariablePointer())(short);
         [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
         [editMenu addItem:theMenuItem];
         [theMenuItem release];
+        #endif
         
         theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "insert new password command in the edit menu")
             action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
+        #if PASSWORD_SUGGESTIONS
         [theMenuItem setAlternate:YES];
+        #endif
         [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
         [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
         [editMenu addItem:theMenuItem];
