@@ -17,8 +17,6 @@
 #include "BufferUtils.h"
 #import "NotationFileManager.h"
 
-#define CURRENT_NOTE_ARCHIVING_VERSION 1
-
 #if __LP64__
 // Needed for compatability with data created by 32bit app
 typedef struct NSRange32 {
@@ -31,20 +29,7 @@ typedef NSRange NSRange32;
 
 @implementation NoteObject
 
-static NSStringEncoding systemStringEncoding;
-static BOOL DidCheckNoteVersion = NO;
 static FSRef *noteFileRefInit(NoteObject* obj);
-
-+ (void)initialize {
-	if (self == [NoteObject class])
-		[NoteObject setVersion:CURRENT_NOTE_ARCHIVING_VERSION];
-	
-	systemStringEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
-	if (systemStringEncoding == kCFStringEncodingInvalidId) {
-		NSLog(@"default string encoding conversion invalid? using macosroman...");
-		systemStringEncoding = NSMacOSRomanStringEncoding;
-	}
-}
 
 - (id)init {
     if ([super init]) {
@@ -55,8 +40,7 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	modifiedDate = createdDate = 0.0;
 	currentFormatID = SingleDatabaseFormat;
 	nodeID = 0;
-	//TODO: use UTF-8 instead
-	fileEncoding = systemStringEncoding;
+	fileEncoding = NSUTF8StringEncoding;
 	contentsWere7Bit = NO;
 	
 	serverModifiedTime = 0;
@@ -289,16 +273,6 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 			filename = [[decoder decodeObjectForKey:VAR_STR(filename)] retain];
 			
 		} else {
-			if (!DidCheckNoteVersion) {
-				int version = [decoder versionForClassName:NSStringFromClass([NoteObject class])];
-				
-				if (version > CURRENT_NOTE_ARCHIVING_VERSION) {
-					//need to warn user here, too, but this is not the right place
-					NSLog(@"Note version %d is newer than current (%d)", version, CURRENT_NOTE_ARCHIVING_VERSION);
-					return nil;
-				}
-				DidCheckNoteVersion = YES;
-			}
             NSRange32 range32;
             #if __LP64__
             unsigned long longTemp;
@@ -493,23 +467,21 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		
 		labelString = @""; //I'd like to get labels from getxattr
 		cLabelsFoundPtr = cLabels = strdup("");	
-		
-		createdDate = CFAbsoluteTimeGetCurrent();
-		dateCreatedString = [[NSString relativeDateStringWithAbsoluteTime:createdDate] retain];
-		
+				
 		contentString = [[NSMutableAttributedString alloc] initWithString:@""];
 		[self initContentCacheCString];
 		
-		if (![self updateFromCatalogEntry:entry]) {
-			dateModifiedString = [dateCreatedString retain];
-			modifiedDate = createdDate;	
-						
+		if (![self updateFromCatalogEntry:entry]) {						
 			//just initialize a blank note for now; if the file becomes readable again we'll be updated
 			//but if we make modifications, well, the original is toast
 			//so warn the user here and offer to trash it?
 			//perhaps also offer to re-interpret using another text encoding?
 			
 			//additionally, it is possible that the file was deleted before we could read it
+		}
+		if (!modifiedDate || !createdDate) {
+			modifiedDate = createdDate = CFAbsoluteTimeGetCurrent();
+			dateModifiedString = [dateCreatedString = [[NSString relativeDateStringWithAbsoluteTime:createdDate] retain] retain];	
 		}
     }
 	
@@ -938,7 +910,10 @@ int decodedCount() {
 			[delegate noteDidNotWrite:self errorCode:err];
 			return NO;
 		}
-		//TODO: if writing plaintext set the file encoding with setxattr
+		//if writing plaintext set the file encoding with setxattr
+		if (formatID == PlainTextFormat) {
+			[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
+		}
 		
 		if (!resetFilename) {
 			NSLog(@"resetting the file name just because.");
@@ -968,6 +943,18 @@ int decodedCount() {
     return YES;
 }
 
+- (void)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef {
+	NSAssert(fsRef, @"cannot write file encoding to a NULL FSRef");
+	//this is not the note's own fsRef; it could be anywhere
+	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
+	OSStatus err = noErr;
+	if ((err = FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length])) == noErr) {
+		[NSString setTextEncodingAttribute:fileEncoding atFSPath:[pathData bytes]];
+	} else {
+		NSLog(@"%s: error getting path from FSRef: %d (IsZeros: %d)", _cmd, err, IsZeros(fsRef, sizeof(fsRef)));
+	}
+}
+
 - (void)_setFileEncoding:(NSStringEncoding)encoding {
 	fileEncoding = encoding;
 }
@@ -993,7 +980,6 @@ int decodedCount() {
 		NSLog(@"Couldn't update note from file on disk");
 		return NO;
     }
-	//TODO: also grab the com.apple.TextEncoding xattr to help newShortLivedStringFromData: in updateFromData: figure out ambiguous cases
 	
     if ([self updateFromData:data]) {
 		FSCatalogInfo info;
@@ -1013,7 +999,7 @@ int decodedCount() {
 		NSLog(@"Couldn't update note from file on disk given catalog entry");
 		return NO;
     }
-    
+	    
     if (![self updateFromData:data])
 		return NO;
 	
@@ -1023,13 +1009,20 @@ int decodedCount() {
     nodeID = catEntry->nodeID;
 
 	OSStatus err = noErr;
-	if (noErr == (err = UCConvertUTCDateTimeToCFAbsoluteTime(&fileModifiedDate, &modifiedDate))) {
-		dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain];
-	} else {
-		NSLog(@"can't get CFAbsTime from lastModified UTCDateTime (%d); using current instead", err);
-		dateModifiedString = [dateCreatedString retain];
-		modifiedDate = createdDate;
-	}	
+	CFAbsoluteTime aModDate, aCreateDate;
+	if (noErr == (err = UCConvertUTCDateTimeToCFAbsoluteTime(&fileModifiedDate, &aModDate))) {
+		[self setDateModified:aModDate];
+	}
+	if (createdDate == 0.0) {
+		//when reading files from disk for the first time, grab their creation date
+		FSCatalogInfo info;
+		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
+			if (UCConvertUTCDateTimeToCFAbsoluteTime(&info.createDate, &aCreateDate) == noErr) {
+				NSLog(@"picked up creation date for first-time-added file: %g", aCreateDate);
+				[self setDateAdded:aCreateDate];
+			}
+		}
+	}
 	
     return YES;
 }
@@ -1051,7 +1044,7 @@ int decodedCount() {
 	    
 	    break;
 	case PlainTextFormat:
-	    if ((stringFromData = [NSMutableString newShortLivedStringFromData:data ofGuessedEncoding:&fileEncoding])) {
+	    if ((stringFromData = [NSMutableString newShortLivedStringFromData:data ofGuessedEncoding:&fileEncoding withPath:NULL orWithFSRef:noteFileRefInit(self)])) {
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:stringFromData 
 																			  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 			[stringFromData release];
@@ -1132,7 +1125,7 @@ int decodedCount() {
 	//else we don't turn file updating off--we might be overwriting the state of a previous note-dirty message
 	
 	if (updateTime) {
-		modifiedDate = CFAbsoluteTimeGetCurrent();
+		[self setDateModified:CFAbsoluteTimeGetCurrent()];
 		
 		if ([delegate currentNoteStorageFormat] == SingleDatabaseFormat) {
 			//only set if we're not currently synchronizing to avoid re-reading old data
@@ -1141,9 +1134,6 @@ int decodedCount() {
 			if (UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &fileModifiedDate) != noErr)
 				NSLog(@"Unable to set file modification date from current date");
 		}
-		
-		[dateModifiedString release];
-		dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain];
 	}
 	
 	//queue note to be written
@@ -1165,8 +1155,11 @@ int decodedCount() {
 		case SingleDatabaseFormat:
 			NSAssert(NO, @"Warning! Tried to export data in single-db format!?");
 		case PlainTextFormat:
-			if (!(formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:NO]))
-				formattedData = [[contentString string] dataUsingEncoding:NSUTF8StringEncoding allowLossyConversion:YES];
+			if (!(formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:NO])) {
+				[self _setFileEncoding:NSUTF8StringEncoding];
+				NSLog(@"promoting to unicode (UTF-8) on export--probably because internal format is singledb");
+				formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:YES];
+			}
 			break;
 		case RTFTextFormat:
 			formattedData = [contentString RTFFromRange:NSMakeRange(0, [contentString length]) documentAttributes:nil];
@@ -1219,6 +1212,9 @@ int decodedCount() {
 		NSLog(@"error writing to temporary file: %d", err);
 		return err;
     }
+	if (PlainTextFormat == storageFormat) {
+		[self writeCurrentFileEncodingToFSRef:&fileRef];
+	}
 			
 	return noErr;
 }

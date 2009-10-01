@@ -100,9 +100,8 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		[editMenu addItem:[NSMenuItem separatorItem]];
         
         #if PASSWORD_SUGGESTIONS
-        theMenuItem = [[NSMenuItem alloc]
-            initWithTitle:[NSString stringWithFormat:@"%@%C", NSLocalizedString(@"New Password...", "new password command in the edit menu"), 0x2026 /*ellipses*/]
-            action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
+        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"New Password...", "new password command in the edit menu")
+												 action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
         [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
         [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
         [editMenu addItem:theMenuItem];
@@ -110,7 +109,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
         #endif
         
         theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "insert new password command in the edit menu")
-            action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
+												 action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
         #if PASSWORD_SUGGESTIONS
         [theMenuItem setAlternate:YES];
         #endif

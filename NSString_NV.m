@@ -497,6 +497,59 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return path;
 }
 
++ (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path {
+	if (!path) return NO;
+	
+	CFStringEncoding cfStringEncoding = CFStringConvertNSStringEncodingToEncoding(encoding);
+	if (cfStringEncoding == kCFStringEncodingInvalidId) {
+		NSLog(@"%s: encoding %lu is invalid!", _cmd, encoding);
+		return NO;
+	}
+	NSString *textEncStr = [(NSString *)CFStringConvertEncodingToIANACharSetName(cfStringEncoding) stringByAppendingFormat:@";%@", 
+							[[NSNumber numberWithInt:cfStringEncoding] stringValue]];
+	const char *textEncUTF8Str = [textEncStr UTF8String];
+	
+	if (setxattr(path, "com.apple.TextEncoding", textEncUTF8Str, strlen(textEncUTF8Str), 0, 0) < 0) {
+		NSLog(@"couldn't set text encoding attribute of %s to '%s': %d", path, textEncUTF8Str, errno);
+		return NO;
+	}
+	return YES;
+}
+
++ (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path {
+	if (!path) goto errorReturn;
+	
+	//We could query the size of the attribute, but that would require a second system call
+	//and the value for this key shouldn't need to be anywhere near this large, anyway.
+	//It could be, but it probably won't. If it is, then we won't get the encoding. Too bad.
+	char xattrValueBytes[128] = { 0 };
+	if (getxattr(path, "com.apple.TextEncoding", xattrValueBytes, sizeof(xattrValueBytes), 0, 0) < 0) {
+		NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
+		goto errorReturn;
+	}
+	NSString *encodingStr = [NSString stringWithUTF8String:xattrValueBytes];
+	if (!encodingStr) {
+		NSLog(@"couldn't make attribute data from %s into a string", path);
+		goto errorReturn;
+	}
+	NSArray *segs = [encodingStr componentsSeparatedByString:@";"];
+	
+	if ([segs count] >= 2 && [[segs objectAtIndex:1] length] > 1) {
+		return CFStringConvertEncodingToNSStringEncoding([[segs objectAtIndex:1] intValue]);
+	} else if ([[segs objectAtIndex:0] length] > 1) {
+		CFStringEncoding theCFEncoding = CFStringConvertIANACharSetNameToEncoding((CFStringRef)[segs objectAtIndex:0]);
+		if (theCFEncoding == kCFStringEncodingInvalidId) {
+			NSLog(@"couldn't convert IANA charset");
+			goto errorReturn;
+		}
+		return CFStringConvertEncodingToNSStringEncoding(theCFEncoding);
+	}
+	
+errorReturn:
+	return 0;
+}
+
+
 - (CFUUIDBytes)uuidBytes {
 	CFUUIDBytes bytes = {0};
 	CFUUIDRef uuidRef = CFUUIDCreateFromString(NULL, (CFStringRef)self);
@@ -565,47 +618,63 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 
 @implementation NSMutableString (NV)
 
-+ (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding {
++ (NSMutableString*)newShortLivedStringFromFile:(NSString*)filename {
+	NSStringEncoding anEncoding = NSMacOSRomanStringEncoding; //won't use this, doesn't matter
 	
-	//this will fail if data lacks a BOM
+	return [self newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] 
+						   ofGuessedEncoding:&anEncoding withPath:[filename fileSystemRepresentation] orWithFSRef:NULL];
+}
+
++ (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding withPath:(const char*)aPath orWithFSRef:(const FSRef*)fsRef{
+	NSLog(@"%s: %@", _cmd, data);
+	//this will fail if data lacks a BOM, but try it first as it's the fastest check
 	NSMutableString* stringFromData = [data newStringUsingBOMReturningEncoding:encoding];
 	if (stringFromData) {
 		return stringFromData;
 	}
 	
-	//try UTF-8 here, if any bytes are greater than 127
-	//TODO: also use UTF-8 if string is 7-bit (might make ContainsHighAscii() moot here)
-	if (ContainsHighAscii([data bytes], [data length])) {
-		if (RunningTigerAppKitOrHigher) stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] 
-																					   length:[data length] encoding:NSUTF8StringEncoding freeWhenDone:NO];
-		else stringFromData = [[NSMutableString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-			
-		if (stringFromData) {
-			*encoding = NSUTF8StringEncoding;
-			return stringFromData;
+	//if it's just 7-bit ASCII, jump straight to system encoding as that will be the underlying cfstring's encoding; don't even try UTF-8 (but report UTF-8, anyway)
+	BOOL hasHighASCII = NO;
+	NSStringEncoding systemEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
+	NSStringEncoding firstEncodingToTry = (hasHighASCII = ContainsHighAscii([data bytes], [data length])) ? NSUTF8StringEncoding : systemEncoding;
+	
+#define AddIfUnique(enc) if (!ContainsUInteger(encodingsToTry, encodingIndex, (enc))) encodingsToTry[encodingIndex++] = (enc)
+	
+	NSStringEncoding encodingsToTry[5];
+	NSUInteger encodingIndex = 0;
+	
+	AddIfUnique(firstEncodingToTry);
+	
+	if (hasHighASCII && RunningTigerAppKitOrHigher) {
+		//check the file on disk for extended attributes only if absolutely necessary
+		NSStringEncoding extendedAttrsEncoding = 0;
+		if (!aPath && fsRef && !IsZeros(fsRef, sizeof(FSRef))) {
+			NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
+			if (FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length]) == noErr)
+				extendedAttrsEncoding = [NSString textEncodingAttributeOfFSPath:[pathData bytes]];
+		} else if (aPath) {
+			extendedAttrsEncoding = [NSString textEncodingAttributeOfFSPath:aPath];
 		}
+		if (extendedAttrsEncoding) AddIfUnique(extendedAttrsEncoding);
 	}
+	AddIfUnique(*encoding);
+	AddIfUnique(systemEncoding);
+	AddIfUnique(NSMacOSRomanStringEncoding);
 	
-	//then try in requested format, for which new notes use CFStringGetSystemEncoding(); 9 times out of 10 this should work
-	if (RunningTigerAppKitOrHigher) stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] encoding:*encoding freeWhenDone:NO];
-	else stringFromData = [[NSMutableString alloc] initWithData:data encoding:*encoding];
-	if (stringFromData)
+	encodingIndex = 0;
+	do {
+		stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] 
+															 encoding:encodingsToTry[encodingIndex] freeWhenDone:NO];
+	} while (!stringFromData && ++encodingIndex < 5);
+		
+	if (stringFromData) {
+		NSAssert(encodingIndex < 5, @"got valid string from data, but encodingIndex is too high!");
+		//report ASCII files as UTF-8 data in case this encoding will be used for future writes of a note
+		*encoding = hasHighASCII ? encodingsToTry[encodingIndex] : NSUTF8StringEncoding;
 		return stringFromData;
-	
-	//if that doesn't work, use system encoding, as long as it was not already tried--if it was, then try MacOSRoman
-	NSStringEncoding newEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
-	if (newEncoding != *encoding && newEncoding != kCFStringEncodingInvalidId) {
-		NSLog(@"Couldn't read data as current encoding--using system default");
-		*encoding = newEncoding;
-	} else {
-		NSLog(@"Couldn't read data as current encoding--using MacOSRoman");
-		*encoding = NSMacOSRomanStringEncoding;
 	}
-	
-	if (RunningTigerAppKitOrHigher) stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] encoding:*encoding freeWhenDone:NO];
-	else stringFromData = [[NSMutableString alloc] initWithData:data encoding:*encoding];
-	
-	return stringFromData;
+		
+	return nil;
 }
 
 @end

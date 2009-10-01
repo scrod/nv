@@ -53,14 +53,26 @@ void MakeLowercase(char *text) {
     }
 }
 
+int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint) {
+	size_t i;
+	for (i=0; i<count; i++) {
+		if (uintArray[i] == auint) return 1;
+	}
+	return 0;
+}
+
 
 int ContainsHighAscii(const void *s1, size_t n) {
 	
-	register unsigned int *intBuffer = (unsigned int*)s1;
-	register unsigned int i, pattern = 0x80808080;
-	register unsigned int integerCount = n/sizeof(unsigned int);	
+	register NSUInteger *intBuffer = (NSUInteger*)s1;
+	register NSUInteger i, integerCount = n/sizeof(NSUInteger);	
+	register NSUInteger pattern = 
+#if __LP64__ || NS_BUILD_32_LIKE_64
+	0x8080808080808080;
+#else
+	0x80808080;
+#endif
 	
-	//could be further parallelized with 64-bit integers and altivec
 	for (i=0; i<integerCount; i++ ) {
 		if (pattern & intBuffer[i]) {
 			return 1;
@@ -68,7 +80,7 @@ int ContainsHighAscii(const void *s1, size_t n) {
 	}
 	
 	unsigned char *charBuffer = (unsigned char*)s1;
-	unsigned int leftOverCharCount = n % sizeof(unsigned int);
+	NSUInteger leftOverCharCount = n % sizeof(NSUInteger);
 	
 	for (i = n - leftOverCharCount; i<n; i++) {
 		if (charBuffer[i] > 127) {

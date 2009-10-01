@@ -20,6 +20,7 @@
 
 NSString *PasswordWasRetrievedFromKeychainKey = @"PasswordRetrievedFromKeychain";
 NSString *RetrievedPasswordKey = @"RetrievedPassword";
+NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 
 @interface AlienNoteImporter (Private)
 - (NSArray*)_importStickies:(NSString*)filename;
@@ -31,7 +32,7 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 
 - (id)init {
 	if ([super init]) {
-		
+		shouldGrabCreationDates = NO;
 		documentSettings = [[NSMutableDictionary alloc] init];
 	}
 	return self;
@@ -152,12 +153,26 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 	return documentSettings;
 }
 
+- (NSView*)accessoryView {
+	if (!importAccessoryView) {
+		if (![NSBundle loadNibNamed:@"ImporterAccessory" owner:self])  {
+			NSLog(@"Failed to load ImporterAccessory.nib");
+			NSBeep();
+			return nil;
+		}
+	}
+	return importAccessoryView;
+}
+
+
 - (void)openPanelDidEnd:(NSOpenPanel *)panel returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
 	id delegate = (id)contextInfo;
 	
 	if (delegate && [delegate respondsToSelector:@selector(noteImporter:importedNotes:)]) {
 		
 		if (returnCode == NSOKButton) {
+			shouldGrabCreationDates = [grabCreationDatesButton state] == NSOnState;
+			[[NSUserDefaults standardUserDefaults] setBool:shouldGrabCreationDates forKey:ShouldImportCreationDates];
 			NSArray *notes = [self notesWithPaths:[panel filenames]];
 			if (notes && [notes count])
 				[delegate noteImporter:self importedNotes:notes];
@@ -181,6 +196,8 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 	[openPanel setPrompt:NSLocalizedString(@"Import",@"title of button in import dialog")];
 	[openPanel setTitle:NSLocalizedString(@"Import Notes",@"title of import dialog")];
 	[openPanel setMessage:NSLocalizedString(@"Select files and folders from which to import notes.",@"import dialog message")];
+	[openPanel setAccessoryView:[self accessoryView]];
+	[grabCreationDatesButton setState:[[NSUserDefaults standardUserDefaults] boolForKey:ShouldImportCreationDates]];
 	
 	[self retain];
 	
@@ -321,30 +338,33 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 	} else if (fileType == PDF_TYPE_ID || [extension isEqualToString:@"pdf"]) {
 		//try PDFKit if on 10.4
 		if (RunningTigerAppKitOrHigher) {
-			Class PdfDocClass = [[self class] PDFDocClass];
-			if (PdfDocClass != Nil) {
-				id doc = [[PdfDocClass alloc] initWithData:[NSData dataWithContentsOfFile:filename]];
-				if (doc) {
-					id sel = [doc performSelector:@selector(selectionForEntireDocument)];
-					if (sel) {
-						attributedStringFromData = [[NSMutableAttributedString alloc] initWithAttributedString:[sel attributedString]];
-						//maybe we could check pages and boundsForPage: to try to determine where a line was soft-wrapped in the document?
+			@try {
+				Class PdfDocClass = [[self class] PDFDocClass];
+				if (PdfDocClass != Nil) {
+					id doc = [[PdfDocClass alloc] initWithURL:[NSURL fileURLWithPath:filename]];
+					if (doc) {
+						id sel = [doc performSelector:@selector(selectionForEntireDocument)];
+						if (sel) {
+							attributedStringFromData = [[NSMutableAttributedString alloc] initWithAttributedString:[sel attributedString]];
+							//maybe we could check pages and boundsForPage: to try to determine where a line was soft-wrapped in the document?
+						} else {
+							NSLog(@"Couldn't get entire doc selection for PDF");
+						}
+						[doc autorelease];
 					} else {
-						NSLog(@"Couldn't get entire doc selection for PDF");
+						NSLog(@"Couldn't parse data into PDF");
 					}
-					[doc release];
 				} else {
-					NSLog(@"Couldn't parse data into PDF");
+					NSLog(@"No PDFDocument!");
 				}
-			} else {
-				NSLog(@"No PDFDocument!");
+			} @catch (NSException *e) {
+				NSLog(@"Error importing PDF %@ (%@, %@)", filename, [e name], [e reason]);
 			}
 		}
 	} else if (fileType == TEXT_TYPE_ID || [extension isEqualToString:@"txt"] || [extension isEqualToString:@"text"]) {
 		
-		NSMutableString *stringFromData = nil;
-		NSStringEncoding defaultEncoding = [NSString defaultCStringEncoding];
-		if ((stringFromData = [NSMutableString newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] ofGuessedEncoding:&defaultEncoding])) {
+		NSMutableString *stringFromData = [NSMutableString newShortLivedStringFromFile:filename];
+		if (stringFromData) {
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:stringFromData 
 																			  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 			[stringFromData release];
@@ -366,7 +386,9 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 		NoteObject *noteObject = [[NoteObject alloc] initWithNoteBody:attributedStringFromData title:[[filename lastPathComponent] stringByDeletingPathExtension]
 														uniqueFilename:nil format:SingleDatabaseFormat];				
 		if (noteObject) {
-			//[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileCreationDate])];
+			if (shouldGrabCreationDates) {
+				[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileCreationDate])];
+			}
 			[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileModificationDate])];
 			
 			return [noteObject autorelease];
@@ -526,11 +548,8 @@ NSString *RetrievedPasswordKey = @"RetrievedPassword";
 
 - (NSArray*)_importTSVFile:(NSString*)filename
 {
-	NSMutableString *contents = nil;
-	NSStringEncoding defaultEncoding = [NSString defaultCStringEncoding];
-	if (!(contents = [NSMutableString newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] ofGuessedEncoding:&defaultEncoding])) {
-		return nil;
-	}
+	NSMutableString *contents = [NSMutableString newShortLivedStringFromFile:filename];
+	if (!contents) return nil;
     
     // normalize newlines
     [contents replaceOccurrencesOfString:@"\r\n" withString:@"\n" options:0 range:NSMakeRange(0, [contents length])];

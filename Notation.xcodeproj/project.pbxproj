@@ -59,6 +59,7 @@
 		215DEA4709EF6446009A710B /* Notes.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 215DEA4609EF6446009A710B /* Notes.tiff */; };
 		215DEE1309F1AA4C009A710B /* Editing.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 215DEE1209F1AA4C009A710B /* Editing.tiff */; };
 		2168EC5309E33B0300778D02 /* FrozenNotation.m in Sources */ = {isa = PBXBuildFile; fileRef = 2168EC5209E33B0300778D02 /* FrozenNotation.m */; };
+		216BA24310746E3900F62D93 /* ImporterAccessory.nib in Resources */ = {isa = PBXBuildFile; fileRef = 216BA24110746E3900F62D93 /* ImporterAccessory.nib */; };
 		217CEBA309E9885500DF0E09 /* NotationFileManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 217CEBA209E9885500DF0E09 /* NotationFileManager.m */; };
 		217D02D60B77061E0004E02D /* BodyScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 217D02D40B77061E0004E02D /* BodyScroller.m */; };
 		217D4282096545A000E84749 /* LabelObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 217D4281096545A000E84749 /* LabelObject.m */; };
@@ -212,6 +213,7 @@
 		215DEE1209F1AA4C009A710B /* Editing.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = Editing.tiff; path = Images/Editing.tiff; sourceTree = "<group>"; };
 		2168EC5109E33B0300778D02 /* FrozenNotation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FrozenNotation.h; sourceTree = "<group>"; };
 		2168EC5209E33B0300778D02 /* FrozenNotation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FrozenNotation.m; sourceTree = "<group>"; };
+		216BA24210746E3900F62D93 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
 		217CEBA109E9885500DF0E09 /* NotationFileManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NotationFileManager.h; sourceTree = "<group>"; };
 		217CEBA209E9885500DF0E09 /* NotationFileManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotationFileManager.m; sourceTree = "<group>"; };
 		217D02D30B77061E0004E02D /* BodyScroller.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BodyScroller.h; sourceTree = "<group>"; };
@@ -620,6 +622,7 @@
 				211344BA0B3551BD0081B064 /* BlorPasswordRetriever.nib */,
 				21F1CD990B3A3F88001FB5F6 /* PTKeyComboPanel.nib */,
 				21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */,
+				216BA24110746E3900F62D93 /* ImporterAccessory.nib */,
 				2110C0CF0B65F09E00F5C52E /* SavedSearches.nib */,
 				21E6B0950B6E6D0B001ABEDC /* URLGetter.nib */,
 				213621E70B92413F008C0830 /* FindPanel.nib */,
@@ -716,6 +719,7 @@
 				214C6C59105445410085D386 /* Notality.icns in Resources */,
 				21813562105AF27400A0AE18 /* Acknowledgements.txt in Resources */,
 				2182B3C3106B2509008641E4 /* MainMenu.nib in Resources */,
+				216BA24310746E3900F62D93 /* ImporterAccessory.nib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -910,6 +914,14 @@
 				21544FB90B06331800C0D1D5 /* English */,
 			);
 			name = KeyDerivationManager.nib;
+			sourceTree = "<group>";
+		};
+		216BA24110746E3900F62D93 /* ImporterAccessory.nib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				216BA24210746E3900F62D93 /* English */,
+			);
+			name = ImporterAccessory.nib;
 			sourceTree = "<group>";
 		};
 		2182B3C1106B2509008641E4 /* MainMenu.nib */ = {
