@@ -38,7 +38,6 @@ long BlockSizeForNotation(NotationController *controller);
 + (OSStatus)trashFolderRef:(FSRef*)trashRef forChild:(FSRef*)childRef;
 - (OSStatus)moveFileToTrash:(FSRef *)childRef forFilename:(NSString*)filename;
 - (void)notifyOfChangedTrash;
-
 @end
 
 @interface NSObject (NotationFileManagerDelegate)

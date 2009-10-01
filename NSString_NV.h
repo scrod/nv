@@ -38,6 +38,9 @@ void resetCurrentDayTime();
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err;
 + (NSString*)pathWithFSRef:(FSRef*)fsRef;
 
++ (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path;
++ (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path;
+
 - (CFUUIDBytes)uuidBytes;
 + (NSString*)uuidStringWithBytes:(CFUUIDBytes)bytes;
 
@@ -46,7 +49,9 @@ void resetCurrentDayTime();
 @end
 
 @interface NSMutableString (NV)
-+ (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding;
++ (NSMutableString*)newShortLivedStringFromFile:(NSString*)filename;
++ (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding 
+									   withPath:(const char*)aPath orWithFSRef:(const FSRef*)fsRef;
 @end
 
 @interface NSEvent (NV)

@@ -12,12 +12,13 @@
 char *replaceString(char *oldString, const char *newString);
 void ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize);
 int IsZeros(const void *s1, size_t n);
+int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint);
 void MakeLowercase(char *text);
 int ContainsHighAscii(const void *s1, size_t n);
 CFStringRef CFStringFromBase10Integer(int quantity);
 unsigned DumbWordCount(const void *s1, size_t len);
-int genericSortContextFirst(int (*context) (void*, void*), void* one, void* two);
-int genericSortContextLast(void* one, void* two, int (*context) (void*, void*));
+NSInteger genericSortContextFirst(int (*context) (void*, void*), void* one, void* two);
+NSInteger genericSortContextLast(void* one, void* two, int (*context) (void*, void*));
 void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const void *, const void *));
 CFStringRef CreateRandomizedFileName();
 OSStatus FSCreateFileIfNotPresentInDirectory(FSRef *directoryRef, FSRef *childRef, CFStringRef filename, Boolean *created);

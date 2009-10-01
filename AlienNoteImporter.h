@@ -16,6 +16,9 @@ extern NSString *RetrievedPasswordKey;
 @class NoteObject;
 
 @interface AlienNoteImporter : NSObject {
+	IBOutlet NSButton *grabCreationDatesButton;
+	IBOutlet NSView *importAccessoryView;
+	
 	SEL importerSelector;
 	
 	//for URL downloading
@@ -23,6 +26,7 @@ extern NSString *RetrievedPasswordKey;
 	
 	id source;
 	NSMutableDictionary *documentSettings;
+	BOOL shouldGrabCreationDates;
 }
 
 //a directory containing notes, a custom bundle, or custom file format in which more than one note could be expected
@@ -37,6 +41,7 @@ extern NSString *RetrievedPasswordKey;
 + (NSBundle *)PDFKitBundle;
 + (Class)PDFDocClass;
 
+- (NSView*)accessoryView;
 - (NSDictionary*)documentSettings;
 - (NSArray*)importedNotes;
 

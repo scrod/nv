@@ -21,15 +21,22 @@
 #define NSAppKitVersionNumber10_3 743.0
 #endif
 
-#ifndef NSUIntegerMax
-#define NSUInteger unsigned int
-#define NSUIntegerMax UINT_MAX
+#ifndef NSINTEGER_DEFINED
+#if __LP64__ || NS_BUILD_32_LIKE_64
+typedef long NSInteger;
+typedef unsigned long NSUInteger;
+#else
+typedef int NSInteger;
+typedef unsigned int NSUInteger;
 #endif
 
-#ifndef NSIntegerMax
-#define NSInteger int
-#define NSIntegerMax INT_MAX
+#define NSIntegerMax    LONG_MAX
+#define NSIntegerMin    LONG_MIN
+#define NSUIntegerMax   ULONG_MAX
+
+#define NSINTEGER_DEFINED 1
 #endif
+
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_4
 typedef short FSIORefNum;
@@ -39,7 +46,6 @@ typedef float CGFloat;
 #define GCC_VERSION (__GNUC__ * 10000 \
 + __GNUC_MINOR__ * 100 \
 + __GNUC_PATCHLEVEL__)
-
 
 #define VAR_STR(x) @#x
 
@@ -71,7 +77,5 @@ typedef float CGFloat;
 #define RunningTigerAppKitOrHigher (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_3)
 #define IsLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_5)
 #define IsSnowLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_6)
-
-#define USE_KEYED_ARCHIVING 1
 
 #define NOTES_MENU_ID 89

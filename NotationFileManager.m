@@ -288,8 +288,8 @@ regenerateFSRef:
     if (owned) *owned = NO;
     
     if (info) {
-	whichInfo = kFSCatInfoContentMod | kFSCatInfoNodeID;
-	bzero(info, sizeof(FSCatalogInfo));
+		whichInfo = kFSCatInfoContentMod | kFSCatInfoCreateDate | kFSCatInfoNodeID;
+		bzero(info, sizeof(FSCatalogInfo));
     }
     
     OSStatus err = noErr;
@@ -584,6 +584,5 @@ regenerateFSRef:
     
     return err;
 }
-
 
 @end

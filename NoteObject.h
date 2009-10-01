@@ -120,6 +120,7 @@ NSInteger compareNodeID(id *a, id *b);
 - (void)updateLabelConnections;
 - (void)setLabelString:(NSString*)newLabels;
 
+- (void)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef;
 - (void)_setFileEncoding:(NSStringEncoding)encoding;
 - (BOOL)setFileEncodingAndUpdate:(NSStringEncoding)encoding;
 - (BOOL)updateFromFile;
