@@ -1210,6 +1210,8 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     NSArray *suggestedPasswords = [NVPasswordGenerator suggestions];
     
     // display modal overlay, get user selection and insert it
+    // Nice to have:
+    // keep stats on the user's selection and then use the most frequent choice in [insertGeneratedPassword] (instead of just [strong])
     #lse
     [self insertGeneratedPassword:nil];
     #endif
