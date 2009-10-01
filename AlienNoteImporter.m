@@ -343,6 +343,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				if (PdfDocClass != Nil) {
 					id doc = [[PdfDocClass alloc] initWithURL:[NSURL fileURLWithPath:filename]];
 					if (doc) {
+						//this method reliably crashes in 64-bit Leopard, and sometimes elsewhere as well
 						id sel = [doc performSelector:@selector(selectionForEntireDocument)];
 						if (sel) {
 							attributedStringFromData = [[NSMutableAttributedString alloc] initWithAttributedString:[sel attributedString]];

@@ -72,9 +72,9 @@ static const NSStringEncoding AllowedEncodings[] = {
 
 - (BOOL)checkUnicode {
 	
-	if (currentEncoding == NSUnicodeStringEncoding || currentEncoding == NSUTF8StringEncoding) {
+	if (NSUnicodeStringEncoding == currentEncoding || NSUTF8StringEncoding == currentEncoding) {
 		
-		NSString * alertTitleString = NSLocalizedString(@"quotemark%@quotemark is a Unicode file and not directly interpretable by plain text encodings.", 
+		NSString * alertTitleString = NSLocalizedString(@"quotemark%@quotemark is a Unicode file and not directly interpretable using plain text encodings.", 
 													   @"alert title when converting from unicode");
 		if (NSRunAlertPanel([NSString stringWithFormat:alertTitleString, filenameOfNote(note)],	
 							NSLocalizedString(@"If you wish to convert it, you must open and re-save the file in an external editor.", "alert description when converting from unicode"), 
@@ -168,7 +168,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 		[menuItem setEnabled:(noteString != nil && [noteString canBeConvertedToEncoding:thisEncoding])];
 		[noteString release];
 		
-		[menuItem setTag:thisEncoding];
+		[menuItem setTag:(int)thisEncoding];
 		[menuItem setTarget:self];
 		[menu addItem:menuItem];
 	}
@@ -188,9 +188,11 @@ static const NSStringEncoding AllowedEncodings[] = {
 		if (![self tryToUpdateTextForEncoding:newEncoding]) {
 			
 			//set it back to the current encoding--this one doesn't work
-			int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:currentEncoding];
+			int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:(int)currentEncoding];
 			if (encodingIndex > -1)
 				[encodingsPopUpButton selectItemAtIndex:encodingIndex];
+			else
+				NSLog(@"(setting it back) encoding %u not found", currentEncoding);
 		}
 		
 		//if ([[[self contentString] string] canBeConvertedToEncoding:encoding]) {
@@ -216,9 +218,11 @@ static const NSStringEncoding AllowedEncodings[] = {
 		
 		currentEncoding = encoding;
 		
-		int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:currentEncoding];
+		int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:(int)currentEncoding];
 		if (encodingIndex > -1)
 			[encodingsPopUpButton selectItemAtIndex:encodingIndex];
+		else
+			NSLog(@"encoding %u not found", currentEncoding);
 		
 		return YES;
 	} else {

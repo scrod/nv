@@ -70,7 +70,7 @@
 		}
 		
 		if (![notesData length]) {
-			[notesData release];
+			NSLog(@"%s: empty notesData; returning nil", _cmd);
 			return nil;
 		}
 	}
@@ -96,14 +96,14 @@
 		return nil;
 	
 	NSData *encodedNotationData = [NSKeyedArchiver archivedDataWithRootObject:frozenNotation];
-	[frozenNotation release];
+	[frozenNotation autorelease];
 	
 	return encodedNotationData;
 }
 
 - (NSMutableArray*)unpackedNotesWithPrefs:(NotationPrefs*)somePrefs returningError:(OSStatus*)err {
 	
-	//decrypt notesData, decrypting if necessary, then unarchive
+	//decrypt notesData if necessary, then unarchive
 	
 	*err = noErr;
 	

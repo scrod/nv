@@ -55,7 +55,6 @@ typedef struct _NoteFilterContext {
 	//more metadata
 	CFAbsoluteTime modifiedDate, createdDate;
 	NSRange selectedRange;
-	float scrolledProportion;
 	
 	//each note has its own undo manager--isn't that nice?
 	NSUndoManager *undoManager;
@@ -92,7 +91,6 @@ NSInteger compareNodeID(id *a, id *b);
 	UTCDateTime fileModifiedDateOfNote(NoteObject *note);
 	CFAbsoluteTime modifiedDateOfNote(NoteObject *note);
 
-
 	NSStringEncoding fileEncodingOfNote(NoteObject *note);
 
 	//note display
@@ -120,7 +118,7 @@ NSInteger compareNodeID(id *a, id *b);
 - (void)updateLabelConnections;
 - (void)setLabelString:(NSString*)newLabels;
 
-- (void)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef;
+- (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef;
 - (void)_setFileEncoding:(NSStringEncoding)encoding;
 - (BOOL)setFileEncodingAndUpdate:(NSStringEncoding)encoding;
 - (BOOL)updateFromFile;
@@ -160,6 +158,7 @@ NSInteger compareNodeID(id *a, id *b);
 - (void)setDateAdded:(CFAbsoluteTime)newTime;
 - (void)setSelectedRange:(NSRange)newRange;
 - (NSRange)lastSelectedRange;
+- (BOOL)contentsWere7Bit;
 
 - (NSUndoManager*)undoManager;
 - (void)_undoManagerDidChange:(NSNotification *)notification;

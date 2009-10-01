@@ -104,10 +104,9 @@ void outletObjectAwoke(id sender) {
 - (void)runDelayedUIActionsAfterLaunch {
 	[[prefsController bookmarksController] setDelegate:self];
 	[[prefsController bookmarksController] updateBookmarksUI];
-	[self updateNoteMenus];	
+	[self updateNoteMenus];
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(bringFocusToControlField:)];
 	[notationController checkIfNotationIsTrashed];
-	[NSApp setServicesProvider:self];
 	
 	//connect sparkle programmatically to avoid loading its framework at nib awake;
 	if (RunningTigerAppKitOrHigher && !NSClassFromString(@"SUUpdater")) {
@@ -119,6 +118,8 @@ void outletObjectAwoke(id sender) {
 			NSLog(@"Could not load %@!", frameworkPath);
 		}
 	}
+	
+	[NSApp setServicesProvider:self];
 }
 
 extern int decodedCount();
@@ -266,7 +267,7 @@ terminateApp:
 		return (numberSelected == 1);
 	} else if (selector == @selector(fixFileEncoding:)) {
 		
-		return (currentNote != nil && storageFormatOfNote(currentNote) == PlainTextFormat);
+		return (currentNote != nil && storageFormatOfNote(currentNote) == PlainTextFormat && ![currentNote contentsWere7Bit]);
 	}
 	
 	return YES;
@@ -1262,8 +1263,7 @@ terminateApp:
 		[NSApp terminate:nil];
 }
 
-- (void)applicationWillTerminate:(NSNotification *)aNotification {
-	
+- (void)applicationWillTerminate:(NSNotification *)aNotification {	
 	if (notationController) {
 		//only save the state if the notation instance has actually loaded; i.e., don't save last-selected-note if we quit from a PW dialog
 		BOOL wasAutomatic = NO;

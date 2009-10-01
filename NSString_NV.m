@@ -497,6 +497,9 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return path;
 }
 
+//TODO: use volumeCapabilities in FSExchangeObjectsCompat.c to skip some work on volumes for which we know we would receive ENOTSUP
+//for +setTextEncodingAttribute:atFSPath: and +textEncodingAttributeOfFSPath: (test against VOL_CAP_INT_EXTENDED_ATTR)
+
 + (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path {
 	if (!path) return NO;
 	
@@ -524,7 +527,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	//It could be, but it probably won't. If it is, then we won't get the encoding. Too bad.
 	char xattrValueBytes[128] = { 0 };
 	if (getxattr(path, "com.apple.TextEncoding", xattrValueBytes, sizeof(xattrValueBytes), 0, 0) < 0) {
-		NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
+		if (ENOATTR != errno) NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
 		goto errorReturn;
 	}
 	NSString *encodingStr = [NSString stringWithUTF8String:xattrValueBytes];
@@ -626,7 +629,6 @@ errorReturn:
 }
 
 + (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding withPath:(const char*)aPath orWithFSRef:(const FSRef*)fsRef{
-	NSLog(@"%s: %@", _cmd, data);
 	//this will fail if data lacks a BOM, but try it first as it's the fastest check
 	NSMutableString* stringFromData = [data newStringUsingBOMReturningEncoding:encoding];
 	if (stringFromData) {

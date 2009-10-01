@@ -126,6 +126,7 @@ OSErr FSDetermineIfRefIsEnclosedByFolder(short domainOrVRefNum, OSType folderTyp
 
 - (BOOL)notesDirectoryContainsFile:(NSString*)filename returningFSRef:(FSRef*)childRef {
 	UniChar chars[256];
+	if (!filename) return NO;
 	
 	return FSRefMakeInDirectoryWithString(&noteDirectoryRef, childRef, (CFStringRef)filename, chars) == noErr;
 }
@@ -387,7 +388,7 @@ regenerateFSRef:
 }
 
 - (OSStatus)createFileIfNotPresentInNotesDirectory:(FSRef*)childRef forFilename:(NSString*)filename fileWasCreated:(BOOL*)created {
-
+	
 	return FSCreateFileIfNotPresentInDirectory(&noteDirectoryRef, childRef, (CFStringRef)filename, (Boolean*)created);
 }
 

@@ -227,17 +227,17 @@
 	compressionStream.avail_out = compressedDataBufferSize;
 	compressionStream.data_type = Z_BINARY;
 	
-	int previousOut = compressionStream.total_out;
+	uLong previousOut = compressionStream.total_out;
 	/* Perform the compression here. */
 	int deflateResult = deflate(&compressionStream, Z_SYNC_FLUSH);
 	/*Find the total size of the resulting compressed data. */
-	int zlibAfterBufLen = compressionStream.total_out - previousOut;
+	uLong zlibAfterBufLen = compressionStream.total_out - previousOut;
 
 	if (deflateResult != Z_OK) {
 		NSLog(@"zlib deflation error: %s\n", compressionStream.msg);
 		return NO;
 	}
-	if ((unsigned)zlibAfterBufLen > compressedDataBufferSize) {
+	if (zlibAfterBufLen > compressedDataBufferSize) {
 		NSLog(@"zlibAfterBufLen is larger than the allocated compressed buffer!");
 		return NO;
 	}
@@ -284,14 +284,14 @@
 		bytesWritten = 0;
     }
 	
-    if ((unsigned)bytesWritten < dataChunkSize) {
+    if ((size_t)bytesWritten < dataChunkSize) {
 		//buffer any remaining data that we were not able to write (in case the disk was full, for example)
 		[unwrittenData appendBytes:dataChunk + bytesWritten length:(dataChunkSize - bytesWritten)];
     }
     
     free(dataChunk);
     
-    return ((unsigned)bytesWritten == dataChunkSize);
+    return ((size_t)bytesWritten == dataChunkSize);
 }
 
 - (BOOL)synchronize {

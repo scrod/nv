@@ -46,7 +46,6 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	serverModifiedTime = 0;
 	logSequenceNumber = 0;
 	selectedRange = NSMakeRange(NSNotFound, 0);
-	scrolledProportion = 0.0f;
 	
 	//these are created either when the object is initialized from disk or when it writes its files to disk
 	//bzero(&noteFileRef, sizeof(FSRef));
@@ -251,7 +250,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 			createdDate = [decoder decodeDoubleForKey:VAR_STR(createdDate)];
 			selectedRange.location = [decoder decodeInt32ForKey:@"selectionRangeLocation"];
 			selectedRange.length = [decoder decodeInt32ForKey:@"selectionRangeLength"];
-			scrolledProportion = [decoder decodeFloatForKey:VAR_STR(scrolledProportion)];
+			contentsWere7Bit = [decoder decodeBoolForKey:VAR_STR(contentsWere7Bit)];
 			
 			logSequenceNumber = [decoder decodeInt32ForKey:VAR_STR(logSequenceNumber)];
 
@@ -274,6 +273,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 			
 		} else {
             NSRange32 range32;
+			float scrolledProportion = 0.0;
             #if __LP64__
             unsigned long longTemp;
             #endif
@@ -325,9 +325,8 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 #endif
             selectedRange.location = range32.location;
             selectedRange.length = range32.length;
+			contentsWere7Bit = (*(unsigned int*)&scrolledProportion) != 0; //hacko wacko
 		}
-		
-		contentsWere7Bit = (*(unsigned int*)&scrolledProportion) != 0; //hacko wacko
 	
 		//re-created at runtime to save space
 		[self initContentCacheCString];
@@ -343,16 +342,14 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 }
 
 - (void)encodeWithCoder:(NSCoder *)coder {
-	
-	*(unsigned int*)&scrolledProportion = (unsigned int)contentsWere7Bit;
-	
+		
 	if ([coder allowsKeyedCoding]) {
 		
 		[coder encodeDouble:modifiedDate forKey:VAR_STR(modifiedDate)];
 		[coder encodeDouble:createdDate forKey:VAR_STR(createdDate)];
 		[coder encodeInt32:(unsigned int)selectedRange.location forKey:@"selectionRangeLocation"];
 		[coder encodeInt32:(unsigned int)selectedRange.length forKey:@"selectionRangeLength"];
-		[coder encodeFloat:scrolledProportion forKey:VAR_STR(scrolledProportion)];
+		[coder encodeBool:contentsWere7Bit forKey:VAR_STR(contentsWere7Bit)];
 		
 		[coder encodeInt32:logSequenceNumber forKey:VAR_STR(logSequenceNumber)];
 		
@@ -375,6 +372,8 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 	} else {
 // 64bit encoding would break 32bit reading - keyed archives should be used
 #if !__LP64__
+		float scrolledProportion = 0.0;
+		*(unsigned int*)&scrolledProportion = (unsigned int)contentsWere7Bit;
 #if DECODE_INDIVIDUALLY
 		[coder encodeValueOfObjCType:@encode(CFAbsoluteTime) at:&modifiedDate];
 		[coder encodeValueOfObjCType:@encode(CFAbsoluteTime) at:&createdDate];
@@ -545,6 +544,11 @@ static int decoded7Bit = 0;
 	
 	contentCacheNeedsUpdate = NO;
 }
+
+- (BOOL)contentsWere7Bit {
+	return contentsWere7Bit;
+}
+
 int decodedCount() {
 	return decoded7Bit;
 }
@@ -775,10 +779,11 @@ int decodedCount() {
 }
 
 - (NSString*)noteFilePath {
-	if (!noteFileRef || IsZeros(noteFileRef, sizeof(FSRef)))
-		return nil;
-	
-	return [NSString pathWithFSRef:noteFileRef];
+	if (IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
+		if (![delegate notesDirectoryContainsFile:filename returningFSRef:noteFileRefInit(self)])
+			return nil;
+	}
+	return [NSString pathWithFSRef:noteFileRefInit(self)];
 }
 
 - (void)invalidateFSRef {
@@ -912,7 +917,7 @@ int decodedCount() {
 		}
 		//if writing plaintext set the file encoding with setxattr
 		if (formatID == PlainTextFormat) {
-			[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
+			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
 		
 		if (!resetFilename) {
@@ -943,7 +948,7 @@ int decodedCount() {
     return YES;
 }
 
-- (void)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef {
+- (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef {
 	NSAssert(fsRef, @"cannot write file encoding to a NULL FSRef");
 	//this is not the note's own fsRef; it could be anywhere
 	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
@@ -953,6 +958,7 @@ int decodedCount() {
 	} else {
 		NSLog(@"%s: error getting path from FSRef: %d (IsZeros: %d)", _cmd, err, IsZeros(fsRef, sizeof(fsRef)));
 	}
+	return err;
 }
 
 - (void)_setFileEncoding:(NSStringEncoding)encoding {
@@ -964,6 +970,19 @@ int decodedCount() {
 	
 	if (encoding != fileEncoding) {
 		[self _setFileEncoding:encoding];
+		
+		//write the file encoding extended attribute before updating from disk. why?
+		//a) to ensure -updateFromData: finds the right encoding when re-reading the file
+		//b) because the file is otherwise not being rewritten, and the extended attribute--if it existed--may have been different
+		
+		OSStatus err = noErr;
+		do {
+			if (noErr != err || IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
+				NSLog(@"%s: updating the fsref", _cmd);
+				if (![delegate notesDirectoryContainsFile:filename returningFSRef:noteFileRefInit(self)]) break;
+			}
+			err = [self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
+		} while (fnfErr == err);
 		
 		if ((updated = [self updateFromFile])) {
 			[self makeNoteDirtyUpdateTime:NO updateFile:NO];
@@ -1018,7 +1037,6 @@ int decodedCount() {
 		FSCatalogInfo info;
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			if (UCConvertUTCDateTimeToCFAbsoluteTime(&info.createDate, &aCreateDate) == noErr) {
-				NSLog(@"picked up creation date for first-time-added file: %g", aCreateDate);
 				[self setDateAdded:aCreateDate];
 			}
 		}
@@ -1213,7 +1231,7 @@ int decodedCount() {
 		return err;
     }
 	if (PlainTextFormat == storageFormat) {
-		[self writeCurrentFileEncodingToFSRef:&fileRef];
+		(void)[self writeCurrentFileEncodingToFSRef:&fileRef];
 	}
 			
 	return noErr;
