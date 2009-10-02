@@ -137,6 +137,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 												   name:NSTableViewSelectionDidChangeNotification object:bookmarksTableView];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(tableViewSelectionDidChange:) 
 												 name:NSTableViewSelectionIsChangingNotification object:bookmarksTableView];
+//	[window setFloatingPanel:YES];
 	[window setDelegate:self];
 	[bookmarksTableView setDelegate:self];
 	
@@ -413,6 +414,16 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	return newFrame;
 }
 
+- (void)windowWillClose:(NSNotification *)notification {
+	[showHideBookmarksItem setAction:@selector(showBookmarks:)];
+	[showHideBookmarksItem setTitle:NSLocalizedString(@"Show Bookmarks",@"menu item title")];
+}
+
+- (void)hideBookmarks:(id)sender {
+	
+	[window close];	
+}
+
 - (void)showBookmarks:(id)sender {
 	if (!window) {
 		if (![NSBundle loadNibNamed:@"SavedSearches" owner:self])  {
@@ -426,8 +437,10 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	[bookmarksTableView reloadData];
 	[window makeKeyAndOrderFront:self];
 	
-	//TODO: hide bookmarks window if already open
-	//TODO: fix nspanel to not respond to close
+	[showHideBookmarksItem release];
+	showHideBookmarksItem = [sender retain];
+	[sender setAction:@selector(hideBookmarks:)];
+	[sender setTitle:NSLocalizedString(@"Hide Bookmarks",@"menu item title")];
 
 	//highlight searches as appropriate while the window is open
 	//selecting a search restores it

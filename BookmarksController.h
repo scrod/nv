@@ -68,7 +68,9 @@
 	IBOutlet NSButton *addBookmarkButton;
     IBOutlet NSButton *removeBookmarkButton;
     IBOutlet NSTableView *bookmarksTableView;
-    IBOutlet NSPanel *window;	
+    IBOutlet NSPanel *window;
+	
+	NSMenuItem *showHideBookmarksItem;
 }
 
 - (id)initWithBookmarks:(NSArray*)array;
@@ -84,6 +86,7 @@
 
 - (void)restoreBookmark:(id)sender;
 - (void)clearAllBookmarks:(id)sender;
+- (void)hideBookmarks:(id)sender;
 - (void)showBookmarks:(id)sender;
 
 - (void)addBookmark:(id)sender;
