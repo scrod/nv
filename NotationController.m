@@ -144,20 +144,8 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 		
 		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
 		if ([notationPrefs epochIteration] < 2 && ![notationPrefs firstTimeUsed]) {
-			//this would have to be a database from epoch 1
-			
-			//for all notes with a system-default text encoding:
-			//	if storage format is SingleDB, 
-			//		_setFileEncoding to UTF8
-			//		if content had high-ASCII in it,
-			//			update the obj's filemod time to fix encoding at the next format switch, in case those notes are not modified themselves first
-			//	else
-			//		if storage format is plaintext, 
-			//			if content had high-ASCII in it,
-			//				_setFileEncoding to UTF8
-			//				writeUsingCurrentFileFormat
-			//			else
-			//				setFileEncodingAndUpdate to UTF8
+			//this would have to be a database from epoch 1, where the default file-encoding was system-default
+			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
 		}
     }
     
@@ -754,42 +742,44 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 - (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry {
 	//check dates
-		UTCDateTime lastReadDate = fileModifiedDateOfNote(aNoteObject);
-		UTCDateTime fileModDate = catEntry->lastModified;
+	UTCDateTime lastReadDate = fileModifiedDateOfNote(aNoteObject);
+	UTCDateTime fileModDate = catEntry->lastModified;
+	
+	//should we always update the note's stored inode here regardless?
+	
+	if (lastReadDate.lowSeconds != fileModDate.lowSeconds ||
+		lastReadDate.highSeconds != fileModDate.highSeconds ||
+		lastReadDate.fraction != fileModDate.fraction) {
+		//assume the file on disk was modified by someone other than us
 		
-		//should we always update the note's stored inode here regardless?
-		
-		if (lastReadDate.lowSeconds != fileModDate.lowSeconds ||
-			lastReadDate.highSeconds != fileModDate.highSeconds ||
-			lastReadDate.fraction != fileModDate.fraction) {
-		    //assume the file on disk was modified by someone other than us
-		    
-		    //figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
-		    //if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
-			//CFAbsoluteTime timeOnDisk, lastTime;
-			//OSStatus err = noErr;
-			//if ((err = (UCConvertUTCDateTimeToCFAbsoluteTime(&lastReadDate, &lastTime) == noErr)) &&
-//				(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModDate, &timeOnDisk) == noErr))) {
+		//figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
+		//if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
+		CFAbsoluteTime timeOnDisk, lastTime;
+		OSStatus err = noErr;
+		if ((err = (UCConvertUTCDateTimeToCFAbsoluteTime(&lastReadDate, &lastTime) == noErr)) &&
+			(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModDate, &timeOnDisk) == noErr))) {
+			
+			if (timeOnDisk > lastTime) {
+				[aNoteObject updateFromCatalogEntry:catEntry];
 				
-				//if (timeOnDisk > lastTime) {
-					[aNoteObject updateFromCatalogEntry:catEntry];
-					
-					[delegate contentsUpdatedForNote:aNoteObject];
-					
-					[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:NoteDateModifiedColumnString afterDelay:0.0];
-					
-					notesChanged = YES;
-//				}
+				[delegate contentsUpdatedForNote:aNoteObject];
 				
+				[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:NoteDateModifiedColumnString afterDelay:0.0];
+				
+				notesChanged = YES;
 				NSLog(@"FILE WAS MODIFIED: %@", catEntry->filename);
-				
-				return YES;
-			//} else {
-//				NSLog(@"modify note: error converting times: %d", err);
-//			}
+			} else {
+				//check if this file's contents are identical to the current contents; if so, make the note's fileModDate older
+				//otherwise, attempt a merge of some sort
+				NSLog(@"File %@ is older than when we last saved it; not updating the note", catEntry->filename);
+			}
+			return YES;
+		} else {
+			NSLog(@"modify note: error converting times: %d", err);
 		}
-		
-		return NO;
+	}
+	
+	return NO;
 }
 
 - (void)makeNotesMatchCatalogEntries:(NoteCatalogEntry**)catEntriesPtrs ofSize:(size_t)catCount {

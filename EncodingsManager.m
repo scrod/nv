@@ -283,7 +283,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 	
 	//check whether file mod. date of note is older than mod. date on disk
 	if ([self shouldUpdateNoteFromDisk]) {
-		[note setFileEncodingAndUpdate:currentEncoding];
+		[note setFileEncodingAndReinterpret:currentEncoding];
 		[[NSApp delegate] contentsUpdatedForNote:note];
 	}
 	

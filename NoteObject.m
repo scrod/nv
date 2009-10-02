@@ -961,18 +961,47 @@ int decodedCount() {
 	return err;
 }
 
+- (BOOL)upgradeToUTF8IfUsingSystemEncoding {
+	//upgradeEncodingToUTF8
+}
+
+- (BOOL)upgradeEncodingToUTF8 {
+	//"convert" the file to have a UTF-8 encoding
+	BOOL didUpgrade = YES;
+	
+	if (NSUTF8StringEncoding != fileEncoding) {
+		[self _setFileEncoding:NSUTF8StringEncoding];
+		
+		if (contentsWere7Bit) {
+			if (PlainTextFormat == currentFormatID) {
+				//actual conversion is required
+				didUpgrade = [self writeUsingCurrentFileFormat];
+			} else if (SingleDatabaseFormat == currentFormatID) {
+				//update last-written-filemod time to guarantee proper encoding at next DB storage format switch, 
+				//in case of existing files--if this note is never subsequently modified
+				if (UCConvertCFAbsoluteTimeToUTCDateTime(CFAbsoluteTimeGetCurrent(), &fileModifiedDate) != noErr)
+					NSLog(@"%s: can't set file modification date from current date", _cmd);
+			}
+		}
+		//make note dirty to ensure these changes are saved
+		[self makeNoteDirtyUpdateTime:NO updateFile:NO];
+	}
+	return didUpgrade;
+}
+
 - (void)_setFileEncoding:(NSStringEncoding)encoding {
 	fileEncoding = encoding;
 }
 
-- (BOOL)setFileEncodingAndUpdate:(NSStringEncoding)encoding {
+- (BOOL)setFileEncodingAndReinterpret:(NSStringEncoding)encoding {
+	//"reinterpret" the file using this encoding, also setting the actual file's extended attributes to match
 	BOOL updated = YES;
 	
 	if (encoding != fileEncoding) {
 		[self _setFileEncoding:encoding];
 		
 		//write the file encoding extended attribute before updating from disk. why?
-		//a) to ensure -updateFromData: finds the right encoding when re-reading the file
+		//a) to ensure -updateFromData: finds the right encoding when re-reading the file, and
 		//b) because the file is otherwise not being rewritten, and the extended attribute--if it existed--may have been different
 		
 		OSStatus err = noErr;
