@@ -3,6 +3,7 @@
 #import "FastListDataSource.h"
 #import "NoteAttributeColumn.h"
 #import "GlobalPrefs.h"
+#import "NotationPrefs.h"
 #import "NoteObject.h"
 #import "NSCollection_utils.h"
 #import "HeaderViewWithMenu.h"
@@ -529,6 +530,7 @@
 }
 
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value {
+#if SET_DUAL_HIGHLIGHTS
 	if (![[self window] isKeyWindow]) {
 		hadHighlightInForeground = value;
 		value = YES;
@@ -536,12 +538,15 @@
 	shouldUseSecondaryHighlightColor = value;
 	
 	[self setNeedsDisplay:YES];
+#endif
 }
 
+#if SET_DUAL_HIGHLIGHTS
 - (BOOL)_shouldUseSecondaryHighlightColor {
 
 	return shouldUseSecondaryHighlightColor;
 }
+#endif
 
 #if 0
 //don't need this
@@ -562,8 +567,13 @@
 	[super flagsChanged:theEvent];
 }*/
 
-//this seems like it should happen automatically, but it does not.
+- (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
+	return isLocal ? NSDragOperationNone : NSDragOperationCopy;
+}
+
 - (void)mouseDown:(NSEvent*)event {
+	
+	//this seems like it should happen automatically, but it does not.
 	if (![NSApp isActive]) {
 		[NSApp activateIgnoringOtherApps:YES];
 	}
@@ -573,17 +583,34 @@
 	
 	unsigned int flags = [event modifierFlags]; 
     if (flags & NSAlternateKeyMask) { // option click starts a drag 
-        NSSize dragOffset = NSZeroSize; 
+		
 		NSPoint mousePoint = [self convertPoint:[event locationInWindow] fromView:nil];
-        NSPoint dragPoint = mousePoint; 
-        NSPasteboard *pboard = [NSPasteboard pasteboardWithName:NSDragPboard]; 
-        NSImage *image = [NSImage imageNamed:@"NSApplicationIcon"]; 
-        NSArray *pbTypes = [NSArray arrayWithObjects:NSTIFFPboardType, nil]; 
-        [pboard declareTypes:pbTypes owner:self]; 
-        [pboard setData:[image TIFFRepresentation] forType:NSTIFFPboardType]; 
-        [NSApp preventWindowOrdering]; 
-        [self dragImage:image at:dragPoint offset:dragOffset event:event pasteboard:pboard source:self slideBack:YES]; 
-		return;
+        NSPoint dragPoint = NSMakePoint(mousePoint.x - 16, mousePoint.y + 16); 
+		
+        NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:[self selectedRowIndexes]];
+		NSMutableArray *paths = [NSMutableArray arrayWithCapacity:[notes count]];
+		unsigned int i;
+		for (i=0;i<[notes count]; i++) {
+			NoteObject *note = [notes objectAtIndex:i];
+			//for now, allow option-dragging-out only for notes with separate file-backing stores
+			if (storageFormatOfNote(note) != SingleDatabaseFormat) {
+				NSString *aPath = [note noteFilePath];
+				if (aPath) [paths addObject:aPath];
+			}
+		}
+		if ([paths count] > 0) {
+			NSImage *image = [[NSWorkspace sharedWorkspace] iconForFile:[paths lastObject]];
+			
+			NSPasteboard *pboard = [NSPasteboard pasteboardWithName:NSDragPboard]; 
+			[pboard declareTypes:[NSArray arrayWithObject:NSFilenamesPboardType] owner:nil];
+			[pboard setPropertyList:paths forType:NSFilenamesPboardType];			
+			
+			[NSApp preventWindowOrdering]; 
+			[self dragImage:image at:dragPoint offset:NSZeroSize event:event pasteboard:pboard source:self slideBack:YES]; 
+			return;
+		} else {
+			NSBeep();
+		}
     }
 	
 	[super mouseDown:event];

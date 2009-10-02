@@ -66,7 +66,7 @@
 		217EAF0F0B0D56860041A8A9 /* FocusRingScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 217EAF0E0B0D56860041A8A9 /* FocusRingScrollView.m */; };
 		217EB3CE0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m in Sources */ = {isa = PBXBuildFile; fileRef = 217EB3CD0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m */; };
 		2181171309F311110020A252 /* DeletedNoteObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 2181171209F311110020A252 /* DeletedNoteObject.m */; };
-		21813562105AF27400A0AE18 /* Acknowledgements.txt in Resources */ = {isa = PBXBuildFile; fileRef = 21813561105AF27400A0AE18 /* Acknowledgements.txt */; };
+		21813562105AF27400A0AE18 /* Acknowledgments.txt in Resources */ = {isa = PBXBuildFile; fileRef = 21813561105AF27400A0AE18 /* Acknowledgments.txt */; };
 		2182B39A106B2296008641E4 /* RBSplitSubview.m in Sources */ = {isa = PBXBuildFile; fileRef = 2182B396106B2296008641E4 /* RBSplitSubview.m */; };
 		2182B39B106B2296008641E4 /* RBSplitView.m in Sources */ = {isa = PBXBuildFile; fileRef = 2182B398106B2296008641E4 /* RBSplitView.m */; };
 		2182B3C3106B2509008641E4 /* MainMenu.nib in Resources */ = {isa = PBXBuildFile; fileRef = 2182B3C1106B2509008641E4 /* MainMenu.nib */; };
@@ -227,7 +227,7 @@
 		2181171109F311110020A252 /* DeletedNoteObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DeletedNoteObject.h; sourceTree = "<group>"; };
 		2181171209F311110020A252 /* DeletedNoteObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DeletedNoteObject.m; sourceTree = "<group>"; };
 		2181193909FA9CF90020A252 /* SynchronizedNoteProtocol.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SynchronizedNoteProtocol.h; sourceTree = "<group>"; };
-		21813561105AF27400A0AE18 /* Acknowledgements.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Acknowledgements.txt; sourceTree = "<group>"; };
+		21813561105AF27400A0AE18 /* Acknowledgments.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Acknowledgments.txt; sourceTree = "<group>"; };
 		2182B395106B2296008641E4 /* RBSplitSubview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RBSplitSubview.h; path = RBSplitView/RBSplitSubview.h; sourceTree = "<group>"; };
 		2182B396106B2296008641E4 /* RBSplitSubview.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = RBSplitSubview.m; path = RBSplitView/RBSplitSubview.m; sourceTree = "<group>"; };
 		2182B397106B2296008641E4 /* RBSplitView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RBSplitView.h; path = RBSplitView/RBSplitView.h; sourceTree = "<group>"; };
@@ -603,7 +603,7 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				21813561105AF27400A0AE18 /* Acknowledgements.txt */,
+				21813561105AF27400A0AE18 /* Acknowledgments.txt */,
 				217DB1810B7CE5B9008CD564 /* Help Notes */,
 				219196B109D4F1DB00586B15 /* Images */,
 				2114C259095885C800614E74 /* Localizable.strings */,
@@ -717,7 +717,7 @@
 				2111A3C10B88FEFD006A1691 /* How does this thing work?.nvhelp in Resources */,
 				213621ED0B92413F008C0830 /* FindPanel.nib in Resources */,
 				214C6C59105445410085D386 /* Notality.icns in Resources */,
-				21813562105AF27400A0AE18 /* Acknowledgements.txt in Resources */,
+				21813562105AF27400A0AE18 /* Acknowledgments.txt in Resources */,
 				2182B3C3106B2509008641E4 /* MainMenu.nib in Resources */,
 				216BA24310746E3900F62D93 /* ImporterAccessory.nib in Resources */,
 			);

@@ -568,10 +568,25 @@ terminateApp:
 }
 
 - (void)showHelp:(id)sender {
-	NSURL *shortcutsURL = [NSURL fileURLWithPath:[[NSBundle mainBundle] pathForResource:@"Excruciatingly Useful Shortcuts" ofType:@"nvhelp" inDirectory:nil]];
-	[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:shortcutsURL] withAppBundleIdentifier:@"com.apple.TextEdit" 
-									options:NSWorkspaceLaunchDefault additionalEventParamDescriptor:nil launchIdentifiers:NULL];
+	NSString *path = nil;
 	
+	switch ([sender tag]) {
+		case 1:		//shortcuts
+			path = [[NSBundle mainBundle] pathForResource:@"Excruciatingly Useful Shortcuts" ofType:@"nvhelp" inDirectory:nil];
+		case 2:		//acknowledgments
+			if (!path) path = [[NSBundle mainBundle] pathForResource:@"Acknowledgments" ofType:@"txt" inDirectory:nil];
+			[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]] withAppBundleIdentifier:@"com.apple.TextEdit" 
+											options:NSWorkspaceLaunchDefault additionalEventParamDescriptor:nil launchIdentifiers:NULL];
+			break;
+		case 3:		//product site
+			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://notational.net/"]];
+			break;
+		case 4:		//development site
+			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://notational.net/development"]];
+			break;
+		default:
+			NSBeep();
+	}
 }
 
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames {
