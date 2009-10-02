@@ -141,6 +141,24 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 			*err = kJournalingError;
 			return nil;
 		}
+		
+		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
+		if ([notationPrefs epochIteration] < 2 && ![notationPrefs firstTimeUsed]) {
+			//this would have to be a database from epoch 1
+			
+			//for all notes with a system-default text encoding:
+			//	if storage format is SingleDB, 
+			//		_setFileEncoding to UTF8
+			//		if content had high-ASCII in it,
+			//			update the obj's filemod time to fix encoding at the next format switch, in case those notes are not modified themselves first
+			//	else
+			//		if storage format is plaintext, 
+			//			if content had high-ASCII in it,
+			//				_setFileEncoding to UTF8
+			//				writeUsingCurrentFileFormat
+			//			else
+			//				setFileEncodingAndUpdate to UTF8
+		}
     }
     
     return self;

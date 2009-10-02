@@ -29,6 +29,7 @@ enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, Wor
 	
 	NSData *masterSalt, *dataSessionSalt, *verifierKey;
 	
+	UInt32 epochIteration;
 	BOOL firstTimeUsed;
 	BOOL preferencesChanged;
 	id delegate;
@@ -38,6 +39,7 @@ enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, Wor
 	NSData *masterKey;
 }
 
++ (int)appVersion;
 + (NSMutableArray*)defaultTypeStringsForFormat:(int)formatID;
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID;
 - (BOOL)preferencesChanged;
@@ -51,6 +53,7 @@ enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, Wor
 - (NSString*)serverUserName;
 - (unsigned int)keyLengthInBits;
 - (unsigned int)hashIterationCount;
+- (UInt32)epochIteration;
 - (BOOL)firstTimeUsed;
 - (BOOL)secureTextEntry;
 
