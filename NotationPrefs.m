@@ -23,6 +23,10 @@
 
 @implementation NotationPrefs
 
++ (int)appVersion {
+	return [[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"] intValue];
+}
+
 - (id)init {
     if ([super init]) {
 		allowedTypes = NULL;
@@ -40,6 +44,7 @@
 		hashIterationCount = DEFAULT_HASH_ITERATIONS;
 		keyLengthInBits = DEFAULT_KEY_LENGTH;
 		baseBodyFont = [[[GlobalPrefs defaultPrefs] noteBodyFont] retain];
+		epochIteration = 0;
 		
 		[self updateOSTypesArray];
 		
@@ -56,6 +61,7 @@
 		//if we're initializing from an archive, we've obviously been run at least once before
 		firstTimeUsed = NO;
 		
+		epochIteration = [decoder decodeInt32ForKey:VAR_STR(epochIteration)];
 		notesStorageFormat = [decoder decodeIntForKey:VAR_STR(notesStorageFormat)];
 		doesEncryption = [decoder decodeBoolForKey:VAR_STR(doesEncryption)];
 		storesPasswordInKeychain = [decoder decodeBoolForKey:VAR_STR(storesPasswordInKeychain)];
@@ -107,6 +113,13 @@
 
 - (void)encodeWithCoder:(NSCoder *)coder {
 	NSAssert([coder allowsKeyedCoding], @"Keyed encoding only!");
+	
+	/* epochIteration:
+	 0: .Blor files
+	 1: First NSArchiver (was unused--maps to 0)
+	 2: First NSKeyedArchiver
+	 */
+	[coder encodeInt32:2 forKey:VAR_STR(epochIteration)];
 	
 	[coder encodeInt:notesStorageFormat forKey:VAR_STR(notesStorageFormat)];
 	[coder encodeBool:doesEncryption forKey:VAR_STR(doesEncryption)];
@@ -230,6 +243,10 @@
 
 - (void)setPreferencesAreStored {
 	preferencesChanged = NO;
+}
+
+- (UInt32)epochIteration {
+	return epochIteration;
 }
 
 - (BOOL)firstTimeUsed {
