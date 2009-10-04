@@ -109,6 +109,8 @@
 	} else {
 		NSBeginAlertSheet(NSLocalizedString(@"Sorry, you entered an incorrect passphrase.",nil), NSLocalizedString(@"OK",nil), 
 						  nil, nil, window, nil, NULL, NULL, NULL, NSLocalizedString(@"Please try again.",nil));
+		[passphraseField setStringValue:@""];
+		[self textDidChange:nil];
 	}	
 }
 
