@@ -443,21 +443,23 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 }
 
 - (char*)copyLowercaseASCIIString {
-	unsigned int length = [self length] + 1;
 	
 	const char *cstringPtr = NULL;
 	
-	//by requesting the system encoding we're depending somewhat on the implementation of CFStringGetCStringPtr, but what else can you do?
-	if (! (cstringPtr = CFStringGetCStringPtr((CFStringRef)self, CFStringGetSystemEncoding())) ) {
-		//NSLog(@"found string that should have been 7 bit is (apparently) not.");
-	} else {
+	//here we are making assumptions (based on observations and CFString.c) about the implementation of CFStringGetCStringPtr:
+	//with a non-western language preference, kCFStringEncodingASCII or another Latin variant must be used instead of kCFStringEncodingMacRoman
+	if ((cstringPtr = CFStringGetCStringPtr((CFStringRef)self, kCFStringEncodingMacRoman)) ||
+		(cstringPtr = CFStringGetCStringPtr((CFStringRef)self, kCFStringEncodingASCII))) {
 		
+		size_t length = [self length] + 1;
 		char *cstringBuffer = (char*)malloc(length);
 		//should include NULL terminator
 		memcpy(cstringBuffer, cstringPtr, length);
 		MakeLowercase(cstringBuffer);
 		
 		return cstringBuffer;
+	} else {
+		NSLog(@"found string that should have been 7 bit, but (apparently) is not.");
 	}
 	
 	return NULL;
@@ -635,10 +637,10 @@ errorReturn:
 		return stringFromData;
 	}
 	
-	//if it's just 7-bit ASCII, jump straight to system encoding as that will be the underlying cfstring's encoding; don't even try UTF-8 (but report UTF-8, anyway)
-	BOOL hasHighASCII = NO;
-	NSStringEncoding systemEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
-	NSStringEncoding firstEncodingToTry = (hasHighASCII = ContainsHighAscii([data bytes], [data length])) ? NSUTF8StringEncoding : systemEncoding;
+	//if it's just 7-bit ASCII, jump straight to the fastest encoding; don't even try UTF-8 (but report UTF-8, anyway)
+	BOOL hasHighASCII = ContainsHighAscii([data bytes], [data length]);
+	CFStringEncoding cfasciiEncoding = CFStringGetSystemEncoding() == kCFStringEncodingMacRoman ? kCFStringEncodingMacRoman : kCFStringEncodingASCII;
+	NSStringEncoding firstEncodingToTry = hasHighASCII ? NSUTF8StringEncoding : CFStringConvertEncodingToNSStringEncoding(cfasciiEncoding);
 	
 #define AddIfUnique(enc) if (!ContainsUInteger(encodingsToTry, encodingIndex, (enc))) encodingsToTry[encodingIndex++] = (enc)
 	
@@ -660,6 +662,7 @@ errorReturn:
 		if (extendedAttrsEncoding) AddIfUnique(extendedAttrsEncoding);
 	}
 	AddIfUnique(*encoding);
+	NSStringEncoding systemEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
 	AddIfUnique(systemEncoding);
 	AddIfUnique(NSMacOSRomanStringEncoding);
 	

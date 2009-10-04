@@ -15,6 +15,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 
+NSString *NotesDatabaseFileName = @"Notes & Settings";
 
 @implementation NotationController (NotationFileManager)
 
@@ -129,6 +130,23 @@ OSErr FSDetermineIfRefIsEnclosedByFolder(short domainOrVRefNum, OSType folderTyp
 	if (!filename) return NO;
 	
 	return FSRefMakeInDirectoryWithString(&noteDirectoryRef, childRef, (CFStringRef)filename, chars) == noErr;
+}
+
+- (OSStatus)renameAndForgetNoteDatabaseFile:(NSString*)newfilename {
+	//this method does not move the note database file; for now it is used in cases of upgrading incompatible files
+	
+	UniChar chars[256];
+    OSStatus err = noErr;	
+	CFRange range = {0, CFStringGetLength((CFStringRef)newfilename)};
+    CFStringGetCharacters((CFStringRef)newfilename, range, chars);
+    
+    if ((err = FSRenameUnicode(&noteDatabaseRef, range.length, chars, kTextEncodingDefaultFormat, NULL)) != noErr) {
+		NSLog(@"Error renaming notes database file to %@: %d", newfilename, err);
+		return err;
+    }
+	//reset the FSRef to ensure it doesn't point to the renamed file
+	bzero(&noteDatabaseRef, sizeof(FSRef));
+	return noErr;
 }
 
 - (void)relocateNotesDirectory {

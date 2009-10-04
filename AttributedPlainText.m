@@ -14,7 +14,8 @@
 @implementation NSMutableAttributedString (AttributedPlainText)
 
 - (void)trimLeadingWhitespace {
-	NSMutableCharacterSet *whiteSet = [NSMutableCharacterSet whitespaceAndNewlineCharacterSet];
+	NSMutableCharacterSet *whiteSet = [[[NSMutableCharacterSet alloc] init] autorelease];
+	[whiteSet formUnionWithCharacterSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
 	//include attachment characters and non-breaking spaces. anything else?
 	unichar badChars[2] = { NSAttachmentCharacter, 0x00A0 };
 	[whiteSet addCharactersInString:[NSString stringWithCharacters:badChars length:2]];

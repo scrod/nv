@@ -263,7 +263,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 
 			NSUInteger decodedByteCount;
 			const uint8_t *decodedBytes = [decoder decodeBytesForKey:VAR_STR(uniqueNoteIDBytes) returnedLength:&decodedByteCount];
-			memcpy(&uniqueNoteIDBytes, decodedBytes, MIN(decodedByteCount, sizeof(CFUUIDBytes)));
+			if (decodedBytes) memcpy(&uniqueNoteIDBytes, decodedBytes, MIN(decodedByteCount, sizeof(CFUUIDBytes)));
 			serverModifiedTime = [decoder decodeInt32ForKey:VAR_STR(serverModifiedTime)];
 			
 			titleString = [[decoder decodeObjectForKey:VAR_STR(titleString)] retain];
@@ -330,13 +330,15 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 	
 		//re-created at runtime to save space
 		[self initContentCacheCString];
-		cTitleFoundPtr = cTitle = strdup([titleString lowercaseUTF8String]);
-		cLabelsFoundPtr = cLabels = strdup([labelString lowercaseUTF8String]);
+		cTitleFoundPtr = cTitle = titleString ? strdup([titleString lowercaseUTF8String]) : NULL;
+		cLabelsFoundPtr = cLabels = labelString ? strdup([labelString lowercaseUTF8String]) : NULL;
 		
 		dateCreatedString = [[NSString relativeDateStringWithAbsoluteTime:createdDate] retain];
 		dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain];
 		
 		//[self updateTablePreviewString];
+		
+		if (!titleString && !contentString && !labelString) return nil;
 	}
 	return self;
 }
@@ -916,12 +918,12 @@ int decodedCount() {
 			return NO;
 		}
 		//if writing plaintext set the file encoding with setxattr
-		if (formatID == PlainTextFormat) {
+		if (PlainTextFormat == formatID) {
 			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
 		
 		if (!resetFilename) {
-			NSLog(@"resetting the file name just because.");
+			//NSLog(@"resetting the file name just because.");
 			[self setFilenameFromTitle];
 		}
 		
@@ -951,6 +953,9 @@ int decodedCount() {
 - (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef {
 	NSAssert(fsRef, @"cannot write file encoding to a NULL FSRef");
 	//this is not the note's own fsRef; it could be anywhere
+	
+	if (!RunningTigerAppKitOrHigher) return noErr;
+	
 	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
 	OSStatus err = noErr;
 	if ((err = FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length])) == noErr) {
@@ -962,7 +967,9 @@ int decodedCount() {
 }
 
 - (BOOL)upgradeToUTF8IfUsingSystemEncoding {
-	//upgradeEncodingToUTF8
+	if (CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding()) == fileEncoding)
+		return [self upgradeEncodingToUTF8];
+	return NO;
 }
 
 - (BOOL)upgradeEncodingToUTF8 {
@@ -972,13 +979,19 @@ int decodedCount() {
 	if (NSUTF8StringEncoding != fileEncoding) {
 		[self _setFileEncoding:NSUTF8StringEncoding];
 		
-		if (contentsWere7Bit) {
-			if (PlainTextFormat == currentFormatID) {
-				//actual conversion is required
+		if (!contentsWere7Bit && PlainTextFormat == currentFormatID) {
+			//this note exists on disk as a plaintext file, and its encoding is incompatible with UTF-8
+			
+			if ([delegate currentNoteStorageFormat] == PlainTextFormat) {
+				//actual conversion is expected because notes are presently being maintained as plain text files
+				
+				NSLog(@"rewriting %@ as utf8 data", titleString);
 				didUpgrade = [self writeUsingCurrentFileFormat];
-			} else if (SingleDatabaseFormat == currentFormatID) {
+			} else if ([delegate currentNoteStorageFormat] == SingleDatabaseFormat) {
 				//update last-written-filemod time to guarantee proper encoding at next DB storage format switch, 
-				//in case of existing files--if this note is never subsequently modified
+				//in case this note isn't otherwise modified before that happens.
+				//a side effect is that if the user switches to an RTF or HTML format,
+				//this note will be written immediately instead of lazily upon the next modification
 				if (UCConvertCFAbsoluteTimeToUTCDateTime(CFAbsoluteTimeGetCurrent(), &fileModifiedDate) != noErr)
 					NSLog(@"%s: can't set file modification date from current date", _cmd);
 			}

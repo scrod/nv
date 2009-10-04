@@ -11,6 +11,8 @@
 #include "FSExchangeObjectsCompat.h"
 #import "BufferUtils.h"
 
+extern NSString *NotesDatabaseFileName;
+
 @interface NotationController (NotationFileManager)
 
 OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef);
@@ -19,6 +21,8 @@ long BlockSizeForNotation(NotationController *controller);
 
 - (BOOL)notesDirectoryIsTrashed;
 - (BOOL)notesDirectoryContainsFile:(NSString*)filename returningFSRef:(FSRef*)childRef;
+
+- (OSStatus)renameAndForgetNoteDatabaseFile:(NSString*)newfilename;
 
 - (void)relocateNotesDirectory;
 

@@ -121,6 +121,7 @@ NSInteger compareNodeID(id *a, id *b);
 - (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef;
 - (void)_setFileEncoding:(NSStringEncoding)encoding;
 - (BOOL)setFileEncodingAndReinterpret:(NSStringEncoding)encoding;
+- (BOOL)upgradeToUTF8IfUsingSystemEncoding;
 - (BOOL)upgradeEncodingToUTF8;
 - (BOOL)updateFromFile;
 - (BOOL)updateFromCatalogEntry:(NoteCatalogEntry*)catEntry;

@@ -145,7 +145,10 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
 		if ([notationPrefs epochIteration] < 2 && ![notationPrefs firstTimeUsed]) {
 			//this would have to be a database from epoch 1, where the default file-encoding was system-default
+			NSLog(@"trying to upgrade note encodings");
 			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
+			//move aside the old database as the new format breaks compatibility
+			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
 		}
     }
     
@@ -180,7 +183,7 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 	
 	NSDate *date = [NSDate date];
 	
-	NSAssert([filename isEqualToString:@"Notes & Settings"], @"attempting to verify something other than the database");
+	NSAssert([filename isEqualToString:NotesDatabaseFileName], @"attempting to verify something other than the database");
 	
 	FSRef *notesFileRef = [fsRefValue pointerValue];
 	UInt64 fileSize = 0;
@@ -239,7 +242,7 @@ returnResult:
 - (OSStatus)_readAndInitializeSerializedNotes {
 
     OSStatus err = noErr;
-	if ((err = [self createFileIfNotPresentInNotesDirectory:&noteDatabaseRef forFilename:@"Notes & Settings" fileWasCreated:nil]) != noErr)
+	if ((err = [self createFileIfNotPresentInNotesDirectory:&noteDatabaseRef forFilename:NotesDatabaseFileName fileWasCreated:nil]) != noErr)
 		return err;
 	
 	UInt64 fileSize = 0;
@@ -498,7 +501,7 @@ bail:
 		
 		//we should have all journal records on disk by now
 		
-		if ([self storeDataAtomicallyInNotesDirectory:serializedData withName:@"Notes & Settings" destinationRef:&noteDatabaseRef 
+		if ([self storeDataAtomicallyInNotesDirectory:serializedData withName:NotesDatabaseFileName destinationRef:&noteDatabaseRef 
 								   verifyWithSelector:@selector(verifyDataAtTemporaryFSRef:withFinalName:) verificationDelegate:self] != noErr)
 			return NO;
 		
@@ -754,12 +757,13 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		
 		//figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
 		//if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
+#if 0
 		CFAbsoluteTime timeOnDisk, lastTime;
 		OSStatus err = noErr;
 		if ((err = (UCConvertUTCDateTimeToCFAbsoluteTime(&lastReadDate, &lastTime) == noErr)) &&
 			(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModDate, &timeOnDisk) == noErr))) {
-			
 			if (timeOnDisk > lastTime) {
+#endif
 				[aNoteObject updateFromCatalogEntry:catEntry];
 				
 				[delegate contentsUpdatedForNote:aNoteObject];
@@ -768,6 +772,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				
 				notesChanged = YES;
 				NSLog(@"FILE WAS MODIFIED: %@", catEntry->filename);
+#if 0
 			} else {
 				//check if this file's contents are identical to the current contents; if so, make the note's fileModDate older
 				//otherwise, attempt a merge of some sort
@@ -777,6 +782,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		} else {
 			NSLog(@"modify note: error converting times: %d", err);
 		}
+#else
+		return YES;
+#endif
 	}
 	
 	return NO;
@@ -1213,7 +1221,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
 		[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
 		//fsyncing WAL to disk can cause noticeable interruption when run from main thread
-		[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:30.0];
+		[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
 	}
 	
 	if (!immediately) {
