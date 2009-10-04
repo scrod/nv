@@ -165,25 +165,28 @@
 }
 
 - (IBAction)changedTableText:(id)sender {
-    if (sender == tableTextMenuButton) {
-		if ([tableTextMenuButton selectedTag] == 1) {
-			//small text
-			[prefsController setTableFontSize:[NSFont smallSystemFontSize] sender:self];
-		} else if ([tableTextMenuButton selectedTag] == 2) {
-			[prefsController setTableFontSize:[NSFont systemFontSize] sender:self];
+	if (sender == tableTextMenuButton) {
+		if ([tableTextSizeField selectedTag] != 3) [tableTextSizeField setFloatValue:[prefsController tableFontSize]];
+		[self performSelector:@selector(changedTableText:) withObject:nil afterDelay:0.0];
+	} else {
+		[window makeFirstResponder:window];
+		float newFontSize = 0.0;
+		switch ([tableTextMenuButton selectedTag]) {
+			case 1:
+				newFontSize = [NSFont smallSystemFontSize];
+				break;
+			case 2:
+				newFontSize = [NSFont systemFontSize];
+				break;
+			case 3:
+				newFontSize = [tableTextSizeField floatValue];
 		}
-		
 		[tableTextSizeField setHidden:([tableTextMenuButton selectedTag] != 3)];
-		
 		if (![tableTextSizeField isHidden])
 			[tableTextSizeField selectText:sender];
 		
-		[tableTextSizeField setFloatValue:[prefsController tableFontSize]];
-    } else {
-		//take value from table
-		
-		[prefsController setTableFontSize:[tableTextSizeField floatValue] sender:self];
-    }
+		[prefsController setTableFontSize:newFontSize sender:self];
+	}	
 }
 
 - (IBAction)changedTitleCompletion:(id)sender {
