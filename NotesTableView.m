@@ -130,7 +130,7 @@
 - (void)awakeFromNib {
 	[globalPrefs registerForSettingChange:@selector(setTableFontSize:sender:) withTarget:self];
 	
-	[self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, NSRTFPboardType, NSStringPboardType, nil]];
+	[self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, NSRTFPboardType, NSRTFDPboardType, NSStringPboardType, nil]];
 	
 	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
 	
