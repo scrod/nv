@@ -459,7 +459,8 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 		
 		return cstringBuffer;
 	} else {
-		NSLog(@"found string that should have been 7 bit, but (apparently) is not.");
+		//will be true on Snow Leopard for empty strings
+		//NSLog(@"found string that should have been 7 bit, but (apparently) is not.");
 	}
 	
 	return NULL;
