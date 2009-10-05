@@ -669,8 +669,12 @@ errorReturn:
 	
 	encodingIndex = 0;
 	do {
-		stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] 
-															 encoding:encodingsToTry[encodingIndex] freeWhenDone:NO];
+		if (RunningTigerAppKitOrHigher) {
+			stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] 
+																 encoding:encodingsToTry[encodingIndex] freeWhenDone:NO];
+		} else {
+			stringFromData = [[NSMutableString alloc] initWithData:data encoding:encodingsToTry[encodingIndex]];
+		}
 	} while (!stringFromData && ++encodingIndex < 5);
 		
 	if (stringFromData) {
