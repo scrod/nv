@@ -362,7 +362,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				NSLog(@"Error importing PDF %@ (%@, %@)", filename, [e name], [e reason]);
 			}
 		}
-	} else if (fileType == TEXT_TYPE_ID || [extension isEqualToString:@"txt"] || [extension isEqualToString:@"text"]) {
+	} else if (fileType == TEXT_TYPE_ID || [extension isEqualToString:@"txt"] || [extension isEqualToString:@"text"] ||
+			   [filename UTIOfFileConformsToType:@"public.plain-text"]) {
 		
 		NSMutableString *stringFromData = [NSMutableString newShortLivedStringFromFile:filename];
 		if (stringFromData) {

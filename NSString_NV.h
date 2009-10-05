@@ -38,6 +38,8 @@ void resetCurrentDayTime();
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err;
 + (NSString*)pathWithFSRef:(FSRef*)fsRef;
 
+- (BOOL)UTIOfFileConformsToType:(NSString*)type;
+
 + (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path;
 + (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path;
 

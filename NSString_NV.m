@@ -500,6 +500,24 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return path;
 }
 
+
+- (BOOL)UTIOfFileConformsToType:(NSString*)type {
+	if (!RunningTigerAppKitOrHigher) return NO;
+	
+	CFStringRef fileUTI = NULL;
+	FSRef fileRef;
+	if (FSPathMakeRef((const UInt8 *)[self fileSystemRepresentation], &fileRef, NULL) == noErr) {
+		if (LSCopyItemAttribute(&fileRef, kLSRolesAll, kLSItemContentType, (CFTypeRef*)&fileUTI) == noErr) {
+			if (fileUTI) {
+				BOOL conforms = UTTypeConformsTo(fileUTI, (CFStringRef)type);
+				CFRelease(fileUTI);
+				return conforms;
+			}
+		}
+	}
+	return NO;
+}
+
 //TODO: use volumeCapabilities in FSExchangeObjectsCompat.c to skip some work on volumes for which we know we would receive ENOTSUP
 //for +setTextEncodingAttribute:atFSPath: and +textEncodingAttributeOfFSPath: (test against VOL_CAP_INT_EXTENDED_ATTR)
 
@@ -637,6 +655,8 @@ errorReturn:
 	if (stringFromData) {
 		return stringFromData;
 	}
+	
+	//TODO: there are some false positives for UTF-8 detection; e.g., the MacOSRoman-encoded copyright symbol
 	
 	//if it's just 7-bit ASCII, jump straight to the fastest encoding; don't even try UTF-8 (but report UTF-8, anyway)
 	BOOL hasHighASCII = ContainsHighAscii([data bytes], [data length]);
