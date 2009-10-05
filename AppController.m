@@ -305,7 +305,7 @@ terminateApp:
 	NSMutableAttributedString *newString = nil;
 	NoteObject *note = nil;
 	NSData *data = nil;
-	
+		
 	if ([types containsObject:NSFilenamesPboardType]) {
 		NSArray *files = [pasteboard propertyListForType:NSFilenamesPboardType];
 		if ([files isKindOfClass:[NSArray class]]) {
@@ -355,14 +355,23 @@ terminateApp:
 		}		
 	}
 	
+	//safari on 10.5 does not seem to provide a plain-text equivalent, so we must be able to dumb-down RTF data as well
+	//should fall-back to plain text if 1) user doesn't want styles and 2) plain text is actually available
+	BOOL shallUsePlainTextFallback = [types containsObject:NSStringPboardType] && ![prefsController pastePreservesStyle];
+	BOOL hasRTFData = NO;
+	
 	if ([types containsObject:NVPTFPboardType]) {
 		if ((data = [pasteboard dataForType:NVPTFPboardType]))
-			newString = [[NSMutableAttributedString alloc] initWithRTF:data documentAttributes:nil];
+			newString = [[NSMutableAttributedString alloc] initWithRTF:data documentAttributes:NULL];
 		
-	} else if ([types containsObject:NSRTFPboardType] && [prefsController pastePreservesStyle]) {
+	} else if ([types containsObject:NSRTFPboardType] && !shallUsePlainTextFallback) {
 		if ((data = [pasteboard dataForType:NSRTFPboardType]))
-			newString = [[NSMutableAttributedString alloc] initWithRTF:data documentAttributes:nil];
-		
+			newString = [[NSMutableAttributedString alloc] initWithRTF:data documentAttributes:NULL];
+		hasRTFData = YES;
+	} else if ([types containsObject:NSRTFDPboardType] && !shallUsePlainTextFallback) {
+		if ((data = [pasteboard dataForType:NSRTFDPboardType]))
+			newString = [[NSMutableAttributedString alloc] initWithRTFD:data documentAttributes:NULL];
+		hasRTFData = YES;
 	} else if (([types containsObject:NSStringPboardType])) {
 		
 		NSString *pboardString = [pasteboard stringForType:NSStringPboardType];
@@ -372,6 +381,9 @@ terminateApp:
 	[newString autorelease];
 	if ([newString length] > 0) {
 		[newString removeAttachments];
+		
+		if (hasRTFData && ![prefsController pastePreservesStyle]) //fallback scenario
+			newString = [[[NSMutableAttributedString alloc] initWithString:[newString string]] autorelease];
 		
 		NSString *noteTitle = [[newString string] syntheticTitle];
 		if ([sourceIdentiferString length] > 0) {
