@@ -189,50 +189,44 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 	UInt64 fileSize = 0;
 	char *notesData = NULL;
 	OSStatus err = noErr, result = noErr;
-	if ((err = FSRefReadData(notesFileRef, BlockSizeForNotation(self), &fileSize, (void**)&notesData, 0)) != noErr)
+	if ((err = FSRefReadData(notesFileRef, BlockSizeForNotation(self), &fileSize, (void**)&notesData, forceReadMask)) != noErr)
 		return [NSNumber numberWithInt:err];
 	
 	FrozenNotation *frozenNotation = nil;
-	if (fileSize > 0) {
-		NSData *archivedNotation = [[NSData alloc] initWithBytesNoCopy:notesData length:fileSize freeWhenDone:NO];
-		@try {
-			frozenNotation = [NSKeyedUnarchiver unarchiveObjectWithData:archivedNotation];
-		} @catch (NSException *e) {
-			NSLog(@"(VERIFY) Error unarchiving notes and preferences from data (%@, %@)", [e name], [e reason]);
-			result = kCoderErr;
-			goto returnResult;
-		}
-		
-		[archivedNotation autorelease];
+	if (!fileSize) {
+		result = eofErr;
+		goto returnResult;
 	}
-	NSMutableArray *notesToVerify = nil;
-	
+	NSData *archivedNotation = [[[NSData alloc] initWithBytesNoCopy:notesData length:fileSize freeWhenDone:NO] autorelease];
+	@try {
+		frozenNotation = [NSKeyedUnarchiver unarchiveObjectWithData:archivedNotation];
+	} @catch (NSException *e) {
+		NSLog(@"(VERIFY) Error unarchiving notes and preferences from data (%@, %@)", [e name], [e reason]);
+		result = kCoderErr;
+		goto returnResult;
+	}
 	//unpack notes using the current NotationPrefs instance (not the just-unarchived one), with which we presumably just used to encrypt it
-	if (!(notesToVerify = [[frozenNotation unpackedNotesWithPrefs:notationPrefs returningError:&err] retain])) {
-		//notesToVerify has no excuse for being nil here
-		if (err != noErr) {
-			result = err;
-			goto returnResult;
-		}
-	} else {
-		//notes were unpacked--now roughly compare notesToVerify with allNotes, plus deletedNotes and notationPrefs
-		if ([notesToVerify count] != [allNotes count] || 
-			[[frozenNotation deletedNotes] count] != [deletedNotes  count] || 
-			[[frozenNotation notationPrefs] notesStorageFormat] != [notationPrefs notesStorageFormat] ||
-			[[frozenNotation notationPrefs] hashIterationCount] != [notationPrefs hashIterationCount]) {
+	NSMutableArray *notesToVerify = [[frozenNotation unpackedNotesWithPrefs:notationPrefs returningError:&err] retain];	
+	if (noErr != err) {
+		result = err;
+		goto returnResult;
+	}
+	//notes were unpacked--now roughly compare notesToVerify with allNotes, plus deletedNotes and notationPrefs
+	if (!notesToVerify || [notesToVerify count] != [allNotes count] || [[frozenNotation deletedNotes] count] != [deletedNotes  count] || 
+		[[frozenNotation notationPrefs] notesStorageFormat] != [notationPrefs notesStorageFormat] ||
+		[[frozenNotation notationPrefs] hashIterationCount] != [notationPrefs hashIterationCount]) {
+		result = kItemVerifyErr;
+		goto returnResult;
+	}
+	unsigned int i;
+	for (i=0; i<[notesToVerify count]; i++) {
+		if ([[[notesToVerify objectAtIndex:i] contentString] length] != [[[allNotes objectAtIndex:i] contentString] length]) {
 			result = kItemVerifyErr;
 			goto returnResult;
 		}
-		unsigned int i;
-		for (i=0; i<[notesToVerify count]; i++) {
-			if ([[[notesToVerify objectAtIndex:i] contentString] length] != [[[allNotes objectAtIndex:i] contentString] length]) {
-				result = kItemVerifyErr;
-				goto returnResult;	
-			}
-		}
 	}
 	
-	NSLog(@"verify time: %g", (float)[[NSDate date] timeIntervalSinceDate:date]);
+	NSLog(@"verified %u notes in %g s", [notesToVerify count], (float)[[NSDate date] timeIntervalSinceDate:date]);
 returnResult:
 	if (notesData) free(notesData);
 	return [NSNumber numberWithInt:result];
