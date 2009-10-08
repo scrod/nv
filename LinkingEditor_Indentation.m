@@ -91,7 +91,7 @@
 			}
 		}
 		
-		if (selectedRange.length > 0) {
+		if (selectedRange.length > 0 && charactersRemoved > 0) {
 			int selectedRangeLocation = selectedRange.location; // Make the location into an int because otherwise the value gets all screwed up when subtracting from it
 			int charactersToCountBackwards = 1;
 			if (numberOfSpacesToDeleteOnFirstLine != -1) {
