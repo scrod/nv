@@ -2,15 +2,10 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface SFPasswordAsstView : NSView
-{
-}
-
-@end
+@class SFPasswordAsstView;
 
 @interface SFPasswordAssistantInspectorController : NSObject
 {
-	@public
     IBOutlet NSWindow *_baseWindow;
     NSWindow *_passwordAssistantPanel;
     SFPasswordAsstView *_passwordAssistantView;
