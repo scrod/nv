@@ -52,7 +52,7 @@
 	[snapbackButton setTarget:notesTable];
 	[snapbackButton setAction:@selector(deselectAll:)];
 	unichar ch = 0x2318;
-	[snapbackButton setToolTip:[NSString stringWithFormat:NSLocalizedString(@"Continue searching (%@-D)", nil), 
+	[snapbackButton setToolTip:[NSString stringWithFormat:NSLocalizedString(@"Continue searching; %@-D", nil), 
 		[NSString stringWithCharacters:&ch length:1]]];
 	//[snapbackButton setMenu:[self snapbackMenu]];
 	
@@ -140,6 +140,16 @@
 		[self _addSnapbackButtonForField];
 	}
 	
+}
+
+- (void)mouseDown:(NSEvent*)anEvent {
+	if ([snapbackString length] && [snapbackButton mouse:[anEvent locationInWindow] 
+												  inRect:NSInsetRect([snapbackButton frame], -5, -5)]) {
+		//handle any ignored space around the button
+		[snapbackButton performClick:nil];
+		return;
+	}
+	[super mouseDown:anEvent];
 }
 
 - (void)setSnapbackString:(NSString*)string {
