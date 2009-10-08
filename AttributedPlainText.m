@@ -307,7 +307,7 @@
 		[centerStyle setAlignment:NSCenterTextAlignment];
 
 		approxCharStr = [[NSAttributedString alloc] initWithString:[NSString stringWithCharacters:&ch length:1] attributes:
-						 [NSDictionary dictionaryWithObjectsAndKeys:[NSFont fontWithName:@"Symbol" size:14.0f], NSFontAttributeName, centerStyle, NSParagraphStyleAttributeName, nil]];
+						 [NSDictionary dictionaryWithObjectsAndKeys:[NSFont fontWithName:@"Symbol" size:16.0f], NSFontAttributeName, centerStyle, NSParagraphStyleAttributeName, nil]];
 	}
 	NSMutableAttributedString *mutableStr = [approxCharStr mutableCopy];
 	
