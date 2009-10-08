@@ -79,7 +79,6 @@
 	} else {
 		[advancedView setHidden:YES];
 	}
-	//[advancedHelpField setStringValue:disclosed ? NSLocalizedString(@"Fewer Security Options",nil) : NSLocalizedString(@"More Security Options",nil)];
 	
 	NSPoint origin = [changePassphraseWindow frame].origin;
 	NSRect newFrame = NSMakeRect(origin.x, origin.y - heightDifference, [changePassphraseWindow frame].size.width, 
