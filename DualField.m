@@ -236,9 +236,11 @@
 	//lock focus, draw rounded rect, draw text, unlock focus
 	
 	static NSDictionary *smallTextAttrs = nil;
-	if (!smallTextAttrs)
-		smallTextAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:
-			[NSFont systemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, nil] retain];
+	static NSMutableDictionary *smallTextBackAttrs = nil;
+	if (!smallTextAttrs || !smallTextBackAttrs) {
+		smallTextAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, nil] retain];
+		[(smallTextBackAttrs = [smallTextAttrs mutableCopy]) setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
+	}
 	
 	if ([string length] > 25) string = [[string substringToIndex:25] stringByAppendingString:NSLocalizedString(@"...", @"ellipsis character")];
 	NSSize stringSize = [string sizeWithAttributes:smallTextAttrs];
@@ -263,6 +265,7 @@
 	[backgroundPath stroke];
 	
 	[[NSColor whiteColor] set];
+	[string drawAtPoint:NSMakePoint(textOffset.x, textOffset.y-1) withAttributes:smallTextBackAttrs];
 	[string drawAtPoint:textOffset withAttributes:smallTextAttrs];
 	
 	[image unlockFocus];
