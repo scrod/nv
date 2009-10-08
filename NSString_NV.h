@@ -22,7 +22,6 @@ void resetCurrentDayTime();
 - (NSString*)filenameExpectingAdditionalCharCount:(int)charCount;
 - (NSMutableString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString;
 + (NSString*)pathCopiedFromAliasData:(NSData*)aliasData;
-+ (NSString*)timeDelayStringWithNumberOfSeconds:(double)seconds;
 - (NSString*)fourCharTypeString;
 - (void)copyItemToPasteboard:(id)sender;
 - (NSURL*)linkForWord;

@@ -36,4 +36,6 @@
 - (NSDictionary*)attributesByRange;
 #endif
 
++ (NSAttributedString*)timeDelayStringWithNumberOfSeconds:(double)seconds;
+
 @end

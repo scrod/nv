@@ -33,6 +33,25 @@
 
 @implementation KeyDerivationDelaySlider
 
+- (double)maxValue {
+	return exp([super maxValue]);
+}
+- (double)minValue {
+	return exp([super minValue]);
+}
+- (void)setMinValue:(double)minValue {
+	[super setMinValue:log(minValue)];
+}
+- (void)setMaxValue:(double)maxValue {
+	[super setMaxValue:log(maxValue)];
+}
+- (double)doubleValue {
+	return exp([super doubleValue]);
+}
+- (void)setDoubleValue:(double)aDouble {
+	[super setDoubleValue:log(aDouble)];
+}
+
 - (id)initWithCoder:(NSCoder *)decoder {
 	if ([super initWithCoder:decoder]) {
 		[KeyDerivationDelaySlider setCellClass:[KeyDerivationDelaySliderCell class]];

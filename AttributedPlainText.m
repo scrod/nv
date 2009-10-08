@@ -299,5 +299,25 @@
 }
 #endif
 
++ (NSAttributedString*)timeDelayStringWithNumberOfSeconds:(double)seconds {
+	unichar ch = 0x2245;
+	static NSAttributedString *approxCharStr = nil;
+	if (!approxCharStr) {
+		NSMutableParagraphStyle *centerStyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
+		[centerStyle setAlignment:NSCenterTextAlignment];
+
+		approxCharStr = [[NSAttributedString alloc] initWithString:[NSString stringWithCharacters:&ch length:1] attributes:
+						 [NSDictionary dictionaryWithObjectsAndKeys:[NSFont fontWithName:@"Symbol" size:14.0f], NSFontAttributeName, centerStyle, NSParagraphStyleAttributeName, nil]];
+	}
+	NSMutableAttributedString *mutableStr = [approxCharStr mutableCopy];
+	
+	NSString *timeStr = seconds < 1.0 ? [NSString stringWithFormat:@" %0.0f ms", seconds*1000] : [NSString stringWithFormat:@" %0.2f secs", seconds];
+	
+	[mutableStr appendAttributedString:[[[NSAttributedString alloc] initWithString:timeStr attributes:
+										 [NSDictionary dictionaryWithObject:[NSFont systemFontOfSize:13.0f] forKey:NSFontAttributeName]] autorelease]];
+	return mutableStr;
+}
+
+
 
 @end

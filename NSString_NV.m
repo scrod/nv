@@ -211,17 +211,6 @@ int uncachedDateCount = 0;
 	return sanitizedName;
 }
 
-+ (NSString*)timeDelayStringWithNumberOfSeconds:(double)seconds {
-	unichar ch = 0x2245;
-	static NSString *approxCharStr = nil;
-	if (!approxCharStr) approxCharStr = [[NSString stringWithCharacters:&ch length:1] retain];
-	if (seconds < 1.0) {
-		return [NSString stringWithFormat:@"%@ %0.0f ms", approxCharStr, seconds*1000];
-	} else {
-		return [NSString stringWithFormat:@"%@ %0.2f secs", approxCharStr, seconds];
-	}
-}
-
 - (NSString*)fourCharTypeString {
 	if ([[self dataUsingEncoding:NSMacOSRomanStringEncoding allowLossyConversion:YES] length] >= 4) {
 		//only truncate; don't return a string containing null characters for the last few bytes

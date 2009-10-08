@@ -1,5 +1,5 @@
 #import "KeyDerivationManager.h"
-#import "NSString_NV.h"
+#import "AttributedPlainText.h"
 #import "NotationPrefs.h"
 #import "KeyDerivationDelaySlider.h"
 #import "NSData_transformations.h"
@@ -25,8 +25,8 @@
 }
 
 - (void)awakeFromNib {
-	//let the user choose a delay between 50 ms and 3 1/2 secs
-	[slider setMinValue:0.05];
+	//let the user choose a delay between 25 ms and 3 1/2 secs
+	[slider setMinValue:0.025];
 	[slider setMaxValue:3.5];
 	
 	[slider setDelegate:self];
@@ -71,10 +71,12 @@
 }
 
 - (void)mouseUpForKeyDerivationDelaySlider:(KeyDerivationDelaySlider*)aSlider {
+	double duration = [aSlider doubleValue];
+	lastHashIterationCount = [self estimatedIterationsForDuration:duration];
 	
-	lastHashIterationCount = [self estimatedIterationsForDuration:[aSlider doubleValue]];
-	
+	if (duration > 0.7) [iterationEstimatorProgress startAnimation:nil];
 	lastHashDuration = [self delayForHashIterations:lastHashIterationCount];
+	if (duration > 0.7) [iterationEstimatorProgress stopAnimation:nil];
 	
 	//update slider for correction
 	[slider setDoubleValue:lastHashDuration];
@@ -83,7 +85,7 @@
 }
 
 - (IBAction)sliderChanged:(id)sender {
-	[hashDurationField setStringValue:[NSString timeDelayStringWithNumberOfSeconds:[sender doubleValue]]];
+	[hashDurationField setAttributedStringValue:[NSAttributedString timeDelayStringWithNumberOfSeconds:[sender doubleValue]]];
 }
 
 - (double)delayForHashIterations:(int)count {

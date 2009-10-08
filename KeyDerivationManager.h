@@ -10,6 +10,7 @@
     IBOutlet NSTextField *hashDurationField;
     IBOutlet KeyDerivationDelaySlider *slider;
     IBOutlet NSView* view;
+	IBOutlet NSProgressIndicator *iterationEstimatorProgress;
 	
 	int lastHashIterationCount;
 	double lastHashDuration;
