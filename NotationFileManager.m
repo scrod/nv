@@ -388,7 +388,7 @@ regenerateFSRef:
 	}
     }
     
-    err = FSRefReadData(childRef, BlockSizeForNotation(self), &fileSize, (void**)&notesDataPtr, 0);
+    err = FSRefReadData(childRef, BlockSizeForNotation(self), &fileSize, (void**)&notesDataPtr, noCacheMask);
     if (err == fnfErr && !secondAttempt) {
 	//in case the file pointed to by childRef was deleted and then recreated before we could respond to the changes
 	

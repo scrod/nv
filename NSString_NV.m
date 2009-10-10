@@ -634,7 +634,7 @@ errorReturn:
 + (NSMutableString*)newShortLivedStringFromFile:(NSString*)filename {
 	NSStringEncoding anEncoding = NSMacOSRomanStringEncoding; //won't use this, doesn't matter
 	
-	return [self newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename] 
+	return [self newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename options:NSUncachedRead error:NULL] 
 						   ofGuessedEncoding:&anEncoding withPath:[filename fileSystemRepresentation] orWithFSRef:NULL];
 }
 

@@ -310,25 +310,25 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	
 	if (fileType == HTML_TYPE_ID || [extension isEqualToString:@"htm"] || [extension isEqualToString:@"html"] || [extension isEqualToString:@"shtml"]) {
 		//should convert to text with markdown here
-		attributedStringFromData = [[NSMutableAttributedString alloc] initWithHTML:[NSData dataWithContentsOfFile:filename] documentAttributes:NULL];
+		attributedStringFromData = [[NSMutableAttributedString alloc] initWithHTML:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
 	} else if (fileType == RTF_TYPE_ID || [extension isEqualToString:@"rtf"] || [extension isEqualToString:@"nvhelp"] || [extension isEqualToString:@"rtx"]) {
-		attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTF:[NSData dataWithContentsOfFile:filename] documentAttributes:NULL];
+		attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTF:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
 	} else if (fileType == RTFD_TYPE_ID || [extension isEqualToString:@"rtfd"]) {
 		NSFileWrapper *wrapper = [[[NSFileWrapper alloc] initWithPath:filename] autorelease];
 		if ([[attributes objectForKey:NSFileType] isEqualToString:NSFileTypeDirectory])
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTFDFileWrapper:wrapper documentAttributes:NULL];
 		else
-			attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTFD:[NSData dataWithContentsOfFile:filename] documentAttributes:NULL];
+			attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTFD:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
 	} else if (fileType == WORD_DOC_TYPE_ID || [extension isEqualToString:@"doc"]) {
-		attributedStringFromData = [[NSMutableAttributedString alloc] initWithDocFormat:[NSData dataWithContentsOfFile:filename] documentAttributes:NULL];
+		attributedStringFromData = [[NSMutableAttributedString alloc] initWithDocFormat:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
 	} else if ([extension isEqualToString:@"docx"] || [extension isEqualToString:@"webarchive"]) {
 		if (RunningTigerAppKitOrHigher) {
 			//make it guess for us, but if it's a webarchive we'll get the URL
-			NSData *data = [NSData dataWithContentsOfFile:filename];
+			NSData *data = [NSData uncachedDataFromFile:filename];
 			NSString *path = [data pathURLFromWebArchive];
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithData:data options:nil documentAttributes:NULL error:NULL];
 			
@@ -453,7 +453,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 - (NSArray*)_importStickies:(NSString*)filename {
 	NSMutableArray *stickyNotes = nil;
 	NS_DURING
-		NSData *stickyData = [NSData dataWithContentsOfFile:filename];
+		NSData *stickyData = [NSData uncachedDataFromFile:filename];
 		NSUnarchiver *unarchiver = [[NSUnarchiver alloc] initForReadingWithData:stickyData];
 		[unarchiver decodeClassName:@"Document" asClassName:@"StickiesDocument"];
 		stickyNotes = [[unarchiver decodeObject] retain];

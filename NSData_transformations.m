@@ -222,14 +222,14 @@
 - (NSString*)pathURLFromWebArchive {
 
 	WebResource *resource = [[[[WebArchive alloc] initWithData:self] autorelease] mainResource];
-	
-	NSString *path = [[resource URL] absoluteString];
+	NSURL *url = [resource URL];
 	
 	//it's not any kind of URL we want to keep
 	//this is probably text from another app's internal WebKit view
-	if ([path hasPrefix:@"applewebdata://"])
+	if ([[url scheme] isEqualToString:@"applewebdata"] || [[url scheme] isEqualToString:@"x-msg"])
 		return nil;
-	return path;
+	
+	return [url absoluteString];
 }
 
 - (BOOL)fsRefAsAlias:(FSRef*)fsRef {
@@ -243,6 +243,13 @@
     }
 	
     return NO;
+}
+
++ (NSData*)uncachedDataFromFile:(NSString*)filename {
+	
+	if (!RunningTigerAppKitOrHigher) return [NSData dataWithContentsOfFile:filename];
+		
+	return [NSData dataWithContentsOfFile:filename options:NSUncachedRead error:NULL];
 }
 
 + (NSData*)aliasDataForFSRef:(FSRef*)fsRef {
