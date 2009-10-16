@@ -51,7 +51,7 @@ typedef struct _NoteCatalogEntry {
     
     NotationPrefs *notationPrefs;
 	
-	NSMutableArray *deletedNotes;
+	NSMutableSet *deletedNotes;
     
 	int volumeSupportsExchangeObjects;
     FNSubscriptionUPP subscriptionCallback;

@@ -40,7 +40,7 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 		directoryChangesFound = notesChanged = aliasNeedsUpdating = NO;
 		
 		allNotes = [[NSMutableArray alloc] init]; //<--the authoritative list of all memory-accessible notes
-		deletedNotes = [[NSMutableArray alloc] init];
+		deletedNotes = [[NSMutableSet alloc] init];
 		labelsListController = [[LabelsListController alloc] init];
 		prefsController = [GlobalPrefs defaultPrefs];
 		
@@ -288,7 +288,7 @@ returnResult:
 	[deletedNotes release];
 	
 	if (!(deletedNotes = [[frozenNotation deletedNotes] retain]))
-	    deletedNotes = [[NSMutableArray alloc] init];
+	    deletedNotes = [[NSMutableSet alloc] init];
 	
 	//allow resolution of UUIDs to NoteObjects from saved searches
 	BookmarksController *ssController = [prefsController bookmarksController];
@@ -1280,6 +1280,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     //resynchronize to web
     
     [self refilterNotes];
+}
+
+- (void)_addDeletedNote:(NoteObject*)aNote {
+	//currently coupled to -[allNotes removeObjectIdenticalTo:]
+	[deletedNotes addObject:[[[DeletedNoteObject alloc] initWithExistingObject:aNoteObject] autorelease]];
 }
 
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote {	

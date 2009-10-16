@@ -17,12 +17,12 @@
 	if ([decoder containsValueForKey:VAR_STR(prefs)]) {
 		prefs = [[decoder decodeObjectForKey:VAR_STR(prefs)] retain];
 		notesData = [[decoder decodeObjectForKey:VAR_STR(notesData)] retain];
-		deletedNotes = [[decoder decodeObjectForKey:VAR_STR(deletedNotes)] retain];		
-	} else {		
+		deletedNoteSet = [[decoder decodeObjectForKey:VAR_STR(deletedNoteSet)] retain];
+	} else {
 		NSLog(@"FrozenNotation: decoding legacy %@", decoder);
 		prefs = [[decoder decodeObject] retain];
 		notesData = [[decoder decodeObject] retain];
-		deletedNotes = [[decoder decodeObject] retain];
+		(void)[decoder decodeObject];
 	}	
 	return self;
 }
@@ -31,15 +31,15 @@
 	if ([coder allowsKeyedCoding]) {
 		[coder encodeObject:prefs forKey:VAR_STR(prefs)];
 		[coder encodeObject:notesData forKey:VAR_STR(notesData)];
-		[coder encodeObject:deletedNotes forKey:VAR_STR(deletedNotes)];
+		[coder encodeObject:deletedNoteSet forKey:VAR_STR(deletedNoteSet)];
 	} else {
 		[coder encodeObject:prefs];
 		[coder encodeObject:notesData];
-		[coder encodeObject:deletedNotes];
+		[coder encodeObject:deletedNoteSet];
 	}
 }
 
-- (id)initWithNotes:(NSMutableArray*)notes deletedNotes:(NSMutableArray*)antiNotes prefs:(NotationPrefs*)somePrefs {
+- (id)initWithNotes:(NSMutableArray*)notes deletedNotes:(NSMutableSet*)antiNotes prefs:(NotationPrefs*)somePrefs {
 	
 	if ([super init]) {
 
@@ -50,7 +50,7 @@
 		[archiver release];
 		
 		prefs = [somePrefs retain];
-		deletedNotes = [antiNotes retain];		
+		deletedNoteSet = [antiNotes retain];		
 		
 		NSMutableData *oldNotesData = notesData;
 		notesData = [[notesData compressedData] retain];
@@ -82,13 +82,13 @@
 	[allNotes release];
 	[notesData release];
 	[prefs release];
-	[deletedNotes release];
+	[deletedNoteSet release];
 	
 	[super dealloc];
 }
 
 + (NSData*)frozenDataWithExistingNotes:(NSMutableArray*)notes 
-						  deletedNotes:(NSMutableArray*)antiNotes 
+						  deletedNotes:(NSMutableSet*)antiNotes 
 								 prefs:(NotationPrefs*)prefs {
 	FrozenNotation *frozenNotation = [[FrozenNotation alloc] initWithNotes:notes deletedNotes:antiNotes prefs:prefs];
 
@@ -204,8 +204,8 @@
 	return allNotes;
 }
 
-- (NSMutableArray*)deletedNotes {
-	return deletedNotes;
+- (NSMutableSet*)deletedNotes {
+	return deletedNoteSet;
 }
 
 - (NotationPrefs*)notationPrefs {
