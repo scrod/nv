@@ -66,5 +66,7 @@
 - (BOOL)youngerThanLogObject:(id<SynchronizedNote>)obj {
 	return [self logSequenceNumber] < [obj logSequenceNumber];
 }
+//TODO: need hash and isEquals methods here; for hashing, XOR successive native-WORDs of CFUUIDBytes?
+//refactor serverModifiedDate into object? dict? to contain stateful data for more than one service, including other identifiers
 
 @end
