@@ -16,7 +16,7 @@
 	NSMutableData *notesData;
 	NotationPrefs *prefs;
 }
-- (id)initWithNotes:(NSMutableArray*)notes deletedNotes:(NSMutableArray*)antiNotes prefs:(NotationPrefs*)prefs;
+- (id)initWithNotes:(NSMutableArray*)notes deletedNotes:(NSMutableSet*)antiNotes prefs:(NotationPrefs*)prefs;
 + (NSData*)frozenDataWithExistingNotes:(NSMutableArray*)notes 
 						  deletedNotes:(NSMutableSet*)antiNotes 
 								 prefs:(NotationPrefs*)prefs;

@@ -1284,7 +1284,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 - (void)_addDeletedNote:(NoteObject*)aNote {
 	//currently coupled to -[allNotes removeObjectIdenticalTo:]
-	[deletedNotes addObject:[[[DeletedNoteObject alloc] initWithExistingObject:aNoteObject] autorelease]];
+	[deletedNotes addObject:[[[DeletedNoteObject alloc] initWithExistingObject:aNote] autorelease]];
 }
 
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote {	
