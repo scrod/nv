@@ -81,6 +81,8 @@
 	[self setHeaderView:hideHeader ? nil : headerView];
 		
 	if (RunningTigerAppKitOrHigher) {// on 10.4
+		[[self noteAttributeColumnForIdentifier:NoteDateCreatedColumnString] setResizingMask:NSTableColumnUserResizingMask];
+		[[self noteAttributeColumnForIdentifier:NoteDateModifiedColumnString] setResizingMask:NSTableColumnUserResizingMask];
 		[self setColumnAutoresizingStyle:NSTableViewUniformColumnAutoresizingStyle];
 	}else {
 		//what the hell is wrong with 10.3? when this is on, window resizing snaps columns to center
@@ -684,6 +686,12 @@
 			}
 		}
 	}
+	
+	if (DOWNCHAR(keyChar) || UPCHAR(keyChar)) {
+		[super keyDown:theEvent];
+		return;
+	}
+	
 
 	NSWindow *win = [self window];
 	if ([win firstResponder] == self) {
