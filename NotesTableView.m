@@ -40,7 +40,7 @@
 	
 	NSString *colStrings[] = { NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, NoteDateCreatedColumnString };
 	SEL colMutators[] = { @selector(setTitleString:), @selector(setLabelString:), NULL, NULL };
-	id (*colReferencors[])(id) = { titleOfNote, labelsOfNote, dateModifiedStringOfNote, dateCreatedStringOfNote };
+	id (*colReferencors[])(id) = { tableTitleOfNote, labelsOfNote, dateModifiedStringOfNote, dateCreatedStringOfNote };
 	NSInteger (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
 	NSInteger (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
 	    compareDateCreatedReverse };

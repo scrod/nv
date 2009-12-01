@@ -336,7 +336,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		dateCreatedString = [[NSString relativeDateStringWithAbsoluteTime:createdDate] retain];
 		dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain];
 		
-		//[self updateTablePreviewString];
+		[self updateTablePreviewString];
 		
 		if (!titleString && !contentString && !labelString) return nil;
 	}
@@ -425,7 +425,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		if (![self _setTitleString:aNoteTitle])
 		    titleString = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 		
-		//[self updateTablePreviewString];
+		[self updateTablePreviewString];
 		
 		labelString = @"";
 		cLabelsFoundPtr = cLabels = strdup("");
@@ -486,7 +486,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		}
     }
 	
-	//[self updateTablePreviewString];
+	[self updateTablePreviewString];
     
     return self;
 }
@@ -496,7 +496,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 	if (attributedString) {
 		[contentString setAttributedString:attributedString];
 		
-		//[self updateTablePreviewString];
+		[self updateTablePreviewString];
 		contentCacheNeedsUpdate = YES;
 		//[self updateContentCacheCStringIfNecessary];
 	
@@ -573,7 +573,6 @@ int decodedCount() {
 }
 
 - (void)updateTablePreviewString {
-	return;
 	[tableTitleString release];
 	tableTitleString = [[titleString attributedPreviewFromBodyText:contentString] retain];
 }
@@ -607,7 +606,7 @@ int decodedCount() {
 		//and thus the format ID will be changed if that was the case
 		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
 		
-		//[self updateTablePreviewString];
+		[self updateTablePreviewString];
 		
 		/*NSUndoManager *undoMan = [delegate undoManager];
 		[undoMan registerUndoWithTarget:self selector:@selector(setTitleString:) object:oldTitle];
@@ -1141,7 +1140,7 @@ int decodedCount() {
     [self updateContentCacheCStringIfNecessary];
 	[undoManager removeAllActions];
 	
-	//[self updateTablePreviewString];
+	[self updateTablePreviewString];
     
 	//don't update the date modified here, as this could be old data
     

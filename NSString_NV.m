@@ -290,6 +290,8 @@ int uncachedDateCount = 0;
 - (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText {
 	//first line? first x words? first x characters?
 	
+	//NSLog(@"gen prev for %@", [[bodyText string] substringToIndex:MIN([bodyText length], 10U)]);
+#if 0
 	static NSDictionary *blackTextAttributes = nil;
 	if (!blackTextAttributes) {
 		NSMutableParagraphStyle *lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
@@ -301,11 +303,12 @@ int uncachedDateCount = 0;
 		
 		[lineBreaksStyle release];
 	}
+#endif
 	
 	static NSDictionary *grayTextAttributes = nil;
 	if (!grayTextAttributes) {
 		NSMutableParagraphStyle *lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
-		[lineBreaksStyle setLineBreakMode:NSLineBreakByClipping];
+		[lineBreaksStyle setLineBreakMode:NSLineBreakByCharWrapping];
 
 		grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
 			[NSColor grayColor], NSForegroundColorAttributeName,
@@ -315,6 +318,7 @@ int uncachedDateCount = 0;
 	}
 	
 	NSString *bodyString = [bodyText string];
+	//attempt to get at underlying string, copy up to N characters, skipping tabs and spaces
 	
 	NSScanner *scanner = [NSScanner scannerWithString:bodyString];
 	static NSCharacterSet *lineFeedSet = nil;
@@ -325,9 +329,10 @@ int uncachedDateCount = 0;
 
 	NSString *delimiter = NSLocalizedString(@" option-shift-dash ", @"title/description delimiter");
 	NSString *syntheticTitle = [delimiter stringByAppendingString:firstLine ? firstLine : bodyString];
+	syntheticTitle = [syntheticTitle substringToIndex:MIN([syntheticTitle length], 100U)];
 	NSAttributedString *bodySummary = [[NSAttributedString alloc] initWithString:syntheticTitle attributes:grayTextAttributes];
 	
-	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:self attributes:blackTextAttributes];
+	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:self];
 	[attributedStringPreview appendAttributedString:bodySummary];
 	
 	[bodySummary release];
