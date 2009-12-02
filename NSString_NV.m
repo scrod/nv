@@ -305,16 +305,14 @@ int uncachedDateCount = 0;
 	}
 #endif
 	
+	static NSMutableParagraphStyle *lineBreaksStyle = nil;
 	static NSDictionary *grayTextAttributes = nil;
 	if (!grayTextAttributes) {
-		NSMutableParagraphStyle *lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
-		[lineBreaksStyle setLineBreakMode:NSLineBreakByCharWrapping];
+		lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
+		[lineBreaksStyle setLineBreakMode:NSLineBreakByTruncatingTail];
 
 		grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
-			[NSColor grayColor], NSForegroundColorAttributeName,
-			lineBreaksStyle, NSParagraphStyleAttributeName, nil] retain];
-		
-		[lineBreaksStyle release];
+			[NSColor grayColor], NSForegroundColorAttributeName, nil] retain];
 	}
 	
 	NSString *bodyString = [bodyText string];
@@ -334,6 +332,8 @@ int uncachedDateCount = 0;
 	
 	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:self];
 	[attributedStringPreview appendAttributedString:bodySummary];
+	[attributedStringPreview addAttributes:
+	 [NSDictionary dictionaryWithObject:lineBreaksStyle forKey:NSParagraphStyleAttributeName] range:NSMakeRange(0, [[attributedStringPreview string] length])];
 	
 	[bodySummary release];
 	

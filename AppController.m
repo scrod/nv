@@ -578,6 +578,22 @@ terminateApp:
 		[notesTableView setStatusForSortedColumn:tableColumn];
     }
 }
+- (NSCell *)tableView:(NSTableView *)tableView dataCellForTableColumn: (NSTableColumn *)tableColumn row:(NSInteger)row { 
+	NSTextFieldCell *result = (NSTextFieldCell *)[tableColumn dataCell];
+	
+	if ([(NoteAttributeColumn*)tableColumn objectAttribute] == tableTitleOfNote &&
+		[[tableView selectedRowIndexes] containsIndex:row]) {
+		// This ignores the fact that we use different colors in a table that has the first responder status
+//        [result setTextColor: [NSColor whiteColor]];
+		[result setAttributedStringValue:nil];
+		[result setStringValue:[result stringValue]];
+    } else {
+       // [result setTextColor: [NSColor blackColor]];
+    }
+	
+
+    return result;
+}
 
 - (void)showHelp:(id)sender {
 	NSString *path = nil;
