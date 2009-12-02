@@ -22,5 +22,6 @@ id columnAttributeForObject(NoteAttributeColumn *col, id object);
 - (NSInteger (*)(id*, id*))sortFunction;
 - (void)setReverseSortingFunction:(NSInteger (*)(id*, id*))aFunction;
 - (NSInteger (*)(id*, id*))reverseSortFunction;
+- (id (*) (id))objectAttribute;
 
 @end
