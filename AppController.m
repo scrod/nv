@@ -238,6 +238,9 @@ terminateApp:
 			[prefsController setAliasDataForDefaultDirectory:[notationController aliasDataForNoteDirectory] sender:self];
 		}
 		
+		float width = [[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString] width] - [NSScroller scrollerWidthForControlSize:NSRegularControlSize];
+		[notationController regeneratePreviewsForWidth:width visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]]];	
+		
 		[oldNotation autorelease];		
     }
 }
@@ -1193,10 +1196,16 @@ terminateApp:
 }
 - (void)tableViewColumnDidResize:(NSNotification *)aNotification {
 	NoteAttributeColumn *col = [[aNotification userInfo] objectForKey:@"NSTableColumn"];
+//NSLog(@"resized column %@ from %g to %g", [col identifier], [[[aNotification userInfo] objectForKey:@"NSOldWidth"] floatValue], [col width]);
 	if ([col objectAttribute] == tableTitleOfNote) {
 		float width = [col width] - [NSScroller scrollerWidthForControlSize:NSRegularControlSize];
 		[notationController regeneratePreviewsForWidth:width visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]]];	
+		//call reloadData for those cases involving resizing or moving a column that would not trigger it automatically
 	}
+}
+
+- (NSString *)tableView:(NSTableView *)aTableView toolTipForCell:(NSCell *)aCell rect:(NSRectPointer)rect tableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)row mouseLocation:(NSPoint)mouseLocation {
+	return nil;
 }
 
 //the notationcontroller must call notationListShouldChange: first 

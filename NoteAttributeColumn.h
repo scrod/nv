@@ -24,4 +24,6 @@ id columnAttributeForObject(NoteAttributeColumn *col, id object);
 - (NSInteger (*)(id*, id*))reverseSortFunction;
 - (id (*) (id))objectAttribute;
 
+- (void)setResizingMaskNumber:(NSNumber*)resizingMaskNumber;
+
 @end

@@ -338,7 +338,7 @@ force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
 		dateCreatedString = [[NSString relativeDateStringWithAbsoluteTime:createdDate] retain];
 		dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain];
 		
-		[self updateTablePreviewString];
+		//[self updateTablePreviewString];
 		
 		if (!titleString && !contentString && !labelString) return nil;
 	}

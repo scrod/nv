@@ -84,7 +84,7 @@
 		[[self noteAttributeColumnForIdentifier:NoteDateCreatedColumnString] setResizingMask:NSTableColumnUserResizingMask];
 		[[self noteAttributeColumnForIdentifier:NoteDateModifiedColumnString] setResizingMask:NSTableColumnUserResizingMask];
 		[self setColumnAutoresizingStyle:NSTableViewUniformColumnAutoresizingStyle];
-	}else {
+	} else {
 		//what the hell is wrong with 10.3? when this is on, window resizing snaps columns to center
 		//which is really, really annoying. oh well--they'll upgrade their OS eventually.
 		[self setAutoresizesAllColumnsToFit:NO];

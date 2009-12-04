@@ -79,15 +79,14 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], UseSoftTabsKey,
 			[NSNumber numberWithInt:4], NumberOfSpacesInTabKey,
 			[NSNumber numberWithBool:NO], PastePreservesStyleKey,
-			[NSNumber numberWithBool:NO], TabKeyIndentsKey,
+			[NSNumber numberWithBool:YES], TabKeyIndentsKey,
 			[NSNumber numberWithBool:YES], ConfirmNoteDeletionKey,
 			[NSNumber numberWithBool:YES], CheckSpellingInNoteBodyKey, 
-		    [NSNumber numberWithBool:YES], AutoCompleteSearchesKey, 
+			[NSNumber numberWithBool:YES], AutoCompleteSearchesKey, 
 			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey, 
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
-			
 			@"General", LastSelectedPreferencesPaneKey, 
 			
 			[NSArchiver archivedDataWithRootObject:

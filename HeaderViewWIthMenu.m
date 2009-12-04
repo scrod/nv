@@ -1,4 +1,5 @@
 #import "HeaderViewWIthMenu.h"
+#import "NoteAttributeColumn.h"
 
 @implementation HeaderViewWithMenu
 
@@ -9,6 +10,25 @@
 	return self;
 }
 
+- (void)_resizeColumn:(NSInteger)resizedColIdx withEvent:(id)event {	
+	//use a more understandable column resizing by changing the resizing mask immediately before calling through to the private method,
+	//and reverting it back to the original at the next runloop iteration
+	if (RunningTigerAppKitOrHigher) {
+		NSUInteger originalResizingMask = 0;
+		int i;
+		//change all user-resizable-only columns
+		for (i=0; i<[[self tableView] numberOfColumns]; i++) {
+			NoteAttributeColumn *col = [[[self tableView] tableColumns] objectAtIndex:i];
+			if ((originalResizingMask = [col resizingMask]) == NSTableColumnUserResizingMask) {
+				[col setResizingMask: NSTableColumnAutoresizingMask | NSTableColumnUserResizingMask];
+				[col performSelector:@selector(setResizingMaskNumber:) withObject:[NSNumber numberWithUnsignedInt:originalResizingMask] afterDelay:0];
+			}
+		}
+	}
+	
+	[super _resizeColumn:resizedColIdx withEvent:event];
+}
+	
 - (void)setIsReloading:(BOOL)reloading {
 	isReloading = reloading;
 }

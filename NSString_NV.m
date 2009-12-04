@@ -294,7 +294,7 @@ int uncachedDateCount = 0;
 	static NSDictionary *grayTextAttributes = nil;
 	if (!grayTextAttributes) {
 		lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
-		[lineBreaksStyle setLineBreakMode:NSLineBreakByClipping];
+		[lineBreaksStyle setLineBreakMode:NSLineBreakByTruncatingTail];
 
 		grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
 			[NSColor grayColor], NSForegroundColorAttributeName, nil] retain];
@@ -303,7 +303,7 @@ int uncachedDateCount = 0;
 	NSString *bodyString = [bodyText string];
 	
 	//compute the char count for this note based on the width of the title column and the length of the receiver
-	size_t expectedCharCountToFitInWidth = (size_t)(upToWidth / 5.0f);
+	size_t expectedCharCountToFitInWidth = (size_t)(upToWidth / 4.5f);
 	size_t bodyCharCount = expectedCharCountToFitInWidth - [self length];
 	
 	bodyCharCount = MIN(bodyCharCount, [bodyString length]);

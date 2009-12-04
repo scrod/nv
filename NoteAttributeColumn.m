@@ -63,4 +63,8 @@ id columnAttributeForObject(NoteAttributeColumn *col, id object) {
 	return objectAttribute;
 }
 
+- (void)setResizingMaskNumber:(NSNumber*)resizingMaskNumber {
+	[self setResizingMask:[resizingMaskNumber unsignedIntValue]];
+}
+
 @end
