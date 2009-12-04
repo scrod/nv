@@ -14,6 +14,7 @@ void ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize);
 int IsZeros(const void *s1, size_t n);
 int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint);
 void MakeLowercase(char *text);
+void replace_breaks(char *str, size_t up_to_len);
 int ContainsHighAscii(const void *s1, size_t n);
 CFStringRef CFStringFromBase10Integer(int quantity);
 unsigned DumbWordCount(const void *s1, size_t len);

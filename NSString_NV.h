@@ -26,7 +26,7 @@ void resetCurrentDayTime();
 - (void)copyItemToPasteboard:(id)sender;
 - (NSURL*)linkForWord;
 - (NSString*)syntheticTitle;
-- (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText;
+- (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)width;
 + (NSString *)tabbifiedStringWithNumberOfSpaces:(unsigned)origNumSpaces tabWidth:(unsigned)tabWidth usesTabs:(BOOL)usesTabs;
 - (unsigned)numberOfLeadingSpacesFromRange:(NSRange*)range tabWidth:(unsigned)tabWidth;
 

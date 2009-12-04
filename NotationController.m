@@ -1601,6 +1601,29 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	}
 }
 
+- (float)titleColumnWidth {
+	return titleColumnWidth;
+}
+
+- (void)regeneratePreviewsForWidth:(float)width visibleFilteredRows:(NSRange)rows {
+	if (roundf(width) != roundf(titleColumnWidth)) {
+		titleColumnWidth = width;
+		
+		//regenerate previews for visible rows immediately and post a delayed message to regenerate previews for all rows
+		if (rows.length > 0) {
+			CFArrayRef visibleNotes = CFArrayCreate(NULL, (const void **)([notesListDataSource immutableObjects] + rows.location), rows.length, NULL);
+			[(NSArray*)visibleNotes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
+		}
+		
+		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(regenerateAllPreviews) object:nil];
+		[self performSelector:@selector(regenerateAllPreviews) withObject:nil afterDelay:0.0];
+	}
+}
+
+- (void)regenerateAllPreviews {
+	[allNotes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
+}
+
 - (id)labelsListDataSource {
     return labelsListController;
 }

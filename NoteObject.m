@@ -207,7 +207,9 @@ force_inline NSString* labelsOfNote(NoteObject *note) {
 }
 
 force_inline NSAttributedString* tableTitleOfNote(NoteObject *note) {
-	return note->tableTitleString;
+	if (note->tableTitleString) return note->tableTitleString;
+	
+	return (id)titleOfNote(note);
 }
 
 force_inline UTCDateTime fileModifiedDateOfNote(NoteObject *note) {
@@ -574,7 +576,7 @@ int decodedCount() {
 
 - (void)updateTablePreviewString {
 	[tableTitleString release];
-	tableTitleString = [[titleString attributedPreviewFromBodyText:contentString] retain];
+	tableTitleString = [[titleString attributedPreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
 }
 
 - (void)setTitleString:(NSString*)aNewTitle {

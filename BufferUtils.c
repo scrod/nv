@@ -53,6 +53,24 @@ void MakeLowercase(char *text) {
     }
 }
 
+void replace_breaks(char *str, size_t up_to_len) {
+	
+	//traverses string to up_to_len chars or NULL, whichever comes first
+	//replaces any occurance of \n, \r, or \t with a space
+	
+	if (!str) return;
+	
+	size_t i = 0;
+	int c;
+	char *s = str;
+	do {
+		c = *s;
+		if ('\n' == c || '\t' == c || '\r' == c) {
+			*s = ' ';
+		}
+	} while (++i < up_to_len && *(s++) != 0);
+}
+
 int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint) {
 	size_t i;
 	for (i=0; i<count; i++) {

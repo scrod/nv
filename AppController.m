@@ -417,43 +417,6 @@ terminateApp:
 	[retainedDeleteObj release];
 }
 
-#if 0 //unused; for the moment, allow only undoing and redoing of deletion, not undoing of creation
-- (void)undoCreateSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
-	id retainedDeleteObj = (id)contextInfo;
-	
-	//always perform the undo to keep the undomanager stack consistent
-	//and then redo the undo if we didn't want it
-	
-	if ([retainedDeleteObj isKindOfClass:[NSArray class]]) {
-		[notationController removeNotes:retainedDeleteObj];
-	} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
-		[notationController removeNote:retainedDeleteObj];
-	}	
-	if (returnCode == NSAlertDefaultReturn) {
-		//the creation of this note is truly undone
-		NSLog(@"allowing note to remain undone");
-	} else {
-		//redo note(s)' creation
-		NSLog(@"re-adding note");
-		[[notationController undoManager] performSelector:@selector(undo) withObject:nil afterDelay:0.0];
-	}
-	[retainedDeleteObj release];
-}
-
-- (void)deleteNoteByUndoingCreation:(id)obj {
-	//give user a second chance at undoing the creation of a note
-	
-	[obj retain];
-	NSString *warningSingleFormatString = NSLocalizedString(@"Undo adding the note quotemark%@quotemark?", @"alert title when asked to undo the creation of a note");
-	NSString *warningMultipleFormatString = NSLocalizedString(@"Undo adding %d notes?", @"alert title when asked to undo creating multiple notes");
-	NSString *warnString = [obj isKindOfClass:[NoteObject class]] ? [NSString stringWithFormat:warningSingleFormatString, titleOfNote(obj)] : 
-	[NSString stringWithFormat:warningMultipleFormatString, [obj count]];
-	NSBeginAlertSheet(warnString, NSLocalizedString(@"Undo Note", @"name of undo-creating-a-note button"), NSLocalizedString(@"Cancel", @"name of cancel button"), 
-					  nil, window, self, @selector(undoCreateSheetDidEnd:returnCode:contextInfo:), NULL, (void*)obj, 
-					  NSLocalizedString(@"Undoing a note has the effect of deleting it. Use quotemarkRedoquotemark to re-add it.", @"informational undo-this-note? text"));	
-}
-#endif
-
 
 - (IBAction)deleteNote:(id)sender {
 	
@@ -578,6 +541,7 @@ terminateApp:
 		[notesTableView setStatusForSortedColumn:tableColumn];
     }
 }
+#if 0
 - (NSCell *)tableView:(NSTableView *)tableView dataCellForTableColumn: (NSTableColumn *)tableColumn row:(NSInteger)row { 
 	NSTextFieldCell *result = (NSTextFieldCell *)[tableColumn dataCell];
 	
@@ -594,6 +558,7 @@ terminateApp:
 
     return result;
 }
+#endif
 
 - (void)showHelp:(id)sender {
 	NSString *path = nil;
@@ -1225,6 +1190,13 @@ terminateApp:
 //mail.app-like resizing behavior wrt item selections
 - (void)willAdjustSubviews:(RBSplitView*)sender {
 	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];	
+}
+- (void)tableViewColumnDidResize:(NSNotification *)aNotification {
+	NoteAttributeColumn *col = [[aNotification userInfo] objectForKey:@"NSTableColumn"];
+	if ([col objectAttribute] == tableTitleOfNote) {
+		float width = [col width] - [NSScroller scrollerWidthForControlSize:NSRegularControlSize];
+		[notationController regeneratePreviewsForWidth:width visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]]];	
+	}
 }
 
 //the notationcontroller must call notationListShouldChange: first 

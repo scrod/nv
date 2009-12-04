@@ -287,55 +287,63 @@ int uncachedDateCount = 0;
 	return [[words subarrayWithRange:NSMakeRange(0U, MIN(5U, [words count]))] componentsJoinedByString:@" "];
 }
 
-- (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText {
-	//first line? first x words? first x characters?
-	
+- (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)upToWidth {
 	//NSLog(@"gen prev for %@", [[bodyText string] substringToIndex:MIN([bodyText length], 10U)]);
-#if 0
-	static NSDictionary *blackTextAttributes = nil;
-	if (!blackTextAttributes) {
-		NSMutableParagraphStyle *lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
-		[lineBreaksStyle setLineBreakMode:NSLineBreakByClipping];
-
-		blackTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
-			/*[NSColor blackColor], NSForegroundColorAttributeName,*/
-			lineBreaksStyle, NSParagraphStyleAttributeName, nil] retain];
-		
-		[lineBreaksStyle release];
-	}
-#endif
 	
 	static NSMutableParagraphStyle *lineBreaksStyle = nil;
 	static NSDictionary *grayTextAttributes = nil;
 	if (!grayTextAttributes) {
 		lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
-		[lineBreaksStyle setLineBreakMode:NSLineBreakByTruncatingTail];
+		[lineBreaksStyle setLineBreakMode:NSLineBreakByClipping];
 
 		grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
 			[NSColor grayColor], NSForegroundColorAttributeName, nil] retain];
 	}
 	
 	NSString *bodyString = [bodyText string];
-	//attempt to get at underlying string, copy up to N characters, skipping tabs and spaces
 	
-	NSScanner *scanner = [NSScanner scannerWithString:bodyString];
-	static NSCharacterSet *lineFeedSet = nil;
-	if (!lineFeedSet) lineFeedSet = [[NSCharacterSet characterSetWithCharactersInString:@"\n\r"] retain];
+	//compute the char count for this note based on the width of the title column and the length of the receiver
+	size_t expectedCharCountToFitInWidth = (size_t)(upToWidth / 5.0f);
+	size_t bodyCharCount = expectedCharCountToFitInWidth - [self length];
 	
-	NSString *firstLine = nil;
-	[scanner scanCharactersFromSet:lineFeedSet intoString:&firstLine];
+	bodyCharCount = MIN(bodyCharCount, [bodyString length]);
+	
+	
+	//try to get the underlying C-string buffer by copying only part of it
+	//this won't be exact because chars != bytes, but that's alright because it is expected to be further truncated by an NSTextFieldCell
+	CFStringEncoding bodyPreviewEncoding = CFStringGetFastestEncoding((CFStringRef)bodyString);
+	const char * cStrPtr = CFStringGetCStringPtr((CFStringRef)bodyString, bodyPreviewEncoding);
+	char *bodyPreviewBuffer = calloc(bodyCharCount + 1, sizeof(char));
+	
+	if (cStrPtr) {
+		memcpy(bodyPreviewBuffer, cStrPtr, bodyCharCount);
+	} else {
+		bodyPreviewEncoding = kCFStringEncodingUTF8;
+		if (!CFStringGetBytes((CFStringRef)bodyString, CFRangeMake(0, bodyCharCount), bodyPreviewEncoding, 0, FALSE, 
+							  (UInt8 *)bodyPreviewBuffer, bodyCharCount, (CFIndex*)&bodyCharCount)) {
+			free(bodyPreviewBuffer);
+			return nil;
+		}
+	}
+	replace_breaks(bodyPreviewBuffer, bodyCharCount);
+	CFStringRef truncatedBodyString = CFStringCreateWithCStringNoCopy(NULL, bodyPreviewBuffer, bodyPreviewEncoding, kCFAllocatorDefault);
+	if (!truncatedBodyString) {
+		free(bodyPreviewBuffer);
+		return nil;
+	}
 
+	NSMutableString *unattributedPreview = [self mutableCopy];
 	NSString *delimiter = NSLocalizedString(@" option-shift-dash ", @"title/description delimiter");
-	NSString *syntheticTitle = [delimiter stringByAppendingString:firstLine ? firstLine : bodyString];
-	syntheticTitle = [syntheticTitle substringToIndex:MIN([syntheticTitle length], 100U)];
-	NSAttributedString *bodySummary = [[NSAttributedString alloc] initWithString:syntheticTitle attributes:grayTextAttributes];
+	[unattributedPreview appendString:delimiter];
+	[unattributedPreview appendString:(NSString*)truncatedBodyString];
 	
-	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:self];
-	[attributedStringPreview appendAttributedString:bodySummary];
-	[attributedStringPreview addAttributes:
-	 [NSDictionary dictionaryWithObject:lineBreaksStyle forKey:NSParagraphStyleAttributeName] range:NSMakeRange(0, [[attributedStringPreview string] length])];
+	CFRelease(truncatedBodyString);
 	
-	[bodySummary release];
+	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:unattributedPreview];
+	[attributedStringPreview addAttributes:grayTextAttributes range:NSMakeRange([self length], [unattributedPreview length] - [self length])];
+	[attributedStringPreview addAttribute:NSParagraphStyleAttributeName value:lineBreaksStyle range:NSMakeRange(0, [unattributedPreview length])];
+	
+	[unattributedPreview release];
 	
 	return [attributedStringPreview autorelease];
 }

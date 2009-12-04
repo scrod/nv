@@ -38,6 +38,7 @@ typedef struct _NoteCatalogEntry {
 	GlobalPrefs *prefsController;
 	id delegate;
 	
+	float titleColumnWidth;
 	NoteAttributeColumn* sortColumn;
 	
     NoteObject **allNotesBuffer;
@@ -153,6 +154,10 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)setSortColumn:(NoteAttributeColumn*)col;
 - (void)resortAllNotes;
 - (void)sortAndRedisplayNotes;
+
+- (float)titleColumnWidth;
+- (void)regeneratePreviewsForWidth:(float)width visibleFilteredRows:(NSRange)rows;
+- (void)regenerateAllPreviews;
 
 //for setting up the nstableviews
 - (id)labelsListDataSource;
