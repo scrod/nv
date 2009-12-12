@@ -1288,7 +1288,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote {	
-	//TODO: aNote can be released prematurely via successive undo/redos? cannot reproduce after preventing undo of creation
 	[undoManager registerUndoWithTarget:self selector:@selector(addNewNote:) object:aNote];			
 	if (![undoManager isUndoing] && ![undoManager isRedoing])
 		[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Delete quotemark%@quotemark",@"undo action name for deleting a single note"), titleOfNote(aNote)]];				
@@ -1605,8 +1604,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	return titleColumnWidth;
 }
 
-- (void)regeneratePreviewsForWidth:(float)width visibleFilteredRows:(NSRange)rows {
-	if (roundf(width) != roundf(titleColumnWidth)) {
+- (void)regeneratePreviewsForColumn:(NSTableColumn*)col visibleFilteredRows:(NSRange)rows forceUpdate:(BOOL)force {
+	
+	float width = [col width] - [NSScroller scrollerWidthForControlSize:NSRegularControlSize];
+	
+	if (force || roundf(width) != roundf(titleColumnWidth)) {
 		titleColumnWidth = width;
 		
 		//regenerate previews for visible rows immediately and post a delayed message to regenerate previews for all rows

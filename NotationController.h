@@ -156,7 +156,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)sortAndRedisplayNotes;
 
 - (float)titleColumnWidth;
-- (void)regeneratePreviewsForWidth:(float)width visibleFilteredRows:(NSRange)rows;
+- (void)regeneratePreviewsForColumn:(NSTableColumn*)col visibleFilteredRows:(NSRange)rows forceUpdate:(BOOL)force;
 - (void)regenerateAllPreviews;
 
 //for setting up the nstableviews
