@@ -27,9 +27,18 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 - (void)awakeFromNib {
 	
     prefsController = [GlobalPrefs defaultPrefs];
+	
     [self setContinuousSpellCheckingEnabled:[prefsController checkSpellingAsYouType]];
-    
-    [prefsController registerForSettingChange:@selector(setCheckSpellingAsYouType:sender:) withTarget:self];
+	if (IsSnowLeopardOrLater) {
+		[self setAutomaticTextReplacementEnabled:[prefsController useTextReplacement]];
+	}
+
+    [prefsController registerWithTarget:self forChangesInSettings:
+	 @selector(setCheckSpellingAsYouType:sender:),
+	 @selector(setUseTextReplacement:sender:),
+	 @selector(setNoteBodyFont:sender:),
+	 @selector(setMakeURLsClickable:sender:),
+	 @selector(setSearchTermHighlightColor:sender:), nil];	
 	
 	[self setTextContainerInset:NSMakeSize(0, 5)];
 	[self setSmartInsertDeleteEnabled:NO];
@@ -91,12 +100,21 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[self setMenu:theMenu];
     
     // Insert Password menus
-    static BOOL passwordSetup = YES;
+    static BOOL additionalEditItems = YES;
     
-    if (passwordSetup) {
-        passwordSetup = NO;
+    if (additionalEditItems) {
+        additionalEditItems = NO;
 		
         NSMenu *editMenu = [[[NSApp mainMenu] itemWithTitle:@"Edit"] submenu];
+		
+		if (IsSnowLeopardOrLater) {
+			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacements", "use-text-replacement command in the edit menu")
+													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
+			[theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+			[editMenu addItem:theMenuItem];
+			[theMenuItem release];
+		}
+		
 		[editMenu addItem:[NSMenuItem separatorItem]];
         
         #if PASSWORD_SUGGESTIONS
@@ -119,9 +137,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
         [theMenuItem release];
     }
 	
-	[prefsController registerForSettingChange:@selector(setNoteBodyFont:sender:) withTarget:self];
-	[prefsController registerForSettingChange:@selector(setMakeURLsClickable:sender:) withTarget:self];
-	[prefsController registerForSettingChange:@selector(setSearchTermHighlightColor:sender:) withTarget:self];
 	
 	outletObjectAwoke(self);	
 }
@@ -132,6 +147,11 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	
 		[self setContinuousSpellCheckingEnabled:[prefsController checkSpellingAsYouType]];
 		
+	} else if ([selectorString isEqualToString:SEL_STR(setUseTextReplacement:sender:)]) {
+		
+		if (IsSnowLeopardOrLater) {
+			[self setAutomaticTextReplacementEnabled:[prefsController useTextReplacement]];
+		}
     } else if ([selectorString isEqualToString:SEL_STR(setNoteBodyFont:sender:)]) {
 
 		[self setTypingAttributes:[prefsController noteBodyAttributes]];
@@ -182,6 +202,13 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	
     return ([[controlField stringValue] length] > 0);
 }*/
+
+- (void)toggleAutomaticTextReplacement:(id)sender {
+	
+	[super toggleAutomaticTextReplacement:sender];
+	
+	[prefsController setUseTextReplacement:[self isAutomaticTextReplacementEnabled] sender:self];
+}
 
 - (void)toggleContinuousSpellChecking:(id)sender {
 

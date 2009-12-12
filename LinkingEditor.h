@@ -64,5 +64,12 @@
 @end
 
 @interface NSTextView (Private)
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
+- (void)toggleAutomaticTextReplacement:(id)sender;
+- (BOOL)isAutomaticTextReplacementEnabled;
+- (void)setAutomaticTextReplacementEnabled:(BOOL)flag;
+#endif
+
 - (void)_checkSpellingForRange:(struct _NSRange)fp8 excludingRange:(struct _NSRange)fp16;
+
 @end
