@@ -473,11 +473,10 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	if ((cstringPtr = CFStringGetCStringPtr((CFStringRef)self, kCFStringEncodingMacRoman)) ||
 		(cstringPtr = CFStringGetCStringPtr((CFStringRef)self, kCFStringEncodingASCII))) {
 		
-		size_t length = [self length] + 1;
-		char *cstringBuffer = (char*)malloc(length);
-		//should include NULL terminator
-		memcpy(cstringBuffer, cstringPtr, length);
-		MakeLowercase(cstringBuffer);
+		size_t length = [self length];
+		char *cstringBuffer = (char*)malloc(length + 1);
+		//modp will add the NULL terminator
+		modp_tolower_copy(cstringBuffer, cstringPtr, length);
 		
 		return cstringBuffer;
 	} else {
