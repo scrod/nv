@@ -576,7 +576,12 @@ int decodedCount() {
 
 - (void)updateTablePreviewString {
 	[tableTitleString release];
-	tableTitleString = [[titleString attributedPreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
+	
+	if ([[GlobalPrefs defaultPrefs] tableColumnsShowPreview]) {
+		tableTitleString = [[titleString attributedPreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
+	} else {
+		tableTitleString = nil;
+	}
 }
 
 - (void)setTitleString:(NSString*)aNewTitle {
