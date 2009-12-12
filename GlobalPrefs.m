@@ -25,9 +25,11 @@ static NSString *TableColumnsVisibleKey = @"TableColumnsVisible";
 static NSString *TableFontSizeKey = @"TableFontPointSize";
 static NSString *TableSortColumnKey = @"TableSortColumn";
 static NSString *TableIsReverseSortedKey = @"TableIsReverseSorted";
+static NSString *TableColumnsHaveBodyPreviewKey = @"TableColumnsHaveBodyPreview";
 static NSString *NoteBodyFontKey = @"NoteBodyFont";
 static NSString *ConfirmNoteDeletionKey = @"ConfirmNoteDeletion";
 static NSString *CheckSpellingInNoteBodyKey = @"CheckSpellingInNoteBody";
+static NSString *TextReplacementInNoteBodyKey = @"TextReplacementInNoteBody";
 static NSString *QuitWhenClosingMainWindowKey = @"QuitWhenClosingMainWindow";
 static NSString *TabKeyIndentsKey = @"TabKeyIndents";
 static NSString *PastePreservesStyleKey = @"PastePreservesStyle";
@@ -59,9 +61,10 @@ NSString *HotKeyAppToFrontName = @"bring Notational Velocity to the foreground";
 
 static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id originalSender) {
 	
-	if (originalSender != self)
+	if (originalSender != self) {
 		self->runCallbacksIMP(self, @selector(notifyCallbacksForSelector:excludingSender:), 
 							 selector, originalSender);
+	}
 }
 
 - (id)init {
@@ -82,11 +85,13 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:YES], TabKeyIndentsKey,
 			[NSNumber numberWithBool:YES], ConfirmNoteDeletionKey,
 			[NSNumber numberWithBool:YES], CheckSpellingInNoteBodyKey, 
+			[NSNumber numberWithBool:NO], TextReplacementInNoteBodyKey, 
 			[NSNumber numberWithBool:YES], AutoCompleteSearchesKey, 
 			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey, 
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
+			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
 			@"General", LastSelectedPreferencesPaneKey, 
 			
 			[NSArchiver archivedDataWithRootObject:
@@ -120,22 +125,33 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	[super dealloc];
 }
 
-- (void)registerForSettingChange:(SEL)selector withTarget:(id)sender {
+- (void)registerWithTarget:(id)sender forChangesInSettings:(SEL)firstSEL, ... {
+	NSAssert(firstSEL != NULL, @"need at least one selector");
+
 	if ([sender respondsToSelector:(@selector(settingChangedForSelectorString:))]) {
-		
-		NSString *selectorKey = NSStringFromSelector(selector);
-		
-		NSMutableArray *senders = [selectorObservers objectForKey:selectorKey];
-		if (!senders) {
-			senders = [[NSMutableArray alloc] initWithCapacity:1];
-			[selectorObservers setObject:senders forKey:selectorKey];
-		}
-		
-		[senders addObject:sender];
+	
+		va_list argList;
+		va_start(argList, firstSEL);
+		SEL aSEL = firstSEL;
+		do {
+			NSString *selectorKey = NSStringFromSelector(aSEL);
+			
+			NSMutableArray *senders = [selectorObservers objectForKey:selectorKey];
+			if (!senders) {
+				senders = [[NSMutableArray alloc] initWithCapacity:1];
+				[selectorObservers setObject:senders forKey:selectorKey];
+			}
+			[senders addObject:sender];
+		} while (( aSEL = va_arg( argList, SEL) ) != nil);
+		va_end(argList);
 		
 	} else {
-		NSLog(@"target %@ does not respond to callback selector!", [sender description]);
+		NSLog(@"%s: target %@ does not respond to callback selector!", _cmd, [sender description]);
 	}
+}
+
+- (void)registerForSettingChange:(SEL)selector withTarget:(id)sender {
+	[self registerWithTarget:sender forChangesInSettings:selector, nil];
 }
 
 - (void)unregisterForNotificationsFromSelector:(SEL)selector sender:(id)sender {
@@ -200,6 +216,16 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 - (BOOL)tabKeyIndents {
     return [defaults boolForKey:TabKeyIndentsKey];
+}
+
+- (void)setUseTextReplacement:(BOOL)value sender:(id)sender {
+    [defaults setBool:value forKey:TextReplacementInNoteBodyKey];
+    
+    SEND_CALLBACKS();
+}
+
+- (BOOL)useTextReplacement {
+    return [defaults boolForKey:TextReplacementInNoteBodyKey];
 }
 
 - (void)setCheckSpellingAsYouType:(BOOL)value sender:(id)sender {
@@ -472,6 +498,16 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	}
 	
 	return noteBodyParagraphStyle;
+}
+
+- (BOOL)tableColumnsShowPreview {
+	return [defaults boolForKey:TableColumnsHaveBodyPreviewKey];
+}
+
+- (void)setTableColumnsShowPreview:(BOOL)showPreview sender:(id)sender {
+	[defaults setBool:showPreview forKey:TableColumnsHaveBodyPreviewKey];
+	
+	SEND_CALLBACKS();
 }
 
 - (float)tableFontSize {

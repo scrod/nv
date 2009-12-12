@@ -43,6 +43,7 @@ extern NSString *NVPTFPboardType;
 
 + (GlobalPrefs *)defaultPrefs;
 
+- (void)registerWithTarget:(id)sender forChangesInSettings:(SEL)firstSEL, ...;
 - (void)registerForSettingChange:(SEL)selector withTarget:(id)sender;
 - (void)unregisterForNotificationsFromSelector:(SEL)selector sender:(id)sender;
 - (void)notifyCallbacksForSelector:(SEL)selector excludingSender:(id)sender;
@@ -58,6 +59,9 @@ extern NSString *NVPTFPboardType;
 - (NSString*)sortedTableColumnKey;
 - (BOOL)tableIsReverseSorted;
 
+- (BOOL)tableColumnsShowPreview;
+- (void)setTableColumnsShowPreview:(BOOL)showPreview sender:(id)sender;
+
 - (void)resolveNoteBodyFontFromNotationPrefsFromSender:(id)sender;
 - (void)_setNoteBodyFont:(NSFont*)aFont;
 - (void)setNoteBodyFont:(NSFont*)aFont sender:(id)sender;
@@ -68,6 +72,9 @@ extern NSString *NVPTFPboardType;
 
 - (void)setTabIndenting:(BOOL)value sender:(id)sender;
 - (BOOL)tabKeyIndents;
+
+- (void)setUseTextReplacement:(BOOL)value sender:(id)sender;
+- (BOOL)useTextReplacement;	
 
 - (void)setCheckSpellingAsYouType:(BOOL)value sender:(id)sender;
 - (BOOL)checkSpellingAsYouType;
