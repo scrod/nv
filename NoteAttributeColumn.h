@@ -17,12 +17,14 @@ SEL columnAttributeMutator(NoteAttributeColumn *col);
 - (void)setMutatingSelector:(SEL)selector;
 id columnAttributeForObject(NoteAttributeColumn *col, id object);
 - (void)updateWidthForHighlight;
+
+id (*dereferencingFunction(NoteAttributeColumn *col))(id);
 - (void)setDereferencingFunction:(id (*)(id))attributeFunction;
+
 - (void)setSortingFunction:(NSInteger (*)(id*, id*))sortFunction;
 - (NSInteger (*)(id*, id*))sortFunction;
 - (void)setReverseSortingFunction:(NSInteger (*)(id*, id*))aFunction;
 - (NSInteger (*)(id*, id*))reverseSortFunction;
-- (id (*) (id))objectAttribute;
 
 - (void)setResizingMaskNumber:(NSNumber*)resizingMaskNumber;
 

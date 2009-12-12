@@ -59,8 +59,8 @@ id columnAttributeForObject(NoteAttributeColumn *col, id object) {
 - (NSInteger (*)(id*, id*))reverseSortFunction {
     return reverseSortFunction;
 }
-- (id (*) (id))objectAttribute {
-	return objectAttribute;
+id (*dereferencingFunction(NoteAttributeColumn *col))(id) {
+	return col->objectAttribute;
 }
 
 - (void)setResizingMaskNumber:(NSNumber*)resizingMaskNumber {
