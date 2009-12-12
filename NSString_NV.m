@@ -292,18 +292,21 @@ int uncachedDateCount = 0;
 	
 	static NSMutableParagraphStyle *lineBreaksStyle = nil;
 	static NSDictionary *grayTextAttributes = nil;
+	static NSDictionary *lineTruncAttributes = nil;
 	if (!grayTextAttributes) {
 		lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
 		[lineBreaksStyle setLineBreakMode:NSLineBreakByTruncatingTail];
 
 		grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
 			[NSColor grayColor], NSForegroundColorAttributeName, nil] retain];
+		lineTruncAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
+								lineBreaksStyle, NSParagraphStyleAttributeName, nil] retain];
 	}
 	
 	NSString *bodyString = [bodyText string];
 	
 	//compute the char count for this note based on the width of the title column and the length of the receiver
-	size_t expectedCharCountToFitInWidth = (size_t)(upToWidth / 4.5f);
+	size_t expectedCharCountToFitInWidth = (size_t)(upToWidth / ([[GlobalPrefs defaultPrefs] tableFontSize] / 2.5f));
 	size_t bodyCharCount = expectedCharCountToFitInWidth - [self length];
 	
 	bodyCharCount = MIN(bodyCharCount, [bodyString length]);
@@ -314,34 +317,51 @@ int uncachedDateCount = 0;
 	CFStringEncoding bodyPreviewEncoding = CFStringGetFastestEncoding((CFStringRef)bodyString);
 	const char * cStrPtr = CFStringGetCStringPtr((CFStringRef)bodyString, bodyPreviewEncoding);
 	char *bodyPreviewBuffer = calloc(bodyCharCount + 1, sizeof(char));
+	CFIndex usedBufLen = bodyCharCount;
 	
-	if (cStrPtr) {
-		memcpy(bodyPreviewBuffer, cStrPtr, bodyCharCount);
-	} else {
-		bodyPreviewEncoding = kCFStringEncodingUTF8;
-		if (!CFStringGetBytes((CFStringRef)bodyString, CFRangeMake(0, bodyCharCount), bodyPreviewEncoding, 0, FALSE, 
-							  (UInt8 *)bodyPreviewBuffer, bodyCharCount, (CFIndex*)&bodyCharCount)) {
-			free(bodyPreviewBuffer);
-			return nil;
+	if (bodyCharCount > 1) {
+		if (cStrPtr && kCFStringEncodingUTF8 != bodyPreviewEncoding && kCFStringEncodingUnicode != bodyPreviewEncoding) {
+			//only attempt to copy the buffer directly if the fastest encoding is not a unicode variant
+			memcpy(bodyPreviewBuffer, cStrPtr, bodyCharCount);
+		} else {
+			bodyPreviewEncoding = kCFStringEncodingUTF8;
+			if ([bodyString length] == bodyCharCount) {
+				//if this is supposed to be the entire string, don't waffle around
+				const char *fullUTF8String = [bodyString UTF8String];
+				if (fullUTF8String) {
+					usedBufLen = bodyCharCount = strlen(fullUTF8String);
+					bodyPreviewBuffer = realloc(bodyPreviewBuffer, bodyCharCount + 1);
+					memcpy(bodyPreviewBuffer, fullUTF8String, bodyCharCount + 1);
+					goto replace;
+				}
+			}
+			if (!CFStringGetBytes((CFStringRef)bodyString, CFRangeMake(0, bodyCharCount), bodyPreviewEncoding, ' ', FALSE, 
+								  (UInt8 *)bodyPreviewBuffer, bodyCharCount + 1, &usedBufLen)) {
+				NSLog(@"can't get utf8 string from note %@ (charcount: %u)", self, bodyCharCount);
+				free(bodyPreviewBuffer);
+				return nil;
+			}
 		}
 	}
+replace:
 	replace_breaks(bodyPreviewBuffer, bodyCharCount);
-	CFStringRef truncatedBodyString = CFStringCreateWithCStringNoCopy(NULL, bodyPreviewBuffer, bodyPreviewEncoding, kCFAllocatorDefault);
+	NSString* truncatedBodyString = [[NSString alloc] initWithBytesNoCopy:bodyPreviewBuffer length:usedBufLen 
+																 encoding:CFStringConvertEncodingToNSStringEncoding(bodyPreviewEncoding) freeWhenDone:YES];
 	if (!truncatedBodyString) {
 		free(bodyPreviewBuffer);
+		NSLog(@"can't create cfstring from %@ (cstr: %s/%u/%d) with encoding %u (fastest = %u)", self, bodyPreviewBuffer, bodyCharCount, usedBufLen, bodyPreviewEncoding, CFStringGetFastestEncoding((CFStringRef)bodyString)); 
 		return nil;
 	}
 
 	NSMutableString *unattributedPreview = [self mutableCopy];
 	NSString *delimiter = NSLocalizedString(@" option-shift-dash ", @"title/description delimiter");
 	[unattributedPreview appendString:delimiter];
-	[unattributedPreview appendString:(NSString*)truncatedBodyString];
+	[unattributedPreview appendString:truncatedBodyString];
 	
-	CFRelease(truncatedBodyString);
+	[truncatedBodyString release];
 	
-	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:unattributedPreview];
+	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:unattributedPreview attributes:lineTruncAttributes];
 	[attributedStringPreview addAttributes:grayTextAttributes range:NSMakeRange([self length], [unattributedPreview length] - [self length])];
-	[attributedStringPreview addAttribute:NSParagraphStyleAttributeName value:lineBreaksStyle range:NSMakeRange(0, [unattributedPreview length])];
 	
 	[unattributedPreview release];
 	
