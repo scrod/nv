@@ -23,6 +23,8 @@
 	IBOutlet EmptyView *editorStatusView;
 	IBOutlet NSMenuItem *sparkleUpdateItem;
     IBOutlet NSWindow *window;
+	NSToolbar *toolbar;
+	NSToolbarItem *dualFieldItem;
 	
 	NSMutableArray *notesToOpenOnLaunch;
 	

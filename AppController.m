@@ -42,6 +42,22 @@
 - (void)awakeFromNib {
 	prefsController = [GlobalPrefs defaultPrefs];
 	
+	NSView *dualSV = [field superview];
+	dualFieldItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"DualField"];
+	[dualFieldItem setView:dualSV];
+	[dualFieldItem setMaxSize:NSMakeSize(FLT_MAX, [dualSV frame].size.height)];
+	[dualFieldItem setMinSize:NSMakeSize(50.0f, [dualSV frame].size.height)];
+    [dualFieldItem setLabel:@"Search or Create"];
+	
+	toolbar = [[NSToolbar alloc] initWithIdentifier:@"NVToolbar"];
+	[toolbar setAllowsUserCustomization:NO];
+	[toolbar setAutosavesConfiguration:NO];
+	[toolbar setDisplayMode:NSToolbarDisplayModeIconOnly];
+	[toolbar setDelegate:self];
+	[window setToolbar:toolbar];
+	
+	[[window standardWindowButton:NSWindowToolbarButton] setFrame:NSZeroRect];	
+	
 	[NSApp setDelegate:self];
 	[notesTableView setDelegate:self];
 	[window setDelegate:self];
@@ -192,14 +208,20 @@ extern int decodedCount();
 		notesToOpenOnLaunch = nil;
 	}
 	
-	//tell us when someone wants to load a new database
-	[prefsController registerForSettingChange:@selector(setAliasDataForDefaultDirectory:sender:) withTarget:self];
-	//tell us when sorting prefs changed
-	[prefsController registerForSettingChange:@selector(setSortedTableColumnKey:reversed:sender:) withTarget:self];
-	//have to know when to tell notationcontroller when to restyle its notes
-	[prefsController registerForSettingChange:@selector(setNoteBodyFont:sender:) withTarget:self];
-	//need to know whether "delete note" should have an ellipsis
-	[prefsController registerForSettingChange:@selector(setConfirmNoteDeletion:sender:) withTarget:self];
+	//tell us..
+	//when someone wants to load a new database
+	//when sorting prefs changed
+	//when to tell notationcontroller to restyle its notes
+	//when to tell notationcontroller to regenerate the (now potentially too-short) note-body previews
+	//whether "delete note" should have an ellipsis
+	
+	[prefsController registerWithTarget:self forChangesInSettings:
+	 @selector(setAliasDataForDefaultDirectory:sender:), 
+	 @selector(setSortedTableColumnKey:reversed:sender:), 
+	 @selector(setNoteBodyFont:sender:), 
+	 @selector(setTableFontSize:sender:), 
+	 @selector(setTableColumnsShowPreview:sender:),
+	 @selector(setConfirmNoteDeletion:sender:),nil];
 	
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.1];
 	
@@ -237,10 +259,10 @@ terminateApp:
 		if ([notationController aliasNeedsUpdating]) {
 			[prefsController setAliasDataForDefaultDirectory:[notationController aliasDataForNoteDirectory] sender:self];
 		}
-		
-		float width = [[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString] width] - [NSScroller scrollerWidthForControlSize:NSRegularControlSize];
-		[notationController regeneratePreviewsForWidth:width visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]]];	
-		
+		if ([[GlobalPrefs defaultPrefs] tableColumnsShowPreview]) {
+			[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString] 
+										visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
+		}
 		[oldNotation autorelease];		
     }
 }
@@ -253,6 +275,19 @@ terminateApp:
     
     return NO;
 }
+
+- (NSToolbarItem *)toolbar:(NSToolbar *)toolbar itemForItemIdentifier:(NSString *)itemIdentifier willBeInsertedIntoToolbar:(BOOL)flag {
+	return [itemIdentifier isEqualToString:@"DualField"] ? dualFieldItem : nil;
+}
+
+- (NSArray *)toolbarAllowedItemIdentifiers:(NSToolbar*)theToolbar {
+	return [self toolbarDefaultItemIdentifiers:theToolbar];
+}
+
+- (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
+	return [NSArray arrayWithObject:@"DualField"];
+}
+
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	SEL selector = [menuItem action];
@@ -293,7 +328,16 @@ terminateApp:
 		NSString *trailingQualifier = [prefsController confirmNoteDeletion] ? NSLocalizedString(@"...", @"ellipsis character") : @"";
 		[deleteItem setTitle:[NSString stringWithFormat:@"%@%@", 
 							  NSLocalizedString(@"Delete", nil), trailingQualifier]];
-	}	
+	}
+	
+	NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTitle:@"View"] submenu];
+	menuIndex = [viewMenu indexOfItemWithTarget:notesTableView andAction:@selector(toggleNoteBodyPreviews:)];
+	NSMenuItem *bodyPreviewItem = nil;
+	if (menuIndex > -1 && (bodyPreviewItem = [viewMenu itemAtIndex:menuIndex])) {
+		[bodyPreviewItem setTitle: [prefsController tableColumnsShowPreview] ? 
+		 NSLocalizedString(@"Hide Note Previews in Title", @"menu item in the View menu to turn off note-body previews in the Title column") : 
+		 NSLocalizedString(@"Show Note Previews in Title", @"menu item in the View menu to turn on note-body previews in the Title column")];
+	}
 }
 
 - (void)createFromSelection:(NSPasteboard *)pboard userData:(NSString *)userData error:(NSString **)error {
@@ -531,10 +575,20 @@ terminateApp:
 		[notationController restyleAllNotes];
 		if (currentNote) {
 			[self contentsUpdatedForNote:currentNote];
-		}		
+		}
+	} else if ([selectorString isEqualToString:SEL_STR(setTableFontSize:sender:)] || [selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) {
+		
+		NoteAttributeColumn *col = [notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString];
+		[col setDereferencingFunction: [prefsController tableColumnsShowPreview] ? (id (*)(id))tableTitleOfNote : (id (*)(id))titleOfNote];
+		[notationController regeneratePreviewsForColumn:col	visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
+				
+		if ([selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) [self updateNoteMenus];
+		
+		[notesTableView performSelector:@selector(reloadData) withObject:nil afterDelay:0];
+		
 	} else if ([selectorString isEqualToString:SEL_STR(setConfirmNoteDeletion:sender:)]) {
 		[self updateNoteMenus];
-	}	
+	}
 	
 }
 
@@ -544,24 +598,6 @@ terminateApp:
 		[notesTableView setStatusForSortedColumn:tableColumn];
     }
 }
-#if 0
-- (NSCell *)tableView:(NSTableView *)tableView dataCellForTableColumn: (NSTableColumn *)tableColumn row:(NSInteger)row { 
-	NSTextFieldCell *result = (NSTextFieldCell *)[tableColumn dataCell];
-	
-	if ([(NoteAttributeColumn*)tableColumn objectAttribute] == tableTitleOfNote &&
-		[[tableView selectedRowIndexes] containsIndex:row]) {
-		// This ignores the fact that we use different colors in a table that has the first responder status
-//        [result setTextColor: [NSColor whiteColor]];
-		[result setAttributedStringValue:nil];
-		[result setStringValue:[result stringValue]];
-    } else {
-       // [result setTextColor: [NSColor blackColor]];
-    }
-	
-
-    return result;
-}
-#endif
 
 - (void)showHelp:(id)sender {
 	NSString *path = nil;
@@ -973,7 +1009,6 @@ terminateApp:
 		if (!currentNote) {
 			if (selectedRow == -1 && (!fieldEditor || [window firstResponder] != fieldEditor)) {
 				//don't select the field if we're already there
-				//if (![notesTableView clickedOnEmptyRegion]) //or if user was clicking in empty region
 				[window makeFirstResponder:field];
 				fieldEditor = (NSTextView*)[field currentEditor];
 			}
@@ -1196,17 +1231,14 @@ terminateApp:
 }
 - (void)tableViewColumnDidResize:(NSNotification *)aNotification {
 	NoteAttributeColumn *col = [[aNotification userInfo] objectForKey:@"NSTableColumn"];
-//NSLog(@"resized column %@ from %g to %g", [col identifier], [[[aNotification userInfo] objectForKey:@"NSOldWidth"] floatValue], [col width]);
-	if ([col objectAttribute] == tableTitleOfNote) {
-		float width = [col width] - [NSScroller scrollerWidthForControlSize:NSRegularControlSize];
-		[notationController regeneratePreviewsForWidth:width visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]]];	
-		//call reloadData for those cases involving resizing or moving a column that would not trigger it automatically
+	if (dereferencingFunction(col) == (id (*)(id))tableTitleOfNote) {
+		[notationController regeneratePreviewsForColumn:col visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:NO];
+		
+		[NSObject cancelPreviousPerformRequestsWithTarget:notesTableView selector:@selector(reloadData) object:nil];
+		[notesTableView performSelector:@selector(reloadData) withObject:nil afterDelay:0.0];
 	}
 }
 
-- (NSString *)tableView:(NSTableView *)aTableView toolTipForCell:(NSCell *)aCell rect:(NSRectPointer)rect tableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)row mouseLocation:(NSPoint)mouseLocation {
-	return nil;
-}
 
 //the notationcontroller must call notationListShouldChange: first 
 //if it's going to do something that could mess up the tableview's field eidtor
