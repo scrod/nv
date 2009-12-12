@@ -37,10 +37,12 @@
 	NSFont *font = [NSFont systemFontOfSize:[globalPrefs tableFontSize]];
 	NSArray *columnsToDisplay = [globalPrefs visibleTableColumns];
 	allColumns = [[NSMutableArray alloc] init];
+		
+	id (*titleReferencor)(id) = [globalPrefs tableColumnsShowPreview] ? (id (*)(id))tableTitleOfNote : (id (*)(id))titleOfNote;
 	
 	NSString *colStrings[] = { NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, NoteDateCreatedColumnString };
 	SEL colMutators[] = { @selector(setTitleString:), @selector(setLabelString:), NULL, NULL };
-	id (*colReferencors[])(id) = { tableTitleOfNote, labelsOfNote, dateModifiedStringOfNote, dateCreatedStringOfNote };
+	id (*colReferencors[])(id) = {titleReferencor, labelsOfNote, dateModifiedStringOfNote, dateCreatedStringOfNote };
 	NSInteger (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
 	NSInteger (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
 	    compareDateCreatedReverse };
@@ -58,10 +60,6 @@
 		
 		[allColumns addObject:column];
 	    [column release];
-	    
-	    /*if ([columnsToDisplay containsObject:colStrings[i]])
-			[self addTableColumn:column];
-		[column updateWidthForHighlight];*/
 	}
 			
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
@@ -119,12 +117,12 @@
 		
 		[column updateWidthForHighlight];
 	}
-	
-	[self sizeToFit];
-	
+		
 	[self setAutosaveName:@"notesTable"];
 	[self setAutosaveTableColumns:YES];
-		
+	
+	[self sizeToFit];
+
 	[self setSortDirection:[globalPrefs tableIsReverseSorted] 
 			 inTableColumn:[self tableColumnWithIdentifier:[globalPrefs sortedTableColumnKey]]];
 }
@@ -390,6 +388,9 @@
     [self sizeToFit];
 }
 
+- (IBAction)toggleNoteBodyPreviews:(id)sender {
+	[globalPrefs setTableColumnsShowPreview: ![globalPrefs tableColumnsShowPreview] sender:self];
+}
 
 - (NSMenu *)menuForColumnSorting {
 	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@""] autorelease];
@@ -550,24 +551,6 @@
 }
 #endif
 
-#if 0
-//don't need this
-- (BOOL)clickedOnEmptyRegion {
-	NSPoint mousePoint = [self convertPoint:[[[self window] currentEvent] locationInWindow] fromView:nil];
-	if ([self hitTest:mousePoint] == self) {
-		int row = [self rowAtPoint:mousePoint];
-		if (row == -1)
-			return YES;
-	}
-	
-	return NO;
-}
-#endif
-
-/*- (void)flagsChanged:(NSEvent *)theEvent {
-	NSLog(@"flags changed: %u", [theEvent modifierFlags]);
-	[super flagsChanged:theEvent];
-}*/
 
 - (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
 	return isLocal ? NSDragOperationNone : NSDragOperationCopy;
@@ -775,6 +758,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			NoteObject *note = [(FastListDataSource*)[self dataSource] immutableObjects][rowIndex];
 			
 			NSTextView *editor = (NSTextView*)[self currentEditor];
+			//this is often the same object as the field editor configured for the DualField, so un-fix its attributes as needed
+			[editor setTextContainerInset:NSMakeSize(0, 0)];
 			[editor setString:titleOfNote(note)];
 			[editor setSelectedRange:NSMakeRange(0, [titleOfNote(note) length])];
 		}

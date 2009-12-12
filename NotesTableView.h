@@ -59,7 +59,6 @@ typedef struct _ViewLocationContext {
 - (void)setViewingLocation:(ViewLocationContext)ctx;
 - (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset;
 - (void)selectRowAndScroll:(NSInteger)row;
-//- (BOOL)clickedOnEmptyRegion;
 
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;
 
@@ -69,6 +68,7 @@ typedef struct _ViewLocationContext {
 - (void)editRowAtColumnWithIdentifier:(id)identifier;
 - (void)addPermanentTableColumn:(NSTableColumn*)column;
 - (IBAction)actionHideShowColumn:(id)sender;
+- (IBAction)toggleNoteBodyPreviews:(id)sender;
 - (void)setStatusForSortedColumn:(id)item;
 - (void)setSortDirection:(BOOL)direction inTableColumn:(NSTableColumn*)tableColumn;
 - (NSMenu *)defaultNoteCommandsMenuWithTarget:(id)target;
