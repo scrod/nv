@@ -13,7 +13,7 @@ _resetFoundPtrsForNote
 -[NoteObject setDelegate]
 -[NoteObject initWithCoder]
 -[NoteObject initContentCacheCString]
-_MakeLowercase
+_modp_tolower_copy
 -[NSString(NV) copyLowercaseASCIIString]
 _noteTitleHasPrefixOfUTF8String
 _columnAttributeForObject

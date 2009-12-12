@@ -232,9 +232,8 @@ _NSStringFromClass
 -[NoteObject init]
 -[NoteObject initContentCacheCString]
 _CFStringGetCStringPtr
-___tolower
 -[NSString(NV) copyLowercaseASCIIString]
-_MakeLowercase
+_modp_tolower_copy
 ___istype
 _CFStringCreateMutableCopy
 _CFStringLowercase
