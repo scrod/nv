@@ -12,16 +12,22 @@
 		[self setStringValue:@""];
 		[self setEditable:YES];
 		[self setSelectable:YES];
-		[self setBezeled:YES];
+		[self setBezeled:NO];
+		[self setBordered:NO];
+		[self setDrawsBackground:NO];
 		[self setWraps:YES];
 		
 	}
 	return self;
 }
 
+- (NSRect)drawingRectForBounds:(NSRect)someBounds {
+	return NSInsetRect(someBounds, 10, 3);
+}
 
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *textView = (NSTextView*)[super setUpFieldEditorAttributes:textObj];
+	[textView setTextContainerInset:NSMakeSize(10, 3)];
 	[textView setDrawsBackground:NO];
 	
 	return textView;
@@ -44,6 +50,10 @@
 	//[self setDrawsBackground:NO];
 	NSCell *myCell = [self cell];
 	//[myCell setWraps:YES];
+	
+	[self setDrawsBackground:NO];
+	[self setBordered:NO];
+	[self setBezeled:NO];
 		
 	snapbackButton = [[NSButton alloc] initWithFrame:NSZeroRect];
 	[snapbackButton setAutoresizingMask:NSViewMinXMargin | NSViewMinYMargin];
@@ -308,16 +318,63 @@
 #define WBSEARCHTEXTFIELD_CANCEL_OFFSET         44
 #define WBSEARCHTEXTFIELD_WIDTH_OFFSET          33
 
-#if 0
+#if 1
 - (void)drawRect:(NSRect)rect {
-	[super drawRect:rect];
-
-	//NSRect tBounds = [self bounds];
+//	[super drawRect:rect];
 	
-//	[[self cell] drawWithFrame:NSMakeRect(0,4,NSWidth(tBounds)/2,NSHeight(tBounds)-6) inView:self];
+	BOOL isKeyWindow = [[self window] isKeyWindow];
+	
+	[NSGraphicsContext saveGraphicsState];
+	[[NSGraphicsContext currentContext] setShouldAntialias:NO];
+	
+	NSRect tBounds = [self bounds];
+	
+	[[NSColor whiteColor] set];
+	NSRectFill(NSInsetRect(tBounds, 5, 1));
+	
+	NSImage *leftCap = [NSImage imageNamed: isKeyWindow ? @"DFCapLeftRounded" : @"DFCapLeftRoundedInactive"];
+	[leftCap setFlipped:YES];
+	NSRect leftImageRect = NSMakeRect(0, 0, [leftCap size].width, [leftCap size].height);
+	[leftCap drawInRect:leftImageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+	
+	NSImage *rightCap = [NSImage imageNamed: isKeyWindow ? @"DFCapRight" : @"DFCapRightInactive"];
+	[rightCap setFlipped:YES];
+	NSRect rightImageRect = NSMakeRect(tBounds.size.width - [rightCap size].width, 0, [rightCap size].width, [rightCap size].height);
+	[rightCap drawInRect:rightImageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+
+	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.31f : 0.62f alpha:1.0f] set];
+	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + .5) 
+							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + .5)];
+	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.882f : 0.886f alpha:1.0f] set];
+	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + 1.5) 
+							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + 1.5)];
+	
+	
+	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.447f : 0.627f alpha:1.0f] set];
+	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height - 1.5) 
+							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height - 1.5)];
+	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.749f : 0.886f alpha:1.0f] set];
+	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height ) 
+							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height )];
+	
+	
+	[NSGraphicsContext restoreGraphicsState];
+	
+	//[[self cell] drawWithFrame:NSMakeRect(0,4,NSWidth(tBounds)/2,NSHeight(tBounds)-6) inView:self];
 	
 	//float tOffset = (showCancelButtons == NO) ? WBSEARCHTEXTFIELD_WIDTH_OFFSET : WBSEARCHTEXTFIELD_CANCEL_OFFSET;
-	//[[self cell] drawWithFrame:NSMakeRect(0, 0, NSWidth(tBounds)-tOffset, NSHeight(tBounds)) inView:self];
+	[[self cell] drawWithFrame:NSMakeRect(0, 0, NSWidth(tBounds), NSHeight(tBounds)) inView:self];
+	
+	if ([self currentEditor] && isKeyWindow) {
+		//draw focus ring
+		[NSGraphicsContext saveGraphicsState];
+		NSSetFocusRingStyle(NSFocusRingOnly);
+		NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
+		focusRect.origin.y -= 0.5f;
+		NSBezierPath *path = [[self class] bezierPathWithRoundRectInRect:focusRect radius:1.0f];
+		[path fill];
+		[NSGraphicsContext restoreGraphicsState];
+	}
 	
 	//[[NSImage imageNamed:@"deselect_document"] compositeToPoint:NSMakePoint(NSWidth(tBounds)-20,NSHeight(tBounds)-2.5) operation:NSCompositeCopy];
 }
