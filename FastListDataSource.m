@@ -142,25 +142,5 @@
 	return count;
 }
 
-#if 0
-- (BOOL)tableView:(NSTableView *)tableView writeRows:(NSArray *)rows toPasteboard:(NSPasteboard *)pboard {
-	
-	
-	NSEvent *event = [[tableView window] currentEvent];
-	if ([event modifierFlags] & NSAlternateKeyMask) {
-		[pboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-		if (![pboard setString:@"burritos" forType:@"HI"]) {
-			NSLog(@"Couldn't set data to pasteboard!");
-			NSBeep();
-			return NO;
-		}
-		
-		return YES;
-	}
-
-	NSLog(@"fall-through");
-	return NO;
-}
-#endif
-
 @end
+
