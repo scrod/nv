@@ -91,6 +91,10 @@
 		
 		[notesTableView restoreColumns];
 		
+		[field setNextKeyView:textView];
+		[textView setNextKeyView:field];
+		[window setAutorecalculatesKeyViewLoop:NO];
+		
 		//this is necessary on 10.3, apparently
 		[splitView display];
 		
@@ -209,19 +213,13 @@ extern int decodedCount();
 	}
 	
 	//tell us..
-	//when someone wants to load a new database
-	//when sorting prefs changed
-	//when to tell notationcontroller to restyle its notes
-	//when to tell notationcontroller to regenerate the (now potentially too-short) note-body previews
-	//whether "delete note" should have an ellipsis
-	
 	[prefsController registerWithTarget:self forChangesInSettings:
-	 @selector(setAliasDataForDefaultDirectory:sender:), 
-	 @selector(setSortedTableColumnKey:reversed:sender:), 
-	 @selector(setNoteBodyFont:sender:), 
-	 @selector(setTableFontSize:sender:), 
-	 @selector(setTableColumnsShowPreview:sender:),
-	 @selector(setConfirmNoteDeletion:sender:),nil];
+	 @selector(setAliasDataForDefaultDirectory:sender:),  //when someone wants to load a new database
+	 @selector(setSortedTableColumnKey:reversed:sender:),  //when sorting prefs changed
+	 @selector(setNoteBodyFont:sender:),  //when to tell notationcontroller to restyle its notes
+	 @selector(setTableFontSize:sender:),  //when to tell notationcontroller to regenerate the (now potentially too-short) note-body previews
+	 @selector(setTableColumnsShowPreview:sender:),  //when to tell notationcontroller to generate or disable note-body previews
+	 @selector(setConfirmNoteDeletion:sender:),nil];  //whether "delete note" should have an ellipsis
 	
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.1];
 	
@@ -705,10 +703,12 @@ terminateApp:
 			return YES;
 		}
 		
-		if ((command == @selector(insertTab:) || command == @selector(insertTabIgnoringFieldEditor:)) && [[aTextView string] length] > 0) {
+		if ((command == @selector(insertTab:) || command == @selector(insertTabIgnoringFieldEditor:))) {
 			//[self setEmptyViewState:NO];
 			
-			[window selectNextKeyView:control];
+			if (![[aTextView string] length] || [textView isHidden]) return YES;
+			
+			[window makeFirstResponder:textView];
 			
 			//don't eat the tab!
 			return NO;
@@ -732,17 +732,6 @@ terminateApp:
 			//[field updateButtonIfNecessaryForEditor:aTextView];
 			return YES;
 		}
-		
-		//following actions should also redraw the button, if it is visible
-		//except that this can be much more easily handled by -[DualField reflectScrolledClipView:]
-		/*if (command == @selector(moveLeft:) || command == @selector(moveRight:) ||
-		 command == @selector(moveLeftAndModifySelection:) || command == @selector(moveRightAndModifySelection:) ||
-		 command == @selector(moveToEndOfParagraph:) || command == @selector(moveToBeginningOfParagraph:) || 
-		 command == @selector(moveParagraphForwardAndModifySelection:) || command == @selector(moveParagraphBackwardAndModifySelection:) ||
-		 !strncmp((char*)command, "moveWord", 8) || !strncmp((char*)command, "page", 4) || !strncmp((char*)command, "scroll", 6)) {
-		 [field updateButtonIfNecessaryForEditor:aTextView];
-		 return NO;
-		 }*/
 		
 		if (command == @selector(moveToBeginningOfLineAndModifySelection:)) {
 			

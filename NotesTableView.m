@@ -57,6 +57,7 @@
 	    [column setDereferencingFunction:colReferencors[i]];
 	    [column setSortingFunction:sortFunctions[i]];
 	    [column setReverseSortingFunction:reverseSortFunctions[i]];
+		[column setResizingMask:NSTableColumnUserResizingMask];
 		
 		[allColumns addObject:column];
 	    [column release];
@@ -79,8 +80,7 @@
 	[self setHeaderView:hideHeader ? nil : headerView];
 		
 	if (RunningTigerAppKitOrHigher) {// on 10.4
-		[[self noteAttributeColumnForIdentifier:NoteDateCreatedColumnString] setResizingMask:NSTableColumnUserResizingMask];
-		[[self noteAttributeColumnForIdentifier:NoteDateModifiedColumnString] setResizingMask:NSTableColumnUserResizingMask];
+		[[self noteAttributeColumnForIdentifier:NoteTitleColumnString] setResizingMask:NSTableColumnUserResizingMask | NSTableColumnAutoresizingMask];
 		[self setColumnAutoresizingStyle:NSTableViewUniformColumnAutoresizingStyle];
 	} else {
 		//what the hell is wrong with 10.3? when this is on, window resizing snaps columns to center
@@ -758,8 +758,6 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			NoteObject *note = [(FastListDataSource*)[self dataSource] immutableObjects][rowIndex];
 			
 			NSTextView *editor = (NSTextView*)[self currentEditor];
-			//this is often the same object as the field editor configured for the DualField, so un-fix its attributes as needed
-			[editor setTextContainerInset:NSMakeSize(0, 0)];
 			[editor setString:titleOfNote(note)];
 			[editor setSelectedRange:NSMakeRange(0, [titleOfNote(note) length])];
 		}
