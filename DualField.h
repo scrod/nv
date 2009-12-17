@@ -10,6 +10,8 @@
 	unsigned int lastLengthReplaced;
 	NSButton *snapbackButton;
 	NSString *snapbackString;
+	
+	NSClipView *lastKnownClipView;
 }
 
 - (void)setSnapbackString:(NSString*)string;
