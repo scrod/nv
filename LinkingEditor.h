@@ -50,6 +50,8 @@
 //- (void)suggestComplete:(id)sender;
 - (id)highlightLinkAtIndex:(unsigned)givenIndex;
 
+- (void)indicateRange:(NSValue*)rangeValue;
+
 - (void)fixTypingAttributesForSubstitutedFonts;
 
 #if DELAYED_LAYOUT

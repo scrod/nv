@@ -167,12 +167,25 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 - (BOOL)becomeFirstResponder {
 	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:YES];
 	[notesTableView setShouldUseSecondaryHighlightColor:YES];
+
+	if ([[[self window] currentEvent] type] != NSLeftMouseDown) {
+		//"indicate" the current cursor/selection when moving focus to this field, but only if the user did not click here
+		NSRange range = [self selectedRange];
+		range = NSMakeRange(MIN([[self string] length] - 1, range.location), MAX(1U, range.length));
+		[self performSelector:@selector(indicateRange:) withObject:[NSValue valueWithRange:range] afterDelay:0];
+	}
 	
 #if DELAYED_LAYOUT
 	[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
 #endif
 		
 	return [super becomeFirstResponder];
+}
+
+- (void)indicateRange:(NSValue*)rangeValue {
+	if (IsLeopardOrLater) {
+		[self showFindIndicatorForRange:[rangeValue rangeValue]];
+	}
 }
 
 - (BOOL)resignFirstResponder {
@@ -648,7 +661,7 @@ copyRTFType:
 					CFRange *range = (CFRange *)CFArrayGetValueAtIndex(ranges, rangeIndex);
 					
 					if (range && range->length > 0 && range->location + range->length <= CFStringGetLength(bodyString)) {
-						if ((int)firstRange.location > range->location) firstRange = *(NSRange*)range;
+						if (firstRange.location > (NSUInteger)range->location) firstRange = *(NSRange*)range;
 						[[self layoutManager] addTemporaryAttributes:highlightDict forCharacterRange:*(NSRange*)range];
 					} else {
 						NSLog(@"highlightTermsTemporarily: Invalid range (%@)", range ? NSStringFromRange(*(NSRange*)range) : @"?");
