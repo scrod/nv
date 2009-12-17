@@ -27,10 +27,22 @@
 
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *textView = (NSTextView*)[super setUpFieldEditorAttributes:textObj];
+
 	[textView setTextContainerInset:NSMakeSize(10, 3)];
 	[textView setDrawsBackground:NO];
 	
+	[[NSNotificationCenter defaultCenter] addObserver:[self controlView] selector:@selector(changedSelection:) name:NSTextViewDidChangeSelectionNotification object:textView];
+
 	return textView;
+}
+
+- (void)endEditing:(NSText *)textObj {
+	//fix up any changes we might have made to the field editor in setUpFieldEditorAttributes:
+	[(NSTextView*)textObj setTextContainerInset:NSMakeSize(0, 0)];
+	
+	[[NSNotificationCenter defaultCenter] removeObserver:[self controlView] name:NSTextViewDidChangeSelectionNotification object:textObj];
+
+	[super endEditing:textObj];
 }
 
 @end
@@ -114,16 +126,47 @@
 	[[self superview] addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
 	NSRect colFrame = [[self superview] frame];
 	NSSize buttonSize = [snapbackButton frame].size;
-	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 14),
-										colFrame.size.height - 30, buttonSize.width, buttonSize.height)];
+	NSSize tcInset = [(NSTextView*)editor textContainerInset];
+	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 14 - tcInset.width),
+										colFrame.size.height - 30 + tcInset.height * 3, buttonSize.width, buttonSize.height)];
 	[snapbackButton release];
 	
 	[[self window] invalidateCursorRectsForView:self];
 }
 
+- (void)changedSelection:(NSNotification*)aNote {
+	NSTextView *ed = (NSTextView *)[self currentEditor];
+	
+	//automatically snap to show the full text-line on which the insertion point is positioned
+	NSPoint lineStartPoint = NSZeroPoint;
+	NSUInteger len = [[ed string] length];
+	if (len) {
+//		NSRect lfRect = [[ed layoutManager] boundingRectForGlyphRange:NSMakeRange(MIN([[ed string] length] - 1, [ed selectedRange].location), 
+//																				  MAX(1U, [ed selectedRange].length)) inTextContainer:[ed textContainer]];
+
+		NSRect lfRect = [[ed layoutManager] lineFragmentUsedRectForGlyphAtIndex:MIN(len - 1, [ed selectedRange].location) 
+																 effectiveRange:NULL withoutAdditionalLayout:YES];
+		lineStartPoint = lfRect.origin;
+	}
+	
+	[lastKnownClipView scrollToPoint:[lastKnownClipView constrainScrollPoint:lineStartPoint]];
+	
+	//NSLog(@"%u scrolled to %@ in %@", MIN(len - 1, [ed selectedRange].location), NSStringFromPoint(lineStartPoint), lastKnownClipView);
+}
+
 - (void)reflectScrolledClipView:(NSClipView *)aClipView {
-	NSText *editor = [self currentEditor];
-	if (editor)	[self updateButtonIfNecessaryForEditor:editor];
+	[lastKnownClipView autorelease];
+	lastKnownClipView = [aClipView retain];
+	
+	NSTextView *ed = (NSTextView *)[self currentEditor];
+	if (ed)	{
+		NSSize cvFrameSize = [aClipView frame].size;
+		cvFrameSize.height = 19.0;
+		[aClipView setFrameSize:cvFrameSize];
+		
+		[self updateButtonIfNecessaryForEditor:(NSText*)ed];
+		
+	}
 }
 
 - (void)selectText:(id)sender {
@@ -144,12 +187,11 @@
 }
 
 - (void)textDidEndEditing:(NSNotification *)aNotification {
-	
+		
 	[super textDidEndEditing:aNotification];
 	if ([snapbackString length]) {
 		[self _addSnapbackButtonForField];
 	}
-	
 }
 
 - (void)mouseDown:(NSEvent*)anEvent {
@@ -206,7 +248,7 @@
 }*/
 
 - (void)updateButtonIfNecessaryForEditor:(NSText*)editor {
-	if ([snapbackString length] > 0 && [editor bounds].size.height > 17) {
+	if ([snapbackString length] > 0 && [editor bounds].size.height > 23) {
 		[snapbackButton setNeedsDisplay:YES];
 	}
 }
@@ -318,7 +360,7 @@
 #define WBSEARCHTEXTFIELD_CANCEL_OFFSET         44
 #define WBSEARCHTEXTFIELD_WIDTH_OFFSET          33
 
-#if 1
+
 - (void)drawRect:(NSRect)rect {
 //	[super drawRect:rect];
 	
@@ -378,6 +420,5 @@
 	
 	//[[NSImage imageNamed:@"deselect_document"] compositeToPoint:NSMakePoint(NSWidth(tBounds)-20,NSHeight(tBounds)-2.5) operation:NSCompositeCopy];
 }
-#endif
 
 @end
