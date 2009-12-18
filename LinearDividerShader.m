@@ -23,7 +23,6 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 		axialShadingFunction = CGFunctionCreate(&colors, 1, validIntervals, 4, validIntervals, &cgFunctionCallbacks);
 		
 		dimpleImage = [[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForImageResource:@"SplitViewDimple.tif"]];
-		[dimpleImage setFlipped:YES];
     }
 
     return self;
@@ -48,13 +47,21 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 	CGShadingRelease(cgShading);
 	
 	if (!NSEqualRects(dimpleRect, NSZeroRect)) {
-		//NSRect destRect = NSMakeRect(0.0, 0.0, dimpleRect.size.width, dimpleRect.size.height);
-		[dimpleImage drawInRect:dimpleRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+		NSRect cent = centeredRectInRect(dimpleRect, [dimpleImage size]);
+		[dimpleImage compositeToPoint:NSMakePoint(cent.origin.x, cent.origin.y + cent.size.height + 1) operation:NSCompositeSourceOver];
 	}
 }
 
 @end
 
+NSRect centeredRectInRect(NSRect rect, NSSize size) {
+	NSRect centerRect;
+	centerRect.size = size;
+	centerRect.origin = NSMakePoint((rect.size.width - size.width) / 2.0,
+									(rect.size.height - size.height) / 2.0);
+	centerRect.origin = NSMakePoint(rect.origin.x + centerRect.origin.x, rect.origin.y + centerRect.origin.y);
+	return centerRect;
+}
 
 
 void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out) {

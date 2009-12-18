@@ -11,6 +11,7 @@ typedef struct {
 	
 } ColorSet;
 
+NSRect centeredRectInRect(NSRect rect, NSSize size);
 
 @interface LinearDividerShader : NSObject  {
 	CGColorSpaceRef	colorSpaceRef;

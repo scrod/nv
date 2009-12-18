@@ -19,6 +19,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		[self setDrawsBackground:NO];
 		[self setWraps:YES];
 		
+		
 		[self setFocusRingType:NSFocusRingTypeNone];
 		
 	}
@@ -32,7 +33,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *textView = (NSTextView*)[super setUpFieldEditorAttributes:textObj];
 
-	[textView setTextContainerInset:NSMakeSize(10, 3)];
+	//[textView setTextContainerInset:NSMakeSize(10, 3)];
 	[textView setDrawsBackground:NO];
 		
 	[[NSNotificationCenter defaultCenter] addObserver:[self controlView] selector:@selector(changedSelection:) name:NSTextViewDidChangeSelectionNotification object:textView];
@@ -159,22 +160,30 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 
 - (void)coalescedSelectionChanged:(NSNotification*)aNote {
 	if (lastKnownClipView) {
-		NSTextView *ed = (NSTextView *)[self currentEditor];
 		
+#if RESCROLL_TO_LINE_START
 		//automatically snap to show the full text-line on which the insertion point is positioned
 		NSPoint lineStartPoint = NSZeroPoint;
+		NSTextView *ed = (NSTextView *)[self currentEditor];
 		NSUInteger len = [[ed string] length];
 		if (len) {
 			NSRect lfRect = [[ed layoutManager] lineFragmentUsedRectForGlyphAtIndex:MIN(len - 1, [ed selectedRange].location) 
 																	 effectiveRange:NULL withoutAdditionalLayout:YES];
 			lineStartPoint = lfRect.origin;
 		}
+#endif
 		
-		//fix overlapping text highlight for multiple lines
-		[lastKnownClipView setFrameSize:NSMakeSize([lastKnownClipView frame].size.width, 19.0)];
+		//fix overlapping text highlight for multiple lines:
 		
+		[lastKnownClipView setFrameSize:NSMakeSize([self frame].size.width - 15.0, 16.0)];
+		
+		//avoid needing to provide a vertical textcontainer offset by moving the clipview down instead:
+		[lastKnownClipView setFrameOrigin:NSMakePoint(10.0, 3.0)];
+		
+#if RESCROLL_TO_LINE_START		
 		//fix any potential text displacement resulting from line-wrapping
 		[lastKnownClipView scrollToPoint:[lastKnownClipView constrainScrollPoint:lineStartPoint]];
+#endif
 		
 		[self setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
 		
