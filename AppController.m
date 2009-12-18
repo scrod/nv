@@ -20,6 +20,7 @@
 #import "DeletionManager.h"
 #import "MultiplePageView.h"
 #import "URLGetter.h"
+#import "LinearDividerShader.h"
 #import <WebKit/WebArchive.h>
 #include <Carbon/Carbon.h>
 
@@ -31,6 +32,9 @@
     if ([super init]) {
 		
 		windowUndoManager = [[NSUndoManager alloc] init];
+		
+		dividerShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithCalibratedWhite:0.988 alpha:1.0] 
+															   endColor:[NSColor colorWithCalibratedWhite:0.875 alpha:1.0]];
 		
 		isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
 		typedString = @"";
@@ -1218,6 +1222,7 @@ terminateApp:
 - (void)willAdjustSubviews:(RBSplitView*)sender {
 	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];	
 }
+
 - (void)tableViewColumnDidResize:(NSNotification *)aNotification {
 	NoteAttributeColumn *col = [[aNotification userInfo] objectForKey:@"NSTableColumn"];
 	if (dereferencingFunction(col) == (id (*)(id))tableTitleOfNote) {
@@ -1226,6 +1231,14 @@ terminateApp:
 		[NSObject cancelPreviousPerformRequestsWithTarget:notesTableView selector:@selector(reloadData) object:nil];
 		[notesTableView performSelector:@selector(reloadData) withObject:nil afterDelay:0.0];
 	}
+}
+
+- (NSRect)splitView:(RBSplitView*)sender willDrawDividerInRect:(NSRect)dividerRect betweenView:(RBSplitSubview*)leading 
+			andView:(RBSplitSubview*)trailing withProposedRect:(NSRect)imageRect {
+	
+	[dividerShader drawDividerInRect:dividerRect withDimpleRect:imageRect];
+	
+	return NSZeroRect;
 }
 
 
@@ -1334,6 +1347,7 @@ terminateApp:
 
 - (void)dealloc {
 	[windowUndoManager release];
+	[dividerShader release];
 	
 	[super dealloc];
 }

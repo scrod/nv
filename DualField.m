@@ -4,6 +4,8 @@
 #import "NotationPrefs.h"
 #import "AppController.h"
 
+static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
+
 @implementation DualFieldCell
 
 - (id) init {
@@ -16,6 +18,8 @@
 		[self setBordered:NO];
 		[self setDrawsBackground:NO];
 		[self setWraps:YES];
+		
+		[self setFocusRingType:NSFocusRingTypeNone];
 		
 	}
 	return self;
@@ -30,7 +34,7 @@
 
 	[textView setTextContainerInset:NSMakeSize(10, 3)];
 	[textView setDrawsBackground:NO];
-	
+		
 	[[NSNotificationCenter defaultCenter] addObserver:[self controlView] selector:@selector(changedSelection:) name:NSTextViewDidChangeSelectionNotification object:textView];
 
 	return textView;
@@ -66,6 +70,7 @@
 	[self setDrawsBackground:NO];
 	[self setBordered:NO];
 	[self setBezeled:NO];
+	[self setFocusRingType:NSFocusRingTypeNone];
 		
 	snapbackButton = [[NSButton alloc] initWithFrame:NSZeroRect];
 	[snapbackButton setAutoresizingMask:NSViewMinXMargin | NSViewMinYMargin];
@@ -85,6 +90,15 @@
 		[myCell setLineBreakMode:NSLineBreakByCharWrapping];
 	}
 	//use setParagraphStyle on 10.3?
+	
+	
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(coalescedSelectionChanged:) name:NVDualFieldDidChangeSelectionCoalesced object:nil];
+}
+
+- (void)dealloc {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	
+	[super dealloc];
 }
 
 - (void) resetCursorRects {
@@ -134,38 +148,50 @@
 	[[self window] invalidateCursorRectsForView:self];
 }
 
-- (void)changedSelection:(NSNotification*)aNote {
-	NSTextView *ed = (NSTextView *)[self currentEditor];
+- (void)changedSelection:(NSNotification*)aNotification {
 	
-	//automatically snap to show the full text-line on which the insertion point is positioned
-	NSPoint lineStartPoint = NSZeroPoint;
-	NSUInteger len = [[ed string] length];
-	if (len) {
-//		NSRect lfRect = [[ed layoutManager] boundingRectForGlyphRange:NSMakeRange(MIN([[ed string] length] - 1, [ed selectedRange].location), 
-//																				  MAX(1U, [ed selectedRange].length)) inTextContainer:[ed textContainer]];
+	NSNotification *aNote = [NSNotification notificationWithName:NVDualFieldDidChangeSelectionCoalesced object:nil];
+	[[NSNotificationQueue defaultQueue] enqueueNotification:aNote postingStyle:NSPostASAP 
+											   coalesceMask:NSNotificationCoalescingOnName 
+												   forModes:[NSArray arrayWithObjects:NSDefaultRunLoopMode, NSEventTrackingRunLoopMode, nil]];	
+	
+}
 
-		NSRect lfRect = [[ed layoutManager] lineFragmentUsedRectForGlyphAtIndex:MIN(len - 1, [ed selectedRange].location) 
-																 effectiveRange:NULL withoutAdditionalLayout:YES];
-		lineStartPoint = lfRect.origin;
+- (void)coalescedSelectionChanged:(NSNotification*)aNote {
+	if (lastKnownClipView) {
+		NSTextView *ed = (NSTextView *)[self currentEditor];
+		
+		//automatically snap to show the full text-line on which the insertion point is positioned
+		NSPoint lineStartPoint = NSZeroPoint;
+		NSUInteger len = [[ed string] length];
+		if (len) {
+			NSRect lfRect = [[ed layoutManager] lineFragmentUsedRectForGlyphAtIndex:MIN(len - 1, [ed selectedRange].location) 
+																	 effectiveRange:NULL withoutAdditionalLayout:YES];
+			lineStartPoint = lfRect.origin;
+		}
+		
+		//fix overlapping text highlight for multiple lines
+		[lastKnownClipView setFrameSize:NSMakeSize([lastKnownClipView frame].size.width, 19.0)];
+		
+		//fix any potential text displacement resulting from line-wrapping
+		[lastKnownClipView scrollToPoint:[lastKnownClipView constrainScrollPoint:lineStartPoint]];
+		
+		[self setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
+		
+	//	NSLog(@"%u scrolled to %@ in %@", MIN(len - 1, [ed selectedRange].location), NSStringFromPoint(lineStartPoint), lastKnownClipView);	
 	}
-	
-	[lastKnownClipView scrollToPoint:[lastKnownClipView constrainScrollPoint:lineStartPoint]];
-	
-	//NSLog(@"%u scrolled to %@ in %@", MIN(len - 1, [ed selectedRange].location), NSStringFromPoint(lineStartPoint), lastKnownClipView);
 }
 
 - (void)reflectScrolledClipView:(NSClipView *)aClipView {
-	[lastKnownClipView autorelease];
-	lastKnownClipView = [aClipView retain];
+	if (aClipView != lastKnownClipView) {
+		[lastKnownClipView autorelease];
+		lastKnownClipView = [aClipView retain];
+	}
 	
-	NSTextView *ed = (NSTextView *)[self currentEditor];
-	if (ed)	{
-		NSSize cvFrameSize = [aClipView frame].size;
-		cvFrameSize.height = 19.0;
-		[aClipView setFrameSize:cvFrameSize];
-		
-		[self updateButtonIfNecessaryForEditor:(NSText*)ed];
-		
+	NSText *editor = [self currentEditor];
+	if (editor)	{
+		[self updateButtonIfNecessaryForEditor:editor];
+		//[self setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
 	}
 }
 
@@ -357,10 +383,6 @@
 	return nil;
 }
 
-#define WBSEARCHTEXTFIELD_CANCEL_OFFSET         44
-#define WBSEARCHTEXTFIELD_WIDTH_OFFSET          33
-
-
 - (void)drawRect:(NSRect)rect {
 //	[super drawRect:rect];
 	
@@ -395,16 +417,16 @@
 	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.447f : 0.627f alpha:1.0f] set];
 	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height - 1.5) 
 							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height - 1.5)];
-	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.749f : 0.886f alpha:1.0f] set];
-	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height ) 
-							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height )];
-	
+	if (IsLeopardOrLater) {
+		[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.749f : 0.886f alpha:1.0f] set];
+		[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height ) 
+								  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height )];
+	}
 	
 	[NSGraphicsContext restoreGraphicsState];
 	
 	//[[self cell] drawWithFrame:NSMakeRect(0,4,NSWidth(tBounds)/2,NSHeight(tBounds)-6) inView:self];
 	
-	//float tOffset = (showCancelButtons == NO) ? WBSEARCHTEXTFIELD_WIDTH_OFFSET : WBSEARCHTEXTFIELD_CANCEL_OFFSET;
 	[[self cell] drawWithFrame:NSMakeRect(0, 0, NSWidth(tBounds), NSHeight(tBounds)) inView:self];
 	
 	if ([self currentEditor] && isKeyWindow) {
