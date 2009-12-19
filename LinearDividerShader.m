@@ -48,7 +48,7 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 	
 	if (!NSEqualRects(dimpleRect, NSZeroRect)) {
 		NSRect cent = centeredRectInRect(dimpleRect, [dimpleImage size]);
-		[dimpleImage compositeToPoint:NSMakePoint(cent.origin.x, cent.origin.y + cent.size.height + 1) operation:NSCompositeSourceOver];
+		[dimpleImage compositeToPoint:NSMakePoint(cent.origin.x, cent.origin.y + cent.size.height + .5) operation:NSCompositeSourceOver];
 	}
 }
 

@@ -171,8 +171,10 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	if ([[[self window] currentEvent] type] != NSLeftMouseDown) {
 		//"indicate" the current cursor/selection when moving focus to this field, but only if the user did not click here
 		NSRange range = [self selectedRange];
-		range = NSMakeRange(MIN([[self string] length] - 1, range.location), MAX(1U, range.length));
-		[self performSelector:@selector(indicateRange:) withObject:[NSValue valueWithRange:range] afterDelay:0];
+		if (range.length) {
+			range = NSMakeRange(MIN([[self string] length] - 1, range.location), range.length);
+			[self performSelector:@selector(indicateRange:) withObject:[NSValue valueWithRange:range] afterDelay:0];
+		}
 	}
 	
 #if DELAYED_LAYOUT

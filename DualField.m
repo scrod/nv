@@ -20,7 +20,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		[self setWraps:YES];
 		
 		
-		[self setFocusRingType:NSFocusRingTypeNone];
+		[self setFocusRingType:NSFocusRingTypeExterior];
 		
 	}
 	return self;
@@ -33,7 +33,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *textView = (NSTextView*)[super setUpFieldEditorAttributes:textObj];
 
-	//[textView setTextContainerInset:NSMakeSize(10, 3)];
+	[textView setTextContainerInset:NSMakeSize(10, 0)];
 	[textView setDrawsBackground:NO];
 		
 	[[NSNotificationCenter defaultCenter] addObserver:[self controlView] selector:@selector(changedSelection:) name:NSTextViewDidChangeSelectionNotification object:textView];
@@ -71,7 +71,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	[self setDrawsBackground:NO];
 	[self setBordered:NO];
 	[self setBezeled:NO];
-	[self setFocusRingType:NSFocusRingTypeNone];
+	[self setFocusRingType:NSFocusRingTypeExterior];
 		
 	snapbackButton = [[NSButton alloc] initWithFrame:NSZeroRect];
 	[snapbackButton setAutoresizingMask:NSViewMinXMargin | NSViewMinYMargin];
@@ -141,9 +141,8 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	[[self superview] addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
 	NSRect colFrame = [[self superview] frame];
 	NSSize buttonSize = [snapbackButton frame].size;
-	NSSize tcInset = [(NSTextView*)editor textContainerInset];
-	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 14 - tcInset.width),
-										colFrame.size.height - 30 + tcInset.height * 3, buttonSize.width, buttonSize.height)];
+	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 14),
+										colFrame.size.height - 30, buttonSize.width, buttonSize.height)];
 	[snapbackButton release];
 	
 	[[self window] invalidateCursorRectsForView:self];
@@ -175,19 +174,15 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		
 		//fix overlapping text highlight for multiple lines:
 		
-		[lastKnownClipView setFrameSize:NSMakeSize([self frame].size.width - 15.0, 16.0)];
+		[lastKnownClipView setFrameSize:NSMakeSize([lastKnownClipView frame].size.width, 16.0)];
 		
 		//avoid needing to provide a vertical textcontainer offset by moving the clipview down instead:
-		[lastKnownClipView setFrameOrigin:NSMakePoint(10.0, 3.0)];
+		[lastKnownClipView setFrameOrigin:NSMakePoint(0.0, 3.0)];
 		
-#if RESCROLL_TO_LINE_START		
+#if RESCROLL_TO_LINE_START
 		//fix any potential text displacement resulting from line-wrapping
 		[lastKnownClipView scrollToPoint:[lastKnownClipView constrainScrollPoint:lineStartPoint]];
-#endif
-		
-		[self setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
-		
-	//	NSLog(@"%u scrolled to %@ in %@", MIN(len - 1, [ed selectedRange].location), NSStringFromPoint(lineStartPoint), lastKnownClipView);	
+#endif		
 	}
 }
 
@@ -200,7 +195,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	NSText *editor = [self currentEditor];
 	if (editor)	{
 		[self updateButtonIfNecessaryForEditor:editor];
-		//[self setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
+		[super setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
 	}
 }
 
@@ -395,7 +390,8 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 - (void)drawRect:(NSRect)rect {
 //	[super drawRect:rect];
 	
-	BOOL isKeyWindow = [[self window] isKeyWindow];
+	NSWindow *window = [self window];
+	BOOL isKeyWindow = [window isKeyWindow];
 	
 	[NSGraphicsContext saveGraphicsState];
 	[[NSGraphicsContext currentContext] setShouldAntialias:NO];
@@ -427,11 +423,12 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height - 1.5) 
 							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height - 1.5)];
 	if (IsLeopardOrLater) {
+		//the lower highlight doesn't match the lighter unified toolbar look on Tiger
 		[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.749f : 0.886f alpha:1.0f] set];
 		[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height ) 
 								  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height )];
 	}
-	
+		
 	[NSGraphicsContext restoreGraphicsState];
 	
 	//[[self cell] drawWithFrame:NSMakeRect(0,4,NSWidth(tBounds)/2,NSHeight(tBounds)-6) inView:self];
@@ -444,8 +441,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		NSSetFocusRingStyle(NSFocusRingOnly);
 		NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
 		focusRect.origin.y -= 0.5f;
-		NSBezierPath *path = [[self class] bezierPathWithRoundRectInRect:focusRect radius:1.0f];
-		[path fill];
+		[[[self class] bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
 		[NSGraphicsContext restoreGraphicsState];
 	}
 	
