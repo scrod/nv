@@ -40,7 +40,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:), nil];	
 	
-	[self setTextContainerInset:NSMakeSize(0, 5)];
+	[self setTextContainerInset:NSMakeSize(3, 6)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
@@ -862,7 +862,10 @@ copyRTFType:
 - (void)insertTab:(id)sender {
 	//check prefs for tab behavior
 
-	if ([prefsController tabKeyIndents])
+	BOOL wasAutomatic = NO;
+	[self selectedRangeWasAutomatic:&wasAutomatic];
+	
+	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length]))
 		[self insertTabIgnoringFieldEditor:sender];
 	else
 		[[self window] selectNextKeyView:self];
@@ -906,13 +909,10 @@ copyRTFType:
 		
 		[self insertText:spacesString];
 		[spacesString release];
-	} else if ([self selectedRange].length > 0) { // If there's only one word matching in auto-complete there's no list but just the rest of the word inserted and selected; and if you do a normal tab then the text is removed so this will put the cursor at the end of that word
-		[self setSelectedRange:NSMakeRange(NSMaxRange([self selectedRange]), 0)];
 	} else {
 		[super insertText:@"\t"];
 	}
 }
-
 
 //maybe if we knew we would always have a mono-spaced font
 /*- (void)insertNewline:(id)sender {
