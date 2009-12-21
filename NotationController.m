@@ -44,7 +44,7 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 		labelsListController = [[LabelsListController alloc] init];
 		prefsController = [GlobalPrefs defaultPrefs];
 		
-		if (!(notesListDataSource = [[FastListDataSource alloc] initWithClass:[NoteObject class]]))
+		if (!(notesListDataSource = [[FastListDataSource alloc] init]))
 			return nil;
 		
 		allNotesBuffer = NULL;
@@ -1615,6 +1615,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		if (rows.length > 0) {
 			CFArrayRef visibleNotes = CFArrayCreate(NULL, (const void **)([notesListDataSource immutableObjects] + rows.location), rows.length, NULL);
 			[(NSArray*)visibleNotes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
+			CFRelease(visibleNotes);
 		}
 		
 		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(regenerateAllPreviews) object:nil];
