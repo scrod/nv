@@ -580,9 +580,9 @@ terminateApp:
 		}
 	} else if ([selectorString isEqualToString:SEL_STR(setTableFontSize:sender:)] || [selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) {
 		
-		NoteAttributeColumn *col = [notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString];
-		[col setDereferencingFunction: [prefsController tableColumnsShowPreview] ? (id (*)(id))tableTitleOfNote : (id (*)(id))titleOfNote];
-		[notationController regeneratePreviewsForColumn:col	visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
+		[notesTableView setTitleDereferencorIsActiveStyle:[window firstResponder] == notesTableView];
+		[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString]	
+									visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
 				
 		if ([selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) [self updateNoteMenus];
 		
@@ -599,6 +599,10 @@ terminateApp:
 		//this sets global prefs options, which ultimately calls back to us
 		[notesTableView setStatusForSortedColumn:tableColumn];
     }
+}
+
+- (BOOL)tableView:(NSTableView *)tableView shouldShowCellExpansionForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row {
+	return ![[tableColumn identifier] isEqualToString:NoteTitleColumnString];
 }
 
 - (void)showHelp:(id)sender {
@@ -726,18 +730,18 @@ terminateApp:
 		    return YES;
 		}
 		
-		if (command == @selector(moveToBeginningOfLine:)) {
+		if (command == @selector(moveToBeginningOfLine:) || command == @selector(moveToLeftEndOfLine:)) {
 			[aTextView moveToBeginningOfDocument:nil];
 			//[field updateButtonIfNecessaryForEditor:aTextView];
 			return YES;
 		}
-		if (command == @selector(moveToEndOfLine:)) {
+		if (command == @selector(moveToEndOfLine:) || command == @selector(moveToRightEndOfLine:)) {
 			[aTextView moveToEndOfDocument:nil];
 			//[field updateButtonIfNecessaryForEditor:aTextView];
 			return YES;
 		}
 		
-		if (command == @selector(moveToBeginningOfLineAndModifySelection:)) {
+		if (command == @selector(moveToBeginningOfLineAndModifySelection:) || command == @selector(moveToLeftEndOfLineAndModifySelection:)) {
 			
 			if ([aTextView respondsToSelector:@selector(moveToBeginningOfDocumentAndModifySelection:)]) {
 				[(id)aTextView performSelector:@selector(moveToBeginningOfDocumentAndModifySelection:)];
@@ -745,7 +749,7 @@ terminateApp:
 				return YES;
 			}
 		}
-		if (command == @selector(moveToEndOfLineAndModifySelection:)) {
+		if (command == @selector(moveToEndOfLineAndModifySelection:) || command == @selector(moveToRightEndOfLineAndModifySelection:)) {
 			if ([aTextView respondsToSelector:@selector(moveToEndOfDocumentAndModifySelection:)]) {
 				[(id)aTextView performSelector:@selector(moveToEndOfDocumentAndModifySelection:)];
 				//[field updateButtonIfNecessaryForEditor:aTextView];
@@ -1142,7 +1146,7 @@ terminateApp:
     
     if (!currentNote) {
 		//this assertion not yet valid until labels list changes notes list
-		assert([notesTableView numberOfSelectedRows] != 1);
+		NSAssert([notesTableView numberOfSelectedRows] != 1, @"cannot create a note when one is already selected");
 		
 		[textView setTypingAttributes:[prefsController noteBodyAttributes]];
 		[textView setFont:[prefsController noteBodyFont]];
@@ -1225,11 +1229,11 @@ terminateApp:
 
 - (void)tableViewColumnDidResize:(NSNotification *)aNotification {
 	NoteAttributeColumn *col = [[aNotification userInfo] objectForKey:@"NSTableColumn"];
-	if (dereferencingFunction(col) == (id (*)(id))tableTitleOfNote) {
+	if (dereferencingFunction(col) == tableTitleOfNote || dereferencingFunction(col) == properlyHighlightingTableTitleOfNote) {
 		[notationController regeneratePreviewsForColumn:col visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:NO];
 		
-		[NSObject cancelPreviousPerformRequestsWithTarget:notesTableView selector:@selector(reloadData) object:nil];
-		[notesTableView performSelector:@selector(reloadData) withObject:nil afterDelay:0.0];
+	 	[NSObject cancelPreviousPerformRequestsWithTarget:notesTableView selector:@selector(reloadDataIfNotEditing) object:nil];
+		[notesTableView performSelector:@selector(reloadDataIfNotEditing) withObject:nil afterDelay:0.0];
 	}
 }
 
