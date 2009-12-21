@@ -51,11 +51,16 @@ unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime) {
 //should be called after midnight, and then all the notes should have their date-strings recomputed
 void resetCurrentDayTime() {
     CFAbsoluteTime current = CFAbsoluteTimeGetCurrent();
-    secondsAfterGMT = CFTimeZoneGetSecondsFromGMT(CFTimeZoneCopyDefault(), current);
+    
+    CFTimeZoneRef timeZone = CFTimeZoneCopyDefault();
+    secondsAfterGMT = CFTimeZoneGetSecondsFromGMT(timeZone, current);
+    
     currentDay = (int)floor((current + secondsAfterGMT) / dayInSeconds); // * dayInSeconds - secondsAfterGMT;
 	
 	if (dateStringsCache)
 		CFDictionaryRemoveAllValues(dateStringsCache);
+		
+	CFRelease(timeZone);
 }
 //the epoch is defined at midnight GMT, so we have to convert from GMT to find the days
 
