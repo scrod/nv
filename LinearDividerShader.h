@@ -2,11 +2,14 @@
 
 typedef struct {
 
-	struct {
-		CGFloat redComp;
-		CGFloat greenComp;
-		CGFloat blueComp;
-		CGFloat alphaComp;
+	union {
+		struct {
+			CGFloat redComp;
+			CGFloat greenComp;
+			CGFloat blueComp;
+			CGFloat alphaComp;
+		};
+		CGFloat channels[4];
 	} firstColor, secondColor;
 	
 } ColorSet;

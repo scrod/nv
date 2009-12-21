@@ -69,8 +69,6 @@ void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out) {
 	
 	float inVal = in[0];
 	
-	out[0] = (1.0 - inVal) * colors->firstColor.redComp + inVal * colors->secondColor.redComp;
-	out[1] = (1.0 - inVal) * colors->firstColor.greenComp + inVal * colors->secondColor.greenComp;
-	out[2] = (1.0 - inVal) * colors->firstColor.blueComp + inVal * colors->secondColor.blueComp;
-	out[3] = (1.0 - inVal) * colors->firstColor.alphaComp + inVal * colors->secondColor.alphaComp;
+	unsigned int i;
+	for (i=0; i<4; i++) out[i] = (1.0 - inVal) * colors->firstColor.channels[i] + inVal * colors->secondColor.channels[i];
 }
