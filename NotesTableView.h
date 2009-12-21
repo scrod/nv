@@ -59,8 +59,12 @@ typedef struct _ViewLocationContext {
 - (void)setViewingLocation:(ViewLocationContext)ctx;
 - (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset;
 - (void)selectRowAndScroll:(NSInteger)row;
+- (BOOL)objectIsSelected:(id)obj;
 
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;
+- (void)setTitleDereferencorIsActiveStyle:(BOOL)activeStyle;
+
+- (void)reloadDataIfNotEditing;
 
 - (void)restoreColumns;
 

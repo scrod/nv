@@ -38,11 +38,11 @@
 	NSArray *columnsToDisplay = [globalPrefs visibleTableColumns];
 	allColumns = [[NSMutableArray alloc] init];
 		
-	id (*titleReferencor)(id) = [globalPrefs tableColumnsShowPreview] ? (id (*)(id))tableTitleOfNote : (id (*)(id))titleOfNote;
+	id (*titleReferencor)(id, id) = [globalPrefs tableColumnsShowPreview] ? tableTitleOfNote : titleOfNote2;
 	
 	NSString *colStrings[] = { NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, NoteDateCreatedColumnString };
 	SEL colMutators[] = { @selector(setTitleString:), @selector(setLabelString:), NULL, NULL };
-	id (*colReferencors[])(id) = {titleReferencor, labelsOfNote, dateModifiedStringOfNote, dateCreatedStringOfNote };
+	id (*colReferencors[])(id, id) = {titleReferencor, labelsOfNote2, dateModifiedStringOfNote, dateCreatedStringOfNote };
 	NSInteger (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
 	NSInteger (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
 	    compareDateCreatedReverse };
@@ -171,6 +171,31 @@
 	[[NSApp delegate] addNotesFromPasteboard:[NSPasteboard generalPasteboard]];
 }
 
+- (void)setTitleDereferencorIsActiveStyle:(BOOL)activeStyle {
+	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
+	
+	[col setDereferencingFunction: [globalPrefs tableColumnsShowPreview] ? 
+	 (activeStyle ? properlyHighlightingTableTitleOfNote : tableTitleOfNote) : titleOfNote2];
+	
+}
+
+- (BOOL)becomeFirstResponder {
+	[self setTitleDereferencorIsActiveStyle:YES];
+	
+	return [super becomeFirstResponder];
+}
+
+- (BOOL)resignFirstResponder {
+	[self setTitleDereferencorIsActiveStyle:NO];
+
+	return [super resignFirstResponder];
+}
+
+- (void)reloadDataIfNotEditing {
+	if (![self currentEditor]) {
+		[self reloadData];
+	}
+}
 
 - (void)reloadData {
 	[headerView setIsReloading:YES];
@@ -282,6 +307,7 @@
 				[self addPermanentTableColumn:column];
 				[self moveColumn:[[self tableColumns] indexOfObjectIdenticalTo:column] toColumn:newColIndex];
 				colIndex = newColIndex;
+				[self sizeToFit];
 				break;
 			}
 		}
@@ -521,6 +547,40 @@
 	
 	return theMenu;
 }
+
+
+- (BOOL)objectIsSelected:(id)obj {
+	NSIndexSet *indexSet = nil;
+	
+	const id *objects = [(FastListDataSource*)[self dataSource] immutableObjects];
+	if (!objects) return NO;
+		
+	//check for single-selections first to avoid selectedRowIndexes, which will always create a new object
+	if ([self numberOfSelectedRows] == 1) {
+		NSInteger selRowIndex = [self selectedRow];
+		if (selRowIndex >= 0) {
+			return obj == objects[selRowIndex];
+		}
+	}
+	
+	indexSet = [self selectedRowIndexes];
+	NSUInteger count = (NSUInteger)[self numberOfRows];
+	NSUInteger indexBuffer[20];
+	NSUInteger bufferIndex, firstIndex = [indexSet firstIndex];
+	NSUInteger indexCount = 1;
+	NSRange range = NSMakeRange(firstIndex, [indexSet lastIndex]-firstIndex+1);
+	
+	while ((indexCount = [indexSet getIndexes:indexBuffer maxCount:20 inIndexRange:&range])) {
+		
+		for (bufferIndex=0; bufferIndex < indexCount; bufferIndex++) {
+			NSUInteger objIndex = indexBuffer[bufferIndex];
+			if (objIndex < count && obj == objects[objIndex]) return YES;
+		}
+	}
+	
+    return NO;
+}
+
 
 - (void)windowDidBecomeKey:(NSNotification *)aNotification  {
 	[self setShouldUseSecondaryHighlightColor:hadHighlightInForeground];
