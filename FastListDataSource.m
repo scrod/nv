@@ -7,25 +7,10 @@
 //
 
 #import "FastListDataSource.h"
+#import "NotesTableView.h"
 #import "NoteAttributeColumn.h"
 
 @implementation FastListDataSource
-
-- (id)initWithClass:(Class)aClass {
-    if ([super init]) {
-		objects = NULL;
-		count = 0;
-		
-		if (![aClass instancesRespondToSelector:@selector(retain)] || 
-			![aClass instancesRespondToSelector:@selector(release)])
-			return nil;
-		
-		objRetain = [aClass instanceMethodForSelector:@selector(retain)];
-		objRelease = [aClass instanceMethodForSelector:@selector(release)];
-    }
-    
-    return self;
-}
 
 - (const id *)immutableObjects {
 	return (const id *)objects;
@@ -59,7 +44,7 @@
 	NSRange range = NSMakeRange([indexSet firstIndex],
 								[indexSet lastIndex]-[indexSet firstIndex]+1);
 	
-	NSMutableArray *objectsInIndexSet = [[NSMutableArray alloc] init];
+	NSMutableArray *objectsInIndexSet = [[NSMutableArray alloc] initWithCapacity:[indexSet count]];
 	
 	while ((indexCount = [indexSet getIndexes:indexBuffer maxCount:40 inIndexRange:&range])) {
 		
@@ -74,7 +59,6 @@
 	
     return [objectsInIndexSet autorelease];
 }
-
 
 //as long as this class is only used for temporary display, we probably do not need to uncomment the retains and releases
 
@@ -135,7 +119,8 @@
 
 
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
-	return columnAttributeForObject((NoteAttributeColumn*)aTableColumn, objects[rowIndex]);
+	
+	return columnAttributeForObject((NotesTableView*)aTableView, (NoteAttributeColumn*)aTableColumn, objects[rowIndex]);
 }
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {

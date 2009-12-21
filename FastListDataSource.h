@@ -8,14 +8,11 @@
 
 #import <Cocoa/Cocoa.h>
 
-
 @interface FastListDataSource : NSObject {
 	id *objects;
     NSUInteger count;
-	IMP objRetain, objRelease;
 }
 
-- (id)initWithClass:(Class)aClass;
 - (const id *)immutableObjects;
 - (NSUInteger)count;
 
