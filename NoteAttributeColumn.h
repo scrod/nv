@@ -2,11 +2,13 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class NotesTableView;
+
 @interface NoteAttributeColumn : NSTableColumn {
 	
     NSInteger (*sortFunction) (id*, id*);
     NSInteger (*reverseSortFunction) (id*, id*);
-    id (*objectAttribute) (id);
+    id (*objectAttribute) (id, id);
     SEL mutateObjectSelector;
 	
 	float absoluteMinimumWidth;
@@ -15,11 +17,11 @@
 + (NSDictionary*)standardDictionary;
 SEL columnAttributeMutator(NoteAttributeColumn *col);
 - (void)setMutatingSelector:(SEL)selector;
-id columnAttributeForObject(NoteAttributeColumn *col, id object);
+id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object);
 - (void)updateWidthForHighlight;
 
-id (*dereferencingFunction(NoteAttributeColumn *col))(id);
-- (void)setDereferencingFunction:(id (*)(id))attributeFunction;
+id (*dereferencingFunction(NoteAttributeColumn *col))(id, id);
+- (void)setDereferencingFunction:(id (*)(id, id))attributeFunction;
 
 - (void)setSortingFunction:(NSInteger (*)(id*, id*))sortFunction;
 - (NSInteger (*)(id*, id*))sortFunction;

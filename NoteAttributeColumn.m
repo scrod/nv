@@ -1,4 +1,5 @@
 #import "NoteAttributeColumn.h"
+#import "NotesTableView.h"
 
 @implementation NoteAttributeColumn
 
@@ -36,11 +37,11 @@ SEL columnAttributeMutator(NoteAttributeColumn *col) {
 	mutateObjectSelector = selector;
 }
 
-id columnAttributeForObject(NoteAttributeColumn *col, id object) {
-	return col->objectAttribute(object);
+id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object) {
+	return col->objectAttribute(tv, object);
 }
 
-- (void)setDereferencingFunction:(id (*)(id))attributeFunction {
+- (void)setDereferencingFunction:(id (*)(id, id))attributeFunction {
     objectAttribute = attributeFunction;
 }
 
@@ -59,7 +60,7 @@ id columnAttributeForObject(NoteAttributeColumn *col, id object) {
 - (NSInteger (*)(id*, id*))reverseSortFunction {
     return reverseSortFunction;
 }
-id (*dereferencingFunction(NoteAttributeColumn *col))(id) {
+id (*dereferencingFunction(NoteAttributeColumn *col))(id, id) {
 	return col->objectAttribute;
 }
 
