@@ -315,7 +315,7 @@
 	
 	[mutableStr appendAttributedString:[[[NSAttributedString alloc] initWithString:timeStr attributes:
 										 [NSDictionary dictionaryWithObject:[NSFont systemFontOfSize:13.0f] forKey:NSFontAttributeName]] autorelease]];
-	return mutableStr;
+	return [mutableStr autorelease];
 }
 
 
