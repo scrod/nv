@@ -120,8 +120,8 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	[self addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
 	NSRect colFrame = [self frame];
 	NSSize buttonSize = [snapbackButton frame].size;
-	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 6),
-										colFrame.size.height - 19, buttonSize.width, buttonSize.height)];
+	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 7),
+										colFrame.size.height - 20, buttonSize.width, buttonSize.height)];
 	[snapbackButton release];
 	
 	[[self window] invalidateCursorRectsForView:self];
@@ -141,8 +141,8 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	[[self superview] addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
 	NSRect colFrame = [[self superview] frame];
 	NSSize buttonSize = [snapbackButton frame].size;
-	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 14),
-										colFrame.size.height - 30, buttonSize.width, buttonSize.height)];
+	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 7),
+										colFrame.size.height - 20, buttonSize.width, buttonSize.height)];
 	[snapbackButton release];
 	
 	[[self window] invalidateCursorRectsForView:self];
@@ -174,7 +174,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		
 		//fix overlapping text highlight for multiple lines:
 		
-		[lastKnownClipView setFrameSize:NSMakeSize([lastKnownClipView frame].size.width, 16.0)];
+		[lastKnownClipView setFrameSize:NSMakeSize([lastKnownClipView frame].size.width, (IsLeopardOrLater ? 16.0 : 17.0))];
 		
 		//avoid needing to provide a vertical textcontainer offset by moving the clipview down instead:
 		[lastKnownClipView setFrameOrigin:NSMakePoint(0.0, 3.0)];
@@ -330,8 +330,10 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	static NSDictionary *smallTextAttrs = nil;
 	static NSMutableDictionary *smallTextBackAttrs = nil;
 	if (!smallTextAttrs || !smallTextBackAttrs) {
-		smallTextAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, nil] retain];
-		[(smallTextBackAttrs = [smallTextAttrs mutableCopy]) setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
+		smallTextAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:
+						   [NSFont systemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, 
+						   [NSColor whiteColor], NSForegroundColorAttributeName, nil] retain];
+		[(smallTextBackAttrs = [smallTextAttrs mutableCopy]) setObject:[NSColor darkGrayColor] forKey:NSForegroundColorAttributeName];
 	}
 	
 	if ([string length] > 25) string = [[string substringToIndex:25] stringByAppendingString:NSLocalizedString(@"...", @"ellipsis character")];
@@ -348,13 +350,13 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	
 	NSBezierPath *backgroundPath = [[self class] bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 1.5, 1.5) radius:5.0f];
 	
-	[[NSColor colorWithCalibratedWhite:0.85f alpha:1.0f] setFill];
+	[[NSColor colorWithDeviceWhite:0.729f alpha:1.0f] setFill];
 	[backgroundPath fill];
 	
 	[[NSImage imageNamed:@"leftarrow"] compositeToPoint:NSMakePoint(5.0f, 5.0f) operation:NSCompositeSourceAtop];
 	
-	[[NSColor colorWithCalibratedWhite:0.60f alpha:1.0f] set];
-	[backgroundPath stroke];
+//	[[NSColor colorWithCalibratedWhite:0.60f alpha:1.0f] set];
+//	[backgroundPath stroke];
 	
 	[[NSColor whiteColor] set];
 	[string drawAtPoint:NSMakePoint(textOffset.x, textOffset.y-1) withAttributes:smallTextBackAttrs];
@@ -391,7 +393,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 //	[super drawRect:rect];
 	
 	NSWindow *window = [self window];
-	BOOL isKeyWindow = [window isKeyWindow];
+	BOOL isActiveWin = [window isMainWindow];
 	
 	[NSGraphicsContext saveGraphicsState];
 	[[NSGraphicsContext currentContext] setShouldAntialias:NO];
@@ -401,30 +403,30 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	[[NSColor whiteColor] set];
 	NSRectFill(NSInsetRect(tBounds, 5, 1));
 	
-	NSImage *leftCap = [NSImage imageNamed: isKeyWindow ? @"DFCapLeftRounded" : @"DFCapLeftRoundedInactive"];
+	NSImage *leftCap = [NSImage imageNamed: isActiveWin ? @"DFCapLeftRounded" : @"DFCapLeftRoundedInactive"];
 	[leftCap setFlipped:YES];
 	NSRect leftImageRect = NSMakeRect(0, 0, [leftCap size].width, [leftCap size].height);
 	[leftCap drawInRect:leftImageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
 	
-	NSImage *rightCap = [NSImage imageNamed: isKeyWindow ? @"DFCapRight" : @"DFCapRightInactive"];
+	NSImage *rightCap = [NSImage imageNamed: isActiveWin ? @"DFCapRight" : @"DFCapRightInactive"];
 	[rightCap setFlipped:YES];
 	NSRect rightImageRect = NSMakeRect(tBounds.size.width - [rightCap size].width, 0, [rightCap size].width, [rightCap size].height);
 	[rightCap drawInRect:rightImageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
 
-	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.31f : 0.62f alpha:1.0f] set];
+	[[NSColor colorWithDeviceWhite: isActiveWin ? 0.31f : 0.62f alpha:1.0f] set];
 	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + .5) 
 							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + .5)];
-	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.882f : 0.886f alpha:1.0f] set];
+	[[NSColor colorWithDeviceWhite: isActiveWin ? 0.882f : 0.886f alpha:1.0f] set];
 	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + 1.5) 
 							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + 1.5)];
 	
 	
-	[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.447f : 0.627f alpha:1.0f] set];
+	[[NSColor colorWithDeviceWhite: isActiveWin ? 0.447f : 0.627f alpha:1.0f] set];
 	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height - 1.5) 
 							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height - 1.5)];
 	if (IsLeopardOrLater) {
 		//the lower highlight doesn't match the lighter unified toolbar look on Tiger
-		[[NSColor colorWithCalibratedWhite: isKeyWindow ? 0.749f : 0.886f alpha:1.0f] set];
+		[[NSColor colorWithDeviceWhite: isActiveWin ? 0.749f : 0.886f alpha:1.0f] set];
 		[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height ) 
 								  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height )];
 	}
@@ -435,7 +437,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	
 	[[self cell] drawWithFrame:NSMakeRect(0, 0, NSWidth(tBounds), NSHeight(tBounds)) inView:self];
 	
-	if ([self currentEditor] && isKeyWindow) {
+	if ([self currentEditor] && isActiveWin) {
 		//draw focus ring
 		[NSGraphicsContext saveGraphicsState];
 		NSSetFocusRingStyle(NSFocusRingOnly);
