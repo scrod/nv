@@ -16,6 +16,7 @@
 #import "NSString_NV.h"
 #include "BufferUtils.h"
 #import "NotationFileManager.h"
+#import "NotesTableView.h"
 
 #if __LP64__
 // Needed for compatability with data created by 32bit app
@@ -184,56 +185,33 @@ NSInteger compareNodeID(id *a, id *b) {
 	return [self logSequenceNumber] < [obj logSequenceNumber];
 }
 
-//inlines won't make a difference in GCC, as these functions are called almost exclusively from other files
+DefModelAttrAccessor(filenameOfNote, filename)
+DefModelAttrAccessor(fileNodeIDOfNote, nodeID)
+DefModelAttrAccessor(titleOfNote, titleString)
+DefModelAttrAccessor(labelsOfNote, labelString)
+DefModelAttrAccessor(fileModifiedDateOfNote, fileModifiedDate)
+DefModelAttrAccessor(modifiedDateOfNote, modifiedDate)
+DefModelAttrAccessor(storageFormatOfNote, currentFormatID)
+DefModelAttrAccessor(fileEncodingOfNote, fileEncoding)
 
-force_inline NSString* wordCountOfNote(NoteObject *note) {
-	return note->wordCountString;
-}
+DefColAttrAccessor(wordCountOfNote, wordCountString)
+DefColAttrAccessor(titleOfNote2, titleString)
+DefColAttrAccessor(labelsOfNote2, labelString)
+DefColAttrAccessor(dateCreatedStringOfNote, dateCreatedString)
+DefColAttrAccessor(dateModifiedStringOfNote, dateModifiedString)
 
-force_inline NSString* filenameOfNote(NoteObject *note) {
-    return note->filename;
-}
-
-force_inline UInt32 fileNodeIDOfNote(NoteObject *note) {
-    return note->nodeID;
-}
-
-force_inline NSString* titleOfNote(NoteObject *note) {
-    return note->titleString;
-}
-
-force_inline NSString* labelsOfNote(NoteObject *note) {
-	return note->labelString;
-}
-
-force_inline NSAttributedString* tableTitleOfNote(NoteObject *note) {
+force_inline id tableTitleOfNote(NotesTableView *tv, NoteObject *note) {
 	if (note->tableTitleString) return note->tableTitleString;
-	
-	return (id)titleOfNote(note);
+	return titleOfNote(note);
 }
-
-force_inline UTCDateTime fileModifiedDateOfNote(NoteObject *note) {
-    return note->fileModifiedDate;
-}
-
-force_inline CFAbsoluteTime modifiedDateOfNote(NoteObject *note) {
-	return note->modifiedDate;
-}
-
-force_inline int storageFormatOfNote(NoteObject *note) {
-    return note->currentFormatID;
-}
-
-force_inline NSStringEncoding fileEncodingOfNote(NoteObject *note) {
-	return note->fileEncoding;
-}
-
-force_inline NSString *dateCreatedStringOfNote(NoteObject *note) {
-	return note->dateCreatedString;
-}
-
-force_inline NSString *dateModifiedStringOfNote(NoteObject *note) {
-	return note->dateModifiedString;
+force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObject *note) {
+	if (note->tableTitleString) {
+		if ([tv objectIsSelected:note]) {
+			return [note->tableTitleString string];
+		}
+		return note->tableTitleString;
+	}	
+	return titleOfNote(note);
 }
 
 //make notationcontroller should send setDelegate: and setLabelString: (if necessary) to each note when unarchiving this way
@@ -925,6 +903,8 @@ int decodedCount() {
 		if (PlainTextFormat == formatID) {
 			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
+		
+		//use FSSetCatalogInfo here to sync the file's creation-date
 		
 		if (!resetFilename) {
 			//NSLog(@"resetting the file name just because.");

@@ -12,7 +12,7 @@
 
 @class LabelObject;
 @class WALStorageController;
-
+@class NotesTableView;
 
 typedef struct _NoteFilterContext {
 	char* needle;
@@ -93,13 +93,20 @@ NSInteger compareNodeID(id *a, id *b);
 
 	NSStringEncoding fileEncodingOfNote(NoteObject *note);
 
-	//note display
 	NSString* titleOfNote(NoteObject *note);
-	NSAttributedString* tableTitleOfNote(NoteObject *note);
 	NSString* labelsOfNote(NoteObject *note);
-	NSString *dateCreatedStringOfNote(NoteObject *note);
-	NSString *dateModifiedStringOfNote(NoteObject *note);
-	NSString* wordCountOfNote(NoteObject *note);
+
+#define DefColAttrAccessor(__FName, __IVar) force_inline id __FName(NotesTableView *tv, NoteObject *note) { return note->__IVar; }
+#define DefModelAttrAccessor(__FName, __IVar) force_inline typeof (((NoteObject *)0)->__IVar) __FName(NoteObject *note) { return note->__IVar; }
+
+	//return types are NSString or NSAttributedString, satisifying NSTableDataSource protocol otherwise
+	id titleOfNote2(NotesTableView *tv, NoteObject *note);
+	id tableTitleOfNote(NotesTableView *tv, NoteObject *note);
+	id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObject *note);
+	id labelsOfNote2(NotesTableView *tv, NoteObject *note);
+	id dateCreatedStringOfNote(NotesTableView *tv, NoteObject *note);
+	id dateModifiedStringOfNote(NotesTableView *tv, NoteObject *note);
+	id wordCountOfNote(NotesTableView *tv, NoteObject *note);
 
 	void resetFoundPtrsForNote(NoteObject *note);
 	BOOL noteContainsUTF8String(NoteObject *note, NoteFilterContext *context);
