@@ -10,13 +10,11 @@
 	unsigned int lastLengthReplaced;
 	NSButton *snapbackButton;
 	NSString *snapbackString;
-	
-	NSClipView *lastKnownClipView;
 }
 
 - (void)setSnapbackString:(NSString*)string;
 - (void)_addSnapbackButtonForEditor:(NSText*)editor;
-- (void)_addSnapbackButtonForField;
+- (void)_addSnapbackButtonForView:(NSView*)view;
 - (unsigned int)lastLengthReplaced;
 + (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius;
 + (NSImage*)snapbackImageWithString:(NSString*)string;

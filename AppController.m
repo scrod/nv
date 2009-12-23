@@ -97,7 +97,7 @@
 		
 		[field setNextKeyView:textView];
 		[textView setNextKeyView:field];
-		[window setAutorecalculatesKeyViewLoop:NO];
+		if (RunningTigerAppKitOrHigher) [window setAutorecalculatesKeyViewLoop:NO];
 		
 		//this is necessary on 10.3, apparently
 		[splitView display];

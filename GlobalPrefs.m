@@ -570,7 +570,11 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 
 - (void)setLastSearchString:(NSString*)string selectedNote:(id<SynchronizedNote>)aNote sender:(id)sender {
-	[defaults setObject:string forKey:LastSearchStringKey];
+	
+	NSMutableString *stringMinusBreak = [[string mutableCopy] autorelease];
+	[stringMinusBreak replaceOccurrencesOfString:@"\n" withString:@" " options:NSLiteralSearch range:NSMakeRange(0, [stringMinusBreak length])];
+	
+	[defaults setObject:stringMinusBreak forKey:LastSearchStringKey];
 	
 	CFUUIDBytes *bytes = [aNote uniqueNoteIDBytes];
 	NSString *uuidString = nil;

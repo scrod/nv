@@ -4,8 +4,6 @@
 #import "NotationPrefs.h"
 #import "AppController.h"
 
-static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
-
 @implementation DualFieldCell
 
 - (id) init {
@@ -18,7 +16,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		[self setBordered:NO];
 		[self setDrawsBackground:NO];
 		[self setWraps:YES];
-		
+		if (RunningTigerAppKitOrHigher) [self setPlaceholderString:NSLocalizedString(@"Search or Create", @"placeholder text in search/create field")];
 		
 		[self setFocusRingType:NSFocusRingTypeExterior];
 		
@@ -30,23 +28,24 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	return NSInsetRect(someBounds, 10, 3);
 }
 
+- (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
+	aRect.origin.y += 3;
+	aRect.size.height = 16.0;
+	[super selectWithFrame:aRect inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
+}
+
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *textView = (NSTextView*)[super setUpFieldEditorAttributes:textObj];
 
 	[textView setTextContainerInset:NSMakeSize(10, 0)];
 	[textView setDrawsBackground:NO];
 		
-	[[NSNotificationCenter defaultCenter] addObserver:[self controlView] selector:@selector(changedSelection:) name:NSTextViewDidChangeSelectionNotification object:textView];
-
 	return textView;
 }
 
 - (void)endEditing:(NSText *)textObj {
 	//fix up any changes we might have made to the field editor in setUpFieldEditorAttributes:
 	[(NSTextView*)textObj setTextContainerInset:NSMakeSize(0, 0)];
-	
-	[[NSNotificationCenter defaultCenter] removeObserver:[self controlView] name:NSTextViewDidChangeSelectionNotification object:textObj];
-
 	[super endEditing:textObj];
 }
 
@@ -91,9 +90,6 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		[myCell setLineBreakMode:NSLineBreakByCharWrapping];
 	}
 	//use setParagraphStyle on 10.3?
-	
-	
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(coalescedSelectionChanged:) name:NVDualFieldDidChangeSelectionCoalesced object:nil];
 }
 
 - (void)dealloc {
@@ -114,11 +110,11 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 } // resetCursorRects
 
 //fix these to use more view-depending height positioning
-- (void)_addSnapbackButtonForField {
+- (void)_addSnapbackButtonForView:(NSView*)view {
 	[snapbackButton retain];
 	[snapbackButton removeFromSuperviewWithoutNeedingDisplay];
-	[self addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
-	NSRect colFrame = [self frame];
+	[view addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
+	NSRect colFrame = [view frame];
 	NSSize buttonSize = [snapbackButton frame].size;
 	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 7),
 										colFrame.size.height - 20, buttonSize.width, buttonSize.height)];
@@ -133,65 +129,10 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 	//NSLog(@"tv width: %g, tf width: %g", [(NSTextView*)editor frame].size.width, tvSize.width);
 	tvSize.width -= [snapbackButton frame].size.width + 6.0f;
 	[(NSTextView*)editor setFrameSize:tvSize];
-	
-	//we also have to figure out how to tell when textView wraps to next "line", and redraw button
-	
-	[snapbackButton retain];
-	[snapbackButton removeFromSuperviewWithoutNeedingDisplay];
-	[[self superview] addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
-	NSRect colFrame = [[self superview] frame];
-	NSSize buttonSize = [snapbackButton frame].size;
-	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 7),
-										colFrame.size.height - 20, buttonSize.width, buttonSize.height)];
-	[snapbackButton release];
-	
-	[[self window] invalidateCursorRectsForView:self];
+	[self _addSnapbackButtonForView:[self superview]];
 }
 
-- (void)changedSelection:(NSNotification*)aNotification {
-	
-	NSNotification *aNote = [NSNotification notificationWithName:NVDualFieldDidChangeSelectionCoalesced object:nil];
-	[[NSNotificationQueue defaultQueue] enqueueNotification:aNote postingStyle:NSPostASAP 
-											   coalesceMask:NSNotificationCoalescingOnName 
-												   forModes:[NSArray arrayWithObjects:NSDefaultRunLoopMode, NSEventTrackingRunLoopMode, nil]];	
-	
-}
-
-- (void)coalescedSelectionChanged:(NSNotification*)aNote {
-	if (lastKnownClipView) {
-		
-#if RESCROLL_TO_LINE_START
-		//automatically snap to show the full text-line on which the insertion point is positioned
-		NSPoint lineStartPoint = NSZeroPoint;
-		NSTextView *ed = (NSTextView *)[self currentEditor];
-		NSUInteger len = [[ed string] length];
-		if (len) {
-			NSRect lfRect = [[ed layoutManager] lineFragmentUsedRectForGlyphAtIndex:MIN(len - 1, [ed selectedRange].location) 
-																	 effectiveRange:NULL withoutAdditionalLayout:YES];
-			lineStartPoint = lfRect.origin;
-		}
-#endif
-		
-		//fix overlapping text highlight for multiple lines:
-		
-		[lastKnownClipView setFrameSize:NSMakeSize([lastKnownClipView frame].size.width, (IsLeopardOrLater ? 16.0 : 17.0))];
-		
-		//avoid needing to provide a vertical textcontainer offset by moving the clipview down instead:
-		[lastKnownClipView setFrameOrigin:NSMakePoint(0.0, 3.0)];
-		
-#if RESCROLL_TO_LINE_START
-		//fix any potential text displacement resulting from line-wrapping
-		[lastKnownClipView scrollToPoint:[lastKnownClipView constrainScrollPoint:lineStartPoint]];
-#endif		
-	}
-}
-
-- (void)reflectScrolledClipView:(NSClipView *)aClipView {
-	if (aClipView != lastKnownClipView) {
-		[lastKnownClipView autorelease];
-		lastKnownClipView = [aClipView retain];
-	}
-	
+- (void)reflectScrolledClipView:(NSClipView *)aClipView {	
 	NSText *editor = [self currentEditor];
 	if (editor)	{
 		[self updateButtonIfNecessaryForEditor:editor];
@@ -220,7 +161,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		
 	[super textDidEndEditing:aNotification];
 	if ([snapbackString length]) {
-		[self _addSnapbackButtonForField];
+		[self _addSnapbackButtonForView:self];
 	}
 }
 
@@ -250,7 +191,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 			if ([self currentEditor]) {
 				[self _addSnapbackButtonForEditor:[self currentEditor]];
 			} else {
-				[self _addSnapbackButtonForField];
+				[self _addSnapbackButtonForView:self];
 			}
 		} else {
 			[snapbackButton removeFromSuperview];
@@ -433,8 +374,7 @@ static NSString* NVDualFieldDidChangeSelectionCoalesced = @"NVDFDCSC";
 		
 	[NSGraphicsContext restoreGraphicsState];
 	
-	//[[self cell] drawWithFrame:NSMakeRect(0,4,NSWidth(tBounds)/2,NSHeight(tBounds)-6) inView:self];
-	
+	//drawWithFrame: would make sense to override, but this works, too
 	[[self cell] drawWithFrame:NSMakeRect(0, 0, NSWidth(tBounds), NSHeight(tBounds)) inView:self];
 	
 	if ([self currentEditor] && isActiveWin) {

@@ -57,7 +57,7 @@
 	    [column setDereferencingFunction:colReferencors[i]];
 	    [column setSortingFunction:sortFunctions[i]];
 	    [column setReverseSortingFunction:reverseSortFunctions[i]];
-		[column setResizingMask:NSTableColumnUserResizingMask];
+		if (RunningTigerAppKitOrHigher) [column setResizingMask:NSTableColumnUserResizingMask];
 		
 		[allColumns addObject:column];
 	    [column release];
@@ -811,17 +811,18 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 	[super editColumn:columnIndex row:rowIndex withEvent:theEvent select:flag];
 	
+	//become/resignFirstResponder can't handle the field-editor case for row-highlighting style, so do it here:
+	[self setTitleDereferencorIsActiveStyle:YES];
+	
 	//this is way easier and faster than a custom formatter! just change the title while we're editing!
-	//if (colReferencors[0] != titleOfNote) {
-		if ([self columnWithIdentifier:NoteTitleColumnString] == columnIndex) {
-			//we're editing a title
-			NoteObject *note = [(FastListDataSource*)[self dataSource] immutableObjects][rowIndex];
-			
-			NSTextView *editor = (NSTextView*)[self currentEditor];
-			[editor setString:titleOfNote(note)];
-			[editor setSelectedRange:NSMakeRange(0, [titleOfNote(note) length])];
-		}
-	//}
+	if ([self columnWithIdentifier:NoteTitleColumnString] == columnIndex) {
+		//we're editing a title
+		NoteObject *note = [(FastListDataSource*)[self dataSource] immutableObjects][rowIndex];
+		
+		NSTextView *editor = (NSTextView*)[self currentEditor];
+		[editor setString:titleOfNote(note)];
+		[editor setSelectedRange:NSMakeRange(0, [titleOfNote(note) length])];
+	}
 }
 
 - (void)cancelOperation:(id)sender {
