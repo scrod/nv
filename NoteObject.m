@@ -904,7 +904,12 @@ int decodedCount() {
 			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
 		
-		//use FSSetCatalogInfo here to sync the file's creation-date
+		if (SingleDatabaseFormat != formatID) {
+			//sync the file's creation-date
+			FSCatalogInfo catInfo;
+			UCConvertCFAbsoluteTimeToUTCDateTime(createdDate, &catInfo.createDate);
+			FSSetCatalogInfo(noteFileRefInit(self), kFSCatInfoCreateDate, &catInfo);
+		}
 		
 		if (!resetFilename) {
 			//NSLog(@"resetting the file name just because.");
@@ -1259,6 +1264,12 @@ int decodedCount() {
 	if (PlainTextFormat == storageFormat) {
 		(void)[self writeCurrentFileEncodingToFSRef:&fileRef];
 	}
+	
+	//also export the note's modification and creation dates
+	FSCatalogInfo catInfo;
+	UCConvertCFAbsoluteTimeToUTCDateTime(createdDate, &catInfo.createDate);
+	UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &catInfo.contentModDate);
+	FSSetCatalogInfo(&fileRef, kFSCatInfoCreateDate | kFSCatInfoContentMod, &catInfo);
 			
 	return noErr;
 }
