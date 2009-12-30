@@ -40,7 +40,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:), nil];	
 	
-	[self setTextContainerInset:NSMakeSize(3, 6)];
+	[self setTextContainerInset:NSMakeSize(2, 6)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
@@ -387,23 +387,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 }
 - (void)layoutManagerDidInvalidateLayout:(NSLayoutManager *)aLayoutManager {
 	didRenderFully = NO;	
-}
-#endif
-
-#if 0
-//check spelling on paste
-//really does not like large strings
-- (void)paste:(id)sender {
-	[super paste:sender];
-	
-	if ([prefsController checkSpellingAsYouType] && 
-		[self respondsToSelector:@selector(_checkSpellingForRange:excludingRange:)]) {
-
-		if (changedRange.location != NSNotFound && changedRange.length && NSMaxRange(changedRange) <= [[self string] length])
-			[self _checkSpellingForRange:changedRange excludingRange:NSMakeRange(0,0)];
-		else
-			NSLog(@"Bad range on paste for spell check: %@", NSStringFromRange(changedRange));
-	}
 }
 #endif
 
@@ -859,6 +842,31 @@ copyRTFType:
 	}
 	[super keyDown:anEvent];
 }
+
+- (BOOL)jumpToRenaming {
+	NSEvent *event = [[self window] currentEvent];
+	if ([event type] == NSKeyDown && ![event isARepeat] && NSEqualRanges([self selectedRange], NSMakeRange(0, 0))) {
+		//command-left at the beginning of the note--jump to editing the title!
+		[[NSApp delegate] renameNote:nil];
+		NSText *editor = [notesTableView currentEditor];
+		NSRange endRange = NSMakeRange([[editor string] length], 0);
+		[editor setSelectedRange:endRange];
+		[editor scrollRangeToVisible:endRange];
+		return YES;
+	}
+	return NO;
+}
+
+- (void)moveToLeftEndOfLine:(id)sender {
+	if (![self jumpToRenaming]) 
+		[super moveToLeftEndOfLine:sender];
+}
+
+- (void)moveToBeginningOfLine:(id)sender {
+	if (![self jumpToRenaming]) 
+		[super moveToBeginningOfLine:sender];
+}
+
 - (void)insertTab:(id)sender {
 	//check prefs for tab behavior
 

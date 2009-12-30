@@ -50,6 +50,7 @@
 //- (void)suggestComplete:(id)sender;
 - (id)highlightLinkAtIndex:(unsigned)givenIndex;
 
+- (BOOL)jumpToRenaming;
 - (void)indicateRange:(NSValue*)rangeValue;
 
 - (void)fixTypingAttributesForSubstitutedFonts;
@@ -70,6 +71,8 @@
 - (void)toggleAutomaticTextReplacement:(id)sender;
 - (BOOL)isAutomaticTextReplacementEnabled;
 - (void)setAutomaticTextReplacementEnabled:(BOOL)flag;
+
+- (void)moveToLeftEndOfLine:(id)sender;
 #endif
 
 - (void)_checkSpellingForRange:(struct _NSRange)fp8 excludingRange:(struct _NSRange)fp16;

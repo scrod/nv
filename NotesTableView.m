@@ -807,6 +807,26 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 }
 
+- (BOOL)textView:(NSTextView *)aTextView doCommandBySelector:(SEL)command {
+	
+	if (command == @selector(moveToEndOfLine:) || command == @selector(moveToRightEndOfLine:)) {
+	
+		NSEvent *event = [[self window] currentEvent];
+		if ([event type] == NSKeyDown && ![event isARepeat] && 
+			NSEqualRanges([aTextView selectedRange], NSMakeRange([[aTextView string] length], 0))) {
+			//command-right at the end of the title--jump to editing the note!
+			[[self window] makeFirstResponder:[self nextValidKeyView]];
+			NSText *editor = (NSText*)[self nextValidKeyView];
+			if ([editor isKindOfClass:[NSText class]]) {
+				[editor setSelectedRange:NSMakeRange(0, 0)];
+				[editor scrollRangeToVisible:NSMakeRange(0, 0)];
+			}
+			return YES;
+		}
+	}
+	return NO;
+}
+
 - (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)theEvent select:(BOOL)flag {
 
 	[super editColumn:columnIndex row:rowIndex withEvent:theEvent select:flag];
