@@ -31,6 +31,9 @@
 - (NSMutableString*)newStringUsingBOMReturningEncoding:(NSStringEncoding*)encoding;
 + (NSData*)uncachedDataFromFile:(NSString*)filename;
 
+- (NSString *)encodeBase64;
+- (NSString *)encodeBase64WithNewlines:(BOOL)encodeWithNewlines;
+
 @end
 
 @interface NSMutableData (NVCryptoRelated)
