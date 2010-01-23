@@ -427,7 +427,7 @@ regenerateFSRef:
     }
     
     //now write to temporary file and swap
-    if ((err = FSRefWriteData(&tempFileRef, BlockSizeForNotation(self), [data length], [data bytes], 0, false)) != noErr) {
+    if ((err = FSRefWriteData(&tempFileRef, BlockSizeForNotation(self), [data length], [data bytes], pleaseCacheMask, false)) != noErr) {
 		NSLog(@"error writing to temporary file: %d", err);
 		
 		return err;
