@@ -177,6 +177,7 @@ DefModelAttrAccessor(titleOfNote, titleString)
 DefModelAttrAccessor(labelsOfNote, labelString)
 DefModelAttrAccessor(fileModifiedDateOfNote, fileModifiedDate)
 DefModelAttrAccessor(modifiedDateOfNote, modifiedDate)
+DefModelAttrAccessor(createdDateOfNote, createdDate)
 DefModelAttrAccessor(storageFormatOfNote, currentFormatID)
 DefModelAttrAccessor(fileEncodingOfNote, fileEncoding)
 
