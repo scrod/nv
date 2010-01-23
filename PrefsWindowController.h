@@ -65,6 +65,7 @@
 - (void)changeDefaultDirectory;
 - (BOOL)getNewNotesRefFromOpenPanel:(FSRef*)notesDirectoryRef returnedPath:(NSString**)path;
 
+- (NotationPrefsViewController*)notationPrefsViewController;
 - (NSView*)databaseView;
 - (void)addToolbarItemWithName:(NSString*)name;
 - (void)switchViews:(NSToolbarItem *)item;
