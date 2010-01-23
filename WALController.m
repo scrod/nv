@@ -178,7 +178,7 @@
     [aNoteObject incrementLSN];
     
     //construct a "removal object" for this note with some identifying information
-    DeletedNoteObject *removedNote = [[[DeletedNoteObject alloc] initWithExistingObject:aNoteObject] autorelease];
+	DeletedNoteObject *removedNote = [[[DeletedNoteObject alloc] initWithExistingObject:aNoteObject] autorelease];
     
 	return [self writeNoteObject:removedNote];	
 }
