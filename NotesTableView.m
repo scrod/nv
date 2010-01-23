@@ -10,6 +10,7 @@
 #import "NSString_NV.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
+#define SET_DUAL_HIGHLIGHTS 0
 
 @implementation NotesTableView
 
@@ -134,11 +135,11 @@
 	
 	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
 	
-	[center addObserver:self selector:@selector(windowDidBecomeKey:)
-				   name:NSWindowDidBecomeKeyNotification object:[self window]];
+	[center addObserver:self selector:@selector(windowDidBecomeMain:)
+				   name:NSWindowDidBecomeMainNotification object:[self window]];
 	
-	[center addObserver:self selector:@selector(windowDidResignKey:)
-				   name:NSWindowDidResignKeyNotification object:[self window]];	
+	[center addObserver:self selector:@selector(windowDidResignMain:)
+				   name:NSWindowDidResignMainNotification object:[self window]];	
 	
 	outletObjectAwoke(self);
 }
@@ -171,23 +172,28 @@
 	[[NSApp delegate] addNotesFromPasteboard:[NSPasteboard generalPasteboard]];
 }
 
-- (void)setTitleDereferencorIsActiveStyle:(BOOL)activeStyle {
+- (void)_setTitleDereferencorState:(BOOL)activeStyle {
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
-	
+#if SET_DUAL_HIGHLIGHTS
+	activeStyle = YES;
+#endif
 	[col setDereferencingFunction: [globalPrefs tableColumnsShowPreview] ? 
 	 (activeStyle ? properlyHighlightingTableTitleOfNote : tableTitleOfNote) : titleOfNote2];
-	
+}
+
+- (void)updateTitleDereferencorState {
+	NSWindow *win = [self window];
+	[self _setTitleDereferencorState: [win isMainWindow] && ([win firstResponder] == self || [self currentEditor]) ];
 }
 
 - (BOOL)becomeFirstResponder {
-	[self setTitleDereferencorIsActiveStyle:YES];
+	[self updateTitleDereferencorState];
 	
 	return [super becomeFirstResponder];
 }
 
-- (BOOL)resignFirstResponder {
-	[self setTitleDereferencorIsActiveStyle:NO];
-
+- (BOOL)resignFirstResponder {	
+	[self _setTitleDereferencorState:NO];
 	return [super resignFirstResponder];
 }
 
@@ -582,14 +588,16 @@
 }
 
 
-- (void)windowDidBecomeKey:(NSNotification *)aNotification  {
+- (void)windowDidBecomeMain:(NSNotification *)aNotification  {
 	[self setShouldUseSecondaryHighlightColor:hadHighlightInForeground];
+	[self updateTitleDereferencorState];
 }
 
-- (void)windowDidResignKey:(NSNotification *)aNotification {
+- (void)windowDidResignMain:(NSNotification *)aNotification {
 	BOOL highlightBefore = shouldUseSecondaryHighlightColor;
 	[self setShouldUseSecondaryHighlightColor:YES];
 	hadHighlightInForeground = highlightBefore;
+	[self updateTitleDereferencorState];
 }
 
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value {
@@ -832,7 +840,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	[super editColumn:columnIndex row:rowIndex withEvent:theEvent select:flag];
 	
 	//become/resignFirstResponder can't handle the field-editor case for row-highlighting style, so do it here:
-	[self setTitleDereferencorIsActiveStyle:YES];
+	[self updateTitleDereferencorState];
 	
 	//this is way easier and faster than a custom formatter! just change the title while we're editing!
 	if ([self columnWithIdentifier:NoteTitleColumnString] == columnIndex) {
@@ -841,8 +849,19 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		
 		NSTextView *editor = (NSTextView*)[self currentEditor];
 		[editor setString:titleOfNote(note)];
-		[editor setSelectedRange:NSMakeRange(0, [titleOfNote(note) length])];
+		if (flag) [editor setSelectedRange:NSMakeRange(0, [titleOfNote(note) length])];
 	}
+}
+
+- (void)textDidEndEditing:(NSNotification *)aNotification {
+	[super textDidEndEditing:aNotification];
+	[self updateTitleDereferencorState];
+}
+
+- (BOOL)abortEditing {
+	BOOL result = [super abortEditing];
+	[self updateTitleDereferencorState];
+	return result;
 }
 
 - (void)cancelOperation:(id)sender {

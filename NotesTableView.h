@@ -62,7 +62,8 @@ typedef struct _ViewLocationContext {
 - (BOOL)objectIsSelected:(id)obj;
 
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;
-- (void)setTitleDereferencorIsActiveStyle:(BOOL)activeStyle;
+- (void)_setTitleDereferencorState:(BOOL)activeStyle;
+- (void)updateTitleDereferencorState;
 
 - (void)reloadDataIfNotEditing;
 
