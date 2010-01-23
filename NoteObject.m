@@ -919,6 +919,10 @@ int decodedCount() {
 		
 		currentFormatID = formatID;
 		
+		//perhaps check here to see if the file was updated on disk before we had a chance to do it ourselves
+		//see if the file's fileModDate (if it exists) is newer than this note's current fileModificationDate
+		//could offer to merge or revert changes
+		
 		OSStatus err = noErr;
 		if ((err = [delegate storeDataAtomicallyInNotesDirectory:formattedData withName:filename destinationRef:noteFileRefInit(self)]) != noErr) {
 			NSLog(@"Unable to save note file %@", filename);
