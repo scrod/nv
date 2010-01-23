@@ -15,14 +15,17 @@
 @interface DeletedNoteObject : NSObject <NSCoding, SynchronizedNote> {
     unsigned int logSequenceNumber;
     CFUUIDBytes uniqueNoteIDBytes;
-    unsigned int serverModifiedTime;
+    NSMutableDictionary *syncServicesMD;
 }
 
++ (id)deletedNoteWithNote:(id <SynchronizedNote>)aNote;
 - (id)initWithExistingObject:(id<SynchronizedNote>)note;
 - (CFUUIDBytes *)uniqueNoteIDBytes;
-- (unsigned int)serverModifiedDate;
+- (NSDictionary *)syncServicesMD;
 - (unsigned int)logSequenceNumber;
 - (void)incrementLSN;
 - (BOOL)youngerThanLogObject:(id<SynchronizedNote>)obj;
+
+- (void)removeAllSyncMDForService:(NSString*)serviceName;
 
 @end

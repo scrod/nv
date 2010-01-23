@@ -10,11 +10,15 @@
 
 @implementation DeletedNoteObject
 
++ (id)deletedNoteWithNote:(id <SynchronizedNote>)aNote {
+	return [[[DeletedNoteObject alloc] initWithExistingObject:aNote] autorelease];
+}
+
 - (id)initWithExistingObject:(id<SynchronizedNote>)note {
     if ([super init]) {
 		CFUUIDBytes *bytes = [note uniqueNoteIDBytes];
 		uniqueNoteIDBytes = *bytes;
-		serverModifiedTime = [note serverModifiedDate];
+		syncServicesMD = [[note syncServicesMD] mutableCopy];
 		logSequenceNumber = [note logSequenceNumber];	
     }
     return self;
@@ -27,11 +31,11 @@
 			NSUInteger decodedByteCount;
 			const uint8_t *decodedBytes = [decoder decodeBytesForKey:VAR_STR(uniqueNoteIDBytes) returnedLength:&decodedByteCount];
 			memcpy(&uniqueNoteIDBytes, decodedBytes, MIN(decodedByteCount, sizeof(CFUUIDBytes)));
-			serverModifiedTime = [decoder decodeInt32ForKey:VAR_STR(serverModifiedTime)];
+			syncServicesMD = [[decoder decodeObjectForKey:VAR_STR(syncServicesMD)] retain];
 			logSequenceNumber = [decoder decodeInt32ForKey:VAR_STR(logSequenceNumber)];
 		} else {
 			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
-			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
+			syncServicesMD = [[decoder decodeObject] retain];
 			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
 		}
     }
@@ -42,15 +46,17 @@
 	
 	if ([coder allowsKeyedCoding]) {
 		[coder encodeBytes:(const uint8_t *)&uniqueNoteIDBytes length:sizeof(CFUUIDBytes) forKey:VAR_STR(uniqueNoteIDBytes)];
-		[coder encodeInt32:serverModifiedTime forKey:VAR_STR(serverModifiedTime)];
+		[coder encodeObject:syncServicesMD forKey:VAR_STR(syncServicesMD)];
 		[coder encodeInt32:logSequenceNumber forKey:VAR_STR(logSequenceNumber)];
 	} else {
 		[coder encodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
-		[coder encodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
+		[coder encodeObject:syncServicesMD];
 		[coder encodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
 	}
 }
 
+- (NSString*)description {
+	return [NSString stringWithFormat:@"DeletedNoteObj %@", syncServicesMD];
 }
 
 #include "SynchronizedNoteMixIns.h"
