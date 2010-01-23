@@ -76,6 +76,7 @@ void outletObjectAwoke(id sender);
 - (NSString*)typedString;
 
 - (IBAction)showPreferencesWindow:(id)sender;
+- (IBAction)toggleNVActivation:(id)sender;
 - (IBAction)bringFocusToControlField:(id)sender;
 - (NSWindow*)window;
 
