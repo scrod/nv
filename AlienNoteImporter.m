@@ -26,6 +26,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 - (NSArray*)_importStickies:(NSString*)filename;
 - (NSArray*)_importBlorNotes:(NSString*)filename;
 - (NSArray*)_importTSVFile:(NSString*)filename;
+- (NSArray*)_importCSVFile:(NSString*)filename;
+- (NSArray*)_importDelimitedFile:(NSString*)filename withDelimiter:(NSString*)delimiter;
 @end
 
 @implementation AlienNoteImporter
@@ -438,6 +440,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		return [self _importStickies:filename];
 	} else if ([extension isEqualToString:@"tsv"]) {
         return [self _importTSVFile:filename];
+	} else if ([extension isEqualToString:@"csv"]) {
+        return [self _importCSVFile:filename];
 	} else {
 		NoteObject *note = [self noteWithFile:filename];
 		if (note)
@@ -548,8 +552,15 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	return array;
 }
 
-- (NSArray*)_importTSVFile:(NSString*)filename
-{
+- (NSArray*)_importTSVFile:(NSString*)filename {
+	return [self _importDelimitedFile:filename withDelimiter:@"\t"];
+}
+- (NSArray*)_importCSVFile:(NSString*)filename {
+	return [self _importDelimitedFile:filename withDelimiter:@","];
+}
+
+- (NSArray*)_importDelimitedFile:(NSString*)filename withDelimiter:(NSString*)delimiter {
+	
 	NSMutableString *contents = [NSMutableString newShortLivedStringFromFile:filename];
 	if (!contents) return nil;
     
@@ -561,9 +572,12 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
     NSArray *lines = [contents componentsSeparatedByString:@"\n"];
     NSEnumerator *en = [lines objectEnumerator];
     NSString *curLine;
+	
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	
     // Assume first entry in line is note title and any other entries go in the note body
     while ((curLine = [en nextObject])) {
-        NSArray *fields = [curLine componentsSeparatedByString:@"\t"];
+        NSArray *fields = [curLine componentsSeparatedByString:delimiter];
         NSUInteger count = [fields count];
         if (count > 1) {
             NSMutableString *s = [NSMutableString string];
@@ -583,7 +597,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 			
             NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedBody title:title uniqueFilename:nil format:SingleDatabaseFormat] autorelease];
 			if (note) {
-				CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+				now += 1.0; //to ensure a consistent sort order
 				[note setDateAdded:now];
 				[note setDateModified:now];
 				[notes addObject:note];
