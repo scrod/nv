@@ -70,6 +70,27 @@
 
 @end
 
+@implementation NSDictionary (URLEncoding)
+
+- (NSString*)URLEncodedString {
+	
+	NSMutableArray *pairs = [NSMutableArray arrayWithCapacity:[self count]];
+	
+	NSEnumerator *enumerator = [self keyEnumerator];
+	NSString *aKey = nil;
+	while ((aKey = [enumerator nextObject])) {
+		[pairs addObject:[NSString stringWithFormat: @"%@=%@", 
+						  [aKey stringWithPercentEscapes], [[self objectForKey:aKey] stringWithPercentEscapes]]];
+		
+	}
+	return [pairs componentsJoinedByString:@"&"];
+}
+
+
+@end
+
+
+
 @implementation NSSet (Utilities)
 
 - (NSMutableSet*)setIntersectedWithSet:(NSSet*)set {
