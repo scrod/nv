@@ -44,7 +44,6 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	fileEncoding = NSUTF8StringEncoding;
 	contentsWere7Bit = NO;
 	
-	serverModifiedTime = 0;
 	logSequenceNumber = 0;
 	selectedRange = NSMakeRange(NSNotFound, 0);
 	
@@ -228,10 +227,11 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 			fileModifiedDate.fraction = [decoder decodeInt32ForKey:@"fileModDateFrac"];
 			fileEncoding = [decoder decodeInt32ForKey:VAR_STR(fileEncoding)];
 
-			NSUInteger decodedByteCount;
-			const uint8_t *decodedBytes = [decoder decodeBytesForKey:VAR_STR(uniqueNoteIDBytes) returnedLength:&decodedByteCount];
-			if (decodedBytes) memcpy(&uniqueNoteIDBytes, decodedBytes, MIN(decodedByteCount, sizeof(CFUUIDBytes)));
-			serverModifiedTime = [decoder decodeInt32ForKey:VAR_STR(serverModifiedTime)];
+			NSUInteger decodedUUIDByteCount = 0;
+			const uint8_t *decodedUUIDBytes = [decoder decodeBytesForKey:VAR_STR(uniqueNoteIDBytes) returnedLength:&decodedUUIDByteCount];
+			if (decodedUUIDBytes) memcpy(&uniqueNoteIDBytes, decodedUUIDBytes, MIN(decodedUUIDByteCount, sizeof(CFUUIDBytes)));
+			
+			syncServicesMD = [[decoder decodeObjectForKey:VAR_STR(syncServicesMD)] retain];
 			
 			titleString = [[decoder decodeObjectForKey:VAR_STR(titleString)] retain];
 			labelString = [[decoder decodeObjectForKey:VAR_STR(labelString)] retain];
@@ -240,6 +240,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 			
 		} else {
             NSRange32 range32;
+			unsigned int serverModifiedTime = 0;
 			float scrolledProportion = 0.0;
             #if __LP64__
             unsigned long longTemp;
@@ -329,7 +330,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		[coder encodeInt32:fileEncoding forKey:VAR_STR(fileEncoding)];
 		
 		[coder encodeBytes:(const uint8_t *)&uniqueNoteIDBytes length:sizeof(CFUUIDBytes) forKey:VAR_STR(uniqueNoteIDBytes)];
-		[coder encodeInt32:serverModifiedTime forKey:VAR_STR(serverModifiedTime)];
+		[coder encodeObject:syncServicesMD forKey:VAR_STR(syncServicesMD)];
 		
 		[coder encodeObject:titleString forKey:VAR_STR(titleString)];
 		[coder encodeObject:labelString forKey:VAR_STR(labelString)];
@@ -339,6 +340,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	} else {
 // 64bit encoding would break 32bit reading - keyed archives should be used
 #if !__LP64__
+		unsigned int serverModifiedTime = 0;
 		float scrolledProportion = 0.0;
 		*(unsigned int*)&scrolledProportion = (unsigned int)contentsWere7Bit;
 #if DECODE_INDIVIDUALLY
