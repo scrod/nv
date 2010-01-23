@@ -147,6 +147,42 @@ int uncachedDateCount = 0;
     return dateString;
 }
 
+CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
+	//CFStringRef dateStr = CFSTR("2010-01-02 23:23:31.876229");
+	static CFDateFormatterRef dateFormatter = NULL;
+	static CFDateFormatterRef lowPrecisionDateFormatter = NULL;
+	static CFLocaleRef locale = NULL;
+	static CFTimeZoneRef zone = NULL;
+	if (!dateFormatter) {
+		locale = CFLocaleCreate(NULL,CFSTR("en"));
+		zone = CFTimeZoneCreateWithTimeIntervalFromGMT(NULL, 0.0);		
+		dateFormatter = CFDateFormatterCreate(NULL, locale, kCFDateFormatterNoStyle, kCFDateFormatterNoStyle);
+		lowPrecisionDateFormatter = CFDateFormatterCreate(NULL, locale, kCFDateFormatterNoStyle, kCFDateFormatterNoStyle);
+		CFDateFormatterSetFormat(dateFormatter, CFSTR("yyyy-MM-dd HH:mm:ss.SSSSSS"));
+		CFDateFormatterSetFormat(lowPrecisionDateFormatter, CFSTR("yyyy-MM-dd HH:mm:ss"));
+		CFDateFormatterSetProperty(dateFormatter, kCFDateFormatterTimeZone, zone);
+		CFDateFormatterSetProperty(lowPrecisionDateFormatter, kCFDateFormatterTimeZone, zone);
+	}
+	return lowPrecision ? lowPrecisionDateFormatter	: dateFormatter;
+}
+
++ (NSString*)simplenoteDateWithAbsoluteTime:(CFAbsoluteTime)absTime {
+	CFStringRef str = CFDateFormatterCreateStringWithAbsoluteTime(NULL, simplenoteDateFormatter(0), absTime);
+	return [(id)str autorelease];
+}
+
+- (CFAbsoluteTime)absoluteTimeFromSimplenoteDate {
+	
+	CFAbsoluteTime absTime = 0;
+	if (!CFDateFormatterGetAbsoluteTimeFromString(simplenoteDateFormatter(0), (CFStringRef)self, NULL, &absTime)) {
+		if (!CFDateFormatterGetAbsoluteTimeFromString(simplenoteDateFormatter(1), (CFStringRef)self, NULL, &absTime)) {
+			NSLog(@"can't get date from %@; returning current time instead", self);
+			return 0;
+		}
+	}
+	return absTime;
+}
+
 + (NSString*)pathCopiedFromAliasData:(NSData*)aliasData {
     AliasHandle inAlias;
     CFStringRef path = NULL;
