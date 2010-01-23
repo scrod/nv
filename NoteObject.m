@@ -16,6 +16,8 @@
 #import "NSString_NV.h"
 #include "BufferUtils.h"
 #import "NotationFileManager.h"
+#import "NotationSyncServiceManager.h"
+#import "SyncServiceSessionProtocol.h"
 #import "NotesTableView.h"
 
 #if __LP64__
@@ -711,6 +713,7 @@ int decodedCount() {
 	dateCreatedString = [[NSString relativeDateStringWithAbsoluteTime:createdDate] retain];	
 }
 
+
 - (void)setSelectedRange:(NSRange)newRange {
 	//if (!newRange.length) newRange = NSMakeRange(0,0);
 	
@@ -784,6 +787,7 @@ int decodedCount() {
 		[self updateLabelConnections];
 		
 		[self makeNoteDirtyUpdateTime:YES updateFile:NO];
+		//[self registerModificationWithOwnedServices]; //not until we have a service that knows about labels
 		
 		[delegate note:self attributeChanged:NoteLabelsColumnString];
 	}
@@ -1048,6 +1052,9 @@ int decodedCount() {
 		
 		if ((updated = [self updateFromFile])) {
 			[self makeNoteDirtyUpdateTime:NO updateFile:NO];
+			//need to update modification time manually
+			[self registerModificationWithOwnedServices];
+			[delegate schedulePushToAllSyncServicesForNote:self];
 			//[[delegate delegate] contentsUpdatedForNote:self];
 		}
 	}
@@ -1124,6 +1131,7 @@ int decodedCount() {
 	    
 	    break;
 	case PlainTextFormat:
+		//try to merge/re-match attributes?
 	    if ((stringFromData = [NSMutableString newShortLivedStringFromData:data ofGuessedEncoding:&fileEncoding withPath:NULL orWithFSRef:noteFileRefInit(self)])) {
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:stringFromData 
 																			  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
@@ -1213,6 +1221,18 @@ int decodedCount() {
     return [wal writeRemovalForNote:self];
 }
 
+- (void)registerModificationWithOwnedServices {
+	//mirror this note's current mod date to services with which it is already synced
+	//there is no point calling this method unless the modification time is 
+	[[NotationController allServiceClasses] makeObjectsPerformSelector:@selector(registerModificationForNote:) withObject:self];
+}
+
+- (void)removeAllSyncServiceMD {
+	//potentially dangerous
+	[syncServicesMD removeAllObjects];
+}
+
+
 - (void)makeNoteDirtyUpdateTime:(BOOL)updateTime updateFile:(BOOL)updateFile {
 	
 	if (updateFile)
@@ -1230,6 +1250,12 @@ int decodedCount() {
 				NSLog(@"Unable to set file modification date from current date");
 		}
 	}
+	if (updateFile && updateTime) {
+		//if this is a change that affects the actual content of a note such that we would need to updateFile
+		//and the modification time was actually updated, then dirty the note with the sync services, too
+		[self registerModificationWithOwnedServices];
+		[delegate schedulePushToAllSyncServicesForNote:self];
+	}
 	
 	//queue note to be written
     [delegate scheduleWriteForNote:self];	
@@ -1239,7 +1265,6 @@ int decodedCount() {
 	//except we don't want this here, as it will cause unnecessary (potential) re-sorting and updating of list view while typing
 	//so expect the delegate to know to schedule the same update itself
 }
-
 
 - (OSStatus)exportToDirectoryRef:(FSRef*)directoryRef withFilename:(NSString*)userFilename usingFormat:(int)storageFormat overwrite:(BOOL)overwrite {
 	

@@ -50,7 +50,8 @@ typedef struct _NoteFilterContext {
 
 	//the first for syncing w/ NV server, as the ID cannot be encrypted
 	CFUUIDBytes uniqueNoteIDBytes;
-	unsigned int serverModifiedTime;
+	
+	NSMutableDictionary *syncServicesMD;
 	
 	//more metadata
 	CFAbsoluteTime modifiedDate, createdDate;
@@ -78,7 +79,7 @@ NSInteger compareNodeID(id *a, id *b);
 
 //syncing w/ server and from journal
 - (CFUUIDBytes *)uniqueNoteIDBytes;
-- (unsigned int)serverModifiedDate;
+- (NSDictionary*)syncServicesMD;
 - (unsigned int)logSequenceNumber;
 - (void)incrementLSN;
 
@@ -126,6 +127,12 @@ NSInteger compareNodeID(id *a, id *b);
 - (void)updateLabelConnections;
 - (void)setLabelString:(NSString*)newLabels;
 
+- (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
+- (void)removeAllSyncMDForService:(NSString*)serviceName;
+- (void)removeAllSyncServiceMD;
+- (void)updateWithSyncBody:(NSString*)newBody andTitle:(NSString*)newTitle;
+- (void)registerModificationWithOwnedServices;
+
 - (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef;
 - (void)_setFileEncoding:(NSStringEncoding)encoding;
 - (BOOL)setFileEncodingAndReinterpret:(NSStringEncoding)encoding;
@@ -162,6 +169,7 @@ NSInteger compareNodeID(id *a, id *b);
 - (void)setContentString:(NSAttributedString*)attributedString;
 - (NSAttributedString*)contentString;
 - (NSAttributedString*)printableStringRelativeToBodyFont:(NSFont*)bodyFont;
+- (NSString*)combinedContentWithContextSeparator:(NSString*)sepWContext;
 - (void)updateUnstyledTextWithBaseFont:(NSFont*)baseFont;
 - (void)updateDateStrings;
 - (void)setDateModified:(CFAbsoluteTime)newTime;
