@@ -1160,6 +1160,21 @@ int decodedCount() {
     return YES;
 }
 
+- (void)updateWithSyncBody:(NSString*)newBody andTitle:(NSString*)newTitle {
+	
+	NSMutableAttributedString *attributedBodyString = [[NSMutableAttributedString alloc] initWithString:newBody attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
+	[attributedBodyString addLinkAttributesForRange:NSMakeRange(0, [attributedBodyString length])];
+	
+	//should eventually sync changes back to disk:
+	[self setContentString:[attributedBodyString autorelease]];
+
+	//actions that user-editing via AppDelegate would have handled for us:
+    [self updateContentCacheCStringIfNecessary];
+	[undoManager removeAllActions];
+
+	[self setTitleString:newTitle];
+}
+
 - (void)moveFileToTrash {
 	OSStatus err = noErr;
 	if ((err = [delegate moveFileToTrash:noteFileRefInit(self) forFilename:filename]) != noErr) {
