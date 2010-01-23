@@ -2,7 +2,14 @@
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
+#import "LinearDividerShader.h"
 #import "AppController.h"
+
+#define BORDER_TOP_OFFSET 3.0
+#define BORDER_LEFT_OFFSET 3.0
+#define MAX_STATE_IMG_DIM 16.0
+#define CLEAR_BUTTON_IMG_DIM 16.0
+#define TEXT_LEFT_OFFSET (MAX_STATE_IMG_DIM + BORDER_LEFT_OFFSET)
 
 @implementation DualFieldCell
 
@@ -20,24 +27,22 @@
 		
 		[self setFocusRingType:NSFocusRingTypeExterior];
 		
+		clearButtonState = snapbackButtonState = BUTTON_HIDDEN;
+		
 	}
 	return self;
 }
 
 - (NSRect)drawingRectForBounds:(NSRect)someBounds {
-	return NSInsetRect(someBounds, 10, 3);
+	return NSInsetRect(someBounds, TEXT_LEFT_OFFSET, BORDER_TOP_OFFSET);
 }
 
 - (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
-	aRect.origin.y += 3;
-	aRect.size.height = 16.0;
-	[super selectWithFrame:aRect inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
+	[super selectWithFrame:[self textAreaForBounds:aRect] inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
 }
 
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *textView = (NSTextView*)[super setUpFieldEditorAttributes:textObj];
-
-	[textView setTextContainerInset:NSMakeSize(10, 0)];
 	[textView setDrawsBackground:NO];
 		
 	return textView;
@@ -45,8 +50,116 @@
 
 - (void)endEditing:(NSText *)textObj {
 	//fix up any changes we might have made to the field editor in setUpFieldEditorAttributes:
-	[(NSTextView*)textObj setTextContainerInset:NSMakeSize(0, 0)];
+//	[(NSTextView*)textObj setTextContainerInset:NSMakeSize(0, 0)];
 	[super endEditing:textObj];
+}
+
+- (NSRect)clearButtonRectForBounds:(NSRect)rect {
+	NSRect part, clear;
+	
+	NSDivideRect(rect, &clear, &part, CLEAR_BUTTON_IMG_DIM + BORDER_LEFT_OFFSET + 4.0, NSMaxXEdge);
+	clear.origin.y -= 1.0;
+	return clear;
+}
+
+- (NSRect)snapbackButtonRectForBounds:(NSRect)rect {
+	return NSMakeRect(BORDER_LEFT_OFFSET, BORDER_TOP_OFFSET, MAX_STATE_IMG_DIM, MAX_STATE_IMG_DIM);	
+}
+
+- (NSRect)textAreaForBounds:(NSRect)rect {
+	
+	NSRect textRect = rect;
+	textRect.origin.y += BORDER_TOP_OFFSET;
+	textRect.origin.x += TEXT_LEFT_OFFSET;
+	textRect.size.height = MAX_STATE_IMG_DIM;
+	textRect.size.width = rect.size.width - 23;	
+	//if ([self clearButtonIsVisible]) {
+		textRect.size.width -= CLEAR_BUTTON_IMG_DIM - 1.0;
+	//}
+	
+	return textRect;
+}
+
+- (BOOL)clearButtonIsVisible {
+	return BUTTON_HIDDEN != clearButtonState;
+}
+
+- (void)setShowsClearButton:(BOOL)shouldShow {
+	if ((BUTTON_HIDDEN != clearButtonState) != shouldShow) {
+		NSView *controlView = [self controlView];
+		clearButtonState = shouldShow ? BUTTON_NORMAL : BUTTON_HIDDEN;
+		[controlView setNeedsDisplayInRect:[self clearButtonRectForBounds:[controlView bounds]]];
+		[[controlView window] invalidateCursorRectsForView:controlView];
+	}
+}
+
+- (BOOL)snapbackButtonIsVisible {
+	return BUTTON_HIDDEN != snapbackButtonState;
+}
+
+- (void)setShowsSnapbackButton:(BOOL)shouldShow {
+	NSView *controlView = [self controlView];
+	//used for being notified from a mouseover-ing
+	if ((snapbackButtonState != BUTTON_HIDDEN) != shouldShow) {
+		snapbackButtonState = shouldShow ? BUTTON_NORMAL : BUTTON_HIDDEN;
+		[controlView setNeedsDisplayInRect:[self snapbackButtonRectForBounds:[controlView bounds]]];
+		[[controlView window] invalidateCursorRectsForView:controlView];
+	}
+	
+}
+
+- (BOOL)handleMouseDown:(NSEvent *)theEvent {
+	DualField *controlView = (DualField *)[self controlView];
+	
+	if (![self clearButtonIsVisible] && ![self snapbackButtonIsVisible])
+		return NO;
+	
+	do {
+		NSPoint mouseLoc = [controlView convertPoint:[theEvent locationInWindow] fromView:nil];
+		
+		if ([self clearButtonIsVisible])
+			clearButtonState = [controlView mouse:mouseLoc inRect:[self clearButtonRectForBounds:[controlView bounds]]] ? BUTTON_PRESSED : BUTTON_NORMAL;
+		
+		if ([self snapbackButtonIsVisible])
+			snapbackButtonState = [controlView mouse:mouseLoc inRect:[self snapbackButtonRectForBounds:[controlView bounds]]]  ? BUTTON_PRESSED : BUTTON_NORMAL;
+		
+		[controlView setNeedsDisplay:YES];
+		
+		NSEventType type = [theEvent type];
+		if (type == NSLeftMouseUp || type == NSRightMouseUp) {
+			if (BUTTON_PRESSED == snapbackButtonState) {
+				[controlView deselectAll:nil];
+			} else if (BUTTON_PRESSED == clearButtonState) {
+				[NSApp tryToPerform:@selector(cancelOperation:) with:nil];
+			}
+			break;
+		}
+		theEvent = [[controlView window] nextEventMatchingMask: NSLeftMouseUpMask | NSLeftMouseDraggedMask | NSRightMouseUpMask | NSRightMouseDraggedMask];
+	} while (1);
+	
+	return YES;
+}
+		
+- (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {
+	
+	[super drawWithFrame:cellFrame inView:controlView];
+	
+	if (BUTTON_HIDDEN != clearButtonState) {
+		NSImage *clearImg = [NSImage imageNamed:(clearButtonState == BUTTON_NORMAL ? @"Clear" : @"ClearPressed") ];
+		[clearImg drawCenteredInRect:[self clearButtonRectForBounds:cellFrame]];
+	}
+	if (BUTTON_HIDDEN != snapbackButtonState) {
+		NSRect snRect = [self snapbackButtonRectForBounds:cellFrame];
+		NSEraseRect(centeredRectInRect(snRect, NSMakeSize(MAX_STATE_IMG_DIM, MAX_STATE_IMG_DIM)));
+		NSImage *snapImg = [NSImage imageNamed:(snapbackButtonState == BUTTON_NORMAL ? @"SnapBack" : @"SnapBackPressed") ];
+		[snapImg drawCenteredInRect:snRect];
+	}
+}
+
+
++ (BOOL)prefersTrackingUntilMouseUp {
+	// NSCell returns NO for this by default. If you want to have trackMouse:inRect:ofView:untilMouseUp: always track until the mouse is up, then you MUST return YES. Otherwise, strange things will happen.
+	return YES;
 }
 
 @end
@@ -64,114 +177,101 @@
 	[dualFieldCell setTarget:[[self cell] target]];
 	[self setCell:dualFieldCell];
 	//[self setDrawsBackground:NO];
-	NSCell *myCell = [self cell];
+	DualFieldCell *myCell = [self cell];
 	//[myCell setWraps:YES];
 	
 	[self setDrawsBackground:NO];
 	[self setBordered:NO];
 	[self setBezeled:NO];
 	[self setFocusRingType:NSFocusRingTypeExterior];
-		
-	snapbackButton = [[NSButton alloc] initWithFrame:NSZeroRect];
-	[snapbackButton setAutoresizingMask:NSViewMinXMargin | NSViewMinYMargin];
-	[snapbackButton setBordered:NO];
-	[snapbackButton setImagePosition:NSImageOnly];
-	[snapbackButton setTarget:notesTable];
-	[snapbackButton setAction:@selector(deselectAll:)];
-	unichar ch = 0x2318;
-	[snapbackButton setToolTip:[NSString stringWithFormat:NSLocalizedString(@"Continue searching; %@-D", nil), 
-		[NSString stringWithCharacters:&ch length:1]]];
-	//[snapbackButton setMenu:[self snapbackMenu]];
-	
-	//[self _addSnapbackButtonForField];
+			
 		
 	if (RunningTigerAppKitOrHigher) { // on 10.4
 		[myCell setAllowsUndo:NO];
 		[myCell setLineBreakMode:NSLineBreakByCharWrapping];
 	}
-	//use setParagraphStyle on 10.3?
+	
+	docIconRectTag = [self addTrackingRect:[[self cell] snapbackButtonRectForBounds:[self bounds]] owner:self userData:NULL assumeInside:NO];
 }
 
 - (void)dealloc {
+	[snapbackString release];
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	
 	[super dealloc];
 }
 
-- (void) resetCursorRects {
+- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)userData {
+	unichar ch = 0x2318;
 	
-    [super resetCursorRects];
-	
-	if ([snapbackString length]) {
-		NSRect rect = [self convertRect:[snapbackButton frame] fromView:nil];
-		[self addCursorRect: rect cursor: [NSCursor arrowCursor]];
+	if (tag == docIconTag) {
+		//should be conditional on whether snapback exists, and include the snapback string
+		if ([[self cell] snapbackButtonIsVisible]) {
+			return [NSString stringWithFormat:NSLocalizedString(@"Go back to search; press %@-D to deselect", nil), [NSString stringWithCharacters:&ch length:1]];
+		} else {
+			return @"Now searching for this text";
+		}
+	} else if (tag == clearButtonTag) {
+		if ([[self cell] clearButtonIsVisible]) {
+			return @"Clear the search; press ESC";
+		} else {
+			return @"Type any text to search; press Return to create a note";
+		}
+	} else if (tag == textAreaTag) {
+		if ([self showsDocumentIcon]) {
+			return [NSString stringWithFormat:@"Now editing this note; rename it with %@-R", [NSString stringWithCharacters:&ch length:1]];
+		} else {
+			return @"Type any text to search; press Return to create a note";
+		}
 	}
-	
-} // resetCursorRects
-
-//fix these to use more view-depending height positioning
-- (void)_addSnapbackButtonForView:(NSView*)view {
-	[snapbackButton retain];
-	[snapbackButton removeFromSuperviewWithoutNeedingDisplay];
-	[view addSubview:snapbackButton positioned:NSWindowAbove relativeTo:nil];
-	NSRect colFrame = [view frame];
-	NSSize buttonSize = [snapbackButton frame].size;
-	[snapbackButton setFrame:NSMakeRect(colFrame.size.width - ([[snapbackButton image] size].width + 7),
-										colFrame.size.height - 20, buttonSize.width, buttonSize.height)];
-	[snapbackButton release];
-	
-	[[self window] invalidateCursorRectsForView:self];
+	return nil;
 }
 
-- (void)_addSnapbackButtonForEditor:(NSText*)editor {
-	//do we need to set the size anywhere else?
-	NSSize tvSize = [self frame].size;
-	//NSLog(@"tv width: %g, tf width: %g", [(NSTextView*)editor frame].size.width, tvSize.width);
-	tvSize.width -= [snapbackButton frame].size.width + 6.0f;
-	[(NSTextView*)editor setFrameSize:tvSize];
-	[self _addSnapbackButtonForView:[self superview]];
+- (void)mouseEntered:(NSEvent *)theEvent {
+	if ([theEvent trackingNumber] == docIconRectTag) {
+		[[self cell] setShowsSnapbackButton:[self showsDocumentIcon]];
+	}
 }
+- (void)mouseExited:(NSEvent *)theEvent {
+	if ([theEvent trackingNumber] == docIconRectTag) {
+		[[self cell] setShowsSnapbackButton:NO];
+	}
+}
+
+- (void)resetCursorRects {
+	NSRect bounds = [self bounds];
+	
+	NSRect textArea = [[self cell] textAreaForBounds:bounds];
+	NSRect clearButtonArea = [[self cell] clearButtonRectForBounds:bounds];
+	NSRect snapbackButtonArea = [[self cell] snapbackButtonRectForBounds:bounds];
+	
+	//always show the pointer over the doc icon area; there is always a doc icon of some sort, even if non-functional
+	[self addCursorRect: snapbackButtonArea cursor: [NSCursor arrowCursor]];
+	
+	//conditionally show the pointer over the clear button area
+	if ([[self cell] clearButtonIsVisible]) {
+		[self addCursorRect: clearButtonArea cursor: [NSCursor arrowCursor]];
+	} else {
+		textArea = NSUnionRect(textArea, clearButtonArea);
+	}
+	[self addCursorRect: textArea cursor: [NSCursor IBeamCursor]];
+	
+	[self removeAllToolTips];
+	textAreaTag = [self addToolTipRect:textArea owner:self userData:NULL];
+	clearButtonTag = [self addToolTipRect:clearButtonArea owner:self userData:NULL];	
+	docIconTag = [self addToolTipRect:snapbackButtonArea owner:self userData:NULL];
+}
+
 
 - (void)reflectScrolledClipView:(NSClipView *)aClipView {	
-	NSText *editor = [self currentEditor];
-	if (editor)	{
-		[self updateButtonIfNecessaryForEditor:editor];
-		[super setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
-	}
-}
-
-- (void)selectText:(id)sender {
-	[super selectText:sender];
-	
-	NSText* editor = [self currentEditor];
-	[(NSTextView*)editor setAllowsUndo:NO]; //for 10.3
-
-	//[(NSTextView*)editor setDrawsBackground:NO];
-	
-	if ([snapbackString length]) {
-		
-		//move the button to this view?
-		[self _addSnapbackButtonForEditor:editor];
-		
-		[(NSTextView*)editor setDrawsBackground:NO];		
-	}
-}
-
-- (void)textDidEndEditing:(NSNotification *)aNotification {
-		
-	[super textDidEndEditing:aNotification];
-	if ([snapbackString length]) {
-		[self _addSnapbackButtonForView:self];
-	}
+	[super setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
 }
 
 - (void)mouseDown:(NSEvent*)anEvent {
-	if ([snapbackString length] && [snapbackButton mouse:[anEvent locationInWindow] 
-												  inRect:NSInsetRect([snapbackButton frame], -5, -5)]) {
-		//handle any ignored space around the button
-		[snapbackButton performClick:nil];
+	
+	if ([[self cell] handleMouseDown:anEvent])
 		return;
-	}
+	
 	[super mouseDown:anEvent];
 }
 
@@ -181,36 +281,14 @@
 	
 	if (proposedString != snapbackString /*the nil == nil case*/ && ![proposedString isEqualToString:snapbackString]) {
 		[snapbackString release];
-		snapbackString = [proposedString copy];
-		
-		if ([proposedString length] > 0) {
-			NSImage *snapImage = [[self class] snapbackImageWithString:snapbackString];
-			[snapbackButton setImage:snapImage];
-			[snapbackButton setFrameSize:NSMakeSize([snapImage size].width + 2, 17)];
-			
-			if ([self currentEditor]) {
-				[self _addSnapbackButtonForEditor:[self currentEditor]];
-			} else {
-				[self _addSnapbackButtonForView:self];
-			}
-		} else {
-			[snapbackButton removeFromSuperview];
-			NSTextView *editor = nil;
-			if ((editor = (NSTextView *)[self currentEditor])) {
-				//expand editor into empty button space
-				NSSize tvSize = [self frame].size;
-				//editor width always seems to be 4 px less than textfield width
-				tvSize.width -= 4.0f;
-				[editor setFrameSize:tvSize];
-			}
-			[[self window] invalidateCursorRectsForView:self];
-		}
-	} else {
-		//we may already have the button set up, but it could still be wiped-out in some circumstances
-		//(such as the text editor
-		NSText *editor = [self currentEditor];
-		if (editor)	[self updateButtonIfNecessaryForEditor:editor];
+		snapbackString = [proposedString copy];		
 	}
+	if (![proposedString length]) {
+		[[self cell] setShowsSnapbackButton:NO];
+	}
+}
+- (NSString*)snapbackString {
+	return snapbackString;
 }
 
 /*- (BOOL)becomeFirstResponder {
@@ -218,16 +296,21 @@
 	return [super becomeFirstResponder];
 }*/
 
-- (void)updateButtonIfNecessaryForEditor:(NSText*)editor {
-	if ([snapbackString length] > 0 && [editor bounds].size.height > 23) {
-		[snapbackButton setNeedsDisplay:YES];
+- (void)setShowsDocumentIcon:(BOOL)showsIcon {
+	if (showsIcon != showsDocumentIcon) {
+		showsDocumentIcon = showsIcon;
+		[self setNeedsDisplay:YES];
 	}
+}
+
+- (BOOL)showsDocumentIcon {
+	return showsDocumentIcon;
 }
 
 - (BOOL)textView:(NSTextView *)aTextView shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
 
 	lastLengthReplaced = [replacementString length];
-
+	
 	return YES;
 }
 
@@ -235,21 +318,56 @@
 	return lastLengthReplaced;
 }
 
-/*
-- (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
-	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
+- (void)deselectAll:(id)sender {
+	[notesTable deselectAll:sender];
+}
+
++ (NSImage*)snapbackImageWithString:(NSString*)string {
+	//get width of string, center rect around it,
+	//lock focus, draw rounded rect, draw text, unlock focus
 	
-	if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
-		
-		if ([anEvent modifierFlags] & NSCommandKeyMask) {
-			[notesTable deselectAll:self];
-			[[self target] performSelector:[self action]];
-			return YES;
-		}
+	static NSDictionary *smallTextAttrs = nil;
+	static NSMutableDictionary *smallTextBackAttrs = nil;
+	if (!smallTextAttrs) {
+		smallTextAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:
+						   [NSFont systemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, 
+						   [NSColor whiteColor], NSForegroundColorAttributeName, nil] retain];
+		[(smallTextBackAttrs = [smallTextAttrs mutableCopy]) setObject:[NSColor colorWithCalibratedWhite:0.44 alpha:1.0] forKey:NSForegroundColorAttributeName];
 	}
 	
-	return [super performKeyEquivalent:anEvent];	
-}*/
+	if ([string length] > 15) string = [[string substringToIndex:15] stringByAppendingString:NSLocalizedString(@"...", @"ellipsis character")];
+	NSSize stringSize = [string sizeWithAttributes:smallTextAttrs];
+	
+	NSPoint textOffset = NSMakePoint(5.0f, 2.0f);
+	NSRect wordRect = NSMakeRect(0, 0, ceilf(stringSize.width + textOffset.x * 2.0f), stringSize.height + textOffset.y * 2.0f);
+	
+	NSImage *image = [[NSImage alloc] initWithSize:wordRect.size];
+	[image lockFocus];
+	
+	NSBezierPath *backgroundPath = [DualField bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 1.5, 1.5) radius:1.5f];
+	
+	static LinearDividerShader *snapbackShader = nil;
+	if (!snapbackShader) {
+		snapbackShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithDeviceRed:0.8 green:0.386 blue:0.019 alpha:1.0] 
+																endColor:[NSColor colorWithDeviceRed:1.0 green:0.486 blue:0.039 alpha:1.0]];
+	}
+	
+	
+	[[NSGraphicsContext currentContext] saveGraphicsState];
+	[backgroundPath addClip];
+	[snapbackShader drawDividerInRect:wordRect withDimpleRect:NSZeroRect];	
+	[[NSGraphicsContext currentContext] restoreGraphicsState];
+	
+	[[NSColor colorWithDeviceRed:0.63 green:0.20 blue:0.0 alpha:1.0] set];
+	[backgroundPath stroke];
+	
+	[string drawAtPoint:NSMakePoint(textOffset.x, textOffset.y+1) withAttributes:smallTextBackAttrs];
+	[string drawAtPoint:textOffset withAttributes:smallTextAttrs];
+	
+	[image unlockFocus];
+	return [image autorelease];
+}
+
 
 + (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius  {
 	NSBezierPath* path = [NSBezierPath bezierPath];
@@ -262,72 +380,6 @@
 	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMinX(rect), NSMaxY(rect)) radius:radius startAngle: 90.0 endAngle:180.0];
 	[path closePath];
 	return path;
-}
-
-+ (NSImage*)snapbackImageWithString:(NSString*)string {
-	//get width of string, center rect around it,
-	//lock focus, draw rounded rect, draw text, unlock focus
-	
-	static NSDictionary *smallTextAttrs = nil;
-	static NSMutableDictionary *smallTextBackAttrs = nil;
-	if (!smallTextAttrs || !smallTextBackAttrs) {
-		smallTextAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:
-						   [NSFont systemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, 
-						   [NSColor whiteColor], NSForegroundColorAttributeName, nil] retain];
-		[(smallTextBackAttrs = [smallTextAttrs mutableCopy]) setObject:[NSColor darkGrayColor] forKey:NSForegroundColorAttributeName];
-	}
-	
-	if ([string length] > 25) string = [[string substringToIndex:25] stringByAppendingString:NSLocalizedString(@"...", @"ellipsis character")];
-	NSSize stringSize = [string sizeWithAttributes:smallTextAttrs];
-	
-	float arrowOffset = 8.0f;
-	NSPoint textOffset = NSMakePoint(4.0f, 0.0f);
-	NSRect wordRect = NSMakeRect(0, 0, ceilf(stringSize.width + textOffset.x * 2.0f + arrowOffset) + 2, stringSize.height + textOffset.y * 2.0f + 3);
-	textOffset.x += arrowOffset + 1.0f;
-	textOffset.y += 1.0f;
-	
-	NSImage *image = [[NSImage alloc] initWithSize:wordRect.size];
-	[image lockFocus];
-	
-	NSBezierPath *backgroundPath = [[self class] bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 1.5, 1.5) radius:5.0f];
-	
-	[[NSColor colorWithDeviceWhite:0.729f alpha:1.0f] setFill];
-	[backgroundPath fill];
-	
-	[[NSImage imageNamed:@"leftarrow"] compositeToPoint:NSMakePoint(5.0f, 5.0f) operation:NSCompositeSourceAtop];
-	
-//	[[NSColor colorWithCalibratedWhite:0.60f alpha:1.0f] set];
-//	[backgroundPath stroke];
-	
-	[[NSColor whiteColor] set];
-	[string drawAtPoint:NSMakePoint(textOffset.x, textOffset.y-1) withAttributes:smallTextBackAttrs];
-	[string drawAtPoint:textOffset withAttributes:smallTextAttrs];
-	
-	[image unlockFocus];
-	return [image autorelease];
-}
-
-- (NSMenu*)snapbackMenu {
-	//create new note with this title
-	//add to saved searches
-	//clear this search
-	//what else?
-	
-	/*
-	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"Snapback Menu"] autorelease];
-    
-		NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:[[theColumn headerCell] stringValue] 
-															  action:@selector(setStatusForSortedColumn:) 
-													   keyEquivalent:@""] autorelease];
-		[theMenuItem setTarget:self];
-		[theMenuItem setRepresentedObject:theColumn];
-		[theMenuItem setState:[[theColumn identifier] isEqualToString:sortKey]];
-		
-		[theMenu addItem:theMenuItem];
-
-	return theMenu;
-	 */
-	return nil;
 }
 
 - (void)drawRect:(NSRect)rect {
@@ -365,29 +417,34 @@
 	[[NSColor colorWithDeviceWhite: isActiveWin ? 0.447f : 0.627f alpha:1.0f] set];
 	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height - 1.5) 
 							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height - 1.5)];
-	if (IsLeopardOrLater) {
-		//the lower highlight doesn't match the lighter unified toolbar look on Tiger
-		[[NSColor colorWithDeviceWhite: isActiveWin ? 0.749f : 0.886f alpha:1.0f] set];
-		[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height ) 
-								  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height )];
-	}
-		
+	[[NSColor colorWithDeviceWhite: 1.0 alpha:0.39f] set];
+	[NSBezierPath strokeLineFromPoint:NSMakePoint(tBounds.origin.x + [leftCap size].width, tBounds.origin.y + tBounds.size.height ) 
+							  toPoint:NSMakePoint(tBounds.size.width - [rightCap size].width, tBounds.origin.y + tBounds.size.height )];
+	
+	NSImage *docIcon = [NSImage imageNamed: showsDocumentIcon ? @"Pencil" : @"Search" ];
+	[docIcon setFlipped:YES];
+	NSRect docImageRect = NSMakeRect(BORDER_LEFT_OFFSET, BORDER_TOP_OFFSET, [docIcon size].width, [docIcon size].height);
+	[docIcon drawInRect:docImageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+	
 	[NSGraphicsContext restoreGraphicsState];
 	
 	//drawWithFrame: would make sense to override, but this works, too
 	[[self cell] drawWithFrame:NSMakeRect(0, 0, NSWidth(tBounds), NSHeight(tBounds)) inView:self];
 	
-	if ([self currentEditor] && isActiveWin) {
-		//draw focus ring
-		[NSGraphicsContext saveGraphicsState];
-		NSSetFocusRingStyle(NSFocusRingOnly);
-		NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
-		focusRect.origin.y -= 0.5f;
-		[[[self class] bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
-		[NSGraphicsContext restoreGraphicsState];
+	if (IsLeopardOrLater) {
+		//ALERT: TEMPORARY WORK-AROUND FOR TIGER FOCUS RING BUILDUP: DO NOT DRAW FOCUS RING ON TIGER
+		if ([self currentEditor] && isActiveWin) {
+			//draw focus ring
+			[NSGraphicsContext saveGraphicsState];
+			NSSetFocusRingStyle(NSFocusRingOnly);
+			NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
+			focusRect.origin.y -= 0.5f;
+			//drawing could be sped up by a measurable amount if this were cached in a (partially transparent) image
+			[[DualField bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
+			[NSGraphicsContext restoreGraphicsState];
+		}
 	}
 	
-	//[[NSImage imageNamed:@"deselect_document"] compositeToPoint:NSMakePoint(NSWidth(tBounds)-20,NSHeight(tBounds)-2.5) operation:NSCompositeCopy];
 }
 
 @end

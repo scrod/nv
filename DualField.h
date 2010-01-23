@@ -2,24 +2,47 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface DualFieldCell : NSTextFieldCell {}
+enum { BUTTON_HIDDEN, BUTTON_NORMAL, BUTTON_PRESSED };
+
+@interface DualFieldCell : NSTextFieldCell {
+	int clearButtonState, snapbackButtonState;
+}
+
+- (BOOL)snapbackButtonIsVisible;
+- (void)setShowsSnapbackButton:(BOOL)shouldShow;
+
+- (BOOL)clearButtonIsVisible;
+- (void)setShowsClearButton:(BOOL)shouldShow;
+
+- (NSRect)clearButtonRectForBounds:(NSRect)rect;
+- (NSRect)snapbackButtonRectForBounds:(NSRect)rect;
+- (NSRect)textAreaForBounds:(NSRect)rect;
+
+- (BOOL)handleMouseDown:(NSEvent *)theEvent;
+
 @end
 
 @interface DualField : NSTextField {
 	IBOutlet NSTableView *notesTable;
 	unsigned int lastLengthReplaced;
-	NSButton *snapbackButton;
-	NSString *snapbackString;
+	NSString *snapbackString, *swappedOriginalString;
+	
+	NSToolTipTag docIconTag, textAreaTag, clearButtonTag;
+	NSTrackingRectTag docIconRectTag;
+	
+	BOOL showsDocumentIcon;
 }
 
+- (void)setShowsDocumentIcon:(BOOL)showsIcon;
+- (BOOL)showsDocumentIcon;
+
 - (void)setSnapbackString:(NSString*)string;
-- (void)_addSnapbackButtonForEditor:(NSText*)editor;
-- (void)_addSnapbackButtonForView:(NSView*)view;
-- (unsigned int)lastLengthReplaced;
-+ (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius;
+- (NSString*)snapbackString;
 + (NSImage*)snapbackImageWithString:(NSString*)string;
 
-- (void)updateButtonIfNecessaryForEditor:(NSText*)editor;
+- (void)deselectAll:(id)sender;
 
-- (NSMenu*)snapbackMenu;
+- (unsigned int)lastLengthReplaced;
++ (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius;
+
 @end
