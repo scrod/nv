@@ -16,6 +16,9 @@ void resetCurrentDayTime();
 - (NSMutableSet*)labelSetFromWordsAndContainingNote:(NoteObject*)note;
 + (NSString*)relativeTimeStringWithDate:(CFDateRef)date relativeDay:(int)day;
 + (NSString*)relativeDateStringWithAbsoluteTime:(CFAbsoluteTime)absTime;
+CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
++ (NSString*)simplenoteDateWithAbsoluteTime:(CFAbsoluteTime)absTime;
+- (CFAbsoluteTime)absoluteTimeFromSimplenoteDate;
 - (CFArrayRef)copyRangesOfWordsInString:(NSString*)findString inRange:(NSRange)limitRange;
 + (NSString*)customPasteboardTypeOfCode:(int)code;
 - (NSString*)stringAsSafePathExtension;
@@ -25,6 +28,7 @@ void resetCurrentDayTime();
 - (NSString*)fourCharTypeString;
 - (void)copyItemToPasteboard:(id)sender;
 - (NSURL*)linkForWord;
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr newBodyAtLocation:(NSUInteger*)bodyLoc;
 - (NSString*)syntheticTitle;
 - (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)width;
 + (NSString *)tabbifiedStringWithNumberOfSpaces:(unsigned)origNumSpaces tabWidth:(unsigned)tabWidth usesTabs:(BOOL)usesTabs;
@@ -34,6 +38,8 @@ void resetCurrentDayTime();
 
 - (char*)copyLowercaseASCIIString;
 - (const char*)lowercaseUTF8String;
+- (NSString*)stringWithPercentEscapes;
+- (NSString *)stringByReplacingPercentEscapes;
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err;
 + (NSString*)pathWithFSRef:(FSRef*)fsRef;
 
