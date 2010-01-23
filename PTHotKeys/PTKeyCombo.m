@@ -98,15 +98,8 @@
 + (NSDictionary*)_keyCodesDictionary
 {
 	static NSDictionary* keyCodes = nil;
-	
-	if( keyCodes == nil )
-	{
-		NSString* path;
-		NSString* contents;
-		
-		path = [[NSBundle bundleForClass: self] pathForResource: @"PTKeyCodes" ofType: @"plist"];
-		contents = [NSString stringWithContentsOfFile: path encoding:NSUTF8StringEncoding error:nil];
-		keyCodes = [[contents propertyList] retain];
+	if( keyCodes == nil ) {
+		keyCodes = [[NSDictionary dictionaryWithContentsOfFile:[[NSBundle bundleForClass: self] pathForResource: @"PTKeyCodes" ofType: @"plist"]] retain];
 	}
 	
 	return keyCodes;
