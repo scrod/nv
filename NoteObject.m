@@ -167,23 +167,9 @@ NSInteger compareNodeID(id *a, id *b) {
     return (*(NoteObject**)a)->nodeID - (*(NoteObject**)b)->nodeID;
 }
 
+#include "SynchronizedNoteMixIns.h"
 
-//syncing w/ server and from journal; these should be objc methods so we can use polymorphism
-- (CFUUIDBytes *)uniqueNoteIDBytes {
-    return &uniqueNoteIDBytes;
-}
-- (unsigned int)serverModifiedDate {
-    return serverModifiedTime;
-}
-- (unsigned int)logSequenceNumber {
-    return logSequenceNumber;
-}
-- (void)incrementLSN {
-    logSequenceNumber++;
-}
-- (BOOL)youngerThanLogObject:(id<SynchronizedNote>)obj {
-	return [self logSequenceNumber] < [obj logSequenceNumber];
-}
+//syncing w/ server and from journal;
 
 DefModelAttrAccessor(filenameOfNote, filename)
 DefModelAttrAccessor(fileNodeIDOfNote, nodeID)
