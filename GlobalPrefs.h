@@ -13,6 +13,7 @@ extern NSString *NoteTitleColumnString;
 extern NSString *NoteLabelsColumnString;
 extern NSString *NoteDateModifiedColumnString;
 extern NSString *NoteDateCreatedColumnString;
+extern NSString *NotePreviewString;
 
 extern NSString *NVPTFPboardType;
 

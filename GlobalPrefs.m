@@ -53,6 +53,9 @@ NSString *NoteLabelsColumnString = @"Tags";
 NSString *NoteDateModifiedColumnString = @"Date Modified";
 NSString *NoteDateCreatedColumnString = @"Date Added";
 
+//virtual column
+NSString *NotePreviewString = @"Note Preview";
+
 NSString *NVPTFPboardType = @"Notational Velocity Poor Text Format";
 
 NSString *HotKeyAppToFrontName = @"bring Notational Velocity to the foreground";
@@ -477,8 +480,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	NSFont *bodyFont = [self noteBodyFont];
 
 	if (!noteBodyParagraphStyle && bodyFont) {
-		NSMutableString *sizeString = [[NSMutableString alloc] init];
 		int numberOfSpaces = [self numberOfSpacesInTab];
+		NSMutableString *sizeString = [[NSMutableString alloc] initWithCapacity:numberOfSpaces];
 		while (numberOfSpaces--) {
 			[sizeString appendString:@" "];
 		}
