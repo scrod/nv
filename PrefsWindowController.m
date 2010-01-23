@@ -10,7 +10,6 @@
 
 - (id)init {
     if ([super init]) {
-		notationPrefsViewController = [[NotationPrefsViewController alloc] init];
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
 		
@@ -305,9 +304,16 @@
     return NO;
 }
 
+- (NotationPrefsViewController*)notationPrefsViewController {
+	if (!notationPrefsViewController) {
+		notationPrefsViewController = [[NotationPrefsViewController alloc] init];
+	}
+	return notationPrefsViewController;
+}
+
 - (NSView*)databaseView {
     if (![notationPrefsView subviews] || ![[notationPrefsView subviews] count])
-		[notationPrefsView addSubview:[notationPrefsViewController view]];
+		[notationPrefsView addSubview:[[self notationPrefsViewController] view]];
 	
     return databaseView;
 }
