@@ -10,9 +10,14 @@
 @protocol SynchronizedNote <NSCoding, NSObject>
 
 - (CFUUIDBytes *)uniqueNoteIDBytes;
-- (unsigned int)serverModifiedDate;
+- (NSDictionary *)syncServicesMD;
+//need methods to modify parts of syncServicesMD
 - (unsigned int)logSequenceNumber;
 - (void)incrementLSN;
 - (BOOL)youngerThanLogObject:(id<SynchronizedNote>)obj;
+
+- (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
+- (void)removeAllSyncMDForService:(NSString*)serviceName;
+
 
 @end
