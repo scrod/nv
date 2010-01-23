@@ -19,6 +19,12 @@
   alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value;
 @end
 
+@interface NSDictionary (URLEncoding)
+
+- (NSString*)URLEncodedString;
+@end
+
+
 @interface NSSet (Utilities)
 
 - (NSMutableSet*)setIntersectedWithSet:(NSSet*)set;
