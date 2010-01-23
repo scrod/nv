@@ -89,10 +89,6 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
     }
     
     if (!days[ThisDay]) {
-	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-	days[ThisDay] = [[[[defaults stringArrayForKey:@"NSThisDayDesignations"] objectAtIndex:0] capitalizedString] retain];
-	days[NextDay] = [[[[defaults stringArrayForKey:@"NSNextDayDesignations"] objectAtIndex:0] capitalizedString] retain];
-	days[PriorDay] = [[[[defaults stringArrayForKey:@"NSPriorDayDesignations"] objectAtIndex:0] capitalizedString] retain];
 		days[ThisDay] = [NSLocalizedString(@"Today", nil) retain];
 		days[NextDay] = [NSLocalizedString(@"Tomorrow", nil) retain];
 		days[PriorDay] = [NSLocalizedString(@"Yesterday", nil) retain];
@@ -617,7 +613,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 		reasons = [[NSDictionary dictionaryWithContentsOfFile:path] retain];
 	}
 	
-	return [reasons objectForKey:[[NSNumber numberWithInt:(int)err] stringValue]];
 	NSString *reason = [reasons objectForKey:[[NSNumber numberWithInt:(int)err] stringValue]];
 	if (!reason)
 		return [NSString stringWithFormat:NSLocalizedString(@"an error of type %d occurred", @"string of last resort for errors not found in CarbonErrorStrings"), (int)err];
