@@ -466,6 +466,8 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		[self updateTablePreviewString];
 		contentCacheNeedsUpdate = YES;
 		//[self updateContentCacheCStringIfNecessary];
+		
+		[delegate note:self attributeChanged:NotePreviewString];
 	
 		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
 	}
@@ -660,6 +662,7 @@ int decodedCount() {
 		} else {
 			[self _setTitleString:[aString stringByDeletingPathExtension]];	
 			
+			[self updateTablePreviewString];
 			[delegate note:self attributeChanged:NoteTitleColumnString];
 		}
 		
