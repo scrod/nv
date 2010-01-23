@@ -46,9 +46,8 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 	
 	CGShadingRelease(cgShading);
 	
-	if (!NSEqualRects(dimpleRect, NSZeroRect)) {
-		NSRect cent = centeredRectInRect(dimpleRect, [dimpleImage size]);
-		[dimpleImage compositeToPoint:NSMakePoint(cent.origin.x, cent.origin.y + cent.size.height + .5) operation:NSCompositeSourceOver];
+	if (!NSIsEmptyRect(dimpleRect)) {
+		[dimpleImage drawCenteredInRect:dimpleRect];
 	}
 }
 
@@ -72,3 +71,14 @@ void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out) {
 	unsigned int i;
 	for (i=0; i<4; i++) out[i] = (1.0 - inVal) * colors->firstColor.channels[i] + inVal * colors->secondColor.channels[i];
 }
+
+
+@implementation NSImage (CenteredDrawing)
+
+- (void)drawCenteredInRect:(NSRect)aRect {
+	NSRect cent = centeredRectInRect(aRect, [self size]);
+	cent = [[NSView focusView] centerScanRect:cent];
+	[self compositeToPoint:NSMakePoint(cent.origin.x, cent.origin.y + cent.size.height) operation:NSCompositeSourceOver];
+}
+
+@end

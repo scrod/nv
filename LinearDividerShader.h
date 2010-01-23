@@ -29,3 +29,9 @@ NSRect centeredRectInRect(NSRect rect, NSSize size);
 - (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect;
 
 @end
+
+@interface NSImage (CenteredDrawing)
+
+- (void)drawCenteredInRect:(NSRect)aRect;
+
+@end
