@@ -514,6 +514,10 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	}
 	
 	return [reasons objectForKey:[[NSNumber numberWithInt:(int)err] stringValue]];
+	NSString *reason = [reasons objectForKey:[[NSNumber numberWithInt:(int)err] stringValue]];
+	if (!reason)
+		return [NSString stringWithFormat:NSLocalizedString(@"an error of type %d occurred", @"string of last resort for errors not found in CarbonErrorStrings"), (int)err];
+	return reason;
 }
 
 + (NSString*)pathWithFSRef:(FSRef*)fsRef {
