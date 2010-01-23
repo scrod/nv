@@ -390,49 +390,51 @@ bail:
     if (keys && values && dict) {
 	CFDictionaryGetKeysAndValues((CFDictionaryRef)dict, (const void **)keys, (const void **)values);
 	
-	for (i=0; i<count; i++) {
-	    
-	    CFUUIDBytes *objUUIDBytes = (CFUUIDBytes *)keys[i];
-	    id<SynchronizedNote> obj = (id)values[i];
-	    
-	    NSUInteger existingNoteIndex = [allNotes indexOfNoteWithUUIDBytes:objUUIDBytes];
-	    
-	    if ([obj isKindOfClass:[DeletedNoteObject class]]) {
-		
-		if (existingNoteIndex != NSNotFound) {
-		    
-			NoteObject *existingNote = [allNotes objectAtIndex:existingNoteIndex];
-		    if ([existingNote youngerThanLogObject:obj]) {
-				NSLog(@"got a newer deleted note");
-				//except that normally the undomanager doesn't exist by this point			
-				[self _registerDeletionUndoForNote:existingNote];
-			[allNotes removeObjectAtIndex:existingNoteIndex];
-			notesChanged = YES;
-		    } else {
-				NSLog(@"got an older deleted note");
+		for (i=0; i<count; i++) {
+			
+			CFUUIDBytes *objUUIDBytes = (CFUUIDBytes *)keys[i];
+			id<SynchronizedNote> obj = (id)values[i];
+			
+			NSUInteger existingNoteIndex = [allNotes indexOfNoteWithUUIDBytes:objUUIDBytes];
+			
+			if ([obj isKindOfClass:[DeletedNoteObject class]]) {
+				
+				if (existingNoteIndex != NSNotFound) {
+					
+					NoteObject *existingNote = [allNotes objectAtIndex:existingNoteIndex];
+					if ([existingNote youngerThanLogObject:obj]) {
+						NSLog(@"got a newer deleted note");
+						//except that normally the undomanager doesn't exist by this point			
+						[self _registerDeletionUndoForNote:existingNote];
+						[allNotes removeObjectAtIndex:existingNoteIndex];
+						//try to use use the deleted note object instead of allowing _addDeletedNote: to make a new one, to preserve any changes to the syncMD
+						[self _addDeletedNote:obj];
+						notesChanged = YES;
+					} else {
+						NSLog(@"got an older deleted note");
+					}
+				}
+			} else if (existingNoteIndex != NSNotFound) {
+				
+				if ([[allNotes objectAtIndex:existingNoteIndex] youngerThanLogObject:obj]) {
+					// NSLog(@"replacing old note with new: %@", [[(NoteObject*)obj contentString] string]);
+					
+					[(NoteObject*)obj setDelegate:self];
+					[(NoteObject*)obj updateLabelConnectionsAfterDecoding];
+					[allNotes replaceObjectAtIndex:existingNoteIndex withObject:obj];
+					notesChanged = YES;
+				} else {
+					// NSLog(@"note %@ is not being replaced because its LSN is %u, while the old note's LSN is %u", 
+					//  [[(NoteObject*)obj contentString] string], [(NoteObject*)obj logSequenceNumber], [[allNotes objectAtIndex:existingNoteIndex] logSequenceNumber]);
+				}
+			} else {
+				//NSLog(@"Found new note: %@", [(NoteObject*)obj contentString]);
+				
+				[self _addNote:obj];
+				[(NoteObject*)obj updateLabelConnectionsAfterDecoding];
 			}
 		}
-	    } else if (existingNoteIndex != NSNotFound) {
 		
-		if ([[allNotes objectAtIndex:existingNoteIndex] youngerThanLogObject:obj]) {
-		   // NSLog(@"replacing old note with new: %@", [[(NoteObject*)obj contentString] string]);
-		    
-		    [(NoteObject*)obj setDelegate:self];
-		    [(NoteObject*)obj updateLabelConnectionsAfterDecoding];
-		    [allNotes replaceObjectAtIndex:existingNoteIndex withObject:obj];
-		    notesChanged = YES;
-		} else {
-		   // NSLog(@"note %@ is not being replaced because its LSN is %u, while the old note's LSN is %u", 
-			//  [[(NoteObject*)obj contentString] string], [(NoteObject*)obj logSequenceNumber], [[allNotes objectAtIndex:existingNoteIndex] logSequenceNumber]);
-		}
-	    } else {
-		//NSLog(@"Found new note: %@", [(NoteObject*)obj contentString]);
-		
-		[self _addNote:obj];
-		[(NoteObject*)obj updateLabelConnectionsAfterDecoding];
-	    }
-	}
-
 	if (keys != keysBuffer)
 	    free(keys);
 	if (values != valuesBuffer)
@@ -1255,6 +1257,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     
 	[aNoteObject retain];
     [allNotes removeObjectIdenticalTo:aNoteObject];
+	DeletedNoteObject *deletedNote = [self _addDeletedNote:aNoteObject];
     
     notesChanged = YES;
 	
@@ -1269,22 +1272,54 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	if (walWriter && ![walWriter writeRemovalForNote:aNoteObject]) {
 		NSLog(@"Couldn't log note removal");
 	}
+	
+	//a removal command will be sent to sync services if aNoteObject contains a matching syncServicesMD dict 
+	//(e.g., already been synced at least once)
+	//make sure we use the same deleted note that was added to the list of deleted notes, to simplify record-keeping
+	if (deletedNote) [self schedulePushToAllSyncServicesForNote:deletedNote];
     
 	[self _registerDeletionUndoForNote:aNoteObject];
-	
+		
 	//delete note from bookmarks, too
 	[[prefsController bookmarksController] removeBookmarkForNote:aNoteObject];
     
     [aNoteObject release];
-	    
-    //resynchronize to web
     
     [self refilterNotes];
 }
 
-- (void)_addDeletedNote:(NoteObject*)aNote {
+- (void)_purgeAlreadyDistributedDeletedNotes {
+	//purge deletedNotes of objects without any more syncMD entries;
+	//once a note has been deleted from all services, there's no need to keep it around anymore
+
+	NSUInteger i = 0;
+	NSArray *dnArray = [deletedNotes allObjects];
+	for (i = 0; i<[dnArray count]; i++) {
+		DeletedNoteObject *dnObj = [dnArray objectAtIndex:i];
+		if (![[dnObj syncServicesMD] count]) {
+			[deletedNotes removeObject:dnObj];
+			notesChanged = YES;
+		}
+	}
+	//NSLog(@"%s: deleted notes left: %@", _cmd, deletedNotes);
+}
+
+- (DeletedNoteObject*)_addDeletedNote:(id<SynchronizedNote>)aNote {
 	//currently coupled to -[allNotes removeObjectIdenticalTo:]
-	[deletedNotes addObject:[[[DeletedNoteObject alloc] initWithExistingObject:aNote] autorelease]];
+	//don't need to remember this deleted note unless it was already synced with some service
+	//furthermore, after that deleted note has been remotely-removed from all services with which it was previously synced,
+	//can it be purged from this database once and for all?
+	//e.g., each successful syncservice deletion would also remove that service's entry from syncServicesMD
+	//when syncServicesMD was empty, it would be removed from the set
+	//but what about synchronization systems without explicit delete APIs?
+	
+	if ([[aNote syncServicesMD] count]) {
+		//it is important to use the actual deleted note if one is passed
+		DeletedNoteObject *deletedNote = [aNote isKindOfClass:[DeletedNoteObject class]] ? aNote : [DeletedNoteObject deletedNoteWithNote:aNote];
+		[deletedNotes addObject:deletedNote];
+		return deletedNote;
+	}
+	return nil;
 }
 
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote {	
