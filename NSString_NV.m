@@ -93,6 +93,9 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
 	days[ThisDay] = [[[[defaults stringArrayForKey:@"NSThisDayDesignations"] objectAtIndex:0] capitalizedString] retain];
 	days[NextDay] = [[[[defaults stringArrayForKey:@"NSNextDayDesignations"] objectAtIndex:0] capitalizedString] retain];
 	days[PriorDay] = [[[[defaults stringArrayForKey:@"NSPriorDayDesignations"] objectAtIndex:0] capitalizedString] retain];
+		days[ThisDay] = [NSLocalizedString(@"Today", nil) retain];
+		days[NextDay] = [NSLocalizedString(@"Tomorrow", nil) retain];
+		days[PriorDay] = [NSLocalizedString(@"Yesterday", nil) retain];
     }
 
     CFStringRef dateString = CFDateFormatterCreateStringWithDate(kCFAllocatorDefault, timeOnlyFormatter, date);
