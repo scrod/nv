@@ -14,10 +14,15 @@ including encryption, file formats, synchronization, passwords management, and o
 
 enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, WordDocFormat, WordXMLFormat };
 
+extern NSString *SyncPrefsDidChangeNotification;
+
 @interface NotationPrefs : NSObject {
 	BOOL doesEncryption, storesPasswordInKeychain, secureTextEntry;
 	NSString *keychainDatabaseIdentifier;
-	NSString *serverUserName; //password is stored in keychain or otherwise encrypted using notes password
+	
+	//password(s) stored in keychain or otherwise encrypted using notes password
+	NSMutableDictionary *syncServiceAccounts;
+	
 	unsigned int hashIterationCount, keyLengthInBits;
 	
 	NSFont *baseBodyFont;
@@ -39,6 +44,8 @@ enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, Wor
 	NSData *masterKey;
 }
 
+NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serviceName);
+
 + (int)appVersion;
 + (NSMutableArray*)defaultTypeStringsForFormat:(int)formatID;
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID;
@@ -50,7 +57,12 @@ enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, Wor
 - (int)notesStorageFormat;
 - (BOOL)confirmFileDeletion;
 - (BOOL)doesEncryption;
-- (NSString*)serverUserName;
+- (NSDictionary*)syncServiceAccounts;
+- (NSDictionary*)syncServiceAccountsForArchiving;
+- (NSDictionary*)syncAccountForServiceName:(NSString*)serviceName;
+- (NSString*)syncPasswordForServiceName:(NSString*)serviceName;
+- (NSUInteger)syncFrequencyInMinutesForServiceName:(NSString*)serviceName;
+- (BOOL)syncServiceIsEnabled:(NSString*)serviceName;
 - (unsigned int)keyLengthInBits;
 - (unsigned int)hashIterationCount;
 - (UInt32)epochIteration;
@@ -74,15 +86,18 @@ enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, Wor
 - (BOOL)decryptDataWithCurrentSettings:(NSMutableData*)data;
 - (NSData*)WALSessionKey;
 
-- (void)setSynchronizeNotesWithServer:(BOOL)value;
 - (void)setNotesStorageFormat:(int)formatID;
 - (BOOL)shouldDisplaySheetForProposedFormat:(int)proposedFormat;
 - (void)noteFilesCleanupSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
 - (void)setConfirmsFileDeletion:(BOOL)value;
 - (void)setDoesEncryption:(BOOL)value;
 - (void)setSecureTextEntry:(BOOL)value;
-- (void)setServerUserName:(NSString*)aUserName;
-- (void)setServerPassword:(NSString*)aPassword;
+- (const char*)keychainSyncAccountNameForService:(NSString*)serviceName;
+- (void)setSyncUsername:(NSString*)username forService:(NSString*)serviceName;
+- (void)setSyncPassword:(NSString*)password forService:(NSString*)serviceName;
+- (void)setSyncFrequency:(NSUInteger)frequencyInMinutes forService:(NSString*)serviceName;
+- (void)setSyncEnabled:(BOOL)isEnabled forService:(NSString*)serviceName;
+- (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 
 + (NSString*)pathExtensionForFormat:(int)format;
@@ -113,7 +128,7 @@ enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, Wor
 @interface NotationPrefs (DelegateMethods)
 
 - (void)databaseEncryptionSettingsChanged;
-- (void)serverSynchronizationSettingsChanged;
+- (void)syncSettingsChangedForService:(NSString*)serviceName;
 - (void)databaseSettingsChangedFromOldFormat:(int)oldFormat;
 
 @end
