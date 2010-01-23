@@ -129,7 +129,7 @@ void outletObjectAwoke(id sender) {
 	[[prefsController bookmarksController] setDelegate:self];
 	[[prefsController bookmarksController] updateBookmarksUI];
 	[self updateNoteMenus];
-	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(bringFocusToControlField:)];
+	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(toggleNVActivation:)];
 	[notationController checkIfNotationIsTrashed];
 	
 	//connect sparkle programmatically to avoid loading its framework at nib awake;
@@ -1360,13 +1360,21 @@ terminateApp:
 	[prefsWindowController showWindow:sender];
 }
 
-- (IBAction)bringFocusToControlField:(id)sender {	
-	if (![NSApp isActive])
-		[NSApp activateIgnoringOtherApps:YES];
+- (IBAction)toggleNVActivation:(id)sender {
 	
-	if (![window isKeyWindow]) {
-		[window makeKeyAndOrderFront:sender];
-	}
+	if ([NSApp isActive] && [window isKeyWindow]) {
+		[NSApp hide:sender];
+		return;
+	}	
+	if (![NSApp isActive]) [NSApp activateIgnoringOtherApps:YES];
+	if (![window isKeyWindow]) [window makeKeyAndOrderFront:sender];
+}
+
+- (IBAction)bringFocusToControlField:(id)sender {
+	
+	if (![NSApp isActive]) [NSApp activateIgnoringOtherApps:YES];
+	if (![window isKeyWindow]) [window makeKeyAndOrderFront:sender];
+	
 	[field selectText:sender];
 	
 	[self setEmptyViewState:currentNote == nil];
