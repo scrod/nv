@@ -276,6 +276,66 @@ int uncachedDateCount = 0;
 	return nil;
 }
 
+#define MAX_TITLE_LEN 43
+
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr newBodyAtLocation:(NSUInteger*)bodyLoc {
+	//break string into pieces for turning into a note
+	//find the first line, whitespace or no whitespace
+	
+	// if (![self length]) return @"";
+	NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:@"\n\r\t"];
+	NSScanner *scanner = [NSScanner scannerWithString:self];
+	[scanner setCharactersToBeSkipped:[[[NSMutableCharacterSet alloc] init] autorelease]];
+	
+	//skip any blank space before the title; this will not be preserved for round-tripped syncing
+	[scanner scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:NULL];
+	
+	//grab the title
+	NSString *firstLine = nil;
+	[scanner scanUpToCharactersFromSet:titleDelimiters intoString:&firstLine];
+	
+	if ([firstLine length] > MAX_TITLE_LEN) {
+		//what if this title is too long? then we need to break it up and start the body after that
+		NSRange lastSpaceInFirstLine = [firstLine rangeOfString:@" " options: NSBackwardsSearch | NSLiteralSearch
+														  range:NSMakeRange(MAX_TITLE_LEN - 10, 10)];
+		if (lastSpaceInFirstLine.location == NSNotFound) {
+			lastSpaceInFirstLine.location = MAX_TITLE_LEN;
+		}
+		
+		NSUInteger bodyStartIndex = [scanner scanLocation] - ([firstLine length] - lastSpaceInFirstLine.location);
+		
+		firstLine = [firstLine substringToIndex:lastSpaceInFirstLine.location];
+		
+		if (sepStr) {
+			*sepStr = [firstLine length] && bodyStartIndex < [self length] ? 
+			[NSString stringWithFormat:@"%C%C", [firstLine characterAtIndex:[firstLine length] - 1], 
+			 [self characterAtIndex:bodyStartIndex]] : nil;
+		}
+		
+		if (bodyLoc) *bodyLoc = bodyStartIndex;
+		return firstLine;
+	} 
+	
+	//grab blank space between the title and the body	
+	if ([scanner scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:sepStr]) {
+		if (sepStr && *sepStr) {
+			*sepStr = [firstLine length] && [scanner scanLocation] < [self length] ? 
+			[NSString stringWithFormat:@"%C%@%C", [firstLine characterAtIndex:[firstLine length] - 1], *sepStr, 
+			 [self characterAtIndex:[scanner scanLocation]]] : nil;
+		}
+		if (bodyLoc) *bodyLoc = [scanner scanLocation];
+	} else {
+		NSLog(@"<found no whitespace before body in %@>", self);
+		//no body; all one line
+		if (sepStr) *sepStr = @"";
+		if (bodyLoc) *bodyLoc = [self length];
+	}
+	
+	if (!firstLine) firstLine = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
+	
+	return firstLine;
+}
+
 - (NSString*)syntheticTitle {
 	//grab first five words of first line of receiver
 
