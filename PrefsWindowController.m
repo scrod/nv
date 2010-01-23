@@ -67,7 +67,7 @@
 	
 	[appShortcutField setStringValue:[[prefsController appActivationKeyCombo] description]];
 		
-	if (![prefsController registerAppActivationKeystrokeWithTarget:[NSApp delegate] selector:@selector(bringFocusToControlField:)]) {
+	if (![prefsController registerAppActivationKeystrokeWithTarget:[NSApp delegate] selector:@selector(toggleNVActivation:)]) {
 		[prefsController setAppActivationKeyCombo:oldKeyCombo sender:self];
 		NSLog(@"reverting to old (hopefully working key combo");
 	}
