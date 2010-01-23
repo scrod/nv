@@ -341,7 +341,7 @@ OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize,
     }
     
 	size_t copyBufferSize = MIN(maximumReadSize, (size_t)forkSize);
-    void *fullSizeBuffer = (void*)malloc(forkSize);
+    void *fullSizeBuffer = (void*)valloc(forkSize);
     
     while (noErr == err && totalReadBytes < (ByteCount)forkSize) {
 		err = FSReadFork(refNum, fsAtMark + modeOptions, 0, copyBufferSize, fullSizeBuffer + totalReadBytes, &readActualCount);
