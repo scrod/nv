@@ -566,6 +566,14 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return utf8String;
 }
 
+- (NSString *)stringByReplacingPercentEscapes {
+    return [(NSString*) CFURLCreateStringByReplacingPercentEscapes(NULL, (CFStringRef) self, CFSTR("")) autorelease];
+}
+
+- (NSString*)stringWithPercentEscapes {
+	return [(NSString *) CFURLCreateStringByAddingPercentEscapes(NULL, (CFStringRef)[[self mutableCopy] autorelease], NULL, CFSTR("=,!$&'()*+;@?\n\"<>#\t :/"),kCFStringEncodingUTF8) autorelease];
+}
+
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err {
 	static NSDictionary *reasons = nil;
 	if (!reasons) {
