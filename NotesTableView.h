@@ -6,23 +6,6 @@
 @class NoteAttributeColumn;
 @class GlobalPrefs;
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
-
-typedef enum { 
-	NSTableViewNoColumnAutoresizing = 0,
-	NSTableViewUniformColumnAutoresizingStyle,
-	NSTableViewSequentialColumnAutoresizingStyle,
-	NSTableViewReverseSequentialColumnAutoresizingStyle,
-	NSTableViewLastColumnOnlyAutoresizingStyle,
-	NSTableViewFirstColumnOnlyAutoresizingStyle
-} NSTableViewColumnAutoresizingStyle;
-
-@interface NSTableView (TigerAdditions)
--(void)setColumnAutoresizingStyle:(NSTableViewColumnAutoresizingStyle)style;
-@end
-
-#endif
-
 typedef struct _ViewLocationContext {
 	BOOL pivotRowWasEdge;
 	id nonRetainedPivotObject;

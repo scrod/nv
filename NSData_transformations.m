@@ -247,9 +247,7 @@
 }
 
 + (NSData*)uncachedDataFromFile:(NSString*)filename {
-	
-	if (!RunningTigerAppKitOrHigher) return [NSData dataWithContentsOfFile:filename];
-		
+			
 	return [NSData dataWithContentsOfFile:filename options:NSUncachedRead error:NULL];
 }
 

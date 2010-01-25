@@ -66,9 +66,6 @@
     [allowedExtensionsTable setDelegate:self];
     [allowedTypesTable setDelegate:self];
 	
-	if (floor(NSAppKitVersionNumber) <= NSAppKitVersionNumber10_3) { // not on 10.4
-		//prevent HTML storage format on 10.3.x, as it is not in Foundation
-		[storageFormatPopupButton removeItemAtIndex:4];
 	}
      
     [self initializeControls];

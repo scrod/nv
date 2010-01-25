@@ -58,7 +58,7 @@
 	    [column setDereferencingFunction:colReferencors[i]];
 	    [column setSortingFunction:sortFunctions[i]];
 	    [column setReverseSortingFunction:reverseSortFunctions[i]];
-		if (RunningTigerAppKitOrHigher) [column setResizingMask:NSTableColumnUserResizingMask];
+		[column setResizingMask:NSTableColumnUserResizingMask];
 		
 		[allColumns addObject:column];
 	    [column release];
@@ -80,14 +80,8 @@
 	}
 	[self setHeaderView:hideHeader ? nil : headerView];
 		
-	if (RunningTigerAppKitOrHigher) {// on 10.4
-		[[self noteAttributeColumnForIdentifier:NoteTitleColumnString] setResizingMask:NSTableColumnUserResizingMask | NSTableColumnAutoresizingMask];
-		[self setColumnAutoresizingStyle:NSTableViewUniformColumnAutoresizingStyle];
-	} else {
-		//what the hell is wrong with 10.3? when this is on, window resizing snaps columns to center
-		//which is really, really annoying. oh well--they'll upgrade their OS eventually.
-		[self setAutoresizesAllColumnsToFit:NO];
-	}
+	[[self noteAttributeColumnForIdentifier:NoteTitleColumnString] setResizingMask:NSTableColumnUserResizingMask | NSTableColumnAutoresizingMask];
+	[self setColumnAutoresizingStyle:NSTableViewUniformColumnAutoresizingStyle];
 		
 	//[self setSortDirection:[globalPrefs tableIsReverseSorted] 
 	//		 inTableColumn:[self tableColumnWithIdentifier:[globalPrefs sortedTableColumnKey]]];
@@ -512,10 +506,9 @@
     int row = [self rowAtPoint:mousePoint];
 	
     if (row >= 0) {
-		NSIndexSet *selectedRows = [self selectedRowIndexes];
-		BOOL extendSelection = [selectedRows containsIndex:row] && [selectedRows count] > 1;
-		[self selectRow:row byExtendingSelection:extendSelection];
-    }
+		[self selectRowIndexes:[NSIndexSet indexSetWithIndex:row]
+		  byExtendingSelection:[[self selectedRowIndexes] containsIndex:row] && [[self selectedRowIndexes] count] > 1];
+	}
 	
 	if (![self numberOfSelectedRows])
 		return nil;
@@ -639,8 +632,15 @@
 		
 		NSPoint mousePoint = [self convertPoint:[event locationInWindow] fromView:nil];
         NSPoint dragPoint = NSMakePoint(mousePoint.x - 16, mousePoint.y + 16); 
+		NSIndexSet *selectedRows = [self selectedRowIndexes];
 		
-        NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:[self selectedRowIndexes]];
+		int row = [self rowAtPoint:mousePoint];
+		if (row >= 0) {
+			[self selectRowIndexes:[NSIndexSet indexSetWithIndex:row]
+			  byExtendingSelection:[selectedRows containsIndex:row] && [selectedRows count] > 1];
+		}
+		
+        NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:selectedRows];
 		NSMutableArray *paths = [NSMutableArray arrayWithCapacity:[notes count]];
 		unsigned int i;
 		for (i=0;i<[notes count]; i++) {

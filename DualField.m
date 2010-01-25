@@ -23,7 +23,7 @@
 		[self setBordered:NO];
 		[self setDrawsBackground:NO];
 		[self setWraps:YES];
-		if (RunningTigerAppKitOrHigher) [self setPlaceholderString:NSLocalizedString(@"Search or Create", @"placeholder text in search/create field")];
+		[self setPlaceholderString:NSLocalizedString(@"Search or Create", @"placeholder text in search/create field")];
 		
 		[self setFocusRingType:NSFocusRingTypeExterior];
 		
@@ -185,11 +185,8 @@
 	[self setBezeled:NO];
 	[self setFocusRingType:NSFocusRingTypeExterior];
 			
-		
-	if (RunningTigerAppKitOrHigher) { // on 10.4
-		[myCell setAllowsUndo:NO];
-		[myCell setLineBreakMode:NSLineBreakByCharWrapping];
-	}
+	[myCell setAllowsUndo:NO];
+	[myCell setLineBreakMode:NSLineBreakByCharWrapping];
 	
 	docIconRectTag = [self addTrackingRect:[[self cell] snapbackButtonRectForBounds:[self bounds]] owner:self userData:NULL assumeInside:NO];
 }

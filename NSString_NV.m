@@ -634,7 +634,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 
 
 - (BOOL)UTIOfFileConformsToType:(NSString*)type {
-	if (!RunningTigerAppKitOrHigher) return NO;
 	
 	CFStringRef fileUTI = NULL;
 	FSRef fileRef;
@@ -802,7 +801,7 @@ errorReturn:
 	
 	AddIfUnique(firstEncodingToTry);
 	
-	if (hasHighASCII && RunningTigerAppKitOrHigher) {
+	if (hasHighASCII) {
 		//check the file on disk for extended attributes only if absolutely necessary
 		NSStringEncoding extendedAttrsEncoding = 0;
 		if (!aPath && fsRef && !IsZeros(fsRef, sizeof(FSRef))) {
@@ -821,12 +820,8 @@ errorReturn:
 	
 	encodingIndex = 0;
 	do {
-		if (RunningTigerAppKitOrHigher) {
-			stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] 
-																 encoding:encodingsToTry[encodingIndex] freeWhenDone:NO];
-		} else {
-			stringFromData = [[NSMutableString alloc] initWithData:data encoding:encodingsToTry[encodingIndex]];
-		}
+		stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] 
+															 encoding:encodingsToTry[encodingIndex] freeWhenDone:NO];
 	} while (!stringFromData && ++encodingIndex < 5);
 		
 	if (stringFromData) {

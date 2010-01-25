@@ -86,41 +86,10 @@ long BlockSizeForNotation(NotationController *controller) {
 }
 
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_4
-OSErr FSDetermineIfRefIsEnclosedByFolder(short domainOrVRefNum, OSType folderType, const FSRef *inRef, Boolean *outResult);
-#endif
-
 - (BOOL)notesDirectoryIsTrashed {
-	Boolean isInTrash = false;
-	
-	if (FSDetermineIfRefIsEnclosedByFolder == NULL) {
-		FSCatalogInfo info;
-		FSRef workingRef;
-		
-		memmove(&workingRef, &noteDirectoryRef, sizeof(FSRef));
-		
-		while (FSGetCatalogInfo(&workingRef, kFSCatInfoVolume | kFSCatInfoParentDirID,
-								&info, NULL, NULL, &workingRef) == noErr) {
-			FolderType folderType;
-			
-			if (IdentifyFolder(info.volume, info.parentDirID, &folderType) != noErr)
-				break;
-			
-			if (folderType == kTrashFolderType || 
-				folderType == kWhereToEmptyTrashFolderType ||
-				folderType == kSystemTrashFolderType) {
-				isInTrash = true;
-				break;
-			}
-			
-			if (info.parentDirID == fsRtDirID)
-				break;
-		}
-	} else {
-		if (FSDetermineIfRefIsEnclosedByFolder(0, kTrashFolderType, &noteDirectoryRef, &isInTrash) != noErr)
-			isInTrash = false;
-	}
-	
+	Boolean isInTrash = false;	
+	if (FSDetermineIfRefIsEnclosedByFolder(0, kTrashFolderType, &noteDirectoryRef, &isInTrash) != noErr)
+		isInTrash = false;
 	return (BOOL)isInTrash;
 }
 
@@ -308,6 +277,7 @@ regenerateFSRef:
     
     if (info) {
 		whichInfo = kFSCatInfoContentMod | kFSCatInfoCreateDate | kFSCatInfoNodeID;
+		//may have to be adjusted to include logical size if we start tracking that
 		bzero(info, sizeof(FSCatalogInfo));
     }
     

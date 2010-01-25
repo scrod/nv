@@ -14,19 +14,9 @@
 }
 
 - (void)awakeFromNib {
-	int itemIndex;
-	if (floor(NSAppKitVersionNumber) <= NSAppKitVersionNumber10_3) {
-		//prevent HTML and WordML storage format on 10.3.x, as they are not in Foundation
-		
-		itemIndex = [formatSelectorPopup indexOfItemWithTag:HTMLFormat];
-		if (itemIndex > -1)	[formatSelectorPopup removeItemAtIndex:itemIndex];
-		
-		itemIndex = [formatSelectorPopup indexOfItemWithTag:WordXMLFormat];
-		if (itemIndex > -1)	[formatSelectorPopup removeItemAtIndex:itemIndex];
-	}
 	
 	int storageFormat = [[[GlobalPrefs defaultPrefs] notationPrefs] notesStorageFormat];
-	itemIndex = [formatSelectorPopup indexOfItemWithTag:storageFormat];
+	int itemIndex = [formatSelectorPopup indexOfItemWithTag:storageFormat];
 	
 	if (itemIndex > -1)
 		[formatSelectorPopup selectItemAtIndex:itemIndex];

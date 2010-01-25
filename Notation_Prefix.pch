@@ -37,12 +37,6 @@ typedef unsigned int NSUInteger;
 #define NSINTEGER_DEFINED 1
 #endif
 
-
-#if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_4
-typedef short FSIORefNum;
-typedef float CGFloat;
-#endif
-
 #define GCC_VERSION (__GNUC__ * 10000 \
 + __GNUC_MINOR__ * 100 \
 + __GNUC_PATCHLEVEL__)

@@ -429,9 +429,7 @@
 	
 	//fix this math to convert between window and view coordinates for resolution independence
 	
-	float userSpaceScaleFactor = 1.0;
-	if (RunningTigerAppKitOrHigher) // on 10.4
-		userSpaceScaleFactor = [window userSpaceScaleFactor];
+	float userSpaceScaleFactor = [window userSpaceScaleFactor];
 	
     //to stop flicker, we make a temp blank view.
 	

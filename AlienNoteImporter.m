@@ -328,41 +328,37 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithDocFormat:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
 	} else if ([extension isEqualToString:@"docx"] || [extension isEqualToString:@"webarchive"]) {
-		if (RunningTigerAppKitOrHigher) {
-			//make it guess for us, but if it's a webarchive we'll get the URL
-			NSData *data = [NSData uncachedDataFromFile:filename];
-			NSString *path = [data pathURLFromWebArchive];
-			attributedStringFromData = [[NSMutableAttributedString alloc] initWithData:data options:nil documentAttributes:NULL error:NULL];
-			
-			if ([path length] > 0 && [attributedStringFromData length] > 0)
-				[attributedStringFromData prefixWithSourceString:path];
-		}
+		//make it guess for us, but if it's a webarchive we'll get the URL
+		NSData *data = [NSData uncachedDataFromFile:filename];
+		NSString *path = [data pathURLFromWebArchive];
+		attributedStringFromData = [[NSMutableAttributedString alloc] initWithData:data options:nil documentAttributes:NULL error:NULL];
+		
+		if ([path length] > 0 && [attributedStringFromData length] > 0)
+			[attributedStringFromData prefixWithSourceString:path];
 	} else if (fileType == PDF_TYPE_ID || [extension isEqualToString:@"pdf"]) {
-		//try PDFKit if on 10.4
-		if (RunningTigerAppKitOrHigher) {
-			@try {
-				Class PdfDocClass = [[self class] PDFDocClass];
-				if (PdfDocClass != Nil) {
-					id doc = [[PdfDocClass alloc] initWithURL:[NSURL fileURLWithPath:filename]];
-					if (doc) {
-						//this method reliably crashes in 64-bit Leopard, and sometimes elsewhere as well
-						id sel = [doc performSelector:@selector(selectionForEntireDocument)];
-						if (sel) {
-							attributedStringFromData = [[NSMutableAttributedString alloc] initWithAttributedString:[sel attributedString]];
-							//maybe we could check pages and boundsForPage: to try to determine where a line was soft-wrapped in the document?
-						} else {
-							NSLog(@"Couldn't get entire doc selection for PDF");
-						}
-						[doc autorelease];
+		//try PDFKit loading lazily
+		@try {
+			Class PdfDocClass = [[self class] PDFDocClass];
+			if (PdfDocClass != Nil) {
+				id doc = [[PdfDocClass alloc] initWithURL:[NSURL fileURLWithPath:filename]];
+				if (doc) {
+					//this method reliably crashes in 64-bit Leopard, and sometimes elsewhere as well
+					id sel = [doc performSelector:@selector(selectionForEntireDocument)];
+					if (sel) {
+						attributedStringFromData = [[NSMutableAttributedString alloc] initWithAttributedString:[sel attributedString]];
+						//maybe we could check pages and boundsForPage: to try to determine where a line was soft-wrapped in the document?
 					} else {
-						NSLog(@"Couldn't parse data into PDF");
+						NSLog(@"Couldn't get entire doc selection for PDF");
 					}
+					[doc autorelease];
 				} else {
-					NSLog(@"No PDFDocument!");
+					NSLog(@"Couldn't parse data into PDF");
 				}
-			} @catch (NSException *e) {
-				NSLog(@"Error importing PDF %@ (%@, %@)", filename, [e name], [e reason]);
+			} else {
+				NSLog(@"No PDFDocument!");
 			}
+		} @catch (NSException *e) {
+			NSLog(@"Error importing PDF %@ (%@, %@)", filename, [e name], [e reason]);
 		}
 	} else if (fileType == TEXT_TYPE_ID || [extension isEqualToString:@"txt"] || [extension isEqualToString:@"text"] ||
 			   [filename UTIOfFileConformsToType:@"public.plain-text"]) {

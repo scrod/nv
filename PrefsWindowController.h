@@ -5,14 +5,6 @@
 @class NotationPrefsViewController;
 @class GlobalPrefs;
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
-
-@interface NSWindow (TigerAdditions)
-- (float)userSpaceScaleFactor;
-@end
-
-#endif
-
 @interface PrefsWindowController : NSObject {
     IBOutlet NSPopUpButton *folderLocationsMenuButton;
     IBOutlet NSTextField *bodyTextFontField;

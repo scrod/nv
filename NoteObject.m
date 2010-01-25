@@ -862,10 +862,6 @@ int decodedCount() {
     return wroteAllOfNote;
 }
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_4
-#define NSDocumentTypeDocumentAttribute @"DocumentType"
-#endif
-
 - (BOOL)writeUsingCurrentFileFormat {
 
     NSData *formattedData = nil;
@@ -896,15 +892,10 @@ int decodedCount() {
 			
 			break;
 		case HTMLFormat:
-			//10.4-only
-			if (RunningTigerAppKitOrHigher) {
-				//export to HTML document here using NSHTMLTextDocumentType;
-				formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
-										  documentAttributes:[NSDictionary dictionaryWithObject:NSHTMLTextDocumentType 
-																						 forKey:NSDocumentTypeDocumentAttribute] error:&error];
-			} else {
-				NSLog(@"Attempted to write a note as HTML on 10.3.9.");
-			}
+			//export to HTML document here using NSHTMLTextDocumentType;
+			formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
+									  documentAttributes:[NSDictionary dictionaryWithObject:NSHTMLTextDocumentType 
+																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
 			//our links will always be to filenames, so hopefully we shouldn't have to change anything
 			break;
 		default:
@@ -977,8 +968,6 @@ int decodedCount() {
 - (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef {
 	NSAssert(fsRef, @"cannot write file encoding to a NULL FSRef");
 	//this is not the note's own fsRef; it could be anywhere
-	
-	if (!RunningTigerAppKitOrHigher) return noErr;
 	
 	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
 	OSStatus err = noErr;
@@ -1285,21 +1274,17 @@ int decodedCount() {
 			formattedData = [contentString RTFFromRange:NSMakeRange(0, [contentString length]) documentAttributes:nil];
 			break;
 		case HTMLFormat:
-			if (RunningTigerAppKitOrHigher) {
-				formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
-										  documentAttributes:[NSDictionary dictionaryWithObject:NSHTMLTextDocumentType 
-																						 forKey:NSDocumentTypeDocumentAttribute] error:&error];
-			} else NSLog(@"Attempted to export note as HTML on 10.3.9.");
+			formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
+									  documentAttributes:[NSDictionary dictionaryWithObject:NSHTMLTextDocumentType 
+																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
 			break;
 		case WordDocFormat:
 			formattedData = [contentString docFormatFromRange:NSMakeRange(0, [contentString length]) documentAttributes:nil];
 			break;
 		case WordXMLFormat:
-			if (RunningTigerAppKitOrHigher) {
-				formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
-										  documentAttributes:[NSDictionary dictionaryWithObject:NSWordMLTextDocumentType 
-																						 forKey:NSDocumentTypeDocumentAttribute] error:&error];
-			} else NSLog(@"Attempted to export note as Word XML on 10.3.9.");
+			formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
+									  documentAttributes:[NSDictionary dictionaryWithObject:NSWordMLTextDocumentType 
+																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
 			break;
 		default:
 			NSLog(@"Attempted to export using unknown format ID: %d", storageFormat);

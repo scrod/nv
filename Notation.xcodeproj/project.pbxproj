@@ -50,7 +50,6 @@
 		2144957A0ADCC06300E2A2B6 /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
 		214495870ADCC07E00E2A2B6 /* PassphraseChanger.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */; };
 		21469C8C0BEBA6A10094835F /* TemporaryFileCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */; };
-		214C6C59105445410085D386 /* Notality.icns in Resources */ = {isa = PBXBuildFile; fileRef = 214C6C58105445410085D386 /* Notality.icns */; };
 		21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
 		21544FC10B06332600C0D1D5 /* KeyDerivationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */; };
 		215452080B06541800C0D1D5 /* PassphraseChanger.m in Sources */ = {isa = PBXBuildFile; fileRef = 215450F80B06509600C0D1D5 /* PassphraseChanger.m */; };
@@ -100,6 +99,9 @@
 		21A6E6FD0974204F008436A9 /* LabelsListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21A6E6FC0974204F008436A9 /* LabelsListController.m */; };
 		21A73DC8099712A8009F8A6C /* WALController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21A73DC7099712A8009F8A6C /* WALController.m */; };
 		21AD2550110A8BA600B7A985 /* SimplenoteEntryCollector.m in Sources */ = {isa = PBXBuildFile; fileRef = 21AD254F110A8BA600B7A985 /* SimplenoteEntryCollector.m */; };
+		21AD2850110BE99B00B7A985 /* SyncSessionController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21AD284F110BE99B00B7A985 /* SyncSessionController.m */; };
+		21AD292D110C188800B7A985 /* TinyAlert.tif in Resources */ = {isa = PBXBuildFile; fileRef = 21AD292C110C188800B7A985 /* TinyAlert.tif */; };
+		21AD292F110C18AA00B7A985 /* Notality.icns in Resources */ = {isa = PBXBuildFile; fileRef = 21AD292E110C18AA00B7A985 /* Notality.icns */; };
 		21B1BC361104D20E0004A7D0 /* InvocationRecorder.m in Sources */ = {isa = PBXBuildFile; fileRef = 21B1BC351104D20E0004A7D0 /* InvocationRecorder.m */; };
 		21B1C171110764570004A7D0 /* statusValidated.png in Resources */ = {isa = PBXBuildFile; fileRef = 21B1C16E110764570004A7D0 /* statusValidated.png */; };
 		21B1C172110764570004A7D0 /* statusError.png in Resources */ = {isa = PBXBuildFile; fileRef = 21B1C16F110764570004A7D0 /* statusError.png */; };
@@ -222,7 +224,6 @@
 		2144987D0AE192F900E2A2B6 /* PassphraseChanger.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PassphraseChanger.h; sourceTree = "<group>"; };
 		21469C890BEBA6A10094835F /* TemporaryFileCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCache.h; sourceTree = "<group>"; };
 		21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCache.m; sourceTree = "<group>"; };
-		214C6C58105445410085D386 /* Notality.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Notality.icns; sourceTree = "<group>"; };
 		21544FB90B06331800C0D1D5 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
 		21544FBF0B06332600C0D1D5 /* KeyDerivationManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = KeyDerivationManager.h; sourceTree = "<group>"; };
 		21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = KeyDerivationManager.m; sourceTree = "<group>"; };
@@ -303,6 +304,10 @@
 		21A73DC7099712A8009F8A6C /* WALController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = WALController.m; sourceTree = "<group>"; };
 		21AD254E110A8BA600B7A985 /* SimplenoteEntryCollector.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SimplenoteEntryCollector.h; sourceTree = "<group>"; };
 		21AD254F110A8BA600B7A985 /* SimplenoteEntryCollector.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SimplenoteEntryCollector.m; sourceTree = "<group>"; };
+		21AD284E110BE99B00B7A985 /* SyncSessionController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SyncSessionController.h; sourceTree = "<group>"; };
+		21AD284F110BE99B00B7A985 /* SyncSessionController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SyncSessionController.m; sourceTree = "<group>"; };
+		21AD292C110C188800B7A985 /* TinyAlert.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = TinyAlert.tif; path = Images/TinyAlert.tif; sourceTree = "<group>"; };
+		21AD292E110C18AA00B7A985 /* Notality.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = Notality.icns; path = Images/Notality.icns; sourceTree = "<group>"; };
 		21B1BC341104D20E0004A7D0 /* InvocationRecorder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = InvocationRecorder.h; sourceTree = "<group>"; };
 		21B1BC351104D20E0004A7D0 /* InvocationRecorder.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = InvocationRecorder.m; sourceTree = "<group>"; };
 		21B1C16E110764570004A7D0 /* statusValidated.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = statusValidated.png; path = Images/statusValidated.png; sourceTree = "<group>"; };
@@ -599,8 +604,9 @@
 		219196B109D4F1DB00586B15 /* Images */ = {
 			isa = PBXGroup;
 			children = (
+				21AD292E110C18AA00B7A985 /* Notality.icns */,
+				21AD292C110C188800B7A985 /* TinyAlert.tif */,
 				213FB0230B3CB1C4004C74BD /* PTKeyboardIcon.tiff */,
-				214C6C58105445410085D386 /* Notality.icns */,
 				2144950D0ADC883000E2A2B6 /* PasswordAssistantButton.tif */,
 				2144950E0ADC883000E2A2B6 /* PasswordAssistantButtonPressed.tif */,
 				21BD2F3510DAF61700BA3DF6 /* SplitViewDimple.tif */,
@@ -640,6 +646,8 @@
 				21F0794210EC5EA2004FE56F /* SimplenoteSession.m */,
 				21F0797C10EC93B0004FE56F /* SyncResponseFetcher.h */,
 				21F0797D10EC93B0004FE56F /* SyncResponseFetcher.m */,
+				21AD284E110BE99B00B7A985 /* SyncSessionController.h */,
+				21AD284F110BE99B00B7A985 /* SyncSessionController.m */,
 			);
 			name = "Sync Services";
 			sourceTree = "<group>";
@@ -829,7 +837,6 @@
 				2111A3C00B88FEFD006A1691 /* Excruciatingly Useful Shortcuts.nvhelp in Resources */,
 				2111A3C10B88FEFD006A1691 /* How does this thing work?.nvhelp in Resources */,
 				213621ED0B92413F008C0830 /* FindPanel.nib in Resources */,
-				214C6C59105445410085D386 /* Notality.icns in Resources */,
 				21813562105AF27400A0AE18 /* Acknowledgments.txt in Resources */,
 				2182B3C3106B2509008641E4 /* MainMenu.nib in Resources */,
 				216BA24310746E3900F62D93 /* ImporterAccessory.nib in Resources */,
@@ -847,6 +854,8 @@
 				21B1C171110764570004A7D0 /* statusValidated.png in Resources */,
 				21B1C172110764570004A7D0 /* statusError.png in Resources */,
 				21B1C173110764570004A7D0 /* statusInProgress.png in Resources */,
+				21AD292D110C188800B7A985 /* TinyAlert.tif in Resources */,
+				21AD292F110C18AA00B7A985 /* Notality.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -928,6 +937,7 @@
 				21F07C7F10EDED93004FE56F /* NSString+BSJSONAdditions.m in Sources */,
 				21B1BC361104D20E0004A7D0 /* InvocationRecorder.m in Sources */,
 				21AD2550110A8BA600B7A985 /* SimplenoteEntryCollector.m in Sources */,
+				21AD2850110BE99B00B7A985 /* SyncSessionController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1326,7 +1336,7 @@
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.3;
+				MACOSX_DEPLOYMENT_TARGET = 10.4;
 				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
 				SDKROOT = macosx10.4;
 				"SDKROOT[arch=x86_64]" = macosx10.5;

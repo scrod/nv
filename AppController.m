@@ -97,9 +97,9 @@
 		
 		[field setNextKeyView:textView];
 		[textView setNextKeyView:field];
-		if (RunningTigerAppKitOrHigher) [window setAutorecalculatesKeyViewLoop:NO];
+		[window setAutorecalculatesKeyViewLoop:NO];
 		
-		//this is necessary on 10.3, apparently
+		//this is necessary on 10.3, apparently, just in case regardless
 		[splitView display];
 		
 		awakenedViews = YES;
@@ -133,7 +133,7 @@ void outletObjectAwoke(id sender) {
 	[notationController checkIfNotationIsTrashed];
 	
 	//connect sparkle programmatically to avoid loading its framework at nib awake;
-	if (RunningTigerAppKitOrHigher && !NSClassFromString(@"SUUpdater")) {
+	if (!NSClassFromString(@"SUUpdater")) {
 		NSString *frameworkPath = [[[NSBundle bundleForClass:[self class]] privateFrameworksPath] stringByAppendingPathComponent:@"Sparkle.framework"];
 		if ([[NSBundle bundleWithPath:frameworkPath] load]) {
 			[sparkleUpdateItem setTarget:[[NSClassFromString(@"SUUpdater") alloc] init]];
@@ -1124,7 +1124,7 @@ terminateApp:
 - (NSUndoManager *)windowWillReturnUndoManager:(NSWindow *)sender {
 	
 	if ([sender firstResponder] == textView) {
-		if (RunningTigerAppKitOrHigher && currentNote) {
+		if ((floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_3) && currentNote) {
 			NSLog(@"windowWillReturnUndoManager should not be called when textView is first responder on Tiger or higher");
 		}
 		
