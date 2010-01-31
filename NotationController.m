@@ -1111,7 +1111,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)addNewNote:(NoteObject*)note {
     [self _addNote:note];
     
-	[note makeNoteDirtyUpdateTime:NO updateFile:YES];
+	[note makeNoteDirtyUpdateTime:YES updateFile:YES];
 	//force immediate update
 	[self synchronizeNoteChanges:nil];
 	
@@ -1135,43 +1135,72 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	[self _addNote:newNote];
 	[newNote release];
 	
+	[self schedulePushToAllSyncServicesForNote:newNote];
+	
 	directoryChangesFound = YES;
 	
 	return newNote;
 }
 
+- (void)addNotesFromSync:(NSArray*)noteArray {
+	
+	if (![noteArray count]) return; 
+	
+	unsigned int i;
+	
+	if ([[self undoManager] isUndoing]) [undoManager beginUndoGrouping];
+	for (i=0; i<[noteArray count]; i++) {
+		NoteObject * note = [noteArray objectAtIndex:i];
+		
+		[self _addNote:note];
+		
+		[note makeNoteDirtyUpdateTime:NO updateFile:YES];
+		
+		//absolutely ensure that this note is pushed to the rest of the services
+		[note registerModificationWithOwnedServices];
+		[self schedulePushToAllSyncServicesForNote:note];
+	}
+	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
+	//don't need to reverse-register undo because removeNote/s: will never use this method
+	
+	[self synchronizeNoteChanges:nil];
+		
+	[self resortAllNotes];
+	[self refilterNotes];	
+}
+
 - (void)addNotes:(NSArray*)noteArray {
 	
-	if ([noteArray count] > 0) {
-		unsigned int i;
+	if (![noteArray count]) return; 
+	
+	unsigned int i;
+	
+	if ([[self undoManager] isUndoing]) [undoManager beginUndoGrouping];
+	for (i=0; i<[noteArray count]; i++) {
+		NoteObject * note = [noteArray objectAtIndex:i];
 		
-		if ([[self undoManager] isUndoing]) [undoManager beginUndoGrouping];
-		for (i=0; i<[noteArray count]; i++) {
-			NoteObject * note = [noteArray objectAtIndex:i];
-			
-			[self _addNote:note];
-			
-			[note makeNoteDirtyUpdateTime:NO updateFile:YES];
-		}
-		if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
+		[self _addNote:note];
 		
-		[self synchronizeNoteChanges:nil];
-		
-		if ([[self undoManager] isUndoing]) {
-			//prohibit undoing of creation--only redoing of deletion
-			//NSLog(@"registering %s", _cmd);
-			[undoManager registerUndoWithTarget:self selector:@selector(removeNotes:) object:noteArray];		
-			if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
-				[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Add %d Notes", @"undo action name for creating multiple notes"), [noteArray count]]];	
-		}
-		[self resortAllNotes];
-		[self refilterNotes];
-		
-		if ([noteArray count] > 1)
-			[delegate notation:self revealNotes:noteArray];
-		else
-			[delegate notation:self revealNote:[noteArray lastObject]];
+		[note makeNoteDirtyUpdateTime:YES updateFile:YES];
 	}
+	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
+	
+	[self synchronizeNoteChanges:nil];
+	
+	if ([[self undoManager] isUndoing]) {
+		//prohibit undoing of creation--only redoing of deletion
+		//NSLog(@"registering %s", _cmd);
+		[undoManager registerUndoWithTarget:self selector:@selector(removeNotes:) object:noteArray];		
+		if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
+			[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Add %d Notes", @"undo action name for creating multiple notes"), [noteArray count]]];	
+	}
+	[self resortAllNotes];
+	[self refilterNotes];
+	
+	if ([noteArray count] > 1)
+		[delegate notation:self revealNotes:noteArray];
+	else
+		[delegate notation:self revealNote:[noteArray lastObject]];
 }
 
 - (void)note:(NoteObject*)note attributeChanged:(NSString*)attribute {
@@ -1249,10 +1278,10 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 //the gatekeepers!
 - (void)_addNote:(NoteObject*)aNoteObject {
-    
     [aNoteObject setDelegate:self];	
 	
     [allNotes addObject:aNoteObject];
+	[deletedNotes removeObject:aNoteObject];
     
     notesChanged = YES;
 }
