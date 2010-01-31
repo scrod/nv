@@ -662,7 +662,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 }
 
 - (const char*)keychainSyncAccountNameForService:(NSString*)serviceName {
-	return [[[[self syncAccountForServiceName:serviceName] objectForKey:@"username"] stringByAppendingFormat:@"-%@", serviceName] UTF8String];
+	NSString *username = [[self syncAccountForServiceName:serviceName] objectForKey:@"username"];
+	return [username length] ? [[username stringByAppendingFormat:@"-%@", serviceName] UTF8String] : NULL;
 }
 
 - (void)setSyncPassword:(NSString*)password forService:(NSString*)serviceName {
