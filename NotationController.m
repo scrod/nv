@@ -142,14 +142,7 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 			return nil;
 		}
 		
-		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
-		if ([notationPrefs epochIteration] < 2 && ![notationPrefs firstTimeUsed]) {
-			//this would have to be a database from epoch 1, where the default file-encoding was system-default
-			NSLog(@"trying to upgrade note encodings");
-			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
-			//move aside the old database as the new format breaks compatibility
-			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
-		}
+		[self upgradeDatabaseIfNecessary];
     }
     
     return self;
@@ -175,6 +168,33 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
 	NSUInteger noteIndex = [allNotes indexOfNoteWithUUIDBytes:&bytes];
 	if (noteIndex != NSNotFound)
 		[delegate notation:self revealNote:[allNotes objectAtIndex:noteIndex]];
+}
+
+- (void)upgradeDatabaseIfNecessary {
+	if (![notationPrefs firstTimeUsed]) {
+		
+		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
+		if ([notationPrefs epochIteration] < 2) {
+			//this would have to be a database from epoch 1, where the default file-encoding was system-default
+			NSLog(@"trying to upgrade note encodings");
+			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
+			//move aside the old database as the new format breaks compatibility
+			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
+		}
+		if ([notationPrefs epochIteration] < 3) {
+			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
+		}
+		
+		if ([notationPrefs epochIteration] < EPOC_ITERATION) {
+			NSLog(@"epociteration was upgraded from %u to %u", [notationPrefs epochIteration], EPOC_ITERATION);
+			notesChanged = YES;
+		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
+			if (NSRunCriticalAlertPanel(NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil), 
+										NSLocalizedString(@"If you make changes, some settings and metadata could be lost.", nil), 
+										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn);
+			exit(0);
+		}
+	}	
 }
 
 //used to ensure a newly-written Notes & Settings file is valid before finalizing the save
