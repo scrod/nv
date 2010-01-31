@@ -128,8 +128,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	 0: .Blor files
 	 1: First NSArchiver (was unused--maps to 0)
 	 2: First NSKeyedArchiver
+	 3: First syncServicesMD and date created/modified syncing to files
 	 */
-	[coder encodeInt32:2 forKey:VAR_STR(epochIteration)];
+	[coder encodeInt32:EPOC_ITERATION forKey:VAR_STR(epochIteration)];
 	
 	[coder encodeInt:notesStorageFormat forKey:VAR_STR(notesStorageFormat)];
 	[coder encodeBool:doesEncryption forKey:VAR_STR(doesEncryption)];
