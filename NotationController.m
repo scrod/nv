@@ -318,7 +318,7 @@ returnResult:
 	
 	if (!(deletedNotes = [[frozenNotation deletedNotes] retain]))
 	    deletedNotes = [[NSMutableSet alloc] init];
-	
+		
 	//allow resolution of UUIDs to NoteObjects from saved searches
 	BookmarksController *ssController = [prefsController bookmarksController];
 	[ssController setNotes:allNotes];
@@ -525,7 +525,6 @@ bail:
 		}
 		
 		//we should have all journal records on disk by now
-		
 		if ([self storeDataAtomicallyInNotesDirectory:serializedData withName:NotesDatabaseFileName destinationRef:&noteDatabaseRef 
 								   verifyWithSelector:@selector(verifyDataAtTemporaryFSRef:withFinalName:) verificationDelegate:self] != noErr)
 			return NO;
@@ -915,9 +914,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 //find renamed notes through unique file IDs
 //TODO: reconcile the "actually" added/deleted files into renames for files with identical content (sort by size)
-//TODO: detect and ignore TextEdit (Autosaved) files unless textedit is not running? grab data from auto-save file in realtime?
-//TODO: parse vi .swp files, too?
-//TODO: use external editor protocol
 - (void)processNotesAdded:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries {
 	unsigned int aSize = [removedEntries count], bSize = [addedEntries count];
     
@@ -1010,8 +1006,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)synchronizeNoteChanges:(NSTimer*)timer {
     
     if ([unwrittenNotes count] > 0) {
-		//perhaps check here to see if the file was updated on disk before we had a chance to do it ourselves
-		
 		lastWriteError = noErr;
 		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
 			[unwrittenNotes makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
@@ -1023,16 +1017,14 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			//append unwrittenNotes to journal, if one exists
 			[unwrittenNotes makeObjectsPerformSelector:@selector(writeUsingJournal:) withObject:walWriter];
 		}
-		
-		NSLog(@"wrote %d unwritten notes", [unwrittenNotes count]);
+				
+		//NSLog(@"wrote %d unwritten notes", [unwrittenNotes count]);
 		
 		[unwrittenNotes removeAllObjects];
 		
 		[self scheduleUpdateListForAttribute:NoteDateModifiedColumnString];
 
-    } else {
-		//NSLog(@"No unwritten notes to write?");
-	}
+    }
     
     if (changeWritingTimer) {
 		[changeWritingTimer invalidate];
