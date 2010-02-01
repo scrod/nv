@@ -266,6 +266,7 @@
 			[aNote removeAllSyncMDForService:SimplenoteServiceName];
 		} else if (@selector(fetcherForUpdatingNote:) == fetcherOpSEL) {
 			
+			//[aNote removeKey:@"dirty" forService:SimplenoteServiceName];
 		} else {
 			NSLog(@"%s called with unknown opSEL: %s", _cmd, fetcherOpSEL);
 		}
