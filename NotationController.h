@@ -26,6 +26,8 @@ typedef struct _NoteCatalogEntry {
 } NoteCatalogEntry;
 
 @class NoteObject;
+@class DeletedNoteObject;
+@class SyncSessionController;
 @class NotationPrefs;
 @class NoteAttributeColumn;
 @class NoteBookmark;
@@ -36,6 +38,7 @@ typedef struct _NoteCatalogEntry {
     FastListDataSource *notesListDataSource;
     LabelsListController *labelsListController;
 	GlobalPrefs *prefsController;
+	SyncSessionController *syncSessionController;
 	id delegate;
 	
 	float titleColumnWidth;
@@ -99,6 +102,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (BOOL)flushAllNoteChanges;
 - (void)flushEverything;
 
+- (void)upgradeDatabaseIfNecessary;
+
 - (id)delegate;
 - (void)setDelegate:(id)theDelegate;
 
@@ -123,10 +128,14 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)checkIfNotationIsTrashed;
 - (void)updateLinksToNote:(NoteObject*)aNoteObject fromOldName:(NSString*)oldname;
 - (void)addNotes:(NSArray*)noteArray;
+- (void)addNotesFromSync:(NSArray*)noteArray;
 - (void)addNewNote:(NoteObject*)aNoteObject;
 - (void)_addNote:(NoteObject*)aNoteObject;
 - (void)removeNote:(NoteObject*)aNoteObject;
 - (void)removeNotes:(NSArray*)noteArray;
+- (void)_purgeAlreadyDistributedDeletedNotes;
+- (void)removeSyncMDFromDeletedNotesInSet:(NSSet*)notesToOrphan forService:(NSString*)serviceName;
+- (DeletedNoteObject*)_addDeletedNote:(id<SynchronizedNote>)aNote;
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote;
 - (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title;
 - (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry;
@@ -164,6 +173,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (id)labelsListDataSource;
 - (id)notesListDataSource;
 
+- (SyncSessionController*)syncSessionController;
+
 - (void)dealloc;
 
 @end
@@ -176,7 +187,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)notation:(NotationController*)notation wantsToSearchForString:(NSString*)string;
 - (void)notation:(NotationController*)notation revealNote:(NoteObject*)note;
 - (void)notation:(NotationController*)notation revealNotes:(NSArray*)notes;
+
 - (void)contentsUpdatedForNote:(NoteObject*)aNoteObject;
 - (void)titleUpdatedForNote:(NoteObject*)aNoteObject;
-
+- (void)rowShouldUpdate:(NSInteger)affectedRow;
 @end
