@@ -370,7 +370,7 @@
 			[allNotes makeObjectsPerformSelector:@selector(removeAllSyncMDForService:) withObject:serviceName];
 			[notationPrefs setSyncShouldMerge:YES inCurrentAccountForService:serviceName];
 			
-			[(id)aSession performSelector:@selector(startFetchingListForFullSync) withObject:nil afterDelay:0.0];
+			[(id)aSession performSelector:@selector(startFetchingListForFullSyncManual) withObject:nil afterDelay:0.0];
 			
 			return YES;
 		case NSAlertOtherReturn: //replace notes
