@@ -15,6 +15,9 @@
 - (void)removeAllSyncMDForService:(NSString*)serviceName {
 	[syncServicesMD removeObjectForKey:serviceName];
 }
+//- (void)removeKey:(NSString*)aKey forService:(NSString*)serviceName {
+//	[[syncServicesMD objectForKey:serviceName] removeObjectForKey:aKey];
+//}
 
 - (CFUUIDBytes *)uniqueNoteIDBytes {
     return &uniqueNoteIDBytes;

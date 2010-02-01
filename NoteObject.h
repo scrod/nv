@@ -129,7 +129,7 @@ NSInteger compareNodeID(id *a, id *b);
 
 - (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
 - (void)removeAllSyncMDForService:(NSString*)serviceName;
-- (void)removeAllSyncServiceMD;
+//- (void)removeKey:(NSString*)aKey forService:(NSString*)serviceName;
 - (void)updateWithSyncBody:(NSString*)newBody andTitle:(NSString*)newTitle;
 - (void)registerModificationWithOwnedServices;
 
