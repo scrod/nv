@@ -42,12 +42,12 @@
 	
 	[[NSFontPanel sharedFontPanel] close];
 }
-- (void)windowDidResignKey:(NSNotification *)aNotification {
+- (void)windowDidResignMain:(NSNotification *)aNotification {
 	//hide the font panel--don't want to confuse people into thinking it will affect some other part of the program
 	fontPanelWasOpen = [[NSFontPanel sharedFontPanel] isVisible];
 	[[NSFontPanel sharedFontPanel] orderOut:nil];
 }
-- (void)windowDidBecomeKey:(NSNotification *)aNotification {
+- (void)windowDidBecomeMain:(NSNotification *)aNotification {
 	if (fontPanelWasOpen) {
 		[self changeBodyFont:self];
 	}
