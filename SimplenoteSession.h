@@ -9,6 +9,7 @@
 #import <Cocoa/Cocoa.h>
 #import "SyncResponseFetcher.h"
 #import "SyncServiceSessionProtocol.h"
+#include <SystemConfiguration/SystemConfiguration.h>
 
 @class NoteObject;
 @class DeletedNoteObject;
