@@ -77,8 +77,6 @@
 	[syncSession suppressPushingForNotes:addedNotes];
 	[self addNotesFromSync:addedNotes];
 	[syncSession stopSuppressingPushingForNotes:addedNotes];
-	
-	//beware of adding these in response to redundant calls to -startCollectingAddedNotesWithEntries:
 }
 
 - (void)syncSession:(id <SyncServiceSession>)syncSession didModifyNotes:(NSArray*)changedNotes {
@@ -365,10 +363,14 @@
 			[syncSessionController disableService:serviceName];
 			return YES;
 		case NSAlertAlternateReturn: //merge notes
+			
+			[undoManager removeAllActions];
+			
 			//remove sync metadata and restart sync
 			[aSession stop];
 			[allNotes makeObjectsPerformSelector:@selector(removeAllSyncMDForService:) withObject:serviceName];
 			[notationPrefs setSyncShouldMerge:YES inCurrentAccountForService:serviceName];
+			notesChanged = YES;
 			
 			[(id)aSession performSelector:@selector(startFetchingListForFullSyncManual) withObject:nil afterDelay:0.0];
 			
@@ -389,7 +391,5 @@
 }
 
 @end
-
-
 
 
