@@ -13,18 +13,15 @@
 
 @interface NotationController (NotationSyncServiceManager)
 
-+ (NSArray*)allServiceNames;
-+ (NSArray*)allServiceClasses;
-
-- (id<SyncServiceSession>)sessionForSyncService:(NSString*)serviceName;
-- (void)invalidateSyncServiceSession:(NSString*)serviceName;
-
 - (NSDictionary*)invertedDictionaryOfEntries:(NSArray*)entries keyedBy:(NSString*)keyName;
 - (NSDictionary*)invertedDictionaryOfNotes:(NSArray*)someNotes forSession:(id<SyncServiceSession>)aSession;
 
 - (void)makeNotesMatchList:(NSArray*)MDEntries fromSyncSession:(id <SyncServiceSession>)syncSession;
 
 - (void)schedulePushToAllSyncServicesForNote:(id <SynchronizedNote>)aNote;
+
+- (void)startSyncServices;
+- (void)stopSyncServices;
 
 - (BOOL)handleSyncingWithAllMissingAndRemoteNoteCount:(NSUInteger)foundNotes fromSession:(id <SyncServiceSession>)aSession;
 
