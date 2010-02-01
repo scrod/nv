@@ -111,8 +111,9 @@
 - (BOOL)handleMouseDown:(NSEvent *)theEvent {
 	DualField *controlView = (DualField *)[self controlView];
 	
-	if (![self clearButtonIsVisible] && ![self snapbackButtonIsVisible])
+	if (![self clearButtonIsVisible] && ![self snapbackButtonIsVisible]) {
 		return NO;
+	}
 	
 	do {
 		NSPoint mouseLoc = [controlView convertPoint:[theEvent locationInWindow] fromView:nil];
@@ -187,8 +188,12 @@
 			
 	[myCell setAllowsUndo:NO];
 	[myCell setLineBreakMode:NSLineBreakByCharWrapping];
-	
-	docIconRectTag = [self addTrackingRect:[[self cell] snapbackButtonRectForBounds:[self bounds]] owner:self userData:NULL assumeInside:NO];
+}
+
+- (void)setTrackingRect {
+	if (!docIconRectTag)
+		docIconRectTag = [self addTrackingRect:[[self cell] snapbackButtonRectForBounds:[self bounds]] 
+										 owner:self userData:NULL assumeInside:NO];	
 }
 
 - (void)dealloc {
@@ -227,6 +232,8 @@
 - (void)mouseEntered:(NSEvent *)theEvent {
 	if ([theEvent trackingNumber] == docIconRectTag) {
 		[[self cell] setShowsSnapbackButton:[self showsDocumentIcon]];
+	} else {
+		NSLog(@"got mouse entered on a different tracking number: %d", [theEvent trackingNumber]);
 	}
 }
 - (void)mouseExited:(NSEvent *)theEvent {

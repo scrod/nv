@@ -33,6 +33,8 @@ enum { BUTTON_HIDDEN, BUTTON_NORMAL, BUTTON_PRESSED };
 	BOOL showsDocumentIcon;
 }
 
+- (void)setTrackingRect;
+
 - (void)setShowsDocumentIcon:(BOOL)showsIcon;
 - (BOOL)showsDocumentIcon;
 
