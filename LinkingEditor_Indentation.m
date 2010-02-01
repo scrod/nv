@@ -16,7 +16,7 @@
 	}
 	NSRange selectedRange;
 	
-	NSEnumerator *enumerator = [RunningTigerAppKitOrHigher ? [self selectedRanges] : [NSArray arrayWithObject:[NSValue valueWithRange:[self selectedRange]]] objectEnumerator];
+	NSEnumerator *enumerator = [[self selectedRanges] objectEnumerator];
 	
 	id item;
 	int sumOfAllCharactersRemoved = 0;
@@ -111,10 +111,7 @@
 		NSBeep();
 	}
 	if ([updatedSelectionsArray count] > 0) {
-		if (RunningTigerAppKitOrHigher)
-			[textView setSelectedRanges:updatedSelectionsArray];
-		else
-			[textView setSelectedRange:[[updatedSelectionsArray objectAtIndex:0] rangeValue]];
+		[textView setSelectedRanges:updatedSelectionsArray];
 	}
 	[updatedSelectionsArray release];
 }
@@ -146,7 +143,7 @@
 	}
 	int replacementStringLength = [replacementString length];
 	
-	NSEnumerator *enumerator = [RunningTigerAppKitOrHigher ? [self selectedRanges] : [NSArray arrayWithObject:[NSValue valueWithRange:[self selectedRange]]] objectEnumerator];
+	NSEnumerator *enumerator = [[self selectedRanges] objectEnumerator];
 	
 	id item;
 	int sumOfAllCharactersInserted = 0;
@@ -197,10 +194,7 @@
 	}
 	
 	if ([updatedSelectionsArray count] > 0) {
-		if (RunningTigerAppKitOrHigher)
-			[textView setSelectedRanges:updatedSelectionsArray];
-		else
-			[textView setSelectedRange:[[updatedSelectionsArray objectAtIndex:0] rangeValue]];
+		[textView setSelectedRanges:updatedSelectionsArray];
 	}
 	[replacementString release];
 	[updatedSelectionsArray release];
