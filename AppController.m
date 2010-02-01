@@ -285,6 +285,7 @@ terminateApp:
 		if ([[GlobalPrefs defaultPrefs] tableColumnsShowPreview]) {
 			[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString] 
 										visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
+			[notesTableView setNeedsDisplay:YES];
 		}
 		
 		[titleBarButton setMenu:[[notationController syncSessionController] syncStatusMenu]];
@@ -608,7 +609,7 @@ terminateApp:
 		}
 	} else if ([selectorString isEqualToString:SEL_STR(setTableFontSize:sender:)] || [selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) {
 		
-		[notesTableView setTitleDereferencorIsActiveStyle:[window firstResponder] == notesTableView];
+		[notesTableView updateTitleDereferencorState];
 		[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString]	
 									visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
 				
@@ -1344,6 +1345,15 @@ terminateApp:
 	if (aNoteObject == currentNote) {
 		
 		[[textView textStorage] setAttributedString:[aNoteObject contentString]];
+	}
+}
+
+- (void)rowShouldUpdate:(NSInteger)affectedRow {
+	NSRect rowRect = [notesTableView rectOfRow:affectedRow];
+	NSRect visibleRect = [notesTableView visibleRect];
+	
+	if (NSContainsRect(visibleRect, rowRect) || NSIntersectsRect(visibleRect, rowRect)) {
+		[notesTableView setNeedsDisplayInRect:rowRect];
 	}
 }
 
