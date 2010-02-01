@@ -259,6 +259,7 @@
 										  [NSNumber numberWithDouble:modifiedDateOfNote(aNote)], @"modify",
 										  [NSNumber numberWithDouble:createdDateOfNote(aNote)], @"create",
 										  keyString, @"key", nil] forService:SimplenoteServiceName];
+			[(NoteObject*)aNote makeNoteDirtyUpdateTime:NO updateFile:NO];
 		} else if (@selector(fetcherForDeletingNote:) == fetcherOpSEL) {
 			//this note has been successfully deleted, and can now have its Simplenote syncServiceMD entry removed 
 			//so that _purgeAlreadyDistributedDeletedNotes can remove it permanently once the deletion has been synced with all other registered services
