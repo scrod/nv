@@ -308,19 +308,32 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return nil;
 }
 
-#define MAX_TITLE_LEN 43
+#define MAX_TITLE_LEN 50
 
-- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr newBodyAtLocation:(NSUInteger*)bodyLoc {
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle {
+	
 	//break string into pieces for turning into a note
 	//find the first line, whitespace or no whitespace
 	
-	// if (![self length]) return @"";
 	NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:@"\n\r\t"];
 	NSScanner *scanner = [NSScanner scannerWithString:self];
 	[scanner setCharactersToBeSkipped:[[[NSMutableCharacterSet alloc] init] autorelease]];
 	
 	//skip any blank space before the title; this will not be preserved for round-tripped syncing
-	[scanner scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:NULL];
+	BOOL didSkipInitialWS = [scanner scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:NULL];
+	
+	if ([oldTitle length] > MAX_TITLE_LEN) {
+		//break apart the string based on an existing title (if it still matches) that would have been longer than our default truncation limit
+		
+		NSString *contentStartStr = didSkipInitialWS && [scanner scanLocation] < [self length] ? [self substringFromIndex:[scanner scanLocation]] : self;
+		if ([contentStartStr length] >= [oldTitle length] && [contentStartStr hasPrefix:oldTitle]) {
+			
+			[scanner setScanLocation:[oldTitle length] + (didSkipInitialWS ? [scanner scanLocation] : 0)];
+			[scanner scanContextualSeparator:sepStr withPrecedingString:oldTitle];
+			if (bodyLoc) *bodyLoc = [scanner scanLocation];
+			return oldTitle;
+		}
+	}
 	
 	//grab the title
 	NSString *firstLine = nil;
@@ -333,39 +346,19 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 		if (lastSpaceInFirstLine.location == NSNotFound) {
 			lastSpaceInFirstLine.location = MAX_TITLE_LEN;
 		}
-		
-		NSUInteger bodyStartIndex = [scanner scanLocation] - ([firstLine length] - lastSpaceInFirstLine.location);
-		
+		[scanner setScanLocation:[scanner scanLocation] - ([firstLine length] - lastSpaceInFirstLine.location)];
 		firstLine = [firstLine substringToIndex:lastSpaceInFirstLine.location];
 		
-		if (sepStr) {
-			*sepStr = [firstLine length] && bodyStartIndex < [self length] ? 
-			[NSString stringWithFormat:@"%C%C", [firstLine characterAtIndex:[firstLine length] - 1], 
-			 [self characterAtIndex:bodyStartIndex]] : nil;
-		}
-		
-		if (bodyLoc) *bodyLoc = bodyStartIndex;
-		return firstLine;
-	} 
-	
-	//grab blank space between the title and the body	
-	if ([scanner scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:sepStr]) {
-		if (sepStr && *sepStr) {
-			*sepStr = [firstLine length] && [scanner scanLocation] < [self length] ? 
-			[NSString stringWithFormat:@"%C%@%C", [firstLine characterAtIndex:[firstLine length] - 1], *sepStr, 
-			 [self characterAtIndex:[scanner scanLocation]]] : nil;
-		}
+		[scanner scanContextualSeparator:sepStr withPrecedingString:firstLine];		
 		if (bodyLoc) *bodyLoc = [scanner scanLocation];
-	} else {
-		NSLog(@"<found no whitespace before body in %@>", self);
-		//no body; all one line
-		if (sepStr) *sepStr = @"";
-		if (bodyLoc) *bodyLoc = [self length];
+		return firstLine;
 	}
 	
-	if (!firstLine) firstLine = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
+	//grab blank space between the title and the body; common case:
+	[scanner scanContextualSeparator:sepStr withPrecedingString:firstLine];
+	if (bodyLoc) *bodyLoc = [scanner scanLocation];
 	
-	return firstLine;
+	return [firstLine length] ? firstLine : NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 }
 
 - (NSString*)syntheticTitle {
@@ -511,6 +504,7 @@ replace:
         }
     }
     numSpaces += diffInSpaces;
+	
 	
     return sharedString;
 }
@@ -826,6 +820,43 @@ errorReturn:
 }
 
 @end
+
+@implementation NSScanner (NV)
+
+//useful for -syntheticTitleAndSeparatorWithContext:bodyLoc:oldTitle:
+- (void)scanContextualSeparator:(NSString**)sepStr withPrecedingString:(NSString*)firstLine {
+	
+	if (![firstLine length]) {
+		//no initial preceding string, so context won't make sense
+		if (sepStr) *sepStr = @"";
+		return;
+	}
+	NSUInteger len = [[self string] length];
+	if ([self scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:sepStr]) {
+		if (sepStr && *sepStr) {
+			if ([self scanLocation] >= len) goto noBody;
+			//typical case
+			*sepStr = [NSString stringWithFormat:@"%C%@%C", [firstLine characterAtIndex:[firstLine length] - 1], *sepStr, 
+					   [[self string] characterAtIndex:[self scanLocation]]];
+		}
+	} else if (sepStr) {
+		//is this the end of the string, or was the scanner's location previously somewhere in the middle?
+		if ([self scanLocation] >= len) {
+		noBody: //all one line
+			*sepStr = @"";
+		} else {
+			//middle of the "title", probably because it is too long; grab the two surrounding characters
+			*sepStr = [NSString stringWithFormat:@"%C%C", [firstLine characterAtIndex:[firstLine length] - 1], 
+					   [[self string] characterAtIndex:[self scanLocation]]];
+		}
+	}
+	
+	//location of _following_ string (usually the body of a note) will now be [self scanLocation]
+}
+
+
+@end
+
 
 
 @implementation NSEvent (NV)
