@@ -728,46 +728,6 @@ errorReturn:
 	return [(NSString*)uuidString autorelease];	
 }
 
-/*
-- (NSTextView*)getTextViewWithFrame:(NSRect*)theFrame {
-    NSTextContainer *textContainer;
-    NSAttributedString *attribtedString = [[NSMutableAttributedString alloc] initWithString:self];
-    NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:attribtedString];
-    
-    NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
-    [textStorage addLayoutManager:layoutManager];
-    [layoutManager release];
-    
-    textContainer = [[NSTextContainer alloc] initWithContainerSize:NSMakeSize(theFrame->size.width, FLT_MAX)];
-    [layoutManager addTextContainer:textContainer];
-    [textContainer release];
-    
-    (void)[layoutManager glyphRangeForTextContainer:textContainer]; //force layout
-    
-    //[textContainer setContainerSize:NSMakeSize([textContainer containerSize].width,[layoutManager usedRectForTextContainer:textContainer].size.height)];
-  
-    NSScrollView *scrollview = [[NSScrollView alloc] initWithFrame:*theFrame];
-    NSSize contentSize = [scrollview contentSize];
-    
-    [scrollview setBorderType:NSNoBorder];
-    [scrollview setHasVerticalScroller:YES];
-    [scrollview setHasHorizontalScroller:NO];
-    [scrollview setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    
-    //NSTextView *textView = [[NSTextView alloc] initWithFrame:theFrame textContainer:textContainer];
-    theTextView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, contentSize.width, contentSize.height) textContainer:textContainer];
-    [theTextView setMinSize:NSMakeSize(0.0, contentSize.height)];
-    [theTextView setMaxSize:NSMakeSize(FLT_MAX, FLT_MAX)];
-    [theTextView setVerticallyResizable:YES];
-    [theTextView setHorizontallyResizable:NO];
-    
-    [theTextView setAutoresizingMask:NSViewWidthSizable];
-    [textContainer setContainerSize:NSMakeSize(contentSize.width, FLT_MAX)];
-    [textContainer setWidthTracksTextView:YES];
-    
-    return textView;
-}
-*/
 @end
 
 
