@@ -639,7 +639,7 @@ terminateApp:
 	
 	switch ([sender tag]) {
 		case 1:		//shortcuts
-			path = [[NSBundle mainBundle] pathForResource:@"Excruciatingly Useful Shortcuts" ofType:@"nvhelp" inDirectory:nil];
+			path = [[NSBundle mainBundle] pathForResource:NSLocalizedString(@"Excruciatingly Useful Shortcuts", nil) ofType:@"nvhelp" inDirectory:nil];
 		case 2:		//acknowledgments
 			if (!path) path = [[NSBundle mainBundle] pathForResource:@"Acknowledgments" ofType:@"txt" inDirectory:nil];
 			[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]] withAppBundleIdentifier:@"com.apple.TextEdit" 
