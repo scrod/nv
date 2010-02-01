@@ -25,7 +25,7 @@
 	
 	NSInvocation *successInvocation;
 	id delegate;
-	BOOL isRunning;
+	BOOL isRunning, didCancel;
 }
 
 - (id)initWithURL:(NSURL*)aURL bodyStringAsUTF8B64:(NSString*)stringToEncode delegate:(id)aDelegate;
@@ -42,6 +42,7 @@
 - (BOOL)start;
 - (BOOL)startWithSuccessInvocation:(NSInvocation*)anInvocation;
 - (BOOL)isRunning;
+- (BOOL)didCancel;
 - (void)cancel;
 @end
 

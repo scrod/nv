@@ -85,6 +85,7 @@
 	[self retain];
 	[delegate retain];
 	
+	didCancel = NO;
 	isRunning = YES;
 	
 	NSLog(@"starting request for URL '%@'", requestURL);
@@ -102,8 +103,15 @@
 - (BOOL)isRunning {
 	return isRunning;
 }
+
+- (BOOL)didCancel {
+	return didCancel;
+}
+
 - (void)cancel {
 	if (!isRunning) return;
+	
+	didCancel = YES;
 	
 	[urlConnection cancel];
 	[self _fetchDidFinishWithError:NSLocalizedString(@"Operation cancelled", 
