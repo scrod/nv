@@ -21,8 +21,6 @@
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs;
 
-- (BOOL)authorizationExpired;
-
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry isNewerThanRemoteEntry:(NSDictionary*)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
 + (void)registerModificationForNote:(id <SynchronizedNote>)aNote;

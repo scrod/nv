@@ -129,7 +129,6 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	SimplenoteSession *newSession = [[SimplenoteSession alloc] initWithUsername:emailAddress andPassword:password];
 	newSession->authToken = [authToken copyWithZone:zone];
-	newSession->tokenTime = [tokenTime copyWithZone:zone];
 	newSession->lastSyncedTime = [lastSyncedTime copyWithZone:zone];
 	newSession->delegate = delegate;
 	
@@ -163,8 +162,9 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return listFetcher;
 }
 
-- (BOOL)authorizationExpired {
-	return [tokenTime timeIntervalSinceNow] < -(23 * 3600);
+- (BOOL)_checkToken {
+	return authToken != nil;
+}
 }
 
 - (NSDate*)lastSyncedTime {
@@ -254,6 +254,12 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
     }
 }
 
+- (void)_clearAuthTokenAndDependencies {
+	[listFetcher autorelease];
+	listFetcher = nil;
+	[authToken autorelease];
+	authToken = nil;	
+}
 
 
 - (BOOL)startFetchingListForFullSync {
@@ -608,6 +614,13 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (void)syncResponseFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data returningError:(NSString*)errString {
 	
 	if (errString) {
+		if (fetcher == listFetcher && [fetcher statusCode] == 401 && !lastIndexAuthFailed) {
+			//token might have expired, and the only reason we would be asked to fetch the list would be if it were for a full sync
+			//trying again should not cause a loop, unless the login method consistently returns an incorrect token
+			lastIndexAuthFailed = YES;
+			[self _clearAuthTokenAndDependencies];
+			[self performSelector:@selector(startFetchingListForFullSync) withObject:nil afterDelay:0.0];
+		}
 		NSLog(@"%@ returned %@", fetcher, errString);
 		return;
 	}
@@ -626,6 +639,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		}
 	} else if (fetcher == listFetcher) {
 		
+		lastIndexAuthFailed = NO;
 		NSArray *rawEntries = [NSArray arrayWithJSONString:bodyString];
 		
 		//convert dates and "deleted" indicator into NSNumbers
