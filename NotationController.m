@@ -52,9 +52,7 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		deletedNotes = [[NSMutableSet alloc] init];
 		labelsListController = [[LabelsListController alloc] init];
 		prefsController = [GlobalPrefs defaultPrefs];
-		
-		if (!(notesListDataSource = [[FastListDataSource alloc] init]))
-			return nil;
+		notesListDataSource = [[FastListDataSource alloc] init];
 		
 		allNotesBuffer = NULL;
 		allNotesBufferSize = 0;
