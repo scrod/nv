@@ -3,7 +3,6 @@
 #import "PTKeyCombo.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
-#import "SimplenoteSession.h"
 #import "NSString_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
@@ -21,7 +20,6 @@
 		
 		[prefsController registerForSettingChange:@selector(resolveNoteBodyFontFromNotationPrefsFromSender:) withTarget:self];
 		[prefsController registerForSettingChange:@selector(setCheckSpellingAsYouType:sender:) withTarget:self];
-		[prefsController registerForSettingChange:@selector(setSoftTabs:sender:) withTarget:self];
     }
     return self;
 }
@@ -204,9 +202,6 @@
 		[self previewNoteBodyFont];
 	} else if ([selectorString isEqualToString:SEL_STR(setCheckSpellingAsYouType:sender:)]) {
 		[checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
-	} else if ([selectorString isEqualToString:SEL_STR(setSoftTabs:sender:)]) {
-		[softTabsButton setState:[prefsController softTabs]];
-		[softTabsButton setEnabled:![[prefsController notationPrefs] syncServiceIsEnabled:SimplenoteServiceName]];
 	}
 }
 
@@ -361,7 +356,6 @@
     [styledTextButton setState:[prefsController pastePreservesStyle]];
     [autoSuggestLinksButton setState:[prefsController linksAutoSuggested]];
 	[softTabsButton setState:[prefsController softTabs]];
-	[softTabsButton setEnabled:![[prefsController notationPrefs] syncServiceIsEnabled:SimplenoteServiceName]];
 	[makeURLsClickable setState:[prefsController URLsAreClickable]];
 	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
     [self previewNoteBodyFont];

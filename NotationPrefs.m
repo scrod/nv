@@ -643,8 +643,6 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if ([self syncServiceIsEnabled:serviceName] != isEnabled) {
 		[accountDict setObject:[NSNumber numberWithBool:isEnabled] forKey:@"enabled"];
 		
-		//simplenote iPhone app cannot handle tabs
-		[[GlobalPrefs defaultPrefs] setSoftTabs: isEnabled ? YES : [[GlobalPrefs defaultPrefs] softTabs] sender:self];
 		preferencesChanged = YES;
 		[delegate syncSettingsChangedForService:serviceName];
 	}
