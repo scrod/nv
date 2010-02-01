@@ -1234,7 +1234,7 @@ int decodedCount() {
 - (void)registerModificationWithOwnedServices {
 	//mirror this note's current mod date to services with which it is already synced
 	//there is no point calling this method unless the modification time is 
-	[[NotationController allServiceClasses] makeObjectsPerformSelector:@selector(registerModificationForNote:) withObject:self];
+	[[SyncSessionController allServiceClasses] makeObjectsPerformSelector:@selector(registerLocalModificationForNote:) withObject:self];
 }
 
 - (void)removeAllSyncServiceMD {
