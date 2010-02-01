@@ -712,6 +712,7 @@ terminateApp:
 	
 	[notesTableView deselectAll:sender];
 	[field selectText:sender];
+	[[field cell] setShowsClearButton:NO];
 }
 
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)aTextView doCommandBySelector:(SEL)command {
@@ -991,9 +992,11 @@ terminateApp:
 			
 			if ([self displayContentsForNoteAtIndex:selectedRow]) {
 				
+				[[field cell] setShowsClearButton:YES];
+				
 				//there doesn't seem to be any situation in which a note will be selected
 				//while the user is typing and auto-completion is disabled, so should be OK
-				
+
 				if (!isFilteringFromTyping) {
 					if (fieldEditor) {
 						//the field editor has focus--select text, too
@@ -1023,6 +1026,7 @@ terminateApp:
 			//selected nothing and something is currently selected
 			
 			[self _setCurrentNote:nil];
+			[field setShowsDocumentIcon:NO];
 			
 			if (typedStringIsCached) {
 				//restore the un-selected state, but only if something had been first selected to cause that state to be saved
@@ -1046,6 +1050,8 @@ terminateApp:
 		}
 	}
 	[self setEmptyViewState:currentNote == nil];
+	[field setShowsDocumentIcon:currentNote != nil];
+	[[field cell] setShowsClearButton:currentNote != nil || [[field stringValue] length]];
 }
 
 - (void)setEmptyViewState:(BOOL)state {
@@ -1065,6 +1071,7 @@ terminateApp:
 	NoteObject *note = [notationController noteObjectAtFilteredIndex:noteIndex];
 	if (note != currentNote) {
 		[self setEmptyViewState:NO];
+		[field setShowsDocumentIcon:YES];
 		
 		//actually load the new note
 		[self _setCurrentNote:note];
