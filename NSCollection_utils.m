@@ -104,6 +104,16 @@
 
 @implementation NSArray (NoteUtilities)
 
+- (NSArray*)objectsFromDictionariesForKey:(id)aKey {
+	NSUInteger i = 0;
+	NSMutableArray *objects = [NSMutableArray arrayWithCapacity:[self count]];
+	for (i=0; i<[self count]; i++) {
+		NSDictionary *info = [self objectAtIndex:i];
+		[objects addObject:[info objectForKey:aKey]];
+	}
+	return objects;
+}
+
 - (NSUInteger)indexOfNoteWithUUIDBytes:(CFUUIDBytes*)bytes {
 	NSUInteger i;
     for (i=0; i<[self count]; i++) {
