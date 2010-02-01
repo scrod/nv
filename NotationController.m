@@ -644,6 +644,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 
 - (BOOL)synchronizeNotesFromDirectory {
+    if ([self currentNoteStorageFormat] == SingleDatabaseFormat) {
+		//NSLog(@"%s: called when storage format is singledatabase", _cmd);
+		return NO;
+	}
+	
     //NSDate *date = [NSDate date];
     if ([self _readFilesInDirectory]) {
 		//NSLog(@"read files in directory");
