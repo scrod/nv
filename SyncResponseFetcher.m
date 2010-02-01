@@ -74,13 +74,13 @@
 	}
 	
 	[request setHTTPShouldHandleCookies:NO];
-	//[request addValue:@"Notational Velocity" forHTTPHeaderField:@"User-agent"];
+	[request addValue:@"Sinus cardinalis NV 2.0B2" forHTTPHeaderField:@"User-agent"];
 	
 	//if POSTData is nil, do a plain GET request
 	if (dataToSend) {
 		[request setHTTPBody:dataToSend];
 		[request setHTTPMethod:@"POST"];
-	}	
+	}
 	
 	[self retain];
 	[delegate retain];
@@ -88,7 +88,7 @@
 	didCancel = NO;
 	isRunning = YES;
 	
-	NSLog(@"starting request for URL '%@'", requestURL);
+	//NSLog(@"starting request for URL '%@'", requestURL);
 	if (!(urlConnection = [[NSURLConnection alloc] initWithRequest:request delegate:self])) {
 		NSLog(@"%s: Couldn't create NSURLConnection with URLRequest %@", _cmd, request);
 		isRunning = NO;
