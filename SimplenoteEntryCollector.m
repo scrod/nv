@@ -6,6 +6,7 @@
 //  Copyright 2009 Zachary Schneirov. All rights reserved.
 //
 
+#import "GlobalPrefs.h"
 #import "SimplenoteEntryCollector.h"
 #import "SyncResponseFetcher.h"
 #import "SimplenoteSession.h"
@@ -35,6 +36,10 @@
 	return self;
 }
 
+- (NSArray*)entriesToCollect {
+	return entriesToCollect;
+}
+
 - (NSArray*)entriesCollected {
 	return entriesCollected;
 }
@@ -44,6 +49,10 @@
 
 - (BOOL)collectionStarted {
 	return entryFinishedCount != 0;
+}
+
+- (BOOL)collectionStoppedPrematurely {
+	return stopped;
 }
 
 - (void)setRepresentedObject:(id)anObject {
@@ -63,6 +72,19 @@
 	[email release];
 	[authToken release];
 	[super dealloc];
+}
+
+- (NSString*)statusText {
+	return [NSString stringWithFormat:NSLocalizedString(@"Downloading %u of %u notes", @"status text when downloading a note from the remote sync server"), 
+			entryFinishedCount, [entriesToCollect count]];
+}
+
+- (SyncResponseFetcher*)currentFetcher {
+	return currentFetcher;
+}
+
+- (NSString*)localizedActionDescription {
+	return NSLocalizedString(@"Downloading", nil);
 }
 
 - (void)stop {
@@ -114,7 +136,7 @@
 	if ([[fetcher representedObject] conformsToProtocol:@protocol(SynchronizedNote)]) [entry setObject:[fetcher representedObject] forKey:@"NoteObject"];
 	[entry setObject:bodyString forKey:@"content"];
 	
-	NSLog(@"fetched entry %@" , entry);
+	//NSLog(@"fetched entry %@" , entry);
 	
 	return entry;
 }
@@ -149,6 +171,7 @@
 
 @implementation SimplenoteEntryModifier
 
+//TODO:
 //if modification or creation date is 0, set it to the most recent time as parsed from the HTTP response headers
 //when updating notes, sync times will be set to 0 when they are older than the time of the last HTTP header date
 //which will be stored in notePrefs as part of the simplenote service dict
@@ -227,6 +250,28 @@
 	return nil;
 }
 
+- (NSString*)localizedActionDescription {
+	return (@selector(fetcherForCreatingNote:) == fetcherOpSEL ? NSLocalizedString(@"Creating", nil) :
+			(@selector(fetcherForUpdatingNote:) == fetcherOpSEL ? NSLocalizedString(@"Updating",nil) : 
+			 (@selector(fetcherForDeletingNote:) == fetcherOpSEL ? NSLocalizedString(@"Deleting", nil) : NSLocalizedString(@"Processing", nil)) ));
+}
+
+- (NSString*)statusText {
+	NSString *opName = [self localizedActionDescription];
+	if ([entriesToCollect count] == 1) {
+		NoteObject *aNote = [currentFetcher representedObject];
+		if ([aNote isKindOfClass:[NoteObject class]]) {
+			return [NSString stringWithFormat:NSLocalizedString(@"%@ quot%@quot...",@"example: Updating 'joe shmoe note'"), opName, titleOfNote(aNote)];
+		} else {
+			return NSLocalizedString(@"Deleting a note...", nil);
+		}
+	}
+	return [NSString stringWithFormat:NSLocalizedString(@"%@ %u of %u notes", @"Downloading/Creating/Updating/Deleting 5 of 10 notes"), 
+			opName, entryFinishedCount, [entriesToCollect count]];
+}
+
+#if 0 /* allowing creation to complete will be of no use when the note's 
+	delegate notationcontroller has closed its WAL and DB, and as it is unretained can cause a crash */
 - (void)stop {
 	//cancel the current fetcher only if it is not a creator-fetcher; otherwise we risk it finishing without fully receiving notification of its sucess
 	if (@selector(fetcherForCreatingNote:) == fetcherOpSEL) {
@@ -236,6 +281,7 @@
 		[super stop];
 	}
 }
+#endif
 
 - (NSDictionary*)preparedDictionaryWithFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data {
 	NSString *keyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];

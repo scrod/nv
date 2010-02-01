@@ -8,11 +8,13 @@
 
 #import <Cocoa/Cocoa.h>
 
+#import "SyncServiceSessionProtocol.h"
+
 @class NoteObject;
 @class DeletedNoteObject;
 @class SyncResponseFetcher;
 
-@interface SimplenoteEntryCollector : NSObject {
+@interface SimplenoteEntryCollector : NSObject <SyncServiceTask> {
 	NSArray *entriesToCollect;
 	NSMutableArray *entriesCollected, *entriesInError;
 	NSUInteger entryFinishedCount;
@@ -27,11 +29,16 @@
 
 - (id)initWithEntriesToCollect:(NSArray*)wantedEntries authToken:(NSString*)anAuthToken email:(NSString*)anEmail;
 
+- (NSArray*)entriesToCollect;
 - (NSArray*)entriesCollected;
 - (NSArray*)entriesInError;
 
 - (void)stop;
 - (BOOL)collectionStarted;
+
+- (BOOL)collectionStoppedPrematurely;
+
+- (NSString*)localizedActionDescription;
 
 - (void)startCollectingWithCallback:(SEL)aSEL collectionDelegate:(id)aDelegate;
 
