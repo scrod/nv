@@ -1444,12 +1444,12 @@ terminateApp:
 
 - (IBAction)toggleNVActivation:(id)sender {
 	
-	if ([NSApp isActive] && [window isKeyWindow]) {
+	if ([NSApp isActive] && [window isMainWindow]) {
 		[NSApp hide:sender];
 		return;
-	}	
+	}
 	if (![NSApp isActive]) [NSApp activateIgnoringOtherApps:YES];
-	if (![window isKeyWindow]) [window makeKeyAndOrderFront:sender];
+	if (![window isMainWindow]) [window makeKeyAndOrderFront:sender];
 }
 
 - (IBAction)bringFocusToControlField:(id)sender {
