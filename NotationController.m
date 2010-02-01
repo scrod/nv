@@ -1120,6 +1120,12 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 - (void)addNewNote:(NoteObject*)note {
     [self _addNote:note];
+	
+	//clear aNoteObject's syncServicesMD to facilitate sync recreation upon undoing of deletion
+	//new notes should not have any sync MD; if they do, they should be added using -addNotesFromSync:
+	//problem is that note could very likely still be in the process of syncing, in which case these dicts will be accessed
+	//for simplenote is is necessary only once the iPhone app has fully deleted the note off the server; otherwise a regular update will recreate it
+	//[note removeAllSyncServiceMD];
     
 	[note makeNoteDirtyUpdateTime:YES updateFile:YES];
 	//force immediate update
@@ -1390,6 +1396,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		return deletedNote;
 	}
 	return nil;
+}
+
+- (void)removeSyncMDFromDeletedNotesInSet:(NSSet*)notesToOrphan forService:(NSString*)serviceName {
+	NSMutableSet *matchingNotes = [deletedNotes setIntersectedWithSet:notesToOrphan];
+	[matchingNotes makeObjectsPerformSelector:@selector(removeAllSyncMDForService:) withObject:serviceName];
 }
 
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote {	
