@@ -902,7 +902,6 @@ copyRTFType:
 	if (shouldShiftText) {
 		[self shiftRightAction:nil];
 	} else if ([prefsController softTabs]) {
-		NSMutableString *spacesString = [[NSMutableString alloc] init];
 		int numberOfSpacesPerTab = [prefsController numberOfSpacesInTab];
 
 		int locationOnLine = [self selectedRange].location - [[self string] lineRangeForRange:[self selectedRange]].location;
@@ -910,7 +909,7 @@ copyRTFType:
 			int numberOfSpacesLess = locationOnLine % numberOfSpacesPerTab;
 			numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
 		}
-		
+		NSMutableString *spacesString = [[NSMutableString alloc] initWithCapacity:numberOfSpacesPerTab];
 		while (numberOfSpacesPerTab--) {
 			[spacesString appendString:@" "];
 		}
@@ -919,6 +918,67 @@ copyRTFType:
 		[spacesString release];
 	} else {
 		[super insertText:@"\t"];
+	}
+}
+
+- (void)deleteBackward:(id)sender {
+	
+	NSRange charRange = [self rangeForUserTextChange];
+	if (charRange.location != NSNotFound) {
+		if (charRange.length > 0) {
+			// Non-zero selection.  Delete normally.
+			[super deleteBackward:sender];
+		} else {
+			if (charRange.location == 0) {
+				// At beginning of text.  Delete normally.
+				[super deleteBackward:sender];
+			} else {
+				NSString *string = [self string];
+				NSRange paraRange = [string lineRangeForRange:NSMakeRange(charRange.location - 1, 1)];
+				if (paraRange.location == charRange.location) {
+					// At beginning of line.  Delete normally.
+					[super deleteBackward:sender];
+				} else {
+					unsigned tabWidth = [prefsController numberOfSpacesInTab];
+					unsigned indentWidth = 4;
+					BOOL usesTabs = ![prefsController softTabs];
+					NSRange leadingSpaceRange = paraRange;
+					unsigned leadingSpaces = [string numberOfLeadingSpacesFromRange:&leadingSpaceRange tabWidth:tabWidth];
+					
+					if (charRange.location > NSMaxRange(leadingSpaceRange)) {
+						// Not in leading whitespace.  Delete normally.
+						[super deleteBackward:sender];
+					} else {
+						NSTextStorage *text = [self textStorage];
+						unsigned leadingIndents = leadingSpaces / indentWidth;
+						NSString *replaceString;
+						
+						// If we were indented to an fractional level just go back to the last even multiple of indentWidth, if we were exactly on, go back a full level.
+						if (leadingSpaces % indentWidth == 0) {
+							leadingIndents--;
+						}
+						leadingSpaces = leadingIndents * indentWidth;
+						
+						replaceString = ((leadingSpaces > 0) ? [NSString tabbifiedStringWithNumberOfSpaces:leadingSpaces tabWidth:tabWidth usesTabs:usesTabs] : @"");
+						if ([self shouldChangeTextInRange:leadingSpaceRange replacementString:replaceString]) {
+							NSDictionary *newTypingAttributes;
+							if (charRange.location < [string length]) {
+								newTypingAttributes = [[text attributesAtIndex:charRange.location effectiveRange:NULL] retain];
+							} else {
+								newTypingAttributes = [[text attributesAtIndex:(charRange.location - 1) effectiveRange:NULL] retain];
+							}
+							
+							[text replaceCharactersInRange:leadingSpaceRange withString:replaceString];
+							
+							[self setTypingAttributes:newTypingAttributes];
+							[newTypingAttributes release];
+							
+							[self didChangeText];
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
