@@ -75,7 +75,8 @@
 		}
 		
 		[array makeObjectsPerformSelector:@selector(invalidateFSRef)];
-		[tableView reloadData];
+		
+		[self _updateSheetForNotes];
 	}
 }
 
@@ -93,8 +94,13 @@
 		//if they are to be deleted, we don't care about them, anyway--they should already be gone
 		[aNote invalidateFSRef];
 		
-		[tableView reloadData];
+		[self _updateSheetForNotes];
 	}
+}
+
+- (void)_updateSheetForNotes {
+	[tableView reloadData];
+	[window setFrame:[self windowSizeForNotes] display:[window isVisible] animate:[window isVisible]];
 }
 
 
@@ -105,6 +111,23 @@
 	} else {
 		[self removeDeletedNotes];
 	}
+}
+
+- (NSRect)windowSizeForNotes {
+	float oldHeight = 0.0;
+	float newHeight = 0.0;
+	NSRect newFrame = [window frame];
+	NSSize intercellSpacing = [tableView intercellSpacing];
+	
+	int numRows = MIN(20, [tableView numberOfRows]);
+	newHeight = MAX(2, numRows) * ([tableView rowHeight] + intercellSpacing.height);	
+	oldHeight = [[[tableView enclosingScrollView] contentView] frame].size.height;
+	newHeight = [window frame].size.height - oldHeight + newHeight;
+	
+	newFrame.origin.y = newFrame.origin.y + newFrame.size.height - newHeight;
+	
+	newFrame.size.height = newHeight;
+	return newFrame;	
 }
 
 - (void)showSheetForDeletedNotes {
@@ -122,8 +145,12 @@
 	
 	needsToShowSheet = YES;
 	
+	[window setFrame:[self windowSizeForNotes] display:NO];
+	
 	[NSApp beginSheet:window modalForWindow:mainWindow modalDelegate:self 
 	   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+	
+	[NSApp cancelUserAttentionRequest:0];
 	
 	if ([mainWindow attachedSheet] == window)
 		needsToShowSheet = NO;

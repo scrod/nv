@@ -23,6 +23,8 @@
 - (void)addDeletedNote:(NoteObject*)aNote;
 - (void)processDeletedNotes;
 - (void)removeDeletedNotes;
+- (NSRect)windowSizeForNotes;
+- (void)_updateSheetForNotes;
 - (void)showSheetForDeletedNotes;
 - (IBAction)deleteAction:(id)sender;
 - (IBAction)restoreAction:(id)sender;
