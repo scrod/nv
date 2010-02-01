@@ -268,7 +268,7 @@ returnResult:
 	
 	UInt64 fileSize = 0;
 	char *notesData = NULL;
-	if ((err = FSRefReadData(&noteDatabaseRef, BlockSizeForNotation(self), &fileSize, (void**)&notesData, 0)) != noErr)
+	if ((err = FSRefReadData(&noteDatabaseRef, BlockSizeForNotation(self), &fileSize, (void**)&notesData, noCacheMask)) != noErr)
 		return err;
 	
 	FrozenNotation *frozenNotation = nil;
