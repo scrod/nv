@@ -67,16 +67,21 @@
 			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
 		}
 		
+		BOOL didAddDeletedNote = NO;
 		unsigned int i;
 		for (i=0; i<[array count]; i++) {
 			NoteObject *aNote = [array objectAtIndex:i];
-			if (![self noteFileIsAlreadyDeleted:aNote])
+			if (![self noteFileIsAlreadyDeleted:aNote]) {
 				[deletedNotes addObject:aNote];
+				didAddDeletedNote = YES;
+			}
 		}
 		
 		[array makeObjectsPerformSelector:@selector(invalidateFSRef)];
 		
-		[self _updateSheetForNotes];
+		if (didAddDeletedNote) {
+			[self _updateSheetForNotes];
+		}
 	}
 }
 
@@ -87,14 +92,14 @@
 			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
 		}
 		//filter dups or remove these notes from allNotes before adding them here!
-		if (![self noteFileIsAlreadyDeleted:aNote])
+		if (![self noteFileIsAlreadyDeleted:aNote]) {
 			[deletedNotes addObject:aNote];
+			[self _updateSheetForNotes];
+		}
 		
 		//clear fsref to ensure that files are re-created if they are restored
 		//if they are to be deleted, we don't care about them, anyway--they should already be gone
 		[aNote invalidateFSRef];
-		
-		[self _updateSheetForNotes];
 	}
 }
 
