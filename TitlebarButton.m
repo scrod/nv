@@ -139,7 +139,9 @@
 		[self setPullsDown:flag];
 		[self setTitle:@""];
 		[self setEnabled:NO]; //consistent with NoIcon
-		[self setAutoresizingMask:NSViewMinXMargin | NSViewMinYMargin];		
+		[self setAutoresizingMask:NSViewMinXMargin | NSViewMinYMargin];
+		
+		_initialDragPoint = NSMakePoint(-1, -1);
 	}
 	return self;
 }
@@ -158,7 +160,42 @@
 }
 
 
+- (void)mouseUp:(NSEvent*)event {
+	_initialDragPoint = NSMakePoint(-1, -1);
+	[super mouseUp:event];
+}
+
+- (void)mouseDragged:(NSEvent*)event {
+	if (![self isEnabled]) {
+		//allow dragging when button is "hidden"; if we actually removed the button from its superview--even at any time, 
+		//titlebar-dragging behavior would dominate even when it returned; so use surrogate dragging behavior instead
+
+		if (0 <= _initialDragPoint.x && 0 <= _initialDragPoint.y) {
+			NSWindow *win = [self window];
+			NSPoint p = [win convertBaseToScreen:[event locationInWindow]];
+			NSRect sr = [[win screen] frame];
+			NSRect wr = [win frame];
+			
+			NSPoint origin = NSMakePoint(p.x - _initialDragPoint.x, p.y - _initialDragPoint.y);
+			if (NSMaxY(sr) < origin.y + wr.size.height) {
+				origin.y = sr.origin.y + (sr.size.height - wr.size.height);
+			}
+			[win setFrameOrigin:origin];
+		}
+	} else {
+		[super mouseDragged:event];
+	}
+}
+
+
+
 - (void)mouseDown:(NSEvent *)theEvent {
+		
+	NSRect frame = [[self window] frame];
+    _initialDragPoint = [[self window] convertBaseToScreen:[theEvent locationInWindow]];
+    _initialDragPoint.x -= frame.origin.x;
+    _initialDragPoint.y -= frame.origin.y;
+	
 	//on 10.4 prevent the menu from appearing until mouse-up
 	
 	if (IsLeopardOrLater) {

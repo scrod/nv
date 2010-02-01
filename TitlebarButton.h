@@ -26,6 +26,7 @@ typedef enum { NoIcon, DownArrowIcon, SynchronizingIcon, AlertIcon } TitleBarBut
 @end
 
 @interface TitlebarButton : NSPopUpButton {
+	NSPoint _initialDragPoint;
 }
 
 - (void)setStatusIconType:(TitleBarButtonIcon)anIconType;
