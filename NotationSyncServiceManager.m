@@ -361,19 +361,9 @@
 									  NSLocalizedString(@"Replace All Notes", @"dialog button for deleting all notes"));
 	}
 	switch (res) {
-		case NSAlertDefaultReturn: //disable this sync service
-			[aSession stop];
-			[self invalidateSyncServiceSession:serviceName];
-			[notationPrefs setSyncEnabled:NO forService:serviceName];
-			//should not need this; sync prefs should have their own control center:
-			[[NSNotificationCenter defaultCenter] postNotificationName:SyncPrefsDidChangeNotification object:nil];
-			
+		case NSAlertDefaultReturn:
+			[syncSessionController disableService:serviceName];
 			return YES;
-		case NSAlertOtherReturn: //replace notes
-			//continue along down your potentially dangerous path
-			NSLog(@"User agreed to replace all notes with those from the server");
-			
-			return NO;
 		case NSAlertAlternateReturn: //merge notes
 			//remove sync metadata and restart sync
 			[aSession stop];
