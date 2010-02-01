@@ -118,6 +118,8 @@
 	NSMutableArray *locallyChangedNotes = [NSMutableArray array];
 	NSMutableArray *remotelyChangedNotes = [NSMutableArray array];
 	NSMutableArray *remotelyDeletedNotes = [NSMutableArray array];
+	NSMutableArray *remotelyMissingNotes = [NSMutableArray array];
+	
 	for (i=0; i<[allNotes count]; i++) {
 		id <SynchronizedNote>note = [allNotes objectAtIndex:i];
 		NSDictionary *thisServiceInfo = [[note syncServicesMD] objectForKey:serviceName];
@@ -126,9 +128,9 @@
 			NSDictionary *remoteInfo = [remoteDict objectForKey:[thisServiceInfo objectForKey:keyName]];
 			if (remoteInfo) {
 				//this note already exists on the server -- check for modifications from either direction
+				NSComparisonResult changeDiff = [syncSession localEntry:thisServiceInfo compareToRemoteEntry:remoteInfo];
+				
 				if (![syncSession remoteEntryWasMarkedDeleted:remoteInfo]) {
-					
-					NSComparisonResult changeDiff = [syncSession localEntry:thisServiceInfo isNewerThanRemoteEntry:remoteInfo];
 					if (changeDiff == NSOrderedDescending) {
 						//this note is newer than its counterpart on the server; it should be uploaded eventually
 						//this would happen because another client set an older modification date when updating OR
@@ -139,15 +141,20 @@
 					} else if (changeDiff == NSOrderedAscending) {
 						[remotelyChangedNotes addObject:note];
 					}
-				} else {
+				} else if (changeDiff != NSOrderedDescending) {
+					//nah ah ah, a delete should not stick if local mod time is newer! otherwise local changes will be lost
+					
 					//this note was marked deleted on the server and will soon be removed by the iPhone app; we can safely remote it -- RIGHT?
 					[remotelyDeletedNotes addObject:note];
+				} else {
+					//undoing delete of this entry because it was subsequently updated locally;
+					//this happens naturally when one-way pushing, so a full sync should be consistent with that behavior
+					[locallyChangedNotes addObject:note];
 				}
 			} else {
 				//this note _was_ synced, but is no longer on the server; it was _probably_ deleted--that or simplenote is glitching
 				//if all notes end up here, pass control to -handleSyncingWithAllMissingAndRemoteNoteCount:fromSession:
-				remotelyMissingCount++;
-				[remotelyDeletedNotes addObject:note];
+				[remotelyMissingNotes addObject:note];
 			}
 		} else {
 			//this note was not synced (or it's intended to be merged), so prepare it for uploading
@@ -163,6 +170,7 @@
 		NSDictionary *thisServiceInfo = [[note syncServicesMD] objectForKey:serviceName];
 		if (thisServiceInfo) {
 			//find deleted notes of which this service hasn't yet been notified (e.g., deleted notes that still have an entry for this service)
+			//but if a note has been modified remotely, will we delete it and then redownload it?
 			[locallyDeletedNotes addObject:note];
 		}
 	}
@@ -178,10 +186,28 @@
 		//a note with this sync-key for this service does not exist
 		NSString *remoteKey = [remoteEntry objectForKey:keyName];
 		if ([remoteKey length]) {
-			//check if a remote note doesn't exist in allNotes, and guard against
-			//the note being removed before the delete op could be pushed
-			if (![localNotesDict objectForKey:remoteKey] && ![localDeletedNotesDict objectForKey:remoteKey]) {
+			
+			//can't find the note in allNotes; it might be new!
+			if (![localNotesDict objectForKey:remoteKey]) {
 				if (![syncSession remoteEntryWasMarkedDeleted:remoteEntry]) {
+					
+					//check if a remote note doesn't exist in allNotes, and guard against
+					//the note being removed before the delete op could be pushed
+					
+					//however if remoteEntry is _newer_ than the note in localDeletedNotesDict, then it should undo the deletion locally
+					//by allowing the entry to be added to remotelyAddedEntries and short-circuiting remote removal of the deleted note
+					
+					id <SynchronizedNote> ldn = [localDeletedNotesDict objectForKey:remoteKey];
+					if (ldn && [syncSession localEntry:[[ldn syncServicesMD] objectForKey:serviceName] compareToRemoteEntry:remoteEntry] == NSOrderedAscending) {
+						//NSLog(@"%@ was modified on the server after being deleted locally; restoring it", remoteEntry);
+						//don't delete this note on the server, and anonymize its metadata to allow it to be purged
+						[locallyDeletedNotes removeObject:ldn];
+						[ldn removeAllSyncMDForService:serviceName];
+						notesChanged = YES;
+					} else if (ldn) {
+						//NSLog(@"%@ was modified locally and subsequently deleted locally, or simply deleted locally, so not adding to remotelyAddedEntries", remoteEntry);
+						continue;
+					}
 					[remotelyAddedEntries addObject:remoteEntry];
 				} else {
 					//look! it's a note that was remotely added and then remotely deleted before we ever had a chance to sync!
@@ -194,7 +220,7 @@
 	}
 	
 	//show this only if there is no evidence of these notes ever being on the server (all remotely removed with none manually deleted)
-	if (remotelyMissingCount && [allNotes count] == remotelyMissingCount && [remotelyDeletedNotes count] == remotelyMissingCount) {
+	if ([remotelyMissingNotes count] && [allNotes count] == ([remotelyMissingNotes count] + [locallyAddedNotes count])) {
 		if ([self handleSyncingWithAllMissingAndRemoteNoteCount:[remotelyAddedEntries count] fromSession:syncSession]) {
 			return;
 		}
