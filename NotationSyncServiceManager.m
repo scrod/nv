@@ -226,11 +226,34 @@
 		}
 	}
 	
-	//if locallyAdded count == allNotes count; e.g., if this is a first sync or merge of this database with this service account, 
+	NSArray *mergeNotes = nil;
+	
+	//follow the user's previous wishes to merge:, either from a previous invocation of handleSyncingWithAllMissingAndRemoteNoteCount: or from the alert below
+	BOOL wasToldToMerge = [notationPrefs syncNotesShouldMergeForServiceName:serviceName];
+	
+	//if this is a first sync or merge of this database with this service account, 
 	//then download remotelyAddedEntries first so that duplicates can be merged with locallyAddedNotes 
 	//only those locallyAddedNotes with unique combinedContent strings will be uploaded
-	
-	//hope the server doesn't mind us doing all this in parallel
+	//this occurs via startCollectingAddedNotesWithEntries:mergingWithNotes:
+	if ([locallyAddedNotes count] && ([locallyAddedNotes count] == [allNotes count] || wasToldToMerge)) {	
+		if ([allNotes count] > 1 && !wasToldToMerge) {
+			if (NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Add %u existing notes in the database to %@?", nil), 
+								 [allNotes count], [[syncSession class] localizedServiceTitle]],
+								NSLocalizedString(@"Notes will be merged, omitting entries duplicated on the server.", nil), 
+								NSLocalizedString(@"Add Notes", nil), NSLocalizedString(@"Turn Off Syncing", nil), nil) == NSAlertAlternateReturn) {
+				[syncSessionController disableService:serviceName];
+				return;
+			} else {
+				//remember that we have to merge them for next time in case sync is cancelled; do not remember "automatic" merges
+				[notationPrefs setSyncShouldMerge:YES inCurrentAccountForService:serviceName];
+			}
+		}
+		if (wasToldToMerge) NSLog(@"continuing previous merge");
+		mergeNotes = locallyAddedNotes;
+	} else if (![locallyAddedNotes count]) {
+		//once all the locally-added notes have been taken care of, future syncs should not continue to merge
+		[notationPrefs setSyncShouldMerge:NO inCurrentAccountForService:serviceName];
+	}
 	
 	if ([locallyAddedNotes count] || [locallyChangedNotes count] || [locallyDeletedNotes count] || [mergeNotes count] || 
 		[remotelyAddedEntries count] || [remotelyChangedNotes count] || [remotelyDeletedNotes count] || [remotelyMissingNotes count]) {
@@ -241,11 +264,11 @@
 	}
 
 	//POST these entries to the server, with the assumption that the dates in syncServiceMD are set already
-	NSLog(@"locally added notes: %@", locallyAddedNotes);
-	//postpone this if we have notes to merge
-	[syncSession startCreatingNotes:locallyAddedNotes];
-	//ensure the DB is flushed in preparation for syncing metadata that might be added to locallyAddedNotes
-	if ([locallyAddedNotes count]) notesChanged = YES;
+	//postpone this if we have notes to merge (and there are locally added entries to trigger that merge by DLing)
+	if (!([mergeNotes count] && [remotelyAddedEntries count])) 
+		[syncSession startCreatingNotes:locallyAddedNotes];
+	else
+		NSLog(@"not creating notes because %u mergenotes exist", [mergeNotes count]);
 	
 	NSLog(@"locally changed notes: %@", locallyChangedNotes);
 	[syncSession startModifyingNotes:locallyChangedNotes];
@@ -261,8 +284,7 @@
 	//for removed notes this is done below, right before actually removing them from allNotes
 	
 	//collect these entries from server and add/modify the existing notes with the results
-	NSLog(@"remotely added entries: %@", remotelyAddedEntries);
-	[syncSession startCollectingAddedNotesWithEntries:remotelyAddedEntries mergingWithNotes:nil];
+	[syncSession startCollectingAddedNotesWithEntries:remotelyAddedEntries mergingWithNotes:mergeNotes];
 	
 	NSLog(@"remotely changed notes: %@", remotelyChangedNotes);
 	[syncSession startCollectingChangedNotesWithEntries:remotelyChangedNotes];
@@ -348,10 +370,20 @@
 			//remove sync metadata and restart sync
 			[aSession stop];
 			[allNotes makeObjectsPerformSelector:@selector(removeAllSyncMDForService:) withObject:serviceName];
+			[notationPrefs setSyncShouldMerge:YES inCurrentAccountForService:serviceName];
 			
 			[(id)aSession performSelector:@selector(startFetchingListForFullSync) withObject:nil afterDelay:0.0];
 			
 			return YES;
+		case NSAlertOtherReturn: //replace notes
+			//undoing past this point can create much confusion for the user
+			[undoManager removeAllActions];
+			
+			[notationPrefs setSyncShouldMerge:NO inCurrentAccountForService:serviceName];
+			//continue along down your potentially dangerous path
+			NSLog(@"User agreed to replace all notes with those from the server");
+			
+			return NO;			
 	}
 	
 	NSLog(@"%s: unhandled case (res: %d)!", _cmd, res);
