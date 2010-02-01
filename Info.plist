@@ -199,6 +199,8 @@
 	</array>
 	<key>SUCheckAtStartup</key>
 	<false/>
+	<key>SUScheduledCheckInterval</key>
+	<real>345600</real>
 	<key>SUFeedURL</key>
 	<string>http://notational.net/nvupdates.xml</string>
 	<key>SmartCrashReports_CompanyName</key>

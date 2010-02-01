@@ -137,16 +137,23 @@ void outletObjectAwoke(id sender) {
 	[notationController checkIfNotationIsTrashed];
 	
 	//connect sparkle programmatically to avoid loading its framework at nib awake;
+	
 	if (!NSClassFromString(@"SUUpdater")) {
 		NSString *frameworkPath = [[[NSBundle bundleForClass:[self class]] privateFrameworksPath] stringByAppendingPathComponent:@"Sparkle.framework"];
 		if ([[NSBundle bundleWithPath:frameworkPath] load]) {
-			[sparkleUpdateItem setTarget:[[NSClassFromString(@"SUUpdater") alloc] init]];
+			id updater = [NSClassFromString(@"SUUpdater") performSelector:@selector(sharedUpdater)];
+			[sparkleUpdateItem setTarget:updater];
 			[sparkleUpdateItem setAction:@selector(checkForUpdates:)];
+			if (![[prefsController notationPrefs] firstTimeUsed]) {
+				//don't do anything automatically on the first launch; afterwards, check every 4 days, as specified in Info.plist
+				SEL checksSEL = @selector(setAutomaticallyChecksForUpdates:);
+				[updater methodForSelector:checksSEL](updater, checksSEL, YES);
+			}
 		} else {
 			NSLog(@"Could not load %@!", frameworkPath);
 		}
 	}
-	
+
 	[NSApp setServicesProvider:self];
 }
 
