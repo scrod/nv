@@ -168,7 +168,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:YES];
 	[notesTableView setShouldUseSecondaryHighlightColor:YES];
 
-	if ([[[self window] currentEvent] type] != NSLeftMouseDown) {
+	if ([[[self window] currentEvent] type] == NSKeyDown && [[[self window] currentEvent] firstCharacter] == '\t') {
 		//"indicate" the current cursor/selection when moving focus to this field, but only if the user did not click here
 		NSRange range = [self selectedRange];
 		if (range.length) {
