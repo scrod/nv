@@ -232,6 +232,14 @@
 	
 	//hope the server doesn't mind us doing all this in parallel
 	
+	if ([locallyAddedNotes count] || [locallyChangedNotes count] || [locallyDeletedNotes count] || [mergeNotes count] || 
+		[remotelyAddedEntries count] || [remotelyChangedNotes count] || [remotelyDeletedNotes count] || [remotelyMissingNotes count]) {
+		NSLog(@"local: %u added, %u changed, %u deleted, %u to merge", 
+			  [locallyAddedNotes count], [locallyChangedNotes count], [locallyDeletedNotes count], [mergeNotes count]);
+		NSLog(@"remote: %u added, %u changed, %u deleted, %u missing", 
+			  [remotelyAddedEntries count], [remotelyChangedNotes count], [remotelyDeletedNotes count], [remotelyMissingNotes count]);
+	}
+
 	//POST these entries to the server, with the assumption that the dates in syncServiceMD are set already
 	NSLog(@"locally added notes: %@", locallyAddedNotes);
 	//postpone this if we have notes to merge
