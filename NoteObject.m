@@ -930,25 +930,13 @@ int decodedCount() {
 			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
 		
-		if (SingleDatabaseFormat != formatID) {
-			//sync the file's creation-date
-			FSCatalogInfo catInfo;
-			UCConvertCFAbsoluteTimeToUTCDateTime(createdDate, &catInfo.createDate);
-			FSSetCatalogInfo(noteFileRefInit(self), kFSCatInfoCreateDate, &catInfo);
-		}
-		
 		if (!resetFilename) {
 			//NSLog(@"resetting the file name just because.");
 			[self setFilenameFromTitle];
 		}
 		
-		FSCatalogInfo info;
-		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] != noErr) {
-			NSLog(@"Unable to get new modification date of file %@", filename);
-			return NO;
-		}
-		fileModifiedDate = info.contentModDate;
-		nodeID = info.nodeID;
+		(void)[self writeFileDatesAndUpdateTrackingInfo];
+		
 		
 		//finished writing to file successfully
 		shouldWriteToFile = NO;
@@ -963,6 +951,39 @@ int decodedCount() {
     }
     
     return YES;
+}
+
+- (OSStatus)writeFileDatesAndUpdateTrackingInfo {
+	if (SingleDatabaseFormat == currentFormatID) return NO;
+	
+	//sync the file's creation and modification date:
+	FSCatalogInfo catInfo;
+	UCConvertCFAbsoluteTimeToUTCDateTime(createdDate, &catInfo.createDate);
+	UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &catInfo.contentModDate);
+	
+	OSStatus err = noErr;
+	do {
+		if (noErr != err || IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
+			if (![delegate notesDirectoryContainsFile:filename returningFSRef:noteFileRefInit(self)]) return fnfErr;
+		}
+		err = FSSetCatalogInfo(noteFileRefInit(self), kFSCatInfoCreateDate | kFSCatInfoContentMod, &catInfo);
+	} while (fnfErr == err);
+	
+	if (noErr != err) {
+		NSLog(@"could not set catalog info: %d", err);
+		return err;
+	}
+	
+	//regardless of whether FSSetCatalogInfo was successful, the file mod date could still have changed
+	
+	if ((err = [delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&catInfo]) != noErr) {
+		NSLog(@"Unable to get new modification date of file %@: %d", filename, err);
+		return err;
+	}
+	fileModifiedDate = catInfo.contentModDate;
+	nodeID = catInfo.nodeID;
+	
+	return noErr;
 }
 
 - (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef {

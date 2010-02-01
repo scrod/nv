@@ -142,6 +142,8 @@ NSInteger compareNodeID(id *a, id *b);
 - (BOOL)updateFromCatalogEntry:(NoteCatalogEntry*)catEntry;
 - (BOOL)updateFromData:(NSMutableData*)data;
 
+- (OSStatus)writeFileDatesAndUpdateTrackingInfo;
+
 - (NSString*)noteFilePath;
 - (void)invalidateFSRef;
 
