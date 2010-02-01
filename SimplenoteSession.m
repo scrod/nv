@@ -128,7 +128,6 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			return nil;
 		}
 		if (![(password = [aPassString retain]) length]) {
-			NSLog(@"%s: empty password", _cmd);
 			return nil;
 		}
 		notesToSuppressPushing = [[NSCountedSet alloc] init];
@@ -437,8 +436,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[[invRecorder prepareWithInvocationTarget:self] startCollectingChangedNotesWithEntries:entries];
 		[[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
 	} else {
-		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] 
-											   initWithEntriesToCollect:entries authToken:authToken email:emailAddress];
+		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] initWithEntriesToCollect:entries authToken:authToken email:emailAddress];
 		[self _registerCollector:collector];
 		[collector startCollectingWithCallback:@selector(changedEntryCollectorDidFinish:) collectionDelegate:self];
 		[collector autorelease];
@@ -457,7 +455,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	for (i=0; i<[entries count]; i++) {
 		NSDictionary *info = [entries objectAtIndex:i];
 		if ([[info objectForKey:@"deleted"] intValue]) {
-			NSLog(@"entry %@ was deleted between getting the index and getting the note! it will be handled in the next sync.", info);
+			//entry was deleted between getting the index and getting the note! it will be handled in the next sync.
 			continue;
 		}
 		NoteObject *aNote = [info objectForKey:@"NoteObject"];
@@ -478,7 +476,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			[aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
 			
 			NSNumber *modNum = [info objectForKey:@"modify"];
-			NSLog(@"updating mod time for note %@ to %@", aNote, modNum);
+			//NSLog(@"updating mod time for note %@ to %@", aNote, modNum);
 			[aNote setDateModified:[modNum doubleValue]];
 			[aNote setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObjectsAndKeys:modNum, @"modify", separator, SimplenoteSeparatorKey, nil] 
 							  forService:SimplenoteServiceName];
@@ -697,7 +695,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	NSAssert(invocations != nil, @"where is the invocations array?");
 	[invocations addObject:anInvocation];
-	NSLog(@"queued invocation for note %@, yielding %@", aNote, invocations);
+	//NSLog(@"queued invocation for note %@, yielding %@", aNote, invocations);
 }
 
 - (void)_modifyNotes:(NSArray*)notes withOperation:(SEL)opSEL {
@@ -707,7 +705,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	}
 	
 
-	if (!authToken) {
+	if (![self _checkToken]) {
 		InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
 		[[invRecorder prepareWithInvocationTarget:self] _modifyNotes:notes withOperation:opSEL];
 		[[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
@@ -723,7 +721,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		
 		//a note does not need to be created more than once; check for this explicitly and don't re-queue those
 		if (@selector(fetcherForCreatingNote:) != opSEL) {
-			NSEnumerator *enumerator = [reundantNotes objectEnumerator];
+			NSEnumerator *enumerator = [redundantNotes objectEnumerator];
 			id <SynchronizedNote> noteToQueue = nil;
 			while ((noteToQueue = [enumerator nextObject])) {
 				InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
@@ -731,15 +729,13 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 				[self _queueInvocation:[invRecorder invocation] forNote:noteToQueue];
 			}
 			
-		} else if ([reundantNotes count]) {
-			NSLog(@"not requeuing %@ for creation", reundantNotes);
 		}
 		
 		//mark the notes we're about to process as being in progress
 		[notesBeingModified addObjectsFromArray:currentlyIdleNotes];
 		
 		if ([currentlyIdleNotes count]) {
-			NSLog(@"%s(%@)", opSEL, currentlyIdleNotes);
+			//NSLog(@"%s(%@)", opSEL, currentlyIdleNotes);
 			//now actually start processing those notes
 			SimplenoteEntryModifier *modifier = [[SimplenoteEntryModifier alloc] initWithEntries:currentlyIdleNotes operation:opSEL authToken:authToken email:emailAddress];
 			SEL callback = (@selector(fetcherForCreatingNote:) == opSEL ? @selector(entryCreatorDidFinish:) :
@@ -774,13 +770,15 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	for (i=0; i<[finishedNotes count]; i++) {
 		//start any subsequently queued invocations for the notes that just finished being remotely modified
 		NSInvocation *invocation = [self _popNextInvocationForNote:[finishedNotes objectAtIndex:i]];
-		if (invocation) NSLog(@"popped invocation %@ for %@", invocation, [finishedNotes objectAtIndex:i]);
+		//if (invocation) NSLog(@"popped invocation %@ for %@", invocation, [finishedNotes objectAtIndex:i]);
 		[invocation invoke];
 	}
 	
 	[self _unregisterCollector:modifier];
 	
 	//perhaps entriesInError should be re-queued? (except for 404-deletions)
+	//notes-in-error that were to be created should probably be specifically merged instead,
+	//in case the operation actually succeeded and the error occurred outside of the simplenote server
 	
 	if ([[modifier entriesCollected] count]) [delegate syncSessionDidFinishRemoteModifications:self];
 }
@@ -794,6 +792,10 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (void)entryUpdaterDidFinish:(SimplenoteEntryModifier *)modifier {
 	//our changes have been remotely applied
 	//mod times should already have been updated
+	
+	//if some of these updates resulted in a 404, then they were probably deleted off the iPhone.
+	//we could allow them to be re-created by removing their syncMD, but that would not handle the general two-way sync case
+	
 	[self _finishModificationsFromModifier:modifier];
 }
 
@@ -802,7 +804,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	//however if the deletion resulted in a 404, ASSUME that the error was from the web application and not the web server, 
 	//and thus that the note wasn't deleted because it didn't need be, so these deleted notes should also have their syncserviceMD removed 
-	//to avoid repeated unsuccessful attempts at deletion. if a deletednoteobject was improperly removed, the at worst it will return on the next sync, 
+	//to avoid repeated unsuccessful attempts at deletion. if a deletednoteobject was improperly removed, at the worst it will return on the next sync, 
 	//and the user will have another opportunity to remove the note
 	NSUInteger i = 0;
 	for (i = 0; i<[[modifier entriesInError] count]; i++) {
