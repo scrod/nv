@@ -183,10 +183,62 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (BOOL)_checkToken {
 	return authToken != nil;
 }
+
+- (NSString*)statusText {
+	//current status (logging-in, getting index, etc.) minus any info. about collectorsInProgress
+	//one line only
+		
+	if ([listFetcher isRunning]) {
+		
+		return NSLocalizedString(@"Getting the list of notes...", nil);
+		
+	} else if ([loginFetcher isRunning]) {
+		
+		return NSLocalizedString(@"Logging in...", nil);
+		
+	} else if (lastErrorString) {
+		
+		return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
+		
+	} else if (lastSyncedTime) {
+		//I suppose -descriptionWithLocale: returns a localized description?
+		return [NSLocalizedString(@"Last sync: ", @"label to prefix last sync time in the status menu") 
+				stringByAppendingString:[lastSyncedTime descriptionWithLocale:nil]];
+	} else if ([collectorsInProgress count]) {
+		//probably won't display this very often
+		return [NSString stringWithFormat:NSLocalizedString(@"%u update(s) in progress", nil), [collectorsInProgress count]];
+	} else {
+		return NSLocalizedString(@"Not synchronized yet", nil);
+	}
 }
 
-- (NSDate*)lastSyncedTime {
-	return lastSyncedTime;
+- (void)_updateSyncTime {
+	[lastSyncedTime release];
+	lastSyncedTime = [[NSDate date] retain];
+}
+
+
+- (void)_stoppedWithErrorString:(NSString*)aString {
+	[lastErrorString autorelease];
+	lastErrorString = [aString copy];
+	
+	if (!aString) {
+		[self _updateSyncTime];
+	}
+	[delegate syncSession:self didStopWithError:lastErrorString];
+}
+
+- (NSString*)lastError {
+	return lastErrorString;
+}
+
+- (BOOL)isRunning {
+	return [loginFetcher isRunning] || [listFetcher isRunning] || [collectorsInProgress count];
+}
+
+- (NSSet*)activeTasks {
+	//returns an array of id<SyncServiceTask> objs
+	return collectorsInProgress;
 }
 
 - (void)stop {
@@ -195,7 +247,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(handleSyncServiceChanges:) object:nil];
 	[unsyncedServiceNotes removeAllObjects]; //caution: will cause NV not to wait before quitting regardless of unsynced changes
 	[queuedNoteInvocations removeAllObjects];
-	[collectorsInProgress makeObjectsPerformSelector:@selector(stop)];
+	[[[collectorsInProgress copy] autorelease] makeObjectsPerformSelector:@selector(stop)];
+	[loginFetcher cancel];
 	[listFetcher cancel];
 }
 
@@ -299,16 +352,18 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	//and the full-sync logic would do the wrong thing due to assuming that any note's syncServicesMD info would always be in the list
 	//thus, all notes in unsyncedServiceNotes and notesBeingModified should be allowed to fully complete first
 	
-	if (!authToken) {
+	BOOL didStart = NO;
+	
+	if (![self _checkToken]) {
 		
 		InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
 		[[invRecorder prepareWithInvocationTarget:self] startFetchingListForFullSync];
-		return [[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
+		didStart = [[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
 		
-	} else if (![listFetcher isRunning] && ![notesBeingModified count] && ![collectorsInProgress count]) {
+	} else if (![notesBeingModified count] && ![listFetcher isRunning] && ![collectorsInProgress count]) {
 		
 		//token already exists; just fetch the list directly
-		return [[self listFetcher] start];
+		didStart = [[self listFetcher] start];
 		
 	} else {
 		if ([collectorsInProgress count]) {
@@ -317,7 +372,13 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			NSLog(@"not requesting list because it is already being fetched or notes are still being modified");
 		}
 	}
-	return NO;
+	
+	if (didStart && !lastSyncedTime) {
+		//don't report that we started syncing _here_ unless it was the first time doing so; 
+		//after the first time alert the user only when actual modifications are occurring
+		[delegate syncSessionProgressStarted:self];
+	}
+	return didStart;
 }
 
 - (void)startCollectingAddedNotesWithEntries:(NSArray*)entries mergingWithNotes:(NSArray*)someNotes {
@@ -478,10 +539,25 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 
 - (void)_registerCollector:(SimplenoteEntryCollector*)collector {
 	[collectorsInProgress addObject:collector];
+	[delegate syncSessionProgressStarted:self];
 }
 
 - (void)_unregisterCollector:(SimplenoteEntryCollector*)collector {
-	[collectorsInProgress removeObject:collector];
+	
+	[collectorsInProgress removeObject:[[collector retain] autorelease]];
+	
+	if (![collector collectionStoppedPrematurely] && [[collector entriesInError] count] && ![[collector entriesCollected] count]) {
+		//failed! all failed!
+		[self _stoppedWithErrorString:[NSString stringWithFormat:NSLocalizedString(@"%@ %u note(s) failed", @"e.g., Downloading 2 note(s) failed"), 
+									   [collector localizedActionDescription], [[collector entriesToCollect] count]]];
+	} else {
+		
+		if ([self isRunning]) {
+			[self _updateSyncTime];
+		} else {
+			[self _stoppedWithErrorString:nil];
+		}
+	}
 }
 
 //uses nscountedset to require the number of stopSuppressing messages 
@@ -651,6 +727,9 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			[self performSelector:@selector(startFetchingListForFullSync) withObject:nil afterDelay:0.0];
 		}
 		NSLog(@"%@ returned %@", fetcher, errString);
+		
+		//report error to delegate
+		[self _stoppedWithErrorString:[fetcher didCancel] ? nil : errString];
 		return;
 	}
 	NSString *bodyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
@@ -659,12 +738,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		if ([bodyString length]) {
 			[authToken autorelease];
 			authToken = [bodyString retain];
-			[tokenTime autorelease];
-			tokenTime = [[NSDate date] retain];
-			
-			NSLog(@"got token %@", authToken);
 		} else {
-			NSLog(@"empty auth token!");
+			[self _stoppedWithErrorString:NSLocalizedString(@"No authorization token", @"Simplenote-specific error")];
 		}
 	} else if (fetcher == listFetcher) {
 		
@@ -689,10 +764,11 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			}
 		}
 		
-		[delegate syncSession:self receivedFullNoteList:entries];
+		[self _updateSyncTime];
+		[lastErrorString autorelease];
+		lastErrorString = nil;
 		
-		[lastSyncedTime release];
-		lastSyncedTime = [[NSDate date] retain];
+		[delegate syncSession:self receivedFullNoteList:entries];		
 		
 	} else {
 		NSLog(@"unknown fetcher returned: %@, body: %@", fetcher, bodyString);
@@ -720,6 +796,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	[loginFetcher release];
 	[lastSyncedTime release];
 	[collectorsInProgress release];
+	[lastErrorString release];
 	
 	[super dealloc];
 }

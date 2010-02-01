@@ -22,6 +22,8 @@ extern NSString *SimplenoteSeparatorKey;
 
 	NSString *emailAddress, *password, *authToken;
 	NSDate *tokenTime, *lastSyncedTime;
+	NSDate *lastSyncedTime;
+	NSString *lastErrorString;
 	
 	SyncResponseFetcher *loginFetcher, *listFetcher;
 	
@@ -61,6 +63,12 @@ extern NSString *SimplenoteSeparatorKey;
 - (BOOL)pushSyncServiceChanges;
 
 - (void)stop;
+- (NSSet*)activeTasks;
+
+- (NSString*)lastError;
+- (void)clearErrors;
+- (BOOL)isRunning;
+
 - (BOOL)hasUnsyncedChanges;
 
 - (id)initWithUsername:(NSString*)aUserString andPassword:(NSString*)aPassString;
@@ -71,6 +79,8 @@ extern NSString *SimplenoteSeparatorKey;
 - (SyncResponseFetcher*)loginFetcher;
 - (SyncResponseFetcher*)listFetcher;
 
+- (void)_stoppedWithErrorString:(NSString*)aString;
+- (void)_updateSyncTime;
 - (NSArray*)_notesWithEntries:(NSArray*)entries;
 
 - (void)_registerCollector:(SimplenoteEntryCollector*)collector;
