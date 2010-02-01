@@ -13,11 +13,11 @@
 @class SyncResponseFetcher;
 @class NotationPrefs;
 
-@protocol SyncServiceSession
+@protocol SyncServiceSession <NSObject>
 
-- (NSString*)localizedServiceTitle;
-- (NSString*)serviceName;
-- (NSString*)nameOfKeyElement;
++ (NSString*)localizedServiceTitle;
++ (NSString*)serviceName;
++ (NSString*)nameOfKeyElement;
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs;
 

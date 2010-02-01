@@ -43,9 +43,9 @@ extern NSString *SimplenoteSeparatorKey;
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs;
 
-- (NSString*)localizedServiceTitle;
-- (NSString*)serviceName;
-- (NSString*)nameOfKeyElement;
++ (NSString*)localizedServiceTitle;
++ (NSString*)serviceName;
++ (NSString*)nameOfKeyElement;
 + (NSURL*)servletURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
 
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry isNewerThanRemoteEntry:(NSDictionary*)remoteEntry;

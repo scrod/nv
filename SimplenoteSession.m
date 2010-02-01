@@ -29,15 +29,15 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 
 @implementation SimplenoteSession
 
-- (NSString*)localizedServiceTitle {
++ (NSString*)localizedServiceTitle {
 	return NSLocalizedString(@"Simplenote", @"human-readable name for the Simplenote service");
 }
 
-- (NSString*)serviceName {
++ (NSString*)serviceName {
 	return SimplenoteServiceName;
 }
 
-- (NSString*)nameOfKeyElement {
++ (NSString*)nameOfKeyElement {
 	return @"key";
 }
 
