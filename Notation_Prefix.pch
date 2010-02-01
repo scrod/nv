@@ -68,7 +68,6 @@ typedef unsigned int NSUInteger;
 #define VERIFY_SALT "Salt for verifying master key in a single iteration"
 #define LOG_SESSION_SALT "Salt for encrypting a write-ahead-log session"
 
-#define RunningTigerAppKitOrHigher (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_3)
 #define IsLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_5)
 #define IsSnowLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_6)
 
