@@ -51,6 +51,7 @@
 	
 	NSView *dualSV = [field superview];
 	dualFieldItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"DualField"];
+	//[[dualSV superview] setFrameSize:NSMakeSize([[dualSV superview] frame].size.width, [[dualSV superview] frame].size.height -1)];
 	[dualFieldItem setView:dualSV];
 	[dualFieldItem setMaxSize:NSMakeSize(FLT_MAX, [dualSV frame].size.height)];
 	[dualFieldItem setMinSize:NSMakeSize(50.0f, [dualSV frame].size.height)];
@@ -60,6 +61,8 @@
 	[toolbar setAllowsUserCustomization:NO];
 	[toolbar setAutosavesConfiguration:NO];
 	[toolbar setDisplayMode:NSToolbarDisplayModeIconOnly];
+//	[toolbar setSizeMode:NSToolbarSizeModeRegular];
+	[toolbar setShowsBaselineSeparator:YES];
 	[toolbar setDelegate:self];
 	[window setToolbar:toolbar];
 	
@@ -76,13 +79,11 @@
 	[splitView setDelegate:self];
 	
 	//set up temporary FastListDataSource containing false visible notes
-	
-	//[window setShowsResizeIndicator:NO];
-	//[window setBackgroundColor:[NSColor colorWithCalibratedRed:0.951 green:0.965 blue:0.97 alpha:0.98]];
-	
+		
 	//this will not make a difference
 	[window useOptimizedDrawing:YES];
 	
+
 	//[window makeKeyAndOrderFront:self];
 	//[self setEmptyViewState:YES];
 	
@@ -104,8 +105,8 @@
 		[field setNextKeyView:textView];
 		[textView setNextKeyView:field];
 		[window setAutorecalculatesKeyViewLoop:NO];
-		
-		//this is necessary on 10.3, apparently, just in case regardless
+				
+		//this is necessary on 10.3; keep just in case
 		[splitView display];
 		
 		awakenedViews = YES;
@@ -115,7 +116,7 @@
 //what a hack
 void outletObjectAwoke(id sender) {
 	static NSMutableSet *awokenOutlets = nil;
-	if (!awokenOutlets) awokenOutlets = [[NSMutableSet alloc] init];
+	if (!awokenOutlets) awokenOutlets = [[NSMutableSet alloc] initWithCapacity:5];
 	
 	[awokenOutlets addObject:sender];
 	
@@ -159,7 +160,6 @@ void outletObjectAwoke(id sender) {
 	[NSApp setServicesProvider:self];
 }
 
-extern int decodedCount();
 - (void)applicationDidFinishLaunching:(NSNotification*)aNote {
 	
 	//on tiger dualfield is often not ready to add tracking tracks until this point:
@@ -242,9 +242,7 @@ extern int decodedCount();
 	 @selector(setConfirmNoteDeletion:sender:),nil];  //whether "delete note" should have an ellipsis
 	
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.1];
-	
-	NSLog(@"decoded 7 bit count: %d", decodedCount());
-	
+		
 	return;
 terminateApp:
 	[NSApp terminate:self];
@@ -689,8 +687,7 @@ terminateApp:
 		DisableSecureEventInput();
 	}
 	//sync note files when switching apps so user doesn't have to guess when they'll be updated
-	if ([[prefsController notationPrefs] notesStorageFormat] != SingleDatabaseFormat)
-		[notationController synchronizeNoteChanges:nil];
+	[notationController synchronizeNoteChanges:nil];
 }
 
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender {
@@ -762,12 +759,10 @@ terminateApp:
 		
 		if (command == @selector(moveToBeginningOfLine:) || command == @selector(moveToLeftEndOfLine:)) {
 			[aTextView moveToBeginningOfDocument:nil];
-			//[field updateButtonIfNecessaryForEditor:aTextView];
 			return YES;
 		}
 		if (command == @selector(moveToEndOfLine:) || command == @selector(moveToRightEndOfLine:)) {
 			[aTextView moveToEndOfDocument:nil];
-			//[field updateButtonIfNecessaryForEditor:aTextView];
 			return YES;
 		}
 		
@@ -775,14 +770,12 @@ terminateApp:
 			
 			if ([aTextView respondsToSelector:@selector(moveToBeginningOfDocumentAndModifySelection:)]) {
 				[(id)aTextView performSelector:@selector(moveToBeginningOfDocumentAndModifySelection:)];
-				//[field updateButtonIfNecessaryForEditor:aTextView];
 				return YES;
 			}
 		}
 		if (command == @selector(moveToEndOfLineAndModifySelection:) || command == @selector(moveToRightEndOfLineAndModifySelection:)) {
 			if ([aTextView respondsToSelector:@selector(moveToEndOfDocumentAndModifySelection:)]) {
 				[(id)aTextView performSelector:@selector(moveToEndOfDocumentAndModifySelection:)];
-				//[field updateButtonIfNecessaryForEditor:aTextView];
 				return YES;
 			}
 		}
@@ -1178,6 +1171,11 @@ terminateApp:
     return nil;
 }
 
+- (void)noteEndedEditing:(NoteObject*)aNote {
+	//rebuild cstring cache
+	//flush queued sync-service-pushes
+}
+
 - (NoteObject*)createNoteIfNecessary {
     
     if (!currentNote) {
@@ -1316,7 +1314,7 @@ terminateApp:
 	
 	if (someNotation == notationController) {
 		//deal with one notation at a time
-		
+
 		[notesTableView reloadData];
 		//[notesTableView noteNumberOfRowsChanged];
 		
@@ -1418,7 +1416,7 @@ terminateApp:
 		[prefsController setBookmarksFromSender:self];
 	}
 	
-	[window close];
+	[[NSApp windows] makeObjectsPerformSelector:@selector(close)];
 	[notationController stopFileNotifications];
 	
 	//wait for syncing to finish, showing a progress bar
