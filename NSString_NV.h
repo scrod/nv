@@ -56,6 +56,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 @end
 
 @interface NSMutableString (NV)
+- (void)replaceTabsWithSpacesOfWidth:(int)tabWidth;
 + (NSMutableString*)newShortLivedStringFromFile:(NSString*)filename;
 + (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding 
 									   withPath:(const char*)aPath orWithFSRef:(const FSRef*)fsRef;

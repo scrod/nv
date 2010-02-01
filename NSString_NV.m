@@ -733,6 +733,37 @@ errorReturn:
 
 @implementation NSMutableString (NV)
 
+- (void)replaceTabsWithSpacesOfWidth:(int)tabWidth {
+	NSAssert(tabWidth < 50 && tabWidth > 0, @"that's a ridiculous tab width");
+	
+	@try {
+		NSRange tabRange, nextRange = NSMakeRange(0, [self length]);
+		while ((tabRange = [self rangeOfString:@"\t" options:NSLiteralSearch range:nextRange]).location != NSNotFound) {
+			
+			int numberOfSpacesPerTab = tabWidth;
+			int locationOnLine = tabRange.location - [self lineRangeForRange:tabRange].location;
+			if (numberOfSpacesPerTab != 0) {
+				int numberOfSpacesLess = locationOnLine % numberOfSpacesPerTab;
+				numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
+			}
+			//NSLog(@"loc on line: %d, numberOfSpacesPerTab: %d", locationOnLine, numberOfSpacesPerTab);
+			
+			NSMutableString *spacesString = [[NSMutableString alloc] initWithCapacity:numberOfSpacesPerTab];
+			while (numberOfSpacesPerTab-- > 0) {
+				[spacesString appendString:@" "];
+			}
+			
+			[self replaceCharactersInRange:tabRange withString:spacesString];
+			[spacesString release];
+			
+			NSUInteger rangeLoc = MIN((tabRange.location + numberOfSpacesPerTab), [self length]);
+			nextRange = NSMakeRange(rangeLoc, [self length] - rangeLoc);
+		}
+	} @catch (NSException *e) {
+		NSLog(@"%s got an exception: %@", _cmd, [e reason]);
+	}
+}
+
 + (NSMutableString*)newShortLivedStringFromFile:(NSString*)filename {
 	NSStringEncoding anEncoding = NSMacOSRomanStringEncoding; //won't use this, doesn't matter
 	
