@@ -17,6 +17,8 @@
 #import "NoteAttributeColumn.h"
 #import "FrozenNotation.h"
 #import "NotationFileManager.h"
+#import "NotationSyncServiceManager.h"
+#import "SyncSessionController.h"
 #import "DeletionManager.h"
 #import "BookmarksController.h"
 
@@ -298,6 +300,8 @@ returnResult:
 	[notationPrefs setDelegate:self];
 	
 	[allNotes release];
+	
+	syncSessionController = [[SyncSessionController alloc] initWithSyncDelegate:self notationPrefs:notationPrefs];
 	
 	//frozennotation will work out passwords, keychains, decryption, etc...
 	if (!(allNotes = [[frozenNotation unpackedNotesReturningError:&err] retain])) {
@@ -801,6 +805,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				//otherwise, attempt a merge of some sort
 				NSLog(@"File %@ is older than when we last saved it; not updating the note", catEntry->filename);
 			}
+			[aNoteObject registerModificationWithOwnedServices];
+			[self schedulePushToAllSyncServicesForNote:aNoteObject];
 			return YES;
 		} else {
 			NSLog(@"modify note: error converting times: %d", err);
@@ -1726,6 +1732,10 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     return notesListDataSource;
 }
 
+- (SyncSessionController*)syncSessionController {
+	return syncSessionController;
+}
+
 - (void)dealloc {
     
     DisposeFNSubscriptionUPP(subscriptionCallback);
@@ -1743,6 +1753,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     [undoManager release];
     [notesListDataSource release];
     [labelsListController release];
+	[syncSessionController release];
     [allNotes release];
 	[deletedNotes release];
 	[notationPrefs release];
