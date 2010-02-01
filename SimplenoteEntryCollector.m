@@ -191,10 +191,13 @@
 	if (doesCreate) [params setObject:[NSString simplenoteDateWithAbsoluteTime:createdDateOfNote(aNote)] forKey:@"create"];
 	if (!doesCreate) [params setObject:[info objectForKey:@"key"] forKey:@"key"]; //raises its own exception if key is nil
 	
+	NSMutableString *noteBody = [[[aNote combinedContentWithContextSeparator: /* explicitly assume default separator if creating */
+								   doesCreate ? nil : [info objectForKey:SimplenoteSeparatorKey]] mutableCopy] autorelease];
+	//simpletext iPhone app loses any tab characters
+	[noteBody replaceTabsWithSpacesOfWidth:[[GlobalPrefs defaultPrefs] numberOfSpacesInTab]];
+	
 	NSURL *noteURL = [SimplenoteSession servletURLWithPath:@"/api/note" parameters:params];
-	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL bodyStringAsUTF8B64:
-									[aNote combinedContentWithContextSeparator: /* explicitly assume default separator if creating */
-									 doesCreate ? nil : [info objectForKey:SimplenoteSeparatorKey]] delegate:self];
+	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL bodyStringAsUTF8B64:noteBody delegate:self];
 	[fetcher setRepresentedObject:aNote];
 	return [fetcher autorelease];
 }
