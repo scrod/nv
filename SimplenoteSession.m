@@ -49,7 +49,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return [NSURL URLWithString:[NSString stringWithFormat:@"https://simple-note.appspot.com%@%@", path, queryStr]];
 }
 
-- (NSComparisonResult)localEntry:(NSDictionary*)localEntry isNewerThanRemoteEntry:(NSDictionary*)remoteEntry {
+- (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry {
 	//simplenote-specific logic to determine whether to upload localEntry as a newer version of remoteEntry
 	NSNumber *modifiedLocalNumber = [localEntry objectForKey:@"modify"];
 	NSNumber *modifiedRemoteNumber = [remoteEntry objectForKey:@"modify"];
@@ -59,10 +59,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		CFAbsoluteTime remoteAbsTime = floor([modifiedRemoteNumber doubleValue]);
 		
 		if (localAbsTime > remoteAbsTime) {
-			//NSLog(@"%@ is newer than %@", localEntry, remoteEntry);
 			return NSOrderedDescending;
 		} else if (localAbsTime < remoteAbsTime) {
-			//NSLog(@"%@ is older than %@", localEntry, remoteEntry);
 			return NSOrderedAscending;
 		}
 		return NSOrderedSame;
@@ -76,15 +74,18 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry {
 	return [[remoteEntry objectForKey:@"deleted"] intValue] == 1;
 }
+- (BOOL)entryHasLocalChanges:(NSDictionary*)entry {
+	return [[entry objectForKey:@"dirty"] intValue] == 1;
+}
 
-+ (void)registerModificationForNote:(id <SynchronizedNote>)aNote {
++ (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote {
 	//if this note has been synced with this service at least once, mirror the mod date
 	NSDictionary *aDict = [[aNote syncServicesMD] objectForKey:SimplenoteServiceName];
 	if (aDict) {
 		NSAssert([aNote isKindOfClass:[NoteObject class]], @"can't modify a non-note!");
 		[aNote setSyncObjectAndKeyMD:[NSDictionary dictionaryWithObject:
 									  [NSNumber numberWithDouble:modifiedDateOfNote((NoteObject*)aNote)] forKey:@"modify"]
-															 forService:SimplenoteServiceName];
+						  forService:SimplenoteServiceName];
 		
 	} //if note has no metadata for this service, mod times don't matter because it will be added, anyway
 }

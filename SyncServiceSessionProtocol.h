@@ -21,9 +21,9 @@
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs;
 
-- (NSComparisonResult)localEntry:(NSDictionary*)localEntry isNewerThanRemoteEntry:(NSDictionary*)remoteEntry;
+- (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
-+ (void)registerModificationForNote:(id <SynchronizedNote>)aNote;
++ (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote;
 
 - (void)stop;
 
