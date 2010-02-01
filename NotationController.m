@@ -782,36 +782,35 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		
 		//figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
 		//if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
-#if 0
-		CFAbsoluteTime timeOnDisk, lastTime;
-		OSStatus err = noErr;
-		if ((err = (UCConvertUTCDateTimeToCFAbsoluteTime(&lastReadDate, &lastTime) == noErr)) &&
-			(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModDate, &timeOnDisk) == noErr))) {
-			if (timeOnDisk > lastTime) {
-#endif
-				[aNoteObject updateFromCatalogEntry:catEntry];
-				
-				[delegate contentsUpdatedForNote:aNoteObject];
-				
-				[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:NoteDateModifiedColumnString afterDelay:0.0];
-				
-				notesChanged = YES;
-				NSLog(@"FILE WAS MODIFIED: %@", catEntry->filename);
-#if 0
-			} else {
-				//check if this file's contents are identical to the current contents; if so, make the note's fileModDate older
-				//otherwise, attempt a merge of some sort
-				NSLog(@"File %@ is older than when we last saved it; not updating the note", catEntry->filename);
+
+		//check if this note has changes in memory that still need to be committed -- that we _know_ the other writer never had a chance to see
+		if (![unwrittenNotes containsObject:aNoteObject]) {
+
+			if (![aNoteObject updateFromCatalogEntry:catEntry]) {
+				NSLog(@"file %@ was modified but could not be updated", catEntry->filename);
+				//return NO;
 			}
+			//do not call makeNoteDirty because use of the WAL in this instance would cause redundant disk activity
+			//in the event of a crash this change could still be recovered; 
+			
 			[aNoteObject registerModificationWithOwnedServices];
 			[self schedulePushToAllSyncServicesForNote:aNoteObject];
+			
+			[self note:aNoteObject attributeChanged:NotePreviewString]; //reverse delegate?
+			
+			[delegate contentsUpdatedForNote:aNoteObject];
+			
+			[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:NoteDateModifiedColumnString afterDelay:0.0];
+			
+			notesChanged = YES;
+			NSLog(@"FILE WAS MODIFIED: %@", catEntry->filename);
+
 			return YES;
 		} else {
-			NSLog(@"modify note: error converting times: %d", err);
+			//it's a conflict! we win.
+			NSLog(@"%@ was modified with unsaved changes in NV! Deciding the conflict in favor of NV.", catEntry->filename); 
 		}
-#else
-		return YES;
-#endif
+
 	}
 	
 	return NO;
@@ -1215,6 +1214,17 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 - (void)note:(NoteObject*)note attributeChanged:(NSString*)attribute {
+	
+	if ([attribute isEqualToString:NotePreviewString]) {
+		if ([prefsController tableColumnsShowPreview]) {
+			NSUInteger idx = [notesListDataSource indexOfObjectIdenticalTo:note];
+			if (NSNotFound != idx) {
+				[delegate rowShouldUpdate:idx];
+			}
+		}
+		//this attribute is not displayed as a column
+		return;
+	}
 	
 	//[self scheduleUpdateListForAttribute:attribute];
 	[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:attribute afterDelay:0.0];
