@@ -108,9 +108,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
         NSMenu *editMenu = [[[NSApp mainMenu] itemWithTitle:@"Edit"] submenu];
 		
 		if (IsSnowLeopardOrLater) {
-			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacements", "use-text-replacement command in the edit menu")
+			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
 													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
-			[theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+			[theMenuItem setTarget:self];
 			[editMenu addItem:theMenuItem];
 			[theMenuItem release];
 		}
@@ -138,7 +138,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
     }
 	
 	
-	outletObjectAwoke(self);	
+	outletObjectAwoke(self);
 }
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
