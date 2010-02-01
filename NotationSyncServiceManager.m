@@ -222,6 +222,8 @@
 	//show this only if there is no evidence of these notes ever being on the server (all remotely removed with none manually deleted)
 	if ([remotelyMissingNotes count] && [allNotes count] == ([remotelyMissingNotes count] + [locallyAddedNotes count])) {
 		if ([self handleSyncingWithAllMissingAndRemoteNoteCount:[remotelyAddedEntries count] fromSession:syncSession]) {
+			//[delegate syncStatusShouldUpdateToShowProgress:NO error:NO];
+			[syncSessionController queueStatusNotification];
 			return;
 		}
 	}
@@ -296,9 +298,19 @@
 	[self removeSyncMDFromDeletedNotesInSet:[NSSet setWithArray:remotelyDeletedNotes] forService:serviceName];
 	
 	
-		
+	//set sync pulldown menu status here; we might not be continuing with the sync, in which case we wouldn't get a 'stop' message
+	[syncSessionController queueStatusNotification];
 }
 
+- (void)syncSession:(id <SyncServiceSession>)syncSession didStopWithError:(NSString*)errString {
+	//activate the "alert" icon of the pulldown menu; otherwise stop progress
+	//[delegate syncStatusShouldUpdateToShowProgress:NO error:errString != nil];
+	
+	//[syncSessionController invokeUncommmitedWaitCallbackIfNecessaryReturningError:errString];
+	[syncSessionController performSelector:@selector(invokeUncommmitedWaitCallbackIfNecessaryReturningError:) withObject:errString afterDelay:0];
+	
+	[syncSessionController queueStatusNotification];
+}
 
 - (void)schedulePushToAllSyncServicesForNote:(id <SynchronizedNote>)aNote {
 	[syncSessionController schedulePushToAllInitializedSessionsForNote:aNote];
