@@ -619,8 +619,9 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		NSMutableArray *currentlyIdleNotes = [[notes mutableCopy] autorelease];
 		[currentlyIdleNotes removeObjectsInArray:[notesBeingModified allObjects]];
 		
-		//get the notes currently progress that we need to queue:
-		NSMutableSet *reundantNotes = [notesBeingModified setIntersectedWithSet:[NSSet setWithArray:notes]];
+		//get the notes currently progress that we need to queue: (it's important to remove notesBeingModified from notes and not the reverse)
+		//because of the equality between deleted and normal notes
+		NSMutableSet *redundantNotes = [[NSMutableSet setWithArray:notes] setIntersectedWithSet:notesBeingModified];
 		
 		//a note does not need to be created more than once; check for this explicitly and don't re-queue those
 		if (@selector(fetcherForCreatingNote:) != opSEL) {
