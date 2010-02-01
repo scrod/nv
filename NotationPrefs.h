@@ -64,6 +64,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (NSDictionary*)syncAccountForServiceName:(NSString*)serviceName;
 - (NSString*)syncPasswordForServiceName:(NSString*)serviceName;
 - (NSUInteger)syncFrequencyInMinutesForServiceName:(NSString*)serviceName;
+- (BOOL)syncNotesShouldMergeForServiceName:(NSString*)serviceName;
 - (BOOL)syncServiceIsEnabled:(NSString*)serviceName;
 - (unsigned int)keyLengthInBits;
 - (unsigned int)hashIterationCount;
@@ -99,6 +100,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)setSyncPassword:(NSString*)password forService:(NSString*)serviceName;
 - (void)setSyncFrequency:(NSUInteger)frequencyInMinutes forService:(NSString*)serviceName;
 - (void)setSyncEnabled:(BOOL)isEnabled forService:(NSString*)serviceName;
+- (void)setSyncShouldMerge:(BOOL)shouldMerge inCurrentAccountForService:(NSString*)serviceName;
 - (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 

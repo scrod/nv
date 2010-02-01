@@ -295,6 +295,11 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return tempDict;
 }
 
+- (BOOL)syncNotesShouldMergeForServiceName:(NSString*)serviceName {
+	NSDictionary *accountDict = [self syncAccountForServiceName:serviceName];
+	NSString *username = [accountDict objectForKey:@"username"];
+	return username && [[accountDict objectForKey:@"shouldmerge"] isEqualToString:username];
+}
 
 - (NSUInteger)syncFrequencyInMinutesForServiceName:(NSString*)serviceName {
 	NSUInteger freq = MIN([[[self syncAccountForServiceName:serviceName] objectForKey:@"frequency"] unsignedIntValue], 30U);
@@ -637,6 +642,10 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	
 	if ([self syncServiceIsEnabled:serviceName] != isEnabled) {
 		[accountDict setObject:[NSNumber numberWithBool:isEnabled] forKey:@"enabled"];
+		
+		//simplenote iPhone app cannot handle tabs
+		[[GlobalPrefs defaultPrefs] setSoftTabs: isEnabled ? YES : [[GlobalPrefs defaultPrefs] softTabs] sender:self];
+		preferencesChanged = YES;
 		[delegate syncSettingsChangedForService:serviceName];
 	}
 }
@@ -646,7 +655,27 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	
 	if ([self syncFrequencyInMinutesForServiceName:serviceName] != frequencyInMinutes) {
 		[accountDict setObject:[NSNumber numberWithUnsignedInt:frequencyInMinutes] forKey:@"frequency"];
+		preferencesChanged = YES;
 		[delegate syncSettingsChangedForService:serviceName];
+	}
+}
+
+- (void)setSyncShouldMerge:(BOOL)shouldMerge inCurrentAccountForService:(NSString*)serviceName {
+	INIT_DICT_ACCT();
+	
+	if ([self syncNotesShouldMergeForServiceName:serviceName] != shouldMerge) {
+		NSString *username = [accountDict objectForKey:@"username"];
+		if (username) {
+			NSLog(@"%s: %d, %@", _cmd, shouldMerge, username);
+			if (shouldMerge) {
+				[accountDict setObject:username forKey:@"shouldmerge"];
+			} else {
+				[accountDict removeObjectForKey:@"shouldmerge"];
+			}
+			preferencesChanged = YES;
+		} else {
+			NSLog(@"%s: no username found in %@", serviceName);
+		}
 	}
 }
 
@@ -734,6 +763,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		} else {
 			NSLog(@"not removing password for %@ because a keychain sync account name couldn't be created", serviceName);
 		}
+		
+		[delegate syncSettingsChangedForService:serviceName];
 	}
 }
 
