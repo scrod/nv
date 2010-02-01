@@ -381,27 +381,42 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return didStart;
 }
 
-- (void)startCollectingAddedNotesWithEntries:(NSArray*)entries mergingWithNotes:(NSArray*)someNotes {
+- (void)startCollectingAddedNotesWithEntries:(NSArray*)entries mergingWithNotes:(NSArray*)notesToMerge {
 	if (![entries count]) {
 		return;
 	}
-	if (!authToken) {
+	if (![self _checkToken]) {
 		InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
-		[[invRecorder prepareWithInvocationTarget:self] startCollectingAddedNotesWithEntries:entries mergingWithNotes:someNotes];
+		[[invRecorder prepareWithInvocationTarget:self] startCollectingAddedNotesWithEntries:entries mergingWithNotes:notesToMerge];
 		[[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
 	} else {
-		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] 
-											   initWithEntriesToCollect:entries authToken:authToken email:emailAddress];
-		[collector setRepresentedObject:someNotes];
+		
+		//treat notesToMerge as notes being modified until the callback completes, 
+		//to ensure they're not added by a push while we fetch these remote entries
+		
+		if ([notesToMerge count]) [notesBeingModified addObjectsFromArray:notesToMerge];
+		
+		SimplenoteEntryCollector *collector = [[SimplenoteEntryCollector alloc] initWithEntriesToCollect:entries authToken:authToken email:emailAddress];
+		[collector setRepresentedObject:notesToMerge];
 		[self _registerCollector:collector];
 		
-		[collector startCollectingWithCallback:[someNotes count] ? 
+		[collector startCollectingWithCallback:[notesToMerge count] ? 
 		 @selector(addedEntriesToMergeCollectorDidFinish:) : @selector(addedEntryCollectorDidFinish:) collectionDelegate:self];
 		[collector autorelease];
 	}
 }
 
-- (void)startCollectingChangedNotesWithEntries:(NSArray*)entries {	
+- (void)addedEntryCollectorDidFinish:(SimplenoteEntryCollector *)collector {
+	NSArray *newNotes = [self _notesWithEntries:[collector entriesCollected]];
+	
+	if ([newNotes count]) {
+		[delegate syncSession:self receivedAddedNotes:newNotes];		
+	}
+	
+	[self _unregisterCollector:collector];
+}
+
+- (void)startCollectingChangedNotesWithEntries:(NSArray*)entries {     
 	if (![entries count]) {
 		return;
 	}
@@ -418,15 +433,6 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	}
 }
 
-- (void)addedEntryCollectorDidFinish:(SimplenoteEntryCollector *)collector {
-	NSArray *newNotes = [self _notesWithEntries:[collector entriesCollected]];
-	
-	if ([newNotes count]) {
-		[delegate syncSession:self receivedAddedNotes:newNotes];		
-	}
-	
-	[self _unregisterCollector:collector];
-}
 - (void)changedEntryCollectorDidFinish:(SimplenoteEntryCollector *)collector {
 	
 	//use the corresponding "NoteObject" keys to modify the original notes appropriately,
@@ -478,26 +484,106 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 //(don't need a deletedEntryCollectorDidFinish: method because we never request deleted notes' contents)
 
 
+- (NSMutableDictionary*)_invertedContentHashesOfNotes:(NSArray*)notes withSeparator:(NSString*)sep {
+	NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithCapacity:[notes count]];
+	NSUInteger i = 0;
+	//build two kinds of dicts:
+	for (i=0; i<[notes count]; i++) {
+		NoteObject *aNote = [notes objectAtIndex:i];
+		NSMutableString *combined = [[NSMutableString alloc] initWithCapacity:[[aNote contentString] length] + [titleOfNote(aNote) length] + [sep length]];
+		[combined appendString:titleOfNote(aNote)];
+		[combined appendString:sep];
+		[combined appendString:[[aNote contentString] string]];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+		[dict setObject:aNote forKey:[NSNumber numberWithUnsignedInteger:[combined hash]]];
+#else
+		[dict setObject:aNote forKey:[NSNumber numberWithUnsignedInt:[combined hash]]];
+#endif
+		[combined release];
+	}
+	return dict;
+}
+
 - (void)addedEntriesToMergeCollectorDidFinish:(SimplenoteEntryCollector *)collector {
 	
-	//respond to delegate with a combination of -syncSession:didModifyNotes: and -syncSession:receivedAddedNotes:
+	//responds to delegate with a combination of both -syncSession:didModifyNotes: and -syncSession:receivedAddedNotes:
 
+	//if collectionStoppedPrematurely, we cannot perform a merge without risking duplicates
+	//because there could be many notes missing
+	//although notes that encountered errors normally (entriesInError w/o stopping) will potentially be duplicated anyway.
+	if ([collector collectionStoppedPrematurely]) {
+		NSLog(@"%s: not merging notes because collection was cancelled", _cmd);
+		return;
+	}
+	
 	//serverNotes and entriesCollected should be parallel arrays
-//	NSArray *serverNotes = [self _notesWithEntries:[collector entriesCollected]];
+	NSArray *serverNotes = [self _notesWithEntries:[collector entriesCollected]];
 	NSArray *localNotes = [collector representedObject];
 	NSAssert([localNotes isKindOfClass:[NSArray class]], @"list of locally-added notes must be an array!");
-
+	
 	//localnotes have no keys, servernotes have keys; match them together by building a dictionary of content-hashes -> notes
+	NSMutableDictionary *doubleNewlineLocalNotes = [self _invertedContentHashesOfNotes:localNotes withSeparator:@"\n\n"];
+	NSMutableDictionary *singleNewlineLocalNotes = [self _invertedContentHashesOfNotes:localNotes withSeparator:@"\n"];
+	NSMutableDictionary *serverContentNotes = [NSMutableDictionary dictionary];
+	
+	NSMutableArray *downloadedNotesToKeep = [NSMutableArray array];
+	NSMutableArray *notesToReportModified = [NSMutableArray array];
 	
 	//update localNotes in place with keys and mod times
+	NSUInteger i = 0;
+	for (i=0; i<[serverNotes count]; i++) {
+		NoteObject *serverNote = [serverNotes objectAtIndex:i];
+		NSDictionary *info = [[collector entriesCollected] objectAtIndex:i];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+		NSNumber *contentHashNum = [NSNumber numberWithUnsignedInteger:[[info objectForKey:@"content"] hash]];
+#else
+		NSNumber *contentHashNum = [NSNumber numberWithUnsignedInt:[[info objectForKey:@"content"] hash]];
+#endif
+		NoteObject *matchingLocalNote = [singleNewlineLocalNotes objectForKey:contentHashNum];
+		if (matchingLocalNote || (matchingLocalNote = [doubleNewlineLocalNotes objectForKey:contentHashNum])) {
+			//update matchingLocalNote in place with the sync info from this entry
+			[matchingLocalNote setSyncObjectAndKeyMD:[[serverNote syncServicesMD] objectForKey:SimplenoteServiceName] forService:SimplenoteServiceName];
+			[matchingLocalNote makeNoteDirtyUpdateTime:NO updateFile:NO];
+			
+			[notesToReportModified addObject:matchingLocalNote];
+		} else {
+			//server note probably does not exist in the database, so deliver it as added
+			[downloadedNotesToKeep addObject:serverNote];
+		}
+		[serverContentNotes setObject:serverNote forKey:contentHashNum];
+	}
 	
-	//handle any notes-to-merge from -[collector representedObject]:
-	//remove from notes-to-merge any objs whose combinedContent matches what we fetched into newNotes
-	//automatically upload the rest of the unique notes using -startCreatingNotes:
-	//[self startCreatingNotes:[self _uniqueNotesToMerge:[collector representedObject] comparedWithNotesOnServer:newNotes]];
+	//now find local notes that are not on the server, that we must upload
+	NSMutableSet *localNotesToUpload = [NSMutableSet setWithArray:localNotes];
 	
-	//what about handling notes that encountered errors while downloading (entriesInError)? those will potentially be duplicated.
+	//release these notes from being "modified"; those that will actually be created will be subsequently added back to the set by startCreatingNotes:
+	[notesBeingModified minusSet:localNotesToUpload];
 	
+	NSArray *dblLocalNoteHashes = [doubleNewlineLocalNotes allKeys];
+	for (i=0; i<[dblLocalNoteHashes count]; i++) {
+		NSNumber *hashNum = [dblLocalNoteHashes objectAtIndex:i];
+		if ([serverContentNotes objectForKey:hashNum]) [localNotesToUpload removeObject:[doubleNewlineLocalNotes objectForKey:hashNum]];
+	}
+	NSArray *sngLocalNoteHashes = [singleNewlineLocalNotes allKeys];
+	for (i=0; i<[sngLocalNoteHashes count]; i++) {
+		NSNumber *hashNum = [sngLocalNoteHashes objectAtIndex:i];
+		if ([serverContentNotes objectForKey:hashNum]) [localNotesToUpload removeObject:[singleNewlineLocalNotes objectForKey:hashNum]];
+	}
+		
+	if ([downloadedNotesToKeep count]) {
+		NSLog(@"%s: found %u genuinely new notes on the server",_cmd, [downloadedNotesToKeep count]);
+		[delegate syncSession:self receivedAddedNotes:downloadedNotesToKeep];
+	}
+	if ([notesToReportModified count]) {
+		NSLog(@"%s: found %u duplicate notes on the server",_cmd, [notesToReportModified count]);
+		[delegate syncSession:self didModifyNotes:notesToReportModified];
+	}
+	if ([localNotesToUpload count] && ![collector collectionStoppedPrematurely]) {
+		NSLog(@"%s: found %u locally unique notes",_cmd, [localNotesToUpload count]);
+		//automatically upload the rest of the unique notes using -startCreatingNotes:
+		[self startCreatingNotes:[localNotesToUpload allObjects]];
+	}
+
 	
 	[self _unregisterCollector:collector];
 }

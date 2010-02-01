@@ -82,6 +82,7 @@ extern NSString *SimplenoteSeparatorKey;
 - (void)_stoppedWithErrorString:(NSString*)aString;
 - (void)_updateSyncTime;
 - (NSArray*)_notesWithEntries:(NSArray*)entries;
+- (NSMutableDictionary*)_invertedContentHashesOfNotes:(NSArray*)notes withSeparator:(NSString*)sep;
 
 - (void)_registerCollector:(SimplenoteEntryCollector*)collector;
 - (void)_unregisterCollector:(SimplenoteEntryCollector*)collector;
@@ -91,7 +92,7 @@ extern NSString *SimplenoteSeparatorKey;
 
 - (void)_modifyNotes:(NSArray*)notes withOperation:(SEL)opSEL;
 
-- (void)startCollectingAddedNotesWithEntries:(NSArray*)entries mergingWithNotes:(NSArray*)someNotes;
+- (void)startCollectingAddedNotesWithEntries:(NSArray*)entries mergingWithNotes:(NSArray*)notesToMerge;
 - (void)startCollectingChangedNotesWithEntries:(NSArray*)entries;
 
 - (BOOL)authorizationExpired;
