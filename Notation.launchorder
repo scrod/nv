@@ -349,7 +349,6 @@ _replaceString
 +[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation]
 -[GlobalPrefs triedToImportBlor]
 -[NotationPrefs firstTimeUsed]
-_decodedCount
 -[FocusRingScrollView windowChangedKeyNotification]
 -[NotesTableView windowDidBecomeKey]
 -[NotesTableView setShouldUseSecondaryHighlightColor]

@@ -306,7 +306,6 @@ _main
 -[RBSplitView setBackground]
 -[LinkingEditor awakeFromNib]
 _FSRefReadData
-_decodedCount
 -[NotationController checkIfNotationIsTrashed]
 _FSRefMakeInDirectoryWithString
 -[NotationController aliasNeedsUpdating]
