@@ -348,15 +348,15 @@
 	if (!foundNotes) {
 		res = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The %@ server reports that no notes exist. Delete all %u notes in Notational Velocity to match it, or re-upload them now?", nil), serviceTitle, [allNotes count]],
 									  [NSString stringWithFormat:NSLocalizedString(@"If your %@ account is different, you may prefer to create a new database in Notational Velocity instead.", nil), serviceTitle],
-									  [NSString stringWithFormat:NSLocalizedString(@"Turn Off Syncing", @"default button in the dialog above"), serviceTitle], 
+									  [NSString stringWithFormat:NSLocalizedString(@"Turn Off Syncing", nil), serviceTitle], 
 									  NSLocalizedString(@"Re-upload Notes", @"dialog button for uploading local notes when none exist remotely"), 
 									  NSLocalizedString(@"Remove All Notes", @"dialog button for deleting all notes when none exist remotely"));
 	} else {
-		res = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The %@ server holds a completely different set of notes. Replace all %u notes in Notational Velocity with the %u notes on the server, or merge both sets together?", nil), 
+		res = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The %@ server holds a different set of notes. Replace all %u notes in Notational Velocity with the %u notes on the server, or merge both sets together?", nil), 
 									   serviceTitle, [allNotes count], foundNotes],
-									  [NSString stringWithFormat:NSLocalizedString(@"Replacing will remove all %u notes from Notational Velocity. Merging will cause up to %u notes to be added to %@.", nil), 
-									   [allNotes count], [allNotes count], serviceTitle],
-									  [NSString stringWithFormat:NSLocalizedString(@"Turn Off Syncing", @"default button in the dialog above"), serviceTitle], 
+									  [NSString stringWithFormat:NSLocalizedString(@"Replacing will remove all %u notes from Notational Velocity. Merging will upload all notes to %@, omitting duplicates.", nil), 
+									   [allNotes count], serviceTitle],
+									  [NSString stringWithFormat:NSLocalizedString(@"Turn Off Syncing", nil), serviceTitle], 
 									  NSLocalizedString(@"Merge Notes", @"dialog button for uploading local notes"), 
 									  NSLocalizedString(@"Replace All Notes", @"dialog button for deleting all notes"));
 	}
