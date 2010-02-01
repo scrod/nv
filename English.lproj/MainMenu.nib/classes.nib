@@ -12,6 +12,7 @@
                 printNote = id;
                 renameNote = id;
                 showPreferencesWindow = id;
+                syncWaitQuit = id;
                 tagNote = id;
             };
             CLASS = AppController;
@@ -23,6 +24,8 @@
                 sparkleUpdateItem = NSMenuItem;
                 splitSubview = RBSplitSubview;
                 splitView = RBSplitView;
+                syncWaitPanel = NSPanel;
+                syncWaitSpinner = NSProgressIndicator;
                 textView = LinkingEditor;
                 window = NSWindow;
             };
