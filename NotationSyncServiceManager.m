@@ -270,35 +270,31 @@
 	else
 		NSLog(@"not creating notes because %u mergenotes exist", [mergeNotes count]);
 	
-	NSLog(@"locally changed notes: %@", locallyChangedNotes);
 	[syncSession startModifyingNotes:locallyChangedNotes];
 	
 	//upon success, make sure that in deletedNotes set this syncService-dict is removed
-	NSLog(@"locally deleted notes: %@", locallyDeletedNotes);
 	[syncSession startDeletingNotes:locallyDeletedNotes];
-	
-	//--
-	//any DB modifications that will trigger a push must be wrapped in suppress messages to the service
-	//for added notes, this is done in the callback before actually adding them to allNotes
-	//for updated notes this is done by the session itself, as it does the updating itself
-	//for removed notes this is done below, right before actually removing them from allNotes
+
 	
 	//collect these entries from server and add/modify the existing notes with the results
 	[syncSession startCollectingAddedNotesWithEntries:remotelyAddedEntries mergingWithNotes:mergeNotes];
 	
-	NSLog(@"remotely changed notes: %@", remotelyChangedNotes);
 	[syncSession startCollectingChangedNotesWithEntries:remotelyChangedNotes];
 	
+	//remotelyMissing and remotelyDeleted should be removed from the DB; we must remove syncMD to ensure note is not repeatedly-deleted
+	//for remotelyMissing, remove syncService-dict before registering w/undo handler to force re-creation in case of undo
+	[remotelyMissingNotes makeObjectsPerformSelector:@selector(removeAllSyncMDForService:) withObject:serviceName];
 	
-	//remotelyDeletedNotes should be deleted from the DB; add to deletedNotes but without this syncService-dict (For syncing the deletion back to other services)
-	NSLog(@"remotely deleted notes: %@", remotelyDeletedNotes);
+	NSMutableArray *remotelyMissingAndDeletedNotes = [[remotelyMissingNotes mutableCopy] autorelease];
+	[remotelyMissingAndDeletedNotes addObjectsFromArray:remotelyDeletedNotes];
 	
-	[remotelyDeletedNotes makeObjectsPerformSelector:@selector(removeAllSyncMDForService:) withObject:serviceName];
+	[syncSession suppressPushingForNotes:remotelyMissingAndDeletedNotes];
+	if ([remotelyMissingAndDeletedNotes count]) [self removeNotes:remotelyMissingAndDeletedNotes];
+	[syncSession stopSuppressingPushingForNotes:remotelyMissingAndDeletedNotes];
+
+	//for remotelyDeletedNotes, also remove syncMD from deletedNotes, but leave syncMD will be left in the undo-registered notes 
+	[self removeSyncMDFromDeletedNotesInSet:[NSSet setWithArray:remotelyDeletedNotes] forService:serviceName];
 	
-	[syncSession suppressPushingForNotes:remotelyDeletedNotes];
-	if ([remotelyDeletedNotes count])
-		[self removeNotes:remotelyDeletedNotes]; //will register in the undo handle
-	[syncSession stopSuppressingPushingForNotes:remotelyDeletedNotes];
 	
 		
 }
