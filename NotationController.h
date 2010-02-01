@@ -79,6 +79,7 @@ typedef struct _NoteCatalogEntry {
 
 NSInteger compareCatalogEntryName(const void *one, const void *two);
 NSInteger compareCatalogValueNodeID(id *a, id *b);
+NSInteger compareCatalogValueFileSize(id *a, id *b);
 void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription);
 
 - (id)init;

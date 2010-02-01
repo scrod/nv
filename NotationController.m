@@ -34,6 +34,13 @@ NSInteger compareCatalogValueNodeID(id *a, id *b) {
     return aEntry->nodeID - bEntry->nodeID;
 }
 
+NSInteger compareCatalogValueFileSize(id *a, id *b) {
+	NoteCatalogEntry* aEntry = (NoteCatalogEntry*)[*(id*)a pointerValue];
+	NoteCatalogEntry* bEntry = (NoteCatalogEntry*)[*(id*)b pointerValue];
+	
+    return aEntry->logicalSize - bEntry->logicalSize;
+}
+
 
 - (id)init {
     if ([super init]) {
