@@ -47,6 +47,7 @@ extern NSString *SimplenoteSeparatorKey;
 + (NSString*)serviceName;
 + (NSString*)nameOfKeyElement;
 + (NSURL*)servletURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
++ (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget;
 
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;

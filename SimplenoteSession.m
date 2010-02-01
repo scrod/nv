@@ -49,6 +49,23 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return [NSURL URLWithString:[NSString stringWithFormat:@"https://simple-note.appspot.com%@%@", path, queryStr]];
 }
 
++ (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget {
+	SCNetworkReachabilityRef reachableRef = NULL;
+	
+	if ((reachableRef = SCNetworkReachabilityCreateWithName(NULL, [[[SimplenoteSession servletURLWithPath:
+																   @"/" parameters:nil] host] UTF8String]))) {
+		SCNetworkReachabilityContext context = {0, aTarget, NULL, NULL, NULL};
+		if (SCNetworkReachabilitySetCallback(reachableRef, callout, &context)) {
+			if (!SCNetworkReachabilityScheduleWithRunLoop(reachableRef, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode)) {
+				NSLog(@"SCNetworkReachabilityScheduleWithRunLoop error: %d", SCError());
+				CFRelease(reachableRef);
+				return NULL;
+			}
+		}
+	}
+	return reachableRef;
+}
+
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry {
 	//simplenote-specific logic to determine whether to upload localEntry as a newer version of remoteEntry
 	NSNumber *modifiedLocalNumber = [localEntry objectForKey:@"modify"];
