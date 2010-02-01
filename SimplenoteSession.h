@@ -27,6 +27,7 @@ extern NSString *SimplenoteSeparatorKey;
 	
 	//used for scheduling mutations:
 	//e.g., controlling whether a given note should be scheduled
+	NSTimer *pushTimer;
 	NSCountedSet *notesToSuppressPushing;
 	NSMutableSet *unsyncedServiceNotes;
 	
@@ -53,12 +54,14 @@ extern NSString *SimplenoteSeparatorKey;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
 - (BOOL)entryHasLocalChanges:(NSDictionary*)entry;
 
-- (void)schedulePushForNote:(id <SynchronizedNote>)aNote;
 + (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote;
 
-- (void)pushSyncServiceChanges;
+- (void)schedulePushForNote:(id <SynchronizedNote>)aNote;
+- (void)handleSyncServiceChanges:(NSTimer*)aTimer;
+- (BOOL)pushSyncServiceChanges;
 
 - (void)stop;
+- (BOOL)hasUnsyncedChanges;
 
 - (id)initWithUsername:(NSString*)aUserString andPassword:(NSString*)aPassString;
 

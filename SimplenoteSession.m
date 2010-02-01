@@ -190,6 +190,10 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (void)stop {
+	[pushTimer invalidate];
+	pushTimer = nil;
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(handleSyncServiceChanges:) object:nil];
+	[unsyncedServiceNotes removeAllObjects]; //caution: will cause NV not to wait before quitting regardless of unsynced changes
 	[queuedNoteInvocations removeAllObjects];
 	[collectorsInProgress makeObjectsPerformSelector:@selector(stop)];
 	[listFetcher cancel];
@@ -208,26 +212,31 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[unsyncedServiceNotes removeObject:aNote];
 		[unsyncedServiceNotes addObject:aNote];
 		
-		//next change always invalidates queued push from performSelector
-		//queued pushes should probably be flushed (w/ pushSyncServiceChanges) when ending editing of a note
-		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(pushSyncServiceChanges) object:nil];
-		
-		[self performSelector:@selector(pushSyncServiceChanges) withObject:nil afterDelay:3.0];
+		//push every 20 seconds after the first change, and 6 seconds after the last change
+		if (!pushTimer) pushTimer = [NSTimer scheduledTimerWithTimeInterval:30.0 target:self selector:@selector(handleSyncServiceChanges:) userInfo:nil repeats:NO];
+		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(handleSyncServiceChanges:) object:nil];
+		[self performSelector:@selector(handleSyncServiceChanges:) withObject:nil afterDelay:7.0];
 	}
 }
 
-- (void)pushSyncServiceChanges {
+- (BOOL)hasUnsyncedChanges {
+	return [unsyncedServiceNotes count] > 0;
+}
+
+- (void)handleSyncServiceChanges:(NSTimer*)aTimer {
+	[pushTimer invalidate];
+	pushTimer = nil;
+	[self pushSyncServiceChanges];
+}	
+
+- (BOOL)pushSyncServiceChanges {
+	//return no if we didn't need to push the changes (e.g., they were already being handled or there weren't any to push)
 	
-		
 	if ([unsyncedServiceNotes count] > 0) {
 		
 		if ([listFetcher isRunning]) {
 			NSLog(@"%s: not pushing because a full sync index is in progress", _cmd);
-			return;
-		}
-		if ([collectorsInProgress count]) {
-			NSLog(@"%s: a collection is in progress somewhere, continuing anyway", _cmd);
-			//return;//this check is probably unnecessary
+			return NO;
 		}
 		
 		//now actively ADD/UPDATE/DELETE these notes directly, depending on presence of syncServicesMD dicts
@@ -269,7 +278,9 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[self startDeletingNotes:notesToDelete];
 		
 		[unsyncedServiceNotes removeAllObjects];
+		return YES;
     }
+	return NO;
 }
 
 - (void)_clearAuthTokenAndDependencies {
