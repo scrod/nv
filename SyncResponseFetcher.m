@@ -178,7 +178,7 @@
 	
 	[receivedData setLength:0];
 	
-	[urlConnection release];
+	[urlConnection autorelease];
 	urlConnection = nil;
 	isRunning = NO;
 	
@@ -196,7 +196,7 @@
 		[urlConnection cancel];
 		[self _fetchDidFinishWithError:[NSHTTPURLResponse localizedStringForStatusCode:lastStatusCode]];
 	} else if (responseValid) {
-		[headers release];
+		[headers autorelease];
 		headers = [[(NSHTTPURLResponse*)response allHeaderFields] copy];
 	}
 }
