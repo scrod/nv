@@ -257,7 +257,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 		NSUInteger bmIndex = [bookmarks indexOfObjectIdenticalTo:bookmark];
 		if (bmIndex != NSNotFound) {
 			isSelectingProgrammatically = YES;
-			[bookmarksTableView selectRow:bmIndex byExtendingSelection:NO];
+			[bookmarksTableView selectRowIndexes:[NSIndexSet indexSetWithIndex:bmIndex] byExtendingSelection:NO];
 			isSelectingProgrammatically = NO;
 			[removeBookmarkButton setEnabled:YES];
 		}
