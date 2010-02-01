@@ -8,64 +8,11 @@
 
 #import "NotationSyncServiceManager.h"
 #import "SyncServiceSessionProtocol.h"
+#import "SyncSessionController.h"
 #import "NotationPrefs.h"
-#import "SimplenoteSession.h"
 
 @implementation NotationController (NotationSyncServiceManager)
 
-//these two methods must return parallel arrays:
-
-+ (NSArray*)allServiceNames {
-	static NSArray *allNames = nil;
-	if (!allNames) allNames = [[NSArray alloc] initWithObjects:SimplenoteServiceName, nil];
-	return allNames;
-}
-+ (NSArray*)allServiceClasses {
-	static NSArray *allClasses = nil;
-	if (!allClasses) allClasses = [[NSArray alloc] initWithObjects:NSClassFromString(@"SimplenoteSession"), nil];
-
-	return allClasses;
-}
-
-- (id<SyncServiceSession>)sessionForSyncService:(NSString*)serviceName {
-	//map names to sync service sessions, creating them if necessary
-	NSAssert(serviceName != nil, @"servicename is required");
-	
-	if (!syncServiceSessions) syncServiceSessions = [[NSMutableDictionary alloc] initWithCapacity:1];
-	
-	id<SyncServiceSession> session = [syncServiceSessions objectForKey:serviceName];
-	
-	if ([session authorizationExpired]) {
-		NSLog(@"%@ has expired; revalidating...", session);
-		[self invalidateSyncServiceSession:serviceName];
-		session = nil;
-	}
-	if (!session) {
-		if ([serviceName isEqualToString:SimplenoteServiceName]) {
-			
-			if (![notationPrefs syncServiceIsEnabled:SimplenoteServiceName]) return nil;
-			
-			SimplenoteSession *snSession = [[SimplenoteSession alloc] initWithNotationPrefs:notationPrefs];
-			[snSession setDelegate:self];
-			
-			if (snSession) [syncServiceSessions setObject:snSession forKey:serviceName];
-			[snSession release]; //owned by syncServiceSessions
-			return snSession;
-		} /* else if ([serviceName isEqualToString:SimpletextServiceName]) {
-		   
-		   //init and return other services here
-		   
-		} */ else {
-			NSLog(@"%s: unknown service named '%@'", _cmd, serviceName);
-		}
-	}
-	return session;
-}
-
-- (void)invalidateSyncServiceSession:(NSString*)serviceName {
-	[(id<SyncServiceSession>)[syncServiceSessions objectForKey:serviceName] setDelegate:nil];
-	[syncServiceSessions removeObjectForKey:serviceName];
-}
 
 - (NSDictionary*)invertedDictionaryOfEntries:(NSArray*)entries keyedBy:(NSString*)keyName {
 	NSUInteger i = 0;
@@ -86,8 +33,8 @@
 - (NSDictionary*)invertedDictionaryOfNotes:(NSArray*)someNotes forSession:(id<SyncServiceSession>)aSession {
 	NSUInteger i = 0;
 	NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithCapacity:[someNotes count]];
-	NSString *keyElement = [aSession nameOfKeyElement];
-	NSString *serviceName = [aSession serviceName];
+	NSString *keyElement = [[aSession class] nameOfKeyElement];
+	NSString *serviceName = [[aSession class] serviceName];
 	
 	for (i=0; i<[someNotes count]; i++) {
 		NoteObject *note = [someNotes objectAtIndex:i];
@@ -101,15 +48,22 @@
 	return dict;
 }
 
-- (void)startSyncForAllServices {
-	//sync for all _active_ services 
+- (void)startSyncServices {
+	[syncSessionController setSyncDelegate:self];
+	[syncSessionController initializeAllServices];
 }
 
-- (void)startSyncForService:(NSString*)serviceName {
-	NSAssert(serviceName != nil, @"servicename is required");
-	
-	//request the list of notes, then compare objs when we have it
-	[[self sessionForSyncService:serviceName] startFetchingListForFullSync];
+- (void)stopSyncServices {
+	[NSObject cancelPreviousPerformRequestsWithTarget:syncSessionController];	
+	[syncSessionController invalidateReachabilityRefs];
+	[syncSessionController invalidateAllServices];
+	[syncSessionController setSyncDelegate:nil];
+}
+
+- (void)syncSessionProgressStarted:(id <SyncServiceSession>)syncSession {
+	//set sync pulldown menu status icon
+	[syncSessionController queueStatusNotification];
+	//[delegate syncStatusShouldUpdateToShowProgress:YES error:NO];
 }
 
 - (void)syncSession:(id <SyncServiceSession>)syncSession receivedFullNoteList:(NSArray*)allEntries {
@@ -147,11 +101,10 @@
 	[self _purgeAlreadyDistributedDeletedNotes];
 }
 
-
 - (void)makeNotesMatchList:(NSArray*)MDEntries fromSyncSession:(id <SyncServiceSession>)syncSession {
-	NSString *keyName = [syncSession nameOfKeyElement];
-	NSString *serviceName = [syncSession serviceName];
-	NSUInteger i = 0, remotelyMissingCount = 0;
+	NSString *keyName = [[syncSession class] nameOfKeyElement];
+	NSString *serviceName = [[syncSession class] serviceName];
+	NSUInteger i = 0;
 
 	NSDictionary *remoteDict = [self invertedDictionaryOfEntries:MDEntries keyedBy:keyName];
 	//NSLog(@"%s: got inverted dict of entries: %@", _cmd, remoteDict);
@@ -296,23 +249,18 @@
 
 
 - (void)schedulePushToAllSyncServicesForNote:(id <SynchronizedNote>)aNote {
-	NSArray *svcs = [[self class] allServiceNames];
-	NSUInteger i = 0;
-	for (i=0; i<[svcs count]; i++) {
-		id <SyncServiceSession> session = [self sessionForSyncService:[svcs objectAtIndex:i]];
-		[session schedulePushForNote:aNote];
-	}
+	[syncSessionController schedulePushToAllInitializedSessionsForNote:aNote];
 }
 
 - (void)syncSettingsChangedForService:(NSString*)serviceName {
 
 	//reset credentials
-	[self invalidateSyncServiceSession:serviceName];
+	[syncSessionController invalidateSyncService:serviceName];
 	
-	//reset timer
+	//reset timer and prepare for the next sync
+	[NSObject cancelPreviousPerformRequestsWithTarget:syncSessionController selector:@selector(initializeService:) object:serviceName];
+	[syncSessionController performSelector:@selector(initializeService:) withObject:serviceName afterDelay:2];
 	
-	
-	//but don't resync here; only prepare for the next sync
 }
 
 - (BOOL)handleSyncingWithAllMissingAndRemoteNoteCount:(NSUInteger)foundNotes fromSession:(id <SyncServiceSession>)aSession {
@@ -322,8 +270,8 @@
 		return NO;
 	}
 	
-	NSString *serviceTitle = [aSession localizedServiceTitle];
-	NSString *serviceName = [aSession serviceName];
+	NSString *serviceTitle = [[aSession class] localizedServiceTitle];
+	NSString *serviceName = [[aSession class] serviceName];
 	
 	//before we make any changes on either side, check to see if this is the all-new/all-missing case (e.g., different account or terrible server crash)
 	//give the user a chance to force a merge, replace the notes, or disable syncing
