@@ -15,6 +15,7 @@
 #import "LinkingEditor.h"
 #import "EmptyView.h"
 #import "DualField.h"
+#import "TitlebarButton.h"
 #import "RBSplitView/RBSplitView.h"
 #import "BookmarksController.h"
 #import "DeletionManager.h"
@@ -60,8 +61,11 @@
 	[toolbar setDelegate:self];
 	[window setToolbar:toolbar];
 	
-	[[window standardWindowButton:NSWindowToolbarButton] setFrame:NSZeroRect];	
-	
+	//[[window standardWindowButton:NSWindowToolbarButton] setFrame:NSZeroRect];
+	[window setShowsToolbarButton:NO];
+	titleBarButton = [[TitlebarButton alloc] initWithFrame:NSMakeRect(0, 0, 17.0, 17.0) pullsDown:YES];
+	[titleBarButton addToWindow:window];
+
 	[NSApp setDelegate:self];
 	[notesTableView setDelegate:self];
 	[window setDelegate:self];
@@ -265,6 +269,13 @@ terminateApp:
 			[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString] 
 										visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
 		}
+		
+		[titleBarButton setMenu:[[notationController syncSessionController] syncStatusMenu]];
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(syncSesssionsChangedVisibleStatus:) 
+													 name:SyncSessionsChangedVisibleStatusNotification 
+												   object:[notationController syncSessionController]]; 
+		[notationController performSelector:@selector(startSyncServices) withObject:nil afterDelay:0.0];
+		
 		[oldNotation autorelease];		
     }
 }

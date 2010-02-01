@@ -13,6 +13,7 @@
 @class DualField;
 @class RBSplitView;
 @class RBSplitSubview;
+@class TitlebarButton;
 @class LinearDividerShader;
 
 @interface AppController : NSObject {
@@ -26,6 +27,7 @@
     IBOutlet NSWindow *window;
 	NSToolbar *toolbar;
 	NSToolbarItem *dualFieldItem;
+	TitlebarButton *titleBarButton;
 	
 	LinearDividerShader *dividerShader;
 	
