@@ -343,7 +343,19 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	authToken = nil;	
 }
 
+- (void)clearErrors {
+	//effectively reset what the session knows about itself, in preparation for another sync
+	lastIndexAuthFailed = NO;
+	[lastErrorString autorelease];
+	lastErrorString = nil;
+	[lastSyncedTime autorelease];
+	lastSyncedTime = nil;
+}
 
+- (BOOL)startFetchingListForFullSyncManual {
+	[self clearErrors];
+	return [self startFetchingListForFullSync];
+}
 - (BOOL)startFetchingListForFullSync {
 	//full bi-directional sync
 	

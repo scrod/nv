@@ -21,8 +21,9 @@ extern NSString *SimplenoteSeparatorKey;
 @interface SimplenoteSession : NSObject <SyncServiceSession, NSCopying> {
 
 	NSString *emailAddress, *password, *authToken;
-	NSDate *tokenTime, *lastSyncedTime;
+	
 	NSDate *lastSyncedTime;
+	BOOL lastIndexAuthFailed;
 	NSString *lastErrorString;
 	
 	SyncResponseFetcher *loginFetcher, *listFetcher;
@@ -81,6 +82,7 @@ extern NSString *SimplenoteSeparatorKey;
 
 - (void)_stoppedWithErrorString:(NSString*)aString;
 - (void)_updateSyncTime;
+- (void)_clearAuthTokenAndDependencies;
 - (NSArray*)_notesWithEntries:(NSArray*)entries;
 - (NSMutableDictionary*)_invertedContentHashesOfNotes:(NSArray*)notes withSeparator:(NSString*)sep;
 
@@ -97,6 +99,7 @@ extern NSString *SimplenoteSeparatorKey;
 
 - (BOOL)authorizationExpired;
 
+- (BOOL)startFetchingListForFullSyncManual;
 - (BOOL)startFetchingListForFullSync;
 
 @end
