@@ -681,7 +681,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	//perhaps entriesInError should be re-queued? (except for 404-deletions)
 	
-	[delegate syncSessionDidFinishRemoteModifications:self];
+	if ([[modifier entriesCollected] count]) [delegate syncSessionDidFinishRemoteModifications:self];
 }
 
 - (void)entryCreatorDidFinish:(SimplenoteEntryModifier *)modifier {
