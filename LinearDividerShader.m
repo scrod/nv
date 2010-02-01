@@ -76,9 +76,12 @@ void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out) {
 @implementation NSImage (CenteredDrawing)
 
 - (void)drawCenteredInRect:(NSRect)aRect {
+	[self drawCenteredInRect:aRect fraction:1.0];
+}
+- (void)drawCenteredInRect:(NSRect)aRect fraction:(float)aFraction {
 	NSRect cent = centeredRectInRect(aRect, [self size]);
 	cent = [[NSView focusView] centerScanRect:cent];
-	[self compositeToPoint:NSMakePoint(cent.origin.x, cent.origin.y + cent.size.height) operation:NSCompositeSourceOver];
+	[self compositeToPoint:NSMakePoint(cent.origin.x, cent.origin.y + cent.size.height) operation:NSCompositeSourceOver fraction:aFraction];
 }
 
 @end

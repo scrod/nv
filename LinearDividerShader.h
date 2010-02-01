@@ -33,5 +33,6 @@ NSRect centeredRectInRect(NSRect rect, NSSize size);
 @interface NSImage (CenteredDrawing)
 
 - (void)drawCenteredInRect:(NSRect)aRect;
+- (void)drawCenteredInRect:(NSRect)aRect fraction:(float)aFraction;
 
 @end
