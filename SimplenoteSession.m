@@ -608,10 +608,10 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		return;
 	}
 	
-	InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
-	[[invRecorder prepareWithInvocationTarget:self] _modifyNotes:notes withOperation:opSEL];
 
 	if (!authToken) {
+		InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
+		[[invRecorder prepareWithInvocationTarget:self] _modifyNotes:notes withOperation:opSEL];
 		[[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
 	} else {
 		
@@ -627,6 +627,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			NSEnumerator *enumerator = [reundantNotes objectEnumerator];
 			id <SynchronizedNote> noteToQueue = nil;
 			while ((noteToQueue = [enumerator nextObject])) {
+				InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
+				[[invRecorder prepareWithInvocationTarget:self] _modifyNotes:[NSArray arrayWithObject:noteToQueue] withOperation:opSEL];
 				[self _queueInvocation:[invRecorder invocation] forNote:noteToQueue];
 			}
 			
