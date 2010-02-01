@@ -25,9 +25,13 @@
 	IBOutlet EmptyView *editorStatusView;
 	IBOutlet NSMenuItem *sparkleUpdateItem;
     IBOutlet NSWindow *window;
+	IBOutlet NSPanel *syncWaitPanel;
+	IBOutlet NSProgressIndicator *syncWaitSpinner;
 	NSToolbar *toolbar;
 	NSToolbarItem *dualFieldItem;
 	TitlebarButton *titleBarButton;
+	
+	BOOL waitedForUncommittedChanges;
 	
 	LinearDividerShader *dividerShader;
 	
@@ -70,6 +74,8 @@ void outletObjectAwoke(id sender);
 - (void)setEmptyViewState:(BOOL)state;
 - (void)_setCurrentNote:(NoteObject*)aNote;
 - (NoteObject*)selectedNoteObject;
+
+- (IBAction)syncWaitQuit:(id)sender;
 
 - (void)setTableAllowsMultipleSelection;
 

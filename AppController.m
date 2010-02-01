@@ -5,6 +5,7 @@
 #import "NotationPrefs.h"
 #import "PrefsWindowController.h"
 #import "NoteAttributeColumn.h"
+#import "NotationSyncServiceManager.h"
 #import "NSString_NV.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
@@ -18,6 +19,7 @@
 #import "TitlebarButton.h"
 #import "RBSplitView/RBSplitView.h"
 #import "BookmarksController.h"
+#import "SyncSessionController.h"
 #import "DeletionManager.h"
 #import "MultiplePageView.h"
 #import "URLGetter.h"
@@ -251,9 +253,14 @@ terminateApp:
 - (void)setNotationController:(NotationController*)newNotation {
 	
     if (newNotation) {
-		[notationController stopFileNotifications];
-		if ([notationController flushAllNoteChanges])
-			[notationController closeJournal];
+		if (notationController) {
+			[notationController stopSyncServices];
+			[[NSNotificationCenter defaultCenter] removeObserver:self name:SyncSessionsChangedVisibleStatusNotification 
+														  object:[notationController syncSessionController]];
+			[notationController stopFileNotifications];
+			if ([notationController flushAllNoteChanges])
+				[notationController closeJournal];
+		}
 		
 		NotationController *oldNotation = notationController;
 		notationController = [newNotation retain];
@@ -1333,6 +1340,18 @@ terminateApp:
 	}
 }
 
+- (void)syncSesssionsChangedVisibleStatus:(NSNotification*)aNotification {
+	SyncSessionController *syncSessionController = [aNotification object];
+	if ([syncSessionController hasErrors]) {
+		[titleBarButton setStatusIconType:AlertIcon];
+	} else if ([syncSessionController hasRunningSessions]) {
+		[titleBarButton setStatusIconType:SynchronizingIcon];
+	} else {
+		[titleBarButton setStatusIconType:NoIcon];
+	}	
+}
+
+
 - (IBAction)fixFileEncoding:(id)sender {
 	if (currentNote) {
 		[notationController synchronizeNoteChanges:nil];
@@ -1344,6 +1363,29 @@ terminateApp:
 - (void)windowWillClose:(NSNotification *)aNotification {
     if ([prefsController quitWhenClosingWindow])
 		[NSApp terminate:nil];
+}
+
+- (IBAction)syncWaitQuit:(id)sender {
+	//need this variable until unsyncedNotes are cleaned by a full sync
+	waitedForUncommittedChanges = YES;
+	[NSApp terminate:nil];
+}
+
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
+	//if a sync session is still running, then wait for it to finish before sending terminatereply
+	//otherwise, if there are unsynced notes to send, then push them right now and wait until session is no longer running	
+	//use waitForUncommitedChangesWithTarget:selector: and provide a callback to send NSTerminateNow
+	
+	if (!waitedForUncommittedChanges &&
+		[[notationController syncSessionController] waitForUncommitedChangesWithTarget:self selector:@selector(syncWaitQuit:)]) {
+		[[NSApp windows] makeObjectsPerformSelector:@selector(orderOut:) withObject:nil];
+		[syncWaitPanel center];
+		[syncWaitPanel makeKeyAndOrderFront:nil];
+		[syncWaitSpinner startAnimation:nil];
+		//use NSTerminateCancel instead of NSTerminateLater because we need the runloop functioning in order to receive start/stop sync notifications
+		return NSTerminateCancel;
+	}
+	return NSTerminateNow;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {	
@@ -1361,6 +1403,8 @@ terminateApp:
 	
 	[window close];
 	[notationController stopFileNotifications];
+	
+	//wait for syncing to finish, showing a progress bar
 	
     if ([notationController flushAllNoteChanges])
 		[notationController closeJournal];
