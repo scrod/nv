@@ -279,7 +279,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	[pushTimer invalidate];
 	pushTimer = nil;
 	[self pushSyncServiceChanges];
-}	
+}
 
 - (BOOL)pushSyncServiceChanges {
 	//return no if we didn't need to push the changes (e.g., they were already being handled or there weren't any to push)
@@ -320,7 +320,12 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 					//queue the note to be created; it doesn't have any metadata for this service
 					[notesToCreate addObject:aNote];
 				} else {
+					//in this case we probably intended to _undo_ the creation of a note that doesn't yet have metadata
+					//in which case the deleted note would have already taken the created one's place, and there's nothing more we need to do
 					NSLog(@"not creating an already-deleted note %@", aNote);
+					//BUG: this presents a case in which we might have been waiting for unsynced notes to finish, but will now wait forever
+					// should probably indicate in return value that no notes were pushed
+					//BUG2: it would also be nice to wait for queued notes to finish
 				}
 			}
 		}
@@ -330,7 +335,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[self startDeletingNotes:notesToDelete];
 		
 		[unsyncedServiceNotes removeAllObjects];
-		return YES;
+		
+		return [notesToCreate count] || [notesToUpdate count] || [notesToDelete count];
     }
 	return NO;
 }
@@ -735,7 +741,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[notesBeingModified addObjectsFromArray:currentlyIdleNotes];
 		
 		if ([currentlyIdleNotes count]) {
-			//NSLog(@"%s(%@)", opSEL, currentlyIdleNotes);
+			NSLog(@"%s(%@)", opSEL, currentlyIdleNotes);
 			//now actually start processing those notes
 			SimplenoteEntryModifier *modifier = [[SimplenoteEntryModifier alloc] initWithEntries:currentlyIdleNotes operation:opSEL authToken:authToken email:emailAddress];
 			SEL callback = (@selector(fetcherForCreatingNote:) == opSEL ? @selector(entryCreatorDidFinish:) :

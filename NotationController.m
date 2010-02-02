@@ -197,7 +197,7 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 			notesChanged = YES;
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
 			if (NSRunCriticalAlertPanel(NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil), 
-										NSLocalizedString(@"If you make changes, some settings and metadata could be lost.", nil), 
+										NSLocalizedString(@"If you make changes, some settings and metadata will be lost.", nil), 
 										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn);
 			exit(0);
 		}
@@ -1349,7 +1349,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	//a removal command will be sent to sync services if aNoteObject contains a matching syncServicesMD dict 
 	//(e.g., already been synced at least once)
 	//make sure we use the same deleted note that was added to the list of deleted notes, to simplify record-keeping
-	if (deletedNote) [self schedulePushToAllSyncServicesForNote:deletedNote];
+	//if the note didn't have metadata, try to sync it anyway so that the service knows this note shouldn't be created
+	[self schedulePushToAllSyncServicesForNote: deletedNote ? deletedNote : [DeletedNoteObject deletedNoteWithNote:aNoteObject]];
     
 	[self _registerDeletionUndoForNote:aNoteObject];
 		
