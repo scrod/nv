@@ -285,14 +285,15 @@ terminateApp:
 										visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
 			[notesTableView setNeedsDisplay:YES];
 		}
-		
 		[titleBarButton setMenu:[[notationController syncSessionController] syncStatusMenu]];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(syncSesssionsChangedVisibleStatus:) 
 													 name:SyncSessionsChangedVisibleStatusNotification 
 												   object:[notationController syncSessionController]]; 
 		[notationController performSelector:@selector(startSyncServices) withObject:nil afterDelay:0.0];
 		
-		[oldNotation autorelease];		
+		[field selectText:nil];
+		
+		[oldNotation autorelease];
     }
 }
 
@@ -1446,16 +1447,15 @@ terminateApp:
 		[NSApp hide:sender];
 		return;
 	}
-	if (![NSApp isActive]) [NSApp activateIgnoringOtherApps:YES];
-	if (![window isMainWindow]) [window makeKeyAndOrderFront:sender];
+	[self bringFocusToControlField:sender];
 }
 
 - (IBAction)bringFocusToControlField:(id)sender {
 	
-	if (![NSApp isActive]) [NSApp activateIgnoringOtherApps:YES];
-	if (![window isKeyWindow]) [window makeKeyAndOrderFront:sender];
-	
 	[field selectText:sender];
+	
+	if (![NSApp isActive]) [NSApp activateIgnoringOtherApps:YES];
+	if (![window isMainWindow]) [window makeKeyAndOrderFront:sender];
 	
 	[self setEmptyViewState:currentNote == nil];
 }
