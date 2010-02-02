@@ -852,8 +852,17 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	} else if (fetcher == listFetcher) {
 		
 		lastIndexAuthFailed = NO;
-		NSArray *rawEntries = [NSArray arrayWithJSONString:bodyString];
-		
+		NSArray *rawEntries = nil;
+		@try {
+			rawEntries = [NSArray arrayWithJSONString:bodyString];
+		} @catch (NSException *e) {
+			NSLog(@"Exception while parsing Simplenote JSON index: %@", [e reason]);
+		} @finally {
+			if (!rawEntries) {
+				[self _stoppedWithErrorString:NSLocalizedString(@"The index of notes could not be parsed.", @"Simplenote-specific error")];
+				return;
+			}
+		}
 		//convert dates and "deleted" indicator into NSNumbers
 		NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[rawEntries count]];
 		NSUInteger i = 0;
