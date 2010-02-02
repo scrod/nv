@@ -638,6 +638,8 @@
 		if (row >= 0) {
 			[self selectRowIndexes:[NSIndexSet indexSetWithIndex:row]
 			  byExtendingSelection:[selectedRows containsIndex:row] && [selectedRows count] > 1];
+			//changed selected rows:
+			selectedRows = [self selectedRowIndexes];
 		}
 		
         NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:selectedRows];
