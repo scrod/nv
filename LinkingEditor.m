@@ -741,6 +741,7 @@ copyRTFType:
 
 - (void)setAutomaticallySelectedRange:(NSRange)newRange {
 	lastAutomaticallySelectedRange = newRange;
+	didChangeIntoAutomaticRange = NO;
 	[self setSelectedRange:newRange];
 }
 
@@ -873,10 +874,11 @@ copyRTFType:
 	BOOL wasAutomatic = NO;
 	[self selectedRangeWasAutomatic:&wasAutomatic];
 	
-	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length]))
-		[self insertTabIgnoringFieldEditor:sender];
-	else
+	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length] || didChangeIntoAutomaticRange)) {
+		[self insertTabIgnoringFieldEditor:sender];		
+	} else {
 		[[self window] selectNextKeyView:self];
+	}
 }
 
 - (void)insertBacktab:(id)sender {
@@ -917,7 +919,7 @@ copyRTFType:
 		[self insertText:spacesString];
 		[spacesString release];
 	} else {
-		[super insertText:@"\t"];
+		[self insertText:@"\t"];
 	}
 }
 
@@ -949,6 +951,15 @@ copyRTFType:
 						// Not in leading whitespace.  Delete normally.
 						[super deleteBackward:sender];
 					} else {
+#if SPECIAL_DELETE_FOR_SPACES_ONLY
+						NSString *leadingSpaceString = [string substringWithRange:leadingSpaceRange];
+						if ([leadingSpaceString rangeOfString:@"\t"].location != NSNotFound) {
+							//thar actually be tabs here; revert to normal backwards-deletion
+							[super deleteBackward:sender];
+							return;
+						}
+#endif
+						
 						NSTextStorage *text = [self textStorage];
 						unsigned leadingIndents = leadingSpaces / indentWidth;
 						NSString *replaceString;
@@ -1165,6 +1176,10 @@ copyRTFType:
 	//[[self window] invalidateCursorRectsForView:self];
 	
 	[super didChangeText];
+	
+	//if the result of changing the text caused us to move into the automatic range, then temporarily ignore the automatic range
+	//don't use -selectedRangeWasAutomatic: as it consults didRenderFully, which might not be true here
+	didChangeIntoAutomaticRange = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
 }
 
 - (BOOL)shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {

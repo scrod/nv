@@ -26,6 +26,7 @@
 	BOOL didRenderFully;
 #endif
 	
+	BOOL didChangeIntoAutomaticRange;
 	NSRange lastAutomaticallySelectedRange;
 	NSRange changedRange;
 	
