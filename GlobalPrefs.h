@@ -124,7 +124,7 @@ extern NSString *NVPTFPboardType;
 - (NSString*)lastSearchString;
 - (void)setLastSearchString:(NSString*)string selectedNote:(id<SynchronizedNote>)aNote sender:(id)sender;
 
-- (void)setBookmarksFromSender:(id)sender;
+- (void)saveCurrentBookmarksFromSender:(id)sender;
 - (BookmarksController*)bookmarksController;
 
 - (void)setAliasDataForDefaultDirectory:(NSData*)alias sender:(id)sender;

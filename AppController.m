@@ -1414,7 +1414,7 @@ terminateApp:
 		[currentNote updateContentCacheCStringIfNecessary];
 		
 		[prefsController setLastSearchString:[self fieldSearchString] selectedNote:currentNote sender:self];
-		[prefsController setBookmarksFromSender:self];
+		[prefsController saveCurrentBookmarksFromSender:self];
 	}
 	
 	[[NSApp windows] makeObjectsPerformSelector:@selector(close)];

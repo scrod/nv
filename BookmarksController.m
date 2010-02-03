@@ -244,7 +244,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 
 - (void)updateBookmarksUI {
 	
-	[prefsController setBookmarksFromSender:self];
+	[prefsController saveCurrentBookmarksFromSender:self];
 	
 	[self setBookmarksMenu];
 	
