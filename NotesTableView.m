@@ -766,7 +766,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	unsigned mods = [theEvent modifierFlags];
 	if (mods & NSCommandKeyMask) {
 		
-		unichar keyChar = [theEvent firstCharacterIgnoringModifiers];
+		unichar keyChar = [theEvent firstCharacter]; /*cannot use ignoringModifiers here as it subverts the Dvorak-Qwerty-CMD keyboard layout */
 		
 		if (keyChar == kNext_Tag || keyChar == kPrev_Tag) {
 			
