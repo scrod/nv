@@ -497,6 +497,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		while ((textTabToBeRemoved = [enumerator nextObject])) {
 			[noteBodyParagraphStyle removeTabStop:textTabToBeRemoved];
 		}
+		//[paragraphStyle setHeadIndent:sizeOfTab]; //for soft-indents, this would probably have to be applied contextually, and heaven help us for soft tabs
+
 		[noteBodyParagraphStyle setDefaultTabInterval:sizeOfTab];
 	}
 	

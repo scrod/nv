@@ -180,16 +180,17 @@
 				NSURL *url = [urls objectAtIndex:j];
 				NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy URL",@"contextual menu item title to copy urls")
 															  action:@selector(copyItemToPasteboard:) keyEquivalent:@""];
-				NSString *urlString = [url absoluteString];
-				if ([urlString length] > 60) urlString = [[urlString substringToIndex: 60] stringByAppendingString:NSLocalizedString(@"...", @"ellipsis character")];
-				NSMutableAttributedString *titleString = [[NSMutableAttributedString alloc] initWithString:[NSLocalizedString(@"Copy ",@"menu item prefix to copy a URL") stringByAppendingString:urlString] attributes:blackAttrs];
+				//_other_ people would use "_web_userVisibleString" here, but resourceSpecifier looks like it's good enough
+				NSString *urlString = [[url scheme] isEqualToString:@"mailto"] ? [url resourceSpecifier] : [url absoluteString];
+				NSString *truncatedURLString = [urlString length] > 60 ? [[urlString substringToIndex: 60] stringByAppendingString:NSLocalizedString(@"...", @"ellipsis character")] : urlString;
+				NSMutableAttributedString *titleString = [[NSMutableAttributedString alloc] initWithString:[NSLocalizedString(@"Copy ",@"menu item prefix to copy a URL") stringByAppendingString:truncatedURLString] attributes:blackAttrs];
 				
 				NSAttributedString *titleDesc = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@" (%@)", titleOfNote(aNote)] attributes:grayAttrs];
 				[titleString appendAttributedString:titleDesc];
 				[item setAttributedTitle:titleString];
 				[titleDesc release];
 				[titleString release];
-				[item setRepresentedObject:[url absoluteString]];
+				[item setRepresentedObject:urlString];
 				[item setTarget:[item representedObject]];
 				[urlsMenu addItem:item];
 				[item release];
