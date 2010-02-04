@@ -403,7 +403,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	NSRect newFrame = [sender frame];
 	NSSize intercellSpacing = [bookmarksTableView intercellSpacing];
 	
-	newHeight = [bookmarksTableView numberOfRows] * ([bookmarksTableView rowHeight] + intercellSpacing.height);	
+	newHeight = MAX(1, [bookmarksTableView numberOfRows]) * ([bookmarksTableView rowHeight] + intercellSpacing.height);
 	oldHeight = [[[bookmarksTableView enclosingScrollView] contentView] frame].size.height;
 	newHeight = [sender frame].size.height - oldHeight + newHeight;
 	

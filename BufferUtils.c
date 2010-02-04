@@ -9,7 +9,6 @@
 
 #include "BufferUtils.h"
 #include <string.h>
-//#include "CarbonFSErrorStrings.h"
 
 static const unsigned char gsToLowerMap[256] = {
 '\0', 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, '\t',
