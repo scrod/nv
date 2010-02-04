@@ -66,7 +66,6 @@
 	[toolbar setDelegate:self];
 	[window setToolbar:toolbar];
 	
-	//[[window standardWindowButton:NSWindowToolbarButton] setFrame:NSZeroRect];
 	[window setShowsToolbarButton:NO];
 	titleBarButton = [[TitlebarButton alloc] initWithFrame:NSMakeRect(0, 0, 17.0, 17.0) pullsDown:YES];
 	[titleBarButton addToWindow:window];

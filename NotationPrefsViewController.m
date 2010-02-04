@@ -68,7 +68,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (void)awakeFromNib {
     didAwakeFromNib = YES;
-    
     [allowedExtensionsTable setDataSource:self];
     [allowedTypesTable setDataSource:self];
     [allowedExtensionsTable setDelegate:self];
@@ -402,7 +401,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (void)startLoginVerifier {
 	if (!loginVerifier && [[syncAccountField stringValue] length] && [[syncPasswordField stringValue] length]) {
-		
 		NSURL *loginURL = [SimplenoteSession servletURLWithPath:@"/api/login" parameters:nil];
 		loginVerifier = [[SyncResponseFetcher alloc] initWithURL:loginURL bodyStringAsUTF8B64:
 						[[NSDictionary dictionaryWithObjectsAndKeys: [syncAccountField stringValue], @"email", [syncPasswordField stringValue], @"password", nil] 

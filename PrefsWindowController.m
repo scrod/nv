@@ -14,10 +14,6 @@
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
 		
-		EditingPref = NSLocalizedString(@"Editing", @"title of Editing preference pane");
-		GeneralPref = NSLocalizedString(@"General", @"title of General preference pane");
-		NotesPref = NSLocalizedString(@"Notes", @"title of Notes preference pane");
-		
 		[prefsController registerForSettingChange:@selector(resolveNoteBodyFontFromNotationPrefsFromSender:) withTarget:self];
 		[prefsController registerForSettingChange:@selector(setCheckSpellingAsYouType:sender:) withTarget:self];
     }
@@ -321,8 +317,10 @@
 
 - (void)addToolbarItemWithName:(NSString*)name {
     NSToolbarItem *item = [[NSToolbarItem alloc] initWithItemIdentifier:name];
-    [item setPaletteLabel:name];
-    [item setLabel:name];
+	
+	NSString *localizedTitle = [[NSBundle mainBundle] localizedStringForKey:name value:@"" table:nil];
+    [item setPaletteLabel:localizedTitle];
+    [item setLabel:localizedTitle];
     //[item setToolTip:@"General settings: appearance and behavior"];
     [item setImage:[[[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForResource:name ofType:@"tiff"]] autorelease]];
     [item setTarget:self];
@@ -363,9 +361,9 @@
     
     items = [[NSMutableDictionary alloc] init];
     
-    [self addToolbarItemWithName:GeneralPref];
-    [self addToolbarItemWithName:NotesPref];	
-    [self addToolbarItemWithName:EditingPref];
+    [self addToolbarItemWithName:@"General"];
+    [self addToolbarItemWithName:@"Notes"];	
+    [self addToolbarItemWithName:@"Editing"];
 		
     toolbar = [[NSToolbar alloc] initWithIdentifier:@"preferencePanes"];
     [toolbar setDelegate:self];
@@ -374,7 +372,7 @@
     [window setToolbar:toolbar];
     [toolbar release];  //setToolbar retains the toolbar we pass, so release the one we used.
 	
-    [[window standardWindowButton:NSWindowToolbarButton] setFrame:NSZeroRect];
+	[window setShowsToolbarButton:NO];
 
     [self switchViews:nil];  //select last selected pane by default
     
@@ -390,7 +388,7 @@
 }
 
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
-    return [NSArray arrayWithObjects:GeneralPref, NotesPref, EditingPref, nil];
+    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", nil];
 }
 
 - (NSArray *)toolbarSelectableItemIdentifiers: (NSToolbar *)toolbar {
@@ -413,11 +411,11 @@
 	
     [window setTitle:sender];
 	
-    if ([sender isEqualToString:GeneralPref]){
+    if ([sender isEqualToString:@"General"]){
          prefsView = generalView;
-    } else if([sender isEqualToString:NotesPref]) {
+    } else if([sender isEqualToString:@"Notes"]) {
         prefsView = [self databaseView];
-    } else if([sender isEqualToString:EditingPref]) {
+    } else if([sender isEqualToString:@"Editing"]) {
         prefsView = editingView;
     }
     

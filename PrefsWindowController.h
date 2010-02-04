@@ -31,7 +31,6 @@
 	
 	IBOutlet NSWindow *window;
 	IBOutlet NSView *editingView, *generalView, *databaseView, *notationPrefsView;
-	NSString *EditingPref, *GeneralPref, *NotesPref;	
 	
 	GlobalPrefs *prefsController;
 }
