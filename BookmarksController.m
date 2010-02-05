@@ -140,6 +140,8 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 //	[window setFloatingPanel:YES];
 	[window setDelegate:self];
 	[bookmarksTableView setDelegate:self];
+	[bookmarksTableView setTarget:self];
+	[bookmarksTableView setDoubleAction:@selector(doubleClicked:)];
 	
 	[bookmarksTableView registerForDraggedTypes:[NSArray arrayWithObjects:MovedBookmarksType, nil]];
 }
@@ -203,7 +205,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 
-- (void)setBookmarksMenu {
+- (void)regenerateBookmarksMenu {
 	
 	NSMenu *menu = [NSApp mainMenu];
 	NSMenu *bookmarksMenu = [[menu itemWithTag:103] submenu];
@@ -246,7 +248,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	
 	[prefsController saveCurrentBookmarksFromSender:self];
 	
-	[self setBookmarksMenu];
+	[self regenerateBookmarksMenu];
 	
 	[bookmarksTableView reloadData];
 }
@@ -276,28 +278,30 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	return YES;
 }
 
-- (BOOL)restoreNoteBookmark:(NoteBookmark*)bookmark {
+- (BOOL)restoreNoteBookmark:(NoteBookmark*)bookmark inBackground:(BOOL)inBG{
 	if (bookmark) {
 
-		//communicate with revealer here--tell it to search for this string and highlight note
-		if ([revealTarget respondsToSelector:revealAction]) {
-			isRestoringSearch = YES;
-			
-			[revealTarget performSelector:revealAction withObject:bookmark];
-			[self selectBookmarkInTableView:bookmark];
-			
-			isRestoringSearch = NO;
-		} else {
-			NSLog(@"reveal target %@ doesn't respond to %s!", revealTarget, revealAction);
-			return NO;
+		if (currentBookmark != bookmark) {
+			[currentBookmark autorelease];
+			currentBookmark = [bookmark retain];
 		}
+		
+		//communicate with revealer here--tell it to search for this string and highlight note
+		isRestoringSearch = YES;
+		
+		//BOOL inBG = ([[window currentEvent] modifierFlags] & NSCommandKeyMask) == 0;
+		[revealDelegate bookmarksController:self restoreNoteBookmark:bookmark inBackground:inBG];
+		[self selectBookmarkInTableView:bookmark];
+		
+		isRestoringSearch = NO;
+
 		return YES;
 	}
 	return NO;
 }
 
 - (void)restoreBookmark:(id)sender {
-	[self restoreNoteBookmark:[sender representedObject]];
+	[self restoreNoteBookmark:[sender representedObject] inBackground:NO];
 }
 
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
@@ -322,17 +326,26 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {
-    return [bookmarks count];
+    return notes ? [bookmarks count] : 0;
 }
 
 - (BOOL)tableView:(NSTableView *)aTableView shouldEditTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	return NO;
 }
 
+- (void)doubleClicked:(id)sender {
+	int row = [bookmarksTableView selectedRow];
+	if (row > -1) [self restoreNoteBookmark:[bookmarks objectAtIndex:row] inBackground:NO];
+}
+
 - (void)tableViewSelectionDidChange:(NSNotification *)aNotification {
 	if (!isRestoringSearch && !isSelectingProgrammatically) {
 		int row = [bookmarksTableView selectedRow];
-		if (row > -1) [self restoreNoteBookmark:[bookmarks objectAtIndex:row]];
+		if (row > -1) {
+			if ([bookmarks objectAtIndex:row] != currentBookmark) {
+				[self restoreNoteBookmark:[bookmarks objectAtIndex:row] inBackground:YES];
+			}
+		}
 		
 		[removeBookmarkButton setEnabled: row > -1];
 	}
@@ -419,12 +432,23 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	[showHideBookmarksItem setTitle:NSLocalizedString(@"Show Bookmarks",@"menu item title")];
 }
 
+- (BOOL)isVisible {
+	return [window isVisible];
+}
+
 - (void)hideBookmarks:(id)sender {
 	
 	[window close];	
 }
 
-- (void)showBookmarks:(id)sender {
+- (void)restoreWindowFromSave {
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"BookmarksVisible"]) {
+		[self loadWindowIfNecessary];
+		[window orderBack:nil];
+	}	
+}
+
+- (void)loadWindowIfNecessary {
 	if (!window) {
 		if (![NSBundle loadNibNamed:@"SavedSearches" owner:self])  {
 			NSLog(@"Failed to load SavedSearches.nib");
@@ -432,7 +456,12 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 			return;
 		}
 		[bookmarksTableView setDataSource:self];
-	}
+		[bookmarksTableView reloadData];
+	}	
+}
+
+- (void)showBookmarks:(id)sender {
+	[self loadWindowIfNecessary];
 	
 	[bookmarksTableView reloadData];
 	[window makeKeyAndOrderFront:self];
@@ -499,9 +528,10 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	}
 }
 
-- (void)setRevealTarget:(id)target selector:(SEL)selector {
-	revealTarget = target;
-	revealAction = selector;
+- (void)setRevealDelegate:(id)aDelegate {
+	NSAssert([aDelegate respondsToSelector:@selector(bookmarksController:restoreNoteBookmark:inBackground:)], @"delegate must listen!");
+	
+	revealDelegate = aDelegate;
 }
 
 - (id)delegate {

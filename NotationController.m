@@ -174,7 +174,7 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 	CFUUIDBytes bytes = [prefsController UUIDBytesOfLastSelectedNote];
 	NSUInteger noteIndex = [allNotes indexOfNoteWithUUIDBytes:&bytes];
 	if (noteIndex != NSNotFound)
-		[delegate notation:self revealNote:[allNotes objectAtIndex:noteIndex]];
+		[delegate notation:self revealNote:[allNotes objectAtIndex:noteIndex] options:NVDoNotChangeScrollPosition];
 }
 
 - (void)upgradeDatabaseIfNecessary {
@@ -322,7 +322,7 @@ returnResult:
 	//allow resolution of UUIDs to NoteObjects from saved searches
 	BookmarksController *ssController = [prefsController bookmarksController];
 	[ssController setNotes:allNotes];
-	[ssController setRevealTarget:self selector:@selector(restoreNoteBookmark:)];
+	[ssController setRevealDelegate:self];
 	
 	[prefsController setNotationPrefs:notationPrefs sender:self];
 	
@@ -1139,7 +1139,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	[self resortAllNotes];
     [self refilterNotes];
     
-    [delegate notation:self revealNote:note];
+    [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];
 }
 
 //do not update the view here (why not?)
@@ -1213,7 +1213,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	if ([noteArray count] > 1)
 		[delegate notation:self revealNotes:noteArray];
 	else
-		[delegate notation:self revealNote:[noteArray lastObject]];
+		[delegate notation:self revealNote:[noteArray lastObject] options:NVOrderFrontWindow];
 }
 
 - (void)note:(NoteObject*)note attributeChanged:(NSString*)attribute {
@@ -1441,11 +1441,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 //used by BookmarksController
-- (void)restoreNoteBookmark:(NoteBookmark*)bookmark {
-	if (bookmark) {
-		[delegate notation:self wantsToSearchForString:[bookmark searchString]];
-		[delegate notation:self revealNote:[bookmark noteObject]];
-		//if selectedNote is non-nil, should focus be moved to data entry field?
+- (void)bookmarksController:(BookmarksController*)controller restoreNoteBookmark:(NoteBookmark*)aBookmark inBackground:(BOOL)inBG {
+	if (aBookmark) {
+		[delegate notation:self wantsToSearchForString:[aBookmark searchString]];
+		[delegate notation:self revealNote:[aBookmark noteObject] options: !inBG ? NVOrderFrontWindow : 0 ];
+		//if selectedNote is non-nil, should focus be moved to data entry field?, probably not; it can be dangerous to accidentally overwrite text
 	}
 }
 

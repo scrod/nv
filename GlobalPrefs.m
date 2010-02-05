@@ -606,7 +606,10 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (void)saveCurrentBookmarksFromSender:(id)sender {
 	//run this during quit and when saved searches change?
 	NSArray *bookmarks = [bookmarksController dictionaryReps];
-	if (bookmarks) [defaults setObject:bookmarks forKey:BookmarksKey];
+	if (bookmarks) {
+		[defaults setObject:bookmarks forKey:BookmarksKey];
+		[defaults setBool:[bookmarksController isVisible] forKey:@"BookmarksVisible"];
+	}
 		
 	SEND_CALLBACKS();
 }

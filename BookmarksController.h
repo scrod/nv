@@ -59,8 +59,7 @@
 	NSArray *notes;
 	
 	//for notifications
-	id delegate, revealTarget;
-	SEL revealAction;
+	id delegate, revealDelegate;
 	BOOL isRestoringSearch, isSelectingProgrammatically;
 	
 	GlobalPrefs *prefsController;
@@ -71,6 +70,8 @@
     IBOutlet NSPanel *window;
 	
 	NSMenuItem *showHideBookmarksItem;
+	
+	NoteBookmark *currentBookmark;
 }
 
 - (id)initWithBookmarks:(NSArray*)array;
@@ -82,21 +83,32 @@
 
 - (void)selectBookmarkInTableView:(NoteBookmark*)bookmark;
 
-- (BOOL)restoreNoteBookmark:(NoteBookmark*)bookmark;
+- (BOOL)restoreNoteBookmark:(NoteBookmark*)bookmark inBackground:(BOOL)inBG;
 
 - (void)restoreBookmark:(id)sender;
 - (void)clearAllBookmarks:(id)sender;
 - (void)hideBookmarks:(id)sender;
 - (void)showBookmarks:(id)sender;
 
+- (void)restoreWindowFromSave;
+- (void)loadWindowIfNecessary;
+
 - (void)addBookmark:(id)sender;
 - (void)removeBookmark:(id)sender;
 
-- (void)setBookmarksMenu;
+- (void)regenerateBookmarksMenu;
+
+- (BOOL)isVisible;
 
 - (void)updateBookmarksUI;
-- (void)setRevealTarget:(id)target selector:(SEL)selector;
+- (void)setRevealDelegate:(id)aDelegate;
 - (id)delegate;
 - (void)setDelegate:(id)aDelegate;
+
+@end
+
+@interface NSObject (BookmarksControllerRevealDelegate)
+
+- (void)bookmarksController:(BookmarksController*)controller restoreNoteBookmark:(NoteBookmark*)aBookmark inBackground:(BOOL)inBG;
 
 @end

@@ -60,7 +60,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 			NSArray *helpNotes = [[[[AlienNoteImporter alloc] initWithStoragePaths:paths] autorelease] importedNotes];
 			if ([helpNotes count] > 0) {
 				[notation addNotes:helpNotes];
-				[[notation delegate] notation:notation revealNote:[helpNotes lastObject]];
+				[[notation delegate] notation:notation revealNote:[helpNotes lastObject] options:NVEditNoteToReveal];
 			}
 		}
 		[prefsController setBlorImportAttempted:YES];

@@ -133,6 +133,7 @@ void outletObjectAwoke(id sender) {
 
 - (void)runDelayedUIActionsAfterLaunch {
 	[[prefsController bookmarksController] setDelegate:self];
+	[[prefsController bookmarksController] restoreWindowFromSave];
 	[[prefsController bookmarksController] updateBookmarksUI];
 	[self updateNoteMenus];
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(toggleNVActivation:)];
@@ -240,7 +241,7 @@ void outletObjectAwoke(id sender) {
 	 @selector(setTableColumnsShowPreview:sender:),  //when to tell notationcontroller to generate or disable note-body previews
 	 @selector(setConfirmNoteDeletion:sender:),nil];  //whether "delete note" should have an ellipsis
 	
-	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.1];
+	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.0];
 		
 	return;
 terminateApp:
@@ -1194,7 +1195,7 @@ terminateApp:
     return currentNote;
 }
 
-- (void)notation:(NotationController*)notation revealNote:(NoteObject*)note {
+- (void)notation:(NotationController*)notation revealNote:(NoteObject*)note options:(NSUInteger)opts {
 	if (note) {
 		NSUInteger selectedNoteIndex = [notation indexInFilteredListForNoteIdenticalTo:note];
 		
@@ -1206,7 +1207,16 @@ terminateApp:
 		}
 		
 		if (selectedNoteIndex != NSNotFound) {
-			[notesTableView selectRowAndScroll:selectedNoteIndex];
+			if (opts & NVDoNotChangeScrollPosition) { //select the note only
+				[notesTableView selectRowIndexes:[NSIndexSet indexSetWithIndex:selectedNoteIndex] byExtendingSelection:NO];
+			} else {
+				[notesTableView selectRowAndScroll:selectedNoteIndex];
+			}
+		}
+		
+		if (opts & NVEditNoteToReveal) [window makeFirstResponder:textView];
+		if ((opts & NVOrderFrontWindow) && ![window isKeyWindow]) {
+			[window makeKeyAndOrderFront:nil];
 		}
 	} else {
 		[notesTableView deselectAll:self];

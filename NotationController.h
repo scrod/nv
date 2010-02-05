@@ -140,8 +140,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title;
 - (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry;
 
-- (void)restoreNoteBookmark:(NoteBookmark*)bookmark;
-
 - (void)note:(NoteObject*)note didAddLabelSet:(NSSet*)labelSet;
 - (void)note:(NoteObject*)note didRemoveLabelSet:(NSSet*)labelSet;
 
@@ -180,15 +178,18 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 @end
 
 
+enum { NVDefaultReveal = 0, NVDoNotChangeScrollPosition = 1, NVOrderFrontWindow = 2, NVEditNoteToReveal = 4 };
+
 @interface NSObject (NotationControllerDelegate)
 - (BOOL)notationListShouldChange:(NotationController*)someNotation;
 - (void)notationListMightChange:(NotationController*)someNotation;
 - (void)notationListDidChange:(NotationController*)someNotation;
 - (void)notation:(NotationController*)notation wantsToSearchForString:(NSString*)string;
-- (void)notation:(NotationController*)notation revealNote:(NoteObject*)note;
+- (void)notation:(NotationController*)notation revealNote:(NoteObject*)note options:(NSUInteger)opts;
 - (void)notation:(NotationController*)notation revealNotes:(NSArray*)notes;
 
 - (void)contentsUpdatedForNote:(NoteObject*)aNoteObject;
 - (void)titleUpdatedForNote:(NoteObject*)aNoteObject;
 - (void)rowShouldUpdate:(NSInteger)affectedRow;
+
 @end

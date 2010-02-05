@@ -168,7 +168,7 @@ _hoursFromAbsoluteTime
 -[PTHotKeyCenter init]
 -[RBSplitView setDivider]
 -[NotationController currentNoteStorageFormat]
--[BookmarksController setBookmarksMenu]
+-[BookmarksController regenerateBookmarksMenu]
 -[NotationController databaseSettingsChangedFromOldFormat]
 -[NotesTableView windowDidBecomeKey]
 -[GlobalPrefs setNotationPrefssender]

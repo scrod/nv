@@ -376,7 +376,7 @@ _dateCreatedStringOfNote
 -[BookmarksController dictionaryReps]
 -[NoteBookmark dictionaryRep]
 +[NSString(NV) uuidStringWithBytes]
--[BookmarksController setBookmarksMenu]
+-[BookmarksController regenerateBookmarksMenu]
 -[NoteBookmark description]
 -[NoteBookmark noteObject]
 -[BookmarksController noteWithUUIDBytes]
