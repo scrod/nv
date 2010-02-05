@@ -282,7 +282,7 @@
     NSMutableDictionary *allAttributes = [NSMutableDictionary dictionaryWithCapacity:1];
 	NSDictionary *attributes;
     NSRange effectiveRange = NSMakeRange(0,0);
-	int stringLength = [self length];
+	NSUInteger stringLength = [self length];
 	
 	NS_DURING
 		while (NSMaxRange(effectiveRange) < stringLength) {

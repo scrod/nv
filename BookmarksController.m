@@ -445,7 +445,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"BookmarksVisible"]) {
 		[self loadWindowIfNecessary];
 		[window orderBack:nil];
-	}	
+	}
 }
 
 - (void)loadWindowIfNecessary {
