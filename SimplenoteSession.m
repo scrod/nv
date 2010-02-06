@@ -331,10 +331,18 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 					[notesToCreate addObject:aNote];
 				} else {
 					//in this case we probably intended to delete a note that didn't yet have metadata
-					//in which case the deleted note would have already taken the created one's place, and there's nothing more we need to do
-					NSLog(@"not creating an already-deleted note %@", aNote);
-					//this presents a case in which we might have been waiting for unsynced notes to finish, but will now wait forever
-					//thus this method indicates in the return value whether any notes were actually pushed
+					//in which case the deleted note would have already taken the created one's place, and there'd be nothing more we'd need to do -- 
+					//UNLESS it was just queued for creation and is -about- to get metadata
+					if ([notesBeingModified containsObject:aNote] || 
+						[[[(DeletedNoteObject*)aNote originalNote] syncServicesMD] objectForKey:SimplenoteServiceName]) {
+						//deleted notes w/o metadata should never be sent without a predecessor note already in progress 
+						//so add aNote with the expectation that _modifyNotes will queue it; when this note is ready its originalNote will have syncMD
+						//alternatively, its originalNote might have been given metadata by now, in which case we should also add it
+						[notesToDelete addObject:aNote];
+					} else {
+						NSLog(@"not creating an already-deleted, not-being-modified-or-been-modified note %@", aNote);
+						[unsyncedServiceNotes removeObject:aNote];
+					}
 				}
 			}
 		}

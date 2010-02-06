@@ -238,7 +238,14 @@
 	
 	NSDictionary *info = [[aDeletedNote syncServicesMD] objectForKey:SimplenoteServiceName];
 	
-	NSAssert([info objectForKey:@"key"], @"fetcherForDeletingNote: got deleted note without a key?");
+	if (![info objectForKey:@"key"]) {
+		//the deleted note lacks a key, so look up its created-equivalent and use _its_ metadata
+		//handles the case of deleting a newly-created note after it had begun to sync, but before the remote operation gave it a key
+		//because notes are queued against each other, by the time the create operation finishes on originalNote, it will have syncMD
+		if ((info = [[[aDeletedNote originalNote] syncServicesMD] objectForKey:SimplenoteServiceName]))
+			[aDeletedNote setSyncObjectAndKeyMD:info forService:SimplenoteServiceName];
+	}
+	NSAssert([info objectForKey:@"key"], @"fetcherForDeletingNote: got deleted note and couldn't find a key anywhere!");
 	
 	NSURL *noteURL = [SimplenoteSession servletURLWithPath:@"/api/delete" parameters:
 					  [NSDictionary dictionaryWithObjectsAndKeys: email, @"email", 

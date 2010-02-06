@@ -19,7 +19,9 @@
 		CFUUIDBytes *bytes = [note uniqueNoteIDBytes];
 		uniqueNoteIDBytes = *bytes;
 		syncServicesMD = [[note syncServicesMD] mutableCopy];
-		logSequenceNumber = [note logSequenceNumber];	
+		logSequenceNumber = [note logSequenceNumber];
+		//not serialized: for runtime lookup purposes only
+		originalNote = [note retain];
     }
     return self;
 }
@@ -55,6 +57,10 @@
 	}
 }
 
+- (id<SynchronizedNote>)originalNote {
+	return originalNote;
+}
+
 - (NSString*)description {
 	return [NSString stringWithFormat:@"DeletedNoteObj %@", syncServicesMD];
 }
@@ -63,6 +69,7 @@
 
 - (void)dealloc {
 	[syncServicesMD release];
+	[originalNote release];
 	[super dealloc];
 }
 
