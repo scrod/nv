@@ -272,7 +272,17 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (BOOL)hasUnsyncedChanges {
-	return [unsyncedServiceNotes count] > 0;
+	//our changes are unsynced if there are notes we haven't yet updated on the server or notes still updating on the server
+	if ([unsyncedServiceNotes count] > 0) return YES;
+	
+	NSUInteger i = 0;
+	NSArray *cols = [collectorsInProgress allObjects];
+	for (i=0; i<[cols count]; i++) {
+		if ([[cols objectAtIndex:i] isKindOfClass:[SimplenoteEntryModifier class]]) {
+			return YES;
+		}
+	}
+	return NO;
 }
 
 - (void)handleSyncServiceChanges:(NSTimer*)aTimer {
