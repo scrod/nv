@@ -1,0 +1,9 @@
+{
+	ClassName = RBSplitView;
+	SuperClass = RBSplitSubview;
+	Actions = {
+	};
+	Outlets = {
+		delegate = id;
+	};
+}
