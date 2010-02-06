@@ -673,7 +673,6 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		if ([self isRunning]) {
 			[self _updateSyncTime];
 		} else {
-			NSAssert(![queuedNoteInvocations count], @"how can we be running when notes are queued?");
 			[self _stoppedWithErrorString:nil];
 		}
 	}
