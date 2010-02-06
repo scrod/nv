@@ -263,7 +263,7 @@
 		if ([aNote isKindOfClass:[NoteObject class]]) {
 			return [NSString stringWithFormat:NSLocalizedString(@"%@ quot%@quot...",@"example: Updating 'joe shmoe note'"), opName, titleOfNote(aNote)];
 		} else {
-			return NSLocalizedString(@"Deleting a note...", nil);
+			return [NSString stringWithFormat:NSLocalizedString(@"%@ a note...", @"e.g., 'Deleting a note...'"), opName];
 		}
 	}
 	return [NSString stringWithFormat:NSLocalizedString(@"%@ %u of %u notes", @"Downloading/Creating/Updating/Deleting 5 of 10 notes"), 
