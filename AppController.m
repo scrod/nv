@@ -1372,7 +1372,7 @@ terminateApp:
 	} else if ([syncSessionController hasRunningSessions]) {
 		[titleBarButton setStatusIconType:SynchronizingIcon];
 	} else {
-		[titleBarButton setStatusIconType:NoIcon];
+		[titleBarButton setStatusIconType: [[NSUserDefaults standardUserDefaults] boolForKey:@"ShowSyncMenu"] ? DownArrowIcon : NoIcon ];
 	}	
 }
 
