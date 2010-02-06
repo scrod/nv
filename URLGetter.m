@@ -135,7 +135,6 @@
 }
 
 - (void)endDownloadWithPath:(NSString*)path {
-	[self stopProgressIndication];
 	
 	[self retain];
 	[delegate URLGetter:self returnedDownloadedFile:path];
@@ -157,6 +156,8 @@
 		[tempDirectory release];
 		tempDirectory = nil;
 	}
+	
+	[self stopProgressIndication];
 	
 	[self release];
 }
