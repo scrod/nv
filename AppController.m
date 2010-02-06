@@ -286,7 +286,7 @@ terminateApp:
 			[notesTableView setNeedsDisplay:YES];
 		}
 		[titleBarButton setMenu:[[notationController syncSessionController] syncStatusMenu]];
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(syncSesssionsChangedVisibleStatus:) 
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(syncSessionsChangedVisibleStatus:) 
 													 name:SyncSessionsChangedVisibleStatusNotification 
 												   object:[notationController syncSessionController]]; 
 		[notationController performSelector:@selector(startSyncServices) withObject:nil afterDelay:0.0];
@@ -1365,7 +1365,7 @@ terminateApp:
 	}
 }
 
-- (void)syncSesssionsChangedVisibleStatus:(NSNotification*)aNotification {
+- (void)syncSessionsChangedVisibleStatus:(NSNotification*)aNotification {
 	SyncSessionController *syncSessionController = [aNotification object];
 	if ([syncSessionController hasErrors]) {
 		[titleBarButton setStatusIconType:AlertIcon];
