@@ -633,7 +633,7 @@ terminateApp:
 	return ![[tableColumn identifier] isEqualToString:NoteTitleColumnString];
 }
 
-- (void)showHelp:(id)sender {
+- (IBAction)showHelpDocument:(id)sender {
 	NSString *path = nil;
 	
 	switch ([sender tag]) {
@@ -645,7 +645,7 @@ terminateApp:
 											options:NSWorkspaceLaunchDefault additionalEventParamDescriptor:nil launchIdentifiers:NULL];
 			break;
 		case 3:		//product site
-			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://notational.net/"]];
+			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:NSLocalizedString(@"SiteURL", nil)]];
 			break;
 		case 4:		//development site
 			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://notational.net/development"]];

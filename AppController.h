@@ -83,6 +83,7 @@ void outletObjectAwoke(id sender);
 - (void)cacheTypedStringIfNecessary:(NSString*)aString;
 - (NSString*)typedString;
 
+- (IBAction)showHelpDocument:(id)sender;
 - (IBAction)showPreferencesWindow:(id)sender;
 - (IBAction)toggleNVActivation:(id)sender;
 - (IBAction)bringFocusToControlField:(id)sender;

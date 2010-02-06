@@ -11,6 +11,7 @@
                 newNoteWithClipboard = id;
                 printNote = id;
                 renameNote = id;
+                showHelpDocument = id;
                 showPreferencesWindow = id;
                 syncWaitQuit = id;
                 tagNote = id;
