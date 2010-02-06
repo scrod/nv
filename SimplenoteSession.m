@@ -329,6 +329,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			}
 		}
 		
+		//NSLog(@"will push %u to create, %u to update, %u to delete", [notesToCreate count], [notesToUpdate count], [notesToDelete count]);
 		[self startCreatingNotes:notesToCreate];
 		[self startModifyingNotes:notesToUpdate];
 		[self startDeletingNotes:notesToDelete];
@@ -656,6 +657,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		if ([self isRunning]) {
 			[self _updateSyncTime];
 		} else {
+			NSAssert(![queuedNoteInvocations count], @"how can we be running when notes are queued?");
 			[self _stoppedWithErrorString:nil];
 		}
 	}
@@ -885,7 +887,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[lastErrorString autorelease];
 		lastErrorString = nil;
 		
-		[delegate syncSession:self receivedFullNoteList:entries];		
+		[delegate syncSession:self receivedFullNoteList:entries];
 		
 	} else {
 		NSLog(@"unknown fetcher returned: %@, body: %@", fetcher, bodyString);
