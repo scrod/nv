@@ -923,6 +923,8 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		if (PlainTextFormat == formatID) {
 			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
+		//always hide the file extension for all types
+		LSSetExtensionHiddenForRef(noteFileRefInit(self), TRUE);
 		
 		if (!resetFilename) {
 			//NSLog(@"resetting the file name just because.");
