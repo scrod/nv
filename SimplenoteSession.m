@@ -344,8 +344,6 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[self startModifyingNotes:notesToUpdate];
 		[self startDeletingNotes:notesToDelete];
 		
-		[unsyncedServiceNotes removeAllObjects];
-		
 		return [notesToCreate count] || [notesToUpdate count] || [notesToDelete count];
     }
 	return NO;
@@ -720,7 +718,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		//NSLog(@"not doing %s because no notes specified", opSEL);
 		return;
 	}
-	
+
+	[unsyncedServiceNotes minusSet:[NSSet setWithArray:notes]];
 
 	if (![self _checkToken]) {
 		InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
