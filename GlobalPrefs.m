@@ -44,7 +44,7 @@ static NSString *AppActivationModifiersKey = @"AppActivationModifiers";
 static NSString *BookmarksKey = @"Bookmarks";
 static NSString *LastSearchStringKey = @"LastSearchString";
 static NSString *LastSelectedNoteUUIDBytesKey = @"LastSelectedNoteUUIDBytes";
-static NSString *LastSelectedPreferencesPaneKey = @"LastSelectedPreferencesPane";
+static NSString *LastSelectedPreferencesPaneKey = @"LastSelectedPrefsPane";
 //static NSString *PasteClipboardOnNewNoteKey = @"PasteClipboardOnNewNote";
 
 //these 4 strings manually localized

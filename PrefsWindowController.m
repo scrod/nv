@@ -403,13 +403,13 @@
         sender = [prefsController lastSelectedPreferencesPane];
         [toolbar setSelectedItemIdentifier:sender];
     } else {
-        sender = [item label];
+        sender = [item itemIdentifier];
 		[prefsController setLastSelectedPreferencesPane:sender sender:self];
     }
 	
     NSView *prefsView = nil;
 	
-    [window setTitle:sender];
+    [window setTitle:[[NSBundle mainBundle] localizedStringForKey:sender value:@"" table:nil]];
 	
     if ([sender isEqualToString:@"General"]){
          prefsView = generalView;
@@ -417,7 +417,9 @@
         prefsView = [self databaseView];
     } else if([sender isEqualToString:@"Editing"]) {
         prefsView = editingView;
-    }
+    } else {
+		NSLog(@"unknown sender: %@", sender);
+	}
     
     if (prefsView == databaseView)
 		[folderLocationsMenuButton setMenu:[self directorySelectionMenu]];
