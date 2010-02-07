@@ -51,13 +51,16 @@
                 {
             ACTIONS =             {
                 bold = id;
+                capitalizeWord = id;
                 defaultStyle = id;
                 deleteToBeginningOfLine = id;
                 deleteWordBackward = id;
                 italic = id;
+                lowercaseWord = id;
                 shiftLeftAction = id;
                 shiftRightAction = id;
                 underlineNV = id;
+                uppercaseWord = id;
             };
             CLASS = FirstResponder;
             LANGUAGE = ObjC;
