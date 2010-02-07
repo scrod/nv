@@ -104,6 +104,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 
+- (void)checkForKnownRedundantSyncConduitsAtPath:(NSString*)dbPath;
+
 + (NSString*)pathExtensionForFormat:(int)format;
 
 //used to view tableviews

@@ -353,6 +353,12 @@
 /* No comment provided by engineer. */
 "Individual files remain in the notes directory. Leave them alone or move them to the Trash?" = "Les fichiers individuels restent dans le dossier des notes. Faut-il les y laisser, ou les déplacer dans la Corbeille ?";
 
+/* no comment */
+"<Feedback loop warning title>" = "Warning: this notes folder is being synchronized with both %@ and %@. If other copies of Notational Velocity use the same notes folder, then a feedback loop will be created.";
+
+/* no comment */
+"<Feedback loop warning message>" = "To avoid this problem, choose a different location for the notes folder on this computer, or turn off %@ synchronization.";
+
 /* No comment provided by engineer. */
 "The %@ server holds a different set of notes. Replace all %u notes in Notational Velocity with the %u notes on the server, or merge both sets together?" = "Le serveur %@ contient un jeu différent de notes. Faut-il remplacer toutes les %u notes dans Notational Velocity avec les %u notes du serveur, ou bien faut-il fusionner les deux jeux ensemble ?";
 
@@ -391,6 +397,12 @@
 
 /* human-readable name for the Simplenote service */
 "Simplenote" = "Simplenote";
+
+/* human-readable name for the SimpleText service */
+"SimpleText" = "SimpleText";
+
+/* human-readable name for Dropbox */
+"Dropbox" = "Dropbox";
 
 /* status text when downloading a note from the remote sync server */
 "Downloading %u of %u notes" =  "Télécharge %u sur %u notes";
