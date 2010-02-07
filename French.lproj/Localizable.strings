@@ -354,7 +354,7 @@
 "Individual files remain in the notes directory. Leave them alone or move them to the Trash?" = "Les fichiers individuels restent dans le dossier des notes. Faut-il les y laisser, ou les déplacer dans la Corbeille ?";
 
 /* no comment */
-"<Feedback loop warning title>" = "Warning: this notes folder is being synchronized with both %@ and %@. If other copies of Notational Velocity use the same notes folder, then a feedback loop will be created.";
+"<Feedback loop warning title>" = "Warning: this notes folder is being synchronized with both %@ and %@. If multiple copies of Notational Velocity use this folder, then a feedback loop will be created.";
 
 /* no comment */
 "<Feedback loop warning message>" = "To avoid this problem, choose a different location for the notes folder on this computer, or turn off %@ synchronization.";
