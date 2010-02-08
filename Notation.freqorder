@@ -223,7 +223,6 @@ _hoursFromAbsoluteTime
 -[NotesTableView menuForColumnSorting]
 -[NotationController(NotationFileManager) notesDirectoryIsTrashed]
 -[WALStorageController initWithParentFSRepencryptionKey]
--[AppController notationwantsToSearchForString]
 -[BookmarksController init]
 -[WALController dealloc]
 _BlockSizeForNotation

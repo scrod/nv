@@ -318,7 +318,6 @@ _resetFoundPtrsForNote
 -[FastListDataSource numberOfRowsInTableView]
 -[NotationController setDelegate]
 -[GlobalPrefs lastSearchString]
--[AppController notationwantsToSearchForString]
 -[DualField textDidEndEditing]
 -[DualField textViewshouldChangeTextInRangereplacementString]
 -[AppController controlTextDidChange]
