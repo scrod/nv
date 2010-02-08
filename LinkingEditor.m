@@ -105,7 +105,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
     if (additionalEditItems) {
         additionalEditItems = NO;
 		
-        NSMenu *editMenu = [[[NSApp mainMenu] itemWithTitle:@"Edit"] submenu];
+        NSMenu *editMenu = [[NSApp mainMenu] numberOfItems] > 2 ? [[[NSApp mainMenu] itemAtIndex:2] submenu] : nil;
 		
 		if (IsSnowLeopardOrLater) {
 			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
