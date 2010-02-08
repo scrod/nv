@@ -950,7 +950,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 }
 
 - (OSStatus)writeFileDatesAndUpdateTrackingInfo {
-	if (SingleDatabaseFormat == currentFormatID) return NO;
+	if (SingleDatabaseFormat == currentFormatID) return noErr;
 	
 	//sync the file's creation and modification date:
 	FSCatalogInfo catInfo;
