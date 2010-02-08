@@ -183,6 +183,7 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		if ([notationPrefs epochIteration] < EPOC_ITERATION) {
 			NSLog(@"epociteration was upgraded from %u to %u", [notationPrefs epochIteration], EPOC_ITERATION);
 			notesChanged = YES;
+			[self flushEverything];
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
 			if (NSRunCriticalAlertPanel(NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil), 
 										NSLocalizedString(@"If you make changes, some settings and metadata will be lost.", nil), 
