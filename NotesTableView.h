@@ -40,6 +40,7 @@ typedef struct _ViewLocationContext {
 
 - (ViewLocationContext)viewingLocation;
 - (void)setViewingLocation:(ViewLocationContext)ctx;
+- (double)distanceFromRow:(int)aRow forVisibleArea:(NSRect)visibleRect;
 - (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset;
 - (void)selectRowAndScroll:(NSInteger)row;
 - (BOOL)objectIsSelected:(id)obj;

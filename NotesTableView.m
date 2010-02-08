@@ -229,6 +229,10 @@
 	}
 }
 
+- (double)distanceFromRow:(int)aRow forVisibleArea:(NSRect)visibleRect {
+	return [self rectOfRow:aRow].origin.y - visibleRect.origin.y;
+}
+
 - (ViewLocationContext)viewingLocation {
 	ViewLocationContext ctx;
 	
@@ -254,7 +258,7 @@
 	
 	if ((unsigned int)pivotRow < (unsigned int)nRows) {
 		if ((ctx.nonRetainedPivotObject = [(FastListDataSource*)[self dataSource] immutableObjects][pivotRow])) {
-			ctx.verticalDistanceToPivotRow = [self rectOfRow:pivotRow].origin.y - visibleRect.origin.y;
+			ctx.verticalDistanceToPivotRow = [self distanceFromRow:pivotRow forVisibleArea:visibleRect];
 		}
 	}
 	return ctx;
