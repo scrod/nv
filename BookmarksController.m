@@ -178,17 +178,18 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	return array;
 }
 
-- (void)setNotes:(NSArray*)someNotes {
-	[notes release];
-	notes = [someNotes retain];
+- (id)dataSource {
+	return dataSource;
+}
+- (void)setDataSource:(id)aDataSource {
+	dataSource = aDataSource;
 	
 	[bookmarks makeObjectsPerformSelector:@selector(validateNoteObject)];
 }
 
 - (NoteObject*)noteWithUUIDBytes:(CFUUIDBytes)bytes {
-	NSUInteger noteIndex = [notes indexOfNoteWithUUIDBytes:&bytes];
-	if (noteIndex != NSNotFound) return [notes objectAtIndex:noteIndex];
-	return nil;
+
+	return [dataSource noteForUUIDBytes:&bytes];	
 }
 
 - (void)removeBookmarkForNote:(NoteObject*)aNote {
@@ -272,7 +273,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	SEL action = [menuItem action];
 	if (action == @selector(addBookmark:)) {
 		
-		return ([bookmarks count] < 27 && [delegate selectedNoteObject]);
+		return ([bookmarks count] < 27 && [appController selectedNoteObject]);
 	}
 	
 	return YES;
@@ -290,7 +291,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 		isRestoringSearch = YES;
 		
 		//BOOL inBG = ([[window currentEvent] modifierFlags] & NSCommandKeyMask) == 0;
-		[revealDelegate bookmarksController:self restoreNoteBookmark:bookmark inBackground:inBG];
+		[appController bookmarksController:self restoreNoteBookmark:bookmark inBackground:inBG];
 		[self selectBookmarkInTableView:bookmark];
 		
 		isRestoringSearch = NO;
@@ -326,7 +327,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {
-    return notes ? [bookmarks count] : 0;
+    return dataSource ? [bookmarks count] : 0;
 }
 
 - (BOOL)tableView:(NSTableView *)aTableView shouldEditTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
@@ -488,14 +489,14 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 
 - (void)addBookmark:(id)sender {
 	
-	if (![delegate selectedNoteObject]) {
+	if (![appController selectedNoteObject]) {
 		
 		NSRunAlertPanel(NSLocalizedString(@"No note selected.",@"alert title when bookmarking no note"), NSLocalizedString(@"You must select a note before it can be added as a bookmark.",nil), NSLocalizedString(@"OK",nil), nil, NULL);
 		
 	} else if ([bookmarks count] < 27) {
-		NSString *newString = [[delegate fieldSearchString] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];		
+		NSString *newString = [[appController fieldSearchString] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];		
 		
-		NoteBookmark *bookmark = [[NoteBookmark alloc] initWithNoteObject:[delegate selectedNoteObject] searchString:newString];
+		NoteBookmark *bookmark = [[NoteBookmark alloc] initWithNoteObject:[appController selectedNoteObject] searchString:newString];
 		if (bookmark) {
 			
 			NSUInteger existingIndex = [bookmarks indexOfObject:bookmark];
@@ -528,23 +529,11 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	}
 }
 
-- (void)setRevealDelegate:(id)aDelegate {
-	NSAssert([aDelegate respondsToSelector:@selector(bookmarksController:restoreNoteBookmark:inBackground:)], @"delegate must listen!");
-	
-	revealDelegate = aDelegate;
+- (AppController*)appController {
+	return appController;
 }
-
-- (id)delegate {
-	return delegate;
-}
-
-- (void)setDelegate:(id)aDelegate {
-	if ([aDelegate respondsToSelector:@selector(fieldSearchString)] && 
-		[aDelegate respondsToSelector:@selector(selectedNoteObject)]) {
-		delegate = aDelegate;
-	} else {
-		NSLog(@"Delegate %@ doesn't respond to our selectors!", aDelegate);
-	}
+- (void)setAppController:(id)aDelegate {
+	appController = aDelegate;
 }
 
 @end

@@ -8,6 +8,7 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class AppController;
 @class NoteObject;
 
 @interface NoteBookmark : NSObject {
@@ -56,10 +57,10 @@
 	NSMutableArray *bookmarks;
 		
 	//for NoteObject <-> UUID lookups
-	NSArray *notes;
+	id dataSource;
 	
 	//for notifications
-	id delegate, revealDelegate;
+	AppController *appController;
 	BOOL isRestoringSearch, isSelectingProgrammatically;
 	
 	GlobalPrefs *prefsController;
@@ -77,7 +78,8 @@
 - (id)initWithBookmarks:(NSArray*)array;
 - (NSArray*)dictionaryReps;
 
-- (void)setNotes:(NSArray*)someNotes;
+- (id)dataSource;
+- (void)setDataSource:(id)aDataSource;
 - (NoteObject*)noteWithUUIDBytes:(CFUUIDBytes)bytes;
 - (void)removeBookmarkForNote:(NoteObject*)aNote;
 
@@ -101,9 +103,9 @@
 - (BOOL)isVisible;
 
 - (void)updateBookmarksUI;
-- (void)setRevealDelegate:(id)aDelegate;
-- (id)delegate;
-- (void)setDelegate:(id)aDelegate;
+
+- (AppController*)appController;
+- (void)setAppController:(id)aDelegate;
 
 @end
 
@@ -112,3 +114,10 @@
 - (void)bookmarksController:(BookmarksController*)controller restoreNoteBookmark:(NoteBookmark*)aBookmark inBackground:(BOOL)inBG;
 
 @end
+
+@interface NSObject (BookmarksControllerDataSource)
+
+- (NoteObject*)noteForUUIDBytes:(CFUUIDBytes*)bytes;
+
+@end
+
