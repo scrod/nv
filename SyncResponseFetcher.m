@@ -74,7 +74,7 @@
 	}
 	
 	[request setHTTPShouldHandleCookies:NO];
-	[request addValue:@"Sinus cardinalis NV 2.0B2" forHTTPHeaderField:@"User-agent"];
+	[request addValue:@"Sinus cardinalis NV 2.0B3" forHTTPHeaderField:@"User-agent"];
 	
 	//if POSTData is nil, do a plain GET request
 	if (dataToSend) {
