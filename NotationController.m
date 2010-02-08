@@ -163,18 +163,6 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 	
 	delegate = theDelegate;
 
-	//show the new delegate our notes one way or another
-	
-	NSString *searchString = [prefsController lastSearchString];
-	if (searchString)
-		[delegate notation:self wantsToSearchForString:searchString];
-	else
-		[self refilterNotes];
-	
-	CFUUIDBytes bytes = [prefsController UUIDBytesOfLastSelectedNote];
-	NSUInteger noteIndex = [allNotes indexOfNoteWithUUIDBytes:&bytes];
-	if (noteIndex != NSNotFound)
-		[delegate notation:self revealNote:[allNotes objectAtIndex:noteIndex] options:NVDoNotChangeScrollPosition];
 }
 
 - (void)upgradeDatabaseIfNecessary {
@@ -319,11 +307,6 @@ returnResult:
 	if (!(deletedNotes = [[frozenNotation deletedNotes] retain]))
 	    deletedNotes = [[NSMutableSet alloc] init];
 		
-	//allow resolution of UUIDs to NoteObjects from saved searches
-	BookmarksController *ssController = [prefsController bookmarksController];
-	[ssController setNotes:allNotes];
-	[ssController setRevealDelegate:self];
-	
 	[prefsController setNotationPrefs:notationPrefs sender:self];
 	
 	if(notesData)
@@ -1441,12 +1424,11 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 //used by BookmarksController
-- (void)bookmarksController:(BookmarksController*)controller restoreNoteBookmark:(NoteBookmark*)aBookmark inBackground:(BOOL)inBG {
-	if (aBookmark) {
-		[delegate notation:self wantsToSearchForString:[aBookmark searchString]];
-		[delegate notation:self revealNote:[aBookmark noteObject] options: !inBG ? NVOrderFrontWindow : 0 ];
-		//if selectedNote is non-nil, should focus be moved to data entry field?, probably not; it can be dangerous to accidentally overwrite text
-	}
+
+- (NoteObject*)noteForUUIDBytes:(CFUUIDBytes*)bytes {
+	NSUInteger noteIndex = [allNotes indexOfNoteWithUUIDBytes:bytes];
+	if (noteIndex != NSNotFound) return [allNotes objectAtIndex:noteIndex];
+	return nil;	
 }
 
 //re-searching for all notes each time a label is added or removed is unnecessary, I think

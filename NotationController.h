@@ -184,7 +184,6 @@ enum { NVDefaultReveal = 0, NVDoNotChangeScrollPosition = 1, NVOrderFrontWindow 
 - (BOOL)notationListShouldChange:(NotationController*)someNotation;
 - (void)notationListMightChange:(NotationController*)someNotation;
 - (void)notationListDidChange:(NotationController*)someNotation;
-- (void)notation:(NotationController*)notation wantsToSearchForString:(NSString*)string;
 - (void)notation:(NotationController*)notation revealNote:(NoteObject*)note options:(NSUInteger)opts;
 - (void)notation:(NotationController*)notation revealNotes:(NSArray*)notes;
 

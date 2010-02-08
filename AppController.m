@@ -132,7 +132,7 @@ void outletObjectAwoke(id sender) {
 }
 
 - (void)runDelayedUIActionsAfterLaunch {
-	[[prefsController bookmarksController] setDelegate:self];
+	[[prefsController bookmarksController] setAppController:self];
 	[[prefsController bookmarksController] restoreWindowFromSave];
 	[[prefsController bookmarksController] updateBookmarksUI];
 	[self updateNoteMenus];
@@ -265,13 +265,21 @@ terminateApp:
 		
 		if (oldNotation) {
 			[notesTableView abortEditing];
-			[prefsController setLastSearchString:[self fieldSearchString] selectedNote:currentNote sender:self];
+			[prefsController setLastSearchString:[self fieldSearchString] selectedNote:currentNote 
+						scrollOffsetForTableView:notesTableView sender:self];
 			//if we already had a notation, appController should already be bookmarksController's delegate
 			[[prefsController bookmarksController] performSelector:@selector(updateBookmarksUI) withObject:nil afterDelay:0.0];
 		}
 		[notationController setSortColumn:[notesTableView noteAttributeColumnForIdentifier:[prefsController sortedTableColumnKey]]];
 		[notesTableView setDataSource:[notationController notesListDataSource]];
 		[notationController setDelegate:self];
+		
+		//allow resolution of UUIDs to NoteObjects from saved searches
+		[[prefsController bookmarksController] setDataSource:notationController];
+		
+		//update the list using the new notation and saved settings
+		[self restoreListStateUsingPreferences];
+		
 		//window's undomanager could be referencing actions from the old notation object
 		[[window undoManager] removeAllActions];
 		[notationController setUndoManager:[window undoManager]];
@@ -1195,15 +1203,30 @@ terminateApp:
     return currentNote;
 }
 
-- (void)notation:(NotationController*)notation revealNote:(NoteObject*)note options:(NSUInteger)opts {
+- (void)restoreListStateUsingPreferences {
+	//to be invoked after loading a notationcontroller
+	
+	NSString *searchString = [prefsController lastSearchString];
+	if (searchString)
+		[self searchForString:searchString];
+	else
+		[notationController refilterNotes];
+		
+	CFUUIDBytes bytes = [prefsController UUIDBytesOfLastSelectedNote];
+	NSUInteger idx = [self _revealNote:[notationController noteForUUIDBytes:&bytes] options:NVDoNotChangeScrollPosition];
+	//scroll using saved scrollbar position
+	[notesTableView scrollRowToVisible:NSNotFound == idx ? 0 : idx withVerticalOffset:[prefsController scrollOffsetOfLastSelectedNote]];
+}
+
+- (NSUInteger)_revealNote:(NoteObject*)note options:(NSUInteger)opts {
 	if (note) {
-		NSUInteger selectedNoteIndex = [notation indexInFilteredListForNoteIdenticalTo:note];
+		NSUInteger selectedNoteIndex = [notationController indexInFilteredListForNoteIdenticalTo:note];
 		
 		if (selectedNoteIndex == NSNotFound) {
 			NSLog(@"Note was not visible--showing all notes and trying again");
 			[self cancelOperation:nil];
 			
-			selectedNoteIndex = [notation indexInFilteredListForNoteIdenticalTo:note];
+			selectedNoteIndex = [notationController indexInFilteredListForNoteIdenticalTo:note];
 		}
 		
 		if (selectedNoteIndex != NSNotFound) {
@@ -1218,9 +1241,15 @@ terminateApp:
 		if ((opts & NVOrderFrontWindow) && ![window isKeyWindow]) {
 			[window makeKeyAndOrderFront:nil];
 		}
+		return selectedNoteIndex;
 	} else {
 		[notesTableView deselectAll:self];
+		return NSNotFound;
 	}
+}
+
+- (void)notation:(NotationController*)notation revealNote:(NoteObject*)note options:(NSUInteger)opts {
+	[self _revealNote:note options:opts];
 }
 
 - (void)notation:(NotationController*)notation revealNotes:(NSArray*)notes {
@@ -1237,7 +1266,7 @@ terminateApp:
 	}
 }
 
-- (void)notation:(NotationController*)notation wantsToSearchForString:(NSString*)string {
+- (void)searchForString:(NSString*)string {
 	
 	if (string) {
 		
@@ -1252,6 +1281,14 @@ terminateApp:
 		}
 	}
 }
+
+- (void)bookmarksController:(BookmarksController*)controller restoreNoteBookmark:(NoteBookmark*)aBookmark inBackground:(BOOL)inBG {
+	if (aBookmark) {
+		[self searchForString:[aBookmark searchString]];
+		[self _revealNote:[aBookmark noteObject] options:!inBG ? NVOrderFrontWindow : 0];
+	}
+}
+
 
 - (void)splitView:(RBSplitView*)sender wasResizedFrom:(CGFloat)oldDimension to:(CGFloat)newDimension {
 	if (sender == splitView) {
@@ -1422,7 +1459,9 @@ terminateApp:
 		
 		[currentNote updateContentCacheCStringIfNecessary];
 		
-		[prefsController setLastSearchString:[self fieldSearchString] selectedNote:currentNote sender:self];
+		[prefsController setLastSearchString:[self fieldSearchString] selectedNote:currentNote 
+					scrollOffsetForTableView:notesTableView sender:self];
+		
 		[prefsController saveCurrentBookmarksFromSender:self];
 	}
 	

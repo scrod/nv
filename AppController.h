@@ -69,11 +69,15 @@ void outletObjectAwoke(id sender);
 
 - (IBAction)fieldAction:(id)sender;
 - (NoteObject*)createNoteIfNecessary;
+- (void)searchForString:(NSString*)string;
+- (NSUInteger)_revealNote:(NoteObject*)note options:(NSUInteger)opts;
 - (BOOL)displayContentsForNoteAtIndex:(int)noteIndex;
 - (void)processChangedSelectionForTable:(NSTableView*)table;
 - (void)setEmptyViewState:(BOOL)state;
 - (void)_setCurrentNote:(NoteObject*)aNote;
 - (NoteObject*)selectedNoteObject;
+
+- (void)restoreListStateUsingPreferences;
 
 - (IBAction)syncWaitQuit:(id)sender;
 
