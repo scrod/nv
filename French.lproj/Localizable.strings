@@ -354,10 +354,10 @@
 "Individual files remain in the notes directory. Leave them alone or move them to the Trash?" = "Les fichiers individuels restent dans le dossier des notes. Faut-il les y laisser, ou les déplacer dans la Corbeille ?";
 
 /* no comment */
-"<Feedback loop warning title>" = "Warning: this notes folder is being synchronized with both %@ and %@. If multiple copies of Notational Velocity use this folder, then a feedback loop will be created.";
+"<Feedback loop warning title>" = "Attention : ce dossier de notes est synchronisé à la fois avec %@ et %@. Si d'autres copies de Notational Velocity utilisent le même dossier, une boucle de feedback sera créée.";
 
 /* no comment */
-"<Feedback loop warning message>" = "To avoid this problem, choose a different location for the notes folder on this computer, or turn off %@ synchronization.";
+"<Feedback loop warning message>" = "Pour éviter ce problème, choisissez un autre emplacement pour le dossier des notes sur cet ordinateur, ou désactivez la synchronisation sur %@.";
 
 /* No comment provided by engineer. */
 "The %@ server holds a different set of notes. Replace all %u notes in Notational Velocity with the %u notes on the server, or merge both sets together?" = "Le serveur %@ contient un jeu différent de notes. Faut-il remplacer toutes les %u notes dans Notational Velocity avec les %u notes du serveur, ou bien faut-il fusionner les deux jeux ensemble ?";
