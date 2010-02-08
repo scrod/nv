@@ -11,6 +11,8 @@
 #import "NotationPrefs.h"
 #import "BookmarksController.h"
 #import "AttributedPlainText.h"
+#import "FastListDataSource.h"
+#import "NotesTableView.h"
 #import "PTHotKey.h"
 #import "PTKeyCombo.h"
 #import "PTHotKeyCenter.h"
@@ -42,6 +44,7 @@ static NSString *MakeURLsClickableKey = @"MakeURLsClickable";
 static NSString *AppActivationKeyCodeKey = @"AppActivationKeyCode";
 static NSString *AppActivationModifiersKey = @"AppActivationModifiers";
 static NSString *BookmarksKey = @"Bookmarks";
+static NSString *LastScrollOffsetKey = @"LastScrollOffset";
 static NSString *LastSearchStringKey = @"LastSearchString";
 static NSString *LastSelectedNoteUUIDBytesKey = @"LastSelectedNoteUUIDBytes";
 static NSString *LastSelectedPreferencesPaneKey = @"LastSelectedPrefsPane";
@@ -95,20 +98,21 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
+			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
 			@"General", LastSelectedPreferencesPaneKey, 
 			
 			[NSArchiver archivedDataWithRootObject:
-				[NSFont fontWithName:@"Helvetica" size:12.0f]], NoteBodyFontKey,
+			 [NSFont fontWithName:@"Helvetica" size:12.0f]], NoteBodyFontKey,
 			
 			//[NSArchiver archivedDataWithRootObject:
 			//	[NSColor colorWithCalibratedRed:0.9340 green:0.91415775 blue:0.81043575 alpha:1.0f]], SearchTermHighlightColorKey,
 			[NSArchiver archivedDataWithRootObject:
-				[NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
+			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
-		    [NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
-		    [NSArray arrayWithObjects:NoteTitleColumnString, NoteDateCreatedColumnString, nil], TableColumnsVisibleKey,
-		    NoteDateCreatedColumnString, TableSortColumnKey,
-		    [NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
+			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
+			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateCreatedColumnString, nil], TableColumnsVisibleKey,
+			NoteDateCreatedColumnString, TableSortColumnKey,
+			[NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
 		
 		autoCompleteSearches = [defaults boolForKey:AutoCompleteSearchesKey];
 	}
@@ -574,7 +578,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	SEND_CALLBACKS();
 }
 
-- (void)setLastSearchString:(NSString*)string selectedNote:(id<SynchronizedNote>)aNote sender:(id)sender {
+- (void)setLastSearchString:(NSString*)string selectedNote:(id<SynchronizedNote>)aNote scrollOffsetForTableView:(NotesTableView*)tv sender:(id)sender {
 	
 	NSMutableString *stringMinusBreak = [[string mutableCopy] autorelease];
 	[stringMinusBreak replaceOccurrencesOfString:@"\n" withString:@" " options:NSLiteralSearch range:NSMakeRange(0, [stringMinusBreak length])];
@@ -586,6 +590,9 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	if (bytes) uuidString = [NSString uuidStringWithBytes:*bytes];
 
 	[defaults setObject:uuidString forKey:LastSelectedNoteUUIDBytesKey];
+	
+	double offset = [tv distanceFromRow:[(FastListDataSource*)[tv dataSource] indexOfObjectIdenticalTo:aNote] forVisibleArea:[tv visibleRect]];
+	[defaults setDouble:offset forKey:LastScrollOffsetKey];
 	
 	SEND_CALLBACKS();
 }
@@ -601,6 +608,10 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	if (uuidString) bytes = [uuidString uuidBytes];
 
 	return bytes;
+}
+
+- (double)scrollOffsetOfLastSelectedNote {
+	return [defaults doubleForKey:LastScrollOffsetKey];
 }
 
 - (void)saveCurrentBookmarksFromSender:(id)sender {
