@@ -1280,7 +1280,9 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_FEEDBACK_DIRECTED_OPTIMIZATION = Off;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INSTRUMENT_PROGRAM_FLOW_ARCS = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -1302,15 +1304,23 @@
 				GENERATE_PROFILING_CODE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
+				LD_GENERATE_MAP_FILE = YES;
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
-				OTHER_CFLAGS = "-whatsloaded";
+				OTHER_CFLAGS = (
+					"-pg",
+					"-whatsloaded",
+				);
 				OTHER_LDFLAGS = (
+					"-pg",
 					"-whatsloaded",
 					"-weak_framework",
 					PDFKit,
 				);
 				PREBINDING = NO;
 				PRODUCT_NAME = "Notational Velocity";
+				STRIP_STYLE = "non-global";
+				WARNING_CFLAGS = "-pg";
+				WARNING_LDFLAGS = "-pg";
 				WRAPPER_EXTENSION = app;
 				ZERO_LINK = NO;
 			};
@@ -1331,8 +1341,7 @@
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
-				FRAMEWORK_SEARCH_PATHS_QUOTED_3 = "\"$(SRCROOT)\"";
-				FRAMEWORK_SEARCH_PATHS_QUOTED_4 = "\"$(SRCROOT)\"";
+				GCC_DEBUGGING_SYMBOLS = full;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_ENABLE_FIX_AND_CONTINUE = NO;
@@ -1371,6 +1380,7 @@
 					"-e",
 					start,
 				);
+				STRIP_INSTALLED_PRODUCT = YES;
 				WRAPPER_EXTENSION = app;
 				ZERO_LINK = NO;
 			};
