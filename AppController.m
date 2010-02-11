@@ -24,8 +24,15 @@
 #import "MultiplePageView.h"
 #import "URLGetter.h"
 #import "LinearDividerShader.h"
+#import "NSString-Markdown.h"
 #import <WebKit/WebArchive.h>
 #include <Carbon/Carbon.h>
+
+@interface AppController ()
+
+- (void)requestPreviewUpdate;
+
+@end
 
 @implementation AppController
 
@@ -1100,7 +1107,8 @@ terminateApp:
 		
 		//restore string
 		[[textView textStorage] setAttributedString:[note contentString]];
-		
+		[self requestPreviewUpdate];
+				
 		//[textView setAutomaticallySelectedRange:NSMakeRange(0,0)];
 		
 		//highlight terms--delay this, too
@@ -1130,6 +1138,7 @@ terminateApp:
 	
 	if (textObject == textView) {
 		[currentNote setContentString:[textView textStorage]];
+		[self requestPreviewUpdate];
 	}
 }
 
@@ -1390,6 +1399,7 @@ terminateApp:
 	if (aNoteObject == currentNote) {
 		
 		[[textView textStorage] setAttributedString:[aNoteObject contentString]];
+		[self requestPreviewUpdate];
 	}
 }
 
@@ -1511,5 +1521,21 @@ terminateApp:
 - (NSWindow*)window {
 	return window;
 }
+
+- (void)requestPreviewUpdate
+{
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(preview:) object:nil];
+	
+	[self performSelector:@selector(preview:) withObject:nil afterDelay:0.5];
+}
+
+- (void)preview:(id)context
+{
+	NSString* processedString = [NSString stringWithProcessedMarkdown:[textView string]];
+	NSString* htmlString = [NSString stringWithFormat:@"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"><html><head><style type=\"text/css\">body { font-family: Helvetica, sans-serif; }</style></head><body>%@</body></html>", processedString];
+	
+	[[webView mainFrame] loadHTMLString:htmlString baseURL:nil];
+}
+
 
 @end

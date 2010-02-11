@@ -9,6 +9,7 @@
 
 #if __OBJC__
 #import <Cocoa/Cocoa.h>
+#import <WebKit/WebKit.h>
 #endif
 
 #ifndef NSFoundationVersionNumber10_6
