@@ -683,9 +683,9 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	}
 	NSArray *segs = [encodingStr componentsSeparatedByString:@";"];
 	
-	if ([segs count] >= 2 && [[segs objectAtIndex:1] length] > 1) {
+	if ([segs count] >= 2 && [(NSString*)[segs objectAtIndex:1] length] > 1) {
 		return CFStringConvertEncodingToNSStringEncoding([[segs objectAtIndex:1] intValue]);
-	} else if ([[segs objectAtIndex:0] length] > 1) {
+	} else if ([(NSString*)[segs objectAtIndex:0] length] > 1) {
 		CFStringEncoding theCFEncoding = CFStringConvertIANACharSetNameToEncoding((CFStringRef)[segs objectAtIndex:0]);
 		if (theCFEncoding == kCFStringEncodingInvalidId) {
 			NSLog(@"couldn't convert IANA charset");
