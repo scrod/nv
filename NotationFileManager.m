@@ -85,6 +85,18 @@ long BlockSizeForNotation(NotationController *controller) {
     return controller->blockSize;
 }
 
+- (OSStatus)refreshFileRefIfNecessary:(FSRef *)childRef withName:(NSString *)filename charsBuffer:(UniChar*)charsBuffer {
+	BOOL isOwned = NO;
+	if (IsZeros(childRef, sizeof(FSRef)) || [self fileInNotesDirectory:childRef isOwnedByUs:&isOwned hasCatalogInfo:NULL] != noErr || !isOwned) {
+		OSStatus err = noErr;
+		if ((err = FSRefMakeInDirectoryWithString(&noteDirectoryRef, childRef, (CFStringRef)filename, charsBuffer)) != noErr) {
+			NSLog(@"Could not get an fsref for file with name %@: %d\n", filename, err);
+			return err;
+		}
+    }
+	return noErr;
+}
+
 
 - (BOOL)notesDirectoryIsTrashed {
 	Boolean isInTrash = false;	
@@ -92,7 +104,6 @@ long BlockSizeForNotation(NotationController *controller) {
 		isInTrash = false;
 	return (BOOL)isInTrash;
 }
-
 
 - (BOOL)notesDirectoryContainsFile:(NSString*)filename returningFSRef:(FSRef*)childRef {
 	UniChar chars[256];
@@ -243,25 +254,13 @@ terminate:
     
     UniChar chars[256];
     
-    BOOL secondAttempt = NO;
-    OSStatus err = noErr;
-    
-    if (IsZeros(childRef,sizeof(FSRef))) {
-regenerateFSRef:    
-		if ((err = FSRefMakeInDirectoryWithString(&noteDirectoryRef, childRef, (CFStringRef)oldName, chars)) != noErr) {
-			NSLog(@"Could not get an fsref for file with name %@: %d\n", oldName, err);
-			return err;
-		}
-    }
+    OSStatus err = [self refreshFileRefIfNecessary:childRef withName:oldName charsBuffer:chars];
+	if (noErr != err) return err;
     
     CFRange range = {0, CFStringGetLength((CFStringRef)newName)};
     CFStringGetCharacters((CFStringRef)newName, range, chars);
     
     if ((err = FSRenameUnicode(childRef, range.length, chars, kTextEncodingDefaultFormat, childRef)) != noErr) {
-		if (err == fnfErr && !secondAttempt) {
-			secondAttempt = YES;
-			goto regenerateFSRef;
-		}
 		NSLog(@"Error renaming file %@ to %@: %d", oldName, newName, err);
 		return err;
     }
@@ -293,39 +292,13 @@ regenerateFSRef:
 
 - (OSStatus)deleteFileInNotesDirectory:(FSRef*)childRef forFilename:(NSString*)filename {
     UniChar chars[256];
-    BOOL secondAttempt = NO;
-    OSStatus err = noErr;
-    
-    if (IsZeros(childRef,sizeof(FSRef))) {
-	
-regenerateFSRef:
-	
-	if ((err = FSRefMakeInDirectoryWithString(&noteDirectoryRef, childRef, (CFStringRef)filename, chars)) != noErr) {
-	    NSLog(@"Could not get an fsref for file with name %@: %d\n", filename, err);
-	    return err;
-	}
-    }
-    
-    //check that it's actually _in_ the notes directory first
-    
-    BOOL isInOurDirectory = NO;
-    if ((err = [self fileInNotesDirectory:childRef isOwnedByUs:&isInOurDirectory hasCatalogInfo:NULL]) != noErr) {
-	if (err == fnfErr && !secondAttempt) {
-	    secondAttempt = YES;
-	    goto regenerateFSRef;
-	}
-	NSLog(@"Couldn't get FSRef ref for parent of file %@: %d", filename, err);
-	return err;
-    }
-    
-    if (isInOurDirectory) {
+    OSStatus err = [self refreshFileRefIfNecessary:childRef withName:filename charsBuffer:chars];
+    if (noErr != err) return err;
+
 	if ((err = FSDeleteObject(childRef)) != noErr) {
-	    NSLog(@"Error deleting file: %d", err);
-	    return err;
+		NSLog(@"Error deleting file: %d", err);
+		return err;
 	}
-    } else {
-	NSLog(@"not deleting because %@ was moved!", filename);
-    }
     
     return noErr;
 }
@@ -339,38 +312,20 @@ regenerateFSRef:
 }
 
 - (NSMutableData*)dataFromFileInNotesDirectory:(FSRef*)childRef forFilename:(NSString*)filename fileSize:(UInt64)givenFileSize {
-    //read from fsref; if it doesn't exist, then try to re-create the fsref based on filename
-    
+	
     UInt64 fileSize = givenFileSize;
     char *notesDataPtr = NULL;
-    BOOL secondAttempt = NO;
     
-    UniChar chars[256];
-    OSStatus err = noErr;
-    
-    if (IsZeros(childRef,sizeof(FSRef))) {
+	UniChar chars[256];
+	OSStatus err = [self refreshFileRefIfNecessary:childRef withName:filename charsBuffer:chars];
+	if (noErr != err) return nil;
 	
-regenerateFSRef:
-	
-	if ((err = FSRefMakeInDirectoryWithString(&noteDirectoryRef, childRef, (CFStringRef)filename, chars)) != noErr) {
-	    NSLog(@"Could not get an fsref for file with name %@: %d\n", filename, err);
-	    return nil;
-	}
-    }
-    
-    err = FSRefReadData(childRef, BlockSizeForNotation(self), &fileSize, (void**)&notesDataPtr, noCacheMask);
-    if (err == fnfErr && !secondAttempt) {
-	//in case the file pointed to by childRef was deleted and then recreated before we could respond to the changes
-	
-	secondAttempt = YES;
-	goto regenerateFSRef;
-    } else if (err != noErr) {
-	
-	return nil;
-    }
-    
+    if ((err = FSRefReadData(childRef, BlockSizeForNotation(self), &fileSize, (void**)&notesDataPtr, noCacheMask)) != noErr) {
+		NSLog(@"%s: error %d", _cmd, err);
+		return nil;
+	}    
     if (!notesDataPtr)
-	return nil;
+		return nil;
     
     return [[[NSMutableData alloc] initWithBytesNoCopy:notesDataPtr length:fileSize freeWhenDone:YES] autorelease];
 }
@@ -413,10 +368,9 @@ regenerateFSRef:
 		}
 	}
     
-    BOOL retriedCreation = NO;
-    
-    if (IsZeros(destRef,sizeof(FSRef))) {
-attemptToCreateFile:
+	//don't try to make a new fsref if the file is still inside notes folder, but perhaps under a different name
+	BOOL isOwned = NO;
+	if (IsZeros(destRef,sizeof(FSRef)) || [self fileInNotesDirectory:destRef isOwnedByUs:&isOwned hasCatalogInfo:NULL] != noErr || !isOwned) {
 		
 		if ((err = [self createFileIfNotPresentInNotesDirectory:destRef forFilename:filename fileWasCreated:nil]) != noErr) {
 			NSLog(@"error creating or getting fsref for file %@: %d", filename, err);
@@ -439,14 +393,8 @@ attemptToCreateFile:
 	}
 		
     if (err != noErr) {
-		if (err == fnfErr && !retriedCreation) {
-			//sorry, Dijkstra
-			retriedCreation = YES;
-			goto attemptToCreateFile;
-		} else {
-			NSLog(@"error exchanging contents of temporary file with destination file %@: %d",filename, err);
-			return err;
-		}
+		NSLog(@"error exchanging contents of temporary file with destination file %@: %d",filename, err);
+		return err;
     }
     
     if ((err = FSDeleteObject(&tempFileRef)) != noErr) {
@@ -491,84 +439,63 @@ attemptToCreateFile:
 }
 
 - (OSStatus)moveFileToTrash:(FSRef *)childRef forFilename:(NSString*)filename {
-    OSErr err = noErr;
-	BOOL secondAttempt = NO, owned = NO;
 	UniChar chars[256];
     
-    if (filename && IsZeros(childRef,sizeof(FSRef))) {
-regenerateFSRef:
-		if ((err = FSRefMakeInDirectoryWithString(&noteDirectoryRef, childRef, (CFStringRef)filename, chars)) != noErr) {
-			NSLog(@"Could not get an fsref for file with name %@: %d\n", filename, err);
-			return err;
-		}
-		NSLog(@"regen-ratin'");
-    }
-
-	if ((err = [self fileInNotesDirectory:childRef isOwnedByUs:&owned hasCatalogInfo:NULL]) != noErr) {
-		if (err == fnfErr && !secondAttempt && filename) {
-			secondAttempt = YES;
-			goto regenerateFSRef;
-		}
-		NSLog(@"Error finding file %@ to trash: %d", filename ? filename : @"(not given)", err);
+	OSStatus err = [self refreshFileRefIfNecessary:childRef withName:filename charsBuffer:chars];
+	if (noErr != err) return err;
+		
+	FSRef folder;
+	if ([NotationController trashFolderRef:&folder forChild:childRef] != noErr)
 		return err;
+	
+	err = FSMoveObject(childRef, &folder, NULL);
+	if (err == dupFNErr) {
+		// try to rename the duplicate file in the trash
+		
+		HFSUniStr255 name;
+		
+		err = FSGetCatalogInfo(childRef, kFSCatInfoNone, NULL, &name, NULL, NULL);
+		if (err == noErr) {
+			UInt16 origLen = name.length;
+			if (origLen > 245)
+				origLen = 245;
+			
+			FSRef duplicateFile;
+			err = FSMakeFSRefUnicode(&folder, name.length, name.unicode, kTextEncodingUnknown, &duplicateFile);
+			int i = 1, j;
+			while (1) {
+				i++;
+				// attempt to create new unique name
+				HFSUniStr255 newName = name;
+				char num[16];
+				int numLen;
+				
+				numLen = sprintf(num, "%d", i);
+				newName.unicode[origLen] = ' ';
+				for (j=0; j < numLen; j++)
+					newName.unicode[origLen + j + 1] = num[j];
+				newName.length = origLen + numLen + 1;
+				
+				err = FSRenameUnicode(&duplicateFile, newName.length, newName.unicode, kTextEncodingUnknown, NULL);
+				if (err != dupFNErr)
+					break;
+			}    
+			if (err == noErr)
+				err = FSMoveObject(childRef, &folder, NULL);    
+		}
 	}
 	
-	if (owned) {
-		FSRef folder;
-		if ([NotationController trashFolderRef:&folder forChild:childRef] != noErr)
-			return err;
+	if (err == noErr) {
+		FSCatalogInfo catInfo;
 		
-		err = FSMoveObject(childRef, &folder, NULL);
-		if (err == dupFNErr) {
-			// try to rename the duplicate file in the trash
-			
-			HFSUniStr255 name;
-			
-			err = FSGetCatalogInfo(childRef, kFSCatInfoNone, NULL, &name, NULL, NULL);
-			if (err == noErr) {
-				UInt16 origLen = name.length;
-				if (origLen > 245)
-					origLen = 245;
-				
-				FSRef duplicateFile;
-				err = FSMakeFSRefUnicode(&folder, name.length, name.unicode, kTextEncodingUnknown, &duplicateFile);
-				int i = 1, j;
-				while (1) {
-					i++;
-					// attempt to create new unique name
-					HFSUniStr255 newName = name;
-					char num[16];
-					int numLen;
-					
-					numLen = sprintf(num, "%d", i);
-					newName.unicode[origLen] = ' ';
-					for (j=0; j < numLen; j++)
-						newName.unicode[origLen + j + 1] = num[j];
-					newName.length = origLen + numLen + 1;
-					
-					err = FSRenameUnicode(&duplicateFile, newName.length, newName.unicode, kTextEncodingUnknown, NULL);
-					if (err != dupFNErr)
-						break;
-				}    
-				if (err == noErr)
-					err = FSMoveObject(childRef, &folder, NULL);    
-			}
+		CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+		err = UCConvertCFAbsoluteTimeToUTCDateTime(now, &catInfo.contentModDate);
+		if (err == noErr)
+			err = FSSetCatalogInfo(&noteDirectoryRef, kFSCatInfoContentMod, &catInfo);
+		if (err) {
+			NSLog(@"couldn't touch modification date of file's parent folder: error %d", err);
+			err = noErr;
 		}
-		
-		if (err == noErr) {
-			FSCatalogInfo catInfo;
-            
-            CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
-			err = UCConvertCFAbsoluteTimeToUTCDateTime(now, &catInfo.contentModDate);
-			if (err == noErr)
-				err = FSSetCatalogInfo(&noteDirectoryRef, kFSCatInfoContentMod, &catInfo);
-			if (err) {
-				printf("couldn't touch modification date of file's parent folder: error %d\n", err);
-				err = noErr;
-			}
-		}
-	} else {
-		NSLog(@"File doesn't seem to be owned by us/exist, so not trashing");
 	}
     
     return err;

@@ -788,11 +788,10 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 }
 
 - (NSString*)noteFilePath {
-	if (IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
-		if (![delegate notesDirectoryContainsFile:filename returningFSRef:noteFileRefInit(self)])
-			return nil;
-	}
-	return [NSString pathWithFSRef:noteFileRefInit(self)];
+	UniChar chars[256];
+	if ([delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars] == noErr)
+		return [NSString pathWithFSRef:noteFileRefInit(self)];
+	return nil;
 }
 
 - (void)invalidateFSRef {
@@ -822,6 +821,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		return [self writeUsingCurrentFileFormat];
     }
     
+	//createFileIfNotPresentInNotesDirectory: works by name, so if this file is not owned by us at this point, it was a race with moving it
     FSCatalogInfo info;
     if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:&fileIsOwned hasCatalogInfo:&info] != noErr)
 		return NO;
@@ -957,6 +957,8 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	UCConvertCFAbsoluteTimeToUTCDateTime(createdDate, &catInfo.createDate);
 	UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &catInfo.contentModDate);
 	
+	// if this method is called anywhere else, then use [delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars]; instead
+	// for now, it is not called in any situations where the fsref might accidentally point to a moved file
 	OSStatus err = noErr;
 	do {
 		if (noErr != err || IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
@@ -964,7 +966,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		}
 		err = FSSetCatalogInfo(noteFileRefInit(self), kFSCatInfoCreateDate | kFSCatInfoContentMod, &catInfo);
 	} while (fnfErr == err);
-	
+
 	if (noErr != err) {
 		NSLog(@"could not set catalog info: %d", err);
 		return err;
@@ -1047,14 +1049,12 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		//a) to ensure -updateFromData: finds the right encoding when re-reading the file, and
 		//b) because the file is otherwise not being rewritten, and the extended attribute--if it existed--may have been different
 		
-		OSStatus err = noErr;
-		do {
-			if (noErr != err || IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
-				NSLog(@"%s: updating the fsref", _cmd);
-				if (![delegate notesDirectoryContainsFile:filename returningFSRef:noteFileRefInit(self)]) break;
-			}
-			err = [self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
-		} while (fnfErr == err);
+		UniChar chars[256];
+		if ([delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars] != noErr)
+			return NO;
+		
+		if ([self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)] != noErr)
+			return NO;		
 		
 		if ((updated = [self updateFromFile])) {
 			[self makeNoteDirtyUpdateTime:NO updateFile:NO];
@@ -1169,6 +1169,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	[contentString release];
 	contentString = [attributedStringFromData retain];
 	[contentString santizeForeignStylesForImporting];
+	//NSLog(@"%s(%@): %@", _cmd, [self noteFilePath], [contentString string]);
 	
 	//[contentString setAttributedString:attributedStringFromData];
 	contentCacheNeedsUpdate = YES;

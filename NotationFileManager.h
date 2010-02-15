@@ -20,7 +20,9 @@ OSStatus CreateDirectoryIfNotPresent(FSRef *parentRef, CFStringRef subDirectoryN
 long BlockSizeForNotation(NotationController *controller);
 
 - (BOOL)notesDirectoryIsTrashed;
+
 - (BOOL)notesDirectoryContainsFile:(NSString*)filename returningFSRef:(FSRef*)childRef;
+- (OSStatus)refreshFileRefIfNecessary:(FSRef *)childRef withName:(NSString *)filename charsBuffer:(UniChar*)charsBuffer;
 
 - (OSStatus)renameAndForgetNoteDatabaseFile:(NSString*)newfilename;
 
