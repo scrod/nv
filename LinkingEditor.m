@@ -951,14 +951,10 @@ copyRTFType:
 						// Not in leading whitespace.  Delete normally.
 						[super deleteBackward:sender];
 					} else {
-#if SPECIAL_DELETE_FOR_SPACES_ONLY
-						NSString *leadingSpaceString = [string substringWithRange:leadingSpaceRange];
-						if ([leadingSpaceString rangeOfString:@"\t"].location != NSNotFound) {
-							//thar actually be tabs here; revert to normal backwards-deletion
-							[super deleteBackward:sender];
-							return;
+						if ([string rangeOfString:@"\t" options:NSLiteralSearch range:leadingSpaceRange].location == NSNotFound) {
+							//if this line was indented only with spaces, then keep the soft-tabbed-indentation
+							usesTabs = NO;
 						}
-#endif
 						
 						NSTextStorage *text = [self textStorage];
 						unsigned leadingIndents = leadingSpaces / indentWidth;
@@ -1179,7 +1175,8 @@ copyRTFType:
 	
 	//if the result of changing the text caused us to move into the automatic range, then temporarily ignore the automatic range
 	//don't use -selectedRangeWasAutomatic: as it consults didRenderFully, which might not be true here
-	didChangeIntoAutomaticRange = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
+	if (NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]))
+		didChangeIntoAutomaticRange = YES;
 }
 
 - (BOOL)shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
