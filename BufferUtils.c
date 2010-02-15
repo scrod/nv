@@ -275,17 +275,15 @@ CFStringRef CreateRandomizedFileName() {
 
 OSStatus FSCreateFileIfNotPresentInDirectory(FSRef *directoryRef, FSRef *childRef, CFStringRef filename, Boolean *created) {
 	UniChar chars[256];
-    
-    OSStatus result;
-    CFStringRef filenameCFStr = (CFStringRef)filename;
-    
+    OSStatus result = noErr;
+	
     if (created) *created = false;
     
-    if ((result = FSRefMakeInDirectoryWithString(directoryRef, childRef, filenameCFStr, chars))) {
+    if ((result = FSRefMakeInDirectoryWithString(directoryRef, childRef, filename, chars))) {
 		if (result == fnfErr) {
 			if (created) *created = true;
 			
-			result = FSCreateFileUnicode(directoryRef, CFStringGetLength(filenameCFStr), chars, kFSCatInfoNone, NULL, childRef, NULL);
+			result = FSCreateFileUnicode(directoryRef, CFStringGetLength(filename), chars, kFSCatInfoNone, NULL, childRef, NULL);
 		}
 		return result;
     }
