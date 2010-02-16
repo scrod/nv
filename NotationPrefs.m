@@ -297,7 +297,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	NSMutableDictionary *account = nil;
 	while ((account = [enumerator nextObject])) {
 		
-		if (![[account objectForKey:@"username"] length]) {
+		if (![(NSString*)[account objectForKey:@"username"] length]) {
 			//don't store the "enabled" flag if the account has no username
 			//give password the benefit of the doubt as it may eventually become available via the keychain
 			[account removeObjectForKey:@"enabled"];
@@ -914,7 +914,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 			[pathExtensions[notesStorageFormat] replaceObjectAtIndex:oldIndex withObject:[newExtension stringAsSafePathExtension]];
 			
 			preferencesChanged = YES;
-		} else if (![[pathExtensions[notesStorageFormat] objectAtIndex:oldIndex] length]) {
+		} else if (![(NSString*)[pathExtensions[notesStorageFormat] objectAtIndex:oldIndex] length]) {
 			return NO;
 		}
     }
