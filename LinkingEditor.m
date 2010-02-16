@@ -966,6 +966,10 @@ copyRTFType:
 						if ([string rangeOfString:@"\t" options:NSLiteralSearch range:leadingSpaceRange].location == NSNotFound) {
 							//if this line was indented only with spaces, then keep the soft-tabbed-indentation
 							usesTabs = NO;
+						} else if ([string rangeOfString:@" " options:NSLiteralSearch range:leadingSpaceRange].location != NSNotFound && ![prefsController _bodyFontIsMonospace]) {
+							//mixed tabs and spaces, and we have a proportional font -- what a mess! just revert to normal backward-deletes
+							[super deleteBackward:sender];
+							return;
 						}
 						
 						NSTextStorage *text = [self textStorage];
