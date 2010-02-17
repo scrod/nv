@@ -139,6 +139,33 @@ long BlockSizeForNotation(NotationController *controller) {
 	return noErr;
 }
 
+- (BOOL)removeSpuriousDatabaseFileNotes {
+	//remove any notes that might have been made out of the database or write-ahead-log files by accident
+	//but leave the files intact; ensure only that they are also remotely unsynced
+	//returns true if at least one note was removed, in which case allNotes should probably be refiltered
+	
+	NSUInteger i = 0;
+	NoteObject *dbNote = nil, *walNote = nil;
+	
+	for (i=0; i<[allNotes count]; i++) {
+		NoteObject *obj = [allNotes objectAtIndex:i];
+		
+		if (!dbNote && [filenameOfNote(obj) isEqualToString:NotesDatabaseFileName])
+			dbNote = [[obj retain] autorelease];
+		if (!walNote && [filenameOfNote(obj) isEqualToString:@"Interim Note-Changes"])
+			walNote = [[obj retain] autorelease];
+	}
+	if (dbNote) {
+		[allNotes removeObjectIdenticalTo:dbNote];
+		[self _addDeletedNote:dbNote];
+	}
+	if (walNote) {
+		[allNotes removeObjectIdenticalTo:walNote];
+		[self _addDeletedNote:walNote];
+	}
+	return walNote || dbNote;
+}
+
 - (void)relocateNotesDirectory {
 	
 	while (1) {

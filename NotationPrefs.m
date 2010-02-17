@@ -23,6 +23,7 @@
 #import "NSCollection_utils.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
+#import "NotationFileManager.h"
 #include <Carbon/Carbon.h>
 #include <CoreServices/CoreServices.h>
 #include <Security/Security.h>
@@ -944,6 +945,13 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 - (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry {
     unsigned int i;
+	if ([filename isEqualToString:NotesDatabaseFileName]) {
+		return NO;
+	}
+	if ([filename isEqualToString:@"Interim Note-Changes"]) {
+		return NO;
+	}
+	
     for (i=0; i<[pathExtensions[notesStorageFormat] count]; i++) {
 	if ([[(NSString*)catEntry->filename lowercaseString] hasSuffix:[[pathExtensions[notesStorageFormat] objectAtIndex:i] lowercaseString]])
 	    return YES;

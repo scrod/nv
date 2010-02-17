@@ -178,20 +178,28 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 - (void)upgradeDatabaseIfNecessary {
 	if (![notationPrefs firstTimeUsed]) {
 		
+		const UInt32 epochIteration = [notationPrefs epochIteration];
+		
 		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
-		if ([notationPrefs epochIteration] < 2) {
+		if (epochIteration < 2) {
 			//this would have to be a database from epoch 1, where the default file-encoding was system-default
 			NSLog(@"trying to upgrade note encodings");
 			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
 			//move aside the old database as the new format breaks compatibility
 			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
 		}
-		if ([notationPrefs epochIteration] < 3) {
+		if (epochIteration < 3) {
 			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
 		}
+		if (epochIteration < 4) {
+			if ([self removeSpuriousDatabaseFileNotes]) {
+				NSLog(@"found and removed spurious DB notes");
+				[self refilterNotes];
+			}
+		}
 		
-		if ([notationPrefs epochIteration] < EPOC_ITERATION) {
-			NSLog(@"epociteration was upgraded from %u to %u", [notationPrefs epochIteration], EPOC_ITERATION);
+		if (epochIteration < EPOC_ITERATION) {
+			NSLog(@"epochIteration was upgraded from %u to %u", epochIteration, EPOC_ITERATION);
 			notesChanged = YES;
 			[self flushEverything];
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {

@@ -35,6 +35,7 @@ long BlockSizeForNotation(NotationController *controller);
 - (OSStatus)refreshFileRefIfNecessary:(FSRef *)childRef withName:(NSString *)filename charsBuffer:(UniChar*)charsBuffer;
 
 - (OSStatus)renameAndForgetNoteDatabaseFile:(NSString*)newfilename;
+- (BOOL)removeSpuriousDatabaseFileNotes;
 
 - (void)relocateNotesDirectory;
 
