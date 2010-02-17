@@ -945,6 +945,16 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 - (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry {
     unsigned int i;
+	
+	NSString *filename = (NSString*)catEntry->filename;
+	
+	if (![filename length])
+		return NO;
+	
+	//ignore hidden files and our own database-related files (e.g. if by chance they are given a TEXT file type)
+	if ([filename characterAtIndex:0] == '.') {
+		return NO;
+	}
 	if ([filename isEqualToString:NotesDatabaseFileName]) {
 		return NO;
 	}
@@ -953,8 +963,10 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	}
 	
     for (i=0; i<[pathExtensions[notesStorageFormat] count]; i++) {
-	if ([[(NSString*)catEntry->filename lowercaseString] hasSuffix:[[pathExtensions[notesStorageFormat] objectAtIndex:i] lowercaseString]])
-	    return YES;
+		if ([[filename pathExtension] compare:[pathExtensions[notesStorageFormat] objectAtIndex:i] 
+									  options:NSCaseInsensitiveSearch] == NSOrderedSame) {
+			return YES;
+		}
     }
     
     for (i=0; i<[typeStrings[notesStorageFormat] count]; i++) {
