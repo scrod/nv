@@ -63,7 +63,45 @@
 
 @end
 
-@implementation NSInvocation (DescriptionCategory)
+@implementation ComparableInvocation 
+
+- (id)initWithInvocation:(NSInvocation*)anInvocation {
+	if ([super init]) {
+		if (!(innerInvocation = [anInvocation retain]))
+			return nil;
+	}
+	return self;
+}
+- (void)dealloc {
+	[innerInvocation release];
+	[super dealloc];
+}
+
+- (void)invoke {
+	[innerInvocation invoke];
+}
+
+- (NSUInteger)hash {
+	//this is alright for now
+	return [[innerInvocation methodSignature] hash];
+}
+
+- (NSInvocation*)invocation {
+	return innerInvocation;
+}
+
+- (BOOL)isEqual:(id)anObject {
+	NSInvocation *anInvocation = [anObject invocation];
+	
+	//targets should have pointer equality to ensure they are the same object
+	return [innerInvocation target] == [anInvocation target] && 
+	[innerInvocation selector] == [anInvocation selector] &&
+	[[innerInvocation methodSignature] isEqual:[anInvocation methodSignature]];
+}
+
+@end
+
+@implementation NSInvocation (MissingMethods)
 
 - (NSString*)description {
 	return [NSString stringWithFormat:@"%@: %s", [self target], [self selector]];
