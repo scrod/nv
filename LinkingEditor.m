@@ -52,7 +52,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:), nil];	
 	
-	[self setTextContainerInset:NSMakeSize(2, 6)];
+	[self setTextContainerInset:NSMakeSize(3, 8)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];

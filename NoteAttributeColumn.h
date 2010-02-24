@@ -16,6 +16,12 @@
 
 @class NotesTableView;
 
+@interface NoteTableHeaderCell : NSTableHeaderCell {
+	
+}
+
+@end
+
 @interface NoteAttributeColumn : NSTableColumn {
 	
     NSInteger (*sortFunction) (id*, id*);

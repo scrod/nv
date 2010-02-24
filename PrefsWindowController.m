@@ -19,6 +19,8 @@
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
 
+#define SYSTEM_LIST_FONT_SIZE 12.0f
+
 @implementation PrefsWindowController
 
 - (id)init {
@@ -184,7 +186,7 @@
 				newFontSize = [NSFont smallSystemFontSize];
 				break;
 			case 2:
-				newFontSize = [NSFont systemFontSize];
+				newFontSize = /*[NSFont systemFontSize]*/ SYSTEM_LIST_FONT_SIZE;
 				break;
 			case 3:
 				newFontSize = [tableTextSizeField floatValue];
@@ -358,7 +360,7 @@
     float fontSize = [prefsController tableFontSize];
     int fontButtonIndex = 3;
     if (fontSize == [NSFont smallSystemFontSize]) fontButtonIndex = 0;
-    else if (fontSize == [NSFont systemFontSize]) fontButtonIndex = 1;
+    else if (fontSize == /*[NSFont systemFontSize]*/ SYSTEM_LIST_FONT_SIZE) fontButtonIndex = 1;
     [tableTextMenuButton selectItemAtIndex:fontButtonIndex];
     [tableTextSizeField setFloatValue:fontSize];
     [tableTextSizeField setHidden:(fontButtonIndex != 3)];

@@ -13,15 +13,22 @@
 #import "NoteAttributeColumn.h"
 #import "NotesTableView.h"
 
+
+@implementation NoteTableHeaderCell
+
+- (NSRect)drawingRectForBounds:(NSRect)theRect {
+	return NSInsetRect(theRect, 6.0f, 0.0);
+}
+
+@end
+
 @implementation NoteAttributeColumn
-
-
 
 - (id)initWithIdentifier:(id)anObject {
 	
 	if ([super initWithIdentifier:anObject]) {
 
-		absoluteMinimumWidth = [anObject sizeWithAttributes:[NoteAttributeColumn standardDictionary]].width + 2;
+		absoluteMinimumWidth = [anObject sizeWithAttributes:[NoteAttributeColumn standardDictionary]].width + 5;
 		[self setMinWidth:absoluteMinimumWidth];
 	}
 	
