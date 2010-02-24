@@ -157,6 +157,10 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (void)dealloc {
+	[window setDelegate:nil];
+	[bookmarksTableView setDelegate:nil];
+	[bookmarks makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
+	
 	[bookmarks release];
 	[super dealloc];
 }
