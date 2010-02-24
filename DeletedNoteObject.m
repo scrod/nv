@@ -17,6 +17,7 @@
 
 
 #import "DeletedNoteObject.h"
+#import "NSString_NV.h"
 
 @implementation DeletedNoteObject
 
@@ -72,7 +73,7 @@
 }
 
 - (NSString*)description {
-	return [NSString stringWithFormat:@"DeletedNoteObj %@", syncServicesMD];
+	return [NSString stringWithFormat:@"DeletedNoteObj(%@) %@", [NSString uuidStringWithBytes:uniqueNoteIDBytes], syncServicesMD];
 }
 
 #include "SynchronizedNoteMixIns.h"
