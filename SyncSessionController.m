@@ -68,7 +68,8 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info) {
     
 	SyncSessionController *self = (SyncSessionController *)info;
-	BOOL reachable = ((flags & kSCNetworkFlagsReachable) && !(flags & kSCNetworkFlagsConnectionRequired));
+	BOOL reachable = ((flags & kSCNetworkFlagsReachable) && (!(flags & kSCNetworkFlagsConnectionRequired) || (flags & kSCNetworkFlagsConnectionAutomatic)));
+	
 	self->isConnectedToNetwork = reachable;
 	
 	if (reachable) {
