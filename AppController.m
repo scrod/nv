@@ -18,6 +18,7 @@
 #import "PrefsWindowController.h"
 #import "NoteAttributeColumn.h"
 #import "NotationSyncServiceManager.h"
+#import "NotationDirectoryManager.h"
 #import "NSString_NV.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
@@ -34,6 +35,7 @@
 #import "SyncSessionController.h"
 #import "DeletionManager.h"
 #import "MultiplePageView.h"
+#import "InvocationRecorder.h"
 #import "URLGetter.h"
 #import "LinearDividerShader.h"
 #import <WebKit/WebArchive.h>
@@ -1192,11 +1194,6 @@ terminateApp:
     return nil;
 }
 
-- (void)noteEndedEditing:(NoteObject*)aNote {
-	//rebuild cstring cache
-	//flush queued sync-service-pushes
-}
-
 - (NoteObject*)createNoteIfNecessary {
     
     if (!currentNote) {
@@ -1439,9 +1436,18 @@ terminateApp:
 		[NSApp terminate:nil];
 }
 
+- (void)_finishSyncWait {
+	//always post to next runloop to ensure that a sleep-delay response invocation, if one is also queued, runs before this one
+	//if the app quits before the sleep-delay response posts, then obviously sleep will be delayed by quite a bit
+	[self performSelector:@selector(syncWaitQuit:) withObject:nil afterDelay:0];
+}
+
 - (IBAction)syncWaitQuit:(id)sender {
-	//need this variable until unsyncedNotes are cleaned by a full sync
+	//need this variable to allow overriding the wait
 	waitedForUncommittedChanges = YES;
+	NSString *errMsg = [[notationController syncSessionController] changeCommittingErrorMessage];
+	if ([errMsg length]) NSRunAlertPanel(NSLocalizedString(@"Changes could not be uploaded.", nil), errMsg, @"Quit", nil, nil);
+	
 	[NSApp terminate:nil];
 }
 
@@ -1450,8 +1456,12 @@ terminateApp:
 	//otherwise, if there are unsynced notes to send, then push them right now and wait until session is no longer running	
 	//use waitForUncommitedChangesWithTarget:selector: and provide a callback to send NSTerminateNow
 	
+	InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
+	[[invRecorder prepareWithInvocationTarget:self] _finishSyncWait];
+	
 	if (!waitedForUncommittedChanges &&
-		[[notationController syncSessionController] waitForUncommitedChangesWithTarget:self selector:@selector(syncWaitQuit:)]) {
+		[[notationController syncSessionController] waitForUncommitedChangesWithInvocation:[invRecorder invocation]]) {
+		
 		[[NSApp windows] makeObjectsPerformSelector:@selector(orderOut:) withObject:nil];
 		[syncWaitPanel center];
 		[syncWaitPanel makeKeyAndOrderFront:nil];
