@@ -59,6 +59,23 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return [NSURL URLWithString:[NSString stringWithFormat:@"https://simple-note.appspot.com%@%@", path, queryStr]];
 }
 
+#if 0
++ (NSString*)localizedNetworkDiagnosticMessage {
+	
+	CFNetDiagnosticRef networkDiagnosticRef = CFNetDiagnosticCreateWithURL(kCFAllocatorDefault, (CFURLRef)[self servletURLWithPath:@"/" parameters:nil]);
+	if (networkDiagnosticRef) {
+		
+		CFStringRef localizedDiagnosticString = NULL;
+		(void)CFNetDiagnosticCopyNetworkStatusPassively(networkDiagnosticRef, &localizedDiagnosticString);
+		CFRelease(networkDiagnosticRef);
+		
+		return [(id)localizedDiagnosticString autorelease];
+	}
+	return nil;
+}
+#endif
+
+
 + (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget {
 	SCNetworkReachabilityRef reachableRef = NULL;
 	
