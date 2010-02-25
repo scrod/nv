@@ -442,8 +442,13 @@ bail:
 						[self _addDeletedNote:obj];
 						notesChanged = YES;
 					} else {
-						NSLog(@"got an older deleted note");
+						NSLog(@"got an older deleted note %@", obj);
 					}
+				} else {
+					NSLog(@"got a deleted note with a UUID that doesn't match anything in allNotes, adding to deletedNotes only");
+					//must remember that this was deleted; b/c it could've been added+synced and then deleted before syncing the deletion
+					//and it might not be in allNotes because the WALreader would have already coalesced by UUID, and so the next sync might re-add the note
+					[self _addDeletedNote:obj];
 				}
 			} else if (existingNoteIndex != NSNotFound) {
 				
@@ -1393,6 +1398,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		//it is important to use the actual deleted note if one is passed
 		DeletedNoteObject *deletedNote = [aNote isKindOfClass:[DeletedNoteObject class]] ? aNote : [DeletedNoteObject deletedNoteWithNote:aNote];
 		[deletedNotes addObject:deletedNote];
+		notesChanged = YES;
 		return deletedNote;
 	}
 	return nil;
