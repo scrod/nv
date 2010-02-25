@@ -21,8 +21,6 @@
 #import "LabelsListController.h"
 #import "WALController.h"
 
-#define kMaxFileIteratorCount 100
-
 //enum { kUISearch, kUINewNote, kUIDeleteNote, kUIRenameNote, kUILabelOperation };
 
 typedef struct _NoteCatalogEntry {
@@ -90,11 +88,6 @@ typedef struct _NoteCatalogEntry {
 	NSUndoManager *undoManager;
 }
 
-NSInteger compareCatalogEntryName(const void *one, const void *two);
-NSInteger compareCatalogValueNodeID(id *a, id *b);
-NSInteger compareCatalogValueFileSize(id *a, id *b);
-void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription);
-
 - (id)init;
 - (id)initWithAliasData:(NSData*)data error:(OSStatus*)err;
 - (id)initWithDefaultDirectoryReturningError:(OSStatus*)err;
@@ -108,7 +101,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)handleJournalError;
 - (void)checkJournalExistence;
 - (void)closeJournal;
-- (void)stopFileNotifications;
 - (BOOL)flushAllNoteChanges;
 - (void)flushEverything;
 
@@ -121,12 +113,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)databaseSettingsChangedFromOldFormat:(int)oldFormat;
 
 - (int)currentNoteStorageFormat;
-- (BOOL)synchronizeNotesFromDirectory;
 - (void)synchronizeNoteChanges:(NSTimer*)timer;
-- (BOOL)_readFilesInDirectory;
-- (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry;
-- (void)makeNotesMatchCatalogEntries:(NoteCatalogEntry**)catEntriesPtrs ofSize:(size_t)catCount;
-- (void)processNotesAdded:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries;
 
 - (void)updateDateStringsIfNecessary;
 - (void)restyleAllNotes;
