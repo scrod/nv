@@ -53,11 +53,10 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	bzero(&fileModifiedDate, sizeof(UTCDateTime));
 	modifiedDate = createdDate = 0.0;
 	currentFormatID = SingleDatabaseFormat;
-	nodeID = 0;
+	logSequenceNumber = logicalSize = nodeID = 0;
 	fileEncoding = NSUTF8StringEncoding;
 	contentsWere7Bit = NO;
 	
-	logSequenceNumber = 0;
 	selectedRange = NSMakeRange(NSNotFound, 0);
 	
 	//these are created either when the object is initialized from disk or when it writes its files to disk
@@ -99,11 +98,14 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 }
 
 - (void)setDelegate:(id)theDelegate {
-	delegate = theDelegate;
 	
-	//clean up anything else that couldn't be set due to the note being created without knowledge of its delegate
-	if (!filename) {
-		filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
+	if (theDelegate) {
+		delegate = theDelegate;
+		
+		//clean up anything else that couldn't be set due to the note being created without knowledge of its delegate
+		if (!filename) {
+			filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
+		}
 	}
 }
 
@@ -178,6 +180,10 @@ NSInteger compareTitleStringReverse(id *a, id *b) {
 NSInteger compareNodeID(id *a, id *b) {
     return (*(NoteObject**)a)->nodeID - (*(NoteObject**)b)->nodeID;
 }
+NSInteger compareFileSize(id *a, id *b) {
+    return (*(NoteObject**)a)->logicalSize - (*(NoteObject**)b)->logicalSize;
+}
+
 
 #include "SynchronizedNoteMixIns.h"
 
@@ -185,6 +191,7 @@ NSInteger compareNodeID(id *a, id *b) {
 
 DefModelAttrAccessor(filenameOfNote, filename)
 DefModelAttrAccessor(fileNodeIDOfNote, nodeID)
+DefModelAttrAccessor(fileSizeOfNote, logicalSize)
 DefModelAttrAccessor(titleOfNote, titleString)
 DefModelAttrAccessor(labelsOfNote, labelString)
 DefModelAttrAccessor(fileModifiedDateOfNote, fileModifiedDate)
@@ -235,6 +242,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 
 			currentFormatID = [decoder decodeInt32ForKey:VAR_STR(currentFormatID)];
 			nodeID = [decoder decodeInt32ForKey:VAR_STR(nodeID)];
+			logicalSize = [decoder decodeInt32ForKey:VAR_STR(logicalSize)];
 			fileModifiedDate.highSeconds = [decoder decodeInt32ForKey:@"fileModDateHigh"];
 			fileModifiedDate.lowSeconds = [decoder decodeInt32ForKey:@"fileModDateLow"];
 			fileModifiedDate.fraction = [decoder decodeInt32ForKey:@"fileModDateFrac"];
@@ -336,6 +344,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		
 		[coder encodeInt32:currentFormatID forKey:VAR_STR(currentFormatID)];
 		[coder encodeInt32:nodeID forKey:VAR_STR(nodeID)];
+		[coder encodeInt32:logicalSize forKey:VAR_STR(logicalSize)];
 
 		[coder encodeInt32:fileModifiedDate.highSeconds forKey:@"fileModDateHigh"];
 		[coder encodeInt32:fileModifiedDate.lowSeconds forKey:@"fileModDateLow"];
@@ -365,7 +374,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		[coder encodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
 		
 		[coder encodeValueOfObjCType:@encode(int) at:&currentFormatID];
-		[coder encodeValueOfObjCType:@encode(UInt32) at:&nodeID];	
+		[coder encodeValueOfObjCType:@encode(UInt32) at:&nodeID];
 		[coder encodeValueOfObjCType:@encode(UInt16) at:&fileModifiedDate.highSeconds];
 		[coder encodeValueOfObjCType:@encode(UInt32) at:&fileModifiedDate.lowSeconds];
 		[coder encodeValueOfObjCType:@encode(UInt16) at:&fileModifiedDate.fraction];
@@ -438,6 +447,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		currentFormatID = [delegate currentNoteStorageFormat];
 		fileModifiedDate = entry->lastModified;
 		nodeID = entry->nodeID;
+		logicalSize = entry->logicalSize;
 		
 		CFUUIDRef uuidRef = CFUUIDCreate(kCFAllocatorDefault);
 		uniqueNoteIDBytes = CFUUIDGetUUIDBytes(uuidRef);
@@ -990,6 +1000,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	}
 	fileModifiedDate = catInfo.contentModDate;
 	nodeID = catInfo.nodeID;
+	logicalSize = (UInt32)(catInfo.dataLogicalSize & 0xFFFFFFFF);
 	
 	return noErr;
 }
@@ -1090,6 +1101,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			fileModifiedDate = info.contentModDate;
 			nodeID = info.nodeID;
+			logicalSize = (UInt32)(info.dataLogicalSize & 0xFFFFFFFF);
 			
 			return YES;
 		}
@@ -1111,6 +1123,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
     
     fileModifiedDate = catEntry->lastModified;
     nodeID = catEntry->nodeID;
+	logicalSize = catEntry->logicalSize;
 
 	OSStatus err = noErr;
 	CFAbsoluteTime aModDate, aCreateDate;

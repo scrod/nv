@@ -47,6 +47,7 @@ typedef struct _NoteFilterContext {
 	//for syncing to text file
 	NSString *filename;
 	UInt32 nodeID;
+	UInt32 logicalSize;
 	UTCDateTime fileModifiedDate;
 	int currentFormatID;
 	NSStringEncoding fileEncoding;
@@ -86,6 +87,7 @@ NSInteger compareTitleStringReverse(id *a, id *b);
 
 NSInteger compareFilename(id *a, id *b);
 NSInteger compareNodeID(id *a, id *b);
+NSInteger compareFileSize(id *a, id *b);
 
 //syncing w/ server and from journal
 - (CFUUIDBytes *)uniqueNoteIDBytes;
@@ -99,6 +101,7 @@ NSInteger compareNodeID(id *a, id *b);
 	int storageFormatOfNote(NoteObject *note);
 	NSString* filenameOfNote(NoteObject *note);
 	UInt32 fileNodeIDOfNote(NoteObject *note);
+	UInt32 fileSizeOfNote(NoteObject *note);
 	UTCDateTime fileModifiedDateOfNote(NoteObject *note);
 	CFAbsoluteTime modifiedDateOfNote(NoteObject *note);
 	CFAbsoluteTime createdDateOfNote(NoteObject *note);
