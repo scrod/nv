@@ -17,7 +17,7 @@
 
 #import <Cocoa/Cocoa.h>
 #include <SystemConfiguration/SystemConfiguration.h>
-
+#import <IOKit/IOMessage.h>
 #import "SyncServiceSessionProtocol.h"
 
 @class NotationPrefs;
@@ -36,11 +36,15 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 	//shouldn't go in the SimplenoteSession class as we probably don't even want an instance hanging around if there's no network:
 	//do we have one reachableref for every service? maybe this class should manage a series of SyncServicePref objs instead
 	SCNetworkReachabilityRef reachableRef;
+	
+	io_object_t deregisteringNotifier;
+	io_connect_t fRootPort;
+	IONotificationPortRef notifyPortRef;
 
 	BOOL isConnectedToNetwork;
-	BOOL isWaitingForUncommittedChanges;
-	id uncommittedWaitTarget;
-	SEL uncommittedWaitSelector;
+	
+	NSString *lastUncomittedChangeResultMessage;
+	NSMutableSet *uncommittedWaitInvocations;
 }
 
 + (NSArray*)allServiceNames;
@@ -55,12 +59,17 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 - (void)invalidateSyncService:(NSString*)serviceName;
 - (void)invalidateAllServices;
 
+- (void)endDelayingSleepWithMessage:(void*)messageArgument;
+
 - (void)disableService:(NSString*)serviceName;
 - (void)initializeService:(NSString*)serviceName;
 - (void)initializeAllServices;
 
 - (void)schedulePushToAllInitializedSessionsForNote:(id <SynchronizedNote>)aNote;
 - (NSArray*)activeSessions;
+
+- (void)_registerPowerChangeCallbackIfNecessary;
+- (void)unregisterPowerChangeCallback;
 
 - (void)invalidateReachabilityRefs;
 
@@ -71,9 +80,9 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 - (BOOL)hasErrors;
 - (void)queueStatusNotification;
 
-- (void)_invokeUncommittedCallback;
+- (NSString*)changeCommittingErrorMessage;
 - (void)invokeUncommmitedWaitCallbackIfNecessaryReturningError:(NSString*)errString;
-- (BOOL)waitForUncommitedChangesWithTarget:(id)aTarget selector:(SEL)aSEL;
+- (BOOL)waitForUncommitedChangesWithInvocation:(NSInvocation*)anInvocation;
 
 
 @end
