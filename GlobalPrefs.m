@@ -97,7 +97,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], AutoSuggestLinksKey,
 			[NSNumber numberWithBool:NO], UseSoftTabsKey,
 			[NSNumber numberWithInt:4], NumberOfSpacesInTabKey,
-			[NSNumber numberWithBool:NO], PastePreservesStyleKey,
+			[NSNumber numberWithBool:YES], PastePreservesStyleKey,
 			[NSNumber numberWithBool:YES], TabKeyIndentsKey,
 			[NSNumber numberWithBool:YES], ConfirmNoteDeletionKey,
 			[NSNumber numberWithBool:YES], CheckSpellingInNoteBodyKey, 
@@ -120,8 +120,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
 			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
-			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateCreatedColumnString, nil], TableColumnsVisibleKey,
-			NoteDateCreatedColumnString, TableSortColumnKey,
+			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], TableColumnsVisibleKey,
+			NoteDateModifiedColumnString, TableSortColumnKey,
 			[NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
 		
 		autoCompleteSearches = [defaults boolForKey:AutoCompleteSearchesKey];
