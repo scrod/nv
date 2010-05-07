@@ -421,7 +421,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	char *bodyPreviewBuffer = calloc(bodyCharCount + 1, sizeof(char));
 	CFIndex usedBufLen = bodyCharCount;
 	
-	if (bodyCharCount > 1) {
+	if (bodyCharCount > 0) {
 		if (cStrPtr && kCFStringEncodingUTF8 != bodyPreviewEncoding && kCFStringEncodingUnicode != bodyPreviewEncoding) {
 			//only attempt to copy the buffer directly if the fastest encoding is not a unicode variant
 			memcpy(bodyPreviewBuffer, cStrPtr, bodyCharCount);
