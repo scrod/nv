@@ -203,6 +203,10 @@
 	<real>345600</real>
 	<key>SUFeedURL</key>
 	<string>http://notational.net/nvupdates.xml</string>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
+	<key>OSAScriptingDefinition</key>
+	<string>Notation.sdef</string>
 	<key>SmartCrashReports_CompanyName</key>
 	<string>Notational.net</string>
 	<key>SmartCrashReports_EmailTicket</key>
