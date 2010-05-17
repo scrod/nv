@@ -207,6 +207,19 @@
 	<true/>
 	<key>OSAScriptingDefinition</key>
 	<string>Notation.sdef</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>net.notational.velocity</string>
+		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nv</string>
+			</array>
+		</dict>
+	</array>
 	<key>SmartCrashReports_CompanyName</key>
 	<string>Notational.net</string>
 	<key>SmartCrashReports_EmailTicket</key>
