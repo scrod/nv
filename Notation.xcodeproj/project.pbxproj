@@ -149,6 +149,10 @@
 		21F1CD980B3A3F77001FB5F6 /* PTHotKey.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CD970B3A3F77001FB5F6 /* PTHotKey.m */; };
 		21F1CD9F0B3A3F88001FB5F6 /* PTKeyComboPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21F1CD990B3A3F88001FB5F6 /* PTKeyComboPanel.nib */; };
 		21F1CDAD0B3A401F001FB5F6 /* PTKeyCombo.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CDAC0B3A401F001FB5F6 /* PTKeyCombo.m */; };
+		21F447F011B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447E811B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp */; };
+		21F447F111B896C4004D008B /* Como funciona isso?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447EA11B896C4004D008B /* Como funciona isso?.nvhelp */; };
+		21F447F211B896C4004D008B /* Este é o título de uma nota.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447EC11B896C4004D008B /* Este é o título de uma nota.nvhelp */; };
+		21F447F311B896C4004D008B /* Informações de Contato.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447EE11B896C4004D008B /* Informações de Contato.nvhelp */; };
 		21F459AD0A92E01D00FB6FFE /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21F4599B0A92E01C00FB6FFE /* Carbon.framework */; };
 		21FF94F30B5AD22800DB6A2F /* ExporterManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */; };
 		21FF94F70B5AD23B00DB6A2F /* ExporterManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21FF94F50B5AD23B00DB6A2F /* ExporterManager.m */; };
@@ -414,6 +418,29 @@
 		21F1CD9A0B3A3F88001FB5F6 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/PTKeyComboPanel.nib; sourceTree = "<group>"; };
 		21F1CDAB0B3A401F001FB5F6 /* PTKeyCombo.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = PTKeyCombo.h; path = PTHotKeys/PTKeyCombo.h; sourceTree = "<group>"; };
 		21F1CDAC0B3A401F001FB5F6 /* PTKeyCombo.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; name = PTKeyCombo.m; path = PTHotKeys/PTKeyCombo.m; sourceTree = "<group>"; };
+		21F447E911B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Atalhos Incrivelmente Úteis.nvhelp"; sourceTree = "<group>"; };
+		21F447EB11B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Como funciona isso?.nvhelp"; sourceTree = "<group>"; };
+		21F447ED11B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Este é o título de uma nota.nvhelp"; sourceTree = "<group>"; };
+		21F447EF11B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Informações de Contato.nvhelp"; sourceTree = "<group>"; };
+		21F447F411B896DD004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/MainMenu.nib; sourceTree = "<group>"; };
+		21F4481111B896FC004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/DeletionManager.nib; sourceTree = "<group>"; };
+		21F4481211B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/BlorPasswordRetriever.nib; sourceTree = "<group>"; };
+		21F4481311B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/EncodingsManager.nib; sourceTree = "<group>"; };
+		21F4481411B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/ExporterManager.nib; sourceTree = "<group>"; };
+		21F4481511B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/FindPanel.nib; sourceTree = "<group>"; };
+		21F4481611B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
+		21F4481711B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
+		21F4481811B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/NotationPrefsView.nib; sourceTree = "<group>"; };
+		21F4481911B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/PassphraseChanger.nib; sourceTree = "<group>"; };
+		21F4481A11B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/PassphrasePicker.nib; sourceTree = "<group>"; };
+		21F4481B11B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/PassphraseRetriever.nib; sourceTree = "<group>"; };
+		21F4481C11B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/Preferences.nib; sourceTree = "<group>"; };
+		21F4481D11B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/PTKeyComboPanel.nib; sourceTree = "<group>"; };
+		21F4481E11B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/SavedSearches.nib; sourceTree = "<group>"; };
+		21F4482111B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/URLGetter.nib; sourceTree = "<group>"; };
+		21F4482311B89818004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Portuguese; path = Portuguese.lproj/CarbonErrorStrings.plist; sourceTree = "<group>"; };
+		21F4482411B89818004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Portuguese; path = Portuguese.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		21F4482511B89818004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Portuguese; path = Portuguese.lproj/Localizable.strings; sourceTree = "<group>"; };
 		21F4599B0A92E01C00FB6FFE /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 		21FF94EE0B5AD22800DB6A2F /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/ExporterManager.nib; sourceTree = "<group>"; };
 		21FF94F50B5AD23B00DB6A2F /* ExporterManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = ExporterManager.m; sourceTree = "<group>"; };
@@ -616,6 +643,10 @@
 		217DB1810B7CE5B9008CD564 /* Help Notes */ = {
 			isa = PBXGroup;
 			children = (
+				21F447E811B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp */,
+				21F447EA11B896C4004D008B /* Como funciona isso?.nvhelp */,
+				21F447EC11B896C4004D008B /* Este é o título de uma nota.nvhelp */,
+				21F447EE11B896C4004D008B /* Informações de Contato.nvhelp */,
 				21EA3691111C9AD900E2B517 /* Raccourcis incroyablement utiles.nvhelp */,
 				21E6EC1F111DD52B0038ECC7 /* Comment ça marche.nvhelp */,
 				21EA3695111C9AD900E2B517 /* Ceci est le titre d'une note.nvhelp */,
@@ -872,6 +903,13 @@
 			buildConfigurationList = 212B842709780B5000F3597F /* Build configuration list for PBXProject "Notation" */;
 			compatibilityVersion = "Xcode 3.1";
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+				Portuguese,
+			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -950,6 +988,10 @@
 				21EA369C111C9AD900E2B517 /* Contact.nvhelp in Resources */,
 				21E6EC21111DD52B0038ECC7 /* Comment ça marche.nvhelp in Resources */,
 				57F27F7B11973A7F00C63ACF /* Notation.sdef in Resources */,
+				21F447F011B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp in Resources */,
+				21F447F111B896C4004D008B /* Como funciona isso?.nvhelp in Resources */,
+				21F447F211B896C4004D008B /* Este é o título de uma nota.nvhelp in Resources */,
+				21F447F311B896C4004D008B /* Informações de Contato.nvhelp in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1046,6 +1088,7 @@
 			children = (
 				089C165DFE840E0CC02AAC07 /* English */,
 				21EA368D111C9ABB00E2B517 /* French */,
+				21F4482411B89818004D008B /* Portuguese */,
 			);
 			name = InfoPlist.strings;
 			sourceTree = "<group>";
@@ -1055,6 +1098,7 @@
 			children = (
 				2110C0D00B65F09E00F5C52E /* English */,
 				21EA367A111C9A5C00E2B517 /* French */,
+				21F4481E11B8971D004D008B /* Portuguese */,
 			);
 			name = SavedSearches.nib;
 			sourceTree = "<group>";
@@ -1064,6 +1108,7 @@
 			children = (
 				211344BB0B3551BD0081B064 /* English */,
 				21EA3679111C9A2600E2B517 /* French */,
+				21F4481211B8971D004D008B /* Portuguese */,
 			);
 			name = BlorPasswordRetriever.nib;
 			sourceTree = "<group>";
@@ -1073,6 +1118,7 @@
 			children = (
 				2114C25A095885C800614E74 /* English */,
 				21EA3727111CBCB500E2B517 /* French */,
+				21F4482511B89818004D008B /* Portuguese */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -1082,6 +1128,7 @@
 			children = (
 				212850870B56E549005F6E34 /* English */,
 				21EA36A6111C9B8900E2B517 /* French */,
+				21F4482311B89818004D008B /* Portuguese */,
 			);
 			name = CarbonErrorStrings.plist;
 			sourceTree = "<group>";
@@ -1091,6 +1138,7 @@
 			children = (
 				212DCB300A6AE38500F74E46 /* English */,
 				21EA368A111C9AA000E2B517 /* French */,
+				21F4481311B8971D004D008B /* Portuguese */,
 			);
 			name = EncodingsManager.nib;
 			sourceTree = "<group>";
@@ -1100,6 +1148,7 @@
 			children = (
 				212DCFF60A6E005000F74E46 /* English */,
 				21EA3689111C9AA000E2B517 /* French */,
+				21F4481111B896FC004D008B /* Portuguese */,
 			);
 			name = DeletionManager.nib;
 			sourceTree = "<group>";
@@ -1117,6 +1166,7 @@
 			children = (
 				213621E80B92413F008C0830 /* English */,
 				21EA3688111C9AA000E2B517 /* French */,
+				21F4481511B8971D004D008B /* Portuguese */,
 			);
 			name = FindPanel.nib;
 			sourceTree = "<group>";
@@ -1126,6 +1176,7 @@
 			children = (
 				214495750ADCC06300E2A2B6 /* English */,
 				21EA3683111C9A6D00E2B517 /* French */,
+				21F4481A11B8971D004D008B /* Portuguese */,
 			);
 			name = PassphrasePicker.nib;
 			sourceTree = "<group>";
@@ -1135,6 +1186,7 @@
 			children = (
 				214495820ADCC07E00E2A2B6 /* English */,
 				21EA3682111C9A6D00E2B517 /* French */,
+				21F4481911B8971D004D008B /* Portuguese */,
 			);
 			name = PassphraseChanger.nib;
 			sourceTree = "<group>";
@@ -1144,6 +1196,7 @@
 			children = (
 				21544FB90B06331800C0D1D5 /* English */,
 				21EA3686111C9A7500E2B517 /* French */,
+				21F4481711B8971D004D008B /* Portuguese */,
 			);
 			name = KeyDerivationManager.nib;
 			sourceTree = "<group>";
@@ -1153,6 +1206,7 @@
 			children = (
 				216BA24210746E3900F62D93 /* English */,
 				21EA3687111C9A8200E2B517 /* French */,
+				21F4481611B8971D004D008B /* Portuguese */,
 			);
 			name = ImporterAccessory.nib;
 			sourceTree = "<group>";
@@ -1162,6 +1216,7 @@
 			children = (
 				21EA3680111C9A6D00E2B517 /* French */,
 				21FFBA96111EC0A9004CB80B /* English */,
+				21F447F411B896DD004D008B /* Portuguese */,
 			);
 			name = MainMenu.nib;
 			sourceTree = "<group>";
@@ -1171,6 +1226,7 @@
 			children = (
 				219195E509D3A20F00586B15 /* English */,
 				21EA36B6111C9F5400E2B517 /* French */,
+				21F4481C11B8971D004D008B /* Portuguese */,
 			);
 			name = Preferences.nib;
 			sourceTree = "<group>";
@@ -1180,6 +1236,7 @@
 			children = (
 				21973A240AFE447A0046683E /* English */,
 				21EA3684111C9A6D00E2B517 /* French */,
+				21F4481B11B8971D004D008B /* Portuguese */,
 			);
 			name = PassphraseRetriever.nib;
 			sourceTree = "<group>";
@@ -1213,6 +1270,7 @@
 			children = (
 				21A2FA7B09DF64E9001AF0B5 /* English */,
 				21EA3681111C9A6D00E2B517 /* French */,
+				21F4481811B8971D004D008B /* Portuguese */,
 			);
 			name = NotationPrefsView.nib;
 			sourceTree = "<group>";
@@ -1222,6 +1280,7 @@
 			children = (
 				21E6B0960B6E6D0B001ABEDC /* English */,
 				21EA367D111C9A5C00E2B517 /* French */,
+				21F4482111B8971D004D008B /* Portuguese */,
 			);
 			name = URLGetter.nib;
 			sourceTree = "<group>";
@@ -1263,8 +1322,41 @@
 			children = (
 				21F1CD9A0B3A3F88001FB5F6 /* English */,
 				21EA367F111C9A6D00E2B517 /* French */,
+				21F4481D11B8971D004D008B /* Portuguese */,
 			);
 			name = PTKeyComboPanel.nib;
+			sourceTree = "<group>";
+		};
+		21F447E811B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21F447E911B896C4004D008B /* Portuguese */,
+			);
+			name = "Atalhos Incrivelmente Úteis.nvhelp";
+			sourceTree = "<group>";
+		};
+		21F447EA11B896C4004D008B /* Como funciona isso?.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21F447EB11B896C4004D008B /* Portuguese */,
+			);
+			name = "Como funciona isso?.nvhelp";
+			sourceTree = "<group>";
+		};
+		21F447EC11B896C4004D008B /* Este é o título de uma nota.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21F447ED11B896C4004D008B /* Portuguese */,
+			);
+			name = "Este é o título de uma nota.nvhelp";
+			sourceTree = "<group>";
+		};
+		21F447EE11B896C4004D008B /* Informações de Contato.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21F447EF11B896C4004D008B /* Portuguese */,
+			);
+			name = "Informações de Contato.nvhelp";
 			sourceTree = "<group>";
 		};
 		21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */ = {
@@ -1272,6 +1364,7 @@
 			children = (
 				21FF94EE0B5AD22800DB6A2F /* English */,
 				21EA368B111C9AA000E2B517 /* French */,
+				21F4481411B8971D004D008B /* Portuguese */,
 			);
 			name = ExporterManager.nib;
 			sourceTree = "<group>";
