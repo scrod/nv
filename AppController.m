@@ -240,10 +240,10 @@ void outletObjectAwoke(id sender) {
 	//import old database(s) here if necessary
 	[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation:newNotation];
 	
-	if (notesToOpenOnLaunch) {
-		[notationController addNotes:notesToOpenOnLaunch];
-		[notesToOpenOnLaunch release];
-		notesToOpenOnLaunch = nil;
+	if (pathsToOpenOnLaunch) {
+		[notationController openFiles:pathsToOpenOnLaunch];
+		[pathsToOpenOnLaunch release];
+		pathsToOpenOnLaunch = nil;
 	}
 	
 	//tell us..
@@ -408,11 +408,7 @@ terminateApp:
 	if ([types containsObject:NSFilenamesPboardType]) {
 		NSArray *files = [pasteboard propertyListForType:NSFilenamesPboardType];
 		if ([files isKindOfClass:[NSArray class]]) {
-			NSArray *notes = [[[[AlienNoteImporter alloc] initWithStoragePaths:files] autorelease] importedNotes];
-			if ([notes count] > 0) {
-				[notationController addNotes:notes];
-				return YES;
-			}
+			if ([notationController openFiles:files]) return YES;
 		}
 	}
 	
@@ -679,17 +675,12 @@ terminateApp:
 
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames {
 	
-	//should check filenames here to see whether notationcontroller already owns these
-	NSArray *notes = [[[[AlienNoteImporter alloc] initWithStoragePaths:filenames] autorelease] importedNotes];
+	if (notationController)
+		[notationController openFiles:filenames];
+	else
+		pathsToOpenOnLaunch = [filenames mutableCopyWithZone:nil];
 	
-	if (notes) {
-		if (notationController)
-			[notationController addNotes:notes];
-		else
-			notesToOpenOnLaunch = [notes mutableCopyWithZone:nil];
-	}
-	
-	[NSApp replyToOpenOrPrint:notes ? NSApplicationDelegateReplySuccess : NSApplicationDelegateReplyFailure];
+	[NSApp replyToOpenOrPrint:[filenames count] ? NSApplicationDelegateReplySuccess : NSApplicationDelegateReplyFailure];
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {

@@ -26,6 +26,7 @@
 #import "NotationPrefs.h"
 #import "NoteAttributeColumn.h"
 #import "FrozenNotation.h"
+#import "AlienNoteImporter.h"
 #import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
 #import "NotationDirectoryManager.h"
@@ -845,6 +846,40 @@ bail:
 		[delegate titleUpdatedForNote:note];
 }
 
+- (BOOL)openFiles:(NSArray*)filenames {
+	//reveal notes that already exist with any of these filenames
+	//for paths left over that weren't in the notes-folder/database, import those files as new notes
+	
+	if (![filenames count]) return NO;
+	
+	NSArray *unknownPaths = filenames; //(this is not a requirement for -notesWithFilenames:unknownFiles:)
+	
+	if ([self currentNoteStorageFormat] != SingleDatabaseFormat) {
+		//notes are stored as separate files, so if these paths are in the notes folder then NV can claim ownership over them
+		
+		//probably should sync directory here to make sure notesWithFilenames has the freshest data
+		[self synchronizeNotesFromDirectory];
+		
+		NSSet *existingNotes = [self notesWithFilenames:filenames unknownFiles:&unknownPaths];
+		if ([existingNotes count] > 1) {
+			[delegate notation:self revealNotes:[existingNotes allObjects]];
+			return YES;
+		} else if ([existingNotes count] == 1) {
+			[delegate notation:self revealNote:[existingNotes anyObject] options:NVEditNoteToReveal];
+			return YES;
+		}
+	}
+	//NSLog(@"paths not found in DB: %@", unknownPaths);
+	NSArray *createdNotes = [[[[AlienNoteImporter alloc] initWithStoragePaths:unknownPaths] autorelease] importedNotes];
+	if (!createdNotes) return NO;
+	
+	[self addNotes:createdNotes];
+	
+	return YES;
+}
+
+
+
 - (void)scheduleUpdateListForAttribute:(NSString*)attribute {
 	
 	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(scheduleUpdateListForAttribute:) object:attribute];
@@ -1056,6 +1091,7 @@ bail:
 	if (noteIndex != NSNotFound) return [allNotes objectAtIndex:noteIndex];
 	return nil;	
 }
+
 
 //re-searching for all notes each time a label is added or removed is unnecessary, I think
 - (void)note:(NoteObject*)note didAddLabelSet:(NSSet*)labelSet {

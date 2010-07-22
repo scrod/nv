@@ -47,7 +47,7 @@
 	
 	LinearDividerShader *dividerShader;
 	
-	NSMutableArray *notesToOpenOnLaunch;
+	NSMutableArray *pathsToOpenOnLaunch;
 	
     NSUndoManager *windowUndoManager;
     PrefsWindowController *prefsWindowController;

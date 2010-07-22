@@ -48,6 +48,37 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 }
 
 
+//used to find notes corresponding to a group of existing files in the notes dir, with the understanding 
+//that the files' contents are up-to-date and the filename property of the note objs is also up-to-date
+//e.g. caller should know that if notes are stored as a single DB, then the file could still be out-of-date
+- (NSSet*)notesWithFilenames:(NSArray*)filenames unknownFiles:(NSArray**)unknownFiles {
+	//intersects a list of filenames with the current set of available notes
+	
+	NSUInteger i = 0;
+	
+	NSMutableDictionary *lcNamesDict = [NSMutableDictionary dictionaryWithCapacity:[filenames count]];
+	for (i=0; i<[filenames count]; i++) {
+		NSString *path = [filenames objectAtIndex:i];
+		//assume that paths are of NSFileManager origin, not Carbon File Manager
+		//(note filenames are derived with the expectation of matching against Carbon File Manager)
+		[lcNamesDict setObject:path forKey:[[[path lastPathComponent] lowercaseString] stringByReplacingOccurrencesOfString:@":" withString:@"/"]];
+	}
+	
+	NSMutableSet *foundNotes = [NSMutableSet setWithCapacity:[filenames	count]];
+	
+	for (i=0; i<[allNotes count]; i++) {
+		NoteObject *aNote = [allNotes objectAtIndex:i];
+		NSString *existingRequestedFilename = [filenameOfNote(aNote) lowercaseString];
+		if (existingRequestedFilename && [lcNamesDict objectForKey:existingRequestedFilename]) {
+			[foundNotes addObject:aNote];
+			//remove paths from the dict as they are matched to existing notes; those left over will be new ("unknown") files
+			[lcNamesDict removeObjectForKey:existingRequestedFilename];
+		}
+	}
+	if (unknownFiles) *unknownFiles = [lcNamesDict allValues];
+	return foundNotes;
+}
+
 
 - (void)stopFileNotifications {
 	OSStatus err = noErr;
