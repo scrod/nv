@@ -27,6 +27,8 @@ NSInteger compareCatalogValueNodeID(id *a, id *b);
 NSInteger compareCatalogValueFileSize(id *a, id *b);
 void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription);
 
+- (NSSet*)notesWithFilenames:(NSArray*)filenames unknownFiles:(NSArray**)unknownFiles;
+
 - (BOOL)_readFilesInDirectory;
 - (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry;
 - (void)makeNotesMatchCatalogEntries:(NoteCatalogEntry**)catEntriesPtrs ofSize:(size_t)catCount;

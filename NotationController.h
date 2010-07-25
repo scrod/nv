@@ -137,6 +137,8 @@ typedef struct _NoteCatalogEntry {
 - (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title;
 - (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry;
 
+- (BOOL)openFiles:(NSArray*)filenames;
+
 - (void)note:(NoteObject*)note didAddLabelSet:(NSSet*)labelSet;
 - (void)note:(NoteObject*)note didRemoveLabelSet:(NSSet*)labelSet;
 
