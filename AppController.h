@@ -86,7 +86,10 @@ void outletObjectAwoke(id sender);
 - (BOOL)displayContentsForNoteAtIndex:(int)noteIndex;
 - (void)processChangedSelectionForTable:(NSTableView*)table;
 - (void)setEmptyViewState:(BOOL)state;
+- (void)cancelOperation:(id)sender;
 - (void)_setCurrentNote:(NoteObject*)aNote;
+- (void)_expandToolbar;
+- (void)_collapseToolbar;
 - (NoteObject*)selectedNoteObject;
 
 - (void)restoreListStateUsingPreferences;

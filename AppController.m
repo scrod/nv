@@ -77,6 +77,7 @@
 	[toolbar setDisplayMode:NSToolbarDisplayModeIconOnly];
 //	[toolbar setSizeMode:NSToolbarSizeModeRegular];
 	[toolbar setShowsBaselineSeparator:YES];
+	[toolbar setVisible:![[NSUserDefaults standardUserDefaults] boolForKey:@"ToolbarHidden"]];
 	[toolbar setDelegate:self];
 	[window setToolbar:toolbar];
 	
@@ -714,6 +715,11 @@ terminateApp:
 	return dockMenu;
 }
 
+- (void)cancel:(id)sender {
+	//fallback for when other views are hidden/removed during toolbar collapse
+	[self cancelOperation:sender];
+}
+
 - (void)cancelOperation:(id)sender {
 	//simulate a search for nothing
 	
@@ -1305,7 +1311,55 @@ terminateApp:
 
 //mail.app-like resizing behavior wrt item selections
 - (void)willAdjustSubviews:(RBSplitView*)sender {
-	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];	
+	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
+}
+
+- (void)_expandToolbar {
+	if (![toolbar isVisible]) {
+		[window setTitle:@"Notation"];
+		if (currentNote)
+			[field setStringValue:titleOfNote(currentNote)];
+		[window toggleToolbarShown:nil];
+		if (![splitView isDragging])
+			[[splitView subviewAtPosition:0] setDimension:100.0];
+		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"ToolbarHidden"];
+	}
+}
+
+- (void)_collapseToolbar {
+	if ([toolbar isVisible]) {
+		if (currentNote)
+			[window setTitle:titleOfNote(currentNote)];
+		[window toggleToolbarShown:nil];
+		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"ToolbarHidden"];
+	}
+}
+
+- (BOOL)splitView:(RBSplitView*)sender shouldResizeWindowForDivider:(NSUInteger)divider 
+	  betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow {
+
+	if ([sender isDragging]) {
+		BOOL toolbarVisible = [toolbar isVisible];
+		NSPoint mouse = [sender convertPoint:[[window currentEvent] locationInWindow] fromView:nil];
+		
+		if ((toolbarVisible && !grow && mouse.y < -28.0 && ![leading canShrink]) || 
+			(!toolbarVisible && grow)) {
+			BOOL wasVisible = toolbarVisible;
+			if (toolbarVisible) {
+				[self _collapseToolbar];
+			} else {
+				[self _expandToolbar];
+			}
+			
+			if (!wasVisible && [window firstResponder] == window) {
+				//if dualfield had first responder previously, it might need to be restored 
+				//if it had been removed from the view hierarchy due to hiding the toolbar
+				[field selectText:sender];
+			}
+		}
+	}
+
+	return NO;
 }
 
 - (void)tableViewColumnDidResize:(NSNotification *)aNotification {
