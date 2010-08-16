@@ -729,6 +729,8 @@ terminateApp:
 	[notationController filterNotesFromString:@""];
 	
 	[notesTableView deselectAll:sender];
+	[self _expandToolbar];
+	
 	[field selectText:sender];
 	[[field cell] setShowsClearButton:NO];
 }
@@ -1012,15 +1014,19 @@ terminateApp:
 				//while the user is typing and auto-completion is disabled, so should be OK
 
 				if (!isFilteringFromTyping) {
-					if (fieldEditor) {
-						//the field editor has focus--select text, too
-						[fieldEditor setString:titleOfNote(currentNote)];
-						unsigned int strLen = [titleOfNote(currentNote) length];
-						if (strLen != [fieldEditor selectedRange].length)
-							[fieldEditor setSelectedRange:NSMakeRange(0, strLen)];
+					if ([toolbar isVisible]) {
+						if (fieldEditor) {
+							//the field editor has focus--select text, too
+							[fieldEditor setString:titleOfNote(currentNote)];
+							unsigned int strLen = [titleOfNote(currentNote) length];
+							if (strLen != [fieldEditor selectedRange].length)
+								[fieldEditor setSelectedRange:NSMakeRange(0, strLen)];
+						} else {
+							//this could be faster
+							[field setStringValue:titleOfNote(currentNote)];
+						}
 					} else {
-						//this could be faster
-						[field setStringValue:titleOfNote(currentNote)];
+						[window setTitle:titleOfNote(currentNote)];
 					}
 				}
 			}
@@ -1048,6 +1054,7 @@ terminateApp:
 			}
 			[textView setString:@""];
 		}
+		[self _expandToolbar];
 		
 		if (!currentNote) {
 			if (selectedRow == -1 && (!fieldEditor || [window firstResponder] != fieldEditor)) {
@@ -1213,7 +1220,7 @@ terminateApp:
 	//to be invoked after loading a notationcontroller
 	
 	NSString *searchString = [prefsController lastSearchString];
-	if (searchString)
+	if ([searchString length])
 		[self searchForString:searchString];
 	else
 		[notationController refilterNotes];
@@ -1276,6 +1283,8 @@ terminateApp:
 	
 	if (string) {
 		
+		//problem: this won't work when the toolbar (and consequently the searchfield) is hidden;
+		//and neither will the controlTextDidChange implementation
 		[window makeFirstResponder:field];
 		NSTextView* fieldEditor = (NSTextView*)[field currentEditor];
 		NSRange fullRange = NSMakeRange(0, [[fieldEditor string] length]);
@@ -1435,7 +1444,11 @@ terminateApp:
 
 - (void)titleUpdatedForNote:(NoteObject*)aNoteObject {
     if (aNoteObject == currentNote) {
-		[field setStringValue:titleOfNote(currentNote)];
+		if ([toolbar isVisible]) {
+			[field setStringValue:titleOfNote(currentNote)];
+		} else {
+			[window setTitle:titleOfNote(currentNote)];
+		}
     }
 	[[prefsController bookmarksController] updateBookmarksUI];
 }
@@ -1566,6 +1579,7 @@ terminateApp:
 }
 
 - (IBAction)bringFocusToControlField:(id)sender {
+	[self _expandToolbar];
 	
 	[field selectText:sender];
 	
