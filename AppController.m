@@ -257,10 +257,21 @@ void outletObjectAwoke(id sender) {
 	 @selector(setConfirmNoteDeletion:sender:),nil];  //whether "delete note" should have an ellipsis
 	
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.0];
+	
+	// Setup URL Handling
+	NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];// 1
+	[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
 		
 	return;
 terminateApp:
 	[NSApp terminate:self];
+}
+
+- (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
+{
+	NSString *fullURL = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
+	NSString *searchTerm = [fullURL substringFromIndex:5];
+	[self searchForString: [searchTerm stringByReplacingPercentEscapes]];
 }
 
 - (void)setNotationController:(NotationController*)newNotation {
