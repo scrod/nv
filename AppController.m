@@ -171,6 +171,11 @@ void outletObjectAwoke(id sender) {
 			NSLog(@"Could not load %@!", frameworkPath);
 		}
 	}
+	
+	// Setup URL Handling
+	NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];// 1
+	[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
+	
 
 	[NSApp setServicesProvider:self];
 }
@@ -257,11 +262,7 @@ void outletObjectAwoke(id sender) {
 	 @selector(setConfirmNoteDeletion:sender:),nil];  //whether "delete note" should have an ellipsis
 	
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.0];
-	
-	// Setup URL Handling
-	NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];// 1
-	[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
-		
+			
 	return;
 terminateApp:
 	[NSApp terminate:self];
