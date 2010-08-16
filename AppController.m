@@ -516,6 +516,12 @@ terminateApp:
 	
 	if (returnCode == NSAlertDefaultReturn) {
 		//delete! nil-msgsnd-checking
+		
+		//ensure that there are no pending edits in the tableview, 
+		//lest editing end with the same field editor and a different selected note
+		//resulting in the renaming of notes in adjacent rows
+		[notesTableView abortEditing];
+		
 		if ([retainedDeleteObj isKindOfClass:[NSArray class]]) {
 			[notationController removeNotes:retainedDeleteObj];
 		} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
@@ -527,9 +533,7 @@ terminateApp:
 
 
 - (IBAction)deleteNote:(id)sender {
-	
-	[notesTableView abortEditing];
-	
+		
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 	if ([indexes count] > 0) {
 		id deleteObj = [indexes count] > 1 ? (id)([notationController notesAtIndexes:indexes]) : (id)([notationController noteObjectAtFilteredIndex:[indexes firstIndex]]);
