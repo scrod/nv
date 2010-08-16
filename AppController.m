@@ -77,6 +77,7 @@
 	[toolbar setDisplayMode:NSToolbarDisplayModeIconOnly];
 //	[toolbar setSizeMode:NSToolbarSizeModeRegular];
 	[toolbar setShowsBaselineSeparator:YES];
+	[toolbar setVisible:![[NSUserDefaults standardUserDefaults] boolForKey:@"ToolbarHidden"]];
 	[toolbar setDelegate:self];
 	[window setToolbar:toolbar];
 	
@@ -714,6 +715,11 @@ terminateApp:
 	return dockMenu;
 }
 
+- (void)cancel:(id)sender {
+	//fallback for when other views are hidden/removed during toolbar collapse
+	[self cancelOperation:sender];
+}
+
 - (void)cancelOperation:(id)sender {
 	//simulate a search for nothing
 	
@@ -723,6 +729,8 @@ terminateApp:
 	[notationController filterNotesFromString:@""];
 	
 	[notesTableView deselectAll:sender];
+	[self _expandToolbar];
+	
 	[field selectText:sender];
 	[[field cell] setShowsClearButton:NO];
 }
@@ -1006,15 +1014,19 @@ terminateApp:
 				//while the user is typing and auto-completion is disabled, so should be OK
 
 				if (!isFilteringFromTyping) {
-					if (fieldEditor) {
-						//the field editor has focus--select text, too
-						[fieldEditor setString:titleOfNote(currentNote)];
-						unsigned int strLen = [titleOfNote(currentNote) length];
-						if (strLen != [fieldEditor selectedRange].length)
-							[fieldEditor setSelectedRange:NSMakeRange(0, strLen)];
+					if ([toolbar isVisible]) {
+						if (fieldEditor) {
+							//the field editor has focus--select text, too
+							[fieldEditor setString:titleOfNote(currentNote)];
+							unsigned int strLen = [titleOfNote(currentNote) length];
+							if (strLen != [fieldEditor selectedRange].length)
+								[fieldEditor setSelectedRange:NSMakeRange(0, strLen)];
+						} else {
+							//this could be faster
+							[field setStringValue:titleOfNote(currentNote)];
+						}
 					} else {
-						//this could be faster
-						[field setStringValue:titleOfNote(currentNote)];
+						[window setTitle:titleOfNote(currentNote)];
 					}
 				}
 			}
@@ -1042,6 +1054,7 @@ terminateApp:
 			}
 			[textView setString:@""];
 		}
+		[self _expandToolbar];
 		
 		if (!currentNote) {
 			if (selectedRow == -1 && (!fieldEditor || [window firstResponder] != fieldEditor)) {
@@ -1207,7 +1220,7 @@ terminateApp:
 	//to be invoked after loading a notationcontroller
 	
 	NSString *searchString = [prefsController lastSearchString];
-	if (searchString)
+	if ([searchString length])
 		[self searchForString:searchString];
 	else
 		[notationController refilterNotes];
@@ -1270,6 +1283,8 @@ terminateApp:
 	
 	if (string) {
 		
+		//problem: this won't work when the toolbar (and consequently the searchfield) is hidden;
+		//and neither will the controlTextDidChange implementation
 		[window makeFirstResponder:field];
 		NSTextView* fieldEditor = (NSTextView*)[field currentEditor];
 		NSRange fullRange = NSMakeRange(0, [[fieldEditor string] length]);
@@ -1305,7 +1320,55 @@ terminateApp:
 
 //mail.app-like resizing behavior wrt item selections
 - (void)willAdjustSubviews:(RBSplitView*)sender {
-	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];	
+	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
+}
+
+- (void)_expandToolbar {
+	if (![toolbar isVisible]) {
+		[window setTitle:@"Notation"];
+		if (currentNote)
+			[field setStringValue:titleOfNote(currentNote)];
+		[window toggleToolbarShown:nil];
+		if (![splitView isDragging])
+			[[splitView subviewAtPosition:0] setDimension:100.0];
+		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"ToolbarHidden"];
+	}
+}
+
+- (void)_collapseToolbar {
+	if ([toolbar isVisible]) {
+		if (currentNote)
+			[window setTitle:titleOfNote(currentNote)];
+		[window toggleToolbarShown:nil];
+		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"ToolbarHidden"];
+	}
+}
+
+- (BOOL)splitView:(RBSplitView*)sender shouldResizeWindowForDivider:(NSUInteger)divider 
+	  betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing willGrow:(BOOL)grow {
+
+	if ([sender isDragging]) {
+		BOOL toolbarVisible = [toolbar isVisible];
+		NSPoint mouse = [sender convertPoint:[[window currentEvent] locationInWindow] fromView:nil];
+		
+		if ((toolbarVisible && !grow && mouse.y < -28.0 && ![leading canShrink]) || 
+			(!toolbarVisible && grow)) {
+			BOOL wasVisible = toolbarVisible;
+			if (toolbarVisible) {
+				[self _collapseToolbar];
+			} else {
+				[self _expandToolbar];
+			}
+			
+			if (!wasVisible && [window firstResponder] == window) {
+				//if dualfield had first responder previously, it might need to be restored 
+				//if it had been removed from the view hierarchy due to hiding the toolbar
+				[field selectText:sender];
+			}
+		}
+	}
+
+	return NO;
 }
 
 - (void)tableViewColumnDidResize:(NSNotification *)aNotification {
@@ -1381,7 +1444,11 @@ terminateApp:
 
 - (void)titleUpdatedForNote:(NoteObject*)aNoteObject {
     if (aNoteObject == currentNote) {
-		[field setStringValue:titleOfNote(currentNote)];
+		if ([toolbar isVisible]) {
+			[field setStringValue:titleOfNote(currentNote)];
+		} else {
+			[window setTitle:titleOfNote(currentNote)];
+		}
     }
 	[[prefsController bookmarksController] updateBookmarksUI];
 }
@@ -1512,6 +1579,7 @@ terminateApp:
 }
 
 - (IBAction)bringFocusToControlField:(id)sender {
+	[self _expandToolbar];
 	
 	[field selectText:sender];
 	
