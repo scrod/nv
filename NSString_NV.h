@@ -40,7 +40,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 - (void)copyItemToPasteboard:(id)sender;
 - (NSURL*)linkForWord;
 - (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle;
-- (NSString*)syntheticTitle;
+- (NSString*)syntheticTitleAndTrimmedBody:(NSString**)newBody;
 - (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)width;
 + (NSString *)tabbifiedStringWithNumberOfSpaces:(unsigned)origNumSpaces tabWidth:(unsigned)tabWidth usesTabs:(BOOL)usesTabs;
 - (unsigned)numberOfLeadingSpacesFromRange:(NSRange*)range tabWidth:(unsigned)tabWidth;

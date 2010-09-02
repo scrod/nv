@@ -26,6 +26,8 @@
 - (void)removeAttachments;
 - (void)prefixWithSourceString:(NSString*)source;
 
+- (NSString*)trimLeadingSyntheticTitle;
+
 #if SEPARATE_ATTRS
 + (NSMutableAttributedString*)attributedStringWithString:(NSString*)text attributesByRange:(NSDictionary*)attributes font:(NSFont*)font;
 #endif

@@ -61,6 +61,15 @@
 	}
 }
 
+- (NSString*)trimLeadingSyntheticTitle {
+	NSUInteger bodyLoc = 0;
+	
+	NSString *title = [[self string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+
+	if (bodyLoc > 0 && [self length] >= bodyLoc) [self deleteCharactersInRange:NSMakeRange(0, bodyLoc)];
+
+	return title;
+}
 
 - (void)prefixWithSourceString:(NSString*)source {
 	source = [NSString stringWithFormat:@"From <%@>:\n\n", source];

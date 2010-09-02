@@ -321,7 +321,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return nil;
 }
 
-#define MAX_TITLE_LEN 50
+#define MAX_TITLE_LEN 60
 
 - (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle {
 	
@@ -374,23 +374,11 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return [firstLine length] ? firstLine : NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 }
 
-- (NSString*)syntheticTitle {
-	//grab first five words of first line of receiver
-
-    NSMutableString *titleText = [NSMutableString stringWithString:[self stringByTrimmingCharactersInSet:
-		[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
-	
-	//handle mac linefeeds
-	[titleText replaceOccurrencesOfString:@"\r" withString:@"\n" options:NSLiteralSearch range:NSMakeRange(0, [titleText length])];
-	NSArray *lines = [titleText componentsSeparatedByString:@"\n"];
-	
-    if (![titleText length] || ![lines count]) {
-		//note contains no useful information
-		return NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
-	}
-	
-	NSArray *words = [[lines objectAtIndex:0] componentsSeparatedByString:@" "];
-	return [[words subarrayWithRange:NSMakeRange(0U, MIN(5U, [words count]))] componentsJoinedByString:@" "];
+- (NSString*)syntheticTitleAndTrimmedBody:(NSString**)newBody {
+	NSUInteger bodyLoc = 0;
+	NSString *title = [self syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+	if (newBody) *newBody = [self substringFromIndex:bodyLoc];
+	return title;
 }
 
 - (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)upToWidth {
