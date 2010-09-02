@@ -1339,7 +1339,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	NSString *newextension = [NotationPrefs pathExtensionForFormat:storageFormat];
 	NSString *newfilename = userFilename ? userFilename : [[filename stringByDeletingPathExtension] stringByAppendingPathExtension:newextension];
 	//one last replacing, though if the unique file-naming method worked this should be unnecessary
-	newfilename = (NSString*)[newfilename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
+	newfilename = [newfilename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
 	
 	BOOL fileWasCreated = NO;
 	

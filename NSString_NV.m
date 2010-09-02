@@ -253,12 +253,16 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return newfilename;
 }
 
-- (NSMutableString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString {
-	NSMutableString *sanitizedName = [NSMutableString stringWithString:self];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+- (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString {
+	//NSLog(@"NSString_NV: %s", _cmd);
+	NSMutableString *sanitizedName = [[self mutableCopy] autorelease];
 	[sanitizedName replaceOccurrencesOfString:stringToReplace withString:replacementString options:NSLiteralSearch range:NSMakeRange(0, [sanitizedName length])];
 
 	return sanitizedName;
 }
+
+#endif
 
 - (NSString*)fourCharTypeString {
 	if ([[self dataUsingEncoding:NSMacOSRomanStringEncoding allowLossyConversion:YES] length] >= 4) {

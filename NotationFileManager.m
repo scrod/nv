@@ -249,7 +249,7 @@ terminate:
     NSString *uniqueFilename = title;
 	
 	//remove illegal characters
-	NSMutableString *sanitizedName = [uniqueFilename stringByReplacingOccurrencesOfString:@":" withString:@"-"];
+	NSMutableString *sanitizedName = [[[uniqueFilename stringByReplacingOccurrencesOfString:@":" withString:@"-"] mutableCopy] autorelease];
 	if ([sanitizedName characterAtIndex:0] == (unichar)'.')	[sanitizedName replaceCharactersInRange:NSMakeRange(0, 1) withString:@"_"];
 	uniqueFilename = [[sanitizedName copy] autorelease];
 	

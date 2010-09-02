@@ -32,7 +32,9 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 + (NSString*)customPasteboardTypeOfCode:(int)code;
 - (NSString*)stringAsSafePathExtension;
 - (NSString*)filenameExpectingAdditionalCharCount:(int)charCount;
-- (NSMutableString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+- (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString;
+#endif
 + (NSString*)pathCopiedFromAliasData:(NSData*)aliasData;
 - (NSString*)fourCharTypeString;
 - (void)copyItemToPasteboard:(id)sender;

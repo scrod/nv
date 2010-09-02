@@ -63,7 +63,7 @@
 			
 			if ([filename compare:filenameOfNote([notes lastObject]) options:NSCaseInsensitiveSearch] != NSOrderedSame) {
 				//undo any POSIX-safe crap NSSavePanel gave us--otherwise FSCreateFileUnicode will fail
-				filename = (NSString*)[filename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
+				filename = [filename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
 			}
 		}
 		
