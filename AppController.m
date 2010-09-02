@@ -493,7 +493,7 @@ terminateApp:
 		if (hasRTFData && ![prefsController pastePreservesStyle]) //fallback scenario
 			newString = [[[NSMutableAttributedString alloc] initWithString:[newString string]] autorelease];
 		
-		NSString *noteTitle = [[newString string] syntheticTitle];
+		NSString *noteTitle = [newString trimLeadingSyntheticTitle];
 		if ([sourceIdentiferString length] > 0) {
 			//add the URL or wherever it was that this piece of text came from
 			[newString prefixWithSourceString:sourceIdentiferString];
