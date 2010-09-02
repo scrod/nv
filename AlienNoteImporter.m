@@ -496,9 +496,9 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				NSMutableAttributedString *attributedString = [[[NSMutableAttributedString alloc] initWithRTFD:[doc RTFDData] documentAttributes:NULL] autorelease];
 				[attributedString removeAttachments];
 				[attributedString santizeForeignStylesForImporting];
+				NSString *syntheticTitle = [attributedString trimLeadingSyntheticTitle];
 				
-				NoteObject *noteObject = [[[NoteObject alloc] initWithNoteBody:attributedString title:[[attributedString string] syntheticTitle]
-																uniqueFilename:nil format:SingleDatabaseFormat] autorelease];				
+				NoteObject *noteObject = [[[NoteObject alloc] initWithNoteBody:attributedString title:syntheticTitle uniqueFilename:nil format:SingleDatabaseFormat] autorelease];				
 				if (noteObject) {
 					[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[doc creationDate])];
 					[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[doc modificationDate])];
