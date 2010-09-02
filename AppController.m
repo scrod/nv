@@ -433,7 +433,7 @@ terminateApp:
 		//gecko URL!
 	} else if ([types containsObject:[NSString customPasteboardTypeOfCode:0x4D5A0003]]) {
 		//lazilly use syntheticTitle to get first line, even though that's not how our API is documented
-		sourceIdentiferString = [[pasteboard stringForType:[NSString customPasteboardTypeOfCode:0x4D5A0003]] syntheticTitle];
+		sourceIdentiferString = [[pasteboard stringForType:[NSString customPasteboardTypeOfCode:0x4D5A0003]] syntheticTitleAndTrimmedBody:NULL];
 		unichar nullChar = 0x0;
 		sourceIdentiferString = [sourceIdentiferString stringByReplacingOccurrencesOfString:
 								 [NSString stringWithCharacters:&nullChar length:1] withString:@""];
@@ -451,11 +451,11 @@ terminateApp:
 				[[url scheme] caseInsensitiveCompare:@"https"] == NSOrderedSame ||
 				[[url scheme] caseInsensitiveCompare:@"ftp"] == NSOrderedSame) {
 				NSString *linkTitleType = [NSString customPasteboardTypeOfCode:0x75726C6E];
-				NSString *linkTitle = [types containsObject:linkTitleType] ? [[pasteboard stringForType:linkTitleType] syntheticTitle] : nil;
+				NSString *linkTitle = [types containsObject:linkTitleType] ? [[pasteboard stringForType:linkTitleType] syntheticTitleAndTrimmedBody:NULL] : nil;
 				if (!linkTitle) {
 					//try urld instead of urln
 					linkTitleType = [NSString customPasteboardTypeOfCode:0x75726C64];
-					linkTitle = [types containsObject:linkTitleType] ? [[pasteboard stringForType:linkTitleType] syntheticTitle] : nil;
+					linkTitle = [types containsObject:linkTitleType] ? [[pasteboard stringForType:linkTitleType] syntheticTitleAndTrimmedBody:NULL] : nil;
 				}
 				[[[[AlienNoteImporter alloc] init] autorelease] importURLInBackground:url linkTitle:linkTitle receptionDelegate:self];
 				return YES;
