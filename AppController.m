@@ -546,7 +546,7 @@ terminateApp:
 			[NSString stringWithFormat:warningMultipleFormatString, [indexes count]];
 			NSBeginAlertSheet(warnString, NSLocalizedString(@"Delete", @"name of delete button"), NSLocalizedString(@"Cancel", @"name of cancel button"), 
 							  nil, window, self, @selector(deleteSheetDidEnd:returnCode:contextInfo:), NULL, (void*)deleteObj, 
-							  NSLocalizedString(@"You can undo this action later.", @"informational delete-this-note? text"));
+							  NSLocalizedString(@"Press Command-Z to undo this action later.", @"informational delete-this-note? text"));
 		} else {
 			//just delete the notes outright			
 			[notationController performSelector:[indexes count] > 1 ? @selector(removeNotes:) : @selector(removeNote:) withObject:deleteObj];
