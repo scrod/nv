@@ -217,6 +217,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 						else
 							CFStringSetExternalCharactersNoCopy(entry->filename, entry->filenameChars, filename->length, entry->filenameCharCount);
 						
+						// mipe: Normalize the filename to make sure that it will be found regardless of international characters
+						CFStringNormalize(entry->filename, kCFStringNormalizationFormC);
+
 						catIndex++;
                     }
                 }
