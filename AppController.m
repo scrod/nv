@@ -489,6 +489,13 @@ terminateApp:
 		if ((data = [pasteboard dataForType:NSRTFDPboardType]))
 			newString = [[NSMutableAttributedString alloc] initWithRTFD:data documentAttributes:NULL];
 		hasRTFData = YES;
+	} else if ([types containsObject:WebArchivePboardType] && !shallUsePlainTextFallback) {
+		if ((data = [pasteboard dataForType:WebArchivePboardType])) {
+			//set a timeout because -[NSHTMLReader _loadUsingWebKit] can sometimes hang
+			newString = [[NSMutableAttributedString alloc] initWithData:data options:[NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:10.0] forKey:NSTimeoutDocumentOption] 
+													 documentAttributes:NULL error:NULL];
+		}
+		hasRTFData = YES;
 	} else if (([types containsObject:NSStringPboardType])) {
 		
 		NSString *pboardString = [pasteboard stringForType:NSStringPboardType];
