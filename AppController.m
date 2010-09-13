@@ -49,6 +49,10 @@
     if ([super init]) {
 		
 		windowUndoManager = [[NSUndoManager alloc] init];
+
+		// Setup URL Handling
+		NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
+		[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];	
 		
 		dividerShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithCalibratedWhite:0.988 alpha:1.0] 
 															   endColor:[NSColor colorWithCalibratedWhite:0.875 alpha:1.0]];
@@ -172,11 +176,6 @@ void outletObjectAwoke(id sender) {
 		}
 	}
 	
-	// Setup URL Handling
-	NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];// 1
-	[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
-	
-
 	[NSApp setServicesProvider:self];
 }
 
@@ -252,6 +251,12 @@ void outletObjectAwoke(id sender) {
 		pathsToOpenOnLaunch = nil;
 	}
 	
+	if (URLToSearchOnLaunch) {
+		[self searchForString:[[URLToSearchOnLaunch substringFromIndex:5] stringByReplacingPercentEscapes]];
+		[URLToSearchOnLaunch release];
+		URLToSearchOnLaunch = nil;
+	}
+	
 	//tell us..
 	[prefsController registerWithTarget:self forChangesInSettings:
 	 @selector(setAliasDataForDefaultDirectory:sender:),  //when someone wants to load a new database
@@ -268,11 +273,15 @@ terminateApp:
 	[NSApp terminate:self];
 }
 
-- (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
-{
-	NSString *fullURL = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
-	NSString *searchTerm = [fullURL substringFromIndex:5];
-	[self searchForString: [searchTerm stringByReplacingPercentEscapes]];
+- (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent {
+	
+	NSString *fullURL = [[[event paramDescriptorForKeyword:keyDirectObject] stringValue] retain];
+	
+	if (notationController) {
+		[self searchForString:[[fullURL substringFromIndex:5] stringByReplacingPercentEscapes]];
+	} else {
+		URLToSearchOnLaunch = fullURL;
+	}
 }
 
 - (void)setNotationController:(NotationController*)newNotation {
