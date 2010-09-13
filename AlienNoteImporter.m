@@ -317,6 +317,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	NSString *extension = [[filename pathExtension] lowercaseString];
 	NSDictionary *attributes = [[NSFileManager defaultManager] fileAttributesAtPath:filename traverseLink:YES];
 	unsigned long fileType = [[attributes objectForKey:NSFileHFSTypeCode] unsignedLongValue];
+	NSString *sourceIdentifierString = nil;
 	
 	NSMutableAttributedString *attributedStringFromData = nil;
 	
@@ -344,7 +345,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithData:data options:nil documentAttributes:NULL error:NULL];
 		
 		if ([path length] > 0 && [attributedStringFromData length] > 0)
-			[attributedStringFromData prefixWithSourceString:path];
+			sourceIdentifierString = path;
 	} else if (fileType == PDF_TYPE_ID || [extension isEqualToString:@"pdf"]) {
 		//try PDFKit loading lazily
 		@try {
@@ -404,6 +405,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		} else {
 			if (bodyLoc > 0 && [attributedStringFromData length] >= bodyLoc) [attributedStringFromData deleteCharactersInRange:NSMakeRange(0, bodyLoc)];
 		}
+		if ([sourceIdentifierString length])
+			[attributedStringFromData prefixWithSourceString:sourceIdentifierString];
 		[attributedStringFromData autorelease];
 		
 		//we do not also use filename as uniqueFilename, as we are only importing--not taking ownership
