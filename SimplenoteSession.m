@@ -150,6 +150,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (id)initWithUsername:(NSString*)aUserString andPassword:(NSString*)aPassString {
 	
 	if ([super init]) {
+		lastSyncedTime = 0.0;
+
 		if (![(emailAddress = [aUserString retain]) length]) {
 			NSLog(@"%s: empty email address", _cmd);
 			return nil;
@@ -173,7 +175,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	SimplenoteSession *newSession = [[SimplenoteSession alloc] initWithUsername:emailAddress andPassword:password];
 	newSession->authToken = [authToken copyWithZone:zone];
-	newSession->lastSyncedTime = [lastSyncedTime copyWithZone:zone];
+	newSession->lastSyncedTime = lastSyncedTime;
 	newSession->delegate = delegate;
 	
 	//may not want these to come with the copy, as they are specific to transactions-in-progress
@@ -226,10 +228,9 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		
 		return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
 		
-	} else if (lastSyncedTime) {
-		//I suppose -descriptionWithLocale: returns a localized description?
+	} else if (lastSyncedTime > 0.0) {
 		return [NSLocalizedString(@"Last sync: ", @"label to prefix last sync time in the status menu") 
-				stringByAppendingString:[lastSyncedTime descriptionWithLocale:nil]];
+				stringByAppendingString:[NSString relativeDateStringWithAbsoluteTime:lastSyncedTime]];
 	} else if ([collectorsInProgress count]) {
 		//probably won't display this very often
 		return [NSString stringWithFormat:NSLocalizedString(@"%u update(s) in progress", nil), [collectorsInProgress count]];
@@ -239,8 +240,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (void)_updateSyncTime {
-	[lastSyncedTime release];
-	lastSyncedTime = [[NSDate date] retain];
+	lastSyncedTime = CFAbsoluteTimeGetCurrent();
 }
 
 
@@ -396,8 +396,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	lastIndexAuthFailed = NO;
 	[lastErrorString autorelease];
 	lastErrorString = nil;
-	[lastSyncedTime autorelease];
-	lastSyncedTime = nil;
+	lastSyncedTime = 0.0;
 }
 
 - (BOOL)startFetchingListForFullSyncManual {
@@ -433,7 +432,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		}
 	}
 	
-	if (didStart && !lastSyncedTime) {
+	if (didStart && lastSyncedTime == 0.0) {
 		//don't report that we started syncing _here_ unless it was the first time doing so; 
 		//after the first time alert the user only when actual modifications are occurring
 		[delegate syncSessionProgressStarted:self];
@@ -956,7 +955,6 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	[authToken release];
 	[listFetcher release];
 	[loginFetcher release];
-	[lastSyncedTime release];
 	[collectorsInProgress release];
 	[lastErrorString release];
 	

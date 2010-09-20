@@ -33,7 +33,7 @@ extern NSString *SimplenoteSeparatorKey;
 
 	NSString *emailAddress, *password, *authToken;
 	
-	NSDate *lastSyncedTime;
+	CFAbsoluteTime lastSyncedTime;
 	BOOL lastIndexAuthFailed;
 	NSString *lastErrorString;
 	
