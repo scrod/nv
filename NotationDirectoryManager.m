@@ -384,7 +384,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 }
 
 //find renamed notes through unique file IDs
-//TODO: reconcile the "actually" added/deleted files into renames for files with identical content (sort by size)
 - (void)processNotesAddedByCNID:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries {
 	unsigned int aSize = [removedEntries count], bSize = [addedEntries count];
     
@@ -392,8 +391,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	[addedEntries sortUnstableUsingFunction:compareCatalogValueNodeID];
 	[removedEntries sortUnstableUsingFunction:compareNodeID];
 	
-//	NSMutableArray *hfsAddedEntries = [NSMutableArray array];
-//	NSMutableArray *hfsRemovedEntries = [NSMutableArray array];
+	NSMutableArray *hfsAddedEntries = [NSMutableArray array];
+	NSMutableArray *hfsRemovedEntries = [NSMutableArray array];
 	
     //oldItems(a,i) = currentNotes
     //newItems(b,j) = catEntries;
@@ -414,8 +413,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				exitedEarly = YES;
 				
 				NSLog(@"File deleted as per CNID: %@", filenameOfNote(currentNote));
-				//[hfsRemovedEntries addObject:currentNote];
-				[[DeletionManager sharedManager] addDeletedNote:currentNote];
+				[hfsRemovedEntries addObject:currentNote];
+				//[[DeletionManager sharedManager] addDeletedNote:currentNote];
 				
 				break;
 			} else if (order == 0) {			//if (A[i] == B[j])
@@ -424,7 +423,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				
 				
 				//note was renamed!
-				NSLog(@"File %@ was renamed to %@", filenameOfNote(currentNote), catEntry->filename);
+				NSLog(@"File %@ renamed as per CNID to %@", filenameOfNote(currentNote), catEntry->filename);
 				if (![self modifyNoteIfNecessary:currentNote usingCatalogEntry:catEntry]) {
 					//at least update the file name, because we _know_ that changed
 					
@@ -441,7 +440,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			//a new file was found on the disk! read it into memory!
 			
 			NSLog(@"File added as per CNID: %@", catEntry->filename);
-			[self addNoteFromCatalogEntry:catEntry];
+			[hfsAddedEntries addObject:[NSValue valueWithPointer:catEntry]];
 		}
 		
 		if (!exitedEarly) {
@@ -452,92 +451,117 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				
 				//file deleted from disk; 
 				NSLog(@"File deleted as per CNID: %@", filenameOfNote(currentNote));
-				//[hfsRemovedEntries addObject:currentNote];
-				[[DeletionManager sharedManager] addDeletedNote:currentNote];
+				[hfsRemovedEntries addObject:currentNote];
+				//[[DeletionManager sharedManager] addDeletedNote:currentNote];
 			}
 		}
     }
     
     for (j=lastInserted; j<bSize; j++) {
 		NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:j] pointerValue];
-		NSLog(@"File _actually_ added: %@", appendedCatEntry->filename);
-		[self addNoteFromCatalogEntry:appendedCatEntry];
+		NSLog(@"File added as per CNID: %@", appendedCatEntry->filename);
+		[hfsAddedEntries addObject:[NSValue valueWithPointer:appendedCatEntry]];
     }
+	
+	if ([hfsAddedEntries count] && [hfsRemovedEntries count]) {
+		[self processNotesAddedByContent:hfsAddedEntries removed:hfsRemovedEntries];
+	} else {
+		//NSLog(@"hfsAddedEntries: %@, hfsRemovedEntries: %@", hfsAddedEntries, hfsRemovedEntries);
+		if (![hfsRemovedEntries count]) {
+			for (i=0; i<[hfsAddedEntries count]; i++) {
+				NSLog(@"File _actually_ added: %@ (%s)", ((NoteCatalogEntry*)[[hfsAddedEntries objectAtIndex:i] pointerValue])->filename, _cmd);
+				[self addNoteFromCatalogEntry:(NoteCatalogEntry*)[[hfsAddedEntries objectAtIndex:i] pointerValue]];
+			}
+		}
+		
+		if (![hfsAddedEntries count]) {
+			[[DeletionManager sharedManager] addDeletedNotes:hfsRemovedEntries];
+		}
+	}
+	
 }
 
-#if 0
+//reconcile the "actually" added/deleted files into renames for files with identical content, looking at logical size first
 - (void)processNotesAddedByContent:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries {
-	unsigned int aSize = [removedEntries count], bSize = [addedEntries count];
-    
-    //sort on file size here
-	[addedEntries sortUnstableUsingFunction:compareCatalogValueFileSize];
-	[removedEntries sortUnstableUsingFunction:compareFileSize];
-    
-    unsigned int i, j, lastInserted = 0;
-    
-    for (i=0; i<aSize; i++) {
-		NoteObject *currentNote = [removedEntries objectAtIndex:i];
+	//more than 1 entry in the same list could have the same file size, so sort-algo assumptions above don't apply here
+	//instead of sorting, build a dict keyed by file size, with duplicate sizes (on the same side) chained into arrays
+	//make temporary notes out of the new NoteCatalogEntries to allow their contents to be compared directly where sizes match
+	
+	NSUInteger i;
+	NSMutableDictionary *addedDict = [NSMutableDictionary dictionaryWithCapacity:[addedEntries count]];
+	
+	for (i=0; i<[addedEntries count]; i++) {
+		NSNumber *sizeKey = [NSNumber numberWithUnsignedInt:((NoteCatalogEntry*)[[addedEntries objectAtIndex:i] pointerValue])->logicalSize];
+		id sameSizeObj = [addedDict objectForKey:sizeKey];
 		
-		BOOL exitedEarly = NO;
-		for (j=lastInserted; j<bSize; j++) {
+		if ([sameSizeObj isKindOfClass:[NSArray class]]) {
+			//just insert it directly; an array already exists
+			NSAssert([sameSizeObj isKindOfClass:[NSMutableArray class]], @"who's inserting immutable collections into my dictionary?");
+			[sameSizeObj addObject:[addedEntries objectAtIndex:i]];
+		} else if (sameSizeObj) {
+			//two objects need to be inserted into the new array
+			[addedDict setObject:[NSMutableArray arrayWithObjects:sameSizeObj, [addedEntries objectAtIndex:i], nil] forKey:sizeKey];
+		} else {
+			//nothing with this key, just insert it directly
+			[addedDict setObject:[addedEntries objectAtIndex:i] forKey:sizeKey];
+		}
+	}
+//	NSLog(@"removedEntries: %@", removedEntries);
+//	NSLog(@"addedDict: %@", addedDict);
+	
+	for (i=0; i<[removedEntries count]; i++) {
+		NoteObject *removedObj = [removedEntries objectAtIndex:i];
+		NSNumber *sizeKey = [NSNumber numberWithUnsignedInt:fileSizeOfNote(removedObj)];
+		BOOL foundMatchingContent = NO;
+		
+		//does any added item have the same size as removedObj?
+		//if sizes match, see if that added item's actual content fully matches removedObj's
+		//if content matches, then both items cancel each other out, with a rename operation resulting on the item in the removedEntries list
+		//if content doesn't match, then check the next item in the array (if there is more than one matching size), and so on
+		//any item in removedEntries that has no match in the addedEntries list is marked deleted
+		//everything left over in the addedEntries list is marked as new
+		
+		id sameSizeObj = [addedDict objectForKey:sizeKey];
+		NSUInteger addedObjCount = [sameSizeObj isKindOfClass:[NSArray class]] ? [sameSizeObj count]: 1;
+		while (sameSizeObj && !foundMatchingContent && addedObjCount-- > 0) {
+			NSValue *val = [sameSizeObj isKindOfClass:[NSArray class]] ? [sameSizeObj objectAtIndex:addedObjCount] : sameSizeObj;
+			NoteObject *addedObjToCompare = [[NoteObject alloc] initWithCatalogEntry:[val pointerValue] delegate:self];
 			
-			NoteCatalogEntry *catEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:j] pointerValue];
-			int order = catEntry->logicalSize - fileSizeOfNote(currentNote);
-			
-			if (order > 0) {    //if (A[i] < B[j])
-				lastInserted = j;
-				exitedEarly = YES;
+			if ([[addedObjToCompare contentString] isEqual:[removedObj contentString]]) {
+				//process this pair as a modification
 				
-				NSLog(@"File _actually_ deleted: %@", filenameOfNote(currentNote));
-				[[DeletionManager sharedManager] addDeletedNote:currentNote];
-				
-				break;
-			} else if (order == 0) {			//if (A[i] == B[j])
-				lastInserted = j + 1;
-				exitedEarly = YES;
-				
-				
-				//note was renamed!
-				NSLog(@"File %@ was renamed to %@", filenameOfNote(currentNote), catEntry->filename);
-				if (![self modifyNoteIfNecessary:currentNote usingCatalogEntry:catEntry]) {
+				NSLog(@"File %@ renamed as per content to %@", filenameOfNote(removedObj), filenameOfNote(addedObjToCompare));
+				if (![self modifyNoteIfNecessary:removedObj usingCatalogEntry:[val pointerValue]]) {
 					//at least update the file name, because we _know_ that changed
-					
 					directoryChangesFound = YES;
-					
-					[currentNote setFilename:(NSString*)catEntry->filename withExternalTrigger:YES];
+					notesChanged = YES;
+					[removedObj setFilename:filenameOfNote(addedObjToCompare) withExternalTrigger:YES];
 				}
 				
-				notesChanged = YES;
-				
-				break;
+				if ([sameSizeObj isKindOfClass:[NSArray class]]) {
+					[sameSizeObj removeObjectIdenticalTo:val];
+				} else {
+					[addedDict removeObjectForKey:sizeKey];
+				}
+				//also remove it from original array, which is easier to process for the leftovers that will actually be added
+				[addedEntries removeObjectIdenticalTo:val];
+				foundMatchingContent = YES;
 			}
-			
-			//a new file was found on the disk! read it into memory!
-			
-			NSLog(@"File _actually_ added: %@", catEntry->filename);
-			[self addNoteFromCatalogEntry:catEntry];
+			[addedObjToCompare release];
 		}
 		
-		if (!exitedEarly) {
-			
-			NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:MIN(lastInserted, bSize-1)] pointerValue];
-			if (fileSizeOfNote(currentNote) - appendedCatEntry->logicalSize > 0) {
-				lastInserted = bSize;
-				
-				//file deleted from disk; 
-				NSLog(@"File _actually_ deleted: %@", filenameOfNote(currentNote));
-				[[DeletionManager sharedManager] addDeletedNote:currentNote];
-			}
+		if (!foundMatchingContent) {
+			NSLog(@"File %@ _actually_ removed", removedObj);
+			[[DeletionManager sharedManager] addDeletedNote:removedObj];
 		}
-    }
-    
-    for (j=lastInserted; j<bSize; j++) {
-		NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:j] pointerValue];
-		NSLog(@"File _actually_ added: %@", appendedCatEntry->filename);
+	}
+	
+	for (i=0; i<[addedEntries count]; i++) {
+		NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:i] pointerValue];
+		NSLog(@"File _actually_ added: %@ (%s)", appendedCatEntry->filename, _cmd);
 		[self addNoteFromCatalogEntry:appendedCatEntry];
-    }
+    }	
 }
-#endif
 
 @end
 
