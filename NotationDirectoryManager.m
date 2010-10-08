@@ -250,7 +250,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	
 	//should we always update the note's stored inode here regardless?
 	
-	if (lastReadDate.lowSeconds != fileModDate.lowSeconds ||
+	if (fileSizeOfNote(aNoteObject) != catEntry->logicalSize ||
+		lastReadDate.lowSeconds != fileModDate.lowSeconds ||
 		lastReadDate.highSeconds != fileModDate.highSeconds ||
 		lastReadDate.fraction != fileModDate.fraction) {
 		//assume the file on disk was modified by someone other than us
@@ -551,7 +552,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		}
 		
 		if (!foundMatchingContent) {
-			NSLog(@"File %@ _actually_ removed", removedObj);
+			NSLog(@"File %@ _actually_ removed", filenameOfNote(removedObj));
 			[[DeletionManager sharedManager] addDeletedNote:removedObj];
 		}
 	}
