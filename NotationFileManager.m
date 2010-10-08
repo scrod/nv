@@ -312,7 +312,7 @@ terminate:
     if (owned) *owned = NO;
     
     if (info) {
-		whichInfo = kFSCatInfoContentMod | kFSCatInfoCreateDate | kFSCatInfoNodeID;
+		whichInfo = kFSCatInfoContentMod | kFSCatInfoCreateDate | kFSCatInfoNodeID | kFSCatInfoDataSizes;
 		//may have to be adjusted to include logical size if we start tracking that
 		bzero(info, sizeof(FSCatalogInfo));
     }
