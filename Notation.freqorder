@@ -176,7 +176,7 @@ _hoursFromAbsoluteTime
 -[NotationController notesAtIndexes]
 -[NotationController indexesOfNotes]
 -[NotationController flushAllNoteChanges]
--[DeletionManager init]
+-[DeletionManager initWithNotationController]
 -[GlobalPrefs resolveNoteBodyFontFromNotationPrefsFromSender]
 -[PTHotKey init]
 -[NotationController checkJournalExistence]
@@ -308,14 +308,12 @@ _FSRefReadData
 -[NotationController checkIfNotationIsTrashed]
 _FSRefMakeInDirectoryWithString
 -[NotationController aliasNeedsUpdating]
--[DeletionManager setDelegate]
 _FSCreateFileIfNotPresentInDirectory
 -[LinkingEditor becomeFirstResponder]
 -[LinkingEditor resignFirstResponder]
 -[NotesTableView setViewingLocation]
 -[NotationController(NotationFileManager) createFileIfNotPresentInNotesDirectoryforFilenamefileWasCreated]
 -[LinkingEditor preferredLinkAttributes]
-+[DeletionManager sharedManager]
 -[BookmarksController setDelegate]
 +[PTKeyCombo keyComboWithKeyCodemodifiers]
 -[NotationController setUndoManager]
