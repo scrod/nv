@@ -39,6 +39,7 @@ typedef struct _NoteCatalogEntry {
 @class NotationPrefs;
 @class NoteAttributeColumn;
 @class NoteBookmark;
+@class DeletionManager;
 @class GlobalPrefs;
 
 @interface NotationController : NSObject {
@@ -47,6 +48,7 @@ typedef struct _NoteCatalogEntry {
     LabelsListController *labelsListController;
 	GlobalPrefs *prefsController;
 	SyncSessionController *syncSessionController;
+	DeletionManager *deletionManager;
 	id delegate;
 	
 	float titleColumnWidth;
@@ -121,6 +123,7 @@ typedef struct _NoteCatalogEntry {
 - (NSUndoManager*)undoManager;
 - (void)noteDidNotWrite:(NoteObject*)note errorCode:(OSStatus)error;
 - (void)scheduleWriteForNote:(NoteObject*)note;
+- (void)endDeletionManagerIfNecessary;
 - (void)trashRemainingNoteFilesInDirectory;
 - (void)checkIfNotationIsTrashed;
 - (void)updateLinksToNote:(NoteObject*)aNoteObject fromOldName:(NSString*)oldname;

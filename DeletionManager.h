@@ -14,6 +14,7 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class NotationController;
 @class NoteObject;
 
 @interface DeletionManager : NSObject
@@ -22,14 +23,13 @@
     IBOutlet NSPanel *window;
 	NSWindow *mainWindow;
 	NSMutableArray *deletedNotes;
-	id delegate;
+	NotationController* notationController;
 	
 	BOOL needsToShowSheet;
 }
 
-+ (DeletionManager *)sharedManager;
-- (void)setDelegate:(id)aDelegate;
-- (id)delegate;
+- (id)initWithNotationController:(NotationController*)aNotationController;
+- (NotationController*)notationController;
 - (BOOL)noteFileIsAlreadyDeleted:(NoteObject*)aNote;
 - (void)addDeletedNotes:(NSArray*)array;
 - (void)addDeletedNote:(NoteObject*)aNote;
@@ -38,6 +38,7 @@
 - (NSRect)windowSizeForNotes;
 - (void)_updateSheetForNotes;
 - (void)showSheetForDeletedNotes;
+- (void)cancelPanelReturningCode:(NSInteger)code;
 - (IBAction)deleteAction:(id)sender;
 - (IBAction)restoreAction:(id)sender;
 @end

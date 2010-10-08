@@ -33,7 +33,6 @@
 #import "RBSplitView/RBSplitView.h"
 #import "BookmarksController.h"
 #import "SyncSessionController.h"
-#import "DeletionManager.h"
 #import "MultiplePageView.h"
 #import "InvocationRecorder.h"
 #import "URLGetter.h"
@@ -288,6 +287,7 @@ terminateApp:
 	
     if (newNotation) {
 		if (notationController) {
+			[notationController endDeletionManagerIfNecessary];
 			[notationController stopSyncServices];
 			[[NSNotificationCenter defaultCenter] removeObserver:self name:SyncSessionsChangedVisibleStatusNotification 
 														  object:[notationController syncSessionController]];
@@ -319,7 +319,6 @@ terminateApp:
 		//window's undomanager could be referencing actions from the old notation object
 		[[window undoManager] removeAllActions];
 		[notationController setUndoManager:[window undoManager]];
-		[[DeletionManager sharedManager] setDelegate:notationController];
 		
 		if ([notationController aliasNeedsUpdating]) {
 			[prefsController setAliasDataForDefaultDirectory:[notationController aliasDataForNoteDirectory] sender:self];

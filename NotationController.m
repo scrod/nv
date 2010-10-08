@@ -32,6 +32,7 @@
 #import "NotationDirectoryManager.h"
 #import "SyncSessionController.h"
 #import "BookmarksController.h"
+#import "DeletionManager.h"
 
 @implementation NotationController
 
@@ -44,6 +45,7 @@
 		labelsListController = [[LabelsListController alloc] init];
 		prefsController = [GlobalPrefs defaultPrefs];
 		notesListDataSource = [[FastListDataSource alloc] init];
+		deletionManager = [[DeletionManager alloc] initWithNotationController:self];
 		
 		allNotesBuffer = NULL;
 		allNotesBufferSize = 0;
@@ -678,6 +680,10 @@ bail:
 
 - (BOOL)aliasNeedsUpdating {
 	return aliasNeedsUpdating;
+}
+
+- (void)endDeletionManagerIfNecessary {
+	return [deletionManager cancelPanelReturningCode:NSRunStoppedResponse];
 }
 
 - (void)checkIfNotationIsTrashed {
@@ -1419,6 +1425,7 @@ bail:
     [notesListDataSource release];
     [labelsListController release];
 	[syncSessionController release];
+	[deletionManager release];
     [allNotes release];
 	[deletedNotes release];
 	[notationPrefs release];

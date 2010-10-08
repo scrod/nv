@@ -137,7 +137,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			if (!catEntriesCount) {
 				//there is nothing at all in the directory, so remove all the notes
 				//we probably shouldn't get here; there should be at least a database file and random .DS_Store-like crap
-				[[DeletionManager sharedManager] addDeletedNotes:allNotes];
+				[deletionManager addDeletedNotes:allNotes];
 			}
 		}
 		
@@ -378,7 +378,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		}
 		
 		if (![addedEntries count]) {			
-			[[DeletionManager sharedManager] addDeletedNotes:removedEntries];
+			[deletionManager addDeletedNotes:removedEntries];
 		}
 	}
 	
@@ -415,7 +415,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				
 				NSLog(@"File deleted as per CNID: %@", filenameOfNote(currentNote));
 				[hfsRemovedEntries addObject:currentNote];
-				//[[DeletionManager sharedManager] addDeletedNote:currentNote];
 				
 				break;
 			} else if (order == 0) {			//if (A[i] == B[j])
@@ -453,7 +452,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				//file deleted from disk; 
 				NSLog(@"File deleted as per CNID: %@", filenameOfNote(currentNote));
 				[hfsRemovedEntries addObject:currentNote];
-				//[[DeletionManager sharedManager] addDeletedNote:currentNote];
 			}
 		}
     }
@@ -476,7 +474,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		}
 		
 		if (![hfsAddedEntries count]) {
-			[[DeletionManager sharedManager] addDeletedNotes:hfsRemovedEntries];
+			[deletionManager addDeletedNotes:hfsRemovedEntries];
 		}
 	}
 	
@@ -553,7 +551,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		
 		if (!foundMatchingContent) {
 			NSLog(@"File %@ _actually_ removed", filenameOfNote(removedObj));
-			[[DeletionManager sharedManager] addDeletedNote:removedObj];
+			[deletionManager addDeletedNote:removedObj];
 		}
 	}
 	

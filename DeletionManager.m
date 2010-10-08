@@ -31,32 +31,33 @@
 	return self;
 }
 
+- (id)initWithNotationController:(NotationController*)aNotationController {
+	if ([self init]) {
+		notationController = [aNotationController retain];
+	}
+	return self;
+}
+
 - (void)awakeFromNib {
 	//[window setMaxSize:NSMakeSize(371, 0)];
 	
-	mainWindow = [[NSApp delegate] window];
+	NSAssert(notationController != nil, @"attempting to awake DeletionManager without a NotationController");
+	
+	mainWindow = [[notationController delegate] window];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowDidEndSheet:) 
 												 name:NSWindowDidEndSheetNotification object:mainWindow];	
 }
 
-+ (DeletionManager *)sharedManager {
-	static DeletionManager *man = nil;
-	if (!man)
-		man = [[DeletionManager alloc] init];
-	return man;
-}
-
 - (void)dealloc {
 
+	[notationController release];
+	notationController = nil;
 	[deletedNotes release];
 	[super dealloc];
 }
 
-- (void)setDelegate:(id)aDelegate {
-	delegate = aDelegate;
-}
-- (id)delegate {
-	return delegate;
+- (NotationController*)notationController {
+	return notationController;
 }
 
 - (BOOL)noteFileIsAlreadyDeleted:(NoteObject*)aNote {
@@ -183,13 +184,11 @@
 	//for purposes of generating useful undo messages
 	if ([deletedNotes count] > 1) {
 	
-		if ([delegate respondsToSelector:@selector(removeNotes:)])
-			[delegate removeNotes:deletedNotes];
+		[notationController removeNotes:deletedNotes];
 		
 	} else if ([deletedNotes count] == 1) {
 		
-		if ([delegate respondsToSelector:@selector(removeNote:)])
-			[delegate removeNote:[deletedNotes lastObject]];
+		[notationController removeNote:[deletedNotes lastObject]];
 		
 	} else {
 		NSLog(@"No deleted notes?!");
@@ -198,13 +197,16 @@
 	[deletedNotes removeAllObjects];
 }
 
+- (void)cancelPanelReturningCode:(NSInteger)code {
+	[NSApp endSheet:window returnCode:code];
+	[window close];
+}
 
 - (IBAction)deleteAction:(id)sender {
 	
 	[self removeDeletedNotes];
 	
-	[NSApp endSheet:window returnCode:1];
-	[window close];
+	[self cancelPanelReturningCode:1];
 }
 
 - (IBAction)restoreAction:(id)sender {
@@ -213,15 +215,14 @@
 	for (i=0; i<[deletedNotes count]; i++) {
 		[[deletedNotes objectAtIndex:i] makeNoteDirtyUpdateTime:NO updateFile:YES];
 	}
-	[delegate synchronizeNoteChanges:nil];
+	[notationController synchronizeNoteChanges:nil];
 	
 	//cancel any file synchronization that's about to run after the sheet to make sure that it doesn't catch files before rewriting
-	[NSObject cancelPreviousPerformRequestsWithTarget:delegate selector:@selector(synchronizeNotesFromDirectory) object:nil];
+	[NSObject cancelPreviousPerformRequestsWithTarget:notationController selector:@selector(synchronizeNotesFromDirectory) object:nil];
 	
 	[deletedNotes removeAllObjects];
 	
-	[NSApp endSheet:window returnCode:0];
-	[window close];
+	[self cancelPanelReturningCode:0];
 }
 
 - (void)windowDidEndSheet:(NSNotification *)aNotification {
