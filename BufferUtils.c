@@ -337,7 +337,7 @@ OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize,
     //get fork size
 	//read data
     if ((err = FSOpenFork(fsRef, dfName.length, dfName.unicode, fsRdPerm, &refNum)) != noErr) {
-		printf("FSOpenFork: error %d\n", (int)err);
+		printf("FSRefReadData: FSOpenFork: error %d\n", (int)err);
 		return err;
     }
     if ((forkSize = *bufferSize) < 1) {
@@ -385,7 +385,7 @@ OSStatus FSRefWriteData(FSRef *fsRef, size_t maximumWriteSize, UInt64 bufferSize
 	//FSOpenFork
     //get vrefnum or whatever
     if ((err = FSOpenFork(fsRef, dfName.length, dfName.unicode, fsWrPerm, &refNum)) != noErr) {
-		printf("FSOpenFork: error %d\n", (int)err);
+		printf("FSRefWriteData: FSOpenFork: error %d\n", (int)err);
 		return err;
     }
     
