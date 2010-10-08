@@ -434,8 +434,11 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	
 	[newString restyleTextToFont:noteBodyFont usingBaseFont:oldFont];
 	
-	ptfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil];
-	[[NSPasteboard generalPasteboard] setData:ptfData forType:NVPTFPboardType];
+	if ((ptfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil])) {
+		[[NSPasteboard generalPasteboard] setData:ptfData forType:NVPTFPboardType];
+	} else {
+		NSLog(@"not putting restyled PTF data on the pasteboard because it was nil");
+	}
 	[oldFont release];
 }
 
