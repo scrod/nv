@@ -198,8 +198,10 @@
 }
 
 - (void)cancelPanelReturningCode:(NSInteger)code {
-	[NSApp endSheet:window returnCode:code];
-	[window close];
+	if (window) {
+		[NSApp endSheet:window returnCode:code];
+		[window close];
+	}
 }
 
 - (IBAction)deleteAction:(id)sender {
