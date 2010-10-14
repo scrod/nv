@@ -34,8 +34,10 @@ extern NSString *SimplenoteSeparatorKey;
 	NSString *emailAddress, *password, *authToken;
 	
 	CFAbsoluteTime lastSyncedTime;
-	BOOL lastIndexAuthFailed;
+	BOOL lastIndexAuthFailed, reachabilityFailed;
 	NSString *lastErrorString;
+	
+	SCNetworkReachabilityRef reachableRef;
 	
 	SyncResponseFetcher *loginFetcher, *listFetcher;
 	
@@ -64,6 +66,8 @@ extern NSString *SimplenoteSeparatorKey;
 + (NSURL*)servletURLWithPath:(NSString*)path parameters:(NSDictionary*)params;
 + (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget;
 //+ (NSString*)localizedNetworkDiagnosticMessage;
+- (void)invalidateReachabilityRefs;
+- (BOOL)reachabilityFailed;
 
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;

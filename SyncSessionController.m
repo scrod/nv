@@ -28,7 +28,6 @@ NSString *SyncSessionsChangedVisibleStatusNotification = @"SSCVSN";
 
 @implementation SyncSessionController
 
-static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info);
 static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, void * messageArgument);
 
 - (id)initWithSyncDelegate:(id)aSyncDelegate notationPrefs:(NotationPrefs*)prefs {
@@ -42,8 +41,6 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 			return nil;
 		}
 		syncServiceTimers = [[NSMutableDictionary alloc] init];
-		//assume true until we try to create a sync service and discover otherwise
-		isConnectedToNetwork = YES;
 	}
 	return self;
 }
@@ -68,29 +65,6 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 }
 - (id)syncDelegate {
 	return syncDelegate;
-}
-
-static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info) {
-    
-	SyncSessionController *self = (SyncSessionController *)info;
-	BOOL reachable = ((flags & kSCNetworkFlagsReachable) && (!(flags & kSCNetworkFlagsConnectionRequired) || (flags & kSCNetworkFlagsConnectionAutomatic)));
-	
-	self->isConnectedToNetwork = reachable;
-	
-	if (reachable) {
-		//for each service, try to initialize it _unless_ it already exists
-		NSArray *svcs = [[self class] allServiceNames];
-		NSUInteger i = 0;
-		for (i=0; i<[svcs count]; i++) {
-			NSString *serviceName = [svcs objectAtIndex:i];
-			if (![self->syncServiceSessions objectForKey:serviceName]) [self initializeService:serviceName];
-		}
-	} else {
-		//shut everything down so they don't repeatedly complain
-		[self invalidateAllServices];
-	}
-	[self queueStatusNotification];
-	[[NSNotificationCenter defaultCenter] postNotificationName:SyncPrefsDidChangeNotification object:nil];
 }
 
 static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, void * messageArgument) {
@@ -118,7 +92,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 			}
 			break;
 		case kIOMessageSystemHasPoweredOn:
-			//after waking from sleep, probably don't need to do anything as the network reachability check ought to run later, anyway
+			//after waking from sleep, probably don't need to do anything as the services' network reachability check(s) ought to run later, anyway
 			break;
 	}
 }
@@ -158,10 +132,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	
 	id<SyncServiceSession> session = [syncServiceSessions objectForKey:serviceName];
 	
-	if (!session) {
-		//don't allow services to be created when we KNOW we're not connected
-		if (!isConnectedToNetwork) return nil;
-		
+	if (!session) {		
 		if ([serviceName isEqualToString:SimplenoteServiceName]) {
 			
 			if (![notationPrefs syncServiceIsEnabled:SimplenoteServiceName]) return nil;
@@ -170,10 +141,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 			if (snSession) {
 				[syncServiceSessions setObject:snSession forKey:serviceName];
 				[snSession setDelegate:syncDelegate];
-				[snSession release]; //owned by syncServiceSessions
-				
-				//if we could at least init the session, create a reachability ref to take it up or down
-				if (!reachableRef) reachableRef = [SimplenoteSession createReachabilityRefWithCallback:SNReachabilityCallback target:self];
+				[snSession release]; //owned by syncServiceSessions				
 			}
 			return snSession;
 		} /* else if ([serviceName isEqualToString:SimpletextServiceName]) {
@@ -189,6 +157,11 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 
 - (void)invalidateSyncService:(NSString*)serviceName {
 	id<SyncServiceSession> session = [[[syncServiceSessions objectForKey:serviceName] retain] autorelease];
+	
+	//ensure that reachability is unscheduled if dealloc of session does not occur here
+	if ([session respondsToSelector:@selector(invalidateReachabilityRefs)])
+		[session performSelector:@selector(invalidateReachabilityRefs)];
+	
 	[session stop];
 	[session setDelegate:nil];
 	[syncServiceSessions removeObjectForKey:serviceName];
@@ -259,16 +232,6 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 
 - (NSArray*)activeSessions {
 	return [syncServiceSessions allValues];
-}
-
-- (void)invalidateReachabilityRefs {
-	
-	if (reachableRef) {
-		SCNetworkReachabilityUnscheduleFromRunLoop(reachableRef, CFRunLoopGetCurrent(),kCFRunLoopDefaultMode); 
-		CFRelease(reachableRef);
-		reachableRef = NULL;
-	}
-	isConnectedToNetwork = YES;
 }
 
 - (void)menuNeedsUpdate:(NSMenu *)menu {
@@ -348,13 +311,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 				badItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Incorrect login and password", @"sync status menu msg")
 													  action:nil keyEquivalent:@""] autorelease];
 			} else if (isEnabled) {
-				
-				NSString *title = NSLocalizedString(@"Session could not be created", nil);
-				if (!isConnectedToNetwork) {
-					title = //[class respondsToSelector:@selector(localizedNetworkDiagnosticMessage)] ? [class localizedNetworkDiagnosticMessage] : 
-					NSLocalizedString(@"Internet unavailable.", @"message to report when sync service is not reachable over internet");
-				}
-				badItem = [[[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:@""] autorelease];
+				badItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Session could not be created", nil) action:nil keyEquivalent:@""] autorelease];
 			}
 			[badItem setEnabled:NO];
 			if (badItem) [aMenu addItem:badItem];
@@ -448,6 +405,13 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	for (i=0; i<[sessions count]; i++) {
 		id <SyncServiceSession> session = [sessions objectAtIndex:i];
 		if ([session hasUnsyncedChanges]) {
+			
+			//if the session has an error, the last reachability status is bad, and nothing is currently in progress, then skip pushing for it
+			if ([session reachabilityFailed] && [session lastError] && ![session isRunning]) {
+				NSLog(@"%s: skipped %@ due to assumed reachability status", _cmd, session);
+				continue;
+			}
+			
 			if (!(![session pushSyncServiceChanges] && ![session isRunning])) {
 				willNeedToWait = YES;
 				if (!uncommittedWaitInvocations) uncommittedWaitInvocations = [[NSMutableSet alloc] initWithCapacity:1];
@@ -462,7 +426,6 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 
 - (void)dealloc {
 	
-	[self invalidateReachabilityRefs];
 	[self unregisterPowerChangeCallback];
 	
 	[statusMenu release];

@@ -33,15 +33,9 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 	
 	NotationPrefs *notationPrefs;
 	
-	//shouldn't go in the SimplenoteSession class as we probably don't even want an instance hanging around if there's no network:
-	//do we have one reachableref for every service? maybe this class should manage a series of SyncServicePref objs instead
-	SCNetworkReachabilityRef reachableRef;
-	
 	io_object_t deregisteringNotifier;
 	io_connect_t fRootPort;
 	IONotificationPortRef notifyPortRef;
-
-	BOOL isConnectedToNetwork;
 	
 	NSString *lastUncomittedChangeResultMessage;
 	NSMutableSet *uncommittedWaitInvocations;
@@ -70,8 +64,6 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 
 - (void)_registerPowerChangeCallbackIfNecessary;
 - (void)unregisterPowerChangeCallback;
-
-- (void)invalidateReachabilityRefs;
 
 - (void)_updateMenuWithCurrentStatus:(NSMenu*)aMenu;
 - (NSMenu*)syncStatusMenu;

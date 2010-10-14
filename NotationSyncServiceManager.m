@@ -65,7 +65,6 @@
 
 - (void)stopSyncServices {
 	[NSObject cancelPreviousPerformRequestsWithTarget:syncSessionController];	
-	[syncSessionController invalidateReachabilityRefs];
 	[syncSessionController unregisterPowerChangeCallback];
 	[syncSessionController invalidateAllServices];
 	[syncSessionController setSyncDelegate:nil];

@@ -39,6 +39,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 
 @implementation SimplenoteSession
 
+static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info);
+
 + (NSString*)localizedServiceTitle {
 	return NSLocalizedString(@"Simplenote", @"human-readable name for the Simplenote service");
 }
@@ -93,6 +95,32 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return reachableRef;
 }
 
+- (void)invalidateReachabilityRefs {
+	
+	if (reachableRef) {
+		SCNetworkReachabilityUnscheduleFromRunLoop(reachableRef, CFRunLoopGetCurrent(),kCFRunLoopDefaultMode); 
+		CFRelease(reachableRef);
+		reachableRef = NULL;
+	}
+}
+
+static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info) {
+    
+	SimplenoteSession *self = (SimplenoteSession *)info;
+	BOOL reachable = ((flags & kSCNetworkFlagsReachable) && (!(flags & kSCNetworkFlagsConnectionRequired) || (flags & kSCNetworkFlagsConnectionAutomatic)));
+	
+	self->reachabilityFailed = !reachable;
+	
+	if (reachable) {
+		[self startFetchingListForFullSyncManual];
+	}
+	NSLog(@"self->reachabilityFailed: %d, flags: %u", self->reachabilityFailed, flags);
+}
+
+- (BOOL)reachabilityFailed {
+	return reachabilityFailed;
+}
+
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry {
 	//simplenote-specific logic to determine whether to upload localEntry as a newer version of remoteEntry
 	NSNumber *modifiedLocalNumber = [localEntry objectForKey:@"modify"];
@@ -142,6 +170,10 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	if ([self initWithUsername:[[prefs syncAccountForServiceName:SimplenoteServiceName] objectForKey:@"username"] 
 				   andPassword:[prefs syncPasswordForServiceName:SimplenoteServiceName]]) {
+		
+		//create a reachability ref to trigger a sync upon network reestablishment
+		reachableRef = [[self class] createReachabilityRefWithCallback:SNReachabilityCallback target:self];
+
 		return self;
 	}
 	return nil;
@@ -151,6 +183,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	if ([super init]) {
 		lastSyncedTime = 0.0;
+		reachabilityFailed = NO;
 
 		if (![(emailAddress = [aUserString retain]) length]) {
 			NSLog(@"%s: empty email address", _cmd);
@@ -225,8 +258,11 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		return NSLocalizedString(@"Logging in...", nil);
 		
 	} else if (lastErrorString) {
-		
-		return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
+
+		if (reachabilityFailed)
+			return NSLocalizedString(@"Internet unavailable.", @"message to report when sync service is not reachable over internet");
+		else
+			return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
 		
 	} else if (lastSyncedTime > 0.0) {
 		return [NSLocalizedString(@"Last sync: ", @"label to prefix last sync time in the status menu") 
@@ -695,6 +731,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[self _stoppedWithErrorString:[NSString stringWithFormat:NSLocalizedString(@"%@ %u note(s) failed", @"e.g., Downloading 2 note(s) failed"), 
 									   [collector localizedActionDescription], [[collector entriesToCollect] count]]];
 	} else {
+		reachabilityFailed = NO;
 		
 		if ([self isRunning]) {
 			[self _updateSyncTime];
@@ -878,7 +915,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			[self _clearAuthTokenAndDependencies];
 			[self performSelector:@selector(startFetchingListForFullSync) withObject:nil afterDelay:0.0];
 		}
-		NSLog(@"%@ returned %@", fetcher, errString);
+		if (!reachabilityFailed)
+			NSLog(@"%@ returned %@", fetcher, errString);
 		
 		//report error to delegate
 		[self _stoppedWithErrorString:[fetcher didCancel] ? nil : errString];
@@ -929,6 +967,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[lastErrorString autorelease];
 		lastErrorString = nil;
 		
+		reachabilityFailed = NO;
+		
 		[delegate syncSession:self receivedFullNoteList:entries];
 		
 	} else {
@@ -945,6 +985,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (void)dealloc {
+	
+	[self invalidateReachabilityRefs];
 	
 	[queuedNoteInvocations release];
 	[notesBeingModified release];

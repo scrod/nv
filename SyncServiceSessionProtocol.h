@@ -41,6 +41,8 @@
 - (BOOL)isRunning;
 - (NSString*)lastError;
 
+- (BOOL)reachabilityFailed;
+
 - (void)schedulePushForNote:(id <SynchronizedNote>)aNote;
 
 //any DB modifications that will trigger a push must be wrapped in suppress messages to the service
