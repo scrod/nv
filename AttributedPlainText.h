@@ -24,7 +24,7 @@
 
 - (void)trimLeadingWhitespace;
 - (void)removeAttachments;
-- (void)prefixWithSourceString:(NSString*)source;
+- (NSString*)prefixWithSourceString:(NSString*)source;
 
 - (NSString*)trimLeadingSyntheticTitle;
 

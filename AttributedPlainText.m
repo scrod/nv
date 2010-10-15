@@ -71,9 +71,10 @@
 	return title;
 }
 
-- (void)prefixWithSourceString:(NSString*)source {
-	source = [NSString stringWithFormat:@"From <%@>:\n\n", source];
-	[self insertAttributedString:[[[NSAttributedString alloc] initWithString:source] autorelease] atIndex:0];
+- (NSString*)prefixWithSourceString:(NSString*)source {
+	NSString *sourceWContext = [NSString stringWithFormat:@"From <%@>:\n\n", source];
+	[self insertAttributedString:[[[NSAttributedString alloc] initWithString:sourceWContext] autorelease] atIndex:0];
+	return sourceWContext;
 }
 
 - (void)santizeForeignStylesForImporting {
