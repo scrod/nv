@@ -710,26 +710,6 @@ bail:
     //O(n)
 }
 
-//for making notes that we don't already own
-- (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title {
-    if (!title || ![title length])
-		title = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
-    
-    if (!attributedContents)
-		attributedContents = [[[NSAttributedString alloc] initWithString:@"" attributes:[prefsController noteBodyAttributes]] autorelease];
-    
-    NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedContents title:title
-											 uniqueFilename:[self uniqueFilenameForTitle:title fromNote:nil]
-													 format:[self currentNoteStorageFormat]];
-    
-    [self addNewNote:note];
-    
-    //we are the the owner of this note
-    [note release];
-    
-    return note;
-}
-
 - (void)addNewNote:(NoteObject*)note {
     [self _addNote:note];
 	

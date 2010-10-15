@@ -1239,9 +1239,16 @@ terminateApp:
 		[textView setFont:[prefsController noteBodyFont]];
 		
 		isCreatingANote = YES;
-		NoteObject *newNote = [notationController addNote:[textView textStorage] withTitle:[field stringValue]];
+		NSString *title = [[field stringValue] length] ? [field stringValue] : NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
+		NSAttributedString *attributedContents = [textView textStorage] ? [textView textStorage] : [[[NSAttributedString alloc] initWithString:@"" attributes:
+																									 [prefsController noteBodyAttributes]] autorelease];		
+		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedContents title:title 
+												 uniqueFilename:[notationController uniqueFilenameForTitle:title fromNote:nil]
+														 format:[notationController currentNoteStorageFormat]] autorelease];
+		[notationController addNewNote:note];
+		
 		isCreatingANote = NO;
-		return newNote;
+		return note;
     }
     
     return currentNote;

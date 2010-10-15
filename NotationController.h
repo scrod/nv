@@ -137,7 +137,6 @@ typedef struct _NoteCatalogEntry {
 - (void)removeSyncMDFromDeletedNotesInSet:(NSSet*)notesToOrphan forService:(NSString*)serviceName;
 - (DeletedNoteObject*)_addDeletedNote:(id<SynchronizedNote>)aNote;
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote;
-- (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title;
 - (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry;
 
 - (BOOL)openFiles:(NSArray*)filenames;
