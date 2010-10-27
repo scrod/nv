@@ -23,6 +23,7 @@
 		212089B10B0C24F500A15A69 /* AlienNoteImporter.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089B00B0C24F500A15A69 /* AlienNoteImporter.m */; };
 		212089D80B0C2CA500A15A69 /* StickiesDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089D70B0C2CA500A15A69 /* StickiesDocument.m */; };
 		212850880B56E549005F6E34 /* CarbonErrorStrings.plist in Resources */ = {isa = PBXBuildFile; fileRef = 212850860B56E549005F6E34 /* CarbonErrorStrings.plist */; };
+		2128651E1278AF220013820A /* ServicesMenu.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2128651C1278AF220013820A /* ServicesMenu.strings */; };
 		212B84620978422300F3597F /* NSString_NV.m in Sources */ = {isa = PBXBuildFile; fileRef = 212B84610978422300F3597F /* NSString_NV.m */; };
 		212C6952110E1940004DD82C /* TitlebarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 212C6951110E1940004DD82C /* TitlebarButton.m */; };
 		212C6A29110E371B004DD82C /* TBAlertWhite.png in Resources */ = {isa = PBXBuildFile; fileRef = 212C6A22110E371B004DD82C /* TBAlertWhite.png */; };
@@ -208,6 +209,7 @@
 		212089D60B0C2CA500A15A69 /* StickiesDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StickiesDocument.h; sourceTree = "<group>"; };
 		212089D70B0C2CA500A15A69 /* StickiesDocument.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StickiesDocument.m; sourceTree = "<group>"; };
 		212850870B56E549005F6E34 /* English */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = text.plist.xml; name = English; path = English.lproj/CarbonErrorStrings.plist; sourceTree = "<group>"; };
+		2128651D1278AF220013820A /* French */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = French; path = French.lproj/ServicesMenu.strings; sourceTree = "<group>"; };
 		212B84600978422300F3597F /* NSString_NV.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSString_NV.h; sourceTree = "<group>"; };
 		212B84610978422300F3597F /* NSString_NV.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = NSString_NV.m; sourceTree = "<group>"; };
 		212C6950110E1940004DD82C /* TitlebarButton.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TitlebarButton.h; sourceTree = "<group>"; };
@@ -842,6 +844,7 @@
 				219196B109D4F1DB00586B15 /* Images */,
 				2114C259095885C800614E74 /* Localizable.strings */,
 				8D1107310486CEB800E47090 /* Info.plist */,
+				2128651C1278AF220013820A /* ServicesMenu.strings */,
 				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
 				212850860B56E549005F6E34 /* CarbonErrorStrings.plist */,
 				2182B3C1106B2509008641E4 /* MainMenu.nib */,
@@ -992,6 +995,7 @@
 				21F447F111B896C4004D008B /* Como funciona isso?.nvhelp in Resources */,
 				21F447F211B896C4004D008B /* Este é o título de uma nota.nvhelp in Resources */,
 				21F447F311B896C4004D008B /* Informações de Contato.nvhelp in Resources */,
+				2128651E1278AF220013820A /* ServicesMenu.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1131,6 +1135,14 @@
 				21F4482311B89818004D008B /* Portuguese */,
 			);
 			name = CarbonErrorStrings.plist;
+			sourceTree = "<group>";
+		};
+		2128651C1278AF220013820A /* ServicesMenu.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				2128651D1278AF220013820A /* French */,
+			);
+			name = ServicesMenu.strings;
 			sourceTree = "<group>";
 		};
 		212DCB2F0A6AE38500F74E46 /* EncodingsManager.nib */ = {
