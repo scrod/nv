@@ -153,6 +153,28 @@
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		9352B7F212AC4D190019BB4D /* addmetadata.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7DB12AC4D180019BB4D /* addmetadata.pl */; };
+		9352B7F312AC4D190019BB4D /* ASCIIMathML.pm in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7DC12AC4D180019BB4D /* ASCIIMathML.pm */; };
+		9352B7F412AC4D190019BB4D /* mmd2LaTeX.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7DD12AC4D180019BB4D /* mmd2LaTeX.pl */; };
+		9352B7F512AC4D190019BB4D /* mmd2letter.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7DE12AC4D180019BB4D /* mmd2letter.pl */; };
+		9352B7F612AC4D190019BB4D /* mmd2OPML.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7DF12AC4D180019BB4D /* mmd2OPML.pl */; };
+		9352B7F712AC4D190019BB4D /* mmd2PDF.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E012AC4D180019BB4D /* mmd2PDF.pl */; };
+		9352B7F812AC4D190019BB4D /* mmd2PDFXeLaTeX.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E112AC4D180019BB4D /* mmd2PDFXeLaTeX.pl */; };
+		9352B7F912AC4D190019BB4D /* mmd2RTF.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E212AC4D180019BB4D /* mmd2RTF.pl */; };
+		9352B7FA12AC4D190019BB4D /* mmd2web.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E312AC4D180019BB4D /* mmd2web.pl */; };
+		9352B7FB12AC4D190019BB4D /* mmd2XHTML.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E412AC4D180019BB4D /* mmd2XHTML.pl */; };
+		9352B7FC12AC4D190019BB4D /* Support.pm in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E612AC4D180019BB4D /* Support.pm */; };
+		9352B7FD12AC4D190019BB4D /* MultiMarkdown.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E712AC4D180019BB4D /* MultiMarkdown.pl */; };
+		9352B7FE12AC4D190019BB4D /* multimarkdown2latex.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E812AC4D180019BB4D /* multimarkdown2latex.pl */; };
+		9352B7FF12AC4D190019BB4D /* multimarkdown2RTF.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7E912AC4D180019BB4D /* multimarkdown2RTF.pl */; };
+		9352B80012AC4D190019BB4D /* multimarkdown2XHTML.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7EA12AC4D180019BB4D /* multimarkdown2XHTML.pl */; };
+		9352B80112AC4D190019BB4D /* OPML2mmd.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7EB12AC4D180019BB4D /* OPML2mmd.pl */; };
+		9352B80212AC4D190019BB4D /* SmartyPants.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7EC12AC4D180019BB4D /* SmartyPants.pl */; };
+		9352B80312AC4D190019BB4D /* SmartyPantsDutch.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7ED12AC4D180019BB4D /* SmartyPantsDutch.pl */; };
+		9352B80412AC4D190019BB4D /* SmartyPantsFrench.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7EE12AC4D180019BB4D /* SmartyPantsFrench.pl */; };
+		9352B80512AC4D190019BB4D /* SmartyPantsGerman.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7EF12AC4D180019BB4D /* SmartyPantsGerman.pl */; };
+		9352B80612AC4D190019BB4D /* SmartyPantsSwedish.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7F012AC4D180019BB4D /* SmartyPantsSwedish.pl */; };
+		9352B80712AC4D190019BB4D /* XHTML2mmd.pl in Resources */ = {isa = PBXBuildFile; fileRef = 9352B7F112AC4D180019BB4D /* XHTML2mmd.pl */; };
 		D3EECA00106F66C70023D7F8 /* NVPasswordGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */; };
 		F1C037F211238FF8000AC534 /* Markdown_1.0.1 in Resources */ = {isa = PBXBuildFile; fileRef = F1C037ED11238FF8000AC534 /* Markdown_1.0.1 */; };
 		F1C037F511239013000AC534 /* NSString-Markdown.m in Sources */ = {isa = PBXBuildFile; fileRef = F1C037F411239013000AC534 /* NSString-Markdown.m */; };
@@ -420,6 +442,28 @@
 		32CA4F630368D1EE00C91783 /* Notation_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Notation_Prefix.pch; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Notational Velocity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Notational Velocity.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9352B7DB12AC4D180019BB4D /* addmetadata.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = addmetadata.pl; sourceTree = "<group>"; };
+		9352B7DC12AC4D180019BB4D /* ASCIIMathML.pm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = ASCIIMathML.pm; sourceTree = "<group>"; };
+		9352B7DD12AC4D180019BB4D /* mmd2LaTeX.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2LaTeX.pl; sourceTree = "<group>"; };
+		9352B7DE12AC4D180019BB4D /* mmd2letter.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2letter.pl; sourceTree = "<group>"; };
+		9352B7DF12AC4D180019BB4D /* mmd2OPML.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2OPML.pl; sourceTree = "<group>"; };
+		9352B7E012AC4D180019BB4D /* mmd2PDF.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2PDF.pl; sourceTree = "<group>"; };
+		9352B7E112AC4D180019BB4D /* mmd2PDFXeLaTeX.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2PDFXeLaTeX.pl; sourceTree = "<group>"; };
+		9352B7E212AC4D180019BB4D /* mmd2RTF.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2RTF.pl; sourceTree = "<group>"; };
+		9352B7E312AC4D180019BB4D /* mmd2web.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2web.pl; sourceTree = "<group>"; };
+		9352B7E412AC4D180019BB4D /* mmd2XHTML.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = mmd2XHTML.pl; sourceTree = "<group>"; };
+		9352B7E612AC4D180019BB4D /* Support.pm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = Support.pm; sourceTree = "<group>"; };
+		9352B7E712AC4D180019BB4D /* MultiMarkdown.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = MultiMarkdown.pl; sourceTree = "<group>"; };
+		9352B7E812AC4D180019BB4D /* multimarkdown2latex.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = multimarkdown2latex.pl; sourceTree = "<group>"; };
+		9352B7E912AC4D180019BB4D /* multimarkdown2RTF.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = multimarkdown2RTF.pl; sourceTree = "<group>"; };
+		9352B7EA12AC4D180019BB4D /* multimarkdown2XHTML.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = multimarkdown2XHTML.pl; sourceTree = "<group>"; };
+		9352B7EB12AC4D180019BB4D /* OPML2mmd.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = OPML2mmd.pl; sourceTree = "<group>"; };
+		9352B7EC12AC4D180019BB4D /* SmartyPants.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = SmartyPants.pl; sourceTree = "<group>"; };
+		9352B7ED12AC4D180019BB4D /* SmartyPantsDutch.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = SmartyPantsDutch.pl; sourceTree = "<group>"; };
+		9352B7EE12AC4D180019BB4D /* SmartyPantsFrench.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = SmartyPantsFrench.pl; sourceTree = "<group>"; };
+		9352B7EF12AC4D180019BB4D /* SmartyPantsGerman.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = SmartyPantsGerman.pl; sourceTree = "<group>"; };
+		9352B7F012AC4D180019BB4D /* SmartyPantsSwedish.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = SmartyPantsSwedish.pl; sourceTree = "<group>"; };
+		9352B7F112AC4D180019BB4D /* XHTML2mmd.pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.perl; path = XHTML2mmd.pl; sourceTree = "<group>"; };
 		D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NVPasswordGenerator.m; sourceTree = "<group>"; };
 		D3EEC9FF106F66C70023D7F8 /* NVPasswordGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVPasswordGenerator.h; sourceTree = "<group>"; };
 		F1C037ED11238FF8000AC534 /* Markdown_1.0.1 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Markdown_1.0.1; sourceTree = SOURCE_ROOT; };
@@ -797,6 +841,7 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				9352B7DA12AC4D180019BB4D /* MultiMarkdown */,
 				21813561105AF27400A0AE18 /* Acknowledgments.txt */,
 				217DB1810B7CE5B9008CD564 /* Help Notes */,
 				219196B109D4F1DB00586B15 /* Images */,
@@ -833,6 +878,43 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		9352B7DA12AC4D180019BB4D /* MultiMarkdown */ = {
+			isa = PBXGroup;
+			children = (
+				9352B7DB12AC4D180019BB4D /* addmetadata.pl */,
+				9352B7DC12AC4D180019BB4D /* ASCIIMathML.pm */,
+				9352B7DD12AC4D180019BB4D /* mmd2LaTeX.pl */,
+				9352B7DE12AC4D180019BB4D /* mmd2letter.pl */,
+				9352B7DF12AC4D180019BB4D /* mmd2OPML.pl */,
+				9352B7E012AC4D180019BB4D /* mmd2PDF.pl */,
+				9352B7E112AC4D180019BB4D /* mmd2PDFXeLaTeX.pl */,
+				9352B7E212AC4D180019BB4D /* mmd2RTF.pl */,
+				9352B7E312AC4D180019BB4D /* mmd2web.pl */,
+				9352B7E412AC4D180019BB4D /* mmd2XHTML.pl */,
+				9352B7E512AC4D180019BB4D /* MultiMarkdown */,
+				9352B7E712AC4D180019BB4D /* MultiMarkdown.pl */,
+				9352B7E812AC4D180019BB4D /* multimarkdown2latex.pl */,
+				9352B7E912AC4D180019BB4D /* multimarkdown2RTF.pl */,
+				9352B7EA12AC4D180019BB4D /* multimarkdown2XHTML.pl */,
+				9352B7EB12AC4D180019BB4D /* OPML2mmd.pl */,
+				9352B7EC12AC4D180019BB4D /* SmartyPants.pl */,
+				9352B7ED12AC4D180019BB4D /* SmartyPantsDutch.pl */,
+				9352B7EE12AC4D180019BB4D /* SmartyPantsFrench.pl */,
+				9352B7EF12AC4D180019BB4D /* SmartyPantsGerman.pl */,
+				9352B7F012AC4D180019BB4D /* SmartyPantsSwedish.pl */,
+				9352B7F112AC4D180019BB4D /* XHTML2mmd.pl */,
+			);
+			path = MultiMarkdown;
+			sourceTree = "<group>";
+		};
+		9352B7E512AC4D180019BB4D /* MultiMarkdown */ = {
+			isa = PBXGroup;
+			children = (
+				9352B7E612AC4D180019BB4D /* Support.pm */,
+			);
+			path = MultiMarkdown;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -862,7 +944,14 @@
 			isa = PBXProject;
 			buildConfigurationList = 212B842709780B5000F3597F /* Build configuration list for PBXProject "Notation" */;
 			compatibilityVersion = "Xcode 3.1";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -941,6 +1030,28 @@
 				21EA369C111C9AD900E2B517 /* Contact.nvhelp in Resources */,
 				21E6EC21111DD52B0038ECC7 /* Comment ça marche.nvhelp in Resources */,
 				F1C037F211238FF8000AC534 /* Markdown_1.0.1 in Resources */,
+				9352B7F212AC4D190019BB4D /* addmetadata.pl in Resources */,
+				9352B7F312AC4D190019BB4D /* ASCIIMathML.pm in Resources */,
+				9352B7F412AC4D190019BB4D /* mmd2LaTeX.pl in Resources */,
+				9352B7F512AC4D190019BB4D /* mmd2letter.pl in Resources */,
+				9352B7F612AC4D190019BB4D /* mmd2OPML.pl in Resources */,
+				9352B7F712AC4D190019BB4D /* mmd2PDF.pl in Resources */,
+				9352B7F812AC4D190019BB4D /* mmd2PDFXeLaTeX.pl in Resources */,
+				9352B7F912AC4D190019BB4D /* mmd2RTF.pl in Resources */,
+				9352B7FA12AC4D190019BB4D /* mmd2web.pl in Resources */,
+				9352B7FB12AC4D190019BB4D /* mmd2XHTML.pl in Resources */,
+				9352B7FC12AC4D190019BB4D /* Support.pm in Resources */,
+				9352B7FD12AC4D190019BB4D /* MultiMarkdown.pl in Resources */,
+				9352B7FE12AC4D190019BB4D /* multimarkdown2latex.pl in Resources */,
+				9352B7FF12AC4D190019BB4D /* multimarkdown2RTF.pl in Resources */,
+				9352B80012AC4D190019BB4D /* multimarkdown2XHTML.pl in Resources */,
+				9352B80112AC4D190019BB4D /* OPML2mmd.pl in Resources */,
+				9352B80212AC4D190019BB4D /* SmartyPants.pl in Resources */,
+				9352B80312AC4D190019BB4D /* SmartyPantsDutch.pl in Resources */,
+				9352B80412AC4D190019BB4D /* SmartyPantsFrench.pl in Resources */,
+				9352B80512AC4D190019BB4D /* SmartyPantsGerman.pl in Resources */,
+				9352B80612AC4D190019BB4D /* SmartyPantsSwedish.pl in Resources */,
+				9352B80712AC4D190019BB4D /* XHTML2mmd.pl in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1456,15 +1567,15 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_THREADSAFE_STATICS = NO;
-				"GCC_VERSION[sdk=macosx10.4][arch=*]" = 4.0;
+				"GCC_VERSION[arch=*]" = 4.0;
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.4;
+				MACOSX_DEPLOYMENT_TARGET = 10.5;
 				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx10.4;
+				SDKROOT = macosx10.5;
 				"SDKROOT[arch=x86_64]" = macosx10.5;
 			};
 			name = Development;

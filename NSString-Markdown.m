@@ -4,7 +4,7 @@
 
 + (NSString*)stringWithProcessedMarkdown:(NSString*)inputString
 {
-	NSString* mdScriptPath = [[[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"Markdown_1.0.1"] stringByAppendingPathComponent:@"Markdown.pl"];
+	NSString* mdScriptPath = [[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"MultiMarkdown.pl"];
 	
 	NSTask* task = [[NSTask alloc] init];
     NSMutableArray* args = [NSMutableArray array];
