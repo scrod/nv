@@ -8,3 +8,5 @@ In addition to the inline MultiMarkdown preview, there's an HTML source view tab
 
 * TODO: Render notes as fragments instead of complete documents.
 * TODO: Add options for custom CSS in Preview
+* TODO: Modify the export options to render Markdown
+* TODO: Add export option for HTML Source from MMD
