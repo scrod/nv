@@ -28,6 +28,7 @@
 	IBOutlet NSPanel *syncWaitPanel;
 	IBOutlet NSProgressIndicator *syncWaitSpinner;
 	IBOutlet WebView *webView;
+	IBOutlet NSTextView *sourceView;
 	NSToolbar *toolbar;
 	NSToolbarItem *dualFieldItem;
 	TitlebarButton *titleBarButton;

@@ -84,6 +84,8 @@
 	[textView setDelegate:self];
 	[splitView setDelegate:self];
 	
+	[sourceView setTextContainerInset:NSMakeSize(10,10)];
+	[textView setTextContainerInset:NSMakeSize(10,10)];
 	//set up temporary FastListDataSource containing false visible notes
 		
 	//this will not make a difference
@@ -1535,6 +1537,7 @@ terminateApp:
 	NSString* htmlString = [NSString stringWithFormat:@"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"><html><head><style type=\"text/css\">body{background:#fff}body,p,td,div{font-family:Helvetica,Arial,sans-serif;line-height:1.4em;font-size:14px;color:#333;}p{margin:0 0 1.7em 0;}a{color:color:rgb(13, 110, 161);text-decoration:none;}a:hover{color:#999;}h1{font-size:24px;color:#000;margin:12px 0 15px 0;}h2{font-size:20px;color:#111;width:auto;margin:15px 0 10px 2px;}h2 em{line-height:1.6em;font-size:12px;color:#111;text-shadow:0 1px 0 #FFF;padding-left:10px;}h3{font-size:20px;color:#111;}h4{font-size:14px;color:#111;margin-bottom:1.3em;}.right .error{color:red;}.right .success{color:green;}footer p{color:#666;font-size:11px;padding:0;margin:0;margin-bottom:11px;}footer a{color:#666;text-decoration:none;height:16px;line-height:16px;font-size:11px;display:block;outline:none;}footer a:hover{color:#CCC;}label.error{float:right;text-align:right;padding:0 0 10px 0;margin-top:-8px;display:inline;}.footnote{font-size:.8em;vertical-align:super;color:rgb(13, 110, 161);}</style></head><body>%@</body></html>", processedString];
 	
 	[[webView mainFrame] loadHTMLString:htmlString baseURL:nil];
+	[sourceView replaceCharactersInRange:NSMakeRange(0, [[sourceView string] length]) withString:processedString];
 }
 
 

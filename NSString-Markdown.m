@@ -20,7 +20,7 @@
 	[task setStandardInput:stdinPipe];
 	[task setStandardOutput:stdoutPipe];
 	
-    [task setLaunchPath:@"/usr/bin/perl"];	
+    [task setLaunchPath:@"/usr/bin/perl"];
     [task launch];
 	
 	[stdinFileHandle writeData:[inputString dataUsingEncoding:NSUTF8StringEncoding]];
