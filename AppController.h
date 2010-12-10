@@ -1,5 +1,17 @@
 /* AppController */
 
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+
 #import <Cocoa/Cocoa.h>
 
 #import "NotationController.h"
@@ -15,11 +27,25 @@
 @class RBSplitSubview;
 @class TitlebarButton;
 @class LinearDividerShader;
+@class PreviewController;
+
+#ifndef MarkdownPreview
+#define MarkdownPreview 13371
+#endif
+
+#ifndef MultiMarkdownPreview
+#define MultiMarkdownPreview 13372
+#endif
+
+#ifndef TextilePreview
+#define TextilePreview 13373
+#endif
 
 @interface AppController : NSObject {
     IBOutlet DualField *field;
 	IBOutlet RBSplitSubview *splitSubview;
 	IBOutlet RBSplitView *splitView;
+	IBOutlet RBSplitSubview *notesList;
     IBOutlet NotesTableView *notesTableView;
     IBOutlet LinkingEditor *textView;
 	IBOutlet EmptyView *editorStatusView;
@@ -27,8 +53,9 @@
     IBOutlet NSWindow *window;
 	IBOutlet NSPanel *syncWaitPanel;
 	IBOutlet NSProgressIndicator *syncWaitSpinner;
-	IBOutlet WebView *webView;
-	IBOutlet NSTextView *sourceView;
+	IBOutlet NSMenuItem *widescreenToggle;
+	IBOutlet NSMenuItem *collapseToggle;
+	IBOutlet NSScroller *noteScroller;
 	NSToolbar *toolbar;
 	NSToolbarItem *dualFieldItem;
 	TitlebarButton *titleBarButton;
@@ -37,7 +64,8 @@
 	
 	LinearDividerShader *dividerShader;
 	
-	NSMutableArray *notesToOpenOnLaunch;
+	NSString *URLToSearchOnLaunch;
+	NSMutableArray *pathsToOpenOnLaunch;
 	
     NSUndoManager *windowUndoManager;
     PrefsWindowController *prefsWindowController;
@@ -51,11 +79,18 @@
 	
 	NoteObject *currentNote;
 	NSArray *savedSelectedNotes;
+    
+    PreviewController *previewController;
+    IBOutlet NSMenuItem *markdownPreview;
+    IBOutlet NSMenuItem *multiMarkdownPreview;
+    IBOutlet NSMenuItem *textilePreview;
+    NSInteger currentPreviewMode;
 }
 
 void outletObjectAwoke(id sender);
 
 - (void)setNotationController:(NotationController*)newNotation;
+- (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
 
 - (void)setupViewsAfterAppAwakened;
 - (void)runDelayedUIActionsAfterLaunch;
@@ -76,11 +111,15 @@ void outletObjectAwoke(id sender);
 - (BOOL)displayContentsForNoteAtIndex:(int)noteIndex;
 - (void)processChangedSelectionForTable:(NSTableView*)table;
 - (void)setEmptyViewState:(BOOL)state;
+- (void)cancelOperation:(id)sender;
 - (void)_setCurrentNote:(NoteObject*)aNote;
+- (void)_expandToolbar;
+- (void)_collapseToolbar;
 - (NoteObject*)selectedNoteObject;
 
 - (void)restoreListStateUsingPreferences;
 
+- (void)_finishSyncWait;
 - (IBAction)syncWaitQuit:(id)sender;
 
 - (void)setTableAllowsMultipleSelection;
@@ -95,4 +134,11 @@ void outletObjectAwoke(id sender);
 - (IBAction)bringFocusToControlField:(id)sender;
 - (NSWindow*)window;
 
+-(IBAction)togglePreview:(id)sender;
+-(void)postTextUpdate;
+-(IBAction)selectPreviewMode:(id)sender;
+
+-(void)setMenuItemStates;
+-(IBAction)toggleLayout:(id)sender;
+-(IBAction)collapseNotes:(id)sender;
 @end

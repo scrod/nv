@@ -324,7 +324,7 @@
 "Cut" = "Couper";
 
 /* informational delete-this-note? text */
-"You can undo this action later." = "Vous pourrez annuler cette action plus tard.";
+"Press Command-Z to undo this action later." = "Vous pourrez annuler cette action plus tard.";
 
 /* undo action name for deleting notes */
 "Delete %d Notes" = "Effacer %d notes";

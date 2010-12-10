@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 4/1/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
@@ -13,6 +23,7 @@
 #import "NSCollection_utils.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
+#import "NotationFileManager.h"
 #include <Carbon/Carbon.h>
 #include <CoreServices/CoreServices.h>
 #include <Security/Security.h>
@@ -44,7 +55,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		allowedTypes = NULL;
 		
 		unsigned int i;
-		for (i=0; i<4; i++) {
+		for (i=0; i<=6; i++) {
 			typeStrings[i] = [[NotationPrefs defaultTypeStringsForFormat:i] retain];
 			pathExtensions[i] = [[NotationPrefs defaultPathExtensionsForFormat:i] retain];
 		}
@@ -181,6 +192,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
     switch (formatID) {
 	case SingleDatabaseFormat:
 	    return [NSMutableArray arrayWithCapacity:0];
+	case MarkupTextFormat: 
+		// (fall-through intended)
 	case PlainTextFormat: 
 	    return [NSMutableArray arrayWithObjects:[(id)UTCreateStringForOSType(TEXT_TYPE_ID) autorelease], 
 			[(id)UTCreateStringForOSType(UTXT_TYPE_ID) autorelease], nil];
@@ -198,11 +211,14 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 }
 
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID {
+    NSLog(@"%d",formatID);
     switch (formatID) {
 	case SingleDatabaseFormat:
 	    return [NSMutableArray arrayWithCapacity:0];
 	case PlainTextFormat: 
 	    return [NSMutableArray arrayWithObjects:@"txt", @"text", @"utf8", nil];
+	case MarkupTextFormat:
+		return [NSMutableArray arrayWithObjects:@"md", @"mmd", @"mdown", @"markdown", @"textile", @"text", @"txt", nil];
 	case RTFTextFormat: 
 	    return [NSMutableArray arrayWithObjects:@"rtf", nil];
 	case HTMLFormat:
@@ -810,8 +826,11 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
     switch (format) {
 	case SingleDatabaseFormat:
 	case PlainTextFormat:
-	    
+            
 	    return @"txt";
+	case MarkupTextFormat:
+            
+		return @"md";
 	case RTFTextFormat:
 	    
 	    return @"rtf";
@@ -934,9 +953,28 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 - (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry {
     unsigned int i;
+	
+	NSString *filename = (NSString*)catEntry->filename;
+	
+	if (![filename length])
+		return NO;
+	
+	//ignore hidden files and our own database-related files (e.g. if by chance they are given a TEXT file type)
+	if ([filename characterAtIndex:0] == '.') {
+		return NO;
+	}
+	if ([filename isEqualToString:NotesDatabaseFileName]) {
+		return NO;
+	}
+	if ([filename isEqualToString:@"Interim Note-Changes"]) {
+		return NO;
+	}
+	
     for (i=0; i<[pathExtensions[notesStorageFormat] count]; i++) {
-	if ([[(NSString*)catEntry->filename lowercaseString] hasSuffix:[[pathExtensions[notesStorageFormat] objectAtIndex:i] lowercaseString]])
-	    return YES;
+		if ([[filename pathExtension] compare:[pathExtensions[notesStorageFormat] objectAtIndex:i] 
+									  options:NSCaseInsensitiveSearch] == NSOrderedSame) {
+			return YES;
+		}
     }
     
     for (i=0; i<[typeStrings[notesStorageFormat] count]; i++) {

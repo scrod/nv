@@ -2,13 +2,22 @@
 //  SyncSessionController.h
 //  Notation
 //
-//  Created by Zachary Schneirov on 1/23/10.
-//  Copyright 2010 Northwestern University. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import <Cocoa/Cocoa.h>
 #include <SystemConfiguration/SystemConfiguration.h>
-
+#import <IOKit/IOMessage.h>
 #import "SyncServiceSessionProtocol.h"
 
 @class NotationPrefs;
@@ -24,14 +33,12 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 	
 	NotationPrefs *notationPrefs;
 	
-	//shouldn't go in the SimplenoteSession class as we probably don't even want an instance hanging around if there's no network:
-	//do we have one reachableref for every service? maybe this class should manage a series of SyncServicePref objs instead
-	SCNetworkReachabilityRef reachableRef;
-
-	BOOL isConnectedToNetwork;
-	BOOL isWaitingForUncommittedChanges;
-	id uncommittedWaitTarget;
-	SEL uncommittedWaitSelector;
+	io_object_t deregisteringNotifier;
+	io_connect_t fRootPort;
+	IONotificationPortRef notifyPortRef;
+	
+	NSString *lastUncomittedChangeResultMessage;
+	NSMutableSet *uncommittedWaitInvocations;
 }
 
 + (NSArray*)allServiceNames;
@@ -46,6 +53,8 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 - (void)invalidateSyncService:(NSString*)serviceName;
 - (void)invalidateAllServices;
 
+- (void)endDelayingSleepWithMessage:(void*)messageArgument;
+
 - (void)disableService:(NSString*)serviceName;
 - (void)initializeService:(NSString*)serviceName;
 - (void)initializeAllServices;
@@ -53,7 +62,8 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 - (void)schedulePushToAllInitializedSessionsForNote:(id <SynchronizedNote>)aNote;
 - (NSArray*)activeSessions;
 
-- (void)invalidateReachabilityRefs;
+- (void)_registerPowerChangeCallbackIfNecessary;
+- (void)unregisterPowerChangeCallback;
 
 - (void)_updateMenuWithCurrentStatus:(NSMenu*)aMenu;
 - (NSMenu*)syncStatusMenu;
@@ -62,9 +72,9 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 - (BOOL)hasErrors;
 - (void)queueStatusNotification;
 
-- (void)_invokeUncommittedCallback;
+- (NSString*)changeCommittingErrorMessage;
 - (void)invokeUncommmitedWaitCallbackIfNecessaryReturningError:(NSString*)errString;
-- (BOOL)waitForUncommitedChangesWithTarget:(id)aTarget selector:(SEL)aSEL;
+- (BOOL)waitForUncommitedChangesWithInvocation:(NSInvocation*)anInvocation;
 
 
 @end

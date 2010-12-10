@@ -3,9 +3,19 @@
  *  Notation
  *
  *  Created by Zachary Schneirov on 1/15/06.
- *  Copyright 2006 Zachary Schneirov. All rights reserved.
- *
  */
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #include "BufferUtils.h"
 #include <string.h>
@@ -275,17 +285,15 @@ CFStringRef CreateRandomizedFileName() {
 
 OSStatus FSCreateFileIfNotPresentInDirectory(FSRef *directoryRef, FSRef *childRef, CFStringRef filename, Boolean *created) {
 	UniChar chars[256];
-    
-    OSStatus result;
-    CFStringRef filenameCFStr = (CFStringRef)filename;
-    
+    OSStatus result = noErr;
+	
     if (created) *created = false;
     
-    if ((result = FSRefMakeInDirectoryWithString(directoryRef, childRef, filenameCFStr, chars))) {
+    if ((result = FSRefMakeInDirectoryWithString(directoryRef, childRef, filename, chars))) {
 		if (result == fnfErr) {
 			if (created) *created = true;
 			
-			result = FSCreateFileUnicode(directoryRef, CFStringGetLength(filenameCFStr), chars, kFSCatInfoNone, NULL, childRef, NULL);
+			result = FSCreateFileUnicode(directoryRef, CFStringGetLength(filename), chars, kFSCatInfoNone, NULL, childRef, NULL);
 		}
 		return result;
     }
@@ -329,7 +337,7 @@ OSStatus FSRefReadData(FSRef *fsRef, size_t maximumReadSize, UInt64 *bufferSize,
     //get fork size
 	//read data
     if ((err = FSOpenFork(fsRef, dfName.length, dfName.unicode, fsRdPerm, &refNum)) != noErr) {
-		printf("FSOpenFork: error %d\n", (int)err);
+		printf("FSRefReadData: FSOpenFork: error %d\n", (int)err);
 		return err;
     }
     if ((forkSize = *bufferSize) < 1) {
@@ -377,7 +385,7 @@ OSStatus FSRefWriteData(FSRef *fsRef, size_t maximumWriteSize, UInt64 bufferSize
 	//FSOpenFork
     //get vrefnum or whatever
     if ((err = FSOpenFork(fsRef, dfName.length, dfName.unicode, fsWrPerm, &refNum)) != noErr) {
-		printf("FSOpenFork: error %d\n", (int)err);
+		printf("FSRefWriteData: FSOpenFork: error %d\n", (int)err);
 		return err;
     }
     

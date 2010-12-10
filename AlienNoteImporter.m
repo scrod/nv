@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 11/15/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "AlienNoteImporter.h"
 #import "StickiesDocument.h"
@@ -307,6 +317,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	NSString *extension = [[filename pathExtension] lowercaseString];
 	NSDictionary *attributes = [[NSFileManager defaultManager] fileAttributesAtPath:filename traverseLink:YES];
 	unsigned long fileType = [[attributes objectForKey:NSFileHFSTypeCode] unsignedLongValue];
+	NSString *sourceIdentifierString = nil;
 	
 	NSMutableAttributedString *attributedStringFromData = nil;
 	
@@ -334,7 +345,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithData:data options:nil documentAttributes:NULL error:NULL];
 		
 		if ([path length] > 0 && [attributedStringFromData length] > 0)
-			[attributedStringFromData prefixWithSourceString:path];
+			sourceIdentifierString = path;
 	} else if (fileType == PDF_TYPE_ID || [extension isEqualToString:@"pdf"]) {
 		//try PDFKit loading lazily
 		@try {
@@ -380,11 +391,26 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		[attributedStringFromData trimLeadingWhitespace];
 		[attributedStringFromData removeAttachments];
 		[attributedStringFromData santizeForeignStylesForImporting];
+		
+		
+		NSString *processedFilename = [[filename lastPathComponent] stringByDeletingPathExtension];
+		
+		NSUInteger bodyLoc = 0;
+		NSString *title = [[attributedStringFromData string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+		
+		//if the synthetic title (generally the first line of the content) is shorter than the filename itself, just use the filename as the title
+		//(or if this is a special case and we know the filename should be used)
+		if ([processedFilename length] > [title length] || [extension isEqualToString:@"nvhelp"]) {
+			title = processedFilename;
+		} else {
+			if (bodyLoc > 0 && [attributedStringFromData length] >= bodyLoc) [attributedStringFromData deleteCharactersInRange:NSMakeRange(0, bodyLoc)];
+		}
+		if ([sourceIdentifierString length])
+			[attributedStringFromData prefixWithSourceString:sourceIdentifierString];
 		[attributedStringFromData autorelease];
 		
-		//we do not use filename as uniqueFilename, as we are only importing--not taking ownership
-		NoteObject *noteObject = [[NoteObject alloc] initWithNoteBody:attributedStringFromData title:[[filename lastPathComponent] stringByDeletingPathExtension]
-														uniqueFilename:nil format:SingleDatabaseFormat];				
+		//we do not also use filename as uniqueFilename, as we are only importing--not taking ownership
+		NoteObject *noteObject = [[NoteObject alloc] initWithNoteBody:attributedStringFromData title:title uniqueFilename:nil format:SingleDatabaseFormat];				
 		if (noteObject) {
 			if (shouldGrabCreationDates) {
 				[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileCreationDate])];
@@ -473,9 +499,9 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				NSMutableAttributedString *attributedString = [[[NSMutableAttributedString alloc] initWithRTFD:[doc RTFDData] documentAttributes:NULL] autorelease];
 				[attributedString removeAttachments];
 				[attributedString santizeForeignStylesForImporting];
+				NSString *syntheticTitle = [attributedString trimLeadingSyntheticTitle];
 				
-				NoteObject *noteObject = [[[NoteObject alloc] initWithNoteBody:attributedString title:[[attributedString string] syntheticTitle]
-																uniqueFilename:nil format:SingleDatabaseFormat] autorelease];				
+				NoteObject *noteObject = [[[NoteObject alloc] initWithNoteBody:attributedString title:syntheticTitle uniqueFilename:nil format:SingleDatabaseFormat] autorelease];				
 				if (noteObject) {
 					[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[doc creationDate])];
 					[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[doc modificationDate])];

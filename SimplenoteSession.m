@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/4/09.
-//  Copyright 2009 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "SimplenoteSession.h"
 #import "SyncResponseFetcher.h"
@@ -29,6 +39,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 
 @implementation SimplenoteSession
 
+static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info);
+
 + (NSString*)localizedServiceTitle {
 	return NSLocalizedString(@"Simplenote", @"human-readable name for the Simplenote service");
 }
@@ -49,6 +61,23 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	return [NSURL URLWithString:[NSString stringWithFormat:@"https://simple-note.appspot.com%@%@", path, queryStr]];
 }
 
+#if 0
++ (NSString*)localizedNetworkDiagnosticMessage {
+	
+	CFNetDiagnosticRef networkDiagnosticRef = CFNetDiagnosticCreateWithURL(kCFAllocatorDefault, (CFURLRef)[self servletURLWithPath:@"/" parameters:nil]);
+	if (networkDiagnosticRef) {
+		
+		CFStringRef localizedDiagnosticString = NULL;
+		(void)CFNetDiagnosticCopyNetworkStatusPassively(networkDiagnosticRef, &localizedDiagnosticString);
+		CFRelease(networkDiagnosticRef);
+		
+		return [(id)localizedDiagnosticString autorelease];
+	}
+	return nil;
+}
+#endif
+
+
 + (SCNetworkReachabilityRef)createReachabilityRefWithCallback:(SCNetworkReachabilityCallBack)callout target:(id)aTarget {
 	SCNetworkReachabilityRef reachableRef = NULL;
 	
@@ -64,6 +93,32 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		}
 	}
 	return reachableRef;
+}
+
+- (void)invalidateReachabilityRefs {
+	
+	if (reachableRef) {
+		SCNetworkReachabilityUnscheduleFromRunLoop(reachableRef, CFRunLoopGetCurrent(),kCFRunLoopDefaultMode); 
+		CFRelease(reachableRef);
+		reachableRef = NULL;
+	}
+}
+
+static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info) {
+    
+	SimplenoteSession *self = (SimplenoteSession *)info;
+	BOOL reachable = ((flags & kSCNetworkFlagsReachable) && (!(flags & kSCNetworkFlagsConnectionRequired) || (flags & kSCNetworkFlagsConnectionAutomatic)));
+	
+	self->reachabilityFailed = !reachable;
+	
+	if (reachable) {
+		[self startFetchingListForFullSyncManual];
+	}
+	NSLog(@"self->reachabilityFailed: %d, flags: %u", self->reachabilityFailed, flags);
+}
+
+- (BOOL)reachabilityFailed {
+	return reachabilityFailed;
 }
 
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry {
@@ -115,6 +170,10 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	if ([self initWithUsername:[[prefs syncAccountForServiceName:SimplenoteServiceName] objectForKey:@"username"] 
 				   andPassword:[prefs syncPasswordForServiceName:SimplenoteServiceName]]) {
+		
+		//create a reachability ref to trigger a sync upon network reestablishment
+		reachableRef = [[self class] createReachabilityRefWithCallback:SNReachabilityCallback target:self];
+
 		return self;
 	}
 	return nil;
@@ -123,6 +182,9 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 - (id)initWithUsername:(NSString*)aUserString andPassword:(NSString*)aPassString {
 	
 	if ([super init]) {
+		lastSyncedTime = 0.0;
+		reachabilityFailed = NO;
+
 		if (![(emailAddress = [aUserString retain]) length]) {
 			NSLog(@"%s: empty email address", _cmd);
 			return nil;
@@ -146,7 +208,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	
 	SimplenoteSession *newSession = [[SimplenoteSession alloc] initWithUsername:emailAddress andPassword:password];
 	newSession->authToken = [authToken copyWithZone:zone];
-	newSession->lastSyncedTime = [lastSyncedTime copyWithZone:zone];
+	newSession->lastSyncedTime = lastSyncedTime;
 	newSession->delegate = delegate;
 	
 	//may not want these to come with the copy, as they are specific to transactions-in-progress
@@ -196,13 +258,15 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		return NSLocalizedString(@"Logging in...", nil);
 		
 	} else if (lastErrorString) {
+
+		if (reachabilityFailed)
+			return NSLocalizedString(@"Internet unavailable.", @"message to report when sync service is not reachable over internet");
+		else
+			return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
 		
-		return [NSLocalizedString(@"Error: ", @"string to prefix a sync service error") stringByAppendingString:lastErrorString];
-		
-	} else if (lastSyncedTime) {
-		//I suppose -descriptionWithLocale: returns a localized description?
+	} else if (lastSyncedTime > 0.0) {
 		return [NSLocalizedString(@"Last sync: ", @"label to prefix last sync time in the status menu") 
-				stringByAppendingString:[lastSyncedTime descriptionWithLocale:nil]];
+				stringByAppendingString:[NSString relativeDateStringWithAbsoluteTime:lastSyncedTime]];
 	} else if ([collectorsInProgress count]) {
 		//probably won't display this very often
 		return [NSString stringWithFormat:NSLocalizedString(@"%u update(s) in progress", nil), [collectorsInProgress count]];
@@ -212,8 +276,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 }
 
 - (void)_updateSyncTime {
-	[lastSyncedTime release];
-	lastSyncedTime = [[NSDate date] retain];
+	lastSyncedTime = CFAbsoluteTimeGetCurrent();
 }
 
 
@@ -369,8 +432,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	lastIndexAuthFailed = NO;
 	[lastErrorString autorelease];
 	lastErrorString = nil;
-	[lastSyncedTime autorelease];
-	lastSyncedTime = nil;
+	lastSyncedTime = 0.0;
 }
 
 - (BOOL)startFetchingListForFullSyncManual {
@@ -406,7 +468,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		}
 	}
 	
-	if (didStart && !lastSyncedTime) {
+	if (didStart && lastSyncedTime == 0.0) {
 		//don't report that we started syncing _here_ unless it was the first time doing so; 
 		//after the first time alert the user only when actual modifications are occurring
 		[delegate syncSessionProgressStarted:self];
@@ -669,6 +731,7 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[self _stoppedWithErrorString:[NSString stringWithFormat:NSLocalizedString(@"%@ %u note(s) failed", @"e.g., Downloading 2 note(s) failed"), 
 									   [collector localizedActionDescription], [[collector entriesToCollect] count]]];
 	} else {
+		reachabilityFailed = NO;
 		
 		if ([self isRunning]) {
 			[self _updateSyncTime];
@@ -852,7 +915,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 			[self _clearAuthTokenAndDependencies];
 			[self performSelector:@selector(startFetchingListForFullSync) withObject:nil afterDelay:0.0];
 		}
-		NSLog(@"%@ returned %@", fetcher, errString);
+		if (!reachabilityFailed)
+			NSLog(@"%@ returned %@", fetcher, errString);
 		
 		//report error to delegate
 		[self _stoppedWithErrorString:[fetcher didCancel] ? nil : errString];
@@ -903,6 +967,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 		[lastErrorString autorelease];
 		lastErrorString = nil;
 		
+		reachabilityFailed = NO;
+		
 		[delegate syncSession:self receivedFullNoteList:entries];
 		
 	} else {
@@ -920,6 +986,8 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 
 - (void)dealloc {
 	
+	[self invalidateReachabilityRefs];
+	
 	[queuedNoteInvocations release];
 	[notesBeingModified release];
 	[notesToSuppressPushing release];
@@ -929,7 +997,6 @@ NSString *SimplenoteSeparatorKey = @"SepStr";
 	[authToken release];
 	[listFetcher release];
 	[loginFetcher release];
-	[lastSyncedTime release];
 	[collectorsInProgress release];
 	[lastErrorString release];
 	

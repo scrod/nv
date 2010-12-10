@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/19/05.
-//  Copyright 2005 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import <Cocoa/Cocoa.h>
 #import "NotationController.h"
@@ -13,6 +23,7 @@
 @class LabelObject;
 @class WALStorageController;
 @class NotesTableView;
+@class AppController;
 
 typedef struct _NoteFilterContext {
 	char* needle;
@@ -37,6 +48,7 @@ typedef struct _NoteFilterContext {
 	//for syncing to text file
 	NSString *filename;
 	UInt32 nodeID;
+	UInt32 logicalSize;
 	UTCDateTime fileModifiedDate;
 	int currentFormatID;
 	NSStringEncoding fileEncoding;
@@ -76,6 +88,7 @@ NSInteger compareTitleStringReverse(id *a, id *b);
 
 NSInteger compareFilename(id *a, id *b);
 NSInteger compareNodeID(id *a, id *b);
+NSInteger compareFileSize(id *a, id *b);
 
 //syncing w/ server and from journal
 - (CFUUIDBytes *)uniqueNoteIDBytes;
@@ -89,6 +102,7 @@ NSInteger compareNodeID(id *a, id *b);
 	int storageFormatOfNote(NoteObject *note);
 	NSString* filenameOfNote(NoteObject *note);
 	UInt32 fileNodeIDOfNote(NoteObject *note);
+	UInt32 fileSizeOfNote(NoteObject *note);
 	UTCDateTime fileModifiedDateOfNote(NoteObject *note);
 	CFAbsoluteTime modifiedDateOfNote(NoteObject *note);
 	CFAbsoluteTime createdDateOfNote(NoteObject *note);

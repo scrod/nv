@@ -1,3 +1,15 @@
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+
 #import "PrefsWindowController.h"
 #import "PTKeyComboPanel.h"
 #import "PTKeyCombo.h"
@@ -6,6 +18,8 @@
 #import "NSString_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
+
+#define SYSTEM_LIST_FONT_SIZE 12.0f
 
 @implementation PrefsWindowController
 
@@ -172,7 +186,7 @@
 				newFontSize = [NSFont smallSystemFontSize];
 				break;
 			case 2:
-				newFontSize = [NSFont systemFontSize];
+				newFontSize = /*[NSFont systemFontSize]*/ SYSTEM_LIST_FONT_SIZE;
 				break;
 			case 3:
 				newFontSize = [tableTextSizeField floatValue];
@@ -346,7 +360,7 @@
     float fontSize = [prefsController tableFontSize];
     int fontButtonIndex = 3;
     if (fontSize == [NSFont smallSystemFontSize]) fontButtonIndex = 0;
-    else if (fontSize == [NSFont systemFontSize]) fontButtonIndex = 1;
+    else if (fontSize == /*[NSFont systemFontSize]*/ SYSTEM_LIST_FONT_SIZE) fontButtonIndex = 1;
     [tableTextMenuButton selectItemAtIndex:fontButtonIndex];
     [tableTextSizeField setFloatValue:fontSize];
     [tableTextSizeField setHidden:(fontButtonIndex != 3)];

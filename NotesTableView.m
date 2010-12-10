@@ -1,3 +1,15 @@
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+
 #import "NotesTableView.h"
 #import "AppController.h"
 #import "FastListDataSource.h"
@@ -8,6 +20,7 @@
 #import "NSCollection_utils.h"
 #import "HeaderViewWithMenu.h"
 #import "NSString_NV.h"
+#import "CustomTextFieldCell.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
 #define SET_DUAL_HIGHLIGHTS 0
@@ -51,27 +64,31 @@
 	unsigned int i;
 	for (i=0; i<sizeof(colStrings)/sizeof(NSString*); i++) {
 	    NoteAttributeColumn *column = [[NoteAttributeColumn alloc] initWithIdentifier:colStrings[i]];
+
 	    [column setEditable:(colMutators[i] != NULL)];
-	    [[column headerCell] setStringValue:[[NSBundle mainBundle] localizedStringForKey:colStrings[i] value:@"" table:nil]];
+		[column setHeaderCell:[[[NoteTableHeaderCell alloc] initTextCell:[[NSBundle mainBundle] localizedStringForKey:colStrings[i] value:@"" table:nil]] autorelease]];
+
 	    [[column dataCell] setFont:font];
 	    [column setMutatingSelector:colMutators[i]];
 	    [column setDereferencingFunction:colReferencors[i]];
 	    [column setSortingFunction:sortFunctions[i]];
 	    [column setReverseSortingFunction:reverseSortFunctions[i]];
 		[column setResizingMask:NSTableColumnUserResizingMask];
-		
+
 		[allColumns addObject:column];
 	    [column release];
 	}
-			
+	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
-	[self setRowHeight:[lm defaultLineHeightForFont:font] + 1.0f];
+	[self setRowHeight:[lm defaultLineHeightForFont:font] + 2];
 	[lm release];
 	
 	//[self setAutosaveName:@"notesTable"];
 	//[self setAutosaveTableColumns:YES];
 	[self setAllowsColumnSelection:NO];
 	//[self setVerticalMotionCanBeginDrag:NO];
+		
+	[self setIntercellSpacing:NSMakeSize(12, 0)];
 	
 	BOOL hideHeader = [columnsToDisplay count] == 1 && [columnsToDisplay containsObject:NoteTitleColumnString];
 	if (hideHeader) {
@@ -96,6 +113,39 @@
 	[headerView release];
     
     [super dealloc];
+}
+
+- (void)highlightSelectionInClipRect:(NSRect)clipRect
+{
+	NSColor *evenColor = [NSColor colorWithCalibratedRed:0.731 green:0.814 blue:0.838 alpha:1.000];
+	NSColor *oddColor  = [NSColor colorWithCalibratedRed:0.780 green:0.843 blue:0.867 alpha:1.000];
+	
+	float rowHeight
+	= [self rowHeight] + [self intercellSpacing].height;
+	NSRect visibleRect = [self visibleRect];
+	NSRect highlightRect;
+	
+	highlightRect.origin = NSMakePoint(
+									   NSMinX(visibleRect),
+									   (int)(NSMinY(clipRect)/rowHeight)*rowHeight);
+	highlightRect.size = NSMakeSize(
+									NSWidth(visibleRect),
+									rowHeight - [self intercellSpacing].height);
+	
+	while (NSMinY(highlightRect) < NSMaxY(clipRect))
+	{
+		NSRect clippedHighlightRect
+		= NSIntersectionRect(highlightRect, clipRect);
+		int row = (int)
+		((NSMinY(highlightRect)+rowHeight/2.0)/rowHeight);
+		NSColor *rowColor
+		= (0 == row % 2) ? evenColor : oddColor;
+		[rowColor set];
+		NSRectFill(clippedHighlightRect);
+		highlightRect.origin.y += rowHeight;
+	}
+	
+	[super highlightSelectionInClipRect: clipRect];
 }
 
 //extracted from initialization to run in a safe way
@@ -223,9 +273,8 @@
 			[[[allColumns objectAtIndex:i] dataCell] setFont:font];
 		
 		NSLayoutManager *lm = [[NSLayoutManager alloc] init];
-		[self setRowHeight:[lm defaultLineHeightForFont:font] + 1.0f];
+		[self setRowHeight:[lm defaultLineHeightForFont:font] + 3.0f];
 		[lm release];
-		
 	}
 }
 

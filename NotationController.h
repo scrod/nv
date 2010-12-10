@@ -3,15 +3,23 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/19/05.
-//  Copyright 2005 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import <Cocoa/Cocoa.h>
 #import "FastListDataSource.h"
 #import "LabelsListController.h"
 #import "WALController.h"
-
-#define kMaxFileIteratorCount 100
 
 //enum { kUISearch, kUINewNote, kUIDeleteNote, kUIRenameNote, kUILabelOperation };
 
@@ -31,6 +39,7 @@ typedef struct _NoteCatalogEntry {
 @class NotationPrefs;
 @class NoteAttributeColumn;
 @class NoteBookmark;
+@class DeletionManager;
 @class GlobalPrefs;
 
 @interface NotationController : NSObject {
@@ -39,6 +48,7 @@ typedef struct _NoteCatalogEntry {
     LabelsListController *labelsListController;
 	GlobalPrefs *prefsController;
 	SyncSessionController *syncSessionController;
+	DeletionManager *deletionManager;
 	id delegate;
 	
 	float titleColumnWidth;
@@ -80,11 +90,6 @@ typedef struct _NoteCatalogEntry {
 	NSUndoManager *undoManager;
 }
 
-NSInteger compareCatalogEntryName(const void *one, const void *two);
-NSInteger compareCatalogValueNodeID(id *a, id *b);
-NSInteger compareCatalogValueFileSize(id *a, id *b);
-void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription);
-
 - (id)init;
 - (id)initWithAliasData:(NSData*)data error:(OSStatus*)err;
 - (id)initWithDefaultDirectoryReturningError:(OSStatus*)err;
@@ -98,7 +103,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)handleJournalError;
 - (void)checkJournalExistence;
 - (void)closeJournal;
-- (void)stopFileNotifications;
 - (BOOL)flushAllNoteChanges;
 - (void)flushEverything;
 
@@ -111,12 +115,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)databaseSettingsChangedFromOldFormat:(int)oldFormat;
 
 - (int)currentNoteStorageFormat;
-- (BOOL)synchronizeNotesFromDirectory;
 - (void)synchronizeNoteChanges:(NSTimer*)timer;
-- (BOOL)_readFilesInDirectory;
-- (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry;
-- (void)makeNotesMatchCatalogEntries:(NoteCatalogEntry**)catEntriesPtrs ofSize:(size_t)catCount;
-- (void)processNotesAdded:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries;
 
 - (void)updateDateStringsIfNecessary;
 - (void)restyleAllNotes;
@@ -124,6 +123,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (NSUndoManager*)undoManager;
 - (void)noteDidNotWrite:(NoteObject*)note errorCode:(OSStatus)error;
 - (void)scheduleWriteForNote:(NoteObject*)note;
+- (void)endDeletionManagerIfNecessary;
 - (void)trashRemainingNoteFilesInDirectory;
 - (void)checkIfNotationIsTrashed;
 - (void)updateLinksToNote:(NoteObject*)aNoteObject fromOldName:(NSString*)oldname;
@@ -139,6 +139,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote;
 - (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title;
 - (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry;
+
+- (BOOL)openFiles:(NSArray*)filenames;
 
 - (void)note:(NoteObject*)note didAddLabelSet:(NSSet*)labelSet;
 - (void)note:(NoteObject*)note didRemoveLabelSet:(NSSet*)labelSet;

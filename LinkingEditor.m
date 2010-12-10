@@ -1,3 +1,15 @@
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
+
 #import "LinkingEditor.h"
 #import "GlobalPrefs.h"
 #import "AppController.h"
@@ -40,7 +52,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:), nil];	
 	
-	[self setTextContainerInset:NSMakeSize(2, 6)];
+	[self setTextContainerInset:NSMakeSize(3, 8)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
@@ -951,14 +963,14 @@ copyRTFType:
 						// Not in leading whitespace.  Delete normally.
 						[super deleteBackward:sender];
 					} else {
-#if SPECIAL_DELETE_FOR_SPACES_ONLY
-						NSString *leadingSpaceString = [string substringWithRange:leadingSpaceRange];
-						if ([leadingSpaceString rangeOfString:@"\t"].location != NSNotFound) {
-							//thar actually be tabs here; revert to normal backwards-deletion
+						if ([string rangeOfString:@"\t" options:NSLiteralSearch range:leadingSpaceRange].location == NSNotFound) {
+							//if this line was indented only with spaces, then keep the soft-tabbed-indentation
+							usesTabs = NO;
+						} else if ([string rangeOfString:@" " options:NSLiteralSearch range:leadingSpaceRange].location != NSNotFound && ![prefsController _bodyFontIsMonospace]) {
+							//mixed tabs and spaces, and we have a proportional font -- what a mess! just revert to normal backward-deletes
 							[super deleteBackward:sender];
 							return;
 						}
-#endif
 						
 						NSTextStorage *text = [self textStorage];
 						unsigned leadingIndents = leadingSpaces / indentWidth;
@@ -1179,7 +1191,8 @@ copyRTFType:
 	
 	//if the result of changing the text caused us to move into the automatic range, then temporarily ignore the automatic range
 	//don't use -selectedRangeWasAutomatic: as it consults didRenderFully, which might not be true here
-	didChangeIntoAutomaticRange = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
+	if (NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]))
+		didChangeIntoAutomaticRange = YES;
 }
 
 - (BOOL)shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {

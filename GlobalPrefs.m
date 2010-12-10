@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 1/31/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "GlobalPrefs.h"
 #import "NSData_transformations.h"
@@ -23,6 +33,7 @@
 static NSString *TriedToImportBlorKey = @"TriedToImportBlor";
 static NSString *DirectoryAliasKey = @"DirectoryAlias";
 static NSString *AutoCompleteSearchesKey = @"AutoCompleteSearches";
+static NSString *VerticalLayoutKey = @"VerticalLayout";
 static NSString *TableColumnsVisibleKey = @"TableColumnsVisible";
 static NSString *TableFontSizeKey = @"TableFontPointSize";
 static NSString *TableSortColumnKey = @"TableSortColumn";
@@ -87,12 +98,13 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], AutoSuggestLinksKey,
 			[NSNumber numberWithBool:NO], UseSoftTabsKey,
 			[NSNumber numberWithInt:4], NumberOfSpacesInTabKey,
-			[NSNumber numberWithBool:NO], PastePreservesStyleKey,
+			[NSNumber numberWithBool:YES], PastePreservesStyleKey,
 			[NSNumber numberWithBool:YES], TabKeyIndentsKey,
 			[NSNumber numberWithBool:YES], ConfirmNoteDeletionKey,
 			[NSNumber numberWithBool:YES], CheckSpellingInNoteBodyKey, 
 			[NSNumber numberWithBool:NO], TextReplacementInNoteBodyKey, 
 			[NSNumber numberWithBool:YES], AutoCompleteSearchesKey, 
+			[NSNumber numberWithBool:NO], VerticalLayoutKey, 
 			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey, 
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
@@ -110,11 +122,12 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
 			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
-			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateCreatedColumnString, nil], TableColumnsVisibleKey,
-			NoteDateCreatedColumnString, TableSortColumnKey,
+			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], TableColumnsVisibleKey,
+			NoteDateModifiedColumnString, TableSortColumnKey,
 			[NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
 		
 		autoCompleteSearches = [defaults boolForKey:AutoCompleteSearchesKey];
+		verticalLayout = [defaults boolForKey:VerticalLayoutKey];
 	}
 	return self;
 }
@@ -212,6 +225,17 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (void)setAutoCompleteSearches:(BOOL)value sender:(id)sender {
 	autoCompleteSearches = value;
 	[defaults setBool:value forKey:AutoCompleteSearchesKey];
+	
+	SEND_CALLBACKS();
+}
+
+- (BOOL)verticalLayout {
+	return verticalLayout;
+}
+
+- (void)setVerticalLayout:(BOOL)value sender:(id)sender {
+	verticalLayout = value;
+	[defaults setBool:value forKey:VerticalLayoutKey];
 	
 	SEND_CALLBACKS();
 }
@@ -424,8 +448,9 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	
 	[newString restyleTextToFont:noteBodyFont usingBaseFont:oldFont];
 	
-	ptfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil];
-	[[NSPasteboard generalPasteboard] setData:ptfData forType:NVPTFPboardType];
+	if ((ptfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil])) {
+		[[NSPasteboard generalPasteboard] setData:ptfData forType:NVPTFPboardType];
+	}
 	[oldFont release];
 }
 

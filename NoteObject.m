@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/19/05.
-//  Copyright 2005 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
@@ -43,11 +53,10 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	bzero(&fileModifiedDate, sizeof(UTCDateTime));
 	modifiedDate = createdDate = 0.0;
 	currentFormatID = SingleDatabaseFormat;
-	nodeID = 0;
+	logSequenceNumber = logicalSize = nodeID = 0;
 	fileEncoding = NSUTF8StringEncoding;
 	contentsWere7Bit = NO;
 	
-	logSequenceNumber = 0;
 	selectedRange = NSMakeRange(NSNotFound, 0);
 	
 	//these are created either when the object is initialized from disk or when it writes its files to disk
@@ -89,11 +98,14 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 }
 
 - (void)setDelegate:(id)theDelegate {
-	delegate = theDelegate;
 	
-	//clean up anything else that couldn't be set due to the note being created without knowledge of its delegate
-	if (!filename) {
-		filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
+	if (theDelegate) {
+		delegate = theDelegate;
+		
+		//clean up anything else that couldn't be set due to the note being created without knowledge of its delegate
+		if (!filename) {
+			filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
+		}
 	}
 }
 
@@ -168,6 +180,10 @@ NSInteger compareTitleStringReverse(id *a, id *b) {
 NSInteger compareNodeID(id *a, id *b) {
     return (*(NoteObject**)a)->nodeID - (*(NoteObject**)b)->nodeID;
 }
+NSInteger compareFileSize(id *a, id *b) {
+    return (*(NoteObject**)a)->logicalSize - (*(NoteObject**)b)->logicalSize;
+}
+
 
 #include "SynchronizedNoteMixIns.h"
 
@@ -175,6 +191,7 @@ NSInteger compareNodeID(id *a, id *b) {
 
 DefModelAttrAccessor(filenameOfNote, filename)
 DefModelAttrAccessor(fileNodeIDOfNote, nodeID)
+DefModelAttrAccessor(fileSizeOfNote, logicalSize)
 DefModelAttrAccessor(titleOfNote, titleString)
 DefModelAttrAccessor(labelsOfNote, labelString)
 DefModelAttrAccessor(fileModifiedDateOfNote, fileModifiedDate)
@@ -225,6 +242,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 
 			currentFormatID = [decoder decodeInt32ForKey:VAR_STR(currentFormatID)];
 			nodeID = [decoder decodeInt32ForKey:VAR_STR(nodeID)];
+			logicalSize = [decoder decodeInt32ForKey:VAR_STR(logicalSize)];
 			fileModifiedDate.highSeconds = [decoder decodeInt32ForKey:@"fileModDateHigh"];
 			fileModifiedDate.lowSeconds = [decoder decodeInt32ForKey:@"fileModDateLow"];
 			fileModifiedDate.fraction = [decoder decodeInt32ForKey:@"fileModDateFrac"];
@@ -326,6 +344,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		
 		[coder encodeInt32:currentFormatID forKey:VAR_STR(currentFormatID)];
 		[coder encodeInt32:nodeID forKey:VAR_STR(nodeID)];
+		[coder encodeInt32:logicalSize forKey:VAR_STR(logicalSize)];
 
 		[coder encodeInt32:fileModifiedDate.highSeconds forKey:@"fileModDateHigh"];
 		[coder encodeInt32:fileModifiedDate.lowSeconds forKey:@"fileModDateLow"];
@@ -355,7 +374,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		[coder encodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
 		
 		[coder encodeValueOfObjCType:@encode(int) at:&currentFormatID];
-		[coder encodeValueOfObjCType:@encode(UInt32) at:&nodeID];	
+		[coder encodeValueOfObjCType:@encode(UInt32) at:&nodeID];
 		[coder encodeValueOfObjCType:@encode(UInt16) at:&fileModifiedDate.highSeconds];
 		[coder encodeValueOfObjCType:@encode(UInt32) at:&fileModifiedDate.lowSeconds];
 		[coder encodeValueOfObjCType:@encode(UInt16) at:&fileModifiedDate.fraction];
@@ -428,6 +447,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		currentFormatID = [delegate currentNoteStorageFormat];
 		fileModifiedDate = entry->lastModified;
 		nodeID = entry->nodeID;
+		logicalSize = entry->logicalSize;
 		
 		CFUUIDRef uuidRef = CFUUIDCreate(kCFAllocatorDefault);
 		uniqueNoteIDBytes = CFUUIDGetUUIDBytes(uuidRef);
@@ -788,11 +808,10 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 }
 
 - (NSString*)noteFilePath {
-	if (IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
-		if (![delegate notesDirectoryContainsFile:filename returningFSRef:noteFileRefInit(self)])
-			return nil;
-	}
-	return [NSString pathWithFSRef:noteFileRefInit(self)];
+	UniChar chars[256];
+	if ([delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars] == noErr)
+		return [NSString pathWithFSRef:noteFileRefInit(self)];
+	return nil;
 }
 
 - (void)invalidateFSRef {
@@ -822,6 +841,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		return [self writeUsingCurrentFileFormat];
     }
     
+	//createFileIfNotPresentInNotesDirectory: works by name, so if this file is not owned by us at this point, it was a race with moving it
     FSCatalogInfo info;
     if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:&fileIsOwned hasCatalogInfo:&info] != noErr)
 		return NO;
@@ -868,6 +888,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 			NSAssert(NO, @"Warning! Tried to write data for an individual note in single-db format!");
 			
 			return NO;
+        case MarkupTextFormat:
 		case PlainTextFormat:
 			
 			if (!(formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:NO])) {
@@ -920,7 +941,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 			return NO;
 		}
 		//if writing plaintext set the file encoding with setxattr
-		if (PlainTextFormat == formatID) {
+		if (PlainTextFormat == formatID || MarkupTextFormat == formatID) {
 			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
 		//always hide the file extension for all types
@@ -957,6 +978,8 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	UCConvertCFAbsoluteTimeToUTCDateTime(createdDate, &catInfo.createDate);
 	UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &catInfo.contentModDate);
 	
+	// if this method is called anywhere else, then use [delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars]; instead
+	// for now, it is not called in any situations where the fsref might accidentally point to a moved file
 	OSStatus err = noErr;
 	do {
 		if (noErr != err || IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
@@ -964,7 +987,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		}
 		err = FSSetCatalogInfo(noteFileRefInit(self), kFSCatInfoCreateDate | kFSCatInfoContentMod, &catInfo);
 	} while (fnfErr == err);
-	
+
 	if (noErr != err) {
 		NSLog(@"could not set catalog info: %d", err);
 		return err;
@@ -978,6 +1001,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	}
 	fileModifiedDate = catInfo.contentModDate;
 	nodeID = catInfo.nodeID;
+	logicalSize = (UInt32)(catInfo.dataLogicalSize & 0xFFFFFFFF);
 	
 	return noErr;
 }
@@ -1009,7 +1033,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	if (NSUTF8StringEncoding != fileEncoding) {
 		[self _setFileEncoding:NSUTF8StringEncoding];
 		
-		if (!contentsWere7Bit && PlainTextFormat == currentFormatID) {
+		if (!contentsWere7Bit && (PlainTextFormat == currentFormatID || MarkupTextFormat == currentFormatID)) {
 			//this note exists on disk as a plaintext file, and its encoding is incompatible with UTF-8
 			
 			if ([delegate currentNoteStorageFormat] == PlainTextFormat) {
@@ -1047,14 +1071,12 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		//a) to ensure -updateFromData: finds the right encoding when re-reading the file, and
 		//b) because the file is otherwise not being rewritten, and the extended attribute--if it existed--may have been different
 		
-		OSStatus err = noErr;
-		do {
-			if (noErr != err || IsZeros(noteFileRefInit(self), sizeof(FSRef))) {
-				NSLog(@"%s: updating the fsref", _cmd);
-				if (![delegate notesDirectoryContainsFile:filename returningFSRef:noteFileRefInit(self)]) break;
-			}
-			err = [self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
-		} while (fnfErr == err);
+		UniChar chars[256];
+		if ([delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars] != noErr)
+			return NO;
+		
+		if ([self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)] != noErr)
+			return NO;		
 		
 		if ((updated = [self updateFromFile])) {
 			[self makeNoteDirtyUpdateTime:NO updateFile:NO];
@@ -1080,6 +1102,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			fileModifiedDate = info.contentModDate;
 			nodeID = info.nodeID;
+			logicalSize = (UInt32)(info.dataLogicalSize & 0xFFFFFFFF);
 			
 			return YES;
 		}
@@ -1101,6 +1124,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
     
     fileModifiedDate = catEntry->lastModified;
     nodeID = catEntry->nodeID;
+	logicalSize = catEntry->logicalSize;
 
 	OSStatus err = noErr;
 	CFAbsoluteTime aModDate, aCreateDate;
@@ -1136,6 +1160,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		NSAssert(NO, @"Warning! Tried to update data from a note in single-db format!");
 	    
 	    break;
+    case MarkupTextFormat:
 	case PlainTextFormat:
 		//try to merge/re-match attributes?
 	    if ((stringFromData = [NSMutableString newShortLivedStringFromData:data ofGuessedEncoding:&fileEncoding withPath:NULL orWithFSRef:noteFileRefInit(self)])) {
@@ -1169,6 +1194,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	[contentString release];
 	contentString = [attributedStringFromData retain];
 	[contentString santizeForeignStylesForImporting];
+	//NSLog(@"%s(%@): %@", _cmd, [self noteFilePath], [contentString string]);
 	
 	//[contentString setAttributedString:attributedStringFromData];
 	contentCacheNeedsUpdate = YES;
@@ -1280,6 +1306,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	switch (storageFormat) {
 		case SingleDatabaseFormat:
 			NSAssert(NO, @"Warning! Tried to export data in single-db format!?");
+        case MarkupTextFormat:
 		case PlainTextFormat:
 			if (!(formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:NO])) {
 				[self _setFileEncoding:NSUTF8StringEncoding];
@@ -1315,7 +1342,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	NSString *newextension = [NotationPrefs pathExtensionForFormat:storageFormat];
 	NSString *newfilename = userFilename ? userFilename : [[filename stringByDeletingPathExtension] stringByAppendingPathExtension:newextension];
 	//one last replacing, though if the unique file-naming method worked this should be unnecessary
-	newfilename = (NSString*)[newfilename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
+	newfilename = [newfilename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
 	
 	BOOL fileWasCreated = NO;
 	
@@ -1334,7 +1361,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 		NSLog(@"error writing to temporary file: %d", err);
 		return err;
     }
-	if (PlainTextFormat == storageFormat) {
+	if (PlainTextFormat == storageFormat || MarkupTextFormat == storageFormat) {
 		(void)[self writeCurrentFileEncodingToFSRef:&fileRef];
 	}
 	

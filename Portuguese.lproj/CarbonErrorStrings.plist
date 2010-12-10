@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>-33</key>
+	<string>o diretório está cheio</string>
+	<key>-34</key>
+	<string>o disco está cheio</string>
+	<key>-35</key>
+	<string>o volume não existe</string>
+	<key>-36</key>
+	<string>ocorreu um erro ao acessar a mídia</string>
+	<key>-37</key>
+	<string>o nome é inválido</string>
+	<key>-38</key>
+	<string>o arquivo não está aberto</string>
+	<key>-39</key>
+	<string>o fim do arquivo foi alcançado</string>
+	<key>-40</key>
+	<string>uma posição de deslocamento negativa foi especificada</string>
+	<key>-41</key>
+	<string>o arquivo não cabe na memória</string>
+	<key>-42</key>
+	<string>existem muitos arquivos abertos</string>
+	<key>-43</key>
+	<string>o arquivo não foi encontrado</string>
+	<key>-44</key>
+	<string>a mídia está protegida contra escrita</string>
+	<key>-45</key>
+	<string>o arquivo está bloqueado</string>
+	<key>-46</key>
+	<string>o volume está bloqueado</string>
+	<key>-47</key>
+	<string>o arquivo ainda está em uso</string>
+	<key>-48</key>
+	<string>um arquivo com o mesmo nome já existe</string>
+	<key>-49</key>
+	<string>o arquivo já está aberto para escrita</string>
+	<key>-50</key>
+	<string>um parâmetro é inválido</string>
+	<key>-51</key>
+	<string>o número de referência do arquivo é inválido</string>
+	<key>-52</key>
+	<string>a posição de deslocamento do arquivo não pôde ser obtida</string>
+	<key>-53</key>
+	<string>o volume não está mais presente</string>
+	<key>-54</key>
+	<string>o arquivo está bloqueado</string>
+	<key>-55</key>
+	<string>o disco já está montado</string>
+	<key>-56</key>
+	<string>uma unidade não existente foi referenciado</string>
+	<key>-57</key>
+	<string>o disco não está formatado para o mac</string>
+	<key>-58</key>
+	<string>o tipo de sistema de arquivos do volume não pode ser manipulado</string>
+	<key>-59</key>
+	<string>ocorreu um problema ao renomear</string>
+	<key>-60</key>
+	<string>o bloco mestre do diretório está corrompido</string>
+	<key>-61</key>
+	<string>as permissões de arquivo impedem a escrita</string>
+	<key>-64</key>
+	<string>a unidade não está instalada</string>
+	<key>-120</key>
+	<string>o diretório não foi encontrado</string>
+	<key>-121</key>
+	<string>existem muitos diretórios de trabalho abertos</string>
+	<key>-122</key>
+	<string>pastas não podem ser movidas para suas sub-pastas</string>
+	<key>-123</key>
+	<string>o volume é de um tipo incorreto</string>
+	<key>-124</key>
+	<string>o volume do servidor foi desconectado</string>
+	<key>-127</key>
+	<string>houve um problema com o software controlador do sistema de arquivos</string>
+	<key>-128</key>
+	<string>a operação foi cancelada</string>
+	<key>-818</key>
+	<string>os dados não puderam ser desserializados</string>
+	<key>-819</key>
+	<string>o arquivo Interim Note-Changes não pôde ser inicializado</string>
+	<key>-820</key>
+	<string>não foi possível adicionar dados ao arquivo Interim Note-Changes</string>
+	<key>-821</key>
+	<string>falha na autenticação</string>
+	<key>-822</key>
+	<string>os dados não podem ser descompactados</string>
+	<key>-823</key>
+	<string>você não digitou a frase de segurança</string>
+	<key>-824</key>
+	<string>os dados não puderam ser formatados de maneira apropriada</string>
+	<key>-825</key>
+	<string>as notas apresentaram valores discordantes após a decodificação</string>
+	<key>-1300</key>
+	<string>o ID do arquivo especificado não foi encontrado no sistema de arquivos</string>
+	<key>-1301</key>
+	<string>o ID do arquivo já existe no sistema de arquivos</string>
+	<key>-1302</key>
+	<string>um arquivo era na verdade uma pasta</string>
+	<key>-1303</key>
+	<string>os arquivos estão em volumes diferentes</string>
+	<key>-1304</key>
+	<string>o catálogo mudou de forma inesperada</string>
+	<key>-1306</key>
+	<string>houve uma tentativa de trocar o conteúdo do arquivo por ele próprio</string>
+	<key>-1307</key>
+	<string>o arquivo não corresponde ao número de identificação de arquivo</string>
+	<key>-1308</key>
+	<string>o volume foi remontado incorretamente</string>
+	<key>-1309</key>
+	<string>o arquivo foi acessado fora dos seus limites</string>
+	<key>-1310</key>
+	<string>o arquivo ou volume é muito grande</string>
+	<key>-1311</key>
+	<string>o volume está em uso pelo subsistema de memória virtual</string>
+	<key>-1327</key>
+	<string>a tabela de controle de blocos de arquivo foi acessada de forma inaqueada</string>
+	<key>-1400</key>
+	<string>a chamada ao sistema de arquivos é desconhecida</string>
+	<key>-1401</key>
+	<string>a referência ao sistema de arquivos não é mais válida</string>
+	<key>-1402</key>
+	<string>um nome de ramo inválido foi especificado</string>
+	<key>-1403</key>
+	<string>um buffer não foi inicializado</string>
+	<key>-1404</key>
+	<string>um número de ramo inválido foi especificado</string>
+	<key>-1405</key>
+	<string>informação de catálogo de árquivos inválida foi solicitada</string>
+	<key>-1406</key>
+	<string>o buffer de informações do catálogo não foi inicializado</string>
+	<key>-1407</key>
+	<string>uma pasta era na verdade um arquivo</string>
+	<key>-1409</key>
+	<string>o ramo do arquivo solicitado não existe</string>
+	<key>-1410</key>
+	<string>o nome solicitado é muito longo para ser válido</string>
+	<key>-1411</key>
+	<string>o arquivo não possui um nome</string>
+	<key>-1412</key>
+	<string>um modo de posicionamento inválido foi especificado para acessar o arquivo</string>
+	<key>-1413</key>
+	<string>o arquivo foi alocado de forma inadequada</string>
+	<key>-1417</key>
+	<string>não existem mais itens para pesquisar</string>
+	<key>-1418</key>
+	<string>nenhum item foi solicitado para ser lido a partir do diretório</string>
+	<key>-1419</key>
+	<string>os parâmetros de busca são inválidos</string>
+	<key>-1420</key>
+	<string>as referências do sistema de arquivos são diferentes</string>
+	<key>-1421</key>
+	<string>o arquivo já possui uma ramificação</string>
+	<key>-1422</key>
+	<string>parâmetros inválidos foram passados durante a iteração com o diretório</string>
+	<key>-1423</key>
+	<string>o iterador de diretório especificado é inválido</string>
+	<key>-1424</key>
+	<string>o iterador diretório foi utilizado de maneira incorreta</string>
+	<key>-1425</key>
+	<string>você excedeu sua cota de disco</string>
+	<key>-5000</key>
+	<string>sua conta não tem permissão para acessar o diretório</string>
+</dict>
+</plist>

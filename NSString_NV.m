@@ -3,8 +3,17 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 1/13/06.
-//  Copyright 2006 Zachary Schneirov. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+	 conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
 
 #import "NSString_NV.h"
 #import "NSData_transformations.h"
@@ -244,12 +253,16 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return newfilename;
 }
 
-- (NSMutableString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString {
-	NSMutableString *sanitizedName = [NSMutableString stringWithString:self];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+- (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString {
+	//NSLog(@"NSString_NV: %s", _cmd);
+	NSMutableString *sanitizedName = [[self mutableCopy] autorelease];
 	[sanitizedName replaceOccurrencesOfString:stringToReplace withString:replacementString options:NSLiteralSearch range:NSMakeRange(0, [sanitizedName length])];
 
 	return sanitizedName;
 }
+
+#endif
 
 - (NSString*)fourCharTypeString {
 	if ([[self dataUsingEncoding:NSMacOSRomanStringEncoding allowLossyConversion:YES] length] >= 4) {
@@ -308,7 +321,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return nil;
 }
 
-#define MAX_TITLE_LEN 50
+#define MAX_TITLE_LEN 60
 
 - (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle {
 	
@@ -361,23 +374,11 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return [firstLine length] ? firstLine : NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 }
 
-- (NSString*)syntheticTitle {
-	//grab first five words of first line of receiver
-
-    NSMutableString *titleText = [NSMutableString stringWithString:[self stringByTrimmingCharactersInSet:
-		[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
-	
-	//handle mac linefeeds
-	[titleText replaceOccurrencesOfString:@"\r" withString:@"\n" options:NSLiteralSearch range:NSMakeRange(0, [titleText length])];
-	NSArray *lines = [titleText componentsSeparatedByString:@"\n"];
-	
-    if (![titleText length] || ![lines count]) {
-		//note contains no useful information
-		return NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
-	}
-	
-	NSArray *words = [[lines objectAtIndex:0] componentsSeparatedByString:@" "];
-	return [[words subarrayWithRange:NSMakeRange(0U, MIN(5U, [words count]))] componentsJoinedByString:@" "];
+- (NSString*)syntheticTitleAndTrimmedBody:(NSString**)newBody {
+	NSUInteger bodyLoc = 0;
+	NSString *title = [self syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+	if (newBody) *newBody = [self substringFromIndex:bodyLoc];
+	return title;
 }
 
 - (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)upToWidth {
