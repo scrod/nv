@@ -1,12 +1,43 @@
-### Just a quick fork
+### Notational Velocity  ALT
 
-I actually hadn't noticed that another fork of Notational Velocity had already done the MultiMarkdown upgrade, but this was just a quick mod, so I'm going with it.
+A fork based on [DivineDominion's](github.com/divineDominion/nv) which adds a few features I'd been looking for (and let me get some coding practice).
 
-This version makes a few minor visual tweaks. I won't detail them all, but it's about a third of what I actually want to do with it. I need more free time. There are also a LOT of changes to the CSS in the preview window, as there really wasn't *any* before.
+![Screenshot](http://img.skitch.com/20101210-3qf2t3pccfxf6yi2ng55fyy53.jpg)
 
-In addition to the inline MultiMarkdown preview, there's an HTML source view tab for grabbing the rendered source instead of rich text.
+## About Notational Velocity ALT ##
 
-* TODO: Render notes as fragments instead of complete documents.
-* TODO: Add options for custom CSS in Preview
-* TODO: Modify the export options to render Markdown
-* TODO: Add export option for HTML Source from MMD
+Notational Velocity ALT is a fork of the original [Notational Velocity][notational] with some additional features and some interface modifications. It is a work in progress. I'm not listing it as a beta, as that would imply that it was on its way to being its own product. It's an experiment, and I hope you enjoy it!
+
+## What it is ##
+
+Notational Velocity is a way to take notes quickly and effortlessly using just your keyboard. You press a shortcut to bring up the window and just start typing. It will begin searching existing notes, filtering them as you type. You can use &#x2318;-J and &#x2318;-K to move through the list. Enter selects and begins editing. If you're creating a new note, you just type a unique title and press enter to move the cursor into a blank edit area. Check out the descriptions at [notational.net][notational] for a more eloquent synopsis.
+
+## Additional Features ## 
+
+Notational Velocity ALT adds:
+
+* Widescreen (horizontal) layout option
+* Shortcut (&#x2318;-&#x2325;-N) to collapse the notes panel
+* Markdown, Textile and MultiMarkdown support with Preview window
+* HTML source code tab in the Preview window for fast copy/paste to blogs, etc.
+* Unique interface design changes
+* Fixes for a couple of bugs/annoyances
+* Customizable HTML and CSS files for the Preview window
+	* You can use Javascript in the templates to do a few neat tricks
+
+## Customization ## 
+
+After the first time you run the Preview window, look in `~/Library/Application Support/Notational Velocity` and you'll find two files:` template.html` and `custom.css`. If you're handy with HTML and CSS, feel free to customize these in whatever way you like. You can add Javascript as well, but you'll need to load external scripts from a url or using a full file:// path. If worst comes to worst, you can just delete or rename your customizations and the default files will be put back in place automatically.
+
+
+## Credits ## 
+
+* [Notational Velocity][notational]
+* Code: The original Notational Velocity [source code][original source] by Zachary Schneirov
+* Code: DivineDominion's [MultiMarkdown fork][DivineDominion]
+* Inspiration: [Elastic Threads' version](http://elasticthreads.tumblr.com/nv) of Notational Velocity
+
+[notational]: http://notational.net/
+[original source]: https://github.com/scrod/nv
+[DivineDominion]: https://github.com/DivineDominion/nv
+
