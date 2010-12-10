@@ -23,10 +23,10 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="341"/>
-			<integer value="1012"/>
 			<integer value="1066"/>
+			<integer value="1012"/>
 			<integer value="29"/>
+			<integer value="341"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -231,7 +231,7 @@
 									<int key="tag">0</int>
 									<double key="minDimension">1</double>
 									<double key="maxDimension">1000000</double>
-									<double key="fraction">0.24553571428569398</double>
+									<double key="fraction">0.24553571428575083</double>
 									<bool key="canCollapse">NO</bool>
 								</object>
 								<object class="RBSplitSubview" id="234401737">
@@ -402,7 +402,7 @@
 									<int key="tag">0</int>
 									<double key="minDimension">1</double>
 									<double key="maxDimension">1000000</double>
-									<double key="fraction">-0.24553571428572241</double>
+									<double key="fraction">-0.24553571428566556</double>
 									<bool key="canCollapse">NO</bool>
 								</object>
 							</object>
@@ -4039,9 +4039,9 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{546, 243}, {397, 464}}</string>
+					<string>{{486, 193}, {397, 464}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{546, 243}, {397, 464}}</string>
+					<string>{{486, 193}, {397, 464}}</string>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
