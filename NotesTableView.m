@@ -782,7 +782,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
 	
 	unsigned mods = [theEvent modifierFlags];
-	if (mods & NSCommandKeyMask) {
+	if ((mods & NSCommandKeyMask) && ((mods & NSShiftKeyMask) == 0)) {
 		
 		unichar keyChar = [theEvent firstCharacter]; /*cannot use ignoringModifiers here as it subverts the Dvorak-Qwerty-CMD keyboard layout */
 		
