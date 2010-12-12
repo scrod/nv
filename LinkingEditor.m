@@ -100,7 +100,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[theMenuItem setTarget:self];
 	[formatMenu addItem:theMenuItem];
 	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Underline",nil) action:@selector(underlineNV:) keyEquivalent:@""] autorelease];
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Strikethrough",nil) action:@selector(strikethroughNV:) keyEquivalent:@""] autorelease];
 	[theMenuItem setTarget:self];
 	[formatMenu addItem:theMenuItem];
 	
@@ -514,7 +514,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 					goto copyRTFType;
 				if ([attributes attributesHaveFontTrait:NSItalicFontMask orAttribute:NSObliquenessAttributeName])
 					goto copyRTFType;
-				if ([attributes attributesHaveFontTrait:0 orAttribute:NSUnderlineStyleAttributeName])
+				if ([attributes attributesHaveFontTrait:0 orAttribute:NSStrikethroughStyleAttributeName])
 					goto copyRTFType;
 			}
 #if COPY_PASTE_DEBUG
@@ -541,13 +541,14 @@ copyRTFType:
 	return types;
 }
 
-- (void)underlineNV:(id)sender {
-	
-	//we don't respond to the font panel, so underline it ourselves
-		[self applyStyleOfTrait:0 alternateAttributeName:NSUnderlineStyleAttributeName 
+//font panel is disabled for the note-body, so styles must be applied manually:
+
+- (void)strikethroughNV:(id)sender {
+
+	[self applyStyleOfTrait:0 alternateAttributeName:NSStrikethroughStyleAttributeName 
 	alternateAttributeValue:[NSNumber numberWithInt:NSUnderlineStyleSingle]];
 	
-	[[self undoManager] setActionName:NSLocalizedString(@"Underline",nil)];
+	[[self undoManager] setActionName:NSLocalizedString(@"Strikethrough",nil)];
 }
 
 #define STROKE_WIDTH_FOR_BOLD (-3.50)
@@ -1037,7 +1038,7 @@ copyRTFType:
 	if (action == @selector(defaultStyle:) ||
 		action == @selector(bold:) ||
 		action == @selector(italic:) ||
-		action == @selector(underlineNV:)) {
+		action == @selector(strikethroughNV:)) {
 		
 		NSRange effectiveRange = NSMakeRange(0,0), range = [self selectedRange];
 		NSDictionary *attrs = nil;
@@ -1062,8 +1063,8 @@ copyRTFType:
 			menuItemState = [attrs attributesHaveFontTrait:NSBoldFontMask orAttribute:NSStrokeWidthAttributeName];
 		} else if (action == @selector(italic:)) {
 			menuItemState = [attrs attributesHaveFontTrait:NSItalicFontMask orAttribute:NSObliquenessAttributeName];
-		} else if (action == @selector(underlineNV:)) {
-			menuItemState = [attrs attributesHaveFontTrait:0 orAttribute:NSUnderlineStyleAttributeName];
+		} else if (action == @selector(strikethroughNV:)) {
+			menuItemState = [attrs attributesHaveFontTrait:0 orAttribute:NSStrikethroughStyleAttributeName];
 		}
 		
 		if (menuItemState && multipleAttributes)
