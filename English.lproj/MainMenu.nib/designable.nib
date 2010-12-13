@@ -23,10 +23,10 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="1066"/>
-			<integer value="1012"/>
 			<integer value="29"/>
-			<integer value="341"/>
+			<integer value="1013"/>
+			<integer value="1208"/>
+			<integer value="1066"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -114,13 +114,13 @@
 																	</object>
 																	<double key="NSIntercellSpacingWidth">3</double>
 																	<double key="NSIntercellSpacingHeight">2</double>
-																	<object class="NSColor" key="NSBackgroundColor" id="84086260">
+																	<object class="NSColor" key="NSBackgroundColor">
 																		<int key="NSColorSpace">2</int>
-																		<bytes key="NSRGB">MC43ODAzOTIyMjk2IDAuODQzMTM3MzIzOSAwLjg2NjY2NjczNDIAA</bytes>
+																		<bytes key="NSRGB">MC45NjIzNDkzOTc2IDAuOTYxNDE5NjMzOCAwLjkzNzcxMDkzNDEAA</bytes>
 																	</object>
 																	<object class="NSColor" key="NSGridColor">
-																		<int key="NSColorSpace">1</int>
-																		<bytes key="NSRGB">MC44ODU4OTc3NTY1IDAuODg2MDE4MjM3MSAwLjg2NDU5MTU1NzIAA</bytes>
+																		<int key="NSColorSpace">2</int>
+																		<bytes key="NSRGB">MC45NDcyODkxNTY2IDAuOTQ0MjIwNDk5NSAwLjg2NTk3MDY1OTcAA</bytes>
 																	</object>
 																	<double key="NSRowHeight">17</double>
 																	<int key="NSTvFlags">-633307136</int>
@@ -137,8 +137,11 @@
 															<reference key="NSSuperview" ref="1009919946"/>
 															<reference key="NSNextKeyView" ref="71458232"/>
 															<reference key="NSDocView" ref="71458232"/>
-															<reference key="NSBGColor" ref="84086260"/>
-															<int key="NScvFlags">6</int>
+															<object class="NSColor" key="NSBGColor">
+																<int key="NSColorSpace">2</int>
+																<bytes key="NSRGB">MC43ODAzOTIyMjk2IDAuODQzMTM3MzIzOSAwLjg2NjY2NjczNDIAA</bytes>
+															</object>
+															<int key="NScvFlags">2</int>
 														</object>
 														<object class="NSScroller" id="685311481">
 															<reference key="NSNextResponder" ref="1009919946"/>
@@ -231,7 +234,7 @@
 									<int key="tag">0</int>
 									<double key="minDimension">1</double>
 									<double key="maxDimension">1000000</double>
-									<double key="fraction">0.24553571428575083</double>
+									<double key="fraction">0.24553571428569398</double>
 									<bool key="canCollapse">NO</bool>
 								</object>
 								<object class="RBSplitSubview" id="234401737">
@@ -402,7 +405,7 @@
 									<int key="tag">0</int>
 									<double key="minDimension">1</double>
 									<double key="maxDimension">1000000</double>
-									<double key="fraction">-0.24553571428566556</double>
+									<double key="fraction">-0.24553571428572241</double>
 									<bool key="canCollapse">NO</bool>
 								</object>
 							</object>
@@ -1578,8 +1581,8 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 									<bool key="EncodedWithXMLCoder">YES</bool>
 									<object class="NSTextField" id="739777224">
 										<reference key="NSNextResponder" ref="558144056"/>
-										<int key="NSvFlags">309</int>
-										<string key="NSFrame">{{13, 16}, {254, 35}}</string>
+										<int key="NSvFlags">306</int>
+										<string key="NSFrame">{{-5, 2}, {288, 42}}</string>
 										<reference key="NSSuperview" ref="558144056"/>
 										<bool key="NSEnabled">YES</bool>
 										<object class="NSTextFieldCell" key="NSCell" id="362765818">
@@ -3636,6 +3639,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<string>1106.IBAttributePlaceholdersKey</string>
 					<string>1106.IBShouldRemoveOnLegacySave</string>
 					<string>1107.IBShouldRemoveOnLegacySave</string>
+					<string>1108.CustomClassName</string>
 					<string>1108.IBShouldRemoveOnLegacySave</string>
 					<string>1109.CustomClassName</string>
 					<string>1109.IBAttributePlaceholdersKey</string>
@@ -3941,6 +3945,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					</object>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
+					<string>BTTableHeaderView</string>
 					<boolean value="YES"/>
 					<string>WhiteTransparentScroller</string>
 					<object class="NSMutableDictionary">
@@ -4055,7 +4060,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<string>{{323, 761}, {673, 20}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{83, 910}, {280, 65}}</string>
+					<string>{{97, 899}, {280, 65}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -4517,6 +4522,14 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							</object>
 						</object>
 					</object>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBUserSource</string>
+						<string key="minorKey"/>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">BTTableHeaderView</string>
+					<string key="superclassName">NSTableHeaderView</string>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBUserSource</string>
 						<string key="minorKey"/>

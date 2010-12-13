@@ -85,6 +85,7 @@
     IBOutlet NSMenuItem *multiMarkdownPreview;
     IBOutlet NSMenuItem *textilePreview;
     NSInteger currentPreviewMode;
+
 }
 
 void outletObjectAwoke(id sender);

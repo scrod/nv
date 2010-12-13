@@ -117,8 +117,8 @@
 
 - (void)highlightSelectionInClipRect:(NSRect)clipRect
 {
-	NSColor *evenColor = [NSColor colorWithCalibratedRed:0.731 green:0.814 blue:0.838 alpha:1.000];
-	NSColor *oddColor  = [NSColor colorWithCalibratedRed:0.780 green:0.843 blue:0.867 alpha:1.000];
+	NSColor *evenColor = [NSColor colorWithCalibratedRed:0.955 green:0.954 blue:0.925 alpha:1.000];
+	NSColor *oddColor  = [NSColor colorWithCalibratedRed:0.932 green:0.931 blue:0.903 alpha:1.000];
 	
 	float rowHeight
 	= [self rowHeight] + [self intercellSpacing].height;
