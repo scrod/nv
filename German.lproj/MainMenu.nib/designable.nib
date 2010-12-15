@@ -2,9 +2,9 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="7.10">
 	<data>
 		<int key="IBDocument.SystemTarget">1040</int>
-		<string key="IBDocument.SystemVersion">10F569</string>
-		<string key="IBDocument.InterfaceBuilderVersion">804</string>
-		<string key="IBDocument.AppKitVersion">1038.29</string>
+		<string key="IBDocument.SystemVersion">10H574</string>
+		<string key="IBDocument.InterfaceBuilderVersion">823</string>
+		<string key="IBDocument.AppKitVersion">1038.35</string>
 		<string key="IBDocument.HIToolboxVersion">461.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -15,12 +15,13 @@
 			</object>
 			<object class="NSMutableArray" key="dict.values">
 				<bool key="EncodedWithXMLCoder">YES</bool>
-				<string>804</string>
+				<string>823</string>
 				<string>1.2</string>
 			</object>
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
+			<integer value="398"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1193,14 +1194,14 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 								</object>
 								<object class="NSMenuItem" id="721950874">
 									<reference key="NSMenu" ref="771614141"/>
-									<string key="NSTitle">Unterstrichen</string>
-									<string key="NSKeyEquiv">u</string>
+									<string key="NSTitle">Durchgestrichen</string>
+									<string key="NSKeyEquiv">y</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
 									<reference key="NSOnImage" ref="259802817"/>
 									<reference key="NSMixedImage" ref="853026812"/>
 									<object class="NSAttributedString" key="NSAttributedTitle">
-										<string key="NSString">Unterstrichen</string>
+										<string key="NSString">Durchgestrichen</string>
 										<object class="NSDictionary" key="NSAttributes">
 											<bool key="EncodedWithXMLCoder">YES</bool>
 											<object class="NSArray" key="dict.sortedKeys">
@@ -1208,7 +1209,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 												<string>NSFont</string>
 												<string>NSOriginalFont</string>
 												<string>NSParagraphStyle</string>
-												<string>NSUnderline</string>
+												<string>NSStrikethrough</string>
 											</object>
 											<object class="NSMutableArray" key="dict.values">
 												<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1884,14 +1885,6 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
-						<string key="label">underlineNV:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="721950874"/>
-					</object>
-					<int key="connectionID">984</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
 						<string key="label">performFindPanelAction:</string>
 						<reference key="source" ref="17963713"/>
 						<reference key="destination" ref="729776078"/>
@@ -2265,6 +2258,14 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 						<reference key="destination" ref="237246075"/>
 					</object>
 					<int key="connectionID">1112</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">strikethroughNV:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="721950874"/>
+					</object>
+					<int key="connectionID">1113</int>
 				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -3678,7 +3679,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<string>{{662, 281}, {240, 93}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{133, 374}, {659, 20}}</string>
+					<string>{{294, 419}, {659, 20}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>{{414, 575}, {147, 102}}</string>
@@ -3717,7 +3718,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{495, 211}, {263, 163}}</string>
+					<string>{{656, 256}, {262, 163}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
@@ -3814,7 +3815,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">1112</int>
+			<int key="maxID">1113</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -4237,7 +4238,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 							<string>bold:</string>
 							<string>defaultStyle:</string>
 							<string>italic:</string>
-							<string>underlineNV:</string>
+							<string>strikethroughNV:</string>
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
@@ -4254,7 +4255,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 							<string>bold:</string>
 							<string>defaultStyle:</string>
 							<string>italic:</string>
-							<string>underlineNV:</string>
+							<string>strikethroughNV:</string>
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
@@ -4271,7 +4272,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
-								<string key="name">underlineNV:</string>
+								<string key="name">strikethroughNV:</string>
 								<string key="candidateClassName">id</string>
 							</object>
 						</object>
@@ -4667,7 +4668,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 		</object>
 		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDependencyDefaults">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.macosx</string>
-			<integer value="1060" key="NS.object.0"/>
+			<integer value="1040" key="NS.object.0"/>
 		</object>
 		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDevelopmentDependencies">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.InterfaceBuilder3</string>
