@@ -436,25 +436,27 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	if ([type isEqualToString:NSRTFPboardType] || [type isEqualToString:NVPTFPboardType]) {
 		//strip formatting if RTF and stick it into a new pboard
 		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] initWithRTF:[pboard dataForType:type] 
-																				   documentAttributes:nil] autorelease];
-		NSRange selectedRange = [self rangeForUserTextChange];
-		if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
-			
-			if (![type isEqualToString:NVPTFPboardType]) {
-				//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
-				//and we only want real URLs to be linked
-				[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
-				[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
+																			documentAttributes:nil] autorelease];
+		if ([newString length]) {
+			NSRange selectedRange = [self rangeForUserTextChange];
+			if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
+				
+				if (![type isEqualToString:NVPTFPboardType]) {
+					//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
+					//and we only want real URLs to be linked
+					[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
+					[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
+				}
+				
+				[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
+																	  NSMakeRange(0, [newString length]) documentAttributes:nil]];
+				
+				//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
+				//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
+				[self didChangeText];
+				
+				return YES;
 			}
-						
-			[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
-								   NSMakeRange(0, [newString length]) documentAttributes:nil]];
-
-			//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
-			//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
-			[self didChangeText];
-			
-			return YES;
 		}
 	}
 	
