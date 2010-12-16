@@ -64,7 +64,7 @@
 	unsigned int i;
 	for (i=0; i<sizeof(colStrings)/sizeof(NSString*); i++) {
 	    NoteAttributeColumn *column = [[NoteAttributeColumn alloc] initWithIdentifier:colStrings[i]];
-
+		[column setHeaderCell:[[[NoteTableHeaderCell alloc] initTextCell:[[NSBundle mainBundle] localizedStringForKey:colStrings[i] value:@"" table:nil]] autorelease]];
 	    [column setEditable:(colMutators[i] != NULL)];
 	    [[column dataCell] setFont:font];
 	    [column setMutatingSelector:colMutators[i]];
@@ -86,7 +86,7 @@
 	[self setAllowsColumnSelection:NO];
 	//[self setVerticalMotionCanBeginDrag:NO];
 		
-	[self setIntercellSpacing:NSMakeSize(12, 0)];
+	[self setIntercellSpacing:NSMakeSize(12, 4)];
 	
 	BOOL hideHeader = [columnsToDisplay count] == 1 && [columnsToDisplay containsObject:NoteTitleColumnString];
 	if (hideHeader) {

@@ -3928,7 +3928,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>BlueTransparentScroller</string>
+					<string>WhiteTransparentScroller</string>
 					<object class="NSMutableDictionary">
 						<bool key="EncodedWithXMLCoder">YES</bool>
 						<reference key="dict.sortedKeys" ref="0"/>
@@ -4525,14 +4525,6 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">BTTransparentScroller.h</string>
-					</object>
-				</object>
-				<object class="IBPartialClassDescription">
-					<string key="className">BlueTransparentScroller</string>
-					<string key="superclassName">BTTransparentScroller</string>
-					<object class="IBClassDescriptionSource" key="sourceIdentifier">
-						<string key="majorKey">IBProjectSource</string>
-						<string key="minorKey">BlueTransparentScroller.h</string>
 					</object>
 				</object>
 				<object class="IBPartialClassDescription">
