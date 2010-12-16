@@ -11,6 +11,7 @@
 
 
 #import "NotesTableView.h"
+#import "BTTableHeaderCell.h"
 #import "AppController.h"
 #import "FastListDataSource.h"
 #import "NoteAttributeColumn.h"
@@ -60,14 +61,14 @@
 	NSInteger (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
 	NSInteger (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
 	    compareDateCreatedReverse };
-	
+		
+		
 	unsigned int i;
 	for (i=0; i<sizeof(colStrings)/sizeof(NSString*); i++) {
 	    NoteAttributeColumn *column = [[NoteAttributeColumn alloc] initWithIdentifier:colStrings[i]];
 
 	    [column setEditable:(colMutators[i] != NULL)];
-		[column setHeaderCell:[[[NoteTableHeaderCell alloc] initTextCell:[[NSBundle mainBundle] localizedStringForKey:colStrings[i] value:@"" table:nil]] autorelease]];
-
+		[column setHeaderCell:[[[BTTableHeaderCell alloc] initTextCell:[[NSBundle mainBundle] localizedStringForKey:colStrings[i] value:@"" table:nil]] autorelease]];
 	    [[column dataCell] setFont:font];
 	    [column setMutatingSelector:colMutators[i]];
 	    [column setDereferencingFunction:colReferencors[i]];
@@ -95,6 +96,7 @@
 		[[self cornerView] setFrameOrigin:NSMakePoint(-1000,-1000)];
 		[self setCornerView:nil];
 	}
+		
 	[self setHeaderView:hideHeader ? nil : headerView];
 		
 	[[self noteAttributeColumnForIdentifier:NoteTitleColumnString] setResizingMask:NSTableColumnUserResizingMask | NSTableColumnAutoresizingMask];
@@ -120,8 +122,7 @@
 	NSColor *evenColor = [NSColor colorWithCalibratedRed:0.955 green:0.954 blue:0.925 alpha:1.000];
 	NSColor *oddColor  = [NSColor colorWithCalibratedRed:0.932 green:0.931 blue:0.903 alpha:1.000];
 	
-	float rowHeight
-	= [self rowHeight] + [self intercellSpacing].height;
+	float rowHeight = [self rowHeight] + [self intercellSpacing].height;
 	NSRect visibleRect = [self visibleRect];
 	NSRect highlightRect;
 	
@@ -138,8 +139,7 @@
 		= NSIntersectionRect(highlightRect, clipRect);
 		int row = (int)
 		((NSMinY(highlightRect)+rowHeight/2.0)/rowHeight);
-		NSColor *rowColor
-		= (0 == row % 2) ? evenColor : oddColor;
+		NSColor *rowColor = (0 == row % 2) ? evenColor : oddColor;
 		[rowColor set];
 		NSRectFill(clippedHighlightRect);
 		highlightRect.origin.y += rowHeight;
@@ -390,6 +390,7 @@
 	if ([[column identifier] isEqualToString:[globalPrefs sortedTableColumnKey]]) {
 		[(NoteAttributeColumn*)[self highlightedTableColumn] updateWidthForHighlight];
 		[self setHighlightedTableColumn:column];
+		
 		[(NoteAttributeColumn*)column updateWidthForHighlight];
 	}
 	
@@ -410,6 +411,8 @@
 	
 	if (oldHeader != newHeader) {
 		//[headerView setTableView:newHeader ? self : nil];
+		
+		
 		[self setHeaderView:newHeader];
 		[self setCornerView:newHeader ? cornerView : nil];
 	
@@ -433,6 +436,7 @@
 			frame.size.width += 2.6;
 			[win setFrame:frame display:YES];
 		}
+
 		//[self tile];
 	}
 }
@@ -542,7 +546,8 @@
 
 - (void)setSortDirection:(BOOL)direction inTableColumn:(NSTableColumn*)tableColumn {
     [self setHighlightedTableColumn:tableColumn];
-    
+
+
     // Set the graphic for the new column header
     [self setIndicatorImage: (direction ? [NSImage imageNamed:@"NSDescendingSortIndicator"] : 
 							  [NSImage imageNamed:@"NSAscendingSortIndicator"]) inTableColumn:tableColumn];	

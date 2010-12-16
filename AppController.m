@@ -129,7 +129,7 @@
     } else if (previewMode == TextilePreview) {
         [textilePreview setState:NSOnState];
     }	
-	
+		
 	outletObjectAwoke(self);
 }
 

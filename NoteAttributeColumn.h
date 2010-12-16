@@ -17,7 +17,8 @@
 @class NotesTableView;
 
 @interface NoteTableHeaderCell : NSTableHeaderCell {
-	
+	NSImage *metalBg;
+	NSMutableDictionary *attrs;
 }
 
 @end
