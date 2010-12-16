@@ -172,6 +172,9 @@
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		93439D9912B120CA002946D7 /* scrollbarblue.tif in Resources */ = {isa = PBXBuildFile; fileRef = 93439D9812B120CA002946D7 /* scrollbarblue.tif */; };
 		93439DD912B12B31002946D7 /* CustomTextFieldCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 93439DD812B12B31002946D7 /* CustomTextFieldCell.m */; };
+		936763CF12BAA34300107A04 /* greyscrollervertbottom.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 936763CC12BAA34300107A04 /* greyscrollervertbottom.tiff */; };
+		936763D012BAA34300107A04 /* greyscrollervertfill.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 936763CD12BAA34300107A04 /* greyscrollervertfill.tiff */; };
+		936763D112BAA34300107A04 /* greyscrollerverttop.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 936763CE12BAA34300107A04 /* greyscrollerverttop.tiff */; };
 		9397BAF812B044FB004D25E9 /* BTTransparentScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 9397BAF712B044FB004D25E9 /* BTTransparentScroller.m */; };
 		9397BB0512B04686004D25E9 /* BTransparentScrollerKnobBottom.tif in Resources */ = {isa = PBXBuildFile; fileRef = 9397BAF912B04686004D25E9 /* BTransparentScrollerKnobBottom.tif */; };
 		9397BB0612B04686004D25E9 /* BTransparentScrollerKnobHorizontalFill.tif in Resources */ = {isa = PBXBuildFile; fileRef = 9397BAFA12B04686004D25E9 /* BTransparentScrollerKnobHorizontalFill.tif */; };
@@ -504,6 +507,9 @@
 		93439D9812B120CA002946D7 /* scrollbarblue.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = scrollbarblue.tif; sourceTree = "<group>"; };
 		93439DD712B12B31002946D7 /* CustomTextFieldCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CustomTextFieldCell.h; sourceTree = "<group>"; };
 		93439DD812B12B31002946D7 /* CustomTextFieldCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CustomTextFieldCell.m; sourceTree = "<group>"; };
+		936763CC12BAA34300107A04 /* greyscrollervertbottom.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertbottom.tiff; sourceTree = "<group>"; };
+		936763CD12BAA34300107A04 /* greyscrollervertfill.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertfill.tiff; sourceTree = "<group>"; };
+		936763CE12BAA34300107A04 /* greyscrollerverttop.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollerverttop.tiff; sourceTree = "<group>"; };
 		9397BAF612B044FB004D25E9 /* BTTransparentScroller.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BTTransparentScroller.h; sourceTree = "<group>"; };
 		9397BAF712B044FB004D25E9 /* BTTransparentScroller.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BTTransparentScroller.m; sourceTree = "<group>"; };
 		9397BAF912B04686004D25E9 /* BTransparentScrollerKnobBottom.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = BTransparentScrollerKnobBottom.tif; sourceTree = "<group>"; };
@@ -795,6 +801,9 @@
 		219196B109D4F1DB00586B15 /* Images */ = {
 			isa = PBXGroup;
 			children = (
+				936763CC12BAA34300107A04 /* greyscrollervertbottom.tiff */,
+				936763CD12BAA34300107A04 /* greyscrollervertfill.tiff */,
+				936763CE12BAA34300107A04 /* greyscrollerverttop.tiff */,
 				93CF647E12B66F4A0088ADC4 /* tan_column_header.png */,
 				93439D9812B120CA002946D7 /* scrollbarblue.tif */,
 				9397BAF912B04686004D25E9 /* BTransparentScrollerKnobBottom.tif */,
@@ -1133,6 +1142,9 @@
 				93439D9912B120CA002946D7 /* scrollbarblue.tif in Resources */,
 				93EE398612B1D803007E6B27 /* dsa_pub.pem in Resources */,
 				93CF647F12B66F4A0088ADC4 /* tan_column_header.png in Resources */,
+				936763CF12BAA34300107A04 /* greyscrollervertbottom.tiff in Resources */,
+				936763D012BAA34300107A04 /* greyscrollervertfill.tiff in Resources */,
+				936763D112BAA34300107A04 /* greyscrollerverttop.tiff in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

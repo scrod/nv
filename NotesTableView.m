@@ -11,7 +11,6 @@
 
 
 #import "NotesTableView.h"
-#import "BTTableHeaderCell.h"
 #import "AppController.h"
 #import "FastListDataSource.h"
 #import "NoteAttributeColumn.h"
@@ -21,7 +20,6 @@
 #import "NSCollection_utils.h"
 #import "HeaderViewWithMenu.h"
 #import "NSString_NV.h"
-#import "CustomTextFieldCell.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
 #define SET_DUAL_HIGHLIGHTS 0
@@ -68,7 +66,6 @@
 	    NoteAttributeColumn *column = [[NoteAttributeColumn alloc] initWithIdentifier:colStrings[i]];
 
 	    [column setEditable:(colMutators[i] != NULL)];
-		[column setHeaderCell:[[[BTTableHeaderCell alloc] initTextCell:[[NSBundle mainBundle] localizedStringForKey:colStrings[i] value:@"" table:nil]] autorelease]];
 	    [[column dataCell] setFont:font];
 	    [column setMutatingSelector:colMutators[i]];
 	    [column setDereferencingFunction:colReferencors[i]];
@@ -119,8 +116,9 @@
 
 - (void)highlightSelectionInClipRect:(NSRect)clipRect
 {
-	NSColor *evenColor = [NSColor colorWithCalibratedRed:0.955 green:0.954 blue:0.925 alpha:1.000];
-	NSColor *oddColor  = [NSColor colorWithCalibratedRed:0.932 green:0.931 blue:0.903 alpha:1.000];
+	
+	NSColor *evenColor = [NSColor colorWithCalibratedWhite:1.000 alpha:1.000];
+	NSColor *oddColor  = [NSColor colorWithCalibratedHue:0.000 saturation:0.000 brightness:0.974 alpha:1.000];
 	
 	float rowHeight = [self rowHeight] + [self intercellSpacing].height;
 	NSRect visibleRect = [self visibleRect];

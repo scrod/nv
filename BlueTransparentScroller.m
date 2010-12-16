@@ -10,10 +10,10 @@
 
 // Vertical scroller
 static NSImage *knobTop, *knobVerticalFill, *knobBottom, *slotTop, *slotVerticalFill, *slotBottom;
-static float verticalPaddingLeft = 6.0;
-static float verticalPaddingRight = 2.0;
+static float verticalPaddingLeft = 2.0;
+static float verticalPaddingRight = 4.0;
 static float verticalPaddingTop = 4.0;
-static float verticalPaddingBottom = 4.0;
+static float verticalPaddingBottom = 8.0;
 static float minKnobHeight;
 
 // Horizontal scroller
@@ -41,9 +41,9 @@ static NSColor *backgroundColor;
 	NSBundle *bundle = [NSBundle mainBundle];
 	
 	// Vertical scroller
-	knobTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobTop.tif"]];
-	knobVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobVerticalFill.tif"]];
-	knobBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobBottom.tif"]];
+	knobTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"greyscrollerverttop.tiff"]];
+	knobVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"greyscrollervertfill.tiff"]];
+	knobBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"greyscrollervertbottom.tiff"]];
 	slotTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotTop.tif"]];
 	slotVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"scrollbarblue.tif"]];
 	slotBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotBottom.tif"]];
@@ -56,7 +56,7 @@ static NSColor *backgroundColor;
 	slotHorizontalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotHorizontalFill.tif"]];
 	slotRight			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotRight.tif"]];
 
-	backgroundColor		= [[NSColor colorWithCalibratedRed:0.955 green:0.954 blue:0.925 alpha:1.000] retain];
+	backgroundColor		= [[NSColor whiteColor] retain];
 	minKnobHeight = knobTop.size.height + knobVerticalFill.size.height + knobBottom.size.height + 40;
 	minKnobWidth = knobLeft.size.width + knobHorizontalFill.size.width + knobRight.size.width + 10;
 }
