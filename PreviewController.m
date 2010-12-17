@@ -39,8 +39,29 @@
 		[sourceView setTextContainerInset:NSMakeSize(20,20)];
 		[tabView selectTabViewItem:[tabView tabViewItemAtIndex:0]];
 		[tabSwitcher setTitle:@"View Source"];
+		[preview setPolicyDelegate:self];
     }
     return self;
+}
+
+- (void)webView:(WebView *)sender
+	decidePolicyForNewWindowAction:(NSDictionary *)actionInformation 
+		request:(NSURLRequest *)request 
+   newFrameName:(NSString *)frameName 
+decisionListener:(id < WebPolicyDecisionListener >)listener
+{
+	[listener ignore];
+    [[NSWorkspace sharedWorkspace] openURL:[request URL]];
+}
+
+- (void)webView:(WebView *)sender
+	decidePolicyForNavigationAction:(NSDictionary *)actionInformation
+							request:(NSURLRequest *)request
+							  frame:(WebFrame *)frame
+				   decisionListener:(id <WebPolicyDecisionListener>)listener
+{
+	[listener ignore];
+    [[NSWorkspace sharedWorkspace] openURL:[request URL]];
 }
 
 
