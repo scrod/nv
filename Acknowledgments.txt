@@ -1,3 +1,5 @@
+nvALT is built on Notational Velocity, copyright Zachary Schneirov, Christian Tietze, the use of which is hereby acknowledged.
+
 Portions of Notational Velocity contain the following copyrighted materials, the use of which is hereby acknowledged.
 
 --

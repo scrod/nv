@@ -741,6 +741,9 @@ terminateApp:
 		case 4:		//development site
 			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://notational.net/development"]];
 			break;
+		case 5:		//nvALT website
+			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://brettterpstra.com/code/notational-velocity-alt/"]];
+			break;
 		default:
 			NSBeep();
 	}
