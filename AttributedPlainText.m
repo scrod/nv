@@ -256,7 +256,7 @@
 	if (!antiURLSpace) {
 		antiURLSpace = [[NSMutableCharacterSet alloc] init];
 		[antiURLSpace formUnionWithCharacterSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		[antiURLSpace addCharactersInString:@"<>[]\""];
+		[antiURLSpace addCharactersInString:@"<>[]\"()"];
 	}
 	return antiURLSpace;
 }
