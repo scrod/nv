@@ -328,7 +328,9 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	//break string into pieces for turning into a note
 	//find the first line, whitespace or no whitespace
 	
-	NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:@"\n\r\t"];
+	NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:
+											  [NSString stringWithFormat:@"\n\r\t%C%C", NSLineSeparatorCharacter, NSParagraphSeparatorCharacter]];
+	
 	NSScanner *scanner = [NSScanner scannerWithString:self];
 	[scanner setCharactersToBeSkipped:[[[NSMutableCharacterSet alloc] init] autorelease]];
 	

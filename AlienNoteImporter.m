@@ -389,12 +389,9 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 
 	if (attributedStringFromData) {
 		[attributedStringFromData trimLeadingWhitespace];
-		[attributedStringFromData removeAttachments];
-		[attributedStringFromData santizeForeignStylesForImporting];
-		
+		[attributedStringFromData removeAttachments];		
 		
 		NSString *processedFilename = [[filename lastPathComponent] stringByDeletingPathExtension];
-		
 		NSUInteger bodyLoc = 0;
 		NSString *title = [[attributedStringFromData string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
 		
@@ -404,9 +401,12 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 			title = processedFilename;
 		} else {
 			if (bodyLoc > 0 && [attributedStringFromData length] >= bodyLoc) [attributedStringFromData deleteCharactersInRange:NSMakeRange(0, bodyLoc)];
+			title = [title stringByAppendingFormat:@" (%@)", processedFilename];
 		}
 		if ([sourceIdentifierString length])
 			[attributedStringFromData prefixWithSourceString:sourceIdentifierString];
+		[attributedStringFromData santizeForeignStylesForImporting];
+		
 		[attributedStringFromData autorelease];
 		
 		//we do not also use filename as uniqueFilename, as we are only importing--not taking ownership
