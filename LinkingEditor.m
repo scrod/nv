@@ -433,10 +433,12 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		}
 	}
 	
-	if ([type isEqualToString:NSRTFPboardType] || [type isEqualToString:NVPTFPboardType]) {
+	if ([type isEqualToString:NSRTFPboardType] || [type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSHTMLPboardType]) {
 		//strip formatting if RTF and stick it into a new pboard
-		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] initWithRTF:[pboard dataForType:type] 
-																			documentAttributes:nil] autorelease];
+		
+		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] performSelector:[type isEqualToString:NSHTMLPboardType] ? 
+												 @selector(initWithHTML:documentAttributes:) : @selector(initWithRTF:documentAttributes:) 
+																						withObject:[pboard dataForType:type] withObject:nil] autorelease];
 		if ([newString length]) {
 			NSRange selectedRange = [self rangeForUserTextChange];
 			if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
@@ -450,7 +452,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 				
 				[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
 																	  NSMakeRange(0, [newString length]) documentAttributes:nil]];
-				
+			
 				//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
 				//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
 				[self didChangeText];
@@ -473,6 +475,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	
 	if ([prefsController pastePreservesStyle]) {
 		[types insertObject:NSRTFPboardType atIndex:2];
+		[types insertObject:NSHTMLPboardType atIndex:3];
 	}
 	
 	return types;
@@ -1162,6 +1165,9 @@ copyRTFType:
 		}
 	}*/
 	
+	//if the text storage was somehow shortened since changedRange was set in -shouldChangeText, at least avoid an out of bounds exception
+	changedRange = NSMakeRange(changedRange.location, (MIN(NSMaxRange(changedRange), [[self string] length]) - changedRange.location));
+
 	[[self textStorage] removeAttribute:NSLinkAttributeName range:changedRange];
 	
 	/*if (firstWordRange.location != NSNotFound) {

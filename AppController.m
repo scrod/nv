@@ -433,17 +433,17 @@ terminateApp:
 		}
 	}
 	
-	NSString *sourceIdentiferString = nil;
+	NSString *sourceIdentifierString = nil;
 	
 	//webkit URL!
 	if ([types containsObject:WebArchivePboardType]) {
-		sourceIdentiferString = [[pasteboard dataForType:WebArchivePboardType] pathURLFromWebArchive];
+		sourceIdentifierString = [[pasteboard dataForType:WebArchivePboardType] pathURLFromWebArchive];
 		//gecko URL!
 	} else if ([types containsObject:[NSString customPasteboardTypeOfCode:0x4D5A0003]]) {
 		//lazilly use syntheticTitle to get first line, even though that's not how our API is documented
-		sourceIdentiferString = [[pasteboard stringForType:[NSString customPasteboardTypeOfCode:0x4D5A0003]] syntheticTitleAndTrimmedBody:NULL];
+		sourceIdentifierString = [[pasteboard stringForType:[NSString customPasteboardTypeOfCode:0x4D5A0003]] syntheticTitleAndTrimmedBody:NULL];
 		unichar nullChar = 0x0;
-		sourceIdentiferString = [sourceIdentiferString stringByReplacingOccurrencesOfString:
+		sourceIdentifierString = [sourceIdentifierString stringByReplacingOccurrencesOfString:
 								 [NSString stringWithCharacters:&nullChar length:1] withString:@""];
 	}
 	
@@ -495,6 +495,11 @@ terminateApp:
 													 documentAttributes:NULL error:NULL];
 		}
 		hasRTFData = YES;
+		
+	} else if ([types containsObject:NSHTMLPboardType] && !shallUsePlainTextFallback) {
+		if ((data = [pasteboard dataForType:NSHTMLPboardType]))
+			newString = [[NSMutableAttributedString alloc] initWithHTML:data documentAttributes:NULL];
+		hasRTFData = YES;
 	} else if (([types containsObject:NSStringPboardType])) {
 		
 		NSString *pboardString = [pasteboard stringForType:NSStringPboardType];
@@ -510,9 +515,9 @@ terminateApp:
 		
 		NSUInteger bodyLoc = 0, prefixedSourceLength = 0;
 		NSString *noteTitle = [[newString string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
-		if ([sourceIdentiferString length] > 0) {
+		if ([sourceIdentifierString length] > 0) {
 			//add the URL or wherever it was that this piece of text came from
-			prefixedSourceLength = [[newString prefixWithSourceString:sourceIdentiferString] length];
+			prefixedSourceLength = [[newString prefixWithSourceString:sourceIdentifierString] length];
 		}
 		[newString santizeForeignStylesForImporting];
 
@@ -1460,6 +1465,10 @@ terminateApp:
 			}
 			
 			listUpdateViewCtx = [notesTableView viewingLocation];
+			
+			//NSLog(@"savedSelectedNotes: %@", savedSelectedNotes);
+			//TODO: savedSelectedNotes needs to be empty after de-selecting all notes, 
+			//to ensure that any delayed list-resorting does not re-select savedSelectedNotes
 		}
 	}
 }
