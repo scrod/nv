@@ -1205,15 +1205,13 @@ copyRTFType:
 	
 	//changedRange = NSMakeRange(affectedCharRange.location, affectedCharRange.length);
 	
-	NSUInteger begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch
-										  range:NSMakeRange(0, affectedCharRange.location)].location;
+	NSUInteger begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch range:NSMakeRange(0, affectedCharRange.location)].location;
 	if (begin == NSNotFound) {
 		begin = 0;
 	}
 	
-	NSUInteger end = [string rangeOfCharacterFromSet:separatorCharacterSet options:0
-										range:NSMakeRange(affectedCharRange.location + affectedCharRange.length, 
-														  [string length] - (affectedCharRange.location + affectedCharRange.length))].location;
+	NSUInteger end = [string rangeOfCharacterFromSet:separatorCharacterSet options:0 range:NSMakeRange(affectedCharRange.location + affectedCharRange.length, 
+																	[string length] - (affectedCharRange.location + affectedCharRange.length))].location;
 	if (end == NSNotFound) {
 		end = [string length];
 	}
