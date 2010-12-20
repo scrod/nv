@@ -561,7 +561,7 @@
 "Unable to create or access the Interim Note-Changes file. Is another copy of Notational Velocity currently running?" = "Impossible de créer ou d'accéder au fichier Interim Note-Changes. Une autre copie de Notational Velocity est-elle exécutée ?";
 
 /* No comment provided by engineer. */
-"Underline" = "Souligné";
+"Strikethrough" = "Barré";
 
 /* No comment provided by engineer. */
 "Use a single database file" = "Utiliser une base de données";
