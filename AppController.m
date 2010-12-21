@@ -425,6 +425,7 @@ terminateApp:
 	NSArray *types = [pasteboard types];
 	NSMutableAttributedString *newString = nil;
 	NSData *data = nil;
+	BOOL pbHasPlainText = [types containsObject:NSStringPboardType];
 		
 	if ([types containsObject:NSFilenamesPboardType]) {
 		NSArray *files = [pasteboard propertyListForType:NSFilenamesPboardType];
@@ -447,10 +448,11 @@ terminateApp:
 								 [NSString stringWithCharacters:&nullChar length:1] withString:@""];
 	}
 	
-	if ([types containsObject:NSURLPboardType]) {
+	if ([types containsObject:NSURLPboardType] || (pbHasPlainText && [[pasteboard stringForType:NSStringPboardType] superficiallyResemblesAnHTTPURL])) {
 		NSURL *url = [NSURL URLFromPasteboard:pasteboard];
+		if (!url) url = [NSURL URLWithString:[pasteboard stringForType:NSStringPboardType]];
 		
-		NSString *potentialURLString = [types containsObject:NSStringPboardType] ? [pasteboard stringForType:NSStringPboardType] : nil;
+		NSString *potentialURLString = pbHasPlainText ? [pasteboard stringForType:NSStringPboardType] : nil;
 		if (potentialURLString && [[url absoluteString] isEqualToString:potentialURLString]) {
 			//only begin downloading if we know that there's no other useful string data
 			//because we've already checked NSFilenamesPboardType
@@ -473,7 +475,7 @@ terminateApp:
 	
 	//safari on 10.5 does not seem to provide a plain-text equivalent, so we must be able to dumb-down RTF data as well
 	//should fall-back to plain text if 1) user doesn't want styles and 2) plain text is actually available
-	BOOL shallUsePlainTextFallback = [types containsObject:NSStringPboardType] && ![prefsController pastePreservesStyle];
+	BOOL shallUsePlainTextFallback = pbHasPlainText && ![prefsController pastePreservesStyle];
 	BOOL hasRTFData = NO;
 	
 	if ([types containsObject:NVPTFPboardType]) {
@@ -500,7 +502,7 @@ terminateApp:
 		if ((data = [pasteboard dataForType:NSHTMLPboardType]))
 			newString = [[NSMutableAttributedString alloc] initWithHTML:data documentAttributes:NULL];
 		hasRTFData = YES;
-	} else if (([types containsObject:NSStringPboardType])) {
+	} else if (pbHasPlainText) {
 		
 		NSString *pboardString = [pasteboard stringForType:NSStringPboardType];
 		if (pboardString) newString = [[NSMutableAttributedString alloc] initWithString:pboardString];

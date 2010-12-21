@@ -273,6 +273,14 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return self;
 }
 
+- (BOOL)superficiallyResemblesAnHTTPURL {
+	//has the right protocol and contains no whitespace or line breaks
+	
+	return ([self rangeOfString:@"http" options:NSCaseInsensitiveSearch | NSAnchoredSearch].location != NSNotFound ||
+			[self rangeOfString:@"https" options:NSCaseInsensitiveSearch | NSAnchoredSearch].location != NSNotFound) &&
+	[self rangeOfCharacterFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] options:NSLiteralSearch].location == NSNotFound;
+}
+
 - (void)copyItemToPasteboard:(id)sender {
 	
 	if ([sender isKindOfClass:[NSMenuItem class]]) {

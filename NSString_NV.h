@@ -51,6 +51,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 - (const char*)lowercaseUTF8String;
 - (NSString*)stringWithPercentEscapes;
 - (NSString *)stringByReplacingPercentEscapes;
+- (BOOL)superficiallyResemblesAnHTTPURL;
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err;
 + (NSString*)pathWithFSRef:(FSRef*)fsRef;
 
