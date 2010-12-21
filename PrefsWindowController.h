@@ -33,7 +33,8 @@
 	IBOutlet NSButton *softTabsButton;
 	IBOutlet NSButton *makeURLsClickable;
 	IBOutlet NSColorWell *searchHighlightColorWell;
-    
+    IBOutlet NSColorWell *notesListBackgroundColorWell;
+	
     IBOutlet NotationPrefsViewController *notationPrefsViewController;
 	
 	NSMutableParagraphStyle *centerStyle;
@@ -49,6 +50,7 @@
 - (void)showWindow:(id)sender;
 
 - (IBAction)changedSearchHighlightColorWell:(id)sender;
+- (IBAction)changedNotesListBackgroundColorWell:(id)sender;
 - (IBAction)changedMakeURLsClickable:(id)sender;
 - (IBAction)changedStyledTextBehavior:(id)sender;
 - (IBAction)changedAutoSuggestLinks:(id)sender;

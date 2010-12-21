@@ -48,6 +48,7 @@ static NSString *TabKeyIndentsKey = @"TabKeyIndents";
 static NSString *PastePreservesStyleKey = @"PastePreservesStyle";
 static NSString *AutoSuggestLinksKey = @"AutoSuggestLinks";
 static NSString *SearchTermHighlightColorKey = @"SearchTermHighlightColor";
+static NSString *NotesListBackgroundColorKey = @"NotesListBackGroundColor";
 static NSString *UseSoftTabsKey = @"UseSoftTabs";
 static NSString *NumberOfSpacesInTabKey = @"NumberOfSpacesInTab";
 static NSString *DrawFocusRingKey = @"DrawFocusRing";
@@ -59,6 +60,7 @@ static NSString *LastScrollOffsetKey = @"LastScrollOffset";
 static NSString *LastSearchStringKey = @"LastSearchString";
 static NSString *LastSelectedNoteUUIDBytesKey = @"LastSelectedNoteUUIDBytes";
 static NSString *LastSelectedPreferencesPaneKey = @"LastSelectedPrefsPane";
+
 //static NSString *PasteClipboardOnNewNoteKey = @"PasteClipboardOnNewNote";
 
 //these 4 strings manually localized
@@ -120,7 +122,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			//	[NSColor colorWithCalibratedRed:0.9340 green:0.91415775 blue:0.81043575 alpha:1.0f]], SearchTermHighlightColorKey,
 			[NSArchiver archivedDataWithRootObject:
 			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
-			
+			[NSArchiver archivedDataWithRootObject:
+			 [NSColor colorWithCalibratedWhite:1.000 alpha:1.000]], NotesListBackgroundColorKey,
 			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
 			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], TableColumnsVisibleKey,
 			NoteDateModifiedColumnString, TableSortColumnKey,
@@ -394,6 +397,43 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	return searchTermHighlightAttributes;
 	
 }
+
+- (void)setNotesListBackgroundColor:(NSColor*)color sender:(id)sender {
+	if (color) {
+		[notesListBackgroundColor autorelease];
+		notesListBackgroundColor = [color retain];
+		
+		[notesListBackgroundColorAttributes release];
+		notesListBackgroundColorAttributes = nil;
+		
+		[defaults setObject:[NSArchiver archivedDataWithRootObject:color] 
+					 forKey:NotesListBackgroundColorKey];
+		
+		SEND_CALLBACKS();
+	}
+}
+
+- (NSColor*)notesListBackgroundColor {
+	
+	if (!notesListBackgroundColor) {
+		NSData *theData = [defaults dataForKey:NotesListBackgroundColorKey];
+		if (theData)
+			notesListBackgroundColor = (NSColor *)[[NSUnarchiver unarchiveObjectWithData:theData] retain];
+	}
+	
+	return notesListBackgroundColor;
+}
+
+- (NSDictionary*)notesListBackgroundColorAttributes {
+	NSColor *backgroundColor = [self notesListBackgroundColor];
+	
+	if (!notesListBackgroundColorAttributes && backgroundColor) {
+		notesListBackgroundColorAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:backgroundColor, NSBackgroundColorAttributeName, nil] retain];
+	}
+	return notesListBackgroundColorAttributes;
+	
+}
+
 
 - (void)setSoftTabs:(BOOL)value sender:(id)sender {
 	[defaults setBool:value forKey:UseSoftTabsKey];

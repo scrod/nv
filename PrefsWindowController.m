@@ -18,6 +18,7 @@
 #import "NSString_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
+#import "AppController.h"
 
 #define SYSTEM_LIST_FONT_SIZE 12.0f
 
@@ -138,6 +139,10 @@
 
 - (IBAction)changedSearchHighlightColorWell:(id)sender {
 	[prefsController setSearchTermHighlightColor:[searchHighlightColorWell color] sender:self];
+}
+- (IBAction)changedNotesListBackgroundColorWell:(id)sender {	
+	[prefsController setNotesListBackgroundColor:[notesListBackgroundColorWell color] sender:self];
+	[[NSApp delegate] updateScheme];
 }
 - (IBAction)changedStyledTextBehavior:(id)sender {
     [prefsController setPastePreservesStyle:[styledTextButton state] sender:self];
@@ -374,6 +379,7 @@
 	[softTabsButton setState:[prefsController softTabs]];
 	[makeURLsClickable setState:[prefsController URLsAreClickable]];
 	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
+	[notesListBackgroundColorWell setColor:[prefsController notesListBackgroundColor]];
     [self previewNoteBodyFont];
 	[appShortcutField setStringValue:[[prefsController appActivationKeyCombo] description]];
     

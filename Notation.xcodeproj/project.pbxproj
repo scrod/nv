@@ -170,6 +170,8 @@
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		930EC2F012C113080004E569 /* NotesTableCornerView.m in Sources */ = {isa = PBXBuildFile; fileRef = 930EC2ED12C113080004E569 /* NotesTableCornerView.m */; };
+		930EC2F112C113080004E569 /* NotesTableHeaderCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 930EC2EF12C113080004E569 /* NotesTableHeaderCell.m */; };
 		93439D9912B120CA002946D7 /* scrollbarblue.tif in Resources */ = {isa = PBXBuildFile; fileRef = 93439D9812B120CA002946D7 /* scrollbarblue.tif */; };
 		93439DD912B12B31002946D7 /* CustomTextFieldCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 93439DD812B12B31002946D7 /* CustomTextFieldCell.m */; };
 		936763CF12BAA34300107A04 /* greyscrollervertbottom.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 936763CC12BAA34300107A04 /* greyscrollervertbottom.tiff */; };
@@ -507,6 +509,10 @@
 		608A25B51268EE5E00EEF326 /* AppController_Preview.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppController_Preview.m; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Notational Velocity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Notational Velocity.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		930EC2EC12C113080004E569 /* NotesTableCornerView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NotesTableCornerView.h; sourceTree = "<group>"; };
+		930EC2ED12C113080004E569 /* NotesTableCornerView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotesTableCornerView.m; sourceTree = "<group>"; };
+		930EC2EE12C113080004E569 /* NotesTableHeaderCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NotesTableHeaderCell.h; sourceTree = "<group>"; };
+		930EC2EF12C113080004E569 /* NotesTableHeaderCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotesTableHeaderCell.m; sourceTree = "<group>"; };
 		93439D9812B120CA002946D7 /* scrollbarblue.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = scrollbarblue.tif; sourceTree = "<group>"; };
 		93439DD712B12B31002946D7 /* CustomTextFieldCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CustomTextFieldCell.h; sourceTree = "<group>"; };
 		93439DD812B12B31002946D7 /* CustomTextFieldCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CustomTextFieldCell.m; sourceTree = "<group>"; };
@@ -569,6 +575,10 @@
 		080E96DDFE201D6D7F000001 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
+				930EC2EC12C113080004E569 /* NotesTableCornerView.h */,
+				930EC2ED12C113080004E569 /* NotesTableCornerView.m */,
+				930EC2EE12C113080004E569 /* NotesTableHeaderCell.h */,
+				930EC2EF12C113080004E569 /* NotesTableHeaderCell.m */,
 				9397BBDE12B05991004D25E9 /* BlueTransparentScroller.m */,
 				9397BBDF12B05991004D25E9 /* BlueTransparentScroller.h */,
 				9397BBE112B059AD004D25E9 /* WhiteTransparentScroller.h */,
@@ -1252,6 +1262,8 @@
 				9397BBE312B059AD004D25E9 /* WhiteTransparentScroller.m in Sources */,
 				93439DD912B12B31002946D7 /* CustomTextFieldCell.m in Sources */,
 				93CF647912B66B030088ADC4 /* BTTableHeaderCell.m in Sources */,
+				930EC2F012C113080004E569 /* NotesTableCornerView.m in Sources */,
+				930EC2F112C113080004E569 /* NotesTableHeaderCell.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

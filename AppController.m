@@ -161,6 +161,8 @@
 		//this is necessary on 10.3; keep just in case
 		[splitView display];
 		
+		[self updateScheme];
+		
 		awakenedViews = YES;
 	}
 }
@@ -306,6 +308,71 @@ void outletObjectAwoke(id sender) {
 terminateApp:
 	[NSApp terminate:self];
 }
+
+
+// original updateScheme code courtesy of Elastic Threads
+
+- (void)updateScheme{
+
+	NSColor *backgroundColor = [prefsController notesListBackgroundColor];
+	NSColor *fontColor = [NSColor colorWithCalibratedRed:0.134 green:0.134 blue:0.134 alpha:1.000];
+	
+	CGFloat fWhite;
+	CGFloat fAlpha;
+	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+	[gBack getWhite:&fWhite alpha:&fAlpha];
+	if (fWhite < 0.5) {
+		fontColor = [NSColor colorWithCalibratedWhite:0.936 alpha:0.95];
+	}
+	
+	/*NotesTable colors. */
+	[notesTableView setBackgroundColor:fontColor]; 	// <--For some reason you need to toggle two colors for the background color to live update correctly. Uncomment this if you want to live update the background color, which is a good idea if you have a preference option to let the user pick a color).
+	[notesTableView setBackgroundColor:backgroundColor];  //this is just calling a superclass method. nothing else to do
+//	[NotesTableCornerView setBackColor:backgroundColor];  //see attatched classes. For the Tableview's header to not be glaringly white you'll need to create a cornerView and a headercell whose colors you can modify.
+//	[NotesTableHeaderCell setBackgroundColor:backgroundColor];
+//	[NotesTableHeaderCell setForegroundColor:fontColor];
+//	[NotesTableCornerView setBordColor:fontColor];
+	
+	//textView is the instance of linkingEditor (I might have renamed it for some reason).
+//	[textView setBackgroundColor:backgroundColor];  
+//	[textView setInsertionPointColor:fontColor];
+//	[textView setTextColor:fontColor];   //if you also want to change the color of the links you'll need to add a subclass method in linkingEditor to change linkColor (an existing class variable in linkingEditor) and use [super setTextColor:...
+
+	//NVTransparentScroller is a subclass from BWToolkit I use for subtler scrollbars.
+	[noteScroller setBackgroundColor:backgroundColor];  
+	
+	//blend some colors for the divider bar between the notes table and textView.
+//	CGFloat fWhite;
+//	CGFloat endWhite;
+//	CGFloat fAlpha;
+//	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+//	[gBack getWhite:&fWhite alpha:&fAlpha];
+//	if (fWhite < 0.181f) {
+//		endWhite = fWhite + 0.25f;
+//		[LinearDividerShader setDivBorderColor:[backgroundColor blendedColorWithFraction:0.7f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.55f]]];
+//	}else if ((fWhite < 0.5f)&&(fWhite > 0.18f)) {
+//		endWhite = fWhite - 0.05f;
+//		[LinearDividerShader setDivBorderColor:[backgroundColor blendedColorWithFraction:0.35f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.8f]]];
+//	}else if ((fWhite < 0.84f)&&(fWhite > 0.51f)) {
+//		endWhite = fWhite+0.05f;
+//		[LinearDividerShader setDivBorderColor:[backgroundColor blendedColorWithFraction:0.35f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.55f]]];
+//	}else if (fWhite > 0.839f) {
+//		endWhite = fWhite-0.28f;
+//		[LinearDividerShader setDivBorderColor:[backgroundColor blendedColorWithFraction:0.7f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:1.0f]]];
+//	}
+//	if (fWhite < 0.4f) {
+//		fWhite = 0.4f;
+//	}
+//	endWhite = fWhite - 0.30f;		
+//	dividerShader = [[LinearDividerShader alloc] initWithStartColor:[backgroundColor blendedColorWithFraction:0.55f ofColor:[[NSColor colorWithCalibratedWhite:fWhite alpha:0.69f]colorUsingColorSpaceName:NSCalibratedRGBColorSpace]] 
+//														   endColor:[backgroundColor blendedColorWithFraction:0.60f ofColor:[[NSColor colorWithCalibratedWhite:endWhite alpha:0.62f]colorUsingColorSpaceName:NSCalibratedRGBColorSpace]]];
+//	
+	//two last views
+//	[editorStatusView setBckColor:backgroundColor];
+//	[editorStatusView setTxtColor:fontColor];
+	[splitView setBackground:backgroundColor];	
+}
+
 
 - (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent {
 	

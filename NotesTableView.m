@@ -114,11 +114,27 @@
     [super dealloc];
 }
 
+// TODO: Original alternating rows table code, to be removed once theme code is finalized
+//
 - (void)highlightSelectionInClipRect:(NSRect)clipRect
 {
-	
-	NSColor *evenColor = [NSColor colorWithCalibratedWhite:1.000 alpha:1.000];
-	NSColor *oddColor  = [NSColor colorWithCalibratedHue:0.000 saturation:0.000 brightness:0.974 alpha:1.000];
+	CGFloat fWhite;
+	CGFloat endWhite;
+	CGFloat fAlpha;
+	NSColor *backgroundColor = [globalPrefs notesListBackgroundColor];
+	NSColor *fontColor = [NSColor colorWithCalibratedRed:0.134 green:0.134 blue:0.134 alpha:1.000];
+	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+	NSColor *evenColor = backgroundColor;
+	NSColor *oddColor = backgroundColor;
+	[gBack getWhite:&fWhite alpha:&fAlpha];
+	if (fWhite < 0.5f) {
+		endWhite = fWhite + 0.25f;
+		oddColor = [backgroundColor blendedColorWithFraction:0.15f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:1.0f]];
+		fontColor = [NSColor colorWithCalibratedWhite:0.936 alpha:0.95];
+	} else {
+		endWhite = fWhite-0.28f;
+		oddColor = [backgroundColor blendedColorWithFraction:0.15f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:1.0f]];
+	}
 	
 	float rowHeight = [self rowHeight] + [self intercellSpacing].height;
 	NSRect visibleRect = [self visibleRect];
@@ -142,6 +158,10 @@
 		NSRectFill(clippedHighlightRect);
 		highlightRect.origin.y += rowHeight;
 	}
+	
+	NSUInteger i;
+	for (i=0; i<[allColumns count]; i++)
+		[[[allColumns objectAtIndex:i] dataCell] setTextColor:fontColor];
 	
 	[super highlightSelectionInClipRect: clipRect];
 }

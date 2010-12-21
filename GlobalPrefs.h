@@ -44,10 +44,11 @@ extern NSString *NVPTFPboardType;
 	
 	BookmarksController *bookmarksController;
 	NotationPrefs *notationPrefs;
-	NSDictionary *noteBodyAttributes, *searchTermHighlightAttributes;
+	NSDictionary *noteBodyAttributes, *searchTermHighlightAttributes, *notesListBackgroundColorAttributes;
 	NSMutableParagraphStyle *noteBodyParagraphStyle;
 	NSFont *noteBodyFont;
 	NSColor *searchTermHighlightColor;
+	NSColor *notesListBackgroundColor;
 	BOOL autoCompleteSearches;
 	BOOL verticalLayout;
 	NSMutableArray *tableColumns;
@@ -114,6 +115,10 @@ extern NSString *NVPTFPboardType;
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender;
 - (NSDictionary*)searchTermHighlightAttributes;
 - (NSColor*)searchTermHighlightColor;
+
+- (void)setNotesListBackgroundColor:(NSColor*)color sender:(id)sender;
+- (NSDictionary*)notesListBackgroundColorAttributes;
+- (NSColor*)notesListBackgroundColor;
 
 - (void)setSoftTabs:(BOOL)value sender:(id)sender;
 - (BOOL)softTabs;

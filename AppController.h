@@ -16,6 +16,7 @@
 
 #import "NotationController.h"
 #import "NotesTableView.h"
+#import "WhiteTransparentScroller.h"
 
 @class LinkingEditor;
 @class EmptyView;
@@ -28,6 +29,7 @@
 @class TitlebarButton;
 @class LinearDividerShader;
 @class PreviewController;
+@class WhiteTransparentScroller;
 
 #ifndef MarkdownPreview
 #define MarkdownPreview 13371
@@ -55,7 +57,7 @@
 	IBOutlet NSProgressIndicator *syncWaitSpinner;
 	IBOutlet NSMenuItem *widescreenToggle;
 	IBOutlet NSMenuItem *collapseToggle;
-	IBOutlet NSScroller *noteScroller;
+	IBOutlet WhiteTransparentScroller *noteScroller;
 	NSToolbar *toolbar;
 	NSToolbarItem *dualFieldItem;
 	TitlebarButton *titleBarButton;
@@ -142,4 +144,7 @@ void outletObjectAwoke(id sender);
 -(void)setMenuItemStates;
 -(IBAction)toggleLayout:(id)sender;
 -(IBAction)collapseNotes:(id)sender;
+
+-(void)updateScheme;
+
 @end

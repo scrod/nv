@@ -12,10 +12,12 @@
 
 
 #import <Cocoa/Cocoa.h>
+#import "NotesTableCornerView.h"
 
 @class HeaderViewWithMenu;
 @class NoteAttributeColumn;
 @class GlobalPrefs;
+@class NotesTableCornerView;
 
 typedef struct _ViewLocationContext {
 	BOOL pivotRowWasEdge;
@@ -37,7 +39,7 @@ typedef struct _ViewLocationContext {
 	GlobalPrefs *globalPrefs;
 	NSMenuItem *dummyItem;
 	HeaderViewWithMenu *headerView;
-	NSView *cornerView;
+	NotesTableCornerView *cornerView;
 	
 	NSDictionary *loadStatusAttributes;
 	float loadStatusStringWidth;

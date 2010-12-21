@@ -50,7 +50,8 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setUseTextReplacement:sender:),
 	 @selector(setNoteBodyFont:sender:),
 	 @selector(setMakeURLsClickable:sender:),
-	 @selector(setSearchTermHighlightColor:sender:), nil];	
+	 @selector(setSearchTermHighlightColor:sender:),	
+ 	 @selector(setNotesListBackgroundColor:sender:), nil];
 	
 	[self setTextContainerInset:NSMakeSize(3, 8)];
 	[self setSmartInsertDeleteEnabled:NO];

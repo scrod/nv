@@ -60,6 +60,12 @@ static NSColor *backgroundColor;
 	minKnobWidth = knobLeft.size.width + knobHorizontalFill.size.width + knobRight.size.width + 10;
 }
 
+- (void)setBackgroundColor:(NSColor*)bgcolor;
+{
+	[backgroundColor release];
+	backgroundColor = [bgcolor retain];
+}
+
 - (id)initWithFrame:(NSRect)frameRect;
 {
 	if ((self = [super initWithFrame:frameRect]))
