@@ -122,7 +122,7 @@
 	CGFloat endWhite;
 	CGFloat fAlpha;
 	NSColor *backgroundColor = [globalPrefs notesListBackgroundColor];
-	NSColor *fontColor = [NSColor colorWithCalibratedRed:0.134 green:0.134 blue:0.134 alpha:1.000];
+
 	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
 	NSColor *evenColor = backgroundColor;
 	NSColor *oddColor = backgroundColor;
@@ -130,7 +130,6 @@
 	if (fWhite < 0.5f) {
 		endWhite = fWhite + 0.25f;
 		oddColor = [backgroundColor blendedColorWithFraction:0.15f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:1.0f]];
-		fontColor = [NSColor colorWithCalibratedWhite:0.936 alpha:0.95];
 	} else {
 		endWhite = fWhite-0.28f;
 		oddColor = [backgroundColor blendedColorWithFraction:0.15f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:1.0f]];
@@ -158,11 +157,7 @@
 		NSRectFill(clippedHighlightRect);
 		highlightRect.origin.y += rowHeight;
 	}
-	
-	NSUInteger i;
-	for (i=0; i<[allColumns count]; i++)
-		[[[allColumns objectAtIndex:i] dataCell] setTextColor:fontColor];
-	
+
 	[super highlightSelectionInClipRect: clipRect];
 }
 

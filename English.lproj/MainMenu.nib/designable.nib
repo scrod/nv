@@ -23,9 +23,9 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="1066"/>
-			<integer value="1146"/>
 			<integer value="29"/>
+			<integer value="1146"/>
+			<integer value="1066"/>
 			<integer value="1208"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
@@ -93,19 +93,19 @@
 																<object class="NSTableView" id="71458232">
 																	<reference key="NSNextResponder" ref="582118910"/>
 																	<int key="NSvFlags">4370</int>
-																	<string key="NSFrameSize">{515, 244}</string>
+																	<string key="NSFrameSize">{530, 241}</string>
 																	<reference key="NSSuperview" ref="582118910"/>
 																	<bool key="NSEnabled">YES</bool>
 																	<object class="NSTableHeaderView" key="NSHeaderView" id="805871107">
 																		<reference key="NSNextResponder" ref="383120007"/>
 																		<int key="NSvFlags">256</int>
-																		<string key="NSFrameSize">{515, 17}</string>
+																		<string key="NSFrameSize">{530, 17}</string>
 																		<reference key="NSSuperview" ref="383120007"/>
 																		<reference key="NSTableView" ref="71458232"/>
 																	</object>
 																	<object class="_NSCornerView" key="NSCornerView" id="201861225">
 																		<reference key="NSNextResponder" ref="1009919946"/>
-																		<int key="NSvFlags">256</int>
+																		<int key="NSvFlags">-2147483392</int>
 																		<string key="NSFrame">{{516, 0}, {16, 17}}</string>
 																		<reference key="NSSuperview" ref="1009919946"/>
 																	</object>
@@ -133,17 +133,17 @@
 																	<int key="NSTableViewDraggingDestinationStyle">0</int>
 																</object>
 															</object>
-															<string key="NSFrame">{{1, 17}, {515, 244}}</string>
+															<string key="NSFrame">{{1, 17}, {530, 241}}</string>
 															<reference key="NSSuperview" ref="1009919946"/>
 															<reference key="NSNextKeyView" ref="71458232"/>
 															<reference key="NSDocView" ref="71458232"/>
 															<reference key="NSBGColor" ref="512781579"/>
-															<int key="NScvFlags">6</int>
+															<int key="NScvFlags">2</int>
 														</object>
 														<object class="NSScroller" id="685311481">
 															<reference key="NSNextResponder" ref="1009919946"/>
-															<int key="NSvFlags">256</int>
-															<string key="NSFrame">{{516, 17}, {15, 244}}</string>
+															<int key="NSvFlags">-2147483392</int>
+															<string key="NSFrame">{{516, 17}, {15, 241}}</string>
 															<reference key="NSSuperview" ref="1009919946"/>
 															<reference key="NSTarget" ref="1009919946"/>
 															<string key="NSAction">_doScroller:</string>
@@ -166,7 +166,7 @@
 																<bool key="EncodedWithXMLCoder">YES</bool>
 																<reference ref="805871107"/>
 															</object>
-															<string key="NSFrame">{{1, 0}, {515, 17}}</string>
+															<string key="NSFrame">{{1, 0}, {530, 17}}</string>
 															<reference key="NSSuperview" ref="1009919946"/>
 															<reference key="NSNextKeyView" ref="805871107"/>
 															<reference key="NSDocView" ref="805871107"/>
@@ -183,10 +183,10 @@
 														</object>
 														<reference ref="201861225"/>
 													</object>
-													<string key="NSFrame">{{1, -2}, {532, 262}}</string>
+													<string key="NSFrame">{{1, 1}, {532, 259}}</string>
 													<reference key="NSSuperview" ref="688316378"/>
 													<reference key="NSNextKeyView" ref="582118910"/>
-													<int key="NSsFlags">18</int>
+													<int key="NSsFlags">530</int>
 													<reference key="NSVScroller" ref="685311481"/>
 													<reference key="NSHScroller" ref="512785696"/>
 													<reference key="NSContentView" ref="582118910"/>
@@ -217,7 +217,7 @@
 											<bool key="BWGBHasTopBorder">NO</bool>
 											<bool key="BWGBHasBottomBorder">NO</bool>
 											<bool key="BWGBHasGradient">NO</bool>
-											<bool key="BWGBHasFillColor">YES</bool>
+											<bool key="BWGBHasFillColor">NO</bool>
 											<float key="BWGBTopInsetAlpha">0.30000001192092896</float>
 											<float key="BWGBBottomInsetAlpha">0.0</float>
 										</object>

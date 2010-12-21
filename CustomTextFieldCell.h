@@ -8,7 +8,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface customTextFieldCell : NSTextFieldCell {
+@interface CustomTextFieldCell : NSTextFieldCell {
 
 }
 

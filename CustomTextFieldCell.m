@@ -6,12 +6,12 @@
 //  Copyright 2010 __MyCompanyName__. All rights reserved.
 //
 
-#import "customTextFieldCell.h"
+#import "CustomTextFieldCell.h"
 
 #define kLeftMargin 5.0
 #define kTopMargin 5.0
 
-@implementation customTextFieldCell
+@implementation CustomTextFieldCell
 
 //- (void)drawWithFrame:(NSRect)cellFrame inView:(NSView*)controlView
 //{

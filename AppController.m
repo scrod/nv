@@ -370,9 +370,32 @@ terminateApp:
 	//two last views
 //	[editorStatusView setBckColor:backgroundColor];
 //	[editorStatusView setTxtColor:fontColor];
-	[splitView setBackground:backgroundColor];	
+	[splitView setBackground:backgroundColor];
+	
 }
 
+- (void)tableView: (NSTableView *)aTableView willDisplayCell:(id)aCell
+   forTableColumn:(NSTableColumn *)aTableColumn row:(int)aRowIndex
+{
+	if ([aCell isHighlighted]) {
+		[aCell setTextColor:[NSColor whiteColor]];
+	} else {
+	
+		NSColor *backgroundColor = [prefsController notesListBackgroundColor];
+		
+		CGFloat fWhite;
+		CGFloat fAlpha;
+		NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+		NSColor *fontColor = [NSColor colorWithCalibratedRed:0.134 green:0.134 blue:0.134 alpha:1.000];
+		[gBack getWhite:&fWhite alpha:&fAlpha];
+		if (fWhite < 0.58f) {
+			fontColor = [NSColor whiteColor];
+		} else {
+			fontColor = [NSColor blackColor];
+		}
+		[aCell setTextColor:fontColor];
+	}
+}
 
 - (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent {
 	

@@ -384,6 +384,22 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 - (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)upToWidth {
 	//NSLog(@"gen prev for %@", [[bodyText string] substringToIndex:MIN([bodyText length], 10U)]);
 	
+	NSColor *backgroundColor = [[GlobalPrefs defaultPrefs] notesListBackgroundColor];
+	NSColor *fontColor = [backgroundColor blendedColorWithFraction:0.5f ofColor:[NSColor colorWithCalibratedWhite:0.75 alpha:1.00f]];
+	
+	CGFloat fWhite;
+	CGFloat fAlpha;
+	CGFloat endWhite;
+	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
+	[gBack getWhite:&fWhite alpha:&fAlpha];
+	if (fWhite < 0.5) {
+		endWhite = fWhite + 0.5f;
+		fontColor = [backgroundColor blendedColorWithFraction:0.5f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.70f]];
+	} else {
+		endWhite = fWhite - 0.75f;
+		fontColor = [backgroundColor blendedColorWithFraction:0.5f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.75f]];
+	}
+
 	static NSMutableParagraphStyle *lineBreaksStyle = nil;
 	static NSDictionary *grayTextAttributes = nil;
 	static NSDictionary *lineTruncAttributes = nil;
@@ -392,7 +408,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 		[lineBreaksStyle setLineBreakMode:NSLineBreakByTruncatingTail];
 
 		grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
-			[NSColor grayColor], NSForegroundColorAttributeName, nil] retain];
+			fontColor, NSForegroundColorAttributeName, nil] retain];
 		lineTruncAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
 								lineBreaksStyle, NSParagraphStyleAttributeName, nil] retain];
 	}
