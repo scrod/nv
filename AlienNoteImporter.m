@@ -225,8 +225,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		if (filename) {
 			NSArray *notes = [self notesInFile:filename];
 			if ([notes count]) {
-				
-				NSMutableAttributedString *content = [[[[notes lastObject] contentString] mutableCopy] autorelease];
+				NSMutableAttributedString *content = [[[GlobalPrefs defaultPrefs] pastePreservesStyle] ? [[[notes lastObject] contentString] mutableCopy] :
+													  [[NSMutableAttributedString alloc] initWithString:[[[notes lastObject] contentString] string]] autorelease];
 				if ([[[content string] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length]) {
 					//only add string if it has at least one non-whitespace character
 					[content prefixWithSourceString:[[getter url] absoluteString]];
@@ -389,7 +389,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 
 	if (attributedStringFromData) {
 		[attributedStringFromData trimLeadingWhitespace];
-		[attributedStringFromData removeAttachments];		
+		[attributedStringFromData removeAttachments];
 		
 		NSString *processedFilename = [[filename lastPathComponent] stringByDeletingPathExtension];
 		NSUInteger bodyLoc = 0;
