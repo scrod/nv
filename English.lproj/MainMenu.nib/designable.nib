@@ -25,8 +25,8 @@
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<integer value="1066"/>
 			<integer value="1208"/>
-			<integer value="1012"/>
 			<integer value="29"/>
+			<integer value="1012"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -93,13 +93,13 @@
 																<object class="NSTableView" id="71458232">
 																	<reference key="NSNextResponder" ref="582118910"/>
 																	<int key="NSvFlags">4370</int>
-																	<string key="NSFrameSize">{532, 247}</string>
+																	<string key="NSFrameSize">{529, 245}</string>
 																	<reference key="NSSuperview" ref="582118910"/>
 																	<bool key="NSEnabled">YES</bool>
 																	<object class="NSTableHeaderView" key="NSHeaderView" id="805871107">
 																		<reference key="NSNextResponder" ref="383120007"/>
 																		<int key="NSvFlags">256</int>
-																		<string key="NSFrameSize">{532, 17}</string>
+																		<string key="NSFrameSize">{529, 17}</string>
 																		<reference key="NSSuperview" ref="383120007"/>
 																		<reference key="NSTableView" ref="71458232"/>
 																	</object>
@@ -133,7 +133,7 @@
 																	<int key="NSTableViewDraggingDestinationStyle">0</int>
 																</object>
 															</object>
-															<string key="NSFrame">{{0, 17}, {532, 247}}</string>
+															<string key="NSFrame">{{1, 17}, {529, 245}}</string>
 															<reference key="NSSuperview" ref="1009919946"/>
 															<reference key="NSNextKeyView" ref="71458232"/>
 															<reference key="NSDocView" ref="71458232"/>
@@ -166,7 +166,7 @@
 																<bool key="EncodedWithXMLCoder">YES</bool>
 																<reference ref="805871107"/>
 															</object>
-															<string key="NSFrameSize">{532, 17}</string>
+															<string key="NSFrame">{{1, 0}, {529, 17}}</string>
 															<reference key="NSSuperview" ref="1009919946"/>
 															<reference key="NSNextKeyView" ref="805871107"/>
 															<reference key="NSDocView" ref="805871107"/>
@@ -183,10 +183,10 @@
 														</object>
 														<reference ref="201861225"/>
 													</object>
-													<string key="NSFrame">{{2, -2}, {532, 264}}</string>
+													<string key="NSFrame">{{2.5, -1.5}, {531, 263}}</string>
 													<reference key="NSSuperview" ref="688316378"/>
 													<reference key="NSNextKeyView" ref="582118910"/>
-													<int key="NSsFlags">528</int>
+													<int key="NSsFlags">530</int>
 													<reference key="NSVScroller" ref="685311481"/>
 													<reference key="NSHScroller" ref="512785696"/>
 													<reference key="NSContentView" ref="582118910"/>
@@ -271,7 +271,7 @@
 																	<string>public.url</string>
 																</object>
 															</object>
-															<string key="NSFrameSize">{529, 14}</string>
+															<string key="NSFrameSize">{531, 14}</string>
 															<reference key="NSSuperview" ref="822559593"/>
 															<object class="NSTextContainer" key="NSTextContainer" id="738231253">
 																<object class="NSLayoutManager" key="NSLayoutManager">
@@ -289,7 +289,7 @@
 																	<nil key="NSDelegate"/>
 																</object>
 																<reference key="NSTextView" ref="875442023"/>
-																<double key="NSWidth">529</double>
+																<double key="NSWidth">531</double>
 																<int key="NSTCFlags">1</int>
 															</object>
 															<object class="NSTextViewSharedData" key="NSSharedData">
@@ -351,7 +351,7 @@
 															<nil key="NSDelegate"/>
 														</object>
 													</object>
-													<string key="NSFrame">{{1, 1}, {529, 257}}</string>
+													<string key="NSFrameSize">{531, 259}</string>
 													<reference key="NSSuperview" ref="1046113861"/>
 													<reference key="NSNextKeyView" ref="875442023"/>
 													<reference key="NSDocView" ref="875442023"/>
@@ -387,7 +387,7 @@
 											<string key="NSFrame">{{2, -1}, {531, 259}}</string>
 											<reference key="NSSuperview" ref="234401737"/>
 											<reference key="NSNextKeyView" ref="822559593"/>
-											<int key="NSsFlags">530</int>
+											<int key="NSsFlags">528</int>
 											<reference key="NSVScroller" ref="707182568"/>
 											<reference key="NSHScroller" ref="904261433"/>
 											<reference key="NSContentView" ref="822559593"/>
@@ -399,7 +399,7 @@
 									<int key="tag">0</int>
 									<double key="minDimension">1</double>
 									<double key="maxDimension">1000000</double>
-									<double key="fraction">0.33602084855209569</double>
+									<double key="fraction">0.336020848551982</double>
 									<bool key="canCollapse">NO</bool>
 								</object>
 							</object>
@@ -424,7 +424,7 @@ AAABFgADAAAAAQAIAAABFwAEAAAAAQAAAQABHAADAAAAAQABAAABUgADAAAAAQACAAABUwADAAAABAAA
 AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							</object>
 							<reference key="background" ref="512781579"/>
-							<double key="dividerThickness">8</double>
+							<double key="dividerThickness">0.0</double>
 							<bool key="isHorizontal">YES</bool>
 							<bool key="isCoupled">YES</bool>
 						</object>
@@ -3886,7 +3886,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<string>net.brockerhoff.RBSplitView.IBPlugin</string>
 					<object class="NSAffineTransform">
-						<bytes key="NSTransformStruct">P4AAAL+AAADAAAAAw+eAAA</bytes>
+						<bytes key="NSTransformStruct">P4AAAL+AAADAAAAAxAdAAA</bytes>
 					</object>
 					<boolean value="YES"/>
 					<string>net.brockerhoff.RBSplitView.IBPlugin</string>
@@ -4068,9 +4068,9 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{111, 199}, {531, 542}}</string>
+					<string>{{199, 169}, {531, 542}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{111, 199}, {531, 542}}</string>
+					<string>{{199, 169}, {531, 542}}</string>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
