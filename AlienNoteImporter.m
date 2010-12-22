@@ -230,11 +230,16 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 													  [[NSMutableAttributedString alloc] initWithString:[[[notes lastObject] contentString] string]] autorelease];
 				if ([[[content string] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] length]) {
 					//only add string if it has at least one non-whitespace character
-					[content prefixWithSourceString:[[getter url] absoluteString]];
+					NSUInteger prefixedSourceLength = [[content prefixWithSourceString:[[getter url] absoluteString]] length];
 					[content santizeForeignStylesForImporting];
 					
 					[[notes lastObject] setContentString:content];
 					if ([getter userData]) [[notes lastObject] setTitleString:[getter userData]];
+					
+					//prefixing should push existing selections forward:
+					NSRange selRange = [[notes lastObject] lastSelectedRange];
+					if (selRange.length && prefixedSourceLength)
+						[[notes lastObject] setSelectedRange:NSMakeRange(selRange.location + prefixedSourceLength, selRange.length)];
 					
 					[receptionDelegate noteImporter:self importedNotes:notes];
 					
@@ -394,19 +399,20 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		[attributedStringFromData removeAttachments];
 		
 		NSString *processedFilename = [[filename lastPathComponent] stringByDeletingPathExtension];
-		NSUInteger bodyLoc = 0;
+		NSUInteger bodyLoc = 0, prefixedSourceLength = 0;
 		NSString *title = [[attributedStringFromData string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
 		
 		//if the synthetic title (generally the first line of the content) is shorter than the filename itself, just use the filename as the title
 		//(or if this is a special case and we know the filename should be used)
-		if ([processedFilename length] > [title length] || [extension isEqualToString:@"nvhelp"]) {
+		if ([processedFilename length] > [title length] || [extension isEqualToString:@"nvhelp"] || [title isAMachineDirective] || 
+			[title isEqualToString:NSLocalizedString(@"Untitled Note", @"Title of a nameless note")]) {
 			title = processedFilename;
+			bodyLoc = 0;
 		} else {
-			if (bodyLoc > 0 && [attributedStringFromData length] >= bodyLoc) [attributedStringFromData deleteCharactersInRange:NSMakeRange(0, bodyLoc)];
 			title = [title stringByAppendingFormat:@" (%@)", processedFilename];
 		}
 		if ([sourceIdentifierString length])
-			[attributedStringFromData prefixWithSourceString:sourceIdentifierString];
+			prefixedSourceLength = [[attributedStringFromData prefixWithSourceString:sourceIdentifierString] length];
 		[attributedStringFromData santizeForeignStylesForImporting];
 		
 		[attributedStringFromData autorelease];
@@ -414,6 +420,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		//we do not also use filename as uniqueFilename, as we are only importing--not taking ownership
 		NoteObject *noteObject = [[NoteObject alloc] initWithNoteBody:attributedStringFromData title:title uniqueFilename:nil format:SingleDatabaseFormat];				
 		if (noteObject) {
+			if (bodyLoc > 0 && [attributedStringFromData length] >= bodyLoc + prefixedSourceLength) [noteObject setSelectedRange:NSMakeRange(prefixedSourceLength, bodyLoc)];
 			if (shouldGrabCreationDates) {
 				[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileCreationDate])];
 			}

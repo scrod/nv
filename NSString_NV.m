@@ -253,6 +253,13 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return newfilename;
 }
 
+- (BOOL)isAMachineDirective {
+	return [self hasPrefix:@"#!"] || [self hasPrefix:@"#import "] || [self hasPrefix:@"#include "] || 
+	[self hasPrefix:@"<!DOCTYPE "] || [self hasPrefix:@"<?xml "] || [self hasPrefix:@"<html "] || 
+	[self hasPrefix:@"@import "] || [self hasPrefix:@"bplist0"]; 
+	
+}
+
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString {
 	//NSLog(@"NSString_NV: %s", _cmd);

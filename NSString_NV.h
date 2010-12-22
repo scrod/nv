@@ -37,6 +37,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 #endif
 + (NSString*)pathCopiedFromAliasData:(NSData*)aliasData;
 - (NSString*)fourCharTypeString;
+- (BOOL)isAMachineDirective;
 - (void)copyItemToPasteboard:(id)sender;
 - (NSURL*)linkForWord;
 - (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle;
