@@ -23,7 +23,7 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="4"/>
+			<integer value="31"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -100,7 +100,7 @@
 								<object class="NSTabViewItem" id="186546533">
 									<string key="NSIdentifier">1</string>
 									<object class="NSView" key="NSView" id="114582354">
-										<reference key="NSNextResponder" ref="63704171"/>
+										<nil key="NSNextResponder"/>
 										<int key="NSvFlags">274</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -156,7 +156,6 @@
 											</object>
 										</object>
 										<string key="NSFrameSize">{448, 492}</string>
-										<reference key="NSSuperview" ref="63704171"/>
 									</object>
 									<string key="NSLabel">Preview</string>
 									<object class="NSColor" key="NSColor" id="451433729">
@@ -173,7 +172,7 @@
 								<object class="NSTabViewItem" id="503102878">
 									<string key="NSIdentifier">2</string>
 									<object class="NSView" key="NSView" id="570116902">
-										<nil key="NSNextResponder"/>
+										<reference key="NSNextResponder" ref="63704171"/>
 										<int key="NSvFlags">274</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -190,7 +189,7 @@
 															<object class="NSTextView" id="620829796">
 																<reference key="NSNextResponder" ref="57038716"/>
 																<int key="NSvFlags">2322</int>
-																<string key="NSFrameSize">{0, 0}</string>
+																<string key="NSFrameSize">{10, 14}</string>
 																<reference key="NSSuperview" ref="57038716"/>
 																<object class="NSTextContainer" key="NSTextContainer" id="828954989">
 																	<object class="NSLayoutManager" key="NSLayoutManager">
@@ -208,7 +207,7 @@
 																		<nil key="NSDelegate"/>
 																	</object>
 																	<reference key="NSTextView" ref="620829796"/>
-																	<double key="NSWidth">0.0</double>
+																	<double key="NSWidth">10</double>
 																	<int key="NSTCFlags">1</int>
 																</object>
 																<object class="NSTextViewSharedData" key="NSSharedData">
@@ -271,10 +270,11 @@
 																</object>
 																<int key="NSTVFlags">7</int>
 																<string key="NSMaxSize">{525, 1e+07}</string>
+																<string key="NSMinize">{0, 0}</string>
 																<nil key="NSDelegate"/>
 															</object>
 														</object>
-														<string key="NSFrameSize">{431, 492}</string>
+														<string key="NSFrameSize">{446, 492}</string>
 														<reference key="NSSuperview" ref="412330603"/>
 														<reference key="NSNextKeyView" ref="620829796"/>
 														<reference key="NSDocView" ref="620829796"/>
@@ -287,7 +287,7 @@
 													</object>
 													<object class="NSScroller" id="312850199">
 														<reference key="NSNextResponder" ref="412330603"/>
-														<int key="NSvFlags">256</int>
+														<int key="NSvFlags">-2147483392</int>
 														<string key="NSFrame">{{431, 0}, {15, 492}}</string>
 														<reference key="NSSuperview" ref="412330603"/>
 														<reference key="NSTarget" ref="412330603"/>
@@ -309,20 +309,21 @@
 												<string key="NSFrame">{{3, 0}, {446, 492}}</string>
 												<reference key="NSSuperview" ref="570116902"/>
 												<reference key="NSNextKeyView" ref="57038716"/>
-												<int key="NSsFlags">16</int>
+												<int key="NSsFlags">528</int>
 												<reference key="NSVScroller" ref="312850199"/>
 												<reference key="NSHScroller" ref="411156754"/>
 												<reference key="NSContentView" ref="57038716"/>
 											</object>
 										</object>
 										<string key="NSFrameSize">{448, 492}</string>
+										<reference key="NSSuperview" ref="63704171"/>
 									</object>
 									<string key="NSLabel">Source</string>
 									<reference key="NSColor" ref="451433729"/>
 									<reference key="NSTabView" ref="63704171"/>
 								</object>
 							</object>
-							<reference key="NSSelectedTabViewItem" ref="186546533"/>
+							<reference key="NSSelectedTabViewItem" ref="503102878"/>
 							<object class="NSFont" key="NSFont">
 								<string key="NSName">LucidaGrande</string>
 								<double key="NSSize">13</double>
@@ -332,7 +333,7 @@
 							<bool key="NSAllowTruncatedLabels">YES</bool>
 							<object class="NSMutableArray" key="NSSubviews">
 								<bool key="EncodedWithXMLCoder">YES</bool>
-								<reference ref="114582354"/>
+								<reference ref="570116902"/>
 							</object>
 						</object>
 						<object class="BWTransparentButton" id="74168446">
@@ -738,7 +739,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 					<object class="NSAffineTransform">
 						<bytes key="NSTransformStruct">P4AAAL+AAABCCAAAw68AAA</bytes>
 					</object>
-					<string>WhiteTransparentScroller</string>
+					<string>BlueTransparentScroller</string>
 					<object class="NSMutableDictionary">
 						<bool key="EncodedWithXMLCoder">YES</bool>
 						<reference key="dict.sortedKeys" ref="0"/>
@@ -787,6 +788,14 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">BTTransparentScroller.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">BlueTransparentScroller</string>
+					<string key="superclassName">BTTransparentScroller</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">BlueTransparentScroller.h</string>
 					</object>
 				</object>
 				<object class="IBPartialClassDescription">
@@ -1064,22 +1073,6 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 				<object class="IBPartialClassDescription">
 					<string key="className">RBSplitView</string>
 					<reference key="sourceIdentifier" ref="233968185"/>
-				</object>
-				<object class="IBPartialClassDescription">
-					<string key="className">WhiteTransparentScroller</string>
-					<string key="superclassName">BTTransparentScroller</string>
-					<object class="IBClassDescriptionSource" key="sourceIdentifier">
-						<string key="majorKey">IBProjectSource</string>
-						<string key="minorKey">WhiteTransparentScroller.h</string>
-					</object>
-				</object>
-				<object class="IBPartialClassDescription">
-					<string key="className">WhiteTransparentScroller</string>
-					<string key="superclassName">BTTransparentScroller</string>
-					<object class="IBClassDescriptionSource" key="sourceIdentifier">
-						<string key="majorKey">IBUserSource</string>
-						<string key="minorKey"/>
-					</object>
 				</object>
 			</object>
 			<object class="NSMutableArray" key="referencedPartialClassDescriptionsV3.2+">

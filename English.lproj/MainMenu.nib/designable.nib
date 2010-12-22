@@ -23,10 +23,10 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="29"/>
-			<integer value="1146"/>
-			<integer value="1066"/>
 			<integer value="1208"/>
+			<integer value="1066"/>
+			<integer value="1016"/>
+			<integer value="29"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -365,9 +365,8 @@
 												<object class="NSScroller" id="707182568">
 													<reference key="NSNextResponder" ref="1046113861"/>
 													<int key="NSvFlags">-2147483392</int>
-													<string key="NSFrame">{{384, 0}, {15, 289}}</string>
+													<string key="NSFrame">{{518, 0}, {15, 260}}</string>
 													<reference key="NSSuperview" ref="1046113861"/>
-													<bool key="NSEnabled">YES</bool>
 													<int key="NSsFlags">512</int>
 													<reference key="NSTarget" ref="1046113861"/>
 													<string key="NSAction">_doScroller:</string>
@@ -388,7 +387,7 @@
 											<string key="NSFrame">{{0, -1}, {533, 260}}</string>
 											<reference key="NSSuperview" ref="234401737"/>
 											<reference key="NSNextKeyView" ref="822559593"/>
-											<int key="NSsFlags">592</int>
+											<int key="NSsFlags">528</int>
 											<reference key="NSVScroller" ref="707182568"/>
 											<reference key="NSHScroller" ref="904261433"/>
 											<reference key="NSContentView" ref="822559593"/>
@@ -3979,7 +3978,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
-					<string>WhiteTransparentScroller</string>
+					<string>BlueTransparentScroller</string>
 					<object class="NSMutableDictionary">
 						<bool key="EncodedWithXMLCoder">YES</bool>
 						<reference key="dict.sortedKeys" ref="0"/>
@@ -4384,6 +4383,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>noteScroller</string>
 							<string>notesList</string>
 							<string>notesTableView</string>
+							<string>otherScroller</string>
 							<string>sparkleUpdateItem</string>
 							<string>splitSubview</string>
 							<string>splitView</string>
@@ -4401,9 +4401,10 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>DualField</string>
 							<string>NSMenuItem</string>
 							<string>NSMenuItem</string>
-							<string>WhiteTransparentScroller</string>
+							<string>BlueTransparentScroller</string>
 							<string>RBSplitSubview</string>
 							<string>NotesTableView</string>
+							<string>WhiteTransparentScroller</string>
 							<string>NSMenuItem</string>
 							<string>RBSplitSubview</string>
 							<string>RBSplitView</string>
@@ -4427,6 +4428,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>noteScroller</string>
 							<string>notesList</string>
 							<string>notesTableView</string>
+							<string>otherScroller</string>
 							<string>sparkleUpdateItem</string>
 							<string>splitSubview</string>
 							<string>splitView</string>
@@ -4461,7 +4463,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							</object>
 							<object class="IBToOneOutletInfo">
 								<string key="name">noteScroller</string>
-								<string key="candidateClassName">WhiteTransparentScroller</string>
+								<string key="candidateClassName">BlueTransparentScroller</string>
 							</object>
 							<object class="IBToOneOutletInfo">
 								<string key="name">notesList</string>
@@ -4470,6 +4472,10 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<object class="IBToOneOutletInfo">
 								<string key="name">notesTableView</string>
 								<string key="candidateClassName">NotesTableView</string>
+							</object>
+							<object class="IBToOneOutletInfo">
+								<string key="name">otherScroller</string>
+								<string key="candidateClassName">WhiteTransparentScroller</string>
 							</object>
 							<object class="IBToOneOutletInfo">
 								<string key="name">sparkleUpdateItem</string>
@@ -4567,6 +4573,14 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">BTTransparentScroller.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">BlueTransparentScroller</string>
+					<string key="superclassName">BTTransparentScroller</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">BlueTransparentScroller.h</string>
 					</object>
 				</object>
 				<object class="IBPartialClassDescription">
