@@ -29,8 +29,9 @@
   alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value;
 @end
 
-@interface NSDictionary (URLEncoding)
+@interface NSDictionary (HTTP)
 
++ (NSDictionary*)optionsDictionaryWithTimeout:(float)timeout;
 - (NSString*)URLEncodedString;
 @end
 

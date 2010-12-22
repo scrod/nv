@@ -80,7 +80,11 @@
 
 @end
 
-@implementation NSDictionary (URLEncoding)
+@implementation NSDictionary (HTTP)
+
++ (NSDictionary*)optionsDictionaryWithTimeout:(float)timeout {
+	return [NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:timeout] forKey:NSTimeoutDocumentOption];
+}
 
 - (NSString*)URLEncodedString {
 	

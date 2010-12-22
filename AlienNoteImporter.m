@@ -23,6 +23,7 @@
 #import "GlobalPrefs.h"
 #import "AttributedPlainText.h"
 #import "NSData_transformations.h"
+#import "NSCollection_utils.h"
 #import "NSString_NV.h"
 #import "NotationPrefs.h"
 #import "NotationController.h"
@@ -323,7 +324,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	
 	if (fileType == HTML_TYPE_ID || [extension isEqualToString:@"htm"] || [extension isEqualToString:@"html"] || [extension isEqualToString:@"shtml"]) {
 		//should convert to text with markdown here
-		attributedStringFromData = [[NSMutableAttributedString alloc] initWithHTML:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
+		attributedStringFromData = [[NSMutableAttributedString alloc] initWithHTML:[NSData uncachedDataFromFile:filename] 
+																		   options:[NSDictionary optionsDictionaryWithTimeout:10.0] documentAttributes:NULL];
 		
 	} else if (fileType == RTF_TYPE_ID || [extension isEqualToString:@"rtf"] || [extension isEqualToString:@"nvhelp"] || [extension isEqualToString:@"rtx"]) {
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTF:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
