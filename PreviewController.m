@@ -14,6 +14,7 @@
 
 #define kDefaultMarkupPreviewVisible @"markupPreviewVisible"
 
+
 @implementation PreviewController
 
 @synthesize preview;
@@ -204,6 +205,38 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	
 }
 
+- (NSString *)urlEncodeValue:(NSString *)str
+{
+	NSString *result = (NSString *) CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (CFStringRef)str, NULL, CFSTR("?=&+"), kCFStringEncodingUTF8);
+	return [result autorelease];
+}
+
+
+-(IBAction)shareNote:(id)sender
+{
+    AppController *app = [[NSApplication sharedApplication] delegate];
+    NSString *rawString = [app noteContent];	
+    SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
+    NSString *processedString = [NSString performSelector:mode withObject:rawString];
+	
+	
+	
+	NSURL * url = [NSURL URLWithString:@"http://peg.gd/nvapi.php"];
+	NSMutableURLRequest * r = [[NSMutableURLRequest alloc] initWithURL:url];
+	[r setHTTPMethod:@"POST"];
+	NSString *peggdData = [NSString stringWithFormat:@"key=8c4205ec33d8f6caeaaaa0c10a14138c&body=%@",[self urlEncodeValue:processedString]];
+	[r setHTTPBody:[peggdData dataUsingEncoding:NSASCIIStringEncoding]];
+	[r setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+	
+	NSHTTPURLResponse * response = nil;
+	NSError * error = nil;
+	NSData * responseData = [NSURLConnection sendSynchronousRequest:r returningResponse:&response error:&error];
+	NSString * responseString = [[[NSString alloc] initWithData:responseData encoding:NSASCIIStringEncoding] autorelease];
+	NSLog(@"RESPONSE STRING: %@", responseString);
+	NSLog(@"%d",response.statusCode);
+	[r release];
+	
+}
 
 -(IBAction)saveHTML:(id)sender
 {

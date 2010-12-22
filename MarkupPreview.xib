@@ -23,7 +23,7 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="122"/>
+			<integer value="4"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -69,13 +69,13 @@
 						<object class="BWTransparentButton" id="831655116">
 							<reference key="NSNextResponder" ref="52793087"/>
 							<int key="NSvFlags">289</int>
-							<string key="NSFrame">{{327, 0}, {99, 28}}</string>
+							<string key="NSFrame">{{371, 0}, {55, 28}}</string>
 							<reference key="NSSuperview" ref="52793087"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="BWTransparentButtonCell" key="NSCell" id="845989484">
 								<int key="NSCellFlags">67239424</int>
 								<int key="NSCellFlags2">134348800</int>
-								<string key="NSContents">Save HTML …</string>
+								<string key="NSContents">Save</string>
 								<object class="NSFont" key="NSSupport" id="26">
 									<string key="NSName">LucidaGrande</string>
 									<double key="NSSize">11</double>
@@ -356,6 +356,27 @@
 								<int key="NSPeriodicInterval">25</int>
 							</object>
 						</object>
+						<object class="BWTransparentButton" id="53913959">
+							<reference key="NSNextResponder" ref="52793087"/>
+							<int key="NSvFlags">289</int>
+							<string key="NSFrame">{{309, 0}, {56, 28}}</string>
+							<reference key="NSSuperview" ref="52793087"/>
+							<bool key="NSEnabled">YES</bool>
+							<object class="BWTransparentButtonCell" key="NSCell" id="998468009">
+								<int key="NSCellFlags">-2080244224</int>
+								<int key="NSCellFlags2">134348800</int>
+								<string key="NSContents">Share</string>
+								<reference key="NSSupport" ref="26"/>
+								<reference key="NSControlView" ref="53913959"/>
+								<int key="NSButtonFlags">-2034876161</int>
+								<int key="NSButtonFlags2">268435457</int>
+								<reference key="NSAlternateImage" ref="26"/>
+								<string key="NSAlternateContents"/>
+								<string key="NSKeyEquivalent">u</string>
+								<int key="NSPeriodicDelay">200</int>
+								<int key="NSPeriodicInterval">25</int>
+							</object>
+						</object>
 					</object>
 					<string key="NSFrameSize">{445, 528}</string>
 					<reference key="NSSuperview"/>
@@ -434,6 +455,22 @@
 					</object>
 					<int key="connectionID">124</int>
 				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">shareNote:</string>
+						<reference key="source" ref="1001"/>
+						<reference key="destination" ref="53913959"/>
+					</object>
+					<int key="connectionID">131</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">shareButton</string>
+						<reference key="source" ref="1001"/>
+						<reference key="destination" ref="53913959"/>
+					</object>
+					<int key="connectionID">132</int>
+				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
 				<object class="NSArray" key="orderedObjects">
@@ -494,6 +531,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 							<reference ref="63704171"/>
 							<reference ref="831655116"/>
 							<reference ref="74168446"/>
+							<reference ref="53913959"/>
 						</object>
 						<reference key="parent" ref="785953534"/>
 					</object>
@@ -607,6 +645,20 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<reference key="object" ref="687301640"/>
 						<reference key="parent" ref="114582354"/>
 					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">128</int>
+						<reference key="object" ref="53913959"/>
+						<object class="NSMutableArray" key="children">
+							<bool key="EncodedWithXMLCoder">YES</bool>
+							<reference ref="998468009"/>
+						</object>
+						<reference key="parent" ref="52793087"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">129</int>
+						<reference key="object" ref="998468009"/>
+						<reference key="parent" ref="53913959"/>
+					</object>
 				</object>
 			</object>
 			<object class="NSMutableDictionary" key="flattenedProperties">
@@ -615,6 +667,9 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 					<bool key="EncodedWithXMLCoder">YES</bool>
 					<string>-2.IBAttributePlaceholdersKey</string>
 					<string>122.IBPluginDependency</string>
+					<string>128.IBPluginDependency</string>
+					<string>128.IBViewBoundsToFrameTransform</string>
+					<string>129.IBPluginDependency</string>
 					<string>18.IBPluginDependency</string>
 					<string>18.IBViewBoundsToFrameTransform</string>
 					<string>19.IBPluginDependency</string>
@@ -656,6 +711,11 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 					<string>com.apple.WebKitIBPlugin</string>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<object class="NSAffineTransform">
+						<bytes key="NSTransformStruct">P4AAAL+AAABDuoAAwSAAAA</bytes>
+					</object>
+					<string>com.brandonwalkin.BWToolkit</string>
+					<string>com.brandonwalkin.BWToolkit</string>
+					<object class="NSAffineTransform">
 						<bytes key="NSTransformStruct">P4AAAL+AAABDLQAAwhAAAA</bytes>
 					</object>
 					<string>com.brandonwalkin.BWToolkit</string>
@@ -695,7 +755,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<object class="NSAffineTransform">
-						<bytes key="NSTransformStruct">P4AAAL+AAABDo4AAwdAAAA</bytes>
+						<bytes key="NSTransformStruct">P4AAAL+AAABBmAAAwdAAAA</bytes>
 					</object>
 					<string>com.brandonwalkin.BWToolkit</string>
 				</object>
@@ -716,7 +776,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">127</int>
+			<int key="maxID">132</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -871,11 +931,13 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<object class="NSArray" key="dict.sortedKeys">
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>saveHTML:</string>
+							<string>shareNote:</string>
 							<string>switchTabs:</string>
 							<string>togglePreview:</string>
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
+							<string>id</string>
 							<string>id</string>
 							<string>id</string>
 							<string>id</string>
@@ -886,6 +948,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<object class="NSArray" key="dict.sortedKeys">
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>saveHTML:</string>
+							<string>shareNote:</string>
 							<string>switchTabs:</string>
 							<string>togglePreview:</string>
 						</object>
@@ -893,6 +956,10 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<object class="IBActionInfo">
 								<string key="name">saveHTML:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
+								<string key="name">shareNote:</string>
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
@@ -910,6 +977,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<object class="NSArray" key="dict.sortedKeys">
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>preview</string>
+							<string>shareButton</string>
 							<string>sourceView</string>
 							<string>tabSwitcher</string>
 							<string>tabView</string>
@@ -917,6 +985,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>WebView</string>
+							<string>NSButton</string>
 							<string>NSTextView</string>
 							<string>NSButton</string>
 							<string>NSTabView</string>
@@ -927,6 +996,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<object class="NSArray" key="dict.sortedKeys">
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>preview</string>
+							<string>shareButton</string>
 							<string>sourceView</string>
 							<string>tabSwitcher</string>
 							<string>tabView</string>
@@ -936,6 +1006,10 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 							<object class="IBToOneOutletInfo">
 								<string key="name">preview</string>
 								<string key="candidateClassName">WebView</string>
+							</object>
+							<object class="IBToOneOutletInfo">
+								<string key="name">shareButton</string>
+								<string key="candidateClassName">NSButton</string>
 							</object>
 							<object class="IBToOneOutletInfo">
 								<string key="name">sourceView</string>
