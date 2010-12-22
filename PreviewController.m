@@ -14,6 +14,32 @@
 
 #define kDefaultMarkupPreviewVisible @"markupPreviewVisible"
 
+@interface NSString (MIMEAdditions)
++ (NSString*)MIMEBoundary;
++ (NSString*)multipartMIMEStringWithDictionary:(NSDictionary*)dict;
+@end
+
+@implementation NSString (MIMEAdditions)
+//this returns a unique boundary which is used in constructing the multipart MIME body of the POST request
++ (NSString*)MIMEBoundary
+{
+    static NSString* MIMEBoundary = nil;
+    if(!MIMEBoundary)
+        MIMEBoundary = [[NSString alloc] initWithFormat:@"----_=_nvALT_%@_=_----",[[NSProcessInfo processInfo] globallyUniqueString]];
+    return MIMEBoundary;
+}
+//this create a correctly structured multipart MIME body for the POST request from a dictionary
++ (NSString*)multipartMIMEStringWithDictionary:(NSDictionary*)dict 
+{
+    NSMutableString* result = [NSMutableString string];
+    for (NSString* key in dict)
+    {
+        [result appendFormat:@"--%@\nContent-Disposition: form-data; name=\"%@\"\n\n%@\n",[NSString MIMEBoundary],key,[dict objectForKey:key]];
+    }
+    [result appendFormat:@"\n--%@--\n",[NSString MIMEBoundary]];
+    return result;
+}
+@end
 
 @implementation PreviewController
 
@@ -212,30 +238,98 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 }
 
 
--(IBAction)shareNote:(id)sender
-{
-    AppController *app = [[NSApplication sharedApplication] delegate];
+//-(IBAction)shareNote:(id)sender
+//{
+//    AppController *app = [[NSApplication sharedApplication] delegate];
+//    NSString *rawString = [app noteContent];	
+//    SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
+//    NSString *processedString = [NSString performSelector:mode withObject:rawString];
+//	
+////	
+////	NSMutableURLRequest *request = [[NSMutableURLRequest alloc] 
+////                                    initWithURL:
+////                                    [NSURL URLWithString:@"http://peg.gd/nvapi.php"]];
+////    [request setHTTPMethod:@"POST"];
+////    //tell the server to expect 8-bit encoded content as we're sending UTF-8 data, 
+////    //and UTF-8 is an 8-bit encoding
+////    [request addValue:@"8bit" forHTTPHeaderField:@"Content-Transfer-Encoding"];
+////    //set the content-type header to multipart MIME
+////    [request addValue: [NSString stringWithFormat:@"multipart/form-data; boundary=%@",[NSString MIMEBoundary]] forHTTPHeaderField: @"Content-Type"];
+////	
+////    //create a dictionary for all the fields you want to send in the POST request
+////    NSDictionary* postData = [NSDictionary dictionaryWithObjectsAndKeys:
+////							  @"8c4205ec33d8f6caeaaaa0c10a14138c", @"key",
+////							  @"", @"title",
+////							  @"somebodytext", @"body",
+////							  nil];
+////    //set the body of the POST request to the multipart MIME encoded dictionary
+////    [request setHTTPBody: [[NSString multipartMIMEStringWithDictionary: postData] dataUsingEncoding: NSUTF8StringEncoding]];
+////    NSConnection *peggdConnection = [[[NSURLConnection alloc] initWithRequest:request delegate:self] autorelease];
+////    [request release];
+////	if (peggdConnection) {
+////		receivedData = [[NSMutableData data] retain];
+////	} else {
+////		NSLog(@"Connection error");
+////	}    
+//	
+//	NSURL * url = [NSURL URLWithString:[NSString stringWithFormat:@"http://peg.gd/nvapi.php?key=8c4205ec33d8f6caeaaaa0c10a14138c&body=%@",[self urlEncodeValue:processedString]]];
+//	NSMutableURLRequest * r = [[NSMutableURLRequest alloc] initWithURL:url];
+//	[r setHTTPMethod:@"POST"];
+//	[r setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+//	
+//	NSHTTPURLResponse * response = nil;
+//	NSError * error = nil;
+//	NSData * responseData = [NSURLConnection sendSynchronousRequest:r returningResponse:&response error:&error];
+//	NSString * responseString = [[[NSString alloc] initWithData:responseData encoding:NSASCIIStringEncoding] autorelease];
+//	NSLog(@"RESPONSE STRING: %@", responseString);
+//	NSLog(@"%d",response.statusCode);
+//	[r release];
+//	
+//}
+
+- (IBAction)shareNote:(id) sender {
+	
+	AppController *app = [[NSApplication sharedApplication] delegate];
     NSString *rawString = [app noteContent];	
     SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
     NSString *processedString = [NSString performSelector:mode withObject:rawString];
 	
+	NSString *escapedTitle = @"";
+	NSString *escapedBody = [self urlEncodeValue:processedString];
+	NSArray *urlParts = [NSArray arrayWithObjects:
+						 @"http://peg.gd/nvapi.php?key=8c4205ec33d8f6caeaaaa0c10a14138c&",
+						 @"title=", escapedTitle,
+						 @"&body=",escapedBody,
+						 nil];
+	NSString *feedURLString = [urlParts componentsJoinedByString: @""];
 	
+	NSURLRequest *peggdURLRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:feedURLString]];
+    NSConnection *peggdFeedConnection = [[[NSURLConnection alloc] initWithRequest:peggdURLRequest delegate:self] autorelease];
+	if (peggdFeedConnection) {
+		receivedData = [[NSMutableData data] retain];
+	} else {
+		NSLog(@"Connection error");
+	}    
+}
+
+- (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response
+{
+    [receivedData setLength:0];
+}
+
+
+- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data
+{
+    [receivedData appendData:data];
+}
+
+- (void)connectionDidFinishLoading:(NSURLConnection *)connection
+{
+    NSLog(@"Succeeded! Received %d bytes of data",[receivedData length]);
 	
-	NSURL * url = [NSURL URLWithString:@"http://peg.gd/nvapi.php"];
-	NSMutableURLRequest * r = [[NSMutableURLRequest alloc] initWithURL:url];
-	[r setHTTPMethod:@"POST"];
-	NSString *peggdData = [NSString stringWithFormat:@"key=8c4205ec33d8f6caeaaaa0c10a14138c&body=%@",[self urlEncodeValue:processedString]];
-	[r setHTTPBody:[peggdData dataUsingEncoding:NSASCIIStringEncoding]];
-	[r setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-	
-	NSHTTPURLResponse * response = nil;
-	NSError * error = nil;
-	NSData * responseData = [NSURLConnection sendSynchronousRequest:r returningResponse:&response error:&error];
-	NSString * responseString = [[[NSString alloc] initWithData:responseData encoding:NSASCIIStringEncoding] autorelease];
+	NSString * responseString = [[[NSString alloc] initWithData:receivedData encoding:NSASCIIStringEncoding] autorelease];
 	NSLog(@"RESPONSE STRING: %@", responseString);
-	NSLog(@"%d",response.statusCode);
-	[r release];
-	
+    [receivedData release];
 }
 
 -(IBAction)saveHTML:(id)sender

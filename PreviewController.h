@@ -18,6 +18,7 @@
 	IBOutlet NSButton *tabSwitcher;
 	IBOutlet NSButton *shareButton;
     BOOL isPreviewOutdated;
+	NSMutableData *receivedData;
 //    IBOutlet NSWindow *wnd;
 }
 
