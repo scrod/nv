@@ -260,33 +260,14 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
                                     initWithURL:
                                     [NSURL URLWithString:@"http://peg.gd/nvapi.php"]];
     [request setHTTPMethod:@"POST"];
-    //tell the server to expect 8-bit encoded content as we're sending UTF-8 data, 
-    //and UTF-8 is an 8-bit encoding
     [request addValue:@"8bit" forHTTPHeaderField:@"Content-Transfer-Encoding"];
-    //set the content-type header to multipart MIME
     [request addValue: [NSString stringWithFormat:@"multipart/form-data; boundary=%@",[NSString MIMEBoundary]] forHTTPHeaderField: @"Content-Type"];
-	
-    //create a dictionary for all the fields you want to send in the POST request
     NSDictionary* postData = [NSDictionary dictionaryWithObjectsAndKeys:
 							  @"8c4205ec33d8f6caeaaaa0c10a14138c", @"key",
 							  noteTitle, @"title",
 							  processedString, @"body",
 							  nil];
-    //set the body of the POST request to the multipart MIME encoded dictionary
     [request setHTTPBody: [[NSString multipartMIMEStringWithDictionary: postData] dataUsingEncoding: NSUTF8StringEncoding]];
-    //NSConnection *peggdConnection = [[[NSURLConnection alloc] initWithRequest:request delegate:self] autorelease];
-//    [request release];
-//	if (peggdConnection) {
-//		receivedData = [[NSMutableData data] retain];
-//	} else {
-//		NSLog(@"Connection error");
-//	}    
-	
-//	NSURL * url = [NSURL URLWithString:[NSString stringWithFormat:@"http://peg.gd/nvapi.php?key=8c4205ec33d8f6caeaaaa0c10a14138c&body=%@",[self urlEncodeValue:processedString]]];
-//	NSMutableURLRequest * r = [[NSMutableURLRequest alloc] initWithURL:url];
-//	[r setHTTPMethod:@"POST"];
-//	[r setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-//	
 	NSHTTPURLResponse * response = nil;
 	NSError * error = nil;
 	NSData * responseData = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:&error];
