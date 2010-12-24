@@ -172,7 +172,6 @@
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		930EC2F012C113080004E569 /* NotesTableCornerView.m in Sources */ = {isa = PBXBuildFile; fileRef = 930EC2ED12C113080004E569 /* NotesTableCornerView.m */; };
 		930EC2F112C113080004E569 /* NotesTableHeaderCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 930EC2EF12C113080004E569 /* NotesTableHeaderCell.m */; };
-		9323BE9212C1A5FF0035C8DE /* RestService.m in Sources */ = {isa = PBXBuildFile; fileRef = 9323BE9112C1A5FF0035C8DE /* RestService.m */; };
 		9326D4B712C537F6001A0761 /* MAAttachedWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 9326D4B612C537F6001A0761 /* MAAttachedWindow.m */; };
 		93439D9912B120CA002946D7 /* scrollbarblue.tif in Resources */ = {isa = PBXBuildFile; fileRef = 93439D9812B120CA002946D7 /* scrollbarblue.tif */; };
 		93439DD912B12B31002946D7 /* CustomTextFieldCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 93439DD812B12B31002946D7 /* CustomTextFieldCell.m */; };
@@ -515,8 +514,6 @@
 		930EC2ED12C113080004E569 /* NotesTableCornerView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotesTableCornerView.m; sourceTree = "<group>"; };
 		930EC2EE12C113080004E569 /* NotesTableHeaderCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NotesTableHeaderCell.h; sourceTree = "<group>"; };
 		930EC2EF12C113080004E569 /* NotesTableHeaderCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotesTableHeaderCell.m; sourceTree = "<group>"; };
-		9323BE9012C1A5FF0035C8DE /* RestService.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RestService.h; sourceTree = "<group>"; };
-		9323BE9112C1A5FF0035C8DE /* RestService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RestService.m; sourceTree = "<group>"; };
 		9326D4B512C537F6001A0761 /* MAAttachedWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MAAttachedWindow.h; sourceTree = "<group>"; };
 		9326D4B612C537F6001A0761 /* MAAttachedWindow.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MAAttachedWindow.m; sourceTree = "<group>"; };
 		93439D9812B120CA002946D7 /* scrollbarblue.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = scrollbarblue.tif; sourceTree = "<group>"; };
@@ -581,8 +578,6 @@
 		080E96DDFE201D6D7F000001 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				9323BE9012C1A5FF0035C8DE /* RestService.h */,
-				9323BE9112C1A5FF0035C8DE /* RestService.m */,
 				930EC2EC12C113080004E569 /* NotesTableCornerView.h */,
 				930EC2ED12C113080004E569 /* NotesTableCornerView.m */,
 				930EC2EE12C113080004E569 /* NotesTableHeaderCell.h */,
@@ -1274,7 +1269,6 @@
 				93CF647912B66B030088ADC4 /* BTTableHeaderCell.m in Sources */,
 				930EC2F012C113080004E569 /* NotesTableCornerView.m in Sources */,
 				930EC2F112C113080004E569 /* NotesTableHeaderCell.m in Sources */,
-				9323BE9212C1A5FF0035C8DE /* RestService.m in Sources */,
 				9326D4B712C537F6001A0761 /* MAAttachedWindow.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
