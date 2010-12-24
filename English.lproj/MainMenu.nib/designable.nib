@@ -23,10 +23,10 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
+			<integer value="29"/>
+			<integer value="1016"/>
 			<integer value="1208"/>
 			<integer value="1066"/>
-			<integer value="1016"/>
-			<integer value="29"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -271,7 +271,7 @@
 																	<string>public.url</string>
 																</object>
 															</object>
-															<string key="NSFrameSize">{263, 14}</string>
+															<string key="NSFrameSize">{263, 59}</string>
 															<reference key="NSSuperview" ref="822559593"/>
 															<object class="NSTextContainer" key="NSTextContainer" id="738231253">
 																<object class="NSLayoutManager" key="NSLayoutManager">
@@ -296,10 +296,7 @@
 																<int key="NSFlags">12007</int>
 																<int key="NSTextCheckingTypes">0</int>
 																<nil key="NSMarkedAttributes"/>
-																<object class="NSColor" key="NSBackgroundColor">
-																	<int key="NSColorSpace">1</int>
-																	<bytes key="NSRGB">MC45NzY0NzYxOTI1IDAuOTc2NjA4OTkxNiAwLjk1Mjk0MTE3OTMAA</bytes>
-																</object>
+																<reference key="NSBackgroundColor" ref="512781579"/>
 																<object class="NSDictionary" key="NSSelectedAttributes">
 																	<bool key="EncodedWithXMLCoder">YES</bool>
 																	<object class="NSArray" key="dict.sortedKeys">
@@ -345,13 +342,13 @@
 																</object>
 																<nil key="NSDefaultParagraphStyle"/>
 															</object>
-															<int key="NSTVFlags">6</int>
-															<string key="NSMaxSize">{803, 1e+07}</string>
+															<int key="NSTVFlags">7</int>
+															<string key="NSMaxSize">{1e+07, 1e+07}</string>
 															<string key="NSMinize">{187, 0}</string>
 															<nil key="NSDelegate"/>
 														</object>
 													</object>
-													<string key="NSFrameSize">{533, 260}</string>
+													<string key="NSFrameSize">{533, 259}</string>
 													<reference key="NSSuperview" ref="1046113861"/>
 													<reference key="NSNextKeyView" ref="875442023"/>
 													<reference key="NSDocView" ref="875442023"/>
@@ -384,7 +381,7 @@
 													<double key="NSPercent">0.94565218687057495</double>
 												</object>
 											</object>
-											<string key="NSFrame">{{0, -1}, {533, 260}}</string>
+											<string key="NSFrameSize">{533, 259}</string>
 											<reference key="NSSuperview" ref="234401737"/>
 											<reference key="NSNextKeyView" ref="822559593"/>
 											<int key="NSsFlags">528</int>
@@ -3912,7 +3909,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<string>FocusRingScrollView</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<object class="NSAffineTransform">
-						<bytes key="NSTransformStruct">P4AAAL+AAAA/gAAAw3IAAA</bytes>
+						<bytes key="NSTransformStruct">P4AAAL+AAAAAAAAAw20AAA</bytes>
 					</object>
 					<boolean value="YES"/>
 					<string>LinkingEditor</string>
@@ -4226,7 +4223,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">1214</int>
+			<int key="maxID">1241</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
