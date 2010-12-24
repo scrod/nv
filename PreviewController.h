@@ -7,6 +7,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
+#import "MAAttachedWindow.h"
 
 @class AppController;
 
@@ -17,9 +18,14 @@
 	IBOutlet NSTabView *tabView;
 	IBOutlet NSButton *tabSwitcher;
 	IBOutlet NSButton *shareButton;
+	IBOutlet NSButton *viewOnWebButton;
     BOOL isPreviewOutdated;
 	NSMutableData *receivedData;
 //    IBOutlet NSWindow *wnd;
+	MAAttachedWindow *attachedWindow;
+	IBOutlet NSTextField *urlTextField;
+	IBOutlet NSView *shareNotification;
+	NSString *shareURL;
 }
 
 @property (assign) BOOL isPreviewOutdated;
@@ -28,9 +34,14 @@
 -(IBAction)saveHTML:(id)sender;
 -(IBAction)switchTabs:(id)sender;
 -(IBAction)shareNote:(id)sender;
+
 -(void)togglePreview:(id)sender;
 -(void)requestPreviewUpdate:(NSNotification *)notification;
 +(void)createCustomFiles;
 -(SEL)markupProcessorSelector:(NSInteger)previewMode;
 - (NSString *)urlEncodeValue:(NSString *)str;
+- (void)showShareURL:(NSString *)url isError:(BOOL)isError;
+- (IBAction)hideShareURL:(id)sender;
+- (IBAction)openShareURL:(id)sender;
+
 @end

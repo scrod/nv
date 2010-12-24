@@ -110,6 +110,13 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
     NSWindow *wnd = [self window];
     
     if ([wnd isVisible]) {
+		if (attachedWindow) {
+			[[shareButton window] removeChildWindow:attachedWindow];
+			[attachedWindow orderOut:self];
+			[attachedWindow release];
+			attachedWindow = nil;
+			[shareURL release];
+		}
         [wnd orderOut:self];
     } else {
         if (self.isPreviewOutdated) {
@@ -175,6 +182,8 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	NSString* cssString = [[self class] css];
     NSString* htmlString = [[self class] html];
 	NSMutableString *outputString = [NSMutableString stringWithString:(NSString *)htmlString];
+	NSString *noteTitle = [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])];
+	[outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
 
@@ -212,7 +221,7 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	}
 	if ([fileManager fileExistsAtPath:cssFile] == NO)
 	{
-		NSString *cssString = @"body,p,td,div { \n  font-family:Helvetica,Arial,sans-serif;\n  line-height:1.4em;\n  font-size:14px;\n  color:#111; }\np { margin:0 0 1.7em 0; }\na { \n	color:rgb(13,110,161); \n	text-decoration:none; \n	-webkit-transition:color .2s ease-in-out;\n}\na:hover { color:#3593d9; }\nh1 { font-size:24px; color:#000; margin:12px 0 15px 0; }\nh2 { \n  font-size:20px; \n  color:#111;\n  width:auto;\n  margin:15px 0 10px 2px; }\nh2 em { \n  line-height:1.6em;\n  font-size:12px;\n  color:#111;\n  text-shadow:0 1px 0 #FFF;\n  padding-left:10px; }\nh3 { font-size:20px; color:#111; }\nh4 { font-size:14px; color:#111; margin-bottom:1.3em; }\n.footnote { \n  font-size:.8em;\n  vertical-align:super;\n  color:rgb(13,110,161); }\n#wrapper {\n  background: -webkit-gradient(linear, left top, left bottom, color-stop(0.56, #FFFFFF), color-stop(1.00, #D4CFC8));\n  position:fixed;\n  top:0;\n  left:0;\n  right:0;\n  bottom:0;\n  -webkit-box-shadow: inset 0px 0px 4px #8F8D87;\n}\n#contentdiv {\n  position:fixed;\n  top:5px;\n  left:5px;\n  right:5px;\n  bottom:5px;\n  background: transparent;	\n  color: #303030;\n  overflow:auto;\n  text-indent:20px;\n  padding:10px;\n}\n#contentdiv::-webkit-scrollbar { width: 6px; }\n#contentdiv::-webkit-scrollbar:horizontal { height:6px; display:none; }\n#contentdiv::-webkit-scrollbar-track { background:transparent;-webkit-border-radius:0;right:10px; }\n#contentdiv::-webkit-scrollbar-track:disabled { display: none; }\n#contentdiv::-webkit-scrollbar-thumb { border-width: 0;min-height: 20px;background:#777;opacity: 0.4;-webkit-border-radius: 5px; }";
+		NSString *cssString = @"body,p,td,div { font-family:Helvetica,Arial,sans-serif;line-height:1.4em;font-size:14px;color:#111; }\np { margin:0 0 1.7em 0; }\na { color:rgb(13,110,161);text-decoration:none;-webkit-transition:color .2s ease-in-out; }\na:hover { color:#3593d9; }\nh1.doctitle { background:#eee;font-size:14px;font-weight:bold;color:#333;line-height:25px;margin:0;padding:0 10px;border-bottom:solid 1px #aaa; }\nh1 { font-size:24px;color:#000;margin:12px 0 15px 0; }\nh2 { font-size:20px;color:#111;width:auto;margin:15px 0 10px 2px; }\nh2 em { line-height:1.6em;font-size:12px;color:#111;text-shadow:0 1px 0 #FFF;padding-left:10px; }\nh3 { font-size:20px;color:#111; }\nh4 { font-size:14px;color:#111;margin-bottom:1.3em; }\n.footnote { font-size:.8em;vertical-align:super;color:rgb(13,110,161); }\n#wrapper { background:#fff;position:fixed;top:0;left:0;right:0;bottom:0;-webkit-box-shadow:inset 0px 0px 4px #8F8D87; }\n#contentdiv { position:fixed;top:27px;left:5px;right:5px;bottom:5px;background:transparent;color:#303030;overflow:auto;text-indent:20px;padding:10px; }\n#contentdiv::-webkit-scrollbar { width:6px; }\n#contentdiv::-webkit-scrollbar:horizontal { height:6px;display:none; }\n#contentdiv::-webkit-scrollbar-track { background:transparent;-webkit-border-radius:0;right:10px; }\n#contentdiv::-webkit-scrollbar-track:disabled { display:none; }\n#contentdiv::-webkit-scrollbar-thumb { border-width:0;min-height:20px;background:#777;opacity:0.4;-webkit-border-radius:5px; }";
 		
 		NSData *cssData = [NSData dataWithBytes:[cssString UTF8String] length:[cssString length]];
 		[fileManager createFileAtPath:cssFile contents:cssData attributes:nil];
@@ -223,7 +232,7 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	
 	if ([fileManager fileExistsAtPath:htmlFile] == NO)
 	{
-		NSString *htmlString = @"<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN\"\n	\"http://www.w3.org/Math/DTD/mathml2/xhtml-math11-f.dtd\">\n\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n	<head>\n		<meta name=\"Format\" content=\"complete\" />\n		<meta name=\"format\" content=\"complete\" />\n		<script src=\"http://www.google.com/jsapi\"></script>\n		<script>google.load(\"jquery\", \"1.4\");</script>\n    <style type=\"text/css\">{%style%}</style>\n	</head>\n<body>\n  <div id=\"wrapper\">\n    <div id=\"contentdiv\">\n      {%content%}\n    </div>\n  </div>\n</body>\n</html>";
+		NSString *htmlString = @"<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN\"\n	\"http://www.w3.org/Math/DTD/mathml2/xhtml-math11-f.dtd\">\n\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\n	<head>\n		<meta name=\"Format\" content=\"complete\" />\n		<meta name=\"format\" content=\"complete\" />\n    <style type=\"text/css\">{%style%}</style>\n	</head>\n<body>\n  <div id=\"wrapper\">\n	<h1 class=\"doctitle\">{%title%}</h1>\n    <div id=\"contentdiv\">\n      {%content%}\n    </div>\n  </div>\n</body>\n</html>";
 		
 		NSData *htmlData = [NSData dataWithBytes:[htmlString UTF8String] length:[htmlString length]];
 		[fileManager createFileAtPath:htmlFile contents:htmlData attributes:nil];
@@ -241,7 +250,8 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 -(IBAction)shareNote:(id)sender
 {
     AppController *app = [[NSApplication sharedApplication] delegate];
-    NSString *rawString = [app noteContent];	
+	NSString *noteTitle = [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])];
+    NSString *rawString = [app noteContent];
     SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
     NSString *processedString = [NSString performSelector:mode withObject:rawString];
 	
@@ -259,7 +269,7 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
     //create a dictionary for all the fields you want to send in the POST request
     NSDictionary* postData = [NSDictionary dictionaryWithObjectsAndKeys:
 							  @"8c4205ec33d8f6caeaaaa0c10a14138c", @"key",
-							  @"", @"title",
+							  noteTitle, @"title",
 							  processedString, @"body",
 							  nil];
     //set the body of the POST request to the multipart MIME encoded dictionary
@@ -283,6 +293,13 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	NSString * responseString = [[[NSString alloc] initWithData:responseData encoding:NSASCIIStringEncoding] autorelease];
 	NSLog(@"RESPONSE STRING: %@", responseString);
 	NSLog(@"%d",response.statusCode);
+	shareURL = [[NSString stringWithString:responseString] retain];
+	if (response.statusCode == 200) {
+		[self showShareURL:[NSString stringWithFormat:@"%@ copied",shareURL] isError:NO];
+	} else {
+		[self showShareURL:@"Error connecting" isError:YES];
+	}
+
 	[request release];
 	
 }
@@ -341,4 +358,63 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	}
 }
 
+- (void)showShareURL:(NSString *)url isError:(BOOL)isError
+{
+	
+    // Attach/detach window
+    if (!attachedWindow) {
+        int side = 3;
+        NSPoint buttonPoint = NSMakePoint(NSMidX([shareButton frame]),
+                                          NSMidY([shareButton frame]));
+        attachedWindow = [[MAAttachedWindow alloc] initWithView:shareNotification 
+                                                attachedToPoint:buttonPoint 
+                                                       inWindow:[shareButton window]
+                                                         onSide:side 
+                                                     atDistance:15.0f];
+        [attachedWindow setBorderColor:[NSColor colorWithCalibratedHue:0.278 saturation:0.000 brightness:0.871 alpha:0.950]];
+        [attachedWindow setBackgroundColor:[NSColor colorWithCalibratedRed:0.134 green:0.134 blue:0.134 alpha:0.950]];
+        [attachedWindow setViewMargin:3.0f];
+        [attachedWindow setBorderWidth:1.0f];
+        [attachedWindow setCornerRadius:10.0f];
+        [attachedWindow setHasArrow:YES];
+        [attachedWindow setDrawsRoundCornerBesideArrow:YES];
+        [attachedWindow setArrowBaseWidth:10.0f];
+        [attachedWindow setArrowHeight:10.0f];
+        
+        [[shareButton window] addChildWindow:attachedWindow ordered:NSWindowAbove];
+		
+    }
+	if (isError) {
+		[urlTextField setStringValue:url];
+		[viewOnWebButton setHidden:YES];
+	} else {
+		NSPasteboard *pb = [NSPasteboard generalPasteboard];
+		NSArray *types = [NSArray arrayWithObjects:NSStringPboardType, nil];
+		[pb declareTypes:types owner:self];
+		[pb setString:url forType:NSStringPboardType];
+		[viewOnWebButton setHidden:NO];
+		[urlTextField setStringValue:url];		
+	}
+
+
+}
+
+- (IBAction)hideShareURL:(id)sender
+{
+	[[shareButton window] removeChildWindow:attachedWindow];
+	[attachedWindow orderOut:self];
+	[attachedWindow release];
+	attachedWindow = nil;
+	[shareURL release];
+}
+
+- (IBAction)openShareURL:(id)sender
+{
+	[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:shareURL]];
+	[[shareButton window] removeChildWindow:attachedWindow];
+	[attachedWindow orderOut:self];
+	[attachedWindow release];
+	attachedWindow = nil;
+	[shareURL release];
+}
 @end
