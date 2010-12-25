@@ -190,7 +190,7 @@
 															<object class="NSTextView" id="620829796">
 																<reference key="NSNextResponder" ref="57038716"/>
 																<int key="NSvFlags">2322</int>
-																<string key="NSFrameSize">{10, 14}</string>
+																<string key="NSFrameSize">{80, 14}</string>
 																<reference key="NSSuperview" ref="57038716"/>
 																<object class="NSTextContainer" key="NSTextContainer" id="828954989">
 																	<object class="NSLayoutManager" key="NSLayoutManager">
@@ -208,7 +208,7 @@
 																		<nil key="NSDelegate"/>
 																	</object>
 																	<reference key="NSTextView" ref="620829796"/>
-																	<double key="NSWidth">10</double>
+																	<double key="NSWidth">80</double>
 																	<int key="NSTCFlags">1</int>
 																</object>
 																<object class="NSTextViewSharedData" key="NSSharedData">
@@ -271,7 +271,7 @@
 																</object>
 																<int key="NSTVFlags">7</int>
 																<string key="NSMaxSize">{525, 1e+07}</string>
-																<string key="NSMinize">{0, 0}</string>
+																<string key="NSMinize">{80, 0}</string>
 																<nil key="NSDelegate"/>
 															</object>
 														</object>
@@ -704,32 +704,6 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<reference key="parent" ref="785953534"/>
 					</object>
 					<object class="IBObjectRecord">
-						<int key="objectID">38</int>
-						<reference key="object" ref="412330603"/>
-						<object class="NSMutableArray" key="children">
-							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="312850199"/>
-							<reference ref="411156754"/>
-							<reference ref="620829796"/>
-						</object>
-						<reference key="parent" ref="570116902"/>
-					</object>
-					<object class="IBObjectRecord">
-						<int key="objectID">39</int>
-						<reference key="object" ref="312850199"/>
-						<reference key="parent" ref="412330603"/>
-					</object>
-					<object class="IBObjectRecord">
-						<int key="objectID">40</int>
-						<reference key="object" ref="411156754"/>
-						<reference key="parent" ref="412330603"/>
-					</object>
-					<object class="IBObjectRecord">
-						<int key="objectID">41</int>
-						<reference key="object" ref="620829796"/>
-						<reference key="parent" ref="412330603"/>
-					</object>
-					<object class="IBObjectRecord">
 						<int key="objectID">18</int>
 						<reference key="object" ref="831655116"/>
 						<object class="NSMutableArray" key="children">
@@ -828,6 +802,32 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<int key="objectID">147</int>
 						<reference key="object" ref="431996734"/>
 						<reference key="parent" ref="983587014"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">38</int>
+						<reference key="object" ref="412330603"/>
+						<object class="NSMutableArray" key="children">
+							<bool key="EncodedWithXMLCoder">YES</bool>
+							<reference ref="620829796"/>
+							<reference ref="411156754"/>
+							<reference ref="312850199"/>
+						</object>
+						<reference key="parent" ref="570116902"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">41</int>
+						<reference key="object" ref="620829796"/>
+						<reference key="parent" ref="412330603"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">40</int>
+						<reference key="object" ref="411156754"/>
+						<reference key="parent" ref="412330603"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">39</int>
+						<reference key="object" ref="312850199"/>
+						<reference key="parent" ref="412330603"/>
 					</object>
 				</object>
 			</object>
@@ -934,7 +934,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<object class="NSAffineTransform">
-						<bytes key="NSTransformStruct">P4AAAL+AAABCCAAAw68AAA</bytes>
+						<bytes key="NSTransformStruct">P4AAAL+AAABBuAAAxANAAA</bytes>
 					</object>
 					<string>BlueTransparentScroller</string>
 					<object class="NSMutableDictionary">
@@ -974,7 +974,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">150</int>
+			<int key="maxID">156</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
