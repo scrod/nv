@@ -54,6 +54,7 @@ static NSString *NumberOfSpacesInTabKey = @"NumberOfSpacesInTab";
 static NSString *DrawFocusRingKey = @"DrawFocusRing";
 static NSString *MakeURLsClickableKey = @"MakeURLsClickable";
 static NSString *RTLKey = @"rtl";
+static NSString *AlternatingRowsKey = @"AlternatingRows";
 static NSString *AppActivationKeyCodeKey = @"AppActivationKeyCode";
 static NSString *AppActivationModifiersKey = @"AppActivationModifiers";
 static NSString *BookmarksKey = @"Bookmarks";
@@ -108,11 +109,12 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], TextReplacementInNoteBodyKey, 
 			[NSNumber numberWithBool:YES], AutoCompleteSearchesKey, 
 			[NSNumber numberWithBool:NO], VerticalLayoutKey, 
-			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey, 
+			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey,
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
 			[NSNumber numberWithBool:NO], RTLKey,
+			[NSNumber numberWithBool:YES], AlternatingRowsKey,
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
 			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
 			@"General", LastSelectedPreferencesPaneKey, 
@@ -291,7 +293,6 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (BOOL)quitWhenClosingWindow {
     return [defaults boolForKey:QuitWhenClosingMainWindowKey];
 }
-
 - (void)setAppActivationKeyCombo:(PTKeyCombo*)aCombo sender:(id)sender {
 	if (aCombo) {
 		[appActivationKeyCombo release];
@@ -371,7 +372,14 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (BOOL)rtl {
 	return [defaults boolForKey:RTLKey];
 }
-
+- (void)setAlternatingRows:(BOOL)value sender:(id)sender {
+	[defaults setBool:value forKey:AlternatingRowsKey];
+	
+	SEND_CALLBACKS();
+}
+- (BOOL)alternatingRows {
+	return [defaults boolForKey:AlternatingRowsKey];
+}
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender {
 	if (color) {
 		[searchTermHighlightColor autorelease];

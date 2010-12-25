@@ -127,14 +127,15 @@
 	NSColor *evenColor = backgroundColor;
 	NSColor *oddColor = backgroundColor;
 	[gBack getWhite:&fWhite alpha:&fAlpha];
-	if (fWhite < 0.5f) {
-		endWhite = fWhite + 0.25f;
-		oddColor = [backgroundColor blendedColorWithFraction:0.15f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:1.0f]];
-	} else {
-		endWhite = fWhite-0.28f;
-		oddColor = [backgroundColor blendedColorWithFraction:0.15f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:1.0f]];
+	if ([globalPrefs alternatingRows]) {
+		if (fWhite < 0.5f) {
+			endWhite = fWhite + 0.25f;
+			oddColor = [backgroundColor blendedColorWithFraction:0.05f ofColor:[NSColor whiteColor]];
+		} else {
+			endWhite = fWhite-0.28f;
+			oddColor = [backgroundColor blendedColorWithFraction:0.05f ofColor:[NSColor blackColor]];
+		}
 	}
-	
 	float rowHeight = [self rowHeight] + [self intercellSpacing].height;
 	NSRect visibleRect = [self visibleRect];
 	NSRect highlightRect;

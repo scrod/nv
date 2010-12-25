@@ -35,6 +35,7 @@
 	IBOutlet NSButton *rtlButton;
 	IBOutlet NSColorWell *searchHighlightColorWell;
     IBOutlet NSColorWell *notesListBackgroundColorWell;
+	IBOutlet NSButton *alternatingRowsButton;
 	
     IBOutlet NotationPrefsViewController *notationPrefsViewController;
 	
@@ -67,6 +68,7 @@
 - (IBAction)changedTableText:(id)sender;
 - (IBAction)changedTitleCompletion:(id)sender;
 - (IBAction)changedSoftTabs:(id)sender;
+- (IBAction)changedAlternatingRows:(id)sender;
 
 - (NSMenu*)directorySelectionMenu;
 - (void)changeDefaultDirectory;

@@ -115,6 +115,9 @@ extern NSString *NVPTFPboardType;
 - (void)setRTL:(BOOL)value sender:(id)sender;
 - (BOOL)rtl;
 
+- (void)setAlternatingRows:(BOOL)value sender:(id)sender;
+- (BOOL)alternatingRows;
+
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender;
 - (NSDictionary*)searchTermHighlightAttributes;
 - (NSColor*)searchTermHighlightColor;

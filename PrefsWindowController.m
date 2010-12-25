@@ -144,6 +144,10 @@
 	[prefsController setNotesListBackgroundColor:[notesListBackgroundColorWell color] sender:self];
 	[[NSApp delegate] updateScheme];
 }
+- (IBAction)changedAlternatingRows:(id)sender {
+	[prefsController setAlternatingRows:[alternatingRowsButton state] sender:self];
+	[[NSApp delegate] updateScheme];
+}
 - (IBAction)changedStyledTextBehavior:(id)sender {
     [prefsController setPastePreservesStyle:[styledTextButton state] sender:self];
 }
@@ -379,6 +383,7 @@
     [checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
     [confirmDeletionButton setState:[prefsController confirmNoteDeletion]];
     [quitWhenClosingButton setState:[prefsController quitWhenClosingWindow]];
+	[alternatingRowsButton setState:[prefsController alternatingRows]];
     [styledTextButton setState:[prefsController pastePreservesStyle]];
     [autoSuggestLinksButton setState:[prefsController linksAutoSuggested]];
 	[softTabsButton setState:[prefsController softTabs]];
