@@ -53,7 +53,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setSearchTermHighlightColor:sender:),	
  	 @selector(setNotesListBackgroundColor:sender:), nil];
 	
-	[self setTextContainerInset:NSMakeSize(33, 28)];
+	[self setTextContainerInset:NSMakeSize(20, 15)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
