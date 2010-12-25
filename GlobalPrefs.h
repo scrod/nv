@@ -112,6 +112,9 @@ extern NSString *NVPTFPboardType;
 - (void)setMakeURLsClickable:(BOOL)value sender:(id)sender;
 - (BOOL)URLsAreClickable;
 
+- (void)setRTL:(BOOL)value sender:(id)sender;
+- (BOOL)rtl;
+
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender;
 - (NSDictionary*)searchTermHighlightAttributes;
 - (NSColor*)searchTermHighlightColor;

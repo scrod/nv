@@ -155,6 +155,11 @@
 	[prefsController setMakeURLsClickable:[makeURLsClickable state] sender:self];
 }
 
+- (IBAction)changedRTL:(id)sender {
+	[prefsController setRTL:[rtlButton state] sender:self];
+	[[NSApp delegate] updateRTL];
+}
+
 - (IBAction)changedNoteDeletion:(id)sender {
 	[prefsController setConfirmNoteDeletion:[confirmDeletionButton state] sender:self];
 }
@@ -378,6 +383,7 @@
     [autoSuggestLinksButton setState:[prefsController linksAutoSuggested]];
 	[softTabsButton setState:[prefsController softTabs]];
 	[makeURLsClickable setState:[prefsController URLsAreClickable]];
+	[rtlButton setState:[prefsController rtl]];
 	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
 	[notesListBackgroundColorWell setColor:[prefsController notesListBackgroundColor]];
     [self previewNoteBodyFont];

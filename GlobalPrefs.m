@@ -53,6 +53,7 @@ static NSString *UseSoftTabsKey = @"UseSoftTabs";
 static NSString *NumberOfSpacesInTabKey = @"NumberOfSpacesInTab";
 static NSString *DrawFocusRingKey = @"DrawFocusRing";
 static NSString *MakeURLsClickableKey = @"MakeURLsClickable";
+static NSString *RTLKey = @"rtl";
 static NSString *AppActivationKeyCodeKey = @"AppActivationKeyCode";
 static NSString *AppActivationModifiersKey = @"AppActivationModifiers";
 static NSString *BookmarksKey = @"Bookmarks";
@@ -111,6 +112,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
+			[NSNumber numberWithBool:NO], RTLKey,
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
 			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
 			@"General", LastSelectedPreferencesPaneKey, 
@@ -360,6 +362,14 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 - (BOOL)URLsAreClickable {
 	return [defaults boolForKey:MakeURLsClickableKey];
+}
+- (void)setRTL:(BOOL)value sender:(id)sender {
+	[defaults setBool:value forKey:RTLKey];
+	
+	SEND_CALLBACKS();
+}
+- (BOOL)rtl {
+	return [defaults boolForKey:RTLKey];
 }
 
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender {

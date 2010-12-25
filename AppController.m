@@ -162,6 +162,7 @@
 		[splitView display];
 		
 		[self updateScheme];
+		[self updateRTL];
 		
 		awakenedViews = YES;
 	}
@@ -331,6 +332,15 @@ terminateApp:
 	[noteScroller setBackgroundColor:backgroundColor];  
 	[splitView setBackground:backgroundColor];
 	
+}
+
+- (void)updateRTL
+{
+	if ([prefsController rtl]) {
+		[textView setBaseWritingDirection:NSWritingDirectionRightToLeft range:NSMakeRange(0, [[textView string] length])];
+	} else {
+		[textView setBaseWritingDirection:NSWritingDirectionLeftToRight range:NSMakeRange(0, [[textView string] length])];
+	}
 }
 
 - (void)tableView: (NSTableView *)aTableView willDisplayCell:(id)aCell
@@ -1260,7 +1270,7 @@ terminateApp:
 		
 		//NSString *words = noteIndex != [notationController preferredSelectedNoteIndex] ? typedString : nil;
 		//[textView setFutureSelectionRange:noteSelectionRange highlightingWords:words];
-		
+		[self updateRTL];
 		return YES;
 	}
 	

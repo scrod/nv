@@ -32,6 +32,7 @@
 	IBOutlet NSButton *autoSuggestLinksButton;
 	IBOutlet NSButton *softTabsButton;
 	IBOutlet NSButton *makeURLsClickable;
+	IBOutlet NSButton *rtlButton;
 	IBOutlet NSColorWell *searchHighlightColorWell;
     IBOutlet NSColorWell *notesListBackgroundColorWell;
 	
@@ -52,6 +53,7 @@
 - (IBAction)changedSearchHighlightColorWell:(id)sender;
 - (IBAction)changedNotesListBackgroundColorWell:(id)sender;
 - (IBAction)changedMakeURLsClickable:(id)sender;
+- (IBAction)changedRTL:(id)sender;
 - (IBAction)changedStyledTextBehavior:(id)sender;
 - (IBAction)changedAutoSuggestLinks:(id)sender;
 - (IBAction)setAppShortcut:(id)sender;

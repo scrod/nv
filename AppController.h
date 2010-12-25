@@ -149,5 +149,5 @@ void outletObjectAwoke(id sender);
 -(IBAction)collapseNotes:(id)sender;
 
 -(void)updateScheme;
-
+-(void)updateRTL;
 @end
