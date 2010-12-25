@@ -24,7 +24,7 @@
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<integer value="133"/>
-			<integer value="31"/>
+			<integer value="3"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -397,19 +397,27 @@
 					<object class="BWTransparentButton" id="983587014">
 						<reference key="NSNextResponder" ref="228492711"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{122, 1}, {55, 28}}</string>
+						<string key="NSFrame">{{-2, 28}, {32, 27}}</string>
 						<reference key="NSSuperview" ref="228492711"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="BWTransparentButtonCell" key="NSCell" id="431996734">
 							<int key="NSCellFlags">67239424</int>
 							<int key="NSCellFlags2">134348800</int>
-							<string key="NSContents">OK</string>
+							<string key="NSContents"/>
 							<reference key="NSSupport" ref="26"/>
 							<reference key="NSControlView" ref="983587014"/>
-							<int key="NSButtonFlags">-2038284033</int>
-							<int key="NSButtonFlags2">129</int>
+							<int key="NSButtonFlags">139739391</int>
+							<int key="NSButtonFlags2">6</int>
+							<object class="NSCustomResource" key="NSNormalImage">
+								<string key="NSClassName">NSImage</string>
+								<string key="NSResourceName">TabClose_Front_Rollover</string>
+							</object>
+							<object class="NSCustomResource" key="NSAlternateImage">
+								<string key="NSClassName">NSImage</string>
+								<string key="NSResourceName">TabClose_Front_Pressed</string>
+							</object>
 							<string key="NSAlternateContents"/>
-							<string type="base64-UTF8" key="NSKeyEquivalent">DQ</string>
+							<string type="base64-UTF8" key="NSKeyEquivalent">Gw</string>
 							<int key="NSPeriodicDelay">200</int>
 							<int key="NSPeriodicInterval">25</int>
 						</object>
@@ -417,7 +425,7 @@
 					<object class="BWTransparentButton" id="942278701">
 						<reference key="NSNextResponder" ref="228492711"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{61, 1}, {55, 28}}</string>
+						<string key="NSFrame">{{19, 2}, {168, 28}}</string>
 						<reference key="NSSuperview" ref="228492711"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="BWTransparentButtonCell" key="NSCell" id="848101772">
@@ -437,13 +445,13 @@
 					<object class="NSTextField" id="391444775">
 						<reference key="NSNextResponder" ref="228492711"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{17, 46}, {162, 14}}</string>
+						<string key="NSFrame">{{57, 32}, {92, 14}}</string>
 						<reference key="NSSuperview" ref="228492711"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="BWTransparentTextFieldCell" key="NSCell" id="931660652">
 							<int key="NSCellFlags">68288064</int>
 							<int key="NSCellFlags2">4326400</int>
-							<string key="NSContents">url in clipboard</string>
+							<string key="NSContents">URL in clipboard</string>
 							<object class="NSFont" key="NSSupport">
 								<string key="NSName">LucidaGrande-Bold</string>
 								<double key="NSSize">11</double>
@@ -460,7 +468,7 @@
 						</object>
 					</object>
 				</object>
-				<string key="NSFrameSize">{184, 80}</string>
+				<string key="NSFrameSize">{206, 55}</string>
 				<reference key="NSSuperview"/>
 				<string key="NSClassName">NSView</string>
 			</object>
@@ -755,9 +763,9 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<reference key="object" ref="228492711"/>
 						<object class="NSMutableArray" key="children">
 							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="391444775"/>
 							<reference ref="983587014"/>
 							<reference ref="942278701"/>
+							<reference ref="391444775"/>
 						</object>
 						<reference key="parent" ref="0"/>
 					</object>
@@ -895,21 +903,21 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<bytes key="NSTransformStruct">P4AAAL+AAABDuoAAwSAAAA</bytes>
 					</object>
 					<string>com.brandonwalkin.BWToolkit</string>
-					<string>{{370, 685}, {184, 80}}</string>
+					<string>{{370, 710}, {206, 55}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<object class="NSAffineTransform">
-						<bytes key="NSTransformStruct">P4AAAL+AAABAoAAAwmgAAA</bytes>
+						<bytes key="NSTransformStruct">P4AAAL+AAABCggAAwjAAAA</bytes>
 					</object>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<object class="NSAffineTransform">
-						<bytes key="NSTransformStruct">P4AAAL+AAABCjAAAwdgAAA</bytes>
+						<bytes key="NSTransformStruct">P4AAAL+AAABB2AAAweAAAA</bytes>
 					</object>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<object class="NSAffineTransform">
-						<bytes key="NSTransformStruct">P4AAAL+AAABC9AAAwdgAAA</bytes>
+						<bytes key="NSTransformStruct">P4AAAL+AAABBEAAAwiQAAA</bytes>
 					</object>
 					<string>com.brandonwalkin.BWToolkit</string>
 					<string>com.brandonwalkin.BWToolkit</string>
@@ -2081,5 +2089,18 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 		<bool key="IBDocument.PluginDeclaredDependenciesTrackSystemTargetVersion">YES</bool>
 		<string key="IBDocument.LastKnownRelativeProjectPath">Notation.xcodeproj</string>
 		<int key="IBDocument.defaultPropertyAccessControl">3</int>
+		<object class="NSMutableDictionary" key="IBDocument.LastKnownImageSizes">
+			<bool key="EncodedWithXMLCoder">YES</bool>
+			<object class="NSArray" key="dict.sortedKeys">
+				<bool key="EncodedWithXMLCoder">YES</bool>
+				<string>TabClose_Front_Pressed</string>
+				<string>TabClose_Front_Rollover</string>
+			</object>
+			<object class="NSMutableArray" key="dict.values">
+				<bool key="EncodedWithXMLCoder">YES</bool>
+				<string>{12, 13}</string>
+				<string>{12, 13}</string>
+			</object>
+		</object>
 	</data>
 </archive>

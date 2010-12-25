@@ -1751,10 +1751,10 @@ terminateApp:
 	if ([notesList isCollapsed] == YES)
 	{
 		[collapseToggle setState:NSOffState];
-		[notesList expandWithAnimation];
+		[notesList expand];
 	} else {
 		[collapseToggle setState:NSOnState];	
-		[notesList collapseWithAnimation];	
+		[notesList collapse];	
 	}
 }
 - (void)setMenuItemStates

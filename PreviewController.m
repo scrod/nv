@@ -276,7 +276,7 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	NSLog(@"%d",response.statusCode);
 	shareURL = [[NSString stringWithString:responseString] retain];
 	if (response.statusCode == 200) {
-		[self showShareURL:[NSString stringWithFormat:@"%@ copied",shareURL] isError:NO];
+		[self showShareURL:[NSString stringWithFormat:@"View %@",shareURL] isError:NO];
 	} else {
 		[self showShareURL:@"Error connecting" isError:YES];
 	}
@@ -360,7 +360,7 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
         [attachedWindow setHasArrow:YES];
         [attachedWindow setDrawsRoundCornerBesideArrow:YES];
         [attachedWindow setArrowBaseWidth:10.0f];
-        [attachedWindow setArrowHeight:10.0f];
+        [attachedWindow setArrowHeight:6.0f];
         
         [[shareButton window] addChildWindow:attachedWindow ordered:NSWindowAbove];
 		
@@ -373,8 +373,8 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 		NSArray *types = [NSArray arrayWithObjects:NSStringPboardType, nil];
 		[pb declareTypes:types owner:self];
 		[pb setString:url forType:NSStringPboardType];
-		[viewOnWebButton setHidden:NO];
-		[urlTextField setStringValue:url];		
+		[urlTextField setHidden:NO];
+		[viewOnWebButton setTitle:url];		
 	}
 
 
