@@ -372,7 +372,7 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 		NSPasteboard *pb = [NSPasteboard generalPasteboard];
 		NSArray *types = [NSArray arrayWithObjects:NSStringPboardType, nil];
 		[pb declareTypes:types owner:self];
-		[pb setString:url forType:NSStringPboardType];
+		[pb setString:shareURL forType:NSStringPboardType];
 		[urlTextField setHidden:NO];
 		[viewOnWebButton setTitle:url];		
 	}
