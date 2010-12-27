@@ -23,8 +23,12 @@
 	NSMutableData *receivedData;
 //    IBOutlet NSWindow *wnd;
 	MAAttachedWindow *attachedWindow;
+	MAAttachedWindow *confirmWindow;
 	IBOutlet NSTextField *urlTextField;
 	IBOutlet NSView *shareNotification;
+	IBOutlet NSView *shareConfirmation;
+	IBOutlet NSButton *shareCancel;
+	IBOutlet NSButton *shareConfirm;
 	NSString *shareURL;
 }
 
@@ -34,6 +38,8 @@
 -(IBAction)saveHTML:(id)sender;
 -(IBAction)switchTabs:(id)sender;
 -(IBAction)shareNote:(id)sender;
+-(IBAction)shareAsk:(id)sender;
+-(IBAction)cancelShare:(id)sender;
 
 -(void)togglePreview:(id)sender;
 -(void)requestPreviewUpdate:(NSNotification *)notification;

@@ -182,7 +182,8 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	NSString* cssString = [[self class] css];
     NSString* htmlString = [[self class] html];
 	NSMutableString *outputString = [NSMutableString stringWithString:(NSString *)htmlString];
-	NSString *noteTitle = [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])];
+	
+	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
 	[outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
@@ -339,10 +340,46 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	}
 }
 
+- (IBAction)shareAsk:(id)sender
+{
+	if (!confirmWindow && !attachedWindow) {
+        int side = 3;
+        NSPoint buttonPoint = NSMakePoint(NSMidX([shareButton frame]),
+                                          NSMidY([shareButton frame]));
+        confirmWindow = [[MAAttachedWindow alloc] initWithView:shareConfirmation 
+                                                attachedToPoint:buttonPoint 
+                                                       inWindow:[shareButton window]
+                                                         onSide:side 
+                                                     atDistance:15.0f];
+        [confirmWindow setBorderColor:[NSColor colorWithCalibratedHue:0.278 saturation:0.000 brightness:0.871 alpha:0.950]];
+        [confirmWindow setBackgroundColor:[NSColor colorWithCalibratedRed:0.134 green:0.134 blue:0.134 alpha:0.950]];
+        [confirmWindow setViewMargin:3.0f];
+        [confirmWindow setBorderWidth:1.0f];
+        [confirmWindow setCornerRadius:10.0f];
+        [confirmWindow setHasArrow:YES];
+        [confirmWindow setDrawsRoundCornerBesideArrow:YES];
+        [confirmWindow setArrowBaseWidth:10.0f];
+        [confirmWindow setArrowHeight:6.0f];
+        
+        [[shareButton window] addChildWindow:confirmWindow ordered:NSWindowAbove];
+		
+    } else {
+		if (confirmWindow)
+			[self cancelShare:self];
+		else if (attachedWindow)
+			[self hideShareURL:self];
+	}
+}
+
 - (void)showShareURL:(NSString *)url isError:(BOOL)isError
 {
-	
-    // Attach/detach window
+	if (confirmWindow) {
+		[[shareButton window] removeChildWindow:confirmWindow];
+		[confirmWindow orderOut:self];
+		[confirmWindow release];
+		confirmWindow = nil;
+	}
+		// Attach/detach window
     if (!attachedWindow) {
         int side = 3;
         NSPoint buttonPoint = NSMakePoint(NSMidX([shareButton frame]),
@@ -365,6 +402,7 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
         [[shareButton window] addChildWindow:attachedWindow ordered:NSWindowAbove];
 		
     }
+	
 	if (isError) {
 		[urlTextField setStringValue:url];
 		[viewOnWebButton setHidden:YES];
@@ -387,6 +425,14 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
 	[attachedWindow release];
 	attachedWindow = nil;
 	[shareURL release];
+}
+
+- (IBAction)cancelShare:(id)sender
+{
+	[[shareButton window] removeChildWindow:confirmWindow];
+	[confirmWindow orderOut:self];
+	[confirmWindow release];
+	confirmWindow = nil;
 }
 
 - (IBAction)openShareURL:(id)sender

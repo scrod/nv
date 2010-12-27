@@ -347,7 +347,7 @@ terminateApp:
    forTableColumn:(NSTableColumn *)aTableColumn row:(int)aRowIndex
 {
 	if ([aCell isHighlighted]) {
-		[aCell setTextColor:[NSColor whiteColor]];
+		[aCell setTextColor:[NSColor blackColor]];
 	} else {
 	
 		NSColor *backgroundColor = [prefsController notesListBackgroundColor];
