@@ -12,4 +12,8 @@ my $text;
 	local $/;               # Slurp the whole file
 	$text = <>;
 }
-print textile($text);
+
+# Thanks to Sen Haerens for the UTF8 fix
+my $textile = new Text::Textile;
+$textile->charset('utf-8');
+print $textile->process($text);
