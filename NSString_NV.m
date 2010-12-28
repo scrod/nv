@@ -256,7 +256,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 - (BOOL)isAMachineDirective {
 	return [self hasPrefix:@"#!"] || [self hasPrefix:@"#import "] || [self hasPrefix:@"#include "] || 
 	[self hasPrefix:@"<!DOCTYPE "] || [self hasPrefix:@"<?xml "] || [self hasPrefix:@"<html "] || 
-	[self hasPrefix:@"@import "] || [self hasPrefix:@"bplist0"]; 
+	[self hasPrefix:@"@import "] || [self hasPrefix:@"<?php"] || [self hasPrefix:@"bplist0"]; 
 	
 }
 
