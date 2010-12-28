@@ -19,6 +19,8 @@
 #import "AttributedPlainText.h"
 #import "NSCollection_utils.h"
 #import "GlobalPrefs.h"
+#import "ICUPattern.h"
+#import "ICUMatcher.h"
 #import "NSString_NV.h"
 
 @implementation NSMutableAttributedString (AttributedPlainText)
@@ -93,7 +95,7 @@
 	
 	NSAssert(currentFont != nil, @"restyleTextToFont needs a current font!");
 	
-	NS_DURING
+	@try {
 			
 		while (NSMaxRange(effectiveRange) < stringLength) {
 			// Get the attributes for the current range
@@ -156,54 +158,73 @@
 			
 			rangesChanged++;
 		}
-		
-	NS_HANDLER
-		NSLog(@"Error trying to re-style text (%@, %@)", [localException name], [localException reason]);
-	NS_ENDHANDLER
+	}	
+	@catch (NSException *e) {
+		NSLog(@"Error trying to re-style text (%@, %@)", [e name], [e reason]);
+	}
 		
 	return rangesChanged > 0;
 }
 
 - (void)addLinkAttributesForRange:(NSRange)changedRange {
-	NSCharacterSet *antiURLSpace = [NSAttributedString antiURLCharacterSet];
 	
-	NSString *string = [self string];
-	NSRange totalRange = NSMakeRange(0, [string length]);
-	NSString *substring = string;
-	if (!NSEqualRanges(totalRange, changedRange)) {
-		substring = [string substringWithRange:changedRange];
-	}
+	if (!changedRange.length) return;
+	
+	static ICUPattern *urlPattern = nil;
+   //This regexp modeled on John Gruber's patterns: http://daringfireball.net/2010/07/improved_regex_for_matching_urls
+	if (!urlPattern) urlPattern = [ICUPattern patternWithString:
+	@"(?i)\\b((?:[a-z][\\w-]+:/{2,3}|www\\d{0,3}[.]|[a-z0-9.\\-]+[.][a-z]{2,4}/)(?:[^\\s()<>\\[\\]]+|\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\))+(?:\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\)|[^\\s`!()\\[\\]{};:'\".,<>?«»“”‘’]))"];
+	//For a heavier-duty implementation, Adium's AutoHyperlinks framework (based on flex) might be better
+	//http://trac.adium.im/wiki/AutoHyperlinksFramework
+	
+	static ICUPattern *emailPattern = nil;
+	//use a separate regexp for email addresses, eschewing any that contain an inner colon
+	if (!emailPattern) emailPattern = [ICUPattern patternWithString:@"(\\w+([-+.']\\w+)*?@(?>\\w+([-.]\\w+)*?\\.\\w+([-.]\\w+)*))(?=[^:]|:*?($|\\s))"];
+
+	[self beginEditing];
+	@try {
+		NSMutableIndexSet *urlIndexes = [NSMutableIndexSet indexSet];
 		
-	if ([substring rangeOfCharacterFromSet:antiURLSpace options:NSLiteralSearch].location == NSNotFound)
-		substring = [substring stringByAppendingString:@" "];
-	
-	
-	NSScanner *wordScanner = [NSScanner scannerWithString:substring];
-	
-	//loop until end of string
-	while (![wordScanner isAtEnd]) {
-		NSRange wordRange = NSMakeRange(NSNotFound, 0);
-		NSString *word = nil;
+		ICUMatcher *matcher = [ICUMatcher matcherWithPattern:urlPattern overString:[self string] range:changedRange];
 		
-		while ([wordScanner scanUpToCharactersFromSet:antiURLSpace intoString:&word]) {
-			if (word) {
-				wordRange.length = [word length];
-				wordRange.location = changedRange.location + [wordScanner scanLocation] - wordRange.length;
-				
-				NSAssert([word isEqualToString:[string substringWithRange:wordRange]], @"derived range is wrong!");
-				
-				NSURL *url = nil;
-				if (wordRange.length && NSMaxRange(wordRange) <= [string length] && (url = [word linkForWord])) {
-					if (url) [self addAttribute:NSLinkAttributeName value:url range:wordRange];
-				}
+		while ([matcher findNext]) {
+			NSRange range = [matcher rangeOfMatch];
+			NSString *extractedMatch = [[self string] substringWithRange:range];
+			[urlIndexes addIndexesInRange:range];
+			
+			NSURL *url = [NSURL URLWithString:extractedMatch];
+			if (![[url scheme] length]) {
+				//if the parsed URL lacks an explicit protocol specifier, just assume it's http
+				url = [NSURL URLWithString:[@"http://" stringByAppendingString:extractedMatch]];
+			}
+			//File Reference URLs cannot be safely archived!
+			if (url && !([url isFileURL] && [extractedMatch rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound))
+				[self addAttribute:NSLinkAttributeName value:url range:range];
+		}
+		
+		matcher = [ICUMatcher matcherWithPattern:emailPattern overString:[self string] range:changedRange];
+		while ([matcher findNext]) {
+			NSRange range = [matcher rangeOfMatch];
+			
+			//don't make links if part of the range was already matched as a URL
+			if (![urlIndexes intersectsIndexesInRange:range]) {
+				NSURL *url = [NSURL URLWithString:[@"mailto:" stringByAppendingString:[[self string] substringWithRange:range]]];
+				if (url) [self addAttribute:NSLinkAttributeName value:url range:range];
 			}
 		}
-		unsigned int newLocation = [wordScanner scanLocation] + 1;
-		if (newLocation >= [substring length])
-			break;
-		[wordScanner setScanLocation:newLocation];
+		
+		//NEXT: add [[ ]] url-links?
+		
+		
+	}
+	@catch (NSException *e) {
+		NSLog(@"Failed adding link attributes for %u-char string: %@", [self length], e);
+	}
+	@finally {
+		[self endEditing];
 	}
 }
+
 
 #if SEPARATE_ATTRS
 #define VLISTBUFCOUNT 32
@@ -251,16 +272,6 @@
 @end
 
 @implementation NSAttributedString (AttributedPlainText)
-
-+ (NSCharacterSet*)antiURLCharacterSet {
-	static NSMutableCharacterSet *antiURLSpace = nil;
-	if (!antiURLSpace) {
-		antiURLSpace = [[NSMutableCharacterSet alloc] init];
-		[antiURLSpace formUnionWithCharacterSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		[antiURLSpace addCharactersInString:@"<>[]\""];
-	}
-	return antiURLSpace;
-}
 
 
 - (NSArray*)allLinks {

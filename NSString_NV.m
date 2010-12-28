@@ -298,42 +298,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 }
 
 
-- (NSURL*)linkForWord {
-	//full of annoying little hacks to catch (hopefully) the most common non-links
-	NSUInteger length = [self length];
-	
-	NSUInteger protocolSpecLoc = [self rangeOfString:@"://" options:NSLiteralSearch].location;
-	if (length >= 5 && protocolSpecLoc != NSNotFound && protocolSpecLoc > 0) {
-		NSURL *anurl = [NSURL URLWithString:self];
-		//File Reference URLs cannot be safely archived!
-		if ([anurl isFileURL] && [self rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound) return nil;
-		return anurl;
-	}
-	
-	if (length >= 12 && [self rangeOfString:@"mailto:" options:NSAnchoredSearch | NSLiteralSearch].location != NSNotFound)
-		return [NSURL URLWithString:self];
-	
-	if (length >= 5 && [self rangeOfString:@"www." options:NSAnchoredSearch | NSCaseInsensitiveSearch range:NSMakeRange(0, length)].location != NSNotFound) {
-		//if string starts with www., and is long enough to contain one other character, prefix URL with http://
-		return [NSURL URLWithString:[@"http://" stringByAppendingString:self]];
-	}
-	
-	if (length >= 5) {
-		NSUInteger atSignLoc = [self rangeOfString:@"@" options:NSLiteralSearch].location;
-		if (atSignLoc != NSNotFound && atSignLoc > 0) {
-			//if we contain an @, but do not start with one, and have a period somewhere after the @ but not at the end, then make it an email address
-			
-			NSUInteger periodLoc = [self rangeOfString:@"." options:NSLiteralSearch range:NSMakeRange(atSignLoc, length - atSignLoc)].location;
-			if (periodLoc != NSNotFound && periodLoc > atSignLoc + 1 && periodLoc != length - 1) {
-				
-				//make sure it's not some kind of SCP or CVS path
-				if ([self rangeOfString:@":/" options:NSLiteralSearch].location == NSNotFound)
-					return [NSURL URLWithString:[@"mailto:" stringByAppendingString:self]];	
-			}
-		}
-	}
-	
-	return nil;
 - (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc maxTitleLen:(NSUInteger)maxTitleLen {
 	return [self syntheticTitleAndSeparatorWithContext:sepStr bodyLoc:bodyLoc oldTitle:nil maxTitleLen:maxTitleLen];
 }

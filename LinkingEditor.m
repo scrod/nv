@@ -1205,41 +1205,30 @@ copyRTFType:
 }
 
 - (BOOL)shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
-	NSCharacterSet *separatorCharacterSet = [NSAttributedString antiURLCharacterSet];
 	
 	//it's not exactly proper to alter typing attributes when we don't yet know whether the text should actually be changed, but NV shouldn't cause that to happen, anyway
 	[self fixTypingAttributesForSubstitutedFonts];
 	
 	NSString *string = [self string];
-	
-	//changedRange = NSMakeRange(affectedCharRange.location, affectedCharRange.length);
-	
+		
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+	NSCharacterSet *separatorCharacterSet = [NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"%C%C%C",0x000A,0x000D,0x0085]];
+#else
+	NSCharacterSet *separatorCharacterSet = [NSCharacterSet newlineCharacterSet];
+#endif
+	//even when only seeking newlines, this manual line-finding method is less laggy than -[NSString lineRangeForRange:]
 	NSUInteger begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch range:NSMakeRange(0, affectedCharRange.location)].location;
 	if (begin == NSNotFound) {
 		begin = 0;
 	}
 	
 	NSUInteger end = [string rangeOfCharacterFromSet:separatorCharacterSet options:0 range:NSMakeRange(affectedCharRange.location + affectedCharRange.length, 
-																	[string length] - (affectedCharRange.location + affectedCharRange.length))].location;
+																									   [string length] - (affectedCharRange.location + affectedCharRange.length))].location;
 	if (end == NSNotFound) {
 		end = [string length];
 	}
-	
-	changedRange = NSMakeRange(begin, (end-begin));
-	
-	//NSAttributedString *changedText = [[self textStorage] attributedSubstringFromRange:changedRange];
-	changedRange.length += [replacementString length];
-	
-	/*int startIndex = 0;
-	NSRange range;
-	while (startIndex < [changedText length]) {
-		id link = [changedText findNextLinkAtIndex:startIndex effectiveRange:&range];
-		if ([link isKindOfClass:[NSURL class]]) {
-			link = [link absoluteString];
-		}
-		startIndex = range.location+range.length;
-	}*/
-	
+	changedRange = NSMakeRange(begin, (end - begin) + [replacementString length]);
+		
 	if (affectedCharRange.length > 0) { // Deleting something
 		changedRange.length -= affectedCharRange.length;
 	}

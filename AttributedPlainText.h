@@ -40,7 +40,6 @@
 
 @interface NSAttributedString (AttributedPlainText)
 
-+ (NSCharacterSet*)antiURLCharacterSet;
 - (NSArray*)allLinks;
 - (id)findNextLinkAtIndex:(unsigned int)startIndex effectiveRange:(NSRange *)range;
 #if SEPARATE_ATTRS
