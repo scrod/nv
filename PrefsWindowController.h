@@ -32,7 +32,8 @@
 	IBOutlet NSButton *autoSuggestLinksButton;
 	IBOutlet NSButton *softTabsButton;
 	IBOutlet NSButton *makeURLsClickable;
-	IBOutlet NSColorWell *searchHighlightColorWell;
+	IBOutlet NSButton *highlightSearchTermsButton;
+	IBOutlet NSColorWell *searchHighlightColorWell, *foregroundColorWell, *backgroundColorWell;
     
     IBOutlet NotationPrefsViewController *notationPrefsViewController;
 	
@@ -42,12 +43,15 @@
 	BOOL fontPanelWasOpen;
 	
 	IBOutlet NSWindow *window;
-	IBOutlet NSView *editingView, *generalView, *databaseView, *notationPrefsView;
+	IBOutlet NSView *editingView, *generalView, *fontsColorsView, *databaseView, *notationPrefsView;
 	
 	GlobalPrefs *prefsController;
 }
 - (void)showWindow:(id)sender;
 
+- (IBAction)changedBackgroundTextColorWell:(id)sender;
+- (IBAction)changedForegroundTextColorWell:(id)sender;
+- (IBAction)changedHighlightSearchTerms:(id)sender;	
 - (IBAction)changedSearchHighlightColorWell:(id)sender;
 - (IBAction)changedMakeURLsClickable:(id)sender;
 - (IBAction)changedStyledTextBehavior:(id)sender;

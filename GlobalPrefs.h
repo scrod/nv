@@ -47,7 +47,6 @@ extern NSString *NVPTFPboardType;
 	NSDictionary *noteBodyAttributes, *searchTermHighlightAttributes;
 	NSMutableParagraphStyle *noteBodyParagraphStyle;
 	NSFont *noteBodyFont;
-	NSColor *searchTermHighlightColor;
 	BOOL autoCompleteSearches;
 	
 	NSMutableArray *tableColumns;
@@ -82,6 +81,11 @@ extern NSString *NVPTFPboardType;
 - (NSParagraphStyle*)noteBodyParagraphStyle;
 - (BOOL)_bodyFontIsMonospace;
 
+- (void)setForegroundTextColor:(NSColor*)aColor sender:(id)sender;
+- (NSColor*)foregroundTextColor;
+- (void)setBackgroundTextColor:(NSColor*)aColor sender:(id)sender;
+- (NSColor*)backgroundTextColor;
+
 - (void)setTabIndenting:(BOOL)value sender:(id)sender;
 - (BOOL)tabKeyIndents;
 
@@ -111,6 +115,8 @@ extern NSString *NVPTFPboardType;
 - (void)setMakeURLsClickable:(BOOL)value sender:(id)sender;
 - (BOOL)URLsAreClickable;
 
+- (void)setShouldHighlightSearchTerms:(BOOL)shouldHighlight sender:(id)sender;
+- (BOOL)highlightSearchTerms;
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender;
 - (NSDictionary*)searchTermHighlightAttributes;
 - (NSColor*)searchTermHighlightColor;

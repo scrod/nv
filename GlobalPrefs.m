@@ -46,7 +46,10 @@ static NSString *QuitWhenClosingMainWindowKey = @"QuitWhenClosingMainWindow";
 static NSString *TabKeyIndentsKey = @"TabKeyIndents";
 static NSString *PastePreservesStyleKey = @"PastePreservesStyle";
 static NSString *AutoSuggestLinksKey = @"AutoSuggestLinks";
+static NSString *HighlightSearchTermsKey = @"HighlightSearchTerms";
 static NSString *SearchTermHighlightColorKey = @"SearchTermHighlightColor";
+static NSString *ForegroundTextColorKey = @"ForegroundTextColor";
+static NSString *BackgroundTextColorKey = @"BackgroundTextColor";
 static NSString *UseSoftTabsKey = @"UseSoftTabs";
 static NSString *NumberOfSpacesInTabKey = @"NumberOfSpacesInTab";
 static NSString *DrawFocusRingKey = @"DrawFocusRing";
@@ -114,8 +117,9 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSArchiver archivedDataWithRootObject:
 			 [NSFont fontWithName:@"Helvetica" size:12.0f]], NoteBodyFontKey,
 			
-			//[NSArchiver archivedDataWithRootObject:
-			//	[NSColor colorWithCalibratedRed:0.9340 green:0.91415775 blue:0.81043575 alpha:1.0f]], SearchTermHighlightColorKey,
+			[NSArchiver archivedDataWithRootObject:[NSColor blackColor]], ForegroundTextColorKey,
+			[NSArchiver archivedDataWithRootObject:[NSColor whiteColor]], BackgroundTextColorKey,
+			
 			[NSArchiver archivedDataWithRootObject:
 			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
@@ -345,16 +349,22 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	return [defaults boolForKey:MakeURLsClickableKey];
 }
 
+- (void)setShouldHighlightSearchTerms:(BOOL)shouldHighlight sender:(id)sender {
+	[defaults setBool:shouldHighlight forKey:HighlightSearchTermsKey];
+	
+	SEND_CALLBACKS();
+}
+- (BOOL)highlightSearchTerms {
+	return [defaults boolForKey:HighlightSearchTermsKey];
+}
+
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender {
 	if (color) {
-		[searchTermHighlightColor autorelease];
-		searchTermHighlightColor = [color retain];
 		
 		[searchTermHighlightAttributes release];
 		searchTermHighlightAttributes = nil;
 		
-		[defaults setObject:[NSArchiver archivedDataWithRootObject:color] 
-					 forKey:SearchTermHighlightColorKey];
+		[defaults setObject:[NSArchiver archivedDataWithRootObject:color] forKey:SearchTermHighlightColorKey];
 		
 		SEND_CALLBACKS();
 	}
@@ -362,19 +372,16 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 
 - (NSColor*)searchTermHighlightColor {
 	
-	if (!searchTermHighlightColor) {
-		NSData *theData = [defaults dataForKey:SearchTermHighlightColorKey];
-		if (theData)
-			searchTermHighlightColor = (NSColor *)[[NSUnarchiver unarchiveObjectWithData:theData] retain];
-	}
-	
-	return searchTermHighlightColor;
+	NSData *theData = [defaults dataForKey:SearchTermHighlightColorKey];
+	if (theData) return (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
+
+	return nil;
 }
 
 - (NSDictionary*)searchTermHighlightAttributes {
-	NSColor *highlightColor = [self searchTermHighlightColor];
+	NSColor *highlightColor = nil;
 	
-	if (!searchTermHighlightAttributes && highlightColor) {
+	if (!searchTermHighlightAttributes && (highlightColor = [self searchTermHighlightColor])) {
 		searchTermHighlightAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:highlightColor, NSBackgroundColorAttributeName, nil] retain];
 	}
 	return searchTermHighlightAttributes;
@@ -477,10 +484,9 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		BOOL monospace = [self _bodyFontIsMonospace];
 		
 		noteBodyAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:bodyFont, NSFontAttributeName, 
-			[NSNumber numberWithInt:0], NSLigatureAttributeName,
-		monospace ? [self noteBodyParagraphStyle] : nil, NSParagraphStyleAttributeName,
-			/*[NSColor blackColor], NSForegroundColorAttributeName,
-			[NSColor whiteColor], NSBackgroundColorAttributeName,*/ nil] retain];
+			[self foregroundTextColor], NSForegroundColorAttributeName,
+			/* background text color is handled directly by the NSTextView subclass and so does not need to be stored here */
+		monospace ? [self noteBodyParagraphStyle] : nil, NSParagraphStyleAttributeName, nil] retain];
 	}
 	return noteBodyAttributes;
 }
@@ -518,6 +524,41 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	}
 	
 	return noteBodyParagraphStyle;
+}
+
+- (void)setForegroundTextColor:(NSColor*)aColor sender:(id)sender {
+	if (aColor) {		
+		[noteBodyAttributes release];
+		noteBodyAttributes = nil;
+		
+		[defaults setObject:[NSArchiver archivedDataWithRootObject:aColor] forKey:ForegroundTextColorKey];
+		
+		SEND_CALLBACKS();
+	}	
+}
+
+- (NSColor*)foregroundTextColor {
+	NSData *theData = [defaults dataForKey:ForegroundTextColorKey];
+	if (theData) return (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
+	return nil;
+}
+
+- (void)setBackgroundTextColor:(NSColor*)aColor sender:(id)sender {
+	
+	if (aColor) {
+		[defaults setObject:[NSArchiver archivedDataWithRootObject:aColor] forKey:BackgroundTextColorKey];
+	
+		SEND_CALLBACKS();
+	}
+}
+
+- (NSColor*)backgroundTextColor {
+	//don't need to cache the unarchived color, as it's not used in a random-access pattern
+	
+	NSData *theData = [defaults dataForKey:BackgroundTextColorKey];
+	if (theData) return (NSColor *)[[NSUnarchiver unarchiveObjectWithData:theData] retain];
+
+	return nil;	
 }
 
 - (BOOL)tableColumnsShowPreview {

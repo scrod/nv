@@ -50,12 +50,16 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setUseTextReplacement:sender:),
 	 @selector(setNoteBodyFont:sender:),
 	 @selector(setMakeURLsClickable:sender:),
-	 @selector(setSearchTermHighlightColor:sender:), nil];	
+	 @selector(setSearchTermHighlightColor:sender:),
+	 @selector(setShouldHighlightSearchTerms:sender:),
+	 @selector(setBackgroundTextColor:sender:), nil];	
 	
 	[self setTextContainerInset:NSMakeSize(3, 8)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
+	[self setDrawsBackground:YES];
+	[self setBackgroundColor:[prefsController backgroundTextColor]];
 
 #if DELAYED_LAYOUT
 	rectForSuppressedUpdate = NSZeroRect;
@@ -170,9 +174,19 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		//[textView setFont:[prefsController noteBodyFont]];
 	} else if ([selectorString isEqualToString:SEL_STR(setMakeURLsClickable:sender:)]) {
 		[self setLinkTextAttributes:[self preferredLinkAttributes]];
-	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)]) {
-		NSString *typedString = [[NSApp delegate] typedString];
-		if (typedString) [self highlightTermsTemporarilyReturningFirstRange:typedString];
+	} else if ([selectorString isEqualToString:SEL_STR(setBackgroundTextColor:sender:)]) {
+		[self setBackgroundColor:[prefsController backgroundTextColor]];
+	} else if ([selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
+		[self setInsertionPointColor:[prefsController foregroundTextColor]];
+	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)] || 
+			   [selectorString isEqualToString:SEL_STR(setShouldHighlightSearchTerms:sender:)]) {
+		if (![prefsController highlightSearchTerms]) {
+			[self removeHighlightedTerms];
+		} else {
+			NSString *typedString = [[NSApp delegate] typedString];
+			if (typedString)
+				[self highlightTermsTemporarilyReturningFirstRange:typedString];
+		}
 	}
 }
 
@@ -192,6 +206,8 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 #if DELAYED_LAYOUT
 	[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
 #endif
+	
+	[self setTypingAttributes:[prefsController noteBodyAttributes]];
 		
 	return [super becomeFirstResponder];
 }
@@ -1177,7 +1193,7 @@ copyRTFType:
 	}*/
 	
 	[[self textStorage] addLinkAttributesForRange:changedRange];
-	
+
 	if ([prefsController linksAutoSuggested]) {
 		
 		/*WordEnumerator *words = [WordEnumerator enumeratorForString:[string substringWithRange:changedRange]];

@@ -136,8 +136,17 @@
 	
 }
 
+- (IBAction)changedBackgroundTextColorWell:(id)sender {
+	[prefsController setBackgroundTextColor:[backgroundColorWell color] sender:self];
+}
+- (IBAction)changedForegroundTextColorWell:(id)sender {
+	[prefsController setForegroundTextColor:[foregroundColorWell color] sender:self];
+}
 - (IBAction)changedSearchHighlightColorWell:(id)sender {
 	[prefsController setSearchTermHighlightColor:[searchHighlightColorWell color] sender:self];
+}
+- (IBAction)changedHighlightSearchTerms:(id)sender {
+	[prefsController setShouldHighlightSearchTerms:[highlightSearchTermsButton state] sender:self];
 }
 - (IBAction)changedStyledTextBehavior:(id)sender {
     [prefsController setPastePreservesStyle:[styledTextButton state] sender:self];
@@ -373,15 +382,19 @@
     [autoSuggestLinksButton setState:[prefsController linksAutoSuggested]];
 	[softTabsButton setState:[prefsController softTabs]];
 	[makeURLsClickable setState:[prefsController URLsAreClickable]];
-	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
     [self previewNoteBodyFont];
 	[appShortcutField setStringValue:[[prefsController appActivationKeyCombo] description]];
+	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
+	[highlightSearchTermsButton setState:[prefsController highlightSearchTerms]];
+	[foregroundColorWell setColor:[prefsController foregroundTextColor]];
+	[backgroundColorWell setColor:[prefsController backgroundTextColor]];
     
     items = [[NSMutableDictionary alloc] init];
     
     [self addToolbarItemWithName:@"General"];
     [self addToolbarItemWithName:@"Notes"];	
     [self addToolbarItemWithName:@"Editing"];
+	[self addToolbarItemWithName:@"Fonts & Colors"];
 		
     toolbar = [[NSToolbar alloc] initWithIdentifier:@"preferencePanes"];
     [toolbar setDelegate:self];
@@ -406,7 +419,7 @@
 }
 
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
-    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", nil];
+    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", @"Fonts & Colors", nil];
 }
 
 - (NSArray *)toolbarSelectableItemIdentifiers: (NSToolbar *)toolbar {
@@ -435,7 +448,9 @@
         prefsView = [self databaseView];
     } else if([sender isEqualToString:@"Editing"]) {
         prefsView = editingView;
-    } else {
+    } else if([sender isEqualToString:@"Fonts & Colors"]) {
+        prefsView = fontsColorsView;
+	} else {
 		NSLog(@"unknown sender: %@", sender);
 	}
     

@@ -182,6 +182,9 @@
 /* title of Notes preference pane */
 "Notes" = "Notes";
 
+/* title of Fonts & Colors preference pane */
+"Fonts & Colors" = "Polices/Couleurs";
+
 /* No comment */
 "<Directory unknown>" = "<Dossier inconnu>";
 
