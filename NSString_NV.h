@@ -39,8 +39,9 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 - (NSString*)fourCharTypeString;
 - (BOOL)isAMachineDirective;
 - (void)copyItemToPasteboard:(id)sender;
-- (NSURL*)linkForWord;
-- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle;
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc maxTitleLen:(NSUInteger)maxTitleLen;
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc 
+										  oldTitle:(NSString*)oldTitle maxTitleLen:(NSUInteger)maxTitleLen;
 - (NSString*)syntheticTitleAndTrimmedBody:(NSString**)newBody;
 - (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)width;
 + (NSString *)tabbifiedStringWithNumberOfSpaces:(unsigned)origNumSpaces tabWidth:(unsigned)tabWidth usesTabs:(BOOL)usesTabs;

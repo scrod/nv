@@ -334,11 +334,12 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	}
 	
 	return nil;
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc maxTitleLen:(NSUInteger)maxTitleLen {
+	return [self syntheticTitleAndSeparatorWithContext:sepStr bodyLoc:bodyLoc oldTitle:nil maxTitleLen:maxTitleLen];
 }
 
-#define MAX_TITLE_LEN 60
-
-- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle {
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc 
+										  oldTitle:(NSString*)oldTitle maxTitleLen:(NSUInteger)maxTitleLen {
 	
 	//break string into pieces for turning into a note
 	//find the first line, whitespace or no whitespace
@@ -352,7 +353,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	//skip any blank space before the title; this will not be preserved for round-tripped syncing
 	BOOL didSkipInitialWS = [scanner scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:NULL];
 	
-	if ([oldTitle length] > MAX_TITLE_LEN) {
+	if ([oldTitle length] > maxTitleLen) {
 		//break apart the string based on an existing title (if it still matches) that would have been longer than our default truncation limit
 		
 		NSString *contentStartStr = didSkipInitialWS && [scanner scanLocation] < [self length] ? [self substringFromIndex:[scanner scanLocation]] : self;
@@ -369,12 +370,12 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	NSString *firstLine = nil;
 	[scanner scanUpToCharactersFromSet:titleDelimiters intoString:&firstLine];
 	
-	if ([firstLine length] > MAX_TITLE_LEN) {
+	if ([firstLine length] > maxTitleLen) {
 		//what if this title is too long? then we need to break it up and start the body after that
 		NSRange lastSpaceInFirstLine = [firstLine rangeOfString:@" " options: NSBackwardsSearch | NSLiteralSearch
-														  range:NSMakeRange(MAX_TITLE_LEN - 10, 10)];
+														  range:NSMakeRange(maxTitleLen - 10, 10)];
 		if (lastSpaceInFirstLine.location == NSNotFound) {
-			lastSpaceInFirstLine.location = MAX_TITLE_LEN;
+			lastSpaceInFirstLine.location = maxTitleLen;
 		}
 		[scanner setScanLocation:[scanner scanLocation] - ([firstLine length] - lastSpaceInFirstLine.location)];
 		firstLine = [firstLine substringToIndex:lastSpaceInFirstLine.location];
@@ -393,7 +394,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 
 - (NSString*)syntheticTitleAndTrimmedBody:(NSString**)newBody {
 	NSUInteger bodyLoc = 0;
-	NSString *title = [self syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+	NSString *title = [self syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc maxTitleLen:60];
 	if (newBody) *newBody = [self substringFromIndex:bodyLoc];
 	return title;
 }

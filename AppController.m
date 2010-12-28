@@ -516,7 +516,7 @@ terminateApp:
 			newString = [[[NSMutableAttributedString alloc] initWithString:[newString string]] autorelease];
 		
 		NSUInteger bodyLoc = 0, prefixedSourceLength = 0;
-		NSString *noteTitle = [[newString string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+		NSString *noteTitle = [[newString string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc maxTitleLen:36];
 		if ([sourceIdentifierString length] > 0) {
 			//add the URL or wherever it was that this piece of text came from
 			prefixedSourceLength = [[newString prefixWithSourceString:sourceIdentifierString] length];

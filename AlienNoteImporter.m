@@ -400,7 +400,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		
 		NSString *processedFilename = [[filename lastPathComponent] stringByDeletingPathExtension];
 		NSUInteger bodyLoc = 0, prefixedSourceLength = 0;
-		NSString *title = [[attributedStringFromData string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+		NSString *title = [[attributedStringFromData string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc maxTitleLen:36];
 		
 		//if the synthetic title (generally the first line of the content) is shorter than the filename itself, just use the filename as the title
 		//(or if this is a special case and we know the filename should be used)
