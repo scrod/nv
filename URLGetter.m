@@ -20,7 +20,7 @@
 	}
 	if ([super init]) {
 		maxExpectedByteCount = 0;
-		isIndicating = NO;
+		isImporting = isIndicating = NO;
 		delegate = aDelegate;
 		url = [aUrl retain];
 		userData = [someObj retain];
@@ -60,7 +60,7 @@
 	[window close];
 	[progress stopAnimation:nil];
 	
-	isIndicating = NO;
+	isImporting = isIndicating = NO;
 }
 
 - (void)startProgressIndication:(id)sender {
@@ -70,6 +70,7 @@
 			NSBeep();
 			return;
 		}
+		[progress setUsesThreadedAnimation:YES];
 	}
 	
 	[progress setIndeterminate:YES];
@@ -87,7 +88,7 @@
 
 - (void)updateProgress {
 	if (isIndicating) {
-		[progress setIndeterminate:!maxExpectedByteCount];
+		[progress setIndeterminate:!maxExpectedByteCount || isImporting];
 		[progress setMaxValue:(double)maxExpectedByteCount];
 		
 		[progress setDoubleValue:(double)totalReceivedByteCount];
@@ -147,6 +148,8 @@
 }
 
 - (void)endDownloadWithPath:(NSString*)path {
+	isImporting = YES;
+	[self updateProgress];
 	
 	[self retain];
 	[delegate URLGetter:self returnedDownloadedFile:path];
