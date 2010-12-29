@@ -19,9 +19,9 @@
 #import "AttributedPlainText.h"
 #import "NSCollection_utils.h"
 #import "GlobalPrefs.h"
-#import "ICUPattern.h"
-#import "ICUMatcher.h"
 #import "NSString_NV.h"
+#import <AutoHyperlinks/AutoHyperlinks.h>
+
 
 @implementation NSMutableAttributedString (AttributedPlainText)
 
@@ -168,61 +168,34 @@
 
 - (void)addLinkAttributesForRange:(NSRange)changedRange {
 	
-	if (!changedRange.length) return;
+	if (!changedRange.length)
+		return;
 	
-	static ICUPattern *urlPattern = nil;
-   //This regexp modeled on John Gruber's patterns: http://daringfireball.net/2010/07/improved_regex_for_matching_urls
-	if (!urlPattern) urlPattern = [ICUPattern patternWithString:
-	@"(?i)\\b((?:[a-z][\\w-]+:/{2,3}|www\\d{0,3}[.]|[a-z0-9.\\-]+[.][a-z]{2,4}/)(?:[^\\s()<>\\[\\]]+|\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\))+(?:\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\)|[^\\s`!()\\[\\]{};:'\".,<>?«»“”‘’]))"];
-	//For a heavier-duty implementation, Adium's AutoHyperlinks framework (based on flex) might be better
+	//lazily loads Adium's BSD-licensed Auto-Hyperlinks:
 	//http://trac.adium.im/wiki/AutoHyperlinksFramework
 	
-	static ICUPattern *emailPattern = nil;
-	//use a separate regexp for email addresses, eschewing any that contain an inner colon
-	if (!emailPattern) emailPattern = [ICUPattern patternWithString:@"(\\w+([-+.']\\w+)*?@(?>\\w+([-.]\\w+)*?\\.\\w+([-.]\\w+)*))(?=[^:]|:*?($|\\s))"];
+	static Class AHHyperlinkScanner = Nil;
+	static Class AHMarkedHyperlink = Nil;
+	if (!AHHyperlinkScanner || !AHMarkedHyperlink) {
+		if (![[NSBundle bundleWithPath:[[[NSBundle mainBundle] privateFrameworksPath] stringByAppendingPathComponent:@"AutoHyperlinks.framework"]] load]) {
+			NSLog(@"Could not load AutoHyperlinks framework");
+			return;
+		}
+		AHHyperlinkScanner = NSClassFromString(@"AHHyperlinkScanner");
+		AHMarkedHyperlink = NSClassFromString(@"AHMarkedHyperlink");
+	}
+	
+	id scanner = [AHHyperlinkScanner hyperlinkScannerWithString:[[self string] substringWithRange:changedRange]];
+	id markedLink = nil;
+	while ((markedLink = [scanner nextURI])) {
+		NSURL *markedLinkURL = nil;
+		if ((markedLinkURL = [markedLink URL])) {
+			[self addAttribute:NSLinkAttributeName value:markedLinkURL 
+						 range:NSMakeRange([markedLink range].location + changedRange.location, [markedLink range].length)];
+		}
+	}
 
-	[self beginEditing];
-	@try {
-		NSMutableIndexSet *urlIndexes = [NSMutableIndexSet indexSet];
-		
-		ICUMatcher *matcher = [ICUMatcher matcherWithPattern:urlPattern overString:[self string] range:changedRange];
-		
-		while ([matcher findNext]) {
-			NSRange range = [matcher rangeOfMatch];
-			NSString *extractedMatch = [[self string] substringWithRange:range];
-			[urlIndexes addIndexesInRange:range];
-			
-			NSURL *url = [NSURL URLWithString:extractedMatch];
-			if (![[url scheme] length]) {
-				//if the parsed URL lacks an explicit protocol specifier, just assume it's http
-				url = [NSURL URLWithString:[@"http://" stringByAppendingString:extractedMatch]];
-			}
-			//File Reference URLs cannot be safely archived!
-			if (url && !([url isFileURL] && [extractedMatch rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound))
-				[self addAttribute:NSLinkAttributeName value:url range:range];
-		}
-		
-		matcher = [ICUMatcher matcherWithPattern:emailPattern overString:[self string] range:changedRange];
-		while ([matcher findNext]) {
-			NSRange range = [matcher rangeOfMatch];
-			
-			//don't make links if part of the range was already matched as a URL
-			if (![urlIndexes intersectsIndexesInRange:range]) {
-				NSURL *url = [NSURL URLWithString:[@"mailto:" stringByAppendingString:[[self string] substringWithRange:range]]];
-				if (url) [self addAttribute:NSLinkAttributeName value:url range:range];
-			}
-		}
-		
-		//NEXT: add [[ ]] url-links?
-		
-		
-	}
-	@catch (NSException *e) {
-		NSLog(@"Failed adding link attributes for %u-char string: %@", [self length], e);
-	}
-	@finally {
-		[self endEditing];
-	}
+	//also detect double-bracketed URLs here
 }
 
 
