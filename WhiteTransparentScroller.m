@@ -11,7 +11,7 @@
 static NSImage *knobTop, *knobVerticalFill, *knobBottom, *slotTop, *slotVerticalFill, *slotBottom;
 static float verticalPaddingLeft = 2.0;
 static float verticalPaddingRight = 2.0;
-static float verticalPaddingTop = 4.0;
+static float verticalPaddingTop = 8.0;
 static float verticalPaddingBottom = 8.0;
 static float minKnobHeight;
 
