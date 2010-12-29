@@ -51,6 +51,8 @@
 	IBOutlet RBSplitView *splitView;
 	IBOutlet RBSplitSubview *notesList;
     IBOutlet NotesTableView *notesTableView;
+	IBOutlet NSBox *horizontalRule;
+	IBOutlet NSBox *verticalRule;
     IBOutlet LinkingEditor *textView;
 	IBOutlet EmptyView *editorStatusView;
 	IBOutlet NSMenuItem *sparkleUpdateItem;

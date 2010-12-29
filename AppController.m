@@ -118,6 +118,7 @@
 	//[self setEmptyViewState:YES];
     
 	[notesList setCanCollapse:YES];
+	
 	[self setMenuItemStates];
     // Enable one preview mode by default
     NSInteger previewMode = [[NSUserDefaults standardUserDefaults] integerForKey:kDefaultMarkupPreviewMode];
@@ -137,12 +138,16 @@
 - (void)setupViewsAfterAppAwakened {
 	static BOOL awakenedViews = NO;
 	if (!awakenedViews) {
-		
+
 		if ([prefsController verticalLayout] == YES) {
 			[splitView setVertical:YES];
+			[verticalRule setHidden:NO];
+			[horizontalRule setHidden:YES];
 			[widescreenToggle setState:NSOnState];
 		} else {
 			[splitView setVertical:NO];
+			[verticalRule setHidden:YES];
+			[horizontalRule setHidden:NO];
 			[widescreenToggle setState:NSOffState];
 		}
 		//NSLog(@"all (hopefully relevant) views awakend!");		
@@ -1738,8 +1743,12 @@ terminateApp:
 {
 	if ([splitView isVertical] == YES) {
 		[splitView setVertical:NO];
+		[verticalRule setHidden:YES];
+		[horizontalRule setHidden:NO];
 	} else {		
 		[splitView setVertical:YES];
+		[verticalRule setHidden:NO];
+		[horizontalRule setHidden:YES];
 	}
 	[splitView restoreState:YES];
 	[prefsController setVerticalLayout:[splitView isVertical] sender:self];
