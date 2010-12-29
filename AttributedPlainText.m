@@ -189,7 +189,8 @@
 	id markedLink = nil;
 	while ((markedLink = [scanner nextURI])) {
 		NSURL *markedLinkURL = nil;
-		if ((markedLinkURL = [markedLink URL])) {
+		if ((markedLinkURL = [markedLink URL]) && !([markedLinkURL isFileURL] && [[markedLinkURL absoluteString] 
+																				  rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound)) {
 			[self addAttribute:NSLinkAttributeName value:markedLinkURL 
 						 range:NSMakeRange([markedLink range].location + changedRange.location, [markedLink range].length)];
 		}

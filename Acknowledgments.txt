@@ -340,6 +340,21 @@ http://www.opensource.org/licenses/bsd-license.php
 
 AutoHyperlinks framework
 
+(c) 2004-2008 by the following:
+
+Colin Barrett
+Graham Booker
+Jorge Salvador Caffarena
+Evan Schoenberg
+Augie Fackler
+Stephen Holt
+Peter Hosey
+Adam Iser
+Jeffrey Melloy
+Toby Peterson
+Eric Richie
+David Smith
+
 /*
  * The AutoHyperlinks Framework is the legal property of its developers (DEVELOPERS), whose names are listed in the
  * copyright file included with this source distribution.
@@ -369,45 +384,3 @@ AutoHyperlinks framework
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
-	Adium (AutoHyperlinks framework)
-	Copyright (C) 2001-2005 by the following:
-
-	Adam Atlas
-	Colin Barrett
-	Erik J. Barzeski
-	Max Bertrand
-	Adam Betts
-	Jorge Salvador Caffarena
-	David Clark
-	Nelson Elhage
-	Ken Ferry
-	Christopher Forsythe
-	Brian Ganninger
-	Arno Hautala
-	Asher Haig
-	Jasper Hauser
-	Stephen Holt
-	Adam Iser
-	Severin Klaus
-	Ian Krieg
-	Thomas Kunze
-	Scott Lamb
-	Jack M.H. Lin
-	Sam McCandlish
-	Nicola Del Monaco
-	David Munch
-	Daisuke Okada
-	Mac-arena the Bored Zo
-	Chris Serino
-	Jeffrey Melloy
-	Roeland Nas
-	Laura Natcher
-	Daisuke Okada
-	Stephen Poprocki
-	Evan Schoenberg
-	David Smith
-	Greg Smith
-	Vinay Venkatesh
-	Wesley Underwood
-
