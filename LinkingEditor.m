@@ -223,6 +223,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:NO];
 	[notesTableView setShouldUseSecondaryHighlightColor:NO];
 	
+	//fix the Delete Note menu item in case we trashed its key equivalent in -validateMenuItem:
+	[[NSApp delegate] performSelector:@selector(updateNoteMenus) withObject:nil afterDelay:0];
+	
 	return [super resignFirstResponder];
 }
 
@@ -1094,9 +1097,17 @@ copyRTFType:
 		[menuItem setState:menuItemState];
 
 		return YES;
+	} else if (action == @selector(deleteNote:)) {
+		//respond to the method, but only before preventing it from being invoked with a shortcut
+		[menuItem setKeyEquivalent:@""];
+		return YES;
 	}
 	
 	return [super validateMenuItem:menuItem];
+}
+
+- (IBAction)deleteNote:(id)sender {
+	//here to allow LinkingEditor to validate this command
 }
 
 /*

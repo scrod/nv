@@ -545,7 +545,7 @@
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(tagNote:)];
 	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
-	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(deleteNote:)];
+	menuIndex = [notesMenu indexOfItemWithTarget:nil andAction:@selector(deleteNote:)];
 	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
