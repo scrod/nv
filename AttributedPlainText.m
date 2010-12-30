@@ -197,6 +197,43 @@
 	}
 
 	//also detect double-bracketed URLs here
+	[self _addDoubleBracketedNVLinkAttributesForRange:changedRange];
+}
+
+- (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange {
+	//add link attributes for [[wiki-style links to other notes or search terms]] 
+	
+	static NSMutableCharacterSet *antiInteriorSet = nil;
+	if (!antiInteriorSet) {
+		antiInteriorSet = [[NSMutableCharacterSet characterSetWithCharactersInString:@"[]"] retain];
+		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet whitespaceCharacterSet]];
+		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet illegalCharacterSet]];
+		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet controlCharacterSet]];
+	}
+	
+	NSRange scanRange = changedRange;
+	while (NSMaxRange(scanRange) <= changedRange.length) {
+		
+		NSUInteger begin = [[self string] rangeOfString:@"[[" options:NSLiteralSearch range:scanRange].location;
+		if (begin == NSNotFound) break;
+		begin += 2;
+
+		NSUInteger end = [[self string] rangeOfString:@"]]" options:NSLiteralSearch range:NSMakeRange(begin, changedRange.length - begin)].location;
+		if (end == NSNotFound) break;
+		
+		NSRange blockRange = NSMakeRange(begin, (end - begin));
+		
+		//double-braces must directly abut the search terms
+		if (![antiInteriorSet characterIsMember:[[self string] characterAtIndex:begin]] &&
+			![antiInteriorSet characterIsMember:[[self string] characterAtIndex:NSMaxRange(blockRange) - 1]]) {
+			
+			[self addAttribute:NSLinkAttributeName value:[NSURL URLWithString:[@"nv://" stringByAppendingString:
+																			   [[[self string] substringWithRange:blockRange] stringWithPercentEscapes]]] range:blockRange];
+		}
+		//continue the scan starting at the end of the current block
+		NSUInteger nextScanLoc = NSMaxRange(blockRange) + 2;
+		scanRange = NSMakeRange(nextScanLoc, changedRange.length - nextScanLoc);
+	}	
 }
 
 

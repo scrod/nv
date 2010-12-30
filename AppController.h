@@ -66,6 +66,7 @@
 
 void outletObjectAwoke(id sender);
 
+- (NotationController*)notationController;
 - (void)setNotationController:(NotationController*)newNotation;
 - (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
 

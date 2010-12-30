@@ -152,6 +152,7 @@ typedef struct _NoteCatalogEntry {
 - (BOOL)filterNotesFromUTF8String:(const char*)searchString forceUncached:(BOOL)forceUncached;
 - (NSUInteger)preferredSelectedNoteIndex;
 - (BOOL)preferredSelectedNoteMatchesSearchString;
+- (NSArray*)noteObjectsWithTitlesPrefixedByString:(NSString*)prefixString;
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex;
 - (NSArray*)notesAtIndexes:(NSIndexSet*)indexSet;
 - (NSIndexSet*)indexesOfNotes:(NSArray*)noteSet;

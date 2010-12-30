@@ -33,6 +33,7 @@
 #endif
 - (void)santizeForeignStylesForImporting;
 - (void)addLinkAttributesForRange:(NSRange)changedRange;
+- (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange;
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont;
 
 @end

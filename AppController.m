@@ -284,6 +284,10 @@ terminateApp:
 	}
 }
 
+- (NotationController*)notationController {
+	return notationController;
+}
+
 - (void)setNotationController:(NotationController*)newNotation {
 	
     if (newNotation) {
@@ -1166,7 +1170,7 @@ terminateApp:
 		//[textView setAutomaticallySelectedRange:NSMakeRange(0,0)];
 		
 		//highlight terms--delay this, too
-		if ((unsigned)noteIndex != [notationController preferredSelectedNoteIndex])
+		if ([prefsController highlightSearchTerms] && (unsigned)noteIndex != [notationController preferredSelectedNoteIndex])
 			firstFoundTermRange = [textView highlightTermsTemporarilyReturningFirstRange:typedString];
 		
 		//if there was nothing selected, select the first found range

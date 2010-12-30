@@ -16,6 +16,7 @@
 #import "NotesTableView.h"
 #import "FocusRingScrollView.h"
 #import "NSTextFinder.h"
+#import "NoteObject.h"
 #import "LinkingEditor_Indentation.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
@@ -1164,36 +1165,32 @@ copyRTFType:
 	[super clickedOnLink:aLink atIndex:charIndex];
 }
 
+- (NSArray *)completionsForPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger *)anIndex {
+
+	NSArray *notes = [[[NSApp delegate] notationController] noteObjectsWithTitlesPrefixedByString:[[self string] substringWithRange:charRange]];
+	NSMutableArray *completions = [NSMutableArray arrayWithCapacity:[notes count]];
+
+	NSUInteger i = 0;
+	for (i=0; i<[notes count]; i++) {
+		[completions addObject:titleOfNote([notes objectAtIndex:i])];
+	}
+	
+	if ([[self delegate] respondsToSelector:@selector(textView:completions:forPartialWordRange:indexOfSelectedItem:)])
+		return [[self delegate] textView:self completions:completions forPartialWordRange:charRange indexOfSelectedItem:anIndex];
+	return completions;
+}
+
+
 - (void)didChangeText {
-	/*NSString *string = [self string];
-	WordEnumerator *enumerator = [WordEnumerator enumeratorForString:[string substringWithRange:changedRange]];
-	NSRange firstWordRange = [enumerator next];
-	if (firstWordRange.location != NSNotFound) {
-		firstWordRange.location += changedRange.location;
-		id link = [[self textStorage] attribute:NSLinkAttributeName atIndex:firstWordRange.location effectiveRange:NULL];
-		if ([link isKindOfClass:[NSURL class]]) {
-			link = [link absoluteURL];
-		}
-		
-		NSString *word = [string substringWithRange:firstWordRange];
-		if (!link || ![link isEqual:word]) {
-			firstWordRange.location = NSNotFound;
-		}
-	}*/
 	
 	//if the text storage was somehow shortened since changedRange was set in -shouldChangeText, at least avoid an out of bounds exception
 	changedRange = NSMakeRange(changedRange.location, (MIN(NSMaxRange(changedRange), [[self string] length]) - changedRange.location));
 
+	[[self textStorage] beginEditing];
 	[[self textStorage] removeAttribute:NSLinkAttributeName range:changedRange];
-	
-	/*if (firstWordRange.location != NSNotFound) {
-		[self createWikiLinkWithRange:firstWordRange];
-		changedRange.length += changedRange.location - (firstWordRange.location+firstWordRange.length);
-		changedRange.location = firstWordRange.location + firstWordRange.length;
-	}*/
-	
 	[[self textStorage] addLinkAttributesForRange:changedRange];
-
+	[[self textStorage] endEditing];
+	
 	if ([prefsController linksAutoSuggested]) {
 		
 		/*WordEnumerator *words = [WordEnumerator enumeratorForString:[string substringWithRange:changedRange]];
