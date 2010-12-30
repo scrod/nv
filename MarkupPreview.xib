@@ -24,7 +24,7 @@
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<integer value="133"/>
-			<integer value="4"/>
+			<integer value="32"/>
 			<integer value="157"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
@@ -102,7 +102,7 @@
 								<object class="NSTabViewItem" id="186546533">
 									<string key="NSIdentifier">1</string>
 									<object class="NSView" key="NSView" id="114582354">
-										<nil key="NSNextResponder"/>
+										<reference key="NSNextResponder" ref="63704171"/>
 										<int key="NSvFlags">274</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -158,6 +158,7 @@
 											</object>
 										</object>
 										<string key="NSFrameSize">{448, 492}</string>
+										<reference key="NSSuperview" ref="63704171"/>
 									</object>
 									<string key="NSLabel">Preview</string>
 									<object class="NSColor" key="NSColor" id="451433729">
@@ -174,7 +175,7 @@
 								<object class="NSTabViewItem" id="503102878">
 									<string key="NSIdentifier">2</string>
 									<object class="NSView" key="NSView" id="570116902">
-										<reference key="NSNextResponder" ref="63704171"/>
+										<nil key="NSNextResponder"/>
 										<int key="NSvFlags">274</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -318,14 +319,13 @@
 											</object>
 										</object>
 										<string key="NSFrameSize">{448, 492}</string>
-										<reference key="NSSuperview" ref="63704171"/>
 									</object>
 									<string key="NSLabel">Source</string>
 									<reference key="NSColor" ref="451433729"/>
 									<reference key="NSTabView" ref="63704171"/>
 								</object>
 							</object>
-							<reference key="NSSelectedTabViewItem" ref="503102878"/>
+							<reference key="NSSelectedTabViewItem" ref="186546533"/>
 							<object class="NSFont" key="NSFont" id="474588981">
 								<string key="NSName">LucidaGrande</string>
 								<double key="NSSize">13</double>
@@ -335,7 +335,7 @@
 							<bool key="NSAllowTruncatedLabels">YES</bool>
 							<object class="NSMutableArray" key="NSSubviews">
 								<bool key="EncodedWithXMLCoder">YES</bool>
-								<reference ref="570116902"/>
+								<reference ref="114582354"/>
 							</object>
 						</object>
 						<object class="BWTransparentButton" id="74168446">
@@ -686,6 +686,22 @@
 						<reference key="destination" ref="1014101330"/>
 					</object>
 					<int key="connectionID">169</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">policyDelegate</string>
+						<reference key="source" ref="687301640"/>
+						<reference key="destination" ref="1001"/>
+					</object>
+					<int key="connectionID">172</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">UIDelegate</string>
+						<reference key="source" ref="687301640"/>
+						<reference key="destination" ref="1001"/>
+					</object>
+					<int key="connectionID">173</int>
 				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -1156,7 +1172,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">171</int>
+			<int key="maxID">173</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
