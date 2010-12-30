@@ -190,9 +190,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	
 	[confirmFileDeletionButton setEnabled:separateFileControlsState];
 	
-	int targetItem = [storageFormatPopupButton indexOfItemWithTag:[notationPrefs notesStorageFormat]];
-	if (targetItem > -1)
-		[storageFormatPopupButton selectItemAtIndex:targetItem];
+	[storageFormatPopupButton selectItemWithTag:[notationPrefs notesStorageFormat]];
 	
 	[fileAttributesHelpText setTextColor: separateFileControlsState ? [NSColor controlTextColor] : [NSColor grayColor]];	
 }
@@ -479,9 +477,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (void)encryptionFormatMismatchSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
 	if (returnCode == NSAlertDefaultReturn) {
 		//switching to single DB
-		int targetItem = [storageFormatPopupButton indexOfItemWithTag:SingleDatabaseFormat];
-		if (targetItem > -1)
-			[storageFormatPopupButton selectItemAtIndex:targetItem];
+		[storageFormatPopupButton selectItemWithTag:SingleDatabaseFormat];
 		
 		[self performSelector:@selector(changedFileStorageFormat:) withObject:storageFormatPopupButton afterDelay:0.0];
 		

@@ -200,17 +200,8 @@ static const NSStringEncoding AllowedEncodings[] = {
 		if (![self tryToUpdateTextForEncoding:newEncoding]) {
 			
 			//set it back to the current encoding--this one doesn't work
-			int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:(int)currentEncoding];
-			if (encodingIndex > -1)
-				[encodingsPopUpButton selectItemAtIndex:encodingIndex];
-			else
-				NSLog(@"(setting it back) encoding %u not found", currentEncoding);
-		}
-		
-		//if ([[[self contentString] string] canBeConvertedToEncoding:encoding]) {
-		
-		
-		//}
+			[encodingsPopUpButton selectItemWithTag:(int)currentEncoding];
+		}		
 	} else {  
 		NSLog(@"Unknown class sent msg to change encoding: %@", [sender description]);
 	}
@@ -230,11 +221,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 		
 		currentEncoding = encoding;
 		
-		int encodingIndex = [encodingsPopUpButton indexOfItemWithTag:(int)currentEncoding];
-		if (encodingIndex > -1)
-			[encodingsPopUpButton selectItemAtIndex:encodingIndex];
-		else
-			NSLog(@"encoding %u not found", currentEncoding);
+		[encodingsPopUpButton selectItemWithTag:(int)currentEncoding];
 		
 		return YES;
 	} else {
