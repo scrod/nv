@@ -155,6 +155,7 @@ void outletObjectAwoke(id sender) {
 	[[prefsController bookmarksController] restoreWindowFromSave];
 	[[prefsController bookmarksController] updateBookmarksUI];
 	[self updateNoteMenus];
+	[textView setupFontMenu];
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(toggleNVActivation:)];
 	[notationController checkIfNotationIsTrashed];
 	

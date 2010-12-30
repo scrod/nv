@@ -73,87 +73,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[[self layoutManager] setDelegate:self];
 	
 	[self setLinkTextAttributes:[self preferredLinkAttributes]];
-	
-	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"NVFontMenu"] autorelease];
-
-	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Cut",@"cut menu item title") action:@selector(cut:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[theMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy",@"copy menu item title") action:@selector(copy:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[theMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Paste",@"paste menu item title") action:@selector(paste:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[theMenu addItem:theMenuItem];
-	
-	[theMenu addItem:[NSMenuItem separatorItem]];
-	
-	NSMenu *formatMenu = [[[NSMenu alloc] initWithTitle:NSLocalizedString(@"Format", nil)] autorelease];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Plain Text Style",nil) 
-											  action:@selector(defaultStyle:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Bold",nil) action:@selector(bold:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Italic",nil) action:@selector(italic:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Strikethrough",nil) action:@selector(strikethroughNV:) keyEquivalent:@""] autorelease];
-	[theMenuItem setTarget:self];
-	[formatMenu addItem:theMenuItem];
-	
-	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Format",@"format submenu title") action:NULL keyEquivalent:@""] autorelease];
-	[theMenu addItem:theMenuItem];
-	[theMenu setSubmenu:formatMenu forItem:theMenuItem];
-	
-	
-	[self setMenu:theMenu];
-    
-    // Insert Password menus
-    static BOOL additionalEditItems = YES;
-    
-    if (additionalEditItems) {
-        additionalEditItems = NO;
 		
-        NSMenu *editMenu = [[NSApp mainMenu] numberOfItems] > 2 ? [[[NSApp mainMenu] itemAtIndex:2] submenu] : nil;
-		
-		if (IsSnowLeopardOrLater) {
-			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
-													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
-			[theMenuItem setTarget:self];
-			[editMenu addItem:theMenuItem];
-			[theMenuItem release];
-		}
-		
-		[editMenu addItem:[NSMenuItem separatorItem]];
-        
-        #if PASSWORD_SUGGESTIONS
-        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"New Password...", "new password command in the edit menu")
-												 action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
-        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
-        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
-        [editMenu addItem:theMenuItem];
-        [theMenuItem release];
-        #endif
-        
-        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "insert new password command in the edit menu")
-												 action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
-        #if PASSWORD_SUGGESTIONS
-        [theMenuItem setAlternate:YES];
-        #endif
-        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
-        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
-        [editMenu addItem:theMenuItem];
-        [theMenuItem release];
-    }
-	
 	
 	outletObjectAwoke(self);
 }
@@ -851,7 +771,6 @@ copyRTFType:
 }
 
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
-	
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 	
 	if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
@@ -1339,6 +1258,90 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 		[self insertText:previousLineWhitespaceString];
 	}
 	[previousLineScanner release];
+}
+
+- (void)setupFontMenu {
+	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"NVFontMenu"] autorelease];
+	
+	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Cut",@"cut menu item title") action:@selector(cut:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy",@"copy menu item title") action:@selector(copy:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Paste",@"paste menu item title") action:@selector(paste:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+	
+	[theMenu addItem:[NSMenuItem separatorItem]];
+	
+	NSMenu *formatMenu = [[[NSMenu alloc] initWithTitle:NSLocalizedString(@"Format", nil)] autorelease];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Plain Text Style",nil) 
+											  action:@selector(defaultStyle:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Bold",nil) action:@selector(bold:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Italic",nil) action:@selector(italic:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Strikethrough",nil) action:@selector(strikethroughNV:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[formatMenu addItem:theMenuItem];
+	
+	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Format",@"format submenu title") action:NULL keyEquivalent:@""] autorelease];
+	[theMenu addItem:theMenuItem];
+	[theMenu setSubmenu:formatMenu forItem:theMenuItem];
+	
+	
+	[self setMenu:theMenu];
+    
+	
+    // Insert Password menus
+    static BOOL additionalEditItems = YES;
+    
+    if (additionalEditItems) {
+        additionalEditItems = NO;
+		
+        NSMenu *editMenu = [[NSApp mainMenu] numberOfItems] > 2 ? [[[NSApp mainMenu] itemAtIndex:2] submenu] : nil;
+		
+		if (IsSnowLeopardOrLater) {
+			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
+													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
+			[theMenuItem setTarget:self];
+			[editMenu addItem:theMenuItem];
+			[theMenuItem release];
+		}
+		
+		[editMenu addItem:[NSMenuItem separatorItem]];
+        
+#if PASSWORD_SUGGESTIONS
+        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"New Password...", "new password command in the edit menu")
+												 action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
+        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
+        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+        [editMenu addItem:theMenuItem];
+        [theMenuItem release];
+#endif
+        
+        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "insert new password command in the edit menu")
+												 action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
+#if PASSWORD_SUGGESTIONS
+        [theMenuItem setAlternate:YES];
+#endif
+        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
+        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
+        [editMenu addItem:theMenuItem];
+        [theMenuItem release];
+    }
+	
 }
 
 - (void)insertPassword:(NSString*)password

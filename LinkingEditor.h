@@ -68,6 +68,8 @@
 
 - (void)fixTypingAttributesForSubstitutedFonts;
 
+- (void)setupFontMenu;
+
 #if DELAYED_LAYOUT
 - (void)_updateHighlightedRangesToIndex:(unsigned)loc;
 - (void)_setFutureSelectionRangeWithinIndex:(unsigned)loc;
