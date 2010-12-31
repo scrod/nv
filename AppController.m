@@ -695,6 +695,7 @@ terminateApp:
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 	
 	if ([indexes count] > 1) {
+		//TODO
 		//show dialog for multiple notes, add or remove tags from them all using a dialog
 		//tags to remove is constituted by a union of all selected notes' tags
 		NSLog(@"multiple rows");	
