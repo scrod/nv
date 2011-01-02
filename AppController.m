@@ -264,7 +264,8 @@ void outletObjectAwoke(id sender) {
 	 @selector(setNoteBodyFont:sender:),  //when to tell notationcontroller to restyle its notes
 	 @selector(setTableFontSize:sender:),  //when to tell notationcontroller to regenerate the (now potentially too-short) note-body previews
 	 @selector(setTableColumnsShowPreview:sender:),  //when to tell notationcontroller to generate or disable note-body previews
-	 @selector(setConfirmNoteDeletion:sender:),nil];  //whether "delete note" should have an ellipsis
+	 @selector(setConfirmNoteDeletion:sender:),  //whether "delete note" should have an ellipsis
+	 @selector(setAutoCompleteSearches:sender:), nil];   //when to tell notationcontroller to build its title-prefix connections
 	
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.0];
 			
@@ -690,6 +691,9 @@ terminateApp:
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setConfirmNoteDeletion:sender:)]) {
 		[self updateNoteMenus];
+	} else if ([selectorString isEqualToString:SEL_STR(setAutoCompleteSearches:sender:)]) {
+		if ([prefsController autoCompleteSearches])
+			[notationController updateTitlePrefixConnections];
 	}
 	
 }

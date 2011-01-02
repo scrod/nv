@@ -127,6 +127,7 @@ typedef struct _NoteCatalogEntry {
 - (void)trashRemainingNoteFilesInDirectory;
 - (void)checkIfNotationIsTrashed;
 - (void)updateLinksToNote:(NoteObject*)aNoteObject fromOldName:(NSString*)oldname;
+- (void)updateTitlePrefixConnections;
 - (void)addNotes:(NSArray*)noteArray;
 - (void)addNotesFromSync:(NSArray*)noteArray;
 - (void)addNewNote:(NoteObject*)aNoteObject;
@@ -151,8 +152,7 @@ typedef struct _NoteCatalogEntry {
 - (BOOL)filterNotesFromString:(NSString*)string;
 - (BOOL)filterNotesFromUTF8String:(const char*)searchString forceUncached:(BOOL)forceUncached;
 - (NSUInteger)preferredSelectedNoteIndex;
-- (BOOL)preferredSelectedNoteMatchesSearchString;
-- (NSArray*)noteObjectsWithTitlesPrefixedByString:(NSString*)prefixString;
+- (NSArray*)noteTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex;
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex;
 - (NSArray*)notesAtIndexes:(NSIndexSet*)indexSet;
 - (NSIndexSet*)indexesOfNotes:(NSArray*)noteSet;

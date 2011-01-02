@@ -144,6 +144,8 @@
 		}
 		
 		[self upgradeDatabaseIfNecessary];
+		
+		[self updateTitlePrefixConnections];
     }
     
     return self;
@@ -711,6 +713,40 @@ bail:
     //O(n)
 }
 
+- (void)updateTitlePrefixConnections {
+	//used to auto-complete titles to the first, shortest title of the same prefix--
+	//to prevent auto-completing "Chicago Brauhaus" before "Chicago" when search string is "Chi", for example.
+	//builds a tree-overlay in the list of notes, to find, for any given note, 
+	//all other notes whose complete titles are a prefix of it
+	
+	//***
+	//*** this method must run after any note is added, deleted, or retitled **
+	//***
+	
+	if (![prefsController autoCompleteSearches]) return;
+	
+	//sort alphabetically to find shorter prefixes first
+	NSMutableArray *allNotesAlpha = [allNotes mutableCopy];
+	[allNotesAlpha sortStableUsingFunction:compareTitleString usingBuffer:&allNotesBuffer ofSize:&allNotesBufferSize];
+	[allNotes makeObjectsPerformSelector:@selector(removeAllPrefixParentNotes)];
+
+	NSUInteger j, i = 0, count = [allNotesAlpha count];
+	for (i=0; i<count - 1; i++) {
+		NoteObject *shorterNote = [allNotesAlpha objectAtIndex:i];
+		BOOL isAPrefix = NO;
+		//scan all notes sorted beneath this one for matching prefixes
+		j = i + 1;
+		do {
+			NoteObject *longerNote = [allNotesAlpha objectAtIndex:j];
+			if ((isAPrefix = noteTitleIsAPrefixOfOtherNoteTitle(longerNote, shorterNote))) {
+				[longerNote addPrefixParentNote:shorterNote];
+			}
+		} while (isAPrefix && ++j<count);
+	}
+
+	[allNotesAlpha release];
+}
+
 - (void)addNewNote:(NoteObject*)note {
     [self _addNote:note];
 	
@@ -721,6 +757,9 @@ bail:
 	//[note removeAllSyncServiceMD];
     
 	[note makeNoteDirtyUpdateTime:YES updateFile:YES];
+	
+	[self updateTitlePrefixConnections];
+	
 	//force immediate update
 	[self synchronizeNoteChanges:nil];
 	
@@ -772,10 +811,12 @@ bail:
 	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
 	//don't need to reverse-register undo because removeNote/s: will never use this method
 	
+	[self updateTitlePrefixConnections];
+	
 	[self synchronizeNoteChanges:nil];
 		
 	[self resortAllNotes];
-	[self refilterNotes];	
+	[self refilterNotes];
 }
 
 - (void)addNotes:(NSArray*)noteArray {
@@ -793,6 +834,8 @@ bail:
 		[note makeNoteDirtyUpdateTime:YES updateFile:YES];
 	}
 	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
+	
+	[self updateTitlePrefixConnections];
 	
 	[self synchronizeNoteChanges:nil];
 	
@@ -829,8 +872,12 @@ bail:
 	[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:attribute afterDelay:0.0];
 
 	//special case for title requires this method, as app controller needs to know a few note-specific things
-	if ([attribute isEqualToString:NoteTitleColumnString])
+	if ([attribute isEqualToString:NoteTitleColumnString]) {
 		[delegate titleUpdatedForNote:note];
+		
+		//also update notationcontroller's psuedo-prefix tree for autocompletion
+		[self updateTitlePrefixConnections];
+	}
 }
 
 - (BOOL)openFiles:(NSArray*)filenames {
@@ -986,6 +1033,9 @@ bail:
 		
 	//delete note from bookmarks, too
 	[[prefsController bookmarksController] removeBookmarkForNote:aNoteObject];
+	
+	//rebuild the prefix tree, as this note may have been a prefix of another, or vise versa
+	[self updateTitlePrefixConnections];
     
     [aNoteObject release];
     
@@ -1216,11 +1266,29 @@ bail:
 	selectedNoteIndex = NSNotFound;
 	
     if (newLen && [prefsController autoCompleteSearches]) {
-		//TODO: this should match the note with the shortest title first
+
 		for (i=0; i<filteredNoteCount; i++) {			
 			//because we already searched word-by-word up there, this is just way simpler
 			if (noteTitleHasPrefixOfUTF8String(notesBuffer[i], searchString, newLen)) {
 				selectedNoteIndex = i;
+				//this note matches, but what if there are other note-titles that are prefixes of both this one and the search string?
+				//find the first prefix-parent of which searchString is also a prefix
+				NSUInteger j = 0, prefixParentIndex = NSNotFound;
+				NSArray *prefixParents = [notesBuffer[i] prefixParentNotes];
+				
+				for (j=0; j<[prefixParents count]; j++) {
+					NoteObject *obj = [prefixParents objectAtIndex:j];
+					
+					if (noteTitleHasPrefixOfUTF8String(obj, searchString, newLen) &&
+						(prefixParentIndex = [notesListDataSource indexOfObjectIdenticalTo:obj]) != NSNotFound) {
+						//figure out where this prefix parent actually is in the list--if it actually is in the list, that is
+						//otherwise look at the next prefix parent, etc.
+						//the prefix parents array should always be alpha-sorted, so the shorter prefixes will always be first
+						break;
+					}
+				}
+				if (prefixParentIndex != NSNotFound) selectedNoteIndex = prefixParentIndex;
+				
 				break;
 			}
 		}
@@ -1236,11 +1304,6 @@ bail:
 
 - (NSUInteger)preferredSelectedNoteIndex {
     return selectedNoteIndex;
-}
-- (BOOL)preferredSelectedNoteMatchesSearchString {
-	NoteObject *obj = [self noteObjectAtFilteredIndex:selectedNoteIndex];
-	if (obj) return noteTitleMatchesUTF8String(obj, currentFilterStr);
-	return NO;
 }
 
 - (NSArray*)noteTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex {

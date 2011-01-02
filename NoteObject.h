@@ -38,6 +38,8 @@ typedef struct _NoteFilterContext {
 	char *cTitle, *cContents, *cLabels, *cTitleFoundPtr, *cContentsFoundPtr, *cLabelsFoundPtr;
 	NSMutableSet *labelSet;
 	BOOL contentsWere7Bit, contentCacheNeedsUpdate;
+	//if this note's title is "Chicken Shack menu listing", its prefix parent might have the title "Chicken Shack"
+	NSMutableArray *prefixParentNotes;
 	
 	NSString *wordCountString;
 	NSString *dateModifiedString, *dateCreatedString;
@@ -126,7 +128,7 @@ NSInteger compareFileSize(id *a, id *b);
 	void resetFoundPtrsForNote(NoteObject *note);
 	BOOL noteContainsUTF8String(NoteObject *note, NoteFilterContext *context);
 	BOOL noteTitleHasPrefixOfUTF8String(NoteObject *note, const char* fullString, size_t stringLen);
-	BOOL noteTitleMatchesUTF8String(NoteObject *note, const char* fullString);
+	BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shorterNote);
 
 - (id)delegate;
 - (void)setDelegate:(id)theDelegate;
@@ -193,6 +195,9 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)setSelectedRange:(NSRange)newRange;
 - (NSRange)lastSelectedRange;
 - (BOOL)contentsWere7Bit;
+- (void)addPrefixParentNote:(NoteObject*)aNote;
+- (void)removeAllPrefixParentNotes;
+- (NSArray*)prefixParentNotes;	
 
 - (NSUndoManager*)undoManager;
 - (void)_undoManagerDidChange:(NSNotification *)notification;

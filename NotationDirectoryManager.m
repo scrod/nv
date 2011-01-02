@@ -144,6 +144,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		if (directoryChangesFound) {
 			[self resortAllNotes];
 		    [self refilterNotes];
+			
+			[self updateTitlePrefixConnections];
 		}
 		
 		//NSLog(@"file sync time: %g, ",[[NSDate date] timeIntervalSinceDate:date]);

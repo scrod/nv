@@ -47,6 +47,7 @@ typedef NSRange NSRange32;
 @implementation NoteObject
 
 static FSRef *noteFileRefInit(NoteObject* obj);
+static NSMutableArray *PrefixParentNotes(NoteObject* obj);
 
 - (id)init {
     if ([super init]) {
@@ -1445,9 +1446,24 @@ BOOL noteContainsUTF8String(NoteObject *note, NoteFilterContext *context) {
 BOOL noteTitleHasPrefixOfUTF8String(NoteObject *note, const char* fullString, size_t stringLen) {
 	return !strncmp(note->cTitle, fullString, stringLen);
 }
+BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shorterNote) {
+	return !strncmp(longerNote->cTitle, shorterNote->cTitle, strlen(shorterNote->cTitle));
+}
 
-BOOL noteTitleMatchesUTF8String(NoteObject *note, const char* fullString) {
-	return !strcmp(note->cTitle, fullString);
+static NSMutableArray *PrefixParentNotes(NoteObject* obj) {
+	if (!obj->prefixParentNotes) {
+		obj->prefixParentNotes = [[NSMutableArray alloc] init];
+	}
+	return obj->prefixParentNotes;
+}
+- (void)addPrefixParentNote:(NoteObject*)aNote {
+	[PrefixParentNotes(self) addObject:aNote];
+}
+- (void)removeAllPrefixParentNotes {
+	[PrefixParentNotes(self) removeAllObjects];
+}
+- (NSArray*)prefixParentNotes {
+	return PrefixParentNotes(self);
 }
 
 - (NSSet*)labelSet {
