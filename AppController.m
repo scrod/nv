@@ -1223,6 +1223,15 @@ terminateApp:
 	}
 }
 
+- (NSArray *)textView:(NSTextView *)aTextView completions:(NSArray *)words 
+  forPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger *)anIndex {
+	
+	NSArray *noteTitles = [notationController noteTitlesPrefixedByString:[[aTextView string] substringWithRange:charRange]
+													 indexOfSelectedItem:anIndex];
+	return noteTitles;
+}
+
+
 - (IBAction)fieldAction:(id)sender {
 	
 	[self createNoteIfNecessary];

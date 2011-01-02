@@ -16,6 +16,7 @@
 #import "NotationPrefs.h"
 #import "LinearDividerShader.h"
 #import "AppController.h"
+#import "BookmarksController.h"
 
 #define BORDER_TOP_OFFSET 3.0
 #define BORDER_LEFT_OFFSET 3.0
@@ -141,7 +142,7 @@
 		NSEventType type = [theEvent type];
 		if (type == NSLeftMouseUp || type == NSRightMouseUp) {
 			if (BUTTON_PRESSED == snapbackButtonState) {
-				[controlView deselectAll:nil];
+				[controlView snapback:nil];
 			} else if (BUTTON_PRESSED == clearButtonState) {
 				[NSApp tryToPerform:@selector(cancelOperation:) with:nil];
 			}
@@ -164,7 +165,9 @@
 	if (BUTTON_HIDDEN != snapbackButtonState) {
 		NSRect snRect = [self snapbackButtonRectForBounds:cellFrame];
 		NSEraseRect(centeredRectInRect(snRect, NSMakeSize(MAX_STATE_IMG_DIM, MAX_STATE_IMG_DIM)));
-		NSImage *snapImg = [NSImage imageNamed:(snapbackButtonState == BUTTON_NORMAL ? @"SnapBack" : @"SnapBackPressed") ];
+		NSImage *snapImg = [NSImage imageNamed:
+							[(DualField *)controlView hasFollowedLinks] ? (snapbackButtonState == BUTTON_NORMAL ? @"LinkBack" : @"LinkBackPressed") :
+							(snapbackButtonState == BUTTON_NORMAL ? @"SnapBack" : @"SnapBackPressed") ];
 		[snapImg drawCenteredInRect:snRect];
 	}
 }
@@ -200,6 +203,8 @@
 			
 	[myCell setAllowsUndo:NO];
 	[myCell setLineBreakMode:NSLineBreakByCharWrapping];
+	
+	followedLinks = [[NSMutableArray alloc] init];
 }
 
 - (void)setTrackingRect {
@@ -211,6 +216,7 @@
 - (void)dealloc {
 	[snapbackString release];
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	[followedLinks release];
 	
 	[super dealloc];
 }
@@ -291,6 +297,30 @@
 	[super mouseDown:anEvent];
 }
 
+- (BOOL)hasFollowedLinks {
+	return [followedLinks count] != 0;
+}
+- (void)pushFollowedLink:(NoteBookmark*)aBM {
+
+	[followedLinks addObject:aBM];
+}
+
+- (NoteBookmark*)popLastFollowedLink {
+	
+	NoteBookmark *aBookmark = [[followedLinks lastObject] retain];
+	[followedLinks removeLastObject];
+	 
+	[[NSApp delegate] searchForString:[aBookmark searchString]];
+	[[NSApp delegate] revealNote:[aBookmark noteObject] options:0];
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(clearFollowedLinks) object:nil];
+
+	return [aBookmark autorelease];
+}
+
+- (void)clearFollowedLinks {
+	[followedLinks removeAllObjects];
+}
+
 - (void)setSnapbackString:(NSString*)string {
 	
 	NSString *proposedString = string ? [string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] : nil;
@@ -302,6 +332,7 @@
 	if (![proposedString length]) {
 		[[self cell] setShowsSnapbackButton:NO];
 	}
+	[self performSelector:@selector(clearFollowedLinks) withObject:nil afterDelay:0];
 }
 - (NSString*)snapbackString {
 	return snapbackString;
@@ -339,8 +370,12 @@
 	return lastLengthReplaced;
 }
 
-- (void)deselectAll:(id)sender {
-	[notesTable deselectAll:sender];
+- (void)snapback:(id)sender {
+	if ([self hasFollowedLinks]) {
+		[self popLastFollowedLink];
+	} else {
+		[notesTable deselectAll:sender];
+	}
 }
 
 + (NSImage*)snapbackImageWithString:(NSString*)string {

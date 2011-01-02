@@ -215,28 +215,40 @@ NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
 		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet controlCharacterSet]];
 	}
 	
+	NSString *string = [self string];
+	NSUInteger nextScanLoc = 0;
 	NSRange scanRange = changedRange;
-	while (NSMaxRange(scanRange) <= changedRange.length) {
+	
+	while (NSMaxRange(scanRange) <= NSMaxRange(changedRange)) {
 		
-		NSUInteger begin = [[self string] rangeOfString:@"[[" options:NSLiteralSearch range:scanRange].location;
+		NSUInteger begin = [string rangeOfString:@"[[" options:NSLiteralSearch range:scanRange].location;
 		if (begin == NSNotFound) break;
 		begin += 2;
-
-		NSUInteger end = [[self string] rangeOfString:@"]]" options:NSLiteralSearch range:NSMakeRange(begin, changedRange.length - begin)].location;
+		NSUInteger end = [string rangeOfString:@"]]" options:NSLiteralSearch 
+										 range:NSMakeRange(begin, changedRange.length - (begin - changedRange.location))].location;
 		if (end == NSNotFound) break;
-		
+
 		NSRange blockRange = NSMakeRange(begin, (end - begin));
-		
+
 		//double-braces must directly abut the search terms
-		if (![antiInteriorSet characterIsMember:[[self string] characterAtIndex:begin]] &&
-			![antiInteriorSet characterIsMember:[[self string] characterAtIndex:NSMaxRange(blockRange) - 1]]) {
+		//capture inner invalid "[["s, but not inner invalid "]]"s;
+		//because scanning, which is left to right, could be cancelled prematurely otherwise
+		if ([antiInteriorSet characterIsMember:[string characterAtIndex:begin]]) {
+			nextScanLoc = begin;
+			goto nextBlock;
+		}
+		if (![antiInteriorSet characterIsMember:[string characterAtIndex:NSMaxRange(blockRange) - 1]] &&
+			[string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] options:NSLiteralSearch range:blockRange].location == NSNotFound) {
 			
-			[self addAttribute:NSLinkAttributeName value:[NSURL URLWithString:[@"nv://" stringByAppendingString:
-																			   [[[self string] substringWithRange:blockRange] stringWithPercentEscapes]]] range:blockRange];
+			[self addAttribute:NSLinkAttributeName value:[NSURL URLWithString:[@"nv://find/" 
+																			   stringByAppendingString:[[string substringWithRange:blockRange] 
+																										stringWithPercentEscapes]]] range:blockRange];
 		}
 		//continue the scan starting at the end of the current block
-		NSUInteger nextScanLoc = NSMaxRange(blockRange) + 2;
-		scanRange = NSMakeRange(nextScanLoc, changedRange.length - nextScanLoc);
+		nextScanLoc = NSMaxRange(blockRange) + 2;
+
+	nextBlock:
+		scanRange = NSMakeRange(nextScanLoc, changedRange.length - (nextScanLoc - changedRange.location));
 	}	
 }
 

@@ -34,6 +34,8 @@ enum { BUTTON_HIDDEN, BUTTON_NORMAL, BUTTON_PRESSED };
 
 @end
 
+@class NoteBookmark;
+
 @interface DualField : NSTextField {
 	IBOutlet NSTableView *notesTable;
 	unsigned int lastLengthReplaced;
@@ -43,6 +45,9 @@ enum { BUTTON_HIDDEN, BUTTON_NORMAL, BUTTON_PRESSED };
 	NSTrackingRectTag docIconRectTag;
 	
 	BOOL showsDocumentIcon;
+	
+	//cleared when doing a new manual search
+	NSMutableArray *followedLinks;
 }
 
 - (void)setTrackingRect;
@@ -50,11 +55,16 @@ enum { BUTTON_HIDDEN, BUTTON_NORMAL, BUTTON_PRESSED };
 - (void)setShowsDocumentIcon:(BOOL)showsIcon;
 - (BOOL)showsDocumentIcon;
 
+- (BOOL)hasFollowedLinks;
+- (void)clearFollowedLinks;
+- (void)pushFollowedLink:(NoteBookmark*)aBM;
+- (NoteBookmark*)popLastFollowedLink;
+
 - (void)setSnapbackString:(NSString*)string;
 - (NSString*)snapbackString;
 + (NSImage*)snapbackImageWithString:(NSString*)string;
 
-- (void)deselectAll:(id)sender;
+- (void)snapback:(id)sender;
 
 - (unsigned int)lastLengthReplaced;
 + (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius;

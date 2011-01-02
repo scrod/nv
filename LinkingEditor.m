@@ -16,7 +16,6 @@
 #import "NotesTableView.h"
 #import "FocusRingScrollView.h"
 #import "NSTextFinder.h"
-#import "NoteObject.h"
 #import "LinkingEditor_Indentation.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
@@ -1042,11 +1041,9 @@ copyRTFType:
 		
 		NSTextStorage *textStorage = [self textStorage];
 		[textStorage beginEditing];
-		
 		[textStorage setAttributes:[prefsController noteBodyAttributes] range:range];
-		[textStorage addLinkAttributesForRange:range];
-		
 		[textStorage endEditing];
+		
 		[self didChangeText];
 	}
 	
@@ -1054,14 +1051,6 @@ copyRTFType:
 	
 	[[self undoManager] setActionName:NSLocalizedString(@"Plain Text Style",nil)];
 }
-
-/*- (void)suggestComplete:(id)sender {
-	NSRange selectedRange = [self selectedRange];
-	NSRange lastWordRange = [self rangeOfWordLocation:selectedRange.location String:[self string] Backwards:YES];
-	if ([self selectedRange].location == lastWordRange.location + lastWordRange.length) {
-		[self complete:sender];
-	}
-}*/
 
 - (id)highlightLinkAtIndex:(unsigned)givenIndex {
 	unsigned totalLength = [[self string] length];
@@ -1090,50 +1079,68 @@ copyRTFType:
 		return;
 	}
 	
-	[super clickedOnLink:aLink atIndex:charIndex];
-}
-
-- (NSArray *)completionsForPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger *)anIndex {
-
-	NSArray *notes = [[[NSApp delegate] notationController] noteObjectsWithTitlesPrefixedByString:[[self string] substringWithRange:charRange]];
-	NSMutableArray *completions = [NSMutableArray arrayWithCapacity:[notes count]];
-
-	NSUInteger i = 0;
-	for (i=0; i<[notes count]; i++) {
-		[completions addObject:titleOfNote([notes objectAtIndex:i])];
+	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nv"]) {
+		[[NSApp delegate] interpretNVURL:aLink];
+	} else {
+		[super clickedOnLink:aLink atIndex:charIndex];
 	}
-	
-	if ([[self delegate] respondsToSelector:@selector(textView:completions:forPartialWordRange:indexOfSelectedItem:)])
-		return [[self delegate] textView:self completions:completions forPartialWordRange:charRange indexOfSelectedItem:anIndex];
-	return completions;
 }
 
+- (NSRange)rangeForUserCompletion {
+	NSRange completionRange = [super rangeForUserCompletion];
+	//NSLog(@"completionRange: %@", [[self string] substringWithRange:completionRange]);
+	
+	
+	//problem: changedRange.location was 201, but completionRange.location was 195
+	NSRange beginLineRange = NSMakeRange(changedRange.location, completionRange.location - changedRange.location);
+	if (beginLineRange.length > changedRange.length)
+		goto cancelCompetion;
+	
+	NSRange backRange = [[self string] rangeOfString:@"[[" options:NSBackwardsSearch | NSLiteralSearch range:beginLineRange];
+	if (backRange.location == NSNotFound)
+		goto cancelCompetion;
+	
+	backRange.location += 2;
+	backRange.length = completionRange.length + (completionRange.location - backRange.location);
+
+	if ([[NSCharacterSet whitespaceAndNewlineCharacterSet] characterIsMember:[[self string] characterAtIndex:backRange.location]])
+		goto cancelCompetion;
+	
+	if ([[self string] rangeOfString:@"]]" options:NSLiteralSearch range:backRange].location != NSNotFound)
+		goto cancelCompetion;
+		
+	return backRange;
+cancelCompetion:
+	return NSMakeRange(NSNotFound, 0);
+}
+
+- (void)insertCompletion:(NSString *)word forPartialWordRange:(NSRange)charRange movement:(NSInteger)movement isFinal:(BOOL)isFinal {
+	
+	isFinal = isFinal && movement != NSRightTextMovement;
+	
+	if (isFinal && [word length] && (movement == NSReturnTextMovement || movement == NSTabTextMovement)) {
+		word = [word stringByAppendingString:@"]]"];
+	}	
+	[super insertCompletion:word forPartialWordRange:charRange movement:movement isFinal:isFinal];
+}
 
 - (void)didChangeText {
 	
 	//if the text storage was somehow shortened since changedRange was set in -shouldChangeText, at least avoid an out of bounds exception
 	changedRange = NSMakeRange(changedRange.location, (MIN(NSMaxRange(changedRange), [[self string] length]) - changedRange.location));
 
-	[[self textStorage] beginEditing];
-	[[self textStorage] removeAttribute:NSLinkAttributeName range:changedRange];
+
+	//-removeAttribute:range: seems slow for some reason; try checking with -attributesAtIndex:effectiveRange: first
+	if ([[self textStorage] attribute:NSLinkAttributeName existsInRange:changedRange])
+		[[self textStorage] removeAttribute:NSLinkAttributeName range:changedRange];
 	[[self textStorage] addLinkAttributesForRange:changedRange];
-	[[self textStorage] endEditing];
 	
-	if ([prefsController linksAutoSuggested]) {
-		
-		/*WordEnumerator *words = [WordEnumerator enumeratorForString:[string substringWithRange:changedRange]];
-		NSRange wordRange = [words next];
-		while (wordRange.location != NSNotFound) {
-			wordRange.location += changedRange.location;
-			if ([self isWikiWord: [string substringWithRange:wordRange]]) {
-				[self createWikiLinkWithRange: wordRange];
-			}
-			wordRange = [words next];
-		}*/
-		
-		//[self suggestComplete:nil];
-		//[self complete:nil];
 	[[self textStorage] addStrikethroughNearDoneTagsForRange:changedRange];
+	
+	if (!isAutocompleting && !wasDeleting && [prefsController linksAutoSuggested]) {		
+		isAutocompleting = YES;
+		[self complete:self];
+		isAutocompleting = NO;
 	}
 	
 	//[[self window] invalidateCursorRectsForView:self];
@@ -1147,17 +1154,14 @@ copyRTFType:
 }
 
 - (BOOL)shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
+	wasDeleting = ![replacementString length];
 	
 	//it's not exactly proper to alter typing attributes when we don't yet know whether the text should actually be changed, but NV shouldn't cause that to happen, anyway
 	[self fixTypingAttributesForSubstitutedFonts];
 	
 	NSString *string = [self string];
 		
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-	NSCharacterSet *separatorCharacterSet = [NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"%C%C%C",0x000A,0x000D,0x0085]];
-#else
 	NSCharacterSet *separatorCharacterSet = [NSCharacterSet newlineCharacterSet];
-#endif
 	//even when only seeking newlines, this manual line-finding method is less laggy than -[NSString lineRangeForRange:]
 	NSUInteger begin = [string rangeOfCharacterFromSet:separatorCharacterSet options:NSBackwardsSearch range:NSMakeRange(0, affectedCharRange.location)].location;
 	if (begin == NSNotFound) {
@@ -1171,7 +1175,7 @@ copyRTFType:
 	}
 	changedRange = NSMakeRange(begin, (end - begin) + [replacementString length]);
 		
-	if (affectedCharRange.length > 0) { // Deleting something
+	if (affectedCharRange.length > 0 && replacementString != nil) { // Deleting something
 		changedRange.length -= affectedCharRange.length;
 	}
 	

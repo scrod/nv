@@ -1243,14 +1243,20 @@ bail:
 	return NO;
 }
 
-- (NSArray*)noteObjectsWithTitlesPrefixedByString:(NSString*)prefixString {
+- (NSArray*)noteTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex {
 	NSMutableArray *objs = [NSMutableArray arrayWithCapacity:[allNotes count]];
 	const char *searchString = [prefixString lowercaseUTF8String];
-	NSUInteger i, strLen = strlen(searchString);
+	NSUInteger i, titleLen, strLen = strlen(searchString), j = 0, shortestTitleLen = UINT_MAX;
 
 	for (i=0; i<[allNotes count]; i++) {
-		if (noteTitleHasPrefixOfUTF8String([allNotes objectAtIndex:i], searchString, strLen)) {
-			[objs addObject:[allNotes objectAtIndex:i]];
+		NoteObject *thisNote = [allNotes objectAtIndex:i];
+		if (noteTitleHasPrefixOfUTF8String(thisNote, searchString, strLen)) {
+			[objs addObject:titleOfNote(thisNote)];
+			if (anIndex && (titleLen = CFStringGetLength((CFStringRef)titleOfNote(thisNote))) < shortestTitleLen) {
+				*anIndex = j;
+				shortestTitleLen = titleLen;
+			}
+			j++;
 		}
 	}
 	return objs;

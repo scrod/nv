@@ -783,6 +783,16 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 
 @end
 
+@implementation NSCharacterSet (NV)
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
++ (id)newlineCharacterSet {
+	return [NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"%C%C%C",0x000A,0x000D,0x0085]];
+}
+#endif
+
+@end
+
 
 
 @implementation NSEvent (NV)

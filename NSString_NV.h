@@ -83,6 +83,15 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 - (void)scanContextualSeparator:(NSString**)sepStr withPrecedingString:(NSString*)firstLine;
 @end
 
+@interface NSCharacterSet (NV)
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
++ (id)newlineCharacterSet;
+#endif
+
+@end
+
+
 @interface NSEvent (NV)
 - (unichar)firstCharacter;
 - (unichar)firstCharacterIgnoringModifiers;

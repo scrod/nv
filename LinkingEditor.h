@@ -41,6 +41,7 @@
 	BOOL didChangeIntoAutomaticRange;
 	NSRange lastAutomaticallySelectedRange;
 	NSRange changedRange;
+	BOOL isAutocompleting, wasDeleting;
 	
 	//ludicrous ivars used to hack NSTextFinder. just write your own, damnit!
 	NSRange selectedRangeDuringFind;
