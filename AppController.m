@@ -816,7 +816,16 @@ terminateApp:
 		if ((command == @selector(insertTab:) || command == @selector(insertTabIgnoringFieldEditor:))) {
 			//[self setEmptyViewState:NO];
 			
-			if (![[aTextView string] length] || [textView isHidden]) return YES;
+			if (![[aTextView string] length]) {
+				return YES;
+			}
+			if (!currentNote && [notationController preferredSelectedNoteIndex] != NSNotFound && [prefsController autoCompleteSearches]) {
+				//if the current note is deselected and re-searching would auto-complete this search, then allow tab to trigger it
+				[self searchForString:[self fieldSearchString]];
+				return YES;
+			} else if ([textView isHidden]) {
+				return YES;
+			}
 			
 			[window makeFirstResponder:textView];
 			
@@ -947,8 +956,7 @@ terminateApp:
 			NSUInteger preferredNoteIndex = [notationController preferredSelectedNoteIndex];
 			
 			//lastLengthReplaced depends on textView:shouldChangeTextInRange:replacementString: being sent before controlTextDidChange: runs			
-			if ([prefsController autoCompleteSearches] && preferredNoteIndex != NSNotFound && 
-				([field lastLengthReplaced] > 0 /*|| [notationController preferredSelectedNoteMatchesSearchString]*/)) {
+			if ([prefsController autoCompleteSearches] && preferredNoteIndex != NSNotFound && ([field lastLengthReplaced] > 0)) {
 				
 				[notesTableView selectRowAndScroll:preferredNoteIndex];
 				
