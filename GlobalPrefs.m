@@ -45,6 +45,7 @@ static NSString *TextReplacementInNoteBodyKey = @"TextReplacementInNoteBody";
 static NSString *QuitWhenClosingMainWindowKey = @"QuitWhenClosingMainWindow";
 static NSString *TabKeyIndentsKey = @"TabKeyIndents";
 static NSString *PastePreservesStyleKey = @"PastePreservesStyle";
+static NSString *AutoFormatsDoneTagKey = @"AutoFormatsDoneTag";
 static NSString *AutoSuggestLinksKey = @"AutoSuggestLinks";
 static NSString *HighlightSearchTermsKey = @"HighlightSearchTerms";
 static NSString *SearchTermHighlightColorKey = @"SearchTermHighlightColor";
@@ -56,6 +57,7 @@ static NSString *DrawFocusRingKey = @"DrawFocusRing";
 static NSString *MakeURLsClickableKey = @"MakeURLsClickable";
 static NSString *AppActivationKeyCodeKey = @"AppActivationKeyCode";
 static NSString *AppActivationModifiersKey = @"AppActivationModifiers";
+static NSString *HorizontalLayoutKey = @"HorizontalLayout";
 static NSString *BookmarksKey = @"Bookmarks";
 static NSString *LastScrollOffsetKey = @"LastScrollOffset";
 static NSString *LastSearchStringKey = @"LastSearchString";
@@ -97,7 +99,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		tableColumns = nil;
 		
 		[defaults registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:
-			[NSNumber numberWithBool:NO], AutoSuggestLinksKey,
+			[NSNumber numberWithBool:YES], AutoSuggestLinksKey,
+			[NSNumber numberWithBool:YES], AutoFormatsDoneTagKey, 
 			[NSNumber numberWithBool:NO], UseSoftTabsKey,
 			[NSNumber numberWithInt:4], NumberOfSpacesInTabKey,
 			[NSNumber numberWithBool:YES], PastePreservesStyleKey,
@@ -109,6 +112,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey, 
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
+			[NSNumber numberWithBool:NO], HorizontalLayoutKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
 			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
@@ -331,6 +335,15 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
     return [defaults boolForKey:PastePreservesStyleKey];
 }
 
+- (void)setAutoFormatsDoneTag:(BOOL)value sender:(id)sender {
+    [defaults setBool:value forKey:AutoFormatsDoneTagKey];
+	
+	SEND_CALLBACKS();
+}
+- (BOOL)autoFormatsDoneTag {
+	return [defaults boolForKey:AutoFormatsDoneTagKey];
+}
+
 - (void)setLinksAutoSuggested:(BOOL)value sender:(id)sender {
     [defaults setBool:value forKey:AutoSuggestLinksKey];
 	
@@ -486,6 +499,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		noteBodyAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:bodyFont, NSFontAttributeName, 
 			[self foregroundTextColor], NSForegroundColorAttributeName,
 			/* background text color is handled directly by the NSTextView subclass and so does not need to be stored here */
+							   /*NSTextWritingDirectionEmbedding*/
+			//[NSArray arrayWithObjects:[NSNumber numberWithInt:0], [NSNumber numberWithInt:0], nil], @"NSWritingDirection", //for auto-LTR-RTL text
 		monospace ? [self noteBodyParagraphStyle] : nil, NSParagraphStyleAttributeName, nil] retain];
 	}
 	return noteBodyAttributes;
@@ -619,6 +634,15 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 
 - (BOOL)tableIsReverseSorted {
     return [defaults boolForKey:TableIsReverseSortedKey];
+}
+
+- (void)setHorizontalLayout:(BOOL)value sender:(id)sender {
+	[defaults setBool:value forKey:HorizontalLayoutKey];
+	
+	SEND_CALLBACKS();
+}
+- (BOOL)horizontalLayout {
+	return [defaults boolForKey:HorizontalLayoutKey];
 }
 
 - (NSString*)lastSelectedPreferencesPane {

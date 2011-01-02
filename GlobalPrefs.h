@@ -109,6 +109,9 @@ extern NSString *NVPTFPboardType;
 - (void)setPastePreservesStyle:(BOOL)value sender:(id)sender;
 - (BOOL)pastePreservesStyle;
 
+- (void)setAutoFormatsDoneTag:(BOOL)value sender:(id)sender;
+- (BOOL)autoFormatsDoneTag;
+
 - (void)setLinksAutoSuggested:(BOOL)value sender:(id)sender;
 - (BOOL)linksAutoSuggested;
 
@@ -130,6 +133,9 @@ extern NSString *NVPTFPboardType;
 
 - (float)tableFontSize;
 - (void)setTableFontSize:(float)fontSize sender:(id)sender;
+
+- (void)setHorizontalLayout:(BOOL)value sender:(id)sender;
+- (BOOL)horizontalLayout;
 
 - (BOOL)autoCompleteSearches;
 - (void)setAutoCompleteSearches:(BOOL)value sender:(id)sender;
