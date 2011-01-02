@@ -44,6 +44,7 @@
 
 - (void)addDesiredAttributesFromDictionary:(NSDictionary*)dict {
 	id strikethroughStyle = [dict objectForKey:NSStrikethroughStyleAttributeName];
+	id hiddenDoneTagStyle = [dict objectForKey:NVHiddenDoneTagAttributeName];
 	id strokeWidthStyle = [dict objectForKey:NSStrokeWidthAttributeName];
 	id obliquenessStyle = [dict objectForKey:NSObliquenessAttributeName];
 	id linkStyle = [dict objectForKey:NSLinkAttributeName];
@@ -56,6 +57,8 @@
 		[self setObject:strokeWidthStyle forKey:NSStrokeWidthAttributeName];
 	if (obliquenessStyle)
 		[self setObject:obliquenessStyle forKey:NSObliquenessAttributeName];
+	if (hiddenDoneTagStyle)
+		[self setObject:hiddenDoneTagStyle forKey:NVHiddenDoneTagAttributeName];
 }
 
 - (void)applyStyleInverted:(BOOL)opposite trait:(NSFontTraitMask)trait forFont:(NSFont*)font 

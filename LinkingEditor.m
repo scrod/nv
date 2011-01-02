@@ -1135,6 +1135,7 @@ copyRTFType:
 		
 		//[self suggestComplete:nil];
 		//[self complete:nil];
+	[[self textStorage] addStrikethroughNearDoneTagsForRange:changedRange];
 	}
 	
 	//[[self window] invalidateCursorRectsForView:self];

@@ -1213,6 +1213,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	
 	NSMutableAttributedString *attributedBodyString = [[NSMutableAttributedString alloc] initWithString:newBody attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 	[attributedBodyString addLinkAttributesForRange:NSMakeRange(0, [attributedBodyString length])];
+	[attributedBodyString addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBodyString length])];
 	
 	//should eventually sync changes back to disk:
 	[self setContentString:[attributedBodyString autorelease]];

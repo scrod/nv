@@ -23,6 +23,9 @@
 #import <AutoHyperlinks/AutoHyperlinks.h>
 
 
+NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
+
+
 @implementation NSMutableAttributedString (AttributedPlainText)
 
 - (void)trimLeadingWhitespace {
@@ -84,6 +87,7 @@
 	[self removeAttribute:NSLinkAttributeName range:range];
 	[self restyleTextToFont:[[GlobalPrefs defaultPrefs] noteBodyFont] usingBaseFont:nil];
 	[self addLinkAttributesForRange:range];
+	[self addStrikethroughNearDoneTagsForRange:range];
 }
 
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont {
@@ -236,6 +240,58 @@
 	}	
 }
 
+- (void)addStrikethroughNearDoneTagsForRange:(NSRange)changedRange {
+	//scan line by line
+	//if the line ends in " @done", then strikethrough everything prior and add NVHiddenDoneTagAttributeName
+	//if the line doesn't end in " @done", and it has NVHiddenDoneTagAttributeName + NSStrikethroughStyleAttributeName,
+	//  then remove both attributes
+	//all other NSStrikethroughStyleAttributeName by itself will be ignored
+	
+	if (![[GlobalPrefs defaultPrefs] autoFormatsDoneTag])
+		return;
+		
+	NSString *doneTag = @" @done";
+	NSCharacterSet *newlineSet = [NSCharacterSet newlineCharacterSet];
+	
+	NSRange lineEndRange, scanRange = changedRange;
+	
+	@try {
+		do {
+			if ((lineEndRange = [[self string] rangeOfCharacterFromSet:newlineSet options:NSLiteralSearch range:scanRange]).location == NSNotFound) {
+				//no newline; this is the end of the range, so set line-end to an imaginary position there
+				lineEndRange = NSMakeRange(NSMaxRange(scanRange), 1);
+			}
+			
+			NSRange thisLineRange = NSMakeRange(scanRange.location, lineEndRange.location - scanRange.location);
+			
+			if ([[[self string] substringWithRange:thisLineRange] hasSuffix:doneTag]) {
+				
+				//add strikethrough and NVHiddenDoneTagAttributeName attributes, because this line ends in @done
+				[self addAttributes:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:NSUnderlineStyleSingle], 
+									 NSStrikethroughStyleAttributeName, [NSNull null], NVHiddenDoneTagAttributeName, nil] 
+							  range:NSMakeRange(thisLineRange.location, thisLineRange.length - [doneTag length])];
+				//and the done tag itself should never be struck-through; remove that just in case typing attributes had carried over from elsewhere
+				[self removeAttribute:NSStrikethroughStyleAttributeName range:NSMakeRange(NSMaxRange(thisLineRange) - [doneTag length], [doneTag length])];
+				
+			} else if ([self attribute:NVHiddenDoneTagAttributeName existsInRange:thisLineRange]) {
+				
+				//assume that this line was previously struck-through by NV due to the presence of a @done tag; remove those attrs now
+				[self removeAttribute:NVHiddenDoneTagAttributeName range:thisLineRange];
+				[self removeAttribute:NSStrikethroughStyleAttributeName range:thisLineRange];
+			}
+			//if scanRange has a non-zero length, then advance it further
+			if ((scanRange = NSMakeRange(NSMaxRange(thisLineRange), changedRange.length - (NSMaxRange(thisLineRange) - changedRange.location))).length)
+				scanRange = NSMakeRange(scanRange.location + 1, scanRange.length - 1);
+			else {
+				break;
+			}
+		} while (NSMaxRange(scanRange) <= NSMaxRange(changedRange));
+	}
+	@catch (NSException *e) {
+		NSLog(@"_%s(%@): %@", _cmd, NSStringFromRange(changedRange), e);
+	}
+}
+
 
 #if SEPARATE_ATTRS
 #define VLISTBUFCOUNT 32
@@ -284,6 +340,18 @@
 
 @implementation NSAttributedString (AttributedPlainText)
 
+
+- (BOOL)attribute:(NSString*)anAttribute existsInRange:(NSRange)aRange {
+	NSRange effectiveRange = NSMakeRange(aRange.location, 0);
+	
+	while (NSMaxRange(effectiveRange) < NSMaxRange(aRange)) {
+		if ([self attribute:anAttribute atIndex:NSMaxRange(effectiveRange) effectiveRange:&effectiveRange]) {
+			return YES;
+		}
+	}
+
+	return NO;
+}
 
 - (NSArray*)allLinks {
 	NSRange range;

@@ -20,6 +20,8 @@
 
 #define SEPARATE_ATTRS 0
 
+extern NSString *NVHiddenDoneTagAttributeName;
+
 @interface NSMutableAttributedString (AttributedPlainText)
 
 - (void)trimLeadingWhitespace;
@@ -34,12 +36,15 @@
 - (void)santizeForeignStylesForImporting;
 - (void)addLinkAttributesForRange:(NSRange)changedRange;
 - (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange;
+- (void)addStrikethroughNearDoneTagsForRange:(NSRange)changedRange;
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont;
 
 @end
 
 
 @interface NSAttributedString (AttributedPlainText)
+
+- (BOOL)attribute:(NSString*)anAttribute existsInRange:(NSRange)aRange;
 
 - (NSArray*)allLinks;
 - (id)findNextLinkAtIndex:(unsigned int)startIndex effectiveRange:(NSRange *)range;

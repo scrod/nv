@@ -697,6 +697,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		//get title and body, incl. separator
 		NSMutableAttributedString *attributedBody = [[[NSMutableAttributedString alloc] initWithString:body attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
 		[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
+		[attributedBody addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBody length])];
 		
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:title uniqueFilename:nil format:SingleDatabaseFormat];
 		if (note) {
