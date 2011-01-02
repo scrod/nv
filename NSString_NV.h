@@ -35,7 +35,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString;
 #endif
-+ (NSString*)pathCopiedFromAliasData:(NSData*)aliasData;
 - (NSString*)fourCharTypeString;
 - (BOOL)isAMachineDirective;
 - (void)copyItemToPasteboard:(id)sender;
@@ -55,12 +54,8 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 - (NSString *)stringByReplacingPercentEscapes;
 - (BOOL)superficiallyResemblesAnHTTPURL;
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err;
-+ (NSString*)pathWithFSRef:(FSRef*)fsRef;
 
 - (BOOL)UTIOfFileConformsToType:(NSString*)type;
-
-+ (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path;
-+ (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path;
 
 - (CFUUIDBytes)uuidBytes;
 + (NSString*)uuidStringWithBytes:(CFUUIDBytes)bytes;

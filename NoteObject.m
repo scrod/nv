@@ -30,6 +30,8 @@
 #import "NotationSyncServiceManager.h"
 #import "SyncServiceSessionProtocol.h"
 #import "SyncSessionController.h"
+#import "NSData_transformations.h"
+#import "NSCollection_utils.h"
 #import "NotesTableView.h"
 
 #if __LP64__
@@ -542,7 +544,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 }
 
 - (NSString*)description {
-	return [NSString stringWithFormat:@"%@ / %@", titleString, syncServicesMD];
+	return syncServicesMD ? [NSString stringWithFormat:@"%@ / %@", titleString, syncServicesMD] : titleString;
 }
 
 - (NSString*)combinedContentWithContextSeparator:(NSString*)sepWContext {
