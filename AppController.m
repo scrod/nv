@@ -396,13 +396,12 @@ terminateApp:
 - (void)updateNoteMenus {
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
-	int menuIndex = [notesMenu indexOfItemWithTarget:nil andAction:@selector(deleteNote:)];
+	int menuIndex = [notesMenu indexOfItemWithTarget:self andAction:@selector(deleteNote:)];
 	NSMenuItem *deleteItem = nil;
 	if (menuIndex > -1 && (deleteItem = [notesMenu itemAtIndex:menuIndex]))	{
 		NSString *trailingQualifier = [prefsController confirmNoteDeletion] ? NSLocalizedString(@"...", @"ellipsis character") : @"";
 		[deleteItem setTitle:[NSString stringWithFormat:@"%@%@", 
 							  NSLocalizedString(@"Delete", nil), trailingQualifier]];
-		[deleteItem setKeyEquivalent:[NSString stringWithFormat:@"%C", NSBackspaceCharacter]];
 	}
 	
 	NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTitle:@"View"] submenu];

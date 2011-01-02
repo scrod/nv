@@ -771,16 +771,22 @@ copyRTFType:
 }
 
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
-	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 	
-	if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
+	if ([anEvent modifierFlags] & NSCommandKeyMask) {
 		
-		if ([anEvent modifierFlags] & NSCommandKeyMask) {
+		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
+		if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
+			
 			unsigned charIndex = [self selectedRange].location;
 			
 			id aLink = [self highlightLinkAtIndex:charIndex];
 			if ([aLink isKindOfClass:[NSURL class]]) {
 				[self clickedOnLink:aLink atIndex:charIndex];
+				return YES;
+			}
+		} else if ((keyChar == NSBackspaceCharacter || keyChar == NSDeleteCharacter) && [[self window] firstResponder] == self) {
+			if ([[self string] length]) {
+				[self doCommandBySelector:@selector(deleteToBeginningOfLine:)];
 				return YES;
 			}
 		}
@@ -1016,17 +1022,9 @@ copyRTFType:
 		[menuItem setState:menuItemState];
 
 		return YES;
-	} else if (action == @selector(deleteNote:)) {
-		//respond to the method, but only before preventing it from being invoked with a shortcut
-		[menuItem setKeyEquivalent:@""];
-		return YES;
 	}
 	
 	return [super validateMenuItem:menuItem];
-}
-
-- (IBAction)deleteNote:(id)sender {
-	//here to allow LinkingEditor to validate this command
 }
 
 /*
