@@ -1231,6 +1231,15 @@ terminateApp:
 	}
 }
 
+- (NSMenu *)textView:(NSTextView *)view menu:(NSMenu *)menu forEvent:(NSEvent *)event atIndex:(NSUInteger)charIndex {
+	NSInteger idx;
+	if ((idx = [menu indexOfItemWithTarget:nil andAction:@selector(_removeLinkFromMenu:)]) > -1)
+		[menu removeItemAtIndex:idx];
+	if ((idx = [menu indexOfItemWithTarget:nil andAction:@selector(orderFrontLinkPanel:)]) > -1)
+		[menu removeItemAtIndex:idx];
+	return menu;
+}
+
 - (NSArray *)textView:(NSTextView *)aTextView completions:(NSArray *)words 
   forPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger *)anIndex {
 	
