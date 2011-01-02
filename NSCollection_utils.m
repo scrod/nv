@@ -19,6 +19,7 @@
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "NoteObject.h"
 #import "BufferUtils.h"
 
@@ -139,6 +140,17 @@
     
     return NSNotFound;
 }
+
++ (NSArray*)getUserTagsNoRestore:(NSString*)path; {
+	
+	return [[NSFileManager defaultManager] getXAttr:@"com.apple.metadata:kMDItemOMUserTags" atPath:path];
+}
+
+- (BOOL)setAsUserTagsForPath:(NSString*)path {
+	
+	return [[NSFileManager defaultManager] setXAttr:self forKey:@"com.apple.metadata:kMDItemOMUserTags" atPath:path];
+}
+
 
 #if 0
 - (NSRange)nextRangeForString:(NSString*)string activeNote:(NoteObject*)startNote options:(unsigned)opts range:(NSRange)inRange {

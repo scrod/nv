@@ -16,6 +16,7 @@
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
 
@@ -293,7 +294,7 @@
     FSRef currentNotesDirectoryRef;
     //resolve alias to fsref; get path from fsref
     if ([[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&currentNotesDirectoryRef]) {
-		NSString *resolvedPath = [NSString pathWithFSRef:&currentNotesDirectoryRef];
+		NSString *resolvedPath = [[NSFileManager defaultManager] pathWithFSRef:&currentNotesDirectoryRef];
 		if (resolvedPath) startingDirectory = resolvedPath;
     }
     

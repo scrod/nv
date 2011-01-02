@@ -21,6 +21,7 @@
 #import "NotationDirectoryManager.h"
 #import "NotationFileManager.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
 #import "EncodingsManager.h"
@@ -205,7 +206,7 @@ void outletObjectAwoke(id sender) {
 	if (err == kPassCanceledErr)
 		goto showOpenPanel;
 	
-	NSString *location = (aliasData ? [NSString pathCopiedFromAliasData:aliasData] : NSLocalizedString(@"your Application Support directory",nil));
+	NSString *location = (aliasData ? [[NSFileManager defaultManager] pathCopiedFromAliasData:aliasData] : NSLocalizedString(@"your Application Support directory",nil));
 	if (!location) { //fscopyaliasinfo sucks
 		FSRef locationRef;
 		if ([aliasData fsRefAsAlias:&locationRef] && LSCopyDisplayNameForRef(&locationRef, (CFStringRef*)&location) == noErr) {

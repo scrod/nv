@@ -19,6 +19,7 @@
 #import "NotationFileManager.h"
 #import "NotationPrefs.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "NSData_transformations.h"
@@ -209,7 +210,7 @@ long BlockSizeForNotation(NotationController *controller) {
 				}
 				
 				//directory move successful! //show the user where new notes are
-				NSString *newNotesPath = [NSString pathWithFSRef:&newNotesDirectory];
+				NSString *newNotesPath = [[NSFileManager defaultManager] pathWithFSRef:&newNotesDirectory];
 				if (newNotesPath) [[NSWorkspace sharedWorkspace] selectFile:newNotesPath inFileViewerRootedAtPath:nil];
 				
 				break;

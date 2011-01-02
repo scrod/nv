@@ -21,6 +21,7 @@
 #import "NoteObject.h"
 #import "DeletedNoteObject.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "BufferUtils.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
@@ -689,7 +690,7 @@ bail:
 - (void)checkIfNotationIsTrashed {
 	if ([self notesDirectoryIsTrashed]) {
 		
-		NSString *trashLocation = [[NSString pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
+		NSString *trashLocation = [[[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
 		if (!trashLocation) trashLocation = @"unknown";
 		int result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
 											 NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?",nil),

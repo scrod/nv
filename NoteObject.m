@@ -24,6 +24,7 @@
 #import "NotationPrefs.h"
 #import "AttributedPlainText.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #include "BufferUtils.h"
 #import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
@@ -810,7 +811,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 - (NSString*)noteFilePath {
 	UniChar chars[256];
 	if ([delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars] == noErr)
-		return [NSString pathWithFSRef:noteFileRefInit(self)];
+		return [[NSFileManager defaultManager] pathWithFSRef:noteFileRefInit(self)];
 	return nil;
 }
 
@@ -1012,7 +1013,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
 	OSStatus err = noErr;
 	if ((err = FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length])) == noErr) {
-		[NSString setTextEncodingAttribute:fileEncoding atFSPath:[pathData bytes]];
+		[[NSFileManager defaultManager] setTextEncodingAttribute:fileEncoding atFSPath:[pathData bytes]];
 	} else {
 		NSLog(@"%s: error getting path from FSRef: %d (IsZeros: %d)", _cmd, err, IsZeros(fsRef, sizeof(fsRef)));
 	}

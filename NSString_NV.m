@@ -17,6 +17,7 @@
 
 #import "NSString_NV.h"
 #import "NSData_transformations.h"
+#import "NSFileManager_NV.h"
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "LabelObject.h"
@@ -188,19 +189,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return absTime;
 }
 
-+ (NSString*)pathCopiedFromAliasData:(NSData*)aliasData {
-    AliasHandle inAlias;
-    CFStringRef path = NULL;
-	FSAliasInfoBitmap whichInfo = kFSAliasInfoNone;
-	FSAliasInfo info;
-    if (aliasData && PtrToHand([aliasData bytes], (Handle*)&inAlias, [aliasData length]) == noErr && 
-	FSCopyAliasInfo(inAlias, NULL, NULL, &path, &whichInfo, &info) == noErr) {
-		//this method doesn't always seem to work	
-	return [(NSString*)path autorelease];
-    }
-    
-    return nil;
-}
 
 - (CFArrayRef)copyRangesOfWordsInString:(NSString*)findString inRange:(NSRange)limitRange {
 	CFStringRef quoteStr = CFSTR("\"");
@@ -268,7 +256,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 
 	return sanitizedName;
 }
-
 #endif
 
 - (NSString*)fourCharTypeString {
@@ -596,20 +583,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return reason;
 }
 
-+ (NSString*)pathWithFSRef:(FSRef*)fsRef {
-	NSString *path = nil;
-	
-	const UInt32 maxPathSize = 8 * 1024;
-	UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
-	if (FSRefMakePath(fsRef, convertedPath, maxPathSize) == noErr) {
-		path = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:(char*)convertedPath length:strlen((char*)convertedPath)];
-	}
-	free(convertedPath);
-	
-	return path;
-}
-
-
 - (BOOL)UTIOfFileConformsToType:(NSString*)type {
 	
 	CFStringRef fileUTI = NULL;
@@ -625,62 +598,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	}
 	return NO;
 }
-
-//TODO: use volumeCapabilities in FSExchangeObjectsCompat.c to skip some work on volumes for which we know we would receive ENOTSUP
-//for +setTextEncodingAttribute:atFSPath: and +textEncodingAttributeOfFSPath: (test against VOL_CAP_INT_EXTENDED_ATTR)
-
-+ (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path {
-	if (!path) return NO;
-	
-	CFStringEncoding cfStringEncoding = CFStringConvertNSStringEncodingToEncoding(encoding);
-	if (cfStringEncoding == kCFStringEncodingInvalidId) {
-		NSLog(@"%s: encoding %lu is invalid!", _cmd, encoding);
-		return NO;
-	}
-	NSString *textEncStr = [(NSString *)CFStringConvertEncodingToIANACharSetName(cfStringEncoding) stringByAppendingFormat:@";%@", 
-							[[NSNumber numberWithInt:cfStringEncoding] stringValue]];
-	const char *textEncUTF8Str = [textEncStr UTF8String];
-	
-	if (setxattr(path, "com.apple.TextEncoding", textEncUTF8Str, strlen(textEncUTF8Str), 0, 0) < 0) {
-		NSLog(@"couldn't set text encoding attribute of %s to '%s': %d", path, textEncUTF8Str, errno);
-		return NO;
-	}
-	return YES;
-}
-
-+ (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path {
-	if (!path) goto errorReturn;
-	
-	//We could query the size of the attribute, but that would require a second system call
-	//and the value for this key shouldn't need to be anywhere near this large, anyway.
-	//It could be, but it probably won't. If it is, then we won't get the encoding. Too bad.
-	char xattrValueBytes[128] = { 0 };
-	if (getxattr(path, "com.apple.TextEncoding", xattrValueBytes, sizeof(xattrValueBytes), 0, 0) < 0) {
-		if (ENOATTR != errno) NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
-		goto errorReturn;
-	}
-	NSString *encodingStr = [NSString stringWithUTF8String:xattrValueBytes];
-	if (!encodingStr) {
-		NSLog(@"couldn't make attribute data from %s into a string", path);
-		goto errorReturn;
-	}
-	NSArray *segs = [encodingStr componentsSeparatedByString:@";"];
-	
-	if ([segs count] >= 2 && [(NSString*)[segs objectAtIndex:1] length] > 1) {
-		return CFStringConvertEncodingToNSStringEncoding([[segs objectAtIndex:1] intValue]);
-	} else if ([(NSString*)[segs objectAtIndex:0] length] > 1) {
-		CFStringEncoding theCFEncoding = CFStringConvertIANACharSetNameToEncoding((CFStringRef)[segs objectAtIndex:0]);
-		if (theCFEncoding == kCFStringEncodingInvalidId) {
-			NSLog(@"couldn't convert IANA charset");
-			goto errorReturn;
-		}
-		return CFStringConvertEncodingToNSStringEncoding(theCFEncoding);
-	}
-	
-errorReturn:
-	return 0;
-}
-
 
 - (CFUUIDBytes)uuidBytes {
 	CFUUIDBytes bytes = {0};
@@ -775,9 +692,9 @@ errorReturn:
 		if (!aPath && fsRef && !IsZeros(fsRef, sizeof(FSRef))) {
 			NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
 			if (FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length]) == noErr)
-				extendedAttrsEncoding = [NSString textEncodingAttributeOfFSPath:[pathData bytes]];
+				extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:[pathData bytes]];
 		} else if (aPath) {
-			extendedAttrsEncoding = [NSString textEncodingAttributeOfFSPath:aPath];
+			extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:aPath];
 		}
 		if (extendedAttrsEncoding) AddIfUnique(extendedAttrsEncoding);
 	}
