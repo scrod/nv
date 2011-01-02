@@ -74,6 +74,9 @@
 		21665A9E10E6032F00188D3D /* Search.png in Resources */ = {isa = PBXBuildFile; fileRef = 21665A9C10E6032F00188D3D /* Search.png */; };
 		2168EC5309E33B0300778D02 /* FrozenNotation.m in Sources */ = {isa = PBXBuildFile; fileRef = 2168EC5209E33B0300778D02 /* FrozenNotation.m */; };
 		216BA24310746E3900F62D93 /* ImporterAccessory.nib in Resources */ = {isa = PBXBuildFile; fileRef = 216BA24110746E3900F62D93 /* ImporterAccessory.nib */; };
+		216D987F12CE68AD0004B9CE /* NSFileManager_NV.m in Sources */ = {isa = PBXBuildFile; fileRef = 216D987E12CE68AD0004B9CE /* NSFileManager_NV.m */; };
+		216D9C2D12CFEF2A0004B9CE /* LinkBack.tif in Resources */ = {isa = PBXBuildFile; fileRef = 216D9C2B12CFEF2A0004B9CE /* LinkBack.tif */; };
+		216D9C2E12CFEF2A0004B9CE /* LinkBackPressed.tif in Resources */ = {isa = PBXBuildFile; fileRef = 216D9C2C12CFEF2A0004B9CE /* LinkBackPressed.tif */; };
 		217CEBA309E9885500DF0E09 /* NotationFileManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 217CEBA209E9885500DF0E09 /* NotationFileManager.m */; };
 		217D02D60B77061E0004E02D /* BodyScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 217D02D40B77061E0004E02D /* BodyScroller.m */; };
 		217D4282096545A000E84749 /* LabelObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 217D4281096545A000E84749 /* LabelObject.m */; };
@@ -305,6 +308,10 @@
 		2168EC5109E33B0300778D02 /* FrozenNotation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FrozenNotation.h; sourceTree = "<group>"; };
 		2168EC5209E33B0300778D02 /* FrozenNotation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FrozenNotation.m; sourceTree = "<group>"; };
 		216BA24210746E3900F62D93 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
+		216D987D12CE68AD0004B9CE /* NSFileManager_NV.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSFileManager_NV.h; sourceTree = "<group>"; };
+		216D987E12CE68AD0004B9CE /* NSFileManager_NV.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSFileManager_NV.m; sourceTree = "<group>"; };
+		216D9C2B12CFEF2A0004B9CE /* LinkBack.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = LinkBack.tif; path = Images/LinkBack.tif; sourceTree = "<group>"; };
+		216D9C2C12CFEF2A0004B9CE /* LinkBackPressed.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = LinkBackPressed.tif; path = Images/LinkBackPressed.tif; sourceTree = "<group>"; };
 		217CEBA109E9885500DF0E09 /* NotationFileManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NotationFileManager.h; sourceTree = "<group>"; };
 		217CEBA209E9885500DF0E09 /* NotationFileManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotationFileManager.m; sourceTree = "<group>"; };
 		217D02D30B77061E0004E02D /* BodyScroller.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BodyScroller.h; sourceTree = "<group>"; };
@@ -553,6 +560,8 @@
 				21DC788E097894B600E59B09 /* NSCollection_utils.m */,
 				212B84600978422300F3597F /* NSString_NV.h */,
 				212B84610978422300F3597F /* NSString_NV.m */,
+				216D987D12CE68AD0004B9CE /* NSFileManager_NV.h */,
+				216D987E12CE68AD0004B9CE /* NSFileManager_NV.m */,
 				21B548F9112F307E00E163A1 /* NotationDirectoryManager.h */,
 				21B548F8112F307E00E163A1 /* NotationDirectoryManager.m */,
 				2181171109F311110020A252 /* DeletedNoteObject.h */,
@@ -777,6 +786,8 @@
 				2143D3D810E987B100127EA6 /* Pencil.png */,
 				212C6EA1110E493C004DD82C /* Clear.tif */,
 				212C6EA2110E493C004DD82C /* ClearPressed.tif */,
+				216D9C2B12CFEF2A0004B9CE /* LinkBack.tif */,
+				216D9C2C12CFEF2A0004B9CE /* LinkBackPressed.tif */,
 				2143D2F310E953F500127EA6 /* SnapBack.tif */,
 				2143D2F210E953F400127EA6 /* SnapBackPressed.tif */,
 				21B1C16E110764570004A7D0 /* statusValidated.png */,
@@ -1040,6 +1051,8 @@
 				21286597128B14F10013820A /* Kontaktdaten.nvhelp in Resources */,
 				21286598128B14F10013820A /* Wie funktioniert dieses Programm?.nvhelp in Resources */,
 				21C0F8A212C7E7160068693F /* Fonts & Colors.tiff in Resources */,
+				216D9C2D12CFEF2A0004B9CE /* LinkBack.tif in Resources */,
+				216D9C2E12CFEF2A0004B9CE /* LinkBackPressed.tif in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1125,6 +1138,7 @@
 				212C6952110E1940004DD82C /* TitlebarButton.m in Sources */,
 				21B548FA112F307E00E163A1 /* NotationDirectoryManager.m in Sources */,
 				57F27FB91197407400C63ACF /* SearchCommand.m in Sources */,
+				216D987F12CE68AD0004B9CE /* NSFileManager_NV.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

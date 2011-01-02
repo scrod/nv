@@ -808,6 +808,24 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	}
 }
 
+- (NSURL*)uniqueNoteLink {
+		
+	NSArray *svcs = [[SyncSessionController class] allServiceNames];
+	NSMutableDictionary *idsDict = [NSMutableDictionary dictionaryWithCapacity:[svcs count] + 1];
+
+	//include all identifying keys in case the title changes later
+	NSUInteger i = 0;
+	for (i=0; i<[svcs count]; i++) {
+		NSString *syncID = [[syncServicesMD objectForKey:[svcs objectAtIndex:i]]
+							objectForKey:[[[SyncSessionController allServiceClasses] objectAtIndex:i] nameOfKeyElement]];
+		if (syncID) [idsDict setObject:syncID forKey:[svcs objectAtIndex:i]];
+	}
+	[idsDict setObject:[[NSData dataWithBytes:&uniqueNoteIDBytes length:16] encodeBase64WithNewlines:NO] forKey:@"NV"];
+	
+	return [NSURL URLWithString:[@"nv://find/" stringByAppendingFormat:@"%@/?%@", [titleString stringWithPercentEscapes], 
+								 [idsDict URLEncodedString]]];
+}
+
 - (NSString*)noteFilePath {
 	UniChar chars[256];
 	if ([delegate refreshFileRefIfNecessary:noteFileRefInit(self) withName:filename charsBuffer:chars] == noErr)

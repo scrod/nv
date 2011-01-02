@@ -157,6 +157,7 @@ NSInteger compareFileSize(id *a, id *b);
 
 - (OSStatus)writeFileDatesAndUpdateTrackingInfo;
 
+- (NSURL*)uniqueNoteLink;
 - (NSString*)noteFilePath;
 - (void)invalidateFSRef;
 

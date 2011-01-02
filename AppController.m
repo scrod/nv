@@ -248,15 +248,13 @@ void outletObjectAwoke(id sender) {
 	[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation:newNotation];
 	
 	if (pathsToOpenOnLaunch) {
-		[notationController openFiles:pathsToOpenOnLaunch];
-		[pathsToOpenOnLaunch release];
+		[notationController openFiles:[pathsToOpenOnLaunch autorelease]];
 		pathsToOpenOnLaunch = nil;
 	}
 	
-	if (URLToSearchOnLaunch) {
-		[self searchForString:[[URLToSearchOnLaunch substringFromIndex:5] stringByReplacingPercentEscapes]];
-		[URLToSearchOnLaunch release];
-		URLToSearchOnLaunch = nil;
+	if (URLToInterpretOnLaunch) {
+		[self interpretNVURL:[URLToInterpretOnLaunch autorelease]];
+		URLToInterpretOnLaunch = nil;
 	}
 	
 	//tell us..
@@ -277,17 +275,13 @@ terminateApp:
 
 - (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent {
 	
-	NSString *fullURL = [[[event paramDescriptorForKeyword:keyDirectObject] stringValue] retain];
+	NSURL *fullURL = [NSURL URLWithString:[[event paramDescriptorForKeyword:keyDirectObject] stringValue]];
 	
 	if (notationController) {
-		[self searchForString:[[fullURL substringFromIndex:5] stringByReplacingPercentEscapes]];
+		[self interpretNVURL:fullURL];
 	} else {
-		URLToSearchOnLaunch = fullURL;
+		URLToInterpretOnLaunch = [fullURL retain];
 	}
-}
-
-- (NotationController*)notationController {
-	return notationController;
 }
 
 - (void)setNotationController:(NotationController*)newNotation {
@@ -586,6 +580,15 @@ terminateApp:
 			//just delete the notes outright			
 			[notationController performSelector:[indexes count] > 1 ? @selector(removeNotes:) : @selector(removeNote:) withObject:deleteObj];
 		}
+	}
+}
+
+- (IBAction)copyNoteLink:(id)sender {
+	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
+	
+	if ([indexes count] == 1) {
+		[[[[[notationController notesAtIndexes:indexes] lastObject] 
+		   uniqueNoteLink] absoluteString] copyItemToPasteboard:nil];
 	}
 }
 
@@ -1284,12 +1287,12 @@ terminateApp:
 		[notationController refilterNotes];
 		
 	CFUUIDBytes bytes = [prefsController UUIDBytesOfLastSelectedNote];
-	NSUInteger idx = [self _revealNote:[notationController noteForUUIDBytes:&bytes] options:NVDoNotChangeScrollPosition];
+	NSUInteger idx = [self revealNote:[notationController noteForUUIDBytes:&bytes] options:NVDoNotChangeScrollPosition];
 	//scroll using saved scrollbar position
 	[notesTableView scrollRowToVisible:NSNotFound == idx ? 0 : idx withVerticalOffset:[prefsController scrollOffsetOfLastSelectedNote]];
 }
 
-- (NSUInteger)_revealNote:(NoteObject*)note options:(NSUInteger)opts {
+- (NSUInteger)revealNote:(NoteObject*)note options:(NSUInteger)opts {
 	if (note) {
 		NSUInteger selectedNoteIndex = [notationController indexInFilteredListForNoteIdenticalTo:note];
 		
@@ -1320,7 +1323,7 @@ terminateApp:
 }
 
 - (void)notation:(NotationController*)notation revealNote:(NoteObject*)note options:(NSUInteger)opts {
-	[self _revealNote:note options:opts];
+	[self revealNote:note options:opts];
 }
 
 - (void)notation:(NotationController*)notation revealNotes:(NSArray*)notes {
@@ -1343,6 +1346,8 @@ terminateApp:
 		
 		//problem: this won't work when the toolbar (and consequently the searchfield) is hidden;
 		//and neither will the controlTextDidChange implementation
+		[self _expandToolbar];
+		
 		[window makeFirstResponder:field];
 		NSTextView* fieldEditor = (NSTextView*)[field currentEditor];
 		NSRange fullRange = NSMakeRange(0, [[fieldEditor string] length]);
@@ -1358,8 +1363,66 @@ terminateApp:
 - (void)bookmarksController:(BookmarksController*)controller restoreNoteBookmark:(NoteBookmark*)aBookmark inBackground:(BOOL)inBG {
 	if (aBookmark) {
 		[self searchForString:[aBookmark searchString]];
-		[self _revealNote:[aBookmark noteObject] options:!inBG ? NVOrderFrontWindow : 0];
+		[self revealNote:[aBookmark noteObject] options:!inBG ? NVOrderFrontWindow : 0];
 	}
+}
+
+- (BOOL)interpretNVURL:(NSURL*)aURL {
+	// currently supported:
+	// hostname -> command
+	// first level -> search term / title
+	// second level -> sync keys as parameters
+	// example: nv://find/url%20test/?SN=agtzaW1wbGUtbm90ZXINCxIETm90ZRiY-dEFDA&NV=5WJ0eP3YRaCjyQn%2F8p62iQ%3D%3D
+	
+	if ([[aURL host] isEqualToString:@"find"]) {
+		//dispatch searchForString: and revealNote:options: as appropriate
+		
+		//add currentNote to the snapback button back-stack
+		if (currentNote) {
+			[field pushFollowedLink:[[[NoteBookmark alloc] initWithNoteObject:currentNote searchString:[self fieldSearchString]] autorelease]];
+		}
+
+		NSString *terms = [aURL path];
+		[self searchForString:([terms length] && [terms characterAtIndex:0] == '/') ? [terms substringFromIndex:1] : terms];
+		
+		NSArray *params = [[aURL query] componentsSeparatedByString:@"&"];
+		NSArray *svcs = [[SyncSessionController class] allServiceNames];
+		NoteObject *foundNote = nil;
+		
+		NSUInteger j, i = 0;
+		for (i=0; i<[params count]; i++) {
+			NSString *idStr = [params objectAtIndex:i];
+			
+			if ([idStr hasPrefix:@"NV="] && [idStr length] > 3) {
+				NSData *uuidData = [[idStr substringFromIndex:3] decodeBase64WithNewlines:NO];
+				if ((foundNote = [notationController noteForUUIDBytes:(CFUUIDBytes*)[uuidData bytes]]))
+					goto handleFound;
+			}
+			
+			for (j=0; j<[svcs count]; j++) {
+				NSString *serviceName = [svcs objectAtIndex:j];
+				if ([idStr hasPrefix:[NSString stringWithFormat:@"%@=", serviceName]] && [idStr length] > [serviceName length] + 1) {
+					//lookup note with identical key for this service
+					NSString *key = [idStr substringFromIndex:[serviceName length] + 1];
+					if ((foundNote = [notationController noteForKey:key ofServiceClass:[[SyncSessionController allServiceClasses] objectAtIndex:j]]))
+						goto handleFound;
+				}
+			}
+		}
+	handleFound:
+		//if this search had initiated a clearing of the history, then make sure it doesn't happen
+		[NSObject cancelPreviousPerformRequestsWithTarget:field 
+												 selector:@selector(clearFollowedLinks) object:nil];
+		
+		if (foundNote) [self revealNote:foundNote options:NVDefaultReveal];
+		return YES;
+		
+	} else if ([[aURL host] isEqualToString:@"create"]) {
+		NSLog(@"create-note URL specification has not yet been specified");
+		return YES;
+	}
+
+	return NO;
 }
 
 

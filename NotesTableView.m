@@ -545,11 +545,17 @@
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(tagNote:)];
 	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
-	menuIndex = [notesMenu indexOfItemWithTarget:nil andAction:@selector(deleteNote:)];
+	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(deleteNote:)];
 	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
+	
+	NSMenuItem *noteLinkItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy URL",@"contextual menu item title to copy urls")
+														  action:@selector(copyNoteLink:) keyEquivalent:@""];
+	[noteLinkItem setTarget:target];
+	[theMenu addItem:noteLinkItem];
+
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(exportNote:)];
 	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
@@ -559,7 +565,6 @@
 	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
 	
 	NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:[self selectedRowIndexes]];
-	//NSMenuItem *copyURLsItem = [theMenu addItemWithTitle:@"Copy Link to Clipboard" action:NULL keyEquivalent:@""];
 	[notes addMenuItemsForURLsInNotes:theMenu];
 	
 	return theMenu;

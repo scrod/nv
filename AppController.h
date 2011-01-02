@@ -47,7 +47,7 @@
 	
 	LinearDividerShader *dividerShader;
 	
-	NSString *URLToSearchOnLaunch;
+	NSString *URLToInterpretOnLaunch;
 	NSMutableArray *pathsToOpenOnLaunch;
 	
     NSUndoManager *windowUndoManager;
@@ -66,7 +66,6 @@
 
 void outletObjectAwoke(id sender);
 
-- (NotationController*)notationController;
 - (void)setNotationController:(NotationController*)newNotation;
 - (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
 
@@ -77,6 +76,7 @@ void outletObjectAwoke(id sender);
 - (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard;
 - (IBAction)renameNote:(id)sender;
 - (IBAction)deleteNote:(id)sender;
+- (IBAction)copyNoteLink:(id)sender;
 - (IBAction)exportNote:(id)sender;
 - (IBAction)printNote:(id)sender;
 - (IBAction)tagNote:(id)sender;
@@ -85,7 +85,8 @@ void outletObjectAwoke(id sender);
 - (IBAction)fieldAction:(id)sender;
 - (NoteObject*)createNoteIfNecessary;
 - (void)searchForString:(NSString*)string;
-- (NSUInteger)_revealNote:(NoteObject*)note options:(NSUInteger)opts;
+- (NSUInteger)revealNote:(NoteObject*)note options:(NSUInteger)opts;
+- (BOOL)interpretNVURL:(NSURL*)aURL;
 - (BOOL)displayContentsForNoteAtIndex:(int)noteIndex;
 - (void)processChangedSelectionForTable:(NSTableView*)table;
 - (void)setEmptyViewState:(BOOL)state;
