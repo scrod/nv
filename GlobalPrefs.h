@@ -129,8 +129,6 @@ extern NSString *NVPTFPboardType;
 
 - (int)numberOfSpacesInTab;
 
-- (BOOL)drawFocusRing;
-
 - (float)tableFontSize;
 - (void)setTableFontSize:(float)fontSize sender:(id)sender;
 

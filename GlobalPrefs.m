@@ -53,7 +53,6 @@ static NSString *ForegroundTextColorKey = @"ForegroundTextColor";
 static NSString *BackgroundTextColorKey = @"BackgroundTextColor";
 static NSString *UseSoftTabsKey = @"UseSoftTabs";
 static NSString *NumberOfSpacesInTabKey = @"NumberOfSpacesInTab";
-static NSString *DrawFocusRingKey = @"DrawFocusRing";
 static NSString *MakeURLsClickableKey = @"MakeURLsClickable";
 static NSString *AppActivationKeyCodeKey = @"AppActivationKeyCode";
 static NSString *AppActivationModifiersKey = @"AppActivationModifiers";
@@ -111,7 +110,6 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:YES], AutoCompleteSearchesKey, 
 			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey, 
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
-			[NSNumber numberWithBool:NO], DrawFocusRingKey,
 			[NSNumber numberWithBool:NO], HorizontalLayoutKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
@@ -413,10 +411,6 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 
 - (int)numberOfSpacesInTab {
 	return [defaults integerForKey:NumberOfSpacesInTabKey];
-}
-
-- (BOOL)drawFocusRing {
-	return [defaults boolForKey:DrawFocusRingKey];
 }
 
 - (void)resolveNoteBodyFontFromNotationPrefsFromSender:(id)sender {

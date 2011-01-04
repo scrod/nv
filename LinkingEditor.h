@@ -18,25 +18,13 @@
 @class NoteObject;
 @class GlobalPrefs;
 
-#define DELAYED_LAYOUT 0
-
 @interface LinkingEditor : NSTextView
 {
     IBOutlet NSTextField *controlField;
     IBOutlet NotesTableView *notesTableView;
 
 	GlobalPrefs *prefsController;
-#if DELAYED_LAYOUT
-	NSTimer *timer;
-	BOOL inhibitingUpdates;
-	BOOL didSetFutureRange, didInvalidateLayout, didRenderFully;
-	NSRange futureRange;
-	NSString *futureWordsToHighlight;
-	unsigned int lastHighlightedIndex;
-	NSRect rectForSuppressedUpdate;
-#else
 	BOOL didRenderFully;
-#endif
 	
 	BOOL didChangeIntoAutomaticRange;
 	NSRange lastAutomaticallySelectedRange;
@@ -71,15 +59,7 @@
 
 - (void)setupFontMenu;
 
-#if DELAYED_LAYOUT
-- (void)_updateHighlightedRangesToIndex:(unsigned)loc;
-- (void)_setFutureSelectionRangeWithinIndex:(unsigned)loc;
-- (void)setFutureSelectionRange:(NSRange)aRange highlightingWords:(NSString*)words;
-- (BOOL)readyToDraw;
-- (void)beginInhibitingUpdates;
-#else
 - (BOOL)didRenderFully;
-#endif
 @end
 
 @interface NSTextView (Private)
@@ -90,7 +70,5 @@
 
 - (void)moveToLeftEndOfLine:(id)sender;
 #endif
-
-- (void)_checkSpellingForRange:(struct _NSRange)fp8 excludingRange:(struct _NSRange)fp16;
 
 @end

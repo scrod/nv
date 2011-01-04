@@ -14,12 +14,10 @@
 #import "GlobalPrefs.h"
 #import "AppController.h"
 #import "NotesTableView.h"
-#import "FocusRingScrollView.h"
 #import "NSTextFinder.h"
 #import "LinkingEditor_Indentation.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
-#import "BodyScroller.h"
 #import "NSString_NV.h"
 #import "NVPasswordGenerator.h"
 
@@ -61,14 +59,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[self setDrawsBackground:YES];
 	[self setBackgroundColor:[prefsController backgroundTextColor]];
 
-#if DELAYED_LAYOUT
-	rectForSuppressedUpdate = NSZeroRect;
-	inhibitingUpdates = didSetFutureRange = didRenderFully = didInvalidateLayout = NO;
-	//should go in outletawoke method
-	[(BodyScroller*)[[self enclosingScrollView] verticalScroller] setContentViewDelegate:self];
-#else
 	didRenderFully = NO;
-#endif
 	[[self layoutManager] setDelegate:self];
 	
 	[self setLinkTextAttributes:[self preferredLinkAttributes]];
@@ -111,7 +102,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 }
 
 - (BOOL)becomeFirstResponder {
-	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:YES];
 	[notesTableView setShouldUseSecondaryHighlightColor:YES];
 
 	if ([[[self window] currentEvent] type] == NSKeyDown && [[[self window] currentEvent] firstCharacter] == '\t') {
@@ -122,10 +112,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 			[self performSelector:@selector(indicateRange:) withObject:[NSValue valueWithRange:range] afterDelay:0];
 		}
 	}
-	
-#if DELAYED_LAYOUT
-	[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
-#endif
 	
 	[self setTypingAttributes:[prefsController noteBodyAttributes]];
 		
@@ -139,7 +125,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 }
 
 - (BOOL)resignFirstResponder {
-	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:NO];
 	[notesTableView setShouldUseSecondaryHighlightColor:NO];
 		
 	return [super resignFirstResponder];
@@ -187,145 +172,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
     return (responder == self && [super isContinuousSpellCheckingEnabled]);
 }
 
-#if DELAYED_LAYOUT
-
-- (void)progressTowardFutureRange:(id)sender {
-	unsigned int farthestLoc = [[self layoutManager] firstUnlaidCharacterIndex];
-	
-	//highlight all words from lastHighlightedIndex to farthestLoc, setting futureRange to range of first occurring found word
-	[self _updateHighlightedRangesToIndex:farthestLoc];
-	
-	if (futureRange.location <= farthestLoc) {
-		
-		[self _setFutureSelectionRangeWithinIndex:farthestLoc];
-	}
-}
-
-- (void)beginInhibitingUpdates {
-	inhibitingUpdates = YES;
-	
-	rectForSuppressedUpdate = NSZeroRect;
-	if (!didRenderFully) {
-		rectForSuppressedUpdate = NSUnionRect(rectForSuppressedUpdate, [self visibleRect]);
-		NSLog(@"probably dirty, so updating everything");
-	}
-}
-
-- (void)setFutureSelectionRange:(NSRange)aRange highlightingWords:(NSString*)words {
-	futureRange = aRange;
-	didSetFutureRange = didInvalidateLayout = NO;
-	lastHighlightedIndex = 0;
-	
-	[futureWordsToHighlight release];
-	futureWordsToHighlight = [words retain];
-	
-	//rectForSuppressedUpdate = NSZeroRect;
-	[(BodyScroller*)[[self enclosingScrollView] verticalScroller] clearSuppressedRects];
-	
-	//if we have focus, just force-scroll?
-	if ([[self window] firstResponder] == self) {
-		[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
-	} else if (!timer && [[self string] length] > 10*1024) {
-		timer = [NSTimer scheduledTimerWithTimeInterval:0.08 target:self selector:@selector(progressTowardFutureRange:) userInfo:nil repeats:YES];
-	}
-	//need to draw loading status here somehow
-}
-
-- (void)_updateHighlightedRangesToIndex:(unsigned)loc {
-	//unsigned loc = [[self string] length];
-	
-	NSString *bodyString = [self string];
-	NSRange scanRange = NSMakeRange(lastHighlightedIndex, loc - lastHighlightedIndex);
-	if (lastHighlightedIndex < loc && [futureWordsToHighlight length] && NSMaxRange(scanRange) <= [bodyString length]) {
-		//find the range with the lowest location
-		
-		//NSLog(@"highlighting from %d to %d", lastHighlightedIndex, loc);
-		CFArrayRef ranges = [bodyString copyRangesOfWordsInString:futureWordsToHighlight inRange:scanRange];
-		if (ranges) {
-			
-			if (!futureRange.length) {
-				CFRange earliestRange = CFRangeMake(NSNotFound, 0);
-				CFIndex rangeIndex;
-				for (rangeIndex = 0; rangeIndex < CFArrayGetCount(ranges); rangeIndex++) {
-					CFRange *range = (CFRange *)CFArrayGetValueAtIndex(ranges, rangeIndex);
-					if (range && range->length > 0 && range->location + range->length <= loc) {
-						if (range->location < earliestRange.location)
-							earliestRange = *range;
-					}
-				}
-				
-				if (earliestRange.location != NSNotFound) {
-					futureRange.location = earliestRange.location;
-					futureRange.length = earliestRange.length;
-					//NSLog(@"set futureRange to found: %@", NSStringFromRange(futureRange));
-				}
-			}
-			
-			[self highlightRangesTemporarily:ranges];
-			CFRelease(ranges);
-		}
-		lastHighlightedIndex = loc;
-	} else {
-		//NSLog(@"not scanning range %@ (max=%d)", NSStringFromRange(scanRange), NSMaxRange(scanRange));
-	}
-}
-
-- (void)_setFutureSelectionRangeWithinIndex:(unsigned)loc {
-	[timer invalidate];
-	timer = nil;
-	
-	//[[[self enclosingScrollView] verticalScroller] setHidden:NO];
-	[self _updateHighlightedRangesToIndex:loc];
-	
-	if (!didSetFutureRange) {
-		//highlight words from lastHighlightedIndex to end of body
-		
-		if (futureRange.location != NSNotFound && NSMaxRange(futureRange) <= [[self string] length]) {
-			didSetFutureRange = YES;
-			[self setAutomaticallySelectedRange:futureRange];
-			[self scrollRangeToVisible:futureRange];
-		}
-		
-		inhibitingUpdates = NO;
-		
-		[self setNeedsDisplayInRect:rectForSuppressedUpdate avoidAdditionalLayout:YES];
-		[(BodyScroller*)[[self enclosingScrollView] verticalScroller] restoreSuppressedRects];
-	}
-	
-	//[(BodyScroller*)[[self enclosingScrollView] verticalScroller] setDisableUpdating:NO];
-}
-
-- (void)layoutManager:(NSLayoutManager *)aLayoutManager didCompleteLayoutForTextContainer:(NSTextContainer *)aTextContainer atEnd:(BOOL)flag {
-	//NSLog(@"completed layout at end: %d", flag);
-	
-	didRenderFully = YES;
-	if (!didInvalidateLayout) {
-		//ideally we want to be able to do this as soon as firstUnlaidCharacterIndex is >= NSMaxRange(futureRange), but how to check other than polling?
-		[self _setFutureSelectionRangeWithinIndex:[[self string] length]];
-		//[self setNeedsDisplayInRect:[self visibleRect] avoidAdditionalLayout:YES];
-	}
-	
-}
-- (void)layoutManagerDidInvalidateLayout:(NSLayoutManager *)aLayoutManager {
-	//NSLog(@"invalidated layout");
-	didInvalidateLayout = YES;
-	didRenderFully = NO;	
-}
-
-- (BOOL)readyToDraw {
-	//return didRenderFully || didInvalidateLayout || didSetFutureRange;
-	return !inhibitingUpdates;
-}
-
-- (void)setNeedsDisplayInRect:(NSRect)aRect avoidAdditionalLayout:(BOOL)flag {
-	if (![self readyToDraw]) {
-		rectForSuppressedUpdate = NSUnionRect(rectForSuppressedUpdate, aRect);
-	} else {
-		[super setNeedsDisplayInRect:aRect avoidAdditionalLayout:flag];
-	}
-}
-#else
-
 - (BOOL)didRenderFully {
 	return didRenderFully;
 }
@@ -336,7 +182,6 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 - (void)layoutManagerDidInvalidateLayout:(NSLayoutManager *)aLayoutManager {
 	didRenderFully = NO;	
 }
-#endif
 
 - (BOOL)readSelectionFromPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
 	//NSLog(@"readSelectionFromPasteboard: %@ (total %@)", type, [[pboard types] description]);
