@@ -28,6 +28,10 @@
 	outletObjectAwoke(self);
 }
 
+- (void)mouseDown:(NSEvent*)anEvent {
+	[[NSApp delegate] performSelector:@selector(_expandToolbar)];
+}
+
 - (void)setLabelStatus:(int)notesNumber {
 	if (notesNumber != lastNotesNumber) {
 		
@@ -44,13 +48,21 @@
 	}
 }
 
+- (void)resetCursorRects {
+	[self addCursorRect:[self bounds] cursor: [NSCursor arrowCursor]];
+}
+
+- (BOOL)isOpaque {	
+	return YES;
+}
+
 - (void)drawRect:(NSRect)rect {
 	NSRect bounds = [self bounds];
 	
 	[[NSColor whiteColor] set];
     NSRectFill(bounds);
 	
-	[[NSColor grayColor] set];
+	[[NSColor lightGrayColor] set];
     NSFrameRect(bounds);
 }
 

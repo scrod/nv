@@ -411,7 +411,7 @@
 	
 	[[NSGraphicsContext currentContext] saveGraphicsState];
 	[backgroundPath addClip];
-	[snapbackShader drawDividerInRect:wordRect withDimpleRect:NSZeroRect];	
+	[snapbackShader drawDividerInRect:wordRect withDimpleRect:NSZeroRect blendVertically:YES];	
 	[[NSGraphicsContext currentContext] restoreGraphicsState];
 	
 	[[NSColor colorWithDeviceRed:0.63 green:0.20 blue:0.0 alpha:1.0] set];

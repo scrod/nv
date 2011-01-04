@@ -88,7 +88,7 @@
 		
 	[self setIntercellSpacing:NSMakeSize(12, 2)];
 	
-	BOOL hideHeader = [columnsToDisplay count] == 1 && [columnsToDisplay containsObject:NoteTitleColumnString];
+	BOOL hideHeader = (([columnsToDisplay count] == 1 && [columnsToDisplay containsObject:NoteTitleColumnString]) || [globalPrefs horizontalLayout]);
 	if (hideHeader) {
 		[[self cornerView] setFrameOrigin:NSMakePoint(-1000,-1000)];
 		[self setCornerView:nil];
@@ -115,20 +115,27 @@
 
 //extracted from initialization to run in a safe way
 - (void)restoreColumns {
-	//somehow this invokes disk access; also removed initial col from nib
-	//[self removeTableColumn:[self tableColumnWithIdentifier:@"dummyColumn"]];
-	
-	NSArray *columnsToDisplay = [globalPrefs visibleTableColumns];
 	unsigned int i;
+	
+	//if columns currently exist, then remove them first, so that nstableview's autosave/restore works properly
+	if ([[self tableColumns] count]) {
+		for (i=0; i<[allColumns count]; i++) {
+			[self removeTableColumn:[allColumns objectAtIndex:i]];
+		}
+	}
+	
+	//horizontal view has only a single column; store column widths separately for it
+	NSArray *columnsToDisplay = [globalPrefs horizontalLayout] ? [NSArray arrayWithObject:NoteTitleColumnString] : [globalPrefs visibleTableColumns];
+	
 	for (i=0; i<[allColumns count]; i++) {
 		NoteAttributeColumn *column = [allColumns objectAtIndex:i];
 		if ([columnsToDisplay containsObject:[column identifier]])
 			[self addTableColumn:column];
 		
 		[column updateWidthForHighlight];
-	}
+	}	
 		
-	[self setAutosaveName:@"notesTable"];
+	[self setAutosaveName:[globalPrefs horizontalLayout] ? @"unifiedNotesTable" : @"notesTable"];
 	[self setAutosaveTableColumns:YES];
 	
 	[self sizeToFit];
@@ -138,7 +145,9 @@
 }
 
 - (void)awakeFromNib {
-	[globalPrefs registerForSettingChange:@selector(setTableFontSize:sender:) withTarget:self];
+	[globalPrefs registerWithTarget:self forChangesInSettings:
+	 @selector(setTableFontSize:sender:),
+	 @selector(setHorizontalLayout:sender:), nil];
 	
 	[self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, NSRTFPboardType, NSRTFDPboardType, NSStringPboardType, nil]];
 	
@@ -223,6 +232,8 @@
 	if (!viewMenusValid && [menu delegate] == self) {
 		[menu setSubmenu:[self menuForColumnConfiguration:nil] forItem:[menu itemWithTag:97]];
 		[menu setSubmenu:[self menuForColumnSorting] forItem:[menu itemWithTag:98]];
+		
+		[[menu itemWithTag:97] setEnabled:![globalPrefs horizontalLayout]];
 		viewMenusValid = YES;
 	}
 }
@@ -240,6 +251,17 @@
 		NSLayoutManager *lm = [[NSLayoutManager alloc] init];
 		[self setRowHeight:[lm defaultLineHeightForFont:font] + 2.0f];
 		[lm release];
+	} else if ([selectorString isEqualToString:SEL_STR(setHorizontalLayout:sender:)]) {
+		
+		[self abortEditing];
+		
+		//restore columns according to the current preferences
+		
+		[self restoreColumns];
+		
+		[self updateHeaderViewForColumns];
+		
+		viewMenusValid = NO;
 	}
 }
 
@@ -470,9 +492,11 @@
 		[theMenuItem setRepresentedObject:theColumn];
 		[theMenuItem setState:[cols containsObject:theColumn]];
 		[theMenuItem setTag:(inSelectedColumn ? [cols indexOfObjectIdenticalTo:inSelectedColumn] : 0)];
+		[theMenuItem setEnabled:![globalPrefs horizontalLayout]];
 		
 		[theMenu addItem:theMenuItem];
     }
+	
     return theMenu;
 }
 
@@ -931,11 +955,23 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	if (![self dataSource]) {
 		NSSize size = [self bounds].size;
-		NSPoint center = NSMakePoint(size.width / 2.0, size.height / 2.0);
 		
-		[loadStatusString drawAtPoint:NSMakePoint(center.x - loadStatusStringWidth/2.0, 
-												  center.y - STATUS_STRING_FONT_SIZE/2.0) 
+		BOOL didRotate = NO;
+		NSPoint center = NSMakePoint(size.width / 2.0, size.height / 2.0);
+		if ((didRotate = loadStatusStringWidth + 10.0 > size.width)) {
+			
+			NSAffineTransform *translateTransform = [NSAffineTransform transform];
+			[translateTransform translateXBy:center.x yBy:center.y];
+			[translateTransform rotateByDegrees:90.0];
+			[translateTransform translateXBy:-center.x yBy:-center.y];
+			[NSGraphicsContext saveGraphicsState];
+			[translateTransform concat];
+		}
+		
+		[loadStatusString drawAtPoint:NSMakePoint(center.x - loadStatusStringWidth/2.0, center.y - STATUS_STRING_FONT_SIZE/2.0) 
 					   withAttributes:loadStatusAttributes];
+		
+		if (didRotate) [NSGraphicsContext restoreGraphicsState];
 	}
 }
 

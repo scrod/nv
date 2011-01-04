@@ -637,9 +637,11 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 
 - (void)setHorizontalLayout:(BOOL)value sender:(id)sender {
-	[defaults setBool:value forKey:HorizontalLayoutKey];
-	
-	SEND_CALLBACKS();
+	if ([self horizontalLayout] != value) {
+		[defaults setBool:value forKey:HorizontalLayoutKey];
+		
+		SEND_CALLBACKS();
+	}
 }
 - (BOOL)horizontalLayout {
 	return [defaults boolForKey:HorizontalLayoutKey];

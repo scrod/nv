@@ -33,6 +33,7 @@
 #import "DualField.h"
 #import "TitlebarButton.h"
 #import "RBSplitView/RBSplitView.h"
+#import "AugmentedScrollView.h"
 #import "BookmarksController.h"
 #import "SyncSessionController.h"
 #import "MultiplePageView.h"
@@ -113,7 +114,8 @@
 - (void)setupViewsAfterAppAwakened {
 	static BOOL awakenedViews = NO;
 	if (!awakenedViews) {
-		//NSLog(@"all (hopefully relevant) views awakend!");		
+		//NSLog(@"all (hopefully relevant) views awakend!");
+		[self _configureDividerForCurrentLayout];
 		[splitView restoreState:YES];
 		
 		[splitSubview addSubview:editorStatusView positioned:NSWindowAbove relativeTo:splitSubview];
@@ -406,6 +408,7 @@ terminateApp:
 	}
 	
 	NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTitle:@"View"] submenu];
+	
 	menuIndex = [viewMenu indexOfItemWithTarget:notesTableView andAction:@selector(toggleNoteBodyPreviews:)];
 	NSMenuItem *bodyPreviewItem = nil;
 	if (menuIndex > -1 && (bodyPreviewItem = [viewMenu itemAtIndex:menuIndex])) {
@@ -413,6 +416,43 @@ terminateApp:
 		 NSLocalizedString(@"Hide Note Previews in Title", @"menu item in the View menu to turn off note-body previews in the Title column") : 
 		 NSLocalizedString(@"Show Note Previews in Title", @"menu item in the View menu to turn on note-body previews in the Title column")];
 	}
+	menuIndex = [viewMenu indexOfItemWithTarget:self andAction:@selector(switchViewLayout:)];
+	NSMenuItem *switchLayoutItem = nil;
+	if (menuIndex > -1 && (switchLayoutItem = [viewMenu itemAtIndex:menuIndex])) {
+		[switchLayoutItem setTitle:[prefsController horizontalLayout] ? 
+		 NSLocalizedString(@"Switch to Vertical Layout", @"title of alternate view layout menu item") : 
+		 NSLocalizedString(@"Switch to Horizontal Layout", @"title of view layout menu item")];		
+	}
+}
+
+- (void)_configureDividerForCurrentLayout {
+	BOOL horiz = [prefsController horizontalLayout];
+	[splitView setVertical:horiz];
+	
+	if (!verticalDividerImg && [splitView divider]) verticalDividerImg = [[splitView divider] retain];
+	[splitView setDivider: horiz ? nil : verticalDividerImg];
+	[splitView setDividerThickness: horiz ? 0.0 : 8.0];
+	
+	[[notesTableView enclosingScrollView] setBorderType: horiz ? NSNoBorder : NSBezelBorder];
+	
+	RBSplitSubview *topSubView = [splitView subviewAtPosition:0];
+	NSSize size = [topSubView frame].size;
+	[[notesTableView enclosingScrollView] setFrame: horiz ? NSMakeRect(1, 0, size.width - 1, size.height - 1) : (NSRect){.size = size, .origin = NSZeroPoint}];
+	
+	[topSubView setCanCollapse:horiz];
+	[topSubView setMinDimension:horiz ? 100.0 : 0.0 andMaxDimension:0.0];
+	[splitSubview setCanCollapse:NO];
+	[splitSubview setMinDimension:horiz ? 100.0 : 0.0 andMaxDimension:0.0];
+}
+
+- (IBAction)switchViewLayout:(id)sender {
+	[self _expandToolbar];
+	
+	[prefsController setHorizontalLayout:![prefsController horizontalLayout] sender:self];
+	[self _configureDividerForCurrentLayout];
+	[splitView adjustSubviews];
+	
+	[self updateNoteMenus];
 }
 
 - (void)createFromSelection:(NSPasteboard *)pboard userData:(NSString *)userData error:(NSString **)error {
@@ -631,7 +671,6 @@ terminateApp:
 }
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
-    
     if ([selectorString isEqualToString:SEL_STR(setAliasDataForDefaultDirectory:sender:)]) {
 		//defaults changed for the database location -- load the new one!
 		
@@ -1465,6 +1504,22 @@ terminateApp:
 	  betweenView:(RBSplitSubview*)leading andView:(RBSplitSubview*)trailing {
 	//if upon the first mousedown, the top selected index is visible, snap to it when resizing
 	[notesTableView noteFirstVisibleRow];
+	
+	if ([theEvent clickCount]>1) {
+		BOOL wasVisible = [toolbar isVisible];
+		if (wasVisible) {
+			//pseudo-collapsing splitviews; the built-in collapsing makes it difficult to handle dragging to hide toolbar
+			[[splitView subviewAtPosition:0] setDimension:1.0];
+			[splitView adjustSubviews];
+			[self _collapseToolbar];
+		} else {
+			[self _expandToolbar];
+		}
+		if (!wasVisible && [window firstResponder] == window) {
+			[field selectText:sender];
+		}
+		return NO;
+	}
 	return YES;
 }
 
@@ -1483,6 +1538,9 @@ terminateApp:
 			[[splitView subviewAtPosition:0] setDimension:100.0];
 		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"ToolbarHidden"];
 	}
+	if ([[splitView subviewAtPosition:0] isCollapsed])
+		[[splitView subviewAtPosition:0] expand];
+
 }
 
 - (void)_collapseToolbar {
@@ -1534,9 +1592,16 @@ terminateApp:
 - (NSRect)splitView:(RBSplitView*)sender willDrawDividerInRect:(NSRect)dividerRect betweenView:(RBSplitSubview*)leading 
 			andView:(RBSplitSubview*)trailing withProposedRect:(NSRect)imageRect {
 	
-	[dividerShader drawDividerInRect:dividerRect withDimpleRect:imageRect];
+	[dividerShader drawDividerInRect:dividerRect withDimpleRect:imageRect blendVertically:![prefsController horizontalLayout]];
 	
 	return NSZeroRect;
+}
+
+- (NSUInteger)splitView:(RBSplitView*)sender dividerForPoint:(NSPoint)point inSubview:(RBSplitSubview*)subview {
+	if ([(AugmentedScrollView*)[notesTableView enclosingScrollView] shouldDragWithPoint:point sender:sender]) {
+		return 0;       // [firstSplit position], which we assume to be zero
+	}
+	return NSNotFound;
 }
 
 

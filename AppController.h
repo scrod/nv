@@ -45,6 +45,7 @@
 	
 	BOOL waitedForUncommittedChanges;
 	
+	NSImage *verticalDividerImg;
 	LinearDividerShader *dividerShader;
 	
 	NSString *URLToInterpretOnLaunch;
@@ -81,6 +82,7 @@ void outletObjectAwoke(id sender);
 - (IBAction)printNote:(id)sender;
 - (IBAction)tagNote:(id)sender;
 - (IBAction)importNotes:(id)sender;
+- (IBAction)switchViewLayout:(id)sender;
 
 - (IBAction)fieldAction:(id)sender;
 - (NoteObject*)createNoteIfNecessary;
@@ -94,6 +96,7 @@ void outletObjectAwoke(id sender);
 - (void)_setCurrentNote:(NoteObject*)aNote;
 - (void)_expandToolbar;
 - (void)_collapseToolbar;
+- (void)_configureDividerForCurrentLayout;
 - (NoteObject*)selectedNoteObject;
 
 - (void)restoreListStateUsingPreferences;

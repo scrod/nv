@@ -49,11 +49,11 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 	[super dealloc];
 }
 
-- (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect {
+- (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect blendVertically:(BOOL)v {
 
 	CGShadingRef cgShading = CGShadingCreateAxial(colorSpaceRef, CGPointMake(aRect.origin.x, aRect.origin.y), 
-												  CGPointMake(NSMinX(aRect), NSMaxY(aRect)), axialShadingFunction, NO, NO);
-	
+												  CGPointMake(v ? NSMinX(aRect) : NSMaxX(aRect), v ? NSMaxY(aRect) : NSMinY(aRect)), 
+												  axialShadingFunction, NO, NO);	
 	CGContextDrawShading((CGContextRef)[[NSGraphicsContext currentContext] graphicsPort], cgShading);
 	
 	CGShadingRelease(cgShading);

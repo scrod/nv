@@ -1,3 +1,5 @@
+/* AugmentedScrollView */
+
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
   Redistribution and use in source and binary forms, with or without modification, are permitted 
   provided that the following conditions are met:
@@ -12,39 +14,21 @@
 
 #import <Cocoa/Cocoa.h>
 
-typedef struct {
-
-	union {
-		struct {
-			CGFloat redComp;
-			CGFloat greenComp;
-			CGFloat blueComp;
-			CGFloat alphaComp;
-		};
-		CGFloat channels[4];
-	} firstColor, secondColor;
-	
-} ColorSet;
-
-NSRect centeredRectInRect(NSRect rect, NSSize size);
-
-@interface LinearDividerShader : NSObject  {
-	CGColorSpaceRef	colorSpaceRef;
-	CGFunctionRef axialShadingFunction;
-	
-	ColorSet colors;
-	NSImage *dimpleImage;
+@interface  DragSquareView : NSView
+{
+	NSImage *dragImage;
 }
-
-- (id)initWithStartColor:(NSColor*)start endColor:(NSColor*)end;
-
-- (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect blendVertically:(BOOL)v;
 
 @end
 
-@interface NSImage (CenteredDrawing)
 
-- (void)drawCenteredInRect:(NSRect)aRect;
-- (void)drawCenteredInRect:(NSRect)aRect fraction:(float)aFraction;
+@interface AugmentedScrollView : NSScrollView
+{
+	BOOL showDragSquare;
+	DragSquareView *dragSquare;
+}
+
+- (BOOL)shouldDragWithPoint:(NSPoint)point sender:(id)sender;
+- (void)_positionDragSquare;
 
 @end
