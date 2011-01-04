@@ -86,6 +86,7 @@ static NSMutableArray *PrefixParentNotes(NoteObject* obj);
 	[filename release];
 	[dateModifiedString release];
 	[dateCreatedString release];
+	[prefixParentNotes release];
 		
 	if (cTitle)
 		free(cTitle);
@@ -1463,7 +1464,7 @@ static NSMutableArray *PrefixParentNotes(NoteObject* obj) {
 	[PrefixParentNotes(self) removeAllObjects];
 }
 - (NSArray*)prefixParentNotes {
-	return PrefixParentNotes(self);
+	return prefixParentNotes;
 }
 
 - (NSSet*)labelSet {

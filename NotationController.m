@@ -1284,11 +1284,10 @@ bail:
 						//figure out where this prefix parent actually is in the list--if it actually is in the list, that is
 						//otherwise look at the next prefix parent, etc.
 						//the prefix parents array should always be alpha-sorted, so the shorter prefixes will always be first
+						selectedNoteIndex = prefixParentIndex;
 						break;
 					}
 				}
-				if (prefixParentIndex != NSNotFound) selectedNoteIndex = prefixParentIndex;
-				
 				break;
 			}
 		}

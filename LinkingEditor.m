@@ -141,10 +141,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 - (BOOL)resignFirstResponder {
 	[(FocusRingScrollView*)[self enclosingScrollView] setHasFocus:NO];
 	[notesTableView setShouldUseSecondaryHighlightColor:NO];
-	
-	//fix the Delete Note menu item in case we trashed its key equivalent in -validateMenuItem:
-	[[NSApp delegate] performSelector:@selector(updateNoteMenus) withObject:nil afterDelay:0];
-	
+		
 	return [super resignFirstResponder];
 }
 

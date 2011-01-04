@@ -276,6 +276,7 @@ NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
 			
 			NSRange thisLineRange = NSMakeRange(scanRange.location, lineEndRange.location - scanRange.location);
 			
+			//this detection is not good enough; it can't handle the case of @done(date)
 			if ([[[self string] substringWithRange:thisLineRange] hasSuffix:doneTag]) {
 				
 				//add strikethrough and NVHiddenDoneTagAttributeName attributes, because this line ends in @done
