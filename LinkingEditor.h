@@ -38,6 +38,9 @@
 	NoteObject *noteDuringFind;
 }
 
+CGFloat _perceptualColorDifference(NSColor*a, NSColor*b);
+
+- (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSDictionary*)preferredLinkAttributes;
 - (NSRange)selectedRangeWasAutomatic:(BOOL*)automatic;
 - (void)setAutomaticallySelectedRange:(NSRange)newRange;

@@ -50,7 +50,8 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:),
 	 @selector(setShouldHighlightSearchTerms:sender:),
-	 @selector(setBackgroundTextColor:sender:), nil];	
+	 @selector(setBackgroundTextColor:sender:),
+	 @selector(setForegroundTextColor:sender:), nil];	
 	
 	[self setTextContainerInset:NSMakeSize(3, 8)];
 	[self setSmartInsertDeleteEnabled:NO];
@@ -58,6 +59,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:YES];
 	[self setBackgroundColor:[prefsController backgroundTextColor]];
+	[self setInsertionPointColor:[prefsController foregroundTextColor]];
 
 	didRenderFully = NO;
 	[[self layoutManager] setDelegate:self];
@@ -84,13 +86,23 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		[self setTypingAttributes:[prefsController noteBodyAttributes]];
 		//[textView setFont:[prefsController noteBodyFont]];
 	} else if ([selectorString isEqualToString:SEL_STR(setMakeURLsClickable:sender:)]) {
+		
 		[self setLinkTextAttributes:[self preferredLinkAttributes]];
+		
 	} else if ([selectorString isEqualToString:SEL_STR(setBackgroundTextColor:sender:)]) {
+		
+		//link-color is derived both from foreground and background colors
 		[self setBackgroundColor:[prefsController backgroundTextColor]];
+		[self setLinkTextAttributes:[self preferredLinkAttributes]];
+		
 	} else if ([selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
+		
 		[self setInsertionPointColor:[prefsController foregroundTextColor]];
+		[self setLinkTextAttributes:[self preferredLinkAttributes]];
+		
 	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)] || 
 			   [selectorString isEqualToString:SEL_STR(setShouldHighlightSearchTerms:sender:)]) {
+		
 		if (![prefsController highlightSearchTerms]) {
 			[self removeHighlightedTerms];
 		} else {
@@ -135,14 +147,65 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	return;
 }
 
+#define CSCALE(__color, __compName) ([__color __compName##Component] * 255.0)
+CGFloat _perceptualBrightness(NSColor*a) {
+	//0 to 1; the higher the darker
+	return 1 - ( 0.299 * CSCALE(a, red) + 0.587 * CSCALE(a, green) + 0.114 * CSCALE(a, blue))/255;
+}
+CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
+	//acceptable: 500
+	return (MAX(CSCALE(a, red), CSCALE(b, red)) - MIN(CSCALE(a, red), CSCALE(b, red))) + 
+	(MAX(CSCALE(a, green), CSCALE(b, green)) - MIN(CSCALE(a, green), CSCALE(b, green))) + 
+	(MAX(CSCALE(a, blue), CSCALE(b, blue)) - MIN(CSCALE(a, blue), CSCALE(b, blue)));
+}
+
+- (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
+	//if fgColor is black, choose blue; otherwise, rotate hue (keeping the same sat.) until color is different enough
+	
+	CGFloat hue, brightness, saturation, alpha, diffInc = 0.5;
+	NSUInteger rotationsLeft = 25;
+	[fgColor getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha];
+
+	//if foreground color is too dark for hue changes to matter, then just use blue
+	if (brightness <= 0.24)
+		return [NSColor blueColor];
+	
+	if (_perceptualBrightness(bgColor) > 0.5) {
+		//background is too dark; want a brighter color
+		brightness = MAX(0.70, brightness);
+	} else {
+		//background is too light; want a darker color
+		brightness = MIN(0.35, brightness);
+	}
+	
+	saturation = MAX(0.5, saturation);
+	
+	//adjust hue until the perceptual differences between the proposed link
+	//and current foreground and background colors are great enough
+	NSColor *proposedLinkColor = nil;
+	do {
+		hue -= diffInc;
+		if (hue < 0.0)
+			hue += 1.0;
+		
+		proposedLinkColor = [NSColor colorWithCalibratedHue:hue saturation:saturation brightness:brightness alpha:alpha];
+		
+		diffInc = rotationsLeft > 15 ? 0.125 : 0.0625;
+		
+	} while ((_perceptualColorDifference(proposedLinkColor, bgColor) < 360.0 || 
+			  _perceptualColorDifference(proposedLinkColor, fgColor) < 170.0) && --rotationsLeft > 0);
+	return proposedLinkColor;
+}
+
 - (NSDictionary*)preferredLinkAttributes {
 	if (![prefsController URLsAreClickable])
 		return [NSDictionary dictionary];
 	
 	return [NSDictionary dictionaryWithObjectsAndKeys:
-		[NSCursor pointingHandCursor], NSCursorAttributeName,
-		[NSNumber numberWithInt:NSUnderlineStyleSingle], NSUnderlineStyleAttributeName,
-		[NSColor blueColor], NSForegroundColorAttributeName, nil];
+			[NSCursor pointingHandCursor], NSCursorAttributeName,
+			[NSNumber numberWithInt:NSUnderlineStyleSingle], NSUnderlineStyleAttributeName,
+			[self _linkColorForForegroundColor:[prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]],
+			NSForegroundColorAttributeName, nil];
 }
 
 /*
