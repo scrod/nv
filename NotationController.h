@@ -173,6 +173,7 @@ typedef struct _NoteCatalogEntry {
 - (id)labelsListDataSource;
 - (id)notesListDataSource;
 
+- (NotationPrefs*)notationPrefs;
 - (SyncSessionController*)syncSessionController;
 
 - (void)dealloc;

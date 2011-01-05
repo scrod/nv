@@ -16,7 +16,6 @@
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
 #import "NSFileManager_NV.h"
-#import <Carbon/Carbon.h>
 
 @implementation PassphraseRetriever
 
@@ -75,9 +74,7 @@
 
 	[rememberKeychainButton setState:[notationPrefs storesPasswordInKeychain]];
 	
-	EnableSecureEventInput();
 	int result = [NSApp runModalForWindow:window];
-	DisableSecureEventInput();
 	
 	[passphraseField setStringValue:@""];
 	[self textDidChange:nil];

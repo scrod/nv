@@ -40,8 +40,8 @@
 #import "InvocationRecorder.h"
 #import "URLGetter.h"
 #import "LinearDividerShader.h"
+#import "SecureTextEntryManager.h"
 #import <WebKit/WebArchive.h>
-#include <Carbon/Carbon.h>
 
 @implementation AppController
 
@@ -337,6 +337,12 @@ terminateApp:
 													 name:SyncSessionsChangedVisibleStatusNotification 
 												   object:[notationController syncSessionController]]; 
 		[notationController performSelector:@selector(startSyncServices) withObject:nil afterDelay:0.0];
+		
+		if ([[notationController notationPrefs] secureTextEntry]) {
+			[[SecureTextEntryManager sharedInstance] enableSecureTextEntry];
+		} else {
+			[[SecureTextEntryManager sharedInstance] disableSecureTextEntry];
+		}
 		
 		[field selectText:nil];
 		
@@ -785,18 +791,11 @@ terminateApp:
 	
     if ([notationController currentNoteStorageFormat] != SingleDatabaseFormat)
 		[notationController performSelector:@selector(synchronizeNotesFromDirectory) withObject:nil afterDelay:0.0];
-	
-	if ([[prefsController notationPrefs] secureTextEntry]) {
-		EnableSecureEventInput();
-	}
-	
+		
 	[notationController updateDateStringsIfNecessary];
 }
 
 - (void)applicationWillResignActive:(NSNotification *)aNotification {
-	if ([[prefsController notationPrefs] secureTextEntry]) {
-		DisableSecureEventInput();
-	}
 	//sync note files when switching apps so user doesn't have to guess when they'll be updated
 	[notationController synchronizeNoteChanges:nil];
 }

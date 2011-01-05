@@ -723,7 +723,8 @@ bail:
 	//*** this method must run after any note is added, deleted, or retitled **
 	//***
 	
-	if (![prefsController autoCompleteSearches]) return;
+	if (![prefsController autoCompleteSearches] || ![allNotes count])
+		return;
 	
 	//sort alphabetically to find shorter prefixes first
 	NSMutableArray *allNotesAlpha = [allNotes mutableCopy];
@@ -1451,6 +1452,10 @@ bail:
 
 - (void)regenerateAllPreviews {
 	[allNotes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
+}
+
+- (NotationPrefs*)notationPrefs {
+	return notationPrefs;
 }
 
 - (id)labelsListDataSource {

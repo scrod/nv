@@ -13,7 +13,6 @@
 #import "PassphrasePicker.h"
 #import "NotationPrefs.h"
 #import "KeyDerivationManager.h"
-#import <Carbon/Carbon.h>
 
 @implementation PassphrasePicker
 
@@ -89,8 +88,6 @@
 	[newPasswordField selectText:nil];
 	
 	[okNewButton setEnabled:NO];
-
-	EnableSecureEventInput();
 	
 	[NSApp beginSheet:newPassphraseWindow modalForWindow:mainWindow modalDelegate:self 
 	   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
@@ -99,9 +96,7 @@
 - (void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
 	[newPasswordField setStringValue:@""];
 	[verifyNewPasswordField setStringValue:@""];
-	
-	DisableSecureEventInput();
-	
+		
 	if ([resultDelegate respondsToSelector:@selector(passphrasePicker:choseAPassphrase:)])
 		[resultDelegate passphrasePicker:self choseAPassphrase:returnCode];
 }

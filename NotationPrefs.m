@@ -24,7 +24,7 @@
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
 #import "NotationFileManager.h"
-#include <Carbon/Carbon.h>
+#import "SecureTextEntryManager.h"
 #include <CoreServices/CoreServices.h>
 #include <Security/Security.h>
 #include <ApplicationServices/ApplicationServices.h>
@@ -635,18 +635,15 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 }
 
 - (void)setSecureTextEntry:(BOOL)value {
-	//make application active to simplify balancing
-	//(what, someone will be setting this by command-clicking in a window?)
-	[NSApp activateIgnoringOtherApps:YES];
 	
 	secureTextEntry = value;
 	
 	preferencesChanged = YES;
 	
 	if (secureTextEntry) {
-		EnableSecureEventInput();
+		[[SecureTextEntryManager sharedInstance] enableSecureTextEntry];
 	} else {
-		DisableSecureEventInput();
+		[[SecureTextEntryManager sharedInstance] disableSecureTextEntry];
 	}
 }
 

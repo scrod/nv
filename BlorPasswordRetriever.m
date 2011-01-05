@@ -117,9 +117,7 @@
 	[helpStringField setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Please enter the passphrase to import old notes at %@.",nil), 
 		[path stringByAbbreviatingWithTildeInPath]]];
 	
-	EnableSecureEventInput();
 	int result = [NSApp runModalForWindow:window];
-	DisableSecureEventInput();
 	
 	NSString *passwordString = [passphraseField stringValue];
 	passwordData = [passwordString dataUsingEncoding:[NSString defaultCStringEncoding] allowLossyConversion:NO];
