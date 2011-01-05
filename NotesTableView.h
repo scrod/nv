@@ -63,7 +63,7 @@ typedef struct _ViewLocationContext {
 - (void)reloadDataIfNotEditing;
 
 - (void)restoreColumns;
-
+- (void)_configureAttributesForCurrentLayout;
 - (void)updateHeaderViewForColumns;
 - (void)editRowAtColumnWithIdentifier:(id)identifier;
 - (void)addPermanentTableColumn:(NSTableColumn*)column;

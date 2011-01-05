@@ -47,7 +47,6 @@
 	[headerView setFrame:[[self headerView] frame]];
 	cornerView = [[self cornerView] retain];
 	
-	NSFont *font = [NSFont systemFontOfSize:[globalPrefs tableFontSize]];
 	NSArray *columnsToDisplay = [globalPrefs visibleTableColumns];
 	allColumns = [[NSMutableArray alloc] init];
 		
@@ -66,7 +65,6 @@
 	    [column setEditable:(colMutators[i] != NULL)];
 		[column setHeaderCell:[[[NoteTableHeaderCell alloc] initTextCell:[[NSBundle mainBundle] localizedStringForKey:colStrings[i] value:@"" table:nil]] autorelease]];
 
-	    [[column dataCell] setFont:font];
 	    [column setMutatingSelector:colMutators[i]];
 	    [column setDereferencingFunction:colReferencors[i]];
 	    [column setSortingFunction:sortFunctions[i]];
@@ -77,16 +75,9 @@
 	    [column release];
 	}
 	
-	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
-	[self setRowHeight:[lm defaultLineHeightForFont:font] + 2.0f];
-	[lm release];
-	
-	//[self setAutosaveName:@"notesTable"];
-	//[self setAutosaveTableColumns:YES];
+	[self _configureAttributesForCurrentLayout];
 	[self setAllowsColumnSelection:NO];
 	//[self setVerticalMotionCanBeginDrag:NO];
-		
-	[self setIntercellSpacing:NSMakeSize(12, 2)];
 	
 	BOOL hideHeader = (([columnsToDisplay count] == 1 && [columnsToDisplay containsObject:NoteTitleColumnString]) || [globalPrefs horizontalLayout]);
 	if (hideHeader) {
@@ -238,19 +229,29 @@
 	}
 }
 
+- (void)_configureAttributesForCurrentLayout {
+	
+	NSFont *font = [NSFont systemFontOfSize:[globalPrefs tableFontSize]];
+	NSUInteger i;
+	for (i=0; i<[allColumns count]; i++)
+		[[[allColumns objectAtIndex:i] dataCell] setFont:font];
+	
+	
+	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
+	[self setRowHeight: [globalPrefs horizontalLayout] ? 40.0 : [lm defaultLineHeightForFont:font] + 2.0f];
+	[lm release];
+	
+	[self setIntercellSpacing:NSMakeSize(12, 2)];
+	
+	[self setGridStyleMask:[globalPrefs horizontalLayout] ? NSTableViewSolidHorizontalGridLineMask : NSTableViewGridNone];
+	[self setGridColor:[NSColor colorWithCalibratedWhite:0.92 alpha:1.0]];
+}
+
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
 
 	if ([selectorString isEqualToString:SEL_STR(setTableFontSize:sender:)]) {
 		
-		NSFont *font = [NSFont systemFontOfSize:[globalPrefs tableFontSize]];
-		
-		NSUInteger i;
-		for (i=0; i<[allColumns count]; i++)
-			[[[allColumns objectAtIndex:i] dataCell] setFont:font];
-		
-		NSLayoutManager *lm = [[NSLayoutManager alloc] init];
-		[self setRowHeight:[lm defaultLineHeightForFont:font] + 2.0f];
-		[lm release];
+		[self _configureAttributesForCurrentLayout];
 	} else if ([selectorString isEqualToString:SEL_STR(setHorizontalLayout:sender:)]) {
 		
 		[self abortEditing];
@@ -258,8 +259,9 @@
 		//restore columns according to the current preferences
 		
 		[self restoreColumns];
-		
 		[self updateHeaderViewForColumns];
+		
+		[self _configureAttributesForCurrentLayout];
 		
 		viewMenusValid = NO;
 	}
