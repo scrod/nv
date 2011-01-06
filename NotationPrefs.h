@@ -132,6 +132,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (BOOL)setExtension:(NSString*)newExtension atIndex:(unsigned int)oldIndex;
 - (BOOL)setType:(NSString*)newType atIndex:(unsigned int)oldIndex;
 
+- (BOOL)pathExtensionAllowed:(NSString*)anExtension forFormat:(int)formatID;
+
 //actually used while searching for files
 - (void)updateOSTypesArray;
 - (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry;

@@ -940,10 +940,19 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return YES;
 }
 
+- (BOOL)pathExtensionAllowed:(NSString*)anExtension forFormat:(int)formatID {
+	NSUInteger i;
+    for (i=0; i<[pathExtensions[formatID] count]; i++) {
+		if ([anExtension compare:[pathExtensions[formatID] objectAtIndex:i] 
+						 options:NSCaseInsensitiveSearch] == NSOrderedSame) {
+			return YES;
+		}
+    }
+	return NO;
+}
+
 - (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry {
-    unsigned int i;
-	
-	NSString *filename = (NSString*)catEntry->filename;
+    NSString *filename = (NSString*)catEntry->filename;
 	
 	if (![filename length])
 		return NO;
@@ -959,13 +968,10 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		return NO;
 	}
 	
-    for (i=0; i<[pathExtensions[notesStorageFormat] count]; i++) {
-		if ([[filename pathExtension] compare:[pathExtensions[notesStorageFormat] objectAtIndex:i] 
-									  options:NSCaseInsensitiveSearch] == NSOrderedSame) {
-			return YES;
-		}
-    }
+	if ([self pathExtensionAllowed:[filename pathExtension] forFormat:notesStorageFormat])
+		return YES;
     
+	NSUInteger i;
     for (i=0; i<[typeStrings[notesStorageFormat] count]; i++) {
 		if (catEntry->fileType == allowedTypes[i]) {
 			return YES;
