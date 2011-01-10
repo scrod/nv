@@ -10,9 +10,11 @@ This is the body of a note. Your notes can be as long or as short as you want, a
 \b embolden
 \b0 , 
 \i italicize
-\i0 , or \ul underline\ulnone  them. \
+\i0 , or \strike \strikec0 strike\strike0\striked0  them.\
 \
-You can create as many notes as you want--NV can hold thousands of them and works best when information is distributed.\
+Create links between notes: [[How does this thing work?]].\
+\
+You can create as many notes as you want--NV can hold thousands of them and works best when content is distributed.\
 \
 If you enable encryption (Preferences > Notes > Security) you can even store passwords and other sensitive information without giving a second thought to computer forensics laboratories.\
 \

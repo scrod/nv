@@ -2,10 +2,10 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="7.10">
 	<data>
 		<int key="IBDocument.SystemTarget">1040</int>
-		<string key="IBDocument.SystemVersion">10H574</string>
-		<string key="IBDocument.InterfaceBuilderVersion">804</string>
+		<string key="IBDocument.SystemVersion">10J567</string>
+		<string key="IBDocument.InterfaceBuilderVersion">823</string>
 		<string key="IBDocument.AppKitVersion">1038.35</string>
-		<string key="IBDocument.HIToolboxVersion">461.00</string>
+		<string key="IBDocument.HIToolboxVersion">462.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<object class="NSArray" key="dict.sortedKeys">
@@ -15,15 +15,15 @@
 			</object>
 			<object class="NSMutableArray" key="dict.values">
 				<bool key="EncodedWithXMLCoder">YES</bool>
-				<string>804</string>
+				<string>823</string>
 				<string>1.2</string>
 			</object>
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<integer value="21"/>
-			<integer value="1080"/>
 			<integer value="383"/>
+			<integer value="1080"/>
 			<integer value="1066"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
@@ -983,7 +983,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 								<bool key="EncodedWithXMLCoder">YES</bool>
 								<object class="NSMenuItem" id="191774858">
 									<reference key="NSMenu" ref="645308513"/>
-									<string key="NSTitle">Switch to Horizontal Layout</string>
+									<string key="NSTitle">Présentation horizontale</string>
 									<string key="NSKeyEquiv"/>
 									<int key="NSMnemonicLoc">2147483647</int>
 									<reference key="NSOnImage" ref="259802817"/>
@@ -3276,6 +3276,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<string>1011.ImportedFromIB2</string>
 					<string>1012.IBPluginDependency</string>
 					<string>1012.ImportedFromIB2</string>
+					<string>1013.CustomClassName</string>
 					<string>1013.IBPluginDependency</string>
 					<string>1013.ImportedFromIB2</string>
 					<string>1014.CustomClassName</string>
@@ -3565,6 +3566,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<boolean value="YES"/>
 					<string>net.brockerhoff.RBSplitView.IBPlugin</string>
 					<boolean value="YES"/>
+					<string>AugmentedScrollView</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>NotesTableView</string>
@@ -4122,6 +4124,14 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBUserSource</string>
 						<string key="minorKey"/>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">AugmentedScrollView</string>
+					<string key="superclassName">NSScrollView</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">AugmentedScrollView.h</string>
 					</object>
 				</object>
 				<object class="IBPartialClassDescription">

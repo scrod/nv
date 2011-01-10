@@ -612,3 +612,15 @@
 "How does this thing work?" = "Comment ça marche ?";
 
 "SiteURL" = "http://notational.net/fr/";
+
+/* title of alternate view layout menu item */
+"Switch to Vertical Layout" = "Présentation verticale";
+
+/* title of view layout menu item */
+"Switch to Horizontal Layout" = "Présentation horizontale";
+
+/* for warning about incompatibility with TextExpander, Typinator, etc. */
+"Secure Text Entry will prevent %@, which is currently installed on this computer, from working in Notational Velocity." = "Sécuriser les entrées empêchera %@, qui est actuellement installé sur cet ordinateur, de fonctionner dans Notational Velocity";
+
+/* Status message after downloading a URL */
+"Importing content..." = "Importation du contenu…";
