@@ -156,6 +156,8 @@
 		21F459AD0A92E01D00FB6FFE /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21F4599B0A92E01C00FB6FFE /* Carbon.framework */; };
 		21FF94F30B5AD22800DB6A2F /* ExporterManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */; };
 		21FF94F70B5AD23B00DB6A2F /* ExporterManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21FF94F50B5AD23B00DB6A2F /* ExporterManager.m */; };
+		3FB0FAEA12DC455B003DC14E /* BWToolkitFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3FB0FAE912DC455B003DC14E /* BWToolkitFramework.framework */; };
+		3FB0FB2312DC45CA003DC14E /* BWToolkitFramework.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 3FB0FAE912DC455B003DC14E /* BWToolkitFramework.framework */; };
 		57F27F7B11973A7F00C63ACF /* Notation.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 57F27F7A11973A7F00C63ACF /* Notation.sdef */; };
 		57F27FB91197407400C63ACF /* SearchCommand.m in Sources */ = {isa = PBXBuildFile; fileRef = 57F27FB81197407400C63ACF /* SearchCommand.m */; };
 		608A24D21268DB9F00EEF326 /* NSString_Textile.m in Sources */ = {isa = PBXBuildFile; fileRef = 608A24D11268DB9F00EEF326 /* NSString_Textile.m */; };
@@ -199,7 +201,6 @@
 		9397BBE012B05991004D25E9 /* BlueTransparentScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 9397BBDE12B05991004D25E9 /* BlueTransparentScroller.m */; };
 		9397BBE312B059AD004D25E9 /* WhiteTransparentScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 9397BBE212B059AD004D25E9 /* WhiteTransparentScroller.m */; };
 		93A081E112ACF30200DAB227 /* BWToolkitFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93A081E012ACF30200DAB227 /* BWToolkitFramework.framework */; };
-		93A081E412ACF30F00DAB227 /* BWToolkitFramework.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 93A081E012ACF30200DAB227 /* BWToolkitFramework.framework */; };
 		93CF647912B66B030088ADC4 /* BTTableHeaderCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 93CF647812B66B030088ADC4 /* BTTableHeaderCell.m */; };
 		93CF647F12B66F4A0088ADC4 /* tan_column_header.png in Resources */ = {isa = PBXBuildFile; fileRef = 93CF647E12B66F4A0088ADC4 /* tan_column_header.png */; };
 		93EE398612B1D803007E6B27 /* dsa_pub.pem in Resources */ = {isa = PBXBuildFile; fileRef = 93EE398512B1D803007E6B27 /* dsa_pub.pem */; };
@@ -223,7 +224,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				93A081E412ACF30F00DAB227 /* BWToolkitFramework.framework in CopyFiles */,
+				3FB0FB2312DC45CA003DC14E /* BWToolkitFramework.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -494,6 +495,7 @@
 		29B97324FDCFA39411CA2CEA /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
 		32CA4F630368D1EE00C91783 /* Notation_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Notation_Prefix.pch; sourceTree = "<group>"; };
+		3FB0FAE912DC455B003DC14E /* BWToolkitFramework.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = BWToolkitFramework.framework; path = "../Interface Builder Plug-Ins/BWToolkit/BWToolkitFramework.framework"; sourceTree = SOURCE_ROOT; };
 		57F27F7A11973A7F00C63ACF /* Notation.sdef */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.sdef; path = Notation.sdef; sourceTree = "<group>"; };
 		57F27FB71197407400C63ACF /* SearchCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SearchCommand.h; sourceTree = "<group>"; };
 		57F27FB81197407400C63ACF /* SearchCommand.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SearchCommand.m; sourceTree = "<group>"; };
@@ -575,6 +577,7 @@
 				219D254A1113FE34005E7DF5 /* SystemConfiguration.framework in Frameworks */,
 				21B54C021134F2E800E163A1 /* IOKit.framework in Frameworks */,
 				93A081E112ACF30200DAB227 /* BWToolkitFramework.framework in Frameworks */,
+				3FB0FAEA12DC455B003DC14E /* BWToolkitFramework.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -945,6 +948,7 @@
 		29B97314FDCFA39411CA2CEA /* Notation */ = {
 			isa = PBXGroup;
 			children = (
+				3FB0FAE912DC455B003DC14E /* BWToolkitFramework.framework */,
 				080E96DDFE201D6D7F000001 /* Classes */,
 				29B97315FDCFA39411CA2CEA /* Other Sources */,
 				29B97317FDCFA39411CA2CEA /* Resources */,
