@@ -9,6 +9,9 @@
 #import <Cocoa/Cocoa.h>
 
 
+extern NSString *ShouldHideSecureTextEntryWarningKey;
+extern const char * VerMarker;
+
 @interface SecureTextEntryManager : NSObject {
 
 	BOOL _calledSecureEventInput, secureTextEntry;
@@ -22,5 +25,8 @@
 
 - (void)_enableSecureEventInput;
 - (void)_disableSecureEventInput;
+
+- (NSSet*)_bundleIdentifiersOfIncompatibleApps;
+- (void)checkForIncompatibleApps;
 
 @end

@@ -161,6 +161,7 @@ void outletObjectAwoke(id sender) {
 	[textView setupFontMenu];
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(toggleNVActivation:)];
 	[notationController checkIfNotationIsTrashed];
+	[[SecureTextEntryManager sharedInstance] checkForIncompatibleApps];
 	
 	//connect sparkle programmatically to avoid loading its framework at nib awake;
 	

@@ -142,6 +142,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	 1: First NSArchiver (was unused--maps to 0)
 	 2: First NSKeyedArchiver
 	 3: First syncServicesMD and date created/modified syncing to files
+	 4: storage of font foreground colors in notes
 	 */
 	[coder encodeInt32:EPOC_ITERATION forKey:VAR_STR(epochIteration)];
 	
@@ -640,10 +641,15 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	
 	preferencesChanged = YES;
 	
+	SecureTextEntryManager *tem = [SecureTextEntryManager sharedInstance];
+	
 	if (secureTextEntry) {
-		[[SecureTextEntryManager sharedInstance] enableSecureTextEntry];
+		[tem enableSecureTextEntry];
+		[tem checkForIncompatibleApps];
 	} else {
-		[[SecureTextEntryManager sharedInstance] disableSecureTextEntry];
+		//"forget" that the user had disabled the warning dialog when disabling this feature permanently
+		[[NSUserDefaults standardUserDefaults] removeObjectForKey:ShouldHideSecureTextEntryWarningKey];
+		[tem disableSecureTextEntry];
 	}
 }
 

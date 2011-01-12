@@ -116,6 +116,9 @@
 /* No comment provided by engineer. */
 "Please try again." = "Essayez à nouveau.";
 
+/* prompt for choosing an incompatible text encoding */
+"Please try another encoding." = "Please try another encoding.";
+
 /* alert title when converting from unicode */
 "quotemark%@quotemark is a Unicode file and not directly interpretable using plain text encodings." = "“%@” est un fichier Unicode qui n'est pas unterprétable tel quel dans un encodage texte simple.";
 
@@ -624,3 +627,6 @@
 
 /* Status message after downloading a URL */
 "Importing content..." = "Importation du contenu…";
+
+/* prefix for source-URLs inserted into imported notes; e.g., "From <http://www.apple.com>: ..." */
+"From" = "From";

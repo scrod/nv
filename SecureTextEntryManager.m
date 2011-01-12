@@ -9,7 +9,11 @@
 #import "SecureTextEntryManager.h"
 #include <Carbon/Carbon.h>
 
+NSString *ShouldHideSecureTextEntryWarningKey = @"ShouldHideSecureTextEntryWarning";
+
 static SecureTextEntryManager *sharedInstance = nil;
+
+const char * VerMarker __attribute__ ((used)) = __DATE__;
 
 @implementation SecureTextEntryManager
 
@@ -96,6 +100,7 @@ static SecureTextEntryManager *sharedInstance = nil;
 - (void)enableSecureTextEntry {
 	
 	if (!secureTextEntry) {
+		//should do -[checkForIncompatibleApps] here, but that would add about 0.056 seconds of latency to launch time
 		if ([NSApp isActive]) {
 			[self _enableSecureEventInput];
 		}
@@ -104,6 +109,46 @@ static SecureTextEntryManager *sharedInstance = nil;
 	}
 }
 
+- (NSSet*)_bundleIdentifiersOfIncompatibleApps {
+	return [NSSet setWithObjects:@"com.smileonmymac.textexpander", @"com.macility.typinator2", @"com.typeit4me.TypeIt4MeMenu", @"uk.co.activata.Autopilot2", @"au.com.tech.AutoTyper", nil];
+}
+
+- (void)checkForIncompatibleApps {
+	
+	if (!secureTextEntry || [[NSUserDefaults standardUserDefaults] boolForKey:ShouldHideSecureTextEntryWarningKey])
+		return;
+	
+	NSSet *identifiers = [self _bundleIdentifiersOfIncompatibleApps];
+
+	ProcessSerialNumber PSN = { 0, kNoProcess };
+	
+	//walk through processes using the carbon process manager, because this is what NSWorkspace's launchedApplications method does, anyway, and we get hidden processes as well
+	while (GetNextProcess(&PSN) == noErr) {
+		CFDictionaryRef infoDict = ProcessInformationCopyDictionary(&PSN, kProcessDictionaryIncludeAllInformationMask);
+		if (infoDict != NULL) {
+			
+			CFTypeRef identifier = CFDictionaryGetValue(infoDict, kCFBundleIdentifierKey);
+			if ((identifier != NULL) && [identifiers containsObject:(id)identifier]) {
+				
+				CFStringRef offendingAppName = CFDictionaryGetValue(infoDict, kCFBundleNameKey);
+				NSAlert *alert = [NSAlert alertWithMessageText:
+								  [NSString stringWithFormat:NSLocalizedString(@"Secure Text Entry will prevent %@, which is currently installed on this computer, from working in Notational Velocity.", 
+																			   @"for warning about incompatibility with TextExpander, Typinator, etc."), offendingAppName] 
+												 defaultButton:NSLocalizedString(@"OK", nil) alternateButton:nil otherButton:nil informativeTextWithFormat:@""];
+				if (IsLeopardOrLater) {
+					[alert setShowsSuppressionButton:YES];
+				}
+				[alert runModal];
+				if ([[alert suppressionButton] state] == NSOnState) {
+					[[NSUserDefaults standardUserDefaults] setBool:YES forKey:ShouldHideSecureTextEntryWarningKey];
+				}
+				CFRelease(infoDict);
+				break;
+			}
+			CFRelease(infoDict);
+		}
+	}
+}
 
 - (id)copyWithZone:(NSZone *)zone {
     return self;
