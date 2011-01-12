@@ -16,6 +16,7 @@
      or promote products derived from this software without specific prior written permission. */
 
 #import "NotationDirectoryManager.h"
+#import "NSFileManager_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
 #import "NotationSyncServiceManager.h"
@@ -80,7 +81,94 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 }
 
 
+void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_events, void* event_paths, 
+					  const FSEventStreamEventFlags flags[],
+                      const FSEventStreamEventId event_ids[]) {
+	NotationController* self = (NotationController*)info;
+	
+	BOOL rootChanged = NO;
+	size_t i = 0;
+	for (i = 0; i < num_events; i++) {
+		//on 10.5, could also check whether all the events are bookended by eventIDs that were contemporaneous with a change by NotationFileManager
+		//as it lacks kFSEventStreamCreateFlagIgnoreSelf
+		if ((flags[i] & kFSEventStreamEventFlagRootChanged) && !event_ids[i]) {
+			rootChanged = YES;
+			break;
+		}
+	}
+	
+	//the directory was moved; re-initialize the event stream for the new path
+	//but do so after this callback ends to avoid confusing FSEvents
+	if (rootChanged) {
+		NSLog(@"FSEventsCallback detected directory dislocation; reconfiguring stream");
+		[self performSelector:@selector(_configureDirEventStream) withObject:nil afterDelay:0];
+	}
+	
+	//NSLog(@"FSEventsCallback got a path change");
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNotesFromDirectory) object:nil];
+	[self performSelector:@selector(synchronizeNotesFromDirectory) withObject:nil afterDelay:0.0];
+}
+
+
+- (void)_configureDirEventStream {
+	//"updates" the event stream to point to the current notation directory path
+	//or if the stream doesn't exist, creates it
+	
+	if (!eventStreamStarted) return;
+	
+	if (noteDirEventStreamRef) {
+		//remove the event stream if it already exists, so that a new one can be created
+		[self _destroyDirEventStream];
+	}
+	
+	NSString *path = [[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef];
+	
+	FSEventStreamContext context = { 0, self, CFRetain, CFRelease, CFCopyDescription };
+	
+	noteDirEventStreamRef = FSEventStreamCreate(NULL, &FSEventsCallback, &context, (CFArrayRef)[NSArray arrayWithObject:path], kFSEventStreamEventIdSinceNow, 
+												1.0, kFSEventStreamCreateFlagWatchRoot | 0x00000008 /*kFSEventStreamCreateFlagIgnoreSelf*/);
+	
+	FSEventStreamScheduleWithRunLoop(noteDirEventStreamRef, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+	if (!FSEventStreamStart(noteDirEventStreamRef)) {
+		NSLog(@"could not start the FSEvents stream!");
+	}
+	
+}
+
+- (void)_destroyDirEventStream {
+	if (eventStreamStarted) {
+		NSAssert(noteDirEventStreamRef != NULL, @"can't destroy a NULL event stream");
+		
+		FSEventStreamStop(noteDirEventStreamRef);
+		FSEventStreamInvalidate(noteDirEventStreamRef);
+		FSEventStreamRelease(noteDirEventStreamRef);
+		noteDirEventStreamRef = NULL;
+	}
+}
+
+- (void)startFileNotifications {
+	eventStreamStarted = YES;
+	
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5				
+	if (IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
+		
+		OSStatus err = FNSubscribe(&noteDirectoryRef, subscriptionCallback, self, kFNNoImplicitAllSubscription | kFNNotifyInBackground, &noteDirSubscription);
+		if (err != noErr) {
+			NSLog(@"Could not subscribe to changes in notes directory!");
+			//just check modification time of directory?
+		}
+	}
+#endif
+	if (IsLeopardOrLater) {
+		[self _configureDirEventStream];
+	}
+}
+
 - (void)stopFileNotifications {
+	
+	if (!eventStreamStarted) return;
+	
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 	OSStatus err = noErr;
     if (!IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
 		
@@ -92,12 +180,19 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		
 		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNotesFromDirectory) object:nil];
     }
+#endif
     
+	if (IsLeopardOrLater) {
+		[self _destroyDirEventStream];
+	}
+	
+	eventStreamStarted = NO;
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription) {
     //this only works for the Finder and perhaps the navigation manager right now
-    if (kFNDirectoryModifiedMessage == message) {
+	if (kFNDirectoryModifiedMessage == message) {
 		//NSLog(@"note directory changed");
 		if (refcon) {
 			[NSObject cancelPreviousPerformRequestsWithTarget:(id)refcon selector:@selector(synchronizeNotesFromDirectory) object:nil];
@@ -108,7 +203,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		NSLog(@"we received an FNSubscr. callback and the directory didn't actually change?");
     }
 }
-
+#endif
 
 - (BOOL)synchronizeNotesFromDirectory {
     if ([self currentNoteStorageFormat] == SingleDatabaseFormat) {
@@ -528,7 +623,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			NSValue *val = [sameSizeObj isKindOfClass:[NSArray class]] ? [sameSizeObj objectAtIndex:addedObjCount] : sameSizeObj;
 			NoteObject *addedObjToCompare = [[NoteObject alloc] initWithCatalogEntry:[val pointerValue] delegate:self];
 			
-			if ([[addedObjToCompare contentString] isEqual:[removedObj contentString]]) {
+			if ([[[addedObjToCompare contentString] string] isEqualToString:[[removedObj contentString] string]]) {
 				//process this pair as a modification
 				
 				NSLog(@"File %@ renamed as per content to %@", filenameOfNote(removedObj), filenameOfNote(addedObjToCompare));
@@ -552,7 +647,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		}
 		
 		if (!foundMatchingContent) {
-			NSLog(@"File %@ _actually_ removed", filenameOfNote(removedObj));
+			NSLog(@"File %@ _actually_ removed (size: %u)", filenameOfNote(removedObj), fileSizeOfNote(removedObj));
 			[deletionManager addDeletedNote:removedObj];
 		}
 	}
