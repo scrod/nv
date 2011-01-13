@@ -26,20 +26,23 @@
 	
     NSInteger (*sortFunction) (id*, id*);
     NSInteger (*reverseSortFunction) (id*, id*);
-    id (*objectAttribute) (id, id);
+    id (*objectAttribute) (id, id, NSInteger);
     SEL mutateObjectSelector;
-	
+	BOOL isActiveStyle;
 	float absoluteMinimumWidth;
 }
 
 + (NSDictionary*)standardDictionary;
 SEL columnAttributeMutator(NoteAttributeColumn *col);
 - (void)setMutatingSelector:(SEL)selector;
-id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object);
+id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object, NSInteger row);
 - (void)updateWidthForHighlight;
 
-id (*dereferencingFunction(NoteAttributeColumn *col))(id, id);
-- (void)setDereferencingFunction:(id (*)(id, id))attributeFunction;
+- (BOOL)isActiveStyle;
+- (void)setIsActiveStyle:(BOOL)value;
+
+id (*dereferencingFunction(NoteAttributeColumn *col))(id, id, NSInteger);
+- (void)setDereferencingFunction:(id (*)(id, id, NSInteger))attributeFunction;
 
 - (void)setSortingFunction:(NSInteger (*)(id*, id*))sortFunction;
 - (NSInteger (*)(id*, id*))sortFunction;

@@ -48,6 +48,13 @@
 	[self setMinWidth:absoluteMinimumWidth + ([[self tableView] highlightedTableColumn] == self ? 10 : 0)];
 }
 
+- (BOOL)isActiveStyle {
+	return isActiveStyle;
+}
+- (void)setIsActiveStyle:(BOOL)value {
+	isActiveStyle = value;
+}
+
 SEL columnAttributeMutator(NoteAttributeColumn *col) {
 	return col->mutateObjectSelector;
 }
@@ -56,11 +63,11 @@ SEL columnAttributeMutator(NoteAttributeColumn *col) {
 	mutateObjectSelector = selector;
 }
 
-id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object) {
-	return col->objectAttribute(tv, object);
+id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object, NSInteger row) {
+	return col->objectAttribute(tv, object, row);
 }
 
-- (void)setDereferencingFunction:(id (*)(id, id))attributeFunction {
+- (void)setDereferencingFunction:(id (*)(id, id, NSInteger))attributeFunction {
     objectAttribute = attributeFunction;
 }
 
@@ -79,7 +86,7 @@ id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id obj
 - (NSInteger (*)(id*, id*))reverseSortFunction {
     return reverseSortFunction;
 }
-id (*dereferencingFunction(NoteAttributeColumn *col))(id, id) {
+id (*dereferencingFunction(NoteAttributeColumn *col))(id, id, NSInteger) {
 	return col->objectAttribute;
 }
 

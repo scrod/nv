@@ -458,6 +458,7 @@ terminateApp:
 	[self _expandToolbar];
 	
 	[prefsController setHorizontalLayout:![prefsController horizontalLayout] sender:self];
+	[notationController regenerateAllPreviews];
 	[self _configureDividerForCurrentLayout];
 	[splitView adjustSubviews];
 	
@@ -1583,7 +1584,7 @@ terminateApp:
 
 - (void)tableViewColumnDidResize:(NSNotification *)aNotification {
 	NoteAttributeColumn *col = [[aNotification userInfo] objectForKey:@"NSTableColumn"];
-	if (dereferencingFunction(col) == tableTitleOfNote || dereferencingFunction(col) == properlyHighlightingTableTitleOfNote) {
+	if ([[col identifier] isEqualToString:NoteTitleColumnString]) {
 		[notationController regeneratePreviewsForColumn:col visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:NO];
 		
 	 	[NSObject cancelPreviousPerformRequestsWithTarget:notesTableView selector:@selector(reloadDataIfNotEditing) object:nil];

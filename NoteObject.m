@@ -23,7 +23,7 @@
 #import "NotationController.h"
 #import "NotationPrefs.h"
 #import "AttributedPlainText.h"
-#import "NSString_NV.h"
+#import "NSString_CustomTruncation.h"
 #import "NSFileManager_NV.h"
 #include "BufferUtils.h"
 #import "NotationFileManager.h"
@@ -33,6 +33,7 @@
 #import "NSData_transformations.h"
 #import "NSCollection_utils.h"
 #import "NotesTableView.h"
+#import "UnifiedCell.h"
 
 #if __LP64__
 // Needed for compatability with data created by 32bit app
@@ -211,18 +212,39 @@ DefColAttrAccessor(labelsOfNote2, labelString)
 DefColAttrAccessor(dateCreatedStringOfNote, dateCreatedString)
 DefColAttrAccessor(dateModifiedStringOfNote, dateModifiedString)
 
-force_inline id tableTitleOfNote(NotesTableView *tv, NoteObject *note) {
+force_inline id tableTitleOfNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
 	if (note->tableTitleString) return note->tableTitleString;
 	return titleOfNote(note);
 }
-force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObject *note) {
+force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
 	if (note->tableTitleString) {
-		if ([tv objectIsSelected:note]) {
+		if ([tv isRowSelected:row]) {
 			return [note->tableTitleString string];
 		}
 		return note->tableTitleString;
 	}	
 	return titleOfNote(note);
+}
+
+NSMutableAttributedString *_attributedStringWithoutColor(NSAttributedString *str) {
+	NSMutableAttributedString *colorFreeStr = [str mutableCopy];
+	[colorFreeStr removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [str length])];
+	return [colorFreeStr autorelease];
+}
+
+force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
+	
+	BOOL isSelected = [tv isRowSelected:row];
+	id obj = note->tableTitleString ? (isSelected ? (id)_attributedStringWithoutColor(note->tableTitleString) : 
+									   (id)note->tableTitleString) : (id)titleOfNote(note);
+	
+	NoteAttributeColumn *col = [[tv tableColumns] objectAtIndex:0];
+	UnifiedCell *cell = [col dataCellForRow:row];
+	[cell setObjectValue:obj];
+	[cell setNoteObject:note];
+	[cell setIsActiveStyle:[col isActiveStyle]];
+	
+	return cell;
 }
 
 //make notationcontroller should send setDelegate: and setLabelString: (if necessary) to each note when unarchiving this way
@@ -599,9 +621,14 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 
 - (void)updateTablePreviewString {
 	[tableTitleString release];
+	GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
 	
-	if ([[GlobalPrefs defaultPrefs] tableColumnsShowPreview]) {
-		tableTitleString = [[titleString attributedPreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
+	if ([prefs tableColumnsShowPreview]) {
+		if ([prefs horizontalLayout]) {
+			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] intrusionWidth:0.0] retain];
+		} else {
+			tableTitleString = [[titleString attributedSingleLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
+		}
 	} else {
 		tableTitleString = nil;
 	}

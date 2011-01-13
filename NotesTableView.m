@@ -18,6 +18,7 @@
 #import "NotationPrefs.h"
 #import "NoteObject.h"
 #import "NSCollection_utils.h"
+#import "UnifiedCell.h"
 #import "HeaderViewWithMenu.h"
 #import "NSString_NV.h"
 
@@ -50,11 +51,11 @@
 	NSArray *columnsToDisplay = [globalPrefs visibleTableColumns];
 	allColumns = [[NSMutableArray alloc] init];
 		
-	id (*titleReferencor)(id, id) = [globalPrefs tableColumnsShowPreview] ? tableTitleOfNote : titleOfNote2;
+	id (*titleReferencor)(id, id, NSInteger) = [globalPrefs horizontalLayout] ? unifiedCellForNote : ([globalPrefs tableColumnsShowPreview] ? tableTitleOfNote : titleOfNote2);
 	
 	NSString *colStrings[] = { NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, NoteDateCreatedColumnString };
 	SEL colMutators[] = { @selector(setTitleString:), @selector(setLabelString:), NULL, NULL };
-	id (*colReferencors[])(id, id) = {titleReferencor, labelsOfNote2, dateModifiedStringOfNote, dateCreatedStringOfNote };
+	id (*colReferencors[])(id, id, NSInteger) = {titleReferencor, labelsOfNote2, dateModifiedStringOfNote, dateCreatedStringOfNote };
 	NSInteger (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
 	NSInteger (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
 	    compareDateCreatedReverse };
@@ -181,18 +182,19 @@
 	[[NSApp delegate] addNotesFromPasteboard:[NSPasteboard generalPasteboard]];
 }
 
-- (void)_setTitleDereferencorState:(BOOL)activeStyle {
+- (void)_setActiveStyleState:(BOOL)activeStyle {
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
 #if SET_DUAL_HIGHLIGHTS
 	activeStyle = YES;
 #endif
-	[col setDereferencingFunction: [globalPrefs tableColumnsShowPreview] ? 
-	 (activeStyle ? properlyHighlightingTableTitleOfNote : tableTitleOfNote) : titleOfNote2];
+	[col setIsActiveStyle:activeStyle];
+	[col setDereferencingFunction: [globalPrefs horizontalLayout] ? unifiedCellForNote : 
+	 ([globalPrefs tableColumnsShowPreview] ? (activeStyle ? properlyHighlightingTableTitleOfNote : tableTitleOfNote) : titleOfNote2)];
 }
 
 - (void)updateTitleDereferencorState {
 	NSWindow *win = [self window];
-	[self _setTitleDereferencorState: [win isMainWindow] && ([win firstResponder] == self || [self currentEditor]) ];
+	[self _setActiveStyleState: [win isMainWindow] && ([win firstResponder] == self || [self currentEditor]) ];
 }
 
 - (BOOL)becomeFirstResponder {
@@ -202,7 +204,7 @@
 }
 
 - (BOOL)resignFirstResponder {	
-	[self _setTitleDereferencorState:NO];
+	[self _setActiveStyleState:NO];
 	return [super resignFirstResponder];
 }
 
@@ -231,14 +233,21 @@
 
 - (void)_configureAttributesForCurrentLayout {
 	
+	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
+	if (!cachedCell) cachedCell = [[col dataCell] retain];
+	[col setDataCell: [globalPrefs horizontalLayout] ? [[[UnifiedCell alloc] init] autorelease] : cachedCell];
+	if ([globalPrefs horizontalLayout]) [[col dataCell] setTruncatesLastVisibleLine:YES];
+	
 	NSFont *font = [NSFont systemFontOfSize:[globalPrefs tableFontSize]];
 	NSUInteger i;
-	for (i=0; i<[allColumns count]; i++)
+	for (i=0; i<[allColumns count]; i++) {
 		[[[allColumns objectAtIndex:i] dataCell] setFont:font];
+	}	
 	
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
-	[self setRowHeight: [globalPrefs horizontalLayout] ? 40.0 : [lm defaultLineHeightForFont:font] + 2.0f];
+	CGFloat lineHeight = [lm defaultLineHeightForFont:font];
+	[self setRowHeight: [globalPrefs horizontalLayout] ? (lineHeight * 3.0 + 5.0f) : lineHeight + 2.0f];
 	[lm release];
 	
 	[self setIntercellSpacing:NSMakeSize(12, 2)];
@@ -262,6 +271,8 @@
 		[self updateHeaderViewForColumns];
 		
 		[self _configureAttributesForCurrentLayout];
+		
+		[self updateTitleDereferencorState];
 		
 		viewMenusValid = NO;
 	}

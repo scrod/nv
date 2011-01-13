@@ -38,6 +38,7 @@ typedef struct _ViewLocationContext {
 	NSMenuItem *dummyItem;
 	HeaderViewWithMenu *headerView;
 	NSView *cornerView;
+	NSTextFieldCell *cachedCell;
 	
 	NSDictionary *loadStatusAttributes;
 	float loadStatusStringWidth;
@@ -57,7 +58,7 @@ typedef struct _ViewLocationContext {
 - (BOOL)objectIsSelected:(id)obj;
 
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;
-- (void)_setTitleDereferencorState:(BOOL)activeStyle;
+- (void)_setActiveStyleState:(BOOL)activeStyle;
 - (void)updateTitleDereferencorState;
 
 - (void)reloadDataIfNotEditing;

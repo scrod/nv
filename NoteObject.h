@@ -109,21 +109,24 @@ NSInteger compareFileSize(id *a, id *b);
 	CFAbsoluteTime createdDateOfNote(NoteObject *note);
 
 	NSStringEncoding fileEncodingOfNote(NoteObject *note);
-
+	
 	NSString* titleOfNote(NoteObject *note);
 	NSString* labelsOfNote(NoteObject *note);
 
-#define DefColAttrAccessor(__FName, __IVar) force_inline id __FName(NotesTableView *tv, NoteObject *note) { return note->__IVar; }
+	NSMutableArray* prefixParentsOfNote(NoteObject *note);
+
+#define DefColAttrAccessor(__FName, __IVar) force_inline id __FName(NotesTableView *tv, NoteObject *note, NSInteger row) { return note->__IVar; }
 #define DefModelAttrAccessor(__FName, __IVar) force_inline typeof (((NoteObject *)0)->__IVar) __FName(NoteObject *note) { return note->__IVar; }
 
 	//return types are NSString or NSAttributedString, satisifying NSTableDataSource protocol otherwise
-	id titleOfNote2(NotesTableView *tv, NoteObject *note);
-	id tableTitleOfNote(NotesTableView *tv, NoteObject *note);
-	id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObject *note);
-	id labelsOfNote2(NotesTableView *tv, NoteObject *note);
-	id dateCreatedStringOfNote(NotesTableView *tv, NoteObject *note);
-	id dateModifiedStringOfNote(NotesTableView *tv, NoteObject *note);
-	id wordCountOfNote(NotesTableView *tv, NoteObject *note);
+	id titleOfNote2(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id tableTitleOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id labelsOfNote2(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id dateCreatedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id dateModifiedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id wordCountOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 
 	void resetFoundPtrsForNote(NoteObject *note);
 	BOOL noteContainsUTF8String(NoteObject *note, NoteFilterContext *context);
@@ -197,7 +200,6 @@ NSInteger compareFileSize(id *a, id *b);
 - (BOOL)contentsWere7Bit;
 - (void)addPrefixParentNote:(NoteObject*)aNote;
 - (void)removeAllPrefixParentNotes;
-- (NSArray*)prefixParentNotes;	
 
 - (NSUndoManager*)undoManager;
 - (void)_undoManagerDidChange:(NSNotification *)notification;
