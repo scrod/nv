@@ -1277,7 +1277,7 @@ bail:
 				//this note matches, but what if there are other note-titles that are prefixes of both this one and the search string?
 				//find the first prefix-parent of which searchString is also a prefix
 				NSUInteger j = 0, prefixParentIndex = NSNotFound;
-				NSArray *prefixParents = [notesBuffer[i] prefixParentNotes];
+				NSArray *prefixParents = prefixParentsOfNote(notesBuffer[i]);
 				
 				for (j=0; j<[prefixParents count]; j++) {
 					NoteObject *obj = [prefixParents objectAtIndex:j];

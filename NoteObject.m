@@ -48,7 +48,6 @@ typedef NSRange NSRange32;
 @implementation NoteObject
 
 static FSRef *noteFileRefInit(NoteObject* obj);
-static NSMutableArray *PrefixParentNotes(NoteObject* obj);
 
 - (id)init {
     if ([super init]) {
@@ -205,6 +204,7 @@ DefModelAttrAccessor(modifiedDateOfNote, modifiedDate)
 DefModelAttrAccessor(createdDateOfNote, createdDate)
 DefModelAttrAccessor(storageFormatOfNote, currentFormatID)
 DefModelAttrAccessor(fileEncodingOfNote, fileEncoding)
+DefModelAttrAccessor(prefixParentsOfNote, prefixParentNotes)
 
 DefColAttrAccessor(wordCountOfNote, wordCountString)
 DefColAttrAccessor(titleOfNote2, titleString)
@@ -1478,20 +1478,14 @@ BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shor
 	return !strncmp(longerNote->cTitle, shorterNote->cTitle, strlen(shorterNote->cTitle));
 }
 
-static NSMutableArray *PrefixParentNotes(NoteObject* obj) {
-	if (!obj->prefixParentNotes) {
-		obj->prefixParentNotes = [[NSMutableArray alloc] init];
-	}
-	return obj->prefixParentNotes;
-}
 - (void)addPrefixParentNote:(NoteObject*)aNote {
-	[PrefixParentNotes(self) addObject:aNote];
+	if (!prefixParentNotes) {
+		prefixParentNotes = [[NSMutableArray alloc] init];
+	}
+	[prefixParentNotes addObject:aNote];
 }
 - (void)removeAllPrefixParentNotes {
-	[PrefixParentNotes(self) removeAllObjects];
-}
-- (NSArray*)prefixParentNotes {
-	return prefixParentNotes;
+	[prefixParentNotes removeAllObjects];
 }
 
 - (NSSet*)labelSet {
