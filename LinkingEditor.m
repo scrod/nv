@@ -34,6 +34,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 
 @implementation LinkingEditor
 
+CGFloat _perceptualBrightness(NSColor*a);
+NSCursor *InvertedIBeamCursor(LinkingEditor*self);
+
 - (void)awakeFromNib {
 	
     prefsController = [GlobalPrefs defaultPrefs];
@@ -59,13 +62,17 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:YES];
 	[self setBackgroundColor:[prefsController backgroundTextColor]];
-	[self setInsertionPointColor:[prefsController foregroundTextColor]];
+	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:
+								  [prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]]];
+	[[self window] setAcceptsMouseMovedEvents:YES];
 
 	didRenderFully = NO;
 	[[self layoutManager] setDelegate:self];
 	
 	[self setLinkTextAttributes:[self preferredLinkAttributes]];
-		
+	
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowDidBecomeMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
+	
 	
 	outletObjectAwoke(self);
 }
@@ -97,7 +104,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
 		
-		[self setInsertionPointColor:[prefsController foregroundTextColor]];
+//		[self setInsertionPointColor:[prefsController foregroundTextColor]];
+		[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:
+									  [prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]]];
 		[self setLinkTextAttributes:[self preferredLinkAttributes]];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)] || 
@@ -147,20 +156,35 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	return;
 }
 
-#define CSCALE(__color, __compName) ([__color __compName##Component] * 255.0)
+- (void)setBackgroundColor:(NSColor*)aColor {
+	backgroundIsDark = (_perceptualBrightness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
+	[super setBackgroundColor:aColor];
+}
+
+#define _CM(__ch) ((__ch) * 255.0)
 CGFloat _perceptualBrightness(NSColor*a) {
 	//0 to 1; the higher the darker
-	return 1 - ( 0.299 * CSCALE(a, red) + 0.587 * CSCALE(a, green) + 0.114 * CSCALE(a, blue))/255;
+	
+	CGFloat aRed, aGreen, aBlue;
+	[a getRed:&aRed green:&aGreen blue:&aBlue alpha:NULL];
+
+	return 1 - (0.299 * _CM(aRed) + 0.587 * _CM(aGreen) + 0.114 * _CM(aBlue))/255;
 }
 CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	//acceptable: 500
-	return (MAX(CSCALE(a, red), CSCALE(b, red)) - MIN(CSCALE(a, red), CSCALE(b, red))) + 
-	(MAX(CSCALE(a, green), CSCALE(b, green)) - MIN(CSCALE(a, green), CSCALE(b, green))) + 
-	(MAX(CSCALE(a, blue), CSCALE(b, blue)) - MIN(CSCALE(a, blue), CSCALE(b, blue)));
+	CGFloat aRed, aGreen, aBlue, bRed, bGreen, bBlue;
+	[a getRed:&aRed green:&aGreen blue:&aBlue alpha:NULL];
+	[b getRed:&bRed green:&bGreen blue:&bBlue alpha:NULL];
+
+	return (MAX(_CM(aRed), _CM(bRed)) - MIN(_CM(aRed), _CM(bRed))) + (MAX(_CM(aGreen), _CM(bGreen)) - MIN(_CM(aGreen), _CM(bGreen))) + 
+	(MAX(_CM(aBlue), _CM(bBlue)) - MIN(_CM(aBlue), _CM(bBlue)));
 }
 
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
 	//if fgColor is black, choose blue; otherwise, rotate hue (keeping the same sat.) until color is different enough
+	
+	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
 	
 	CGFloat hue, brightness, saturation, alpha, diffInc = 0.5;
 	NSUInteger rotationsLeft = 25;
@@ -170,13 +194,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	if (brightness <= 0.24)
 		return [NSColor blueColor];
 	
-	if (_perceptualBrightness(bgColor) > 0.5) {
-		//background is too dark; want a brighter color
-		brightness = MAX(0.70, brightness);
-	} else {
-		//background is too light; want a darker color
-		brightness = MIN(0.35, brightness);
-	}
+	brightness = _perceptualBrightness(bgColor) > 0.5 ? MAX(0.75, brightness) : MIN(0.35, brightness);
 	
 	saturation = MAX(0.5, saturation);
 	
@@ -195,6 +213,17 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	} while ((_perceptualColorDifference(proposedLinkColor, bgColor) < 360.0 || 
 			  _perceptualColorDifference(proposedLinkColor, fgColor) < 170.0) && --rotationsLeft > 0);
 	return proposedLinkColor;
+}
+
+- (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
+	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+	CGFloat hue, brightness, saturation;
+	[fgColor getHue:&hue saturation:&saturation brightness:&brightness alpha:NULL];
+	
+	//make the insertion point lighter than the foreground color if the background is dark and vise versa
+	return [fgColor blendedColorWithFraction:0.4 ofColor:_perceptualBrightness(bgColor) > 0.5 ? [NSColor whiteColor] : [NSColor blackColor]];
 }
 
 - (NSDictionary*)preferredLinkAttributes {
@@ -885,6 +914,55 @@ copyRTFType:
 	}	
 }*/
 
+- (void)mouseEntered:(NSEvent*)anEvent {
+	[super mouseEntered:anEvent];
+	mouseInside = YES;
+	[self fixMouseCursorForBackground];
+}
+- (void)mouseExited:(NSEvent*)anEvent {
+	[super mouseEntered:anEvent];
+	mouseInside = NO;
+	[self fixMouseCursorForBackground];
+}
+- (void)mouseMoved:(NSEvent*)anEvent {
+	//NSTextView actually sets the cursor every time it moves -- is that really necessary, guys?
+	[super mouseMoved:anEvent];
+	[self fixMouseCursorForBackground];
+}
+- (void)cursorUpdate:(NSEvent*)anEvent {
+	[super cursorUpdate:anEvent];
+	[self fixMouseCursorForBackground];
+}
+
+- (void)resetCursorRects {
+	if ([self isHiddenOrHasHiddenAncestor]) //<-- does not work
+		[self addCursorRect:[self bounds] cursor:[NSCursor arrowCursor]];
+	
+	if (backgroundIsDark)
+		[self addCursorRect:[self bounds] cursor:InvertedIBeamCursor(self)];
+}
+
+NSCursor *InvertedIBeamCursor(LinkingEditor*self) {
+	if (!self->invertedIBeamCursor) {
+		self->invertedIBeamCursor = [[NSCursor alloc] initWithImage:[NSImage imageNamed:@"IBeamInverted"] hotSpot:[[NSCursor IBeamCursor] hotSpot]];
+		[self->invertedIBeamCursor setOnMouseEntered:YES];
+	}
+	return self->invertedIBeamCursor;
+}
+
+- (void)fixMouseCursorForBackground {
+	
+	if (mouseInside && backgroundIsDark && backgroundIsDark == [[NSCursor currentCursor] isEqual:[NSCursor IBeamCursor]]) {
+		[InvertedIBeamCursor(self) set];
+	}
+}
+
+- (void)windowDidBecomeMain:(NSNotification *)aNotification  {
+	//on snow leoaprd, changing the window ordering seems to occasionally trigger mouseExited events w/o a corresponding mouseEntered
+	mouseInside = [self mouse:[self convertPoint:[[[self window] currentEvent] locationInWindow] fromView:nil] inRect:[self bounds]];
+	[self fixMouseCursorForBackground];
+}
+
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	//need to fix this for better style detection
 	
@@ -1283,6 +1361,11 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     #lse
     [self insertGeneratedPassword:nil];
     #endif
+}
+
+- (void)dealloc {
+	[invertedIBeamCursor release];
+	[super dealloc];
 }
 
 @end

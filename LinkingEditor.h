@@ -31,6 +31,9 @@
 	NSRange changedRange;
 	BOOL isAutocompleting, wasDeleting;
 	
+	NSCursor *invertedIBeamCursor;
+	BOOL backgroundIsDark, mouseInside;
+	
 	//ludicrous ivars used to hack NSTextFinder. just write your own, damnit!
 	NSRange selectedRangeDuringFind;
 	NSString *lastImportedFindString;
@@ -38,8 +41,7 @@
 	NoteObject *noteDuringFind;
 }
 
-CGFloat _perceptualColorDifference(NSColor*a, NSColor*b);
-
+- (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSDictionary*)preferredLinkAttributes;
 - (NSRange)selectedRangeWasAutomatic:(BOOL*)automatic;
@@ -52,13 +54,13 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b);
 - (void)bold:(id)sender;
 - (void)italic:(id)sender;
 - (void)applyStyleOfTrait:(NSFontTraitMask)trait alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value;
-//- (void)suggestComplete:(id)sender;
 - (id)highlightLinkAtIndex:(unsigned)givenIndex;
 
 - (BOOL)jumpToRenaming;
 - (void)indicateRange:(NSValue*)rangeValue;
 
 - (void)fixTypingAttributesForSubstitutedFonts;
+- (void)fixMouseCursorForBackground;
 
 - (void)setupFontMenu;
 

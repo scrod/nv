@@ -384,9 +384,11 @@ terminateApp:
 		
 		return (numberSelected > 0);
 		
-	} else if (selector == @selector(renameNote:)) {
+	} else if (selector == @selector(renameNote:) ||
+			   selector == @selector(copyNoteLink:)) {
 		
 		return (numberSelected == 1);
+		
 	} else if (selector == @selector(fixFileEncoding:)) {
 		
 		return (currentNote != nil && storageFormatOfNote(currentNote) == PlainTextFormat && ![currentNote contentsWere7Bit]);
