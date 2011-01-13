@@ -75,7 +75,7 @@
 	[dualFieldItem setView:dualSV];
 	[dualFieldItem setMaxSize:NSMakeSize(FLT_MAX, [dualSV frame].size.height)];
 	[dualFieldItem setMinSize:NSMakeSize(50.0f, [dualSV frame].size.height)];
-    [dualFieldItem setLabel:@"Search or Create"];
+    [dualFieldItem setLabel:NSLocalizedString(@"Search or Create", @"placeholder text in search/create field")];
 	
 	toolbar = [[NSToolbar alloc] initWithIdentifier:@"NVToolbar"];
 	[toolbar setAllowsUserCustomization:NO];

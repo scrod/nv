@@ -77,7 +77,7 @@ NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
 }
 
 - (NSString*)prefixWithSourceString:(NSString*)source {
-	NSString *sourceWContext = [NSString stringWithFormat:@"From <%@>:\n\n", source];
+	NSString *sourceWContext = [NSString stringWithFormat:@"%@ <%@>:\n\n", NSLocalizedString(@"From", @"prefix for source-URLs inserted into imported notes; e.g., 'From <http://www.apple.com>: ...'"), source];
 	[self insertAttributedString:[[[NSAttributedString alloc] initWithString:sourceWContext] autorelease] atIndex:0];
 	return sourceWContext;
 }

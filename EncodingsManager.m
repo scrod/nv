@@ -226,7 +226,8 @@ static const NSStringEncoding AllowedEncodings[] = {
 		return YES;
 	} else {
 		NSRunAlertPanel([NSString stringWithFormat:@"%@ is not a valid encoding for this text file.", 
-			[NSString localizedNameOfStringEncoding:encoding]], @"Please try another encoding.", @"OK", NULL, NULL);
+			[NSString localizedNameOfStringEncoding:encoding]], NSLocalizedString(@"Please try another encoding.", @"prompt for choosing an incompatible text encoding"), 
+						NSLocalizedString(@"OK",nil), NULL, NULL);
 	}
 	
 	
