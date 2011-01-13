@@ -354,12 +354,19 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	return types;
 }
 
-
 - (BOOL)writeSelectionToPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
-
-	if ([type isEqualToString:NVPTFPboardType]) {
+	
+	if ([type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSRTFPboardType]) {
 		//always preserve RTF to allow pasting into ourselves; prejudice against external sources
-		[pboard setData:[self RTFFromRange:[self selectedRange]] forType:NVPTFPboardType];
+		
+		NSMutableAttributedString *newString = [[[self textStorage] attributedSubstringFromRange:[self selectedRange]] mutableCopy];
+		
+		if (![type isEqualToString:NVPTFPboardType])
+			[newString removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [newString length])];
+
+		NSData *rtfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil];;
+		if (rtfData) [pboard setData:rtfData forType:type];
+		[newString release];
 		return YES;
 	}
 	
