@@ -114,7 +114,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	if (reachable) {
 		[self startFetchingListForFullSyncManual];
 	}
-	NSLog(@"self->reachabilityFailed: %d, flags: %u", self->reachabilityFailed, flags);
+	//NSLog(@"self->reachabilityFailed: %d, flags: %u", self->reachabilityFailed, flags);
 }
 
 - (BOOL)reachabilityFailed {
