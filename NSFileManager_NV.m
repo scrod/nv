@@ -3,8 +3,18 @@
 //  Notation
 //
 //  Created by Zachary Schneirov on 12/31/10.
-//  Copyright 2010 Northwestern University. All rights reserved.
-//
+
+/*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
+  Redistribution and use in source and binary forms, with or without modification, are permitted 
+  provided that the following conditions are met:
+   - Redistributions of source code must retain the above copyright notice, this list of conditions 
+     and the following disclaimer.
+   - Redistributions in binary form must reproduce the above copyright notice, this list of 
+     conditions and the following disclaimer in the documentation and/or other materials provided with
+     the distribution.
+   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
+     or promote products derived from this software without specific prior written permission. */
+
 
 #import "NSFileManager_NV.h"
 
@@ -169,7 +179,7 @@ errorReturn:
 	const UInt32 maxPathSize = 8 * 1024;
 	UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
 	if (FSRefMakePath(fsRef, convertedPath, maxPathSize) == noErr) {
-		path = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:(char*)convertedPath length:strlen((char*)convertedPath)];
+		path = [self stringWithFileSystemRepresentation:(char*)convertedPath length:strlen((char*)convertedPath)];
 	}
 	free(convertedPath);
 	
