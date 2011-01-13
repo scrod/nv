@@ -112,6 +112,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
 			[NSNumber numberWithBool:NO], HorizontalLayoutKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
+			[NSNumber numberWithBool:YES], HighlightSearchTermsKey, 
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
 			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
 			@"General", LastSelectedPreferencesPaneKey, 
