@@ -238,11 +238,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	id obj = note->tableTitleString ? (isSelected ? (id)_attributedStringWithoutColor(note->tableTitleString) : 
 									   (id)note->tableTitleString) : (id)titleOfNote(note);
 	
-	NoteAttributeColumn *col = [[tv tableColumns] objectAtIndex:0];
-	UnifiedCell *cell = [col dataCellForRow:row];
+	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
 	[cell setObjectValue:obj];
 	[cell setNoteObject:note];
-	[cell setIsActiveStyle:[col isActiveStyle]];
 	
 	return cell;
 }

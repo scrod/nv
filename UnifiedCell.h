@@ -15,12 +15,9 @@
 
 @interface UnifiedCell : NSTextFieldCell {
 	NoteObject *noteObject;
-	BOOL isActiveStyle;
 }
 
 
-- (BOOL)isActiveStyle;
-- (void)setIsActiveStyle:(BOOL)value;
 - (NSMutableDictionary*)baseTextAttributes;
 - (NoteObject*)noteObject;
 - (void)setNoteObject:(NoteObject*)obj;

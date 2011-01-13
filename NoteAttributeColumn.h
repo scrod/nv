@@ -28,7 +28,6 @@
     NSInteger (*reverseSortFunction) (id*, id*);
     id (*objectAttribute) (id, id, NSInteger);
     SEL mutateObjectSelector;
-	BOOL isActiveStyle;
 	float absoluteMinimumWidth;
 }
 
@@ -38,8 +37,6 @@ SEL columnAttributeMutator(NoteAttributeColumn *col);
 id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object, NSInteger row);
 - (void)updateWidthForHighlight;
 
-- (BOOL)isActiveStyle;
-- (void)setIsActiveStyle:(BOOL)value;
 
 id (*dereferencingFunction(NoteAttributeColumn *col))(id, id, NSInteger);
 - (void)setDereferencingFunction:(id (*)(id, id, NSInteger))attributeFunction;

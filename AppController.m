@@ -452,6 +452,9 @@ terminateApp:
 }
 
 - (IBAction)switchViewLayout:(id)sender {
+	ViewLocationContext ctx = [notesTableView viewingLocation];
+	ctx.pivotRowWasEdge = NO;
+	
 	[self _expandToolbar];
 	
 	[prefsController setHorizontalLayout:![prefsController horizontalLayout] sender:self];
@@ -459,6 +462,8 @@ terminateApp:
 	[notationController regenerateAllPreviews];
 	[self _configureDividerForCurrentLayout];
 	[splitView adjustSubviews];
+	
+	[notesTableView setViewingLocation:ctx];
 	
 	[self updateNoteMenus];
 }

@@ -32,7 +32,7 @@ typedef struct _ViewLocationContext {
 	
 	BOOL viewMenusValid;
 	BOOL hadHighlightInForeground, hadHighlightInBackground;
-	BOOL shouldUseSecondaryHighlightColor;
+	BOOL shouldUseSecondaryHighlightColor, isActiveStyle;
 		
 	GlobalPrefs *globalPrefs;
 	NSMenuItem *dummyItem;
@@ -57,6 +57,7 @@ typedef struct _ViewLocationContext {
 - (void)selectRowAndScroll:(NSInteger)row;
 - (BOOL)objectIsSelected:(id)obj;
 
+- (BOOL)isActiveStyle;
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;
 - (void)_setActiveStyleState:(BOOL)activeStyle;
 - (void)updateTitleDereferencorState;

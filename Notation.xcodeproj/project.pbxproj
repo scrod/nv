@@ -1586,6 +1586,7 @@
 		212B842509780B5000F3597F /* Deployment */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				COPY_PHASE_STRIP = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -1640,6 +1641,7 @@
 					start,
 				);
 				STRIP_INSTALLED_PRODUCT = YES;
+				STRIP_STYLE = all;
 				WRAPPER_EXTENSION = app;
 				ZERO_LINK = NO;
 			};

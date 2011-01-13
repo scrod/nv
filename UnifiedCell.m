@@ -12,6 +12,7 @@
 
 #import "UnifiedCell.h"
 #import "NoteObject.h"
+#import "NotesTableView.h"
 #import "GlobalPrefs.h"
 #import "NSString_CustomTruncation.h"
 
@@ -41,13 +42,6 @@
 	noteObject = [obj retain];
 }
 
-- (BOOL)isActiveStyle {
-	return isActiveStyle;
-}
-- (void)setIsActiveStyle:(BOOL)value {
-	isActiveStyle = value;
-}
-
 - (NSMutableDictionary*)baseTextAttributes {
 	static NSMutableParagraphStyle *alignStyle = nil;
 	if (!alignStyle) {
@@ -64,14 +58,20 @@
 	//draw note date and tags
 
 	NSMutableDictionary *baseAttrs = [self baseTextAttributes];
-	if ([self isHighlighted] && isActiveStyle) {
+	BOOL isActive = IsLeopardOrLater ? YES : [(NotesTableView*)controlView isActiveStyle];
+	
+	if ([self isHighlighted] && isActive) {
 		[baseAttrs setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
 	} else if (![self isHighlighted]) {
 		[baseAttrs setObject:[NSColor grayColor] forKey:NSForegroundColorAttributeName];
 	}
 	
-	NSString *str = dateModifiedStringOfNote((NotesTableView*)controlView, noteObject, NSNotFound);
-	[str drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, [[self font] capHeight]*2) withAttributes:baseAttrs];
+	//if the sort-order is date-created, then show the date on which this note was created; otherwise show date modified.
+	BOOL isSortedByDateCreated = [[[GlobalPrefs defaultPrefs] sortedTableColumnKey] isEqualToString:NoteDateCreatedColumnString];
+	id (*dateReferencor)(id, id, NSInteger) = isSortedByDateCreated ? dateCreatedStringOfNote : dateModifiedStringOfNote;
+	NSString *str = dateReferencor((NotesTableView*)controlView, noteObject, NSNotFound);
+	
+	[str drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, [[self font] capHeight]*2.25) withAttributes:baseAttrs];
 }
 
 @end

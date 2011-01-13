@@ -48,13 +48,6 @@
 	[self setMinWidth:absoluteMinimumWidth + ([[self tableView] highlightedTableColumn] == self ? 10 : 0)];
 }
 
-- (BOOL)isActiveStyle {
-	return isActiveStyle;
-}
-- (void)setIsActiveStyle:(BOOL)value {
-	isActiveStyle = value;
-}
-
 SEL columnAttributeMutator(NoteAttributeColumn *col) {
 	return col->mutateObjectSelector;
 }

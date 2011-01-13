@@ -182,12 +182,16 @@
 	[[NSApp delegate] addNotesFromPasteboard:[NSPasteboard generalPasteboard]];
 }
 
+- (BOOL)isActiveStyle {
+	return isActiveStyle;
+}
+
 - (void)_setActiveStyleState:(BOOL)activeStyle {
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
 #if SET_DUAL_HIGHLIGHTS
 	activeStyle = YES;
 #endif
-	[col setIsActiveStyle:activeStyle];
+	isActiveStyle = activeStyle;
 	[col setDereferencingFunction: [globalPrefs horizontalLayout] ? unifiedCellForNote : 
 	 ([globalPrefs tableColumnsShowPreview] ? (activeStyle ? properlyHighlightingTableTitleOfNote : tableTitleOfNote) : titleOfNote2)];
 }
@@ -232,11 +236,11 @@
 }
 
 - (void)_configureAttributesForCurrentLayout {
+	BOOL horiz = [globalPrefs horizontalLayout];
 	
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
 	if (!cachedCell) cachedCell = [[col dataCell] retain];
-	[col setDataCell: [globalPrefs horizontalLayout] ? [[[UnifiedCell alloc] init] autorelease] : cachedCell];
-	if ([globalPrefs horizontalLayout]) [[col dataCell] setTruncatesLastVisibleLine:YES];
+	[col setDataCell: horiz ? [[[UnifiedCell alloc] init] autorelease] : cachedCell];
 	
 	NSFont *font = [NSFont systemFontOfSize:[globalPrefs tableFontSize]];
 	NSUInteger i;
@@ -244,16 +248,19 @@
 		[[[allColumns objectAtIndex:i] dataCell] setFont:font];
 	}	
 	
+	if (IsLeopardOrLater)
+		[self setSelectionHighlightStyle:horiz ? NSTableViewSelectionHighlightStyleSourceList : NSTableViewSelectionHighlightStyleRegular];
+	[self setBackgroundColor: horiz ? [NSColor colorWithCalibratedWhite:0.98 alpha:1.0] : [NSColor whiteColor]];
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
 	CGFloat lineHeight = [lm defaultLineHeightForFont:font];
-	[self setRowHeight: [globalPrefs horizontalLayout] ? (lineHeight * 3.0 + 5.0f) : lineHeight + 2.0f];
+	[self setRowHeight: horiz ? (lineHeight * 3.0 + 5.0f) : lineHeight + 2.0f];
 	[lm release];
 	
 	[self setIntercellSpacing:NSMakeSize(12, 2)];
 	
-	[self setGridStyleMask:[globalPrefs horizontalLayout] ? NSTableViewSolidHorizontalGridLineMask : NSTableViewGridNone];
-	[self setGridColor:[NSColor colorWithCalibratedWhite:0.92 alpha:1.0]];
+	[self setGridStyleMask:horiz ? NSTableViewSolidHorizontalGridLineMask : NSTableViewGridNone];
+	[self setGridColor:[NSColor colorWithCalibratedWhite:0.882 alpha:1.0]];
 }
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
