@@ -589,7 +589,8 @@
 	
 	
 	NSMenuItem *noteLinkItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy URL",@"contextual menu item title to copy urls")
-														  action:@selector(copyNoteLink:) keyEquivalent:@""];
+														  action:@selector(copyNoteLink:) keyEquivalent:@"c"];
+	[noteLinkItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
 	[noteLinkItem setTarget:target];
 	[theMenu addItem:noteLinkItem];
 

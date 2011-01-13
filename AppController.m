@@ -588,7 +588,8 @@ terminateApp:
 	[notesTableView editRowAtColumnWithIdentifier:NoteTitleColumnString];
 }
 
-- (void)deleteSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
+- (void)deleteAlertDidEnd:(NSAlert *)alert returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo {
+
 	id retainedDeleteObj = (id)contextInfo;
 	
 	if (returnCode == NSAlertDefaultReturn) {
@@ -603,6 +604,10 @@ terminateApp:
 			[notationController removeNotes:retainedDeleteObj];
 		} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
 			[notationController removeNote:retainedDeleteObj];
+		}
+		
+		if ([[alert suppressionButton] state] == NSOnState) {
+			[prefsController setConfirmNoteDeletion:NO sender:self];
 		}
 	}
 	[retainedDeleteObj release];
@@ -621,9 +626,13 @@ terminateApp:
 			NSString *warningMultipleFormatString = NSLocalizedString(@"Delete %d notes?", @"alert title when asked to delete multiple notes");
 			NSString *warnString = currentNote ? [NSString stringWithFormat:warningSingleFormatString, titleOfNote(currentNote)] : 
 			[NSString stringWithFormat:warningMultipleFormatString, [indexes count]];
-			NSBeginAlertSheet(warnString, NSLocalizedString(@"Delete", @"name of delete button"), NSLocalizedString(@"Cancel", @"name of cancel button"), 
-							  nil, window, self, @selector(deleteSheetDidEnd:returnCode:contextInfo:), NULL, (void*)deleteObj, 
-							  NSLocalizedString(@"Press Command-Z to undo this action later.", @"informational delete-this-note? text"));
+			
+			NSAlert *alert = [NSAlert alertWithMessageText:warnString defaultButton:NSLocalizedString(@"Delete", @"name of delete button")
+										   alternateButton:NSLocalizedString(@"Cancel", @"name of cancel button") otherButton:nil 
+								 informativeTextWithFormat:NSLocalizedString(@"Press Command-Z to undo this action later.", @"informational delete-this-note? text")];
+			if (IsLeopardOrLater) [alert setShowsSuppressionButton:YES];
+			
+			[alert beginSheetModalForWindow:window modalDelegate:self didEndSelector:@selector(deleteAlertDidEnd:returnCode:contextInfo:) contextInfo:(void*)deleteObj];
 		} else {
 			//just delete the notes outright			
 			[notationController performSelector:[indexes count] > 1 ? @selector(removeNotes:) : @selector(removeNote:) withObject:deleteObj];
