@@ -458,6 +458,7 @@ terminateApp:
 	[self _expandToolbar];
 	
 	[prefsController setHorizontalLayout:![prefsController horizontalLayout] sender:self];
+	[notationController updateDateStringsIfNecessary];
 	[notationController regenerateAllPreviews];
 	[self _configureDividerForCurrentLayout];
 	[splitView adjustSubviews];

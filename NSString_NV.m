@@ -53,6 +53,7 @@ static const double dayInSeconds = 86400.0;
 static CFTimeInterval secondsAfterGMT = 0.0;
 static int currentDay = 0;
 static CFMutableDictionaryRef dateStringsCache = NULL;
+static CFDateFormatterRef dateAndTimeFormatter = NULL;
 
 unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime) {
 	return (unsigned int)floor(absTime / 3600.0);
@@ -69,6 +70,11 @@ void resetCurrentDayTime() {
 	
 	if (dateStringsCache)
 		CFDictionaryRemoveAllValues(dateStringsCache);
+	
+	if (dateAndTimeFormatter) {
+		CFRelease(dateAndTimeFormatter);
+		dateAndTimeFormatter = NULL;
+	}
 		
 	CFRelease(timeZone);
 }
@@ -95,7 +101,7 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
     static NSString *days[3] = { NULL };
     
     if (!timeOnlyFormatter) {
-	timeOnlyFormatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), kCFDateFormatterNoStyle, kCFDateFormatterShortStyle);
+		timeOnlyFormatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), kCFDateFormatterNoStyle, kCFDateFormatterShortStyle);
     }
     
     if (!days[ThisDay]) {
@@ -105,6 +111,13 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
     }
 
     CFStringRef dateString = CFDateFormatterCreateStringWithDate(kCFAllocatorDefault, timeOnlyFormatter, date);
+	
+	if ([[GlobalPrefs defaultPrefs] horizontalLayout]) {
+		//if today, return the time only; otherwise say "Yesterday", etc.; and this method shouldn't be called unless day != NoSpecialDay
+		if (day == PriorDay || day == NextDay)
+			return days[day];
+		return [(id)dateString autorelease];
+	}
     
     NSString *relativeTimeString = [days[day] stringByAppendingFormat:@"  %@", dateString];
 	CFRelease(dateString);
@@ -127,17 +140,19 @@ int uncachedDateCount = 0;
 	NSString *dateString = (NSString*)CFDictionaryGetValue(dateStringsCache, (const void *)minutesCount);
 	
 	if (!dateString) {
-		static CFDateFormatterRef formatter = nil;
-		if (!formatter) {
-			formatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), kCFDateFormatterMediumStyle, kCFDateFormatterShortStyle);
+		int day = dayFromAbsoluteTime(absTime);
+		
+		if (!dateAndTimeFormatter) {
+			BOOL horiz = [[GlobalPrefs defaultPrefs] horizontalLayout];
+			dateAndTimeFormatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), 
+														 horiz ? kCFDateFormatterShortStyle : kCFDateFormatterMediumStyle, 
+														 horiz ? kCFDateFormatterNoStyle : kCFDateFormatterShortStyle);
 		}
 		
 		CFDateRef date = CFDateCreate(kCFAllocatorDefault, absTime);
 		
-		
-		int day = dayFromAbsoluteTime(absTime);
 		if (day == NoSpecialDay) {
-			dateString = [(NSString*)CFDateFormatterCreateStringWithDate(kCFAllocatorDefault, formatter, date) autorelease];
+			dateString = [(NSString*)CFDateFormatterCreateStringWithDate(kCFAllocatorDefault, dateAndTimeFormatter, date) autorelease];
 		} else {
 			dateString = [NSString relativeTimeStringWithDate:date relativeDay:day];
 		}

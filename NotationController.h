@@ -77,6 +77,7 @@ typedef struct _NoteCatalogEntry {
     NoteCatalogEntry *catalogEntries, **sortedCatalogEntries;
     
 	unsigned int lastCheckedDateInHours;
+	int lastLayoutStyleGenerated;
     long blockSize;
     FSRef noteDirectoryRef, noteDatabaseRef;
     AliasHandle aliasHandle;

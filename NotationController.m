@@ -1102,9 +1102,11 @@ bail:
 - (void)updateDateStringsIfNecessary {
 	
 	unsigned int currentHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
+	BOOL isHorizontalLayout = [[GlobalPrefs defaultPrefs] horizontalLayout];
 	
-	if (currentHours != lastCheckedDateInHours) {
+	if (currentHours != lastCheckedDateInHours || isHorizontalLayout != lastLayoutStyleGenerated) {
 		lastCheckedDateInHours = currentHours;
+		lastLayoutStyleGenerated = (int)isHorizontalLayout;
 		
 		[delegate notationListMightChange:self];
 		resetCurrentDayTime();
