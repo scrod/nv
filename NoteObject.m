@@ -1285,7 +1285,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (void)removeFileFromDirectory {
-	
+#if PERMADELETE
 	OSStatus err = noErr;
 	if ((err = [delegate deleteFileInNotesDirectory:noteFileRefInit(self) forFilename:filename]) != noErr) {
 		
@@ -1296,6 +1296,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			[self moveFileToTrash];
 		}
 	}
+#else
+	[self moveFileToTrash];
+#endif
 }
 
 - (BOOL)removeUsingJournal:(WALStorageController*)wal {
