@@ -444,13 +444,10 @@ terminateApp:
 	
 	[[notesTableView enclosingScrollView] setBorderType: horiz ? NSNoBorder : NSBezelBorder];
 	
-	RBSplitSubview *topSubView = [splitView subviewAtPosition:0];
-	NSSize size = [topSubView frame].size;
+	NSSize size = [[splitView subviewAtPosition:0] frame].size;
 	[[notesTableView enclosingScrollView] setFrame: horiz ? NSMakeRect(1, 0, size.width - 1, size.height - 1) : (NSRect){.size = size, .origin = NSZeroPoint}];
 	
-	[topSubView setCanCollapse:horiz];
-	[topSubView setMinDimension:horiz ? 100.0 : 0.0 andMaxDimension:0.0];
-	[splitSubview setCanCollapse:NO];
+	[[splitView subviewAtPosition:0] setMinDimension:horiz ? 100.0 : 0.0 andMaxDimension:0.0];
 	[splitSubview setMinDimension:horiz ? 100.0 : 0.0 andMaxDimension:0.0];
 }
 
@@ -1606,6 +1603,14 @@ terminateApp:
 		return 0;       // [firstSplit position], which we assume to be zero
 	}
 	return NSNotFound;
+}
+
+- (BOOL)splitView:(RBSplitView*)sender canCollapse:(RBSplitSubview*)subview {
+	if ([sender subviewAtPosition:0] == subview) {
+		//this is the list view; let it collapse in horizontal layout when a note is being edited
+		return [prefsController horizontalLayout] && currentNote != nil;
+	}
+	return NO;
 }
 
 
