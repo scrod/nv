@@ -21,6 +21,8 @@
 #import "LabelsListController.h"
 #import "WALController.h"
 
+#import <CoreServices/CoreServices.h>
+
 //enum { kUISearch, kUINewNote, kUIDeleteNote, kUIRenameNote, kUILabelOperation };
 
 typedef struct _NoteCatalogEntry {
@@ -68,10 +70,15 @@ typedef struct _NoteCatalogEntry {
 	NSMutableSet *deletedNotes;
     
 	int volumeSupportsExchangeObjects;
-    FNSubscriptionUPP subscriptionCallback;
-    FNSubscriptionRef noteDirSubscription;
     FSCatalogInfo *fsCatInfoArray;
     HFSUniStr255 *HFSUniNameArray;
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+	FNSubscriptionUPP subscriptionCallback;
+    FNSubscriptionRef noteDirSubscription;	
+#endif
+	FSEventStreamRef noteDirEventStreamRef;
+	BOOL eventStreamStarted;
 	    
     size_t catEntriesCount, totalCatEntriesCount;
     NoteCatalogEntry *catalogEntries, **sortedCatalogEntries;

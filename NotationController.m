@@ -54,19 +54,21 @@
 		lastWordInFilterStr = 0;
 		selectedNoteIndex = NSNotFound;
 		
-		subscriptionCallback = NewFNSubscriptionUPP(NotesDirFNSubscriptionProc);
-		
 		fsCatInfoArray = NULL;
 		HFSUniNameArray = NULL;
 		catalogEntries = NULL;
 		sortedCatalogEntries = NULL;
 		catEntriesCount = totalCatEntriesCount = 0;
-		
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+		subscriptionCallback = NewFNSubscriptionUPP(NotesDirFNSubscriptionProc);
 		bzero(&noteDirSubscription, sizeof(FNSubscriptionRef));
+#endif
 		bzero(&noteDatabaseRef, sizeof(FSRef));
 		bzero(&noteDirectoryRef, sizeof(FSRef));
 		volumeSupportsExchangeObjects = -1;
 		
+		lastLayoutStyleGenerated = -1;
 		lastCheckedDateInHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
 		blockSize = 0;
 		
@@ -558,7 +560,6 @@ bail:
 
 //notation prefs delegate method
 - (void)databaseSettingsChangedFromOldFormat:(int)oldFormat {
-    OSStatus err = noErr;
 	int currentStorageFormat = [notationPrefs notesStorageFormat];
     
 	if (!walWriter && ![self initializeJournaling]) {
@@ -587,15 +588,8 @@ bail:
 				[self closeJournal];
 		}*/
 		//notationPrefs should call flushAllNoteChanges after this method, anyway
-				
-		if (IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
-			
-			err = FNSubscribe(&noteDirectoryRef, subscriptionCallback, self, kFNNoImplicitAllSubscription | kFNNotifyInBackground, &noteDirSubscription);
-			if (err != noErr) {
-				NSLog(@"Could not subscribe to changes in notes directory!");
-				//just check modification time of directory?
-			}
-		}
+		
+		[self startFileNotifications];
 		
 		[self synchronizeNotesFromDirectory];
     }
@@ -878,6 +872,7 @@ bail:
 		
 		//also update notationcontroller's psuedo-prefix tree for autocompletion
 		[self updateTitlePrefixConnections];
+		//should perhaps instead trigger a coalesced notification that also updates wiki-link-titles
 	}
 }
 
@@ -1477,8 +1472,10 @@ bail:
 	[walWriter setDelegate:nil];
 	[notationPrefs setDelegate:nil];
 	[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
-	
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
     DisposeFNSubscriptionUPP(subscriptionCallback);
+#endif
 	if (fsCatInfoArray)
 		free(fsCatInfoArray);
 	if (HFSUniNameArray)
