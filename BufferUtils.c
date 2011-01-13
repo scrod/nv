@@ -56,6 +56,9 @@ static const unsigned char gsToLowerMap[256] = {
 #define MAX(A,B)	({ __typeof__(A) __a = (A); __typeof__(B) __b = (B); __a < __b ? __b : __a; })
 #endif
 
+static u_int32_t u8_nextchar(const char *s, size_t *i);
+char *u8_strchr(const char *s, u_int32_t ch, size_t *charn);
+
 char *replaceString(char *oldString, const char *newString) {
     size_t newLen = strlen(newString) + 1;
 
@@ -130,8 +133,55 @@ void modp_tolower_copy(char* dest, const char* str, int len) {
 	}
 }
 
-void replace_breaks(char *str, size_t up_to_len) {
+static const u_int32_t offsetsFromUTF8[6] = {
+	0x00000000UL, 0x00003080UL, 0x000E2080UL,
+	0x03C82080UL, 0xFA082080UL, 0x82082080UL
+};
+
+#define isutf(c) (((c)&0xC0)!=0x80)
+
+/* reads the next utf-8 sequence out of a string, updating an index */
+static force_inline u_int32_t u8_nextchar(const char *s, size_t *i) {
+	u_int32_t ch = 0;
+	size_t sz = 0;
 	
+	do {
+		ch <<= 6;
+		ch += (unsigned char)s[(*i)];
+		sz++;
+	} while (s[*i] && (++(*i)) && !isutf(s[*i]));
+	ch -= offsetsFromUTF8[sz-1];
+	
+	return ch;
+}
+
+
+void replace_breaks_utf8(char *s, size_t up_to_len) {
+	//needed to detect NSLineSeparatorCharacter and NSParagraphSeparatorCharacter
+	
+	if (!s) return;
+	
+	size_t i = 0, lasti = 0;
+	u_int32_t c;
+	
+	while (i < up_to_len && s[i]) {
+		c = u8_nextchar(s, &i);
+		
+		//get rid of any kind of funky whitespace-esq character
+		if (c == 0x0009 || c == 0x000a || c == 0x000d || c == 0x0003 || c == 0x2029 || c == 0x2028 || c == 0x000c) {
+			//fill in the entire UTF sequence with spaces
+			char *cur_s = (char*)&s[lasti];
+//			printf("\n");
+			do {
+//				printf("%X ", (u_int32_t)*cur_s);
+				*cur_s = ' ';
+			} while (++cur_s < &s[i]);
+		}
+		lasti = i;
+	}
+}
+
+void replace_breaks(char *str, size_t up_to_len) {	
 	//traverses string to up_to_len chars or NULL, whichever comes first
 	//replaces any occurance of \n, \r, or \t with a space
 	
@@ -142,7 +192,7 @@ void replace_breaks(char *str, size_t up_to_len) {
 	char *s = str;
 	do {
 		c = *s;
-		if ('\n' == c || '\t' == c || '\r' == c) {
+		if (c == 0x0009 || c == 0x000a || c == 0x000d || c == 0x0003 || c == 0x000c) {
 			*s = ' ';
 		}
 	} while (++i < up_to_len && *(s++) != 0);
