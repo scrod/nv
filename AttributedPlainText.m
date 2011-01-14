@@ -25,6 +25,7 @@
 
 NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
 
+static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange);
 
 @implementation NSMutableAttributedString (AttributedPlainText)
 
@@ -237,19 +238,47 @@ NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
 			nextScanLoc = begin;
 			goto nextBlock;
 		}
-		if (![antiInteriorSet characterIsMember:[string characterAtIndex:NSMaxRange(blockRange) - 1]] &&
-			[string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] options:NSLiteralSearch range:blockRange].location == NSNotFound) {
+		//when encountering a newline in the midst of opposing double-brackets, 
+		//continue scanning after the newline instead of after the end-brackets; avoid certain traps that change the behavior of multi- vs single-line scans
+		NSRange newlineRange = [string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] options:NSLiteralSearch range:blockRange];
+		if (newlineRange.location != NSNotFound) {
+			nextScanLoc = newlineRange.location + 1;
+			goto nextBlock;
+		}
+
+		if (![antiInteriorSet characterIsMember:[string characterAtIndex:NSMaxRange(blockRange) - 1]] && !_StringWithRangeIsProbablyObjC(string, blockRange)) {
 			
-			[self addAttribute:NSLinkAttributeName value:[NSURL URLWithString:[@"nv://find/" 
-																			   stringByAppendingString:[[string substringWithRange:blockRange] 
-																										stringWithPercentEscapes]]] range:blockRange];
+			[self addAttribute:NSLinkAttributeName value:
+			 [NSURL URLWithString:[@"nv://find/" stringByAppendingString:[[string substringWithRange:blockRange] stringWithPercentEscapes]]] range:blockRange];
 		}
 		//continue the scan starting at the end of the current block
 		nextScanLoc = NSMaxRange(blockRange) + 2;
 
 	nextBlock:
 		scanRange = NSMakeRange(nextScanLoc, changedRange.length - (nextScanLoc - changedRange.location));
-	}	
+	}
+}
+
+static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange) {
+	//assuming this range is bookended with matching double-brackets,
+	//does the block contain unbalanced inner square brackets?
+	
+	NSUInteger rightBracketLoc = [string rangeOfString:@"]" options:NSLiteralSearch range:blockRange].location;
+	NSUInteger leftBracketLoc = [string rangeOfString:@"[" options:NSLiteralSearch range:blockRange].location; 
+	
+	//no brackets of either variety
+	if (rightBracketLoc == NSNotFound && leftBracketLoc == NSNotFound) return NO;
+	
+	//has balanced inner brackets; right bracket exists and is actually to the right of the left bracket
+	if (rightBracketLoc != NSNotFound && rightBracketLoc > leftBracketLoc) return NO;
+	
+	//no right bracket or no left bracket
+	return YES;
+	
+	//this still doesn't catch something like "[[content prefixWithSourceString:[[getter url] absoluteString]] length];"
+	//an improvement would be to use rangeOfCharacterFromSet:@"[]" to count all the left and right brackets from left to right;
+	//a leftbracket would increment a count, a right bracket would decrement it; at the end of blockRange, the count should be 0
+	//this is left as an exercise to the anal-retentive reader
 }
 
 - (void)addStrikethroughNearDoneTagsForRange:(NSRange)changedRange {
