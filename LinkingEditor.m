@@ -100,14 +100,12 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 		
 		//link-color is derived both from foreground and background colors
 		[self setBackgroundColor:[prefsController backgroundTextColor]];
-		[self setLinkTextAttributes:[self preferredLinkAttributes]];
+		[self updateTextColors];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
 		
-//		[self setInsertionPointColor:[prefsController foregroundTextColor]];
-		[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:
-									  [prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]]];
-		[self setLinkTextAttributes:[self preferredLinkAttributes]];
+		[self updateTextColors];
+		[self setTypingAttributes:[prefsController noteBodyAttributes]];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)] || 
 			   [selectorString isEqualToString:SEL_STR(setShouldHighlightSearchTerms:sender:)]) {
@@ -159,6 +157,13 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 - (void)setBackgroundColor:(NSColor*)aColor {
 	backgroundIsDark = (_perceptualBrightness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
 	[super setBackgroundColor:aColor];
+}
+
+- (void)updateTextColors {
+	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:
+								  [prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]]];
+	[self setLinkTextAttributes:[self preferredLinkAttributes]];
+	
 }
 
 #define _CM(__ch) ((__ch) * 255.0)

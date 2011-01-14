@@ -44,6 +44,7 @@
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSDictionary*)preferredLinkAttributes;
+- (void)updateTextColors;
 - (NSRange)selectedRangeWasAutomatic:(BOOL*)automatic;
 - (void)setAutomaticallySelectedRange:(NSRange)newRange;
 - (void)removeHighlightedTerms;
