@@ -15,9 +15,10 @@
 
 @interface UnifiedCell : NSTextFieldCell {
 	NoteObject *noteObject;
+	BOOL previewIsHidden;
 }
 
-
+- (void)setPreviewIsHidden:(BOOL)value;
 - (NSMutableDictionary*)baseTextAttributes;
 - (NoteObject*)noteObject;
 - (void)setNoteObject:(NoteObject*)obj;

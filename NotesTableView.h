@@ -43,6 +43,8 @@ typedef struct _ViewLocationContext {
 	NSDictionary *loadStatusAttributes;
 	float loadStatusStringWidth;
 	NSString *loadStatusString;
+	
+	float tableFontHeight;
 
 	int affinity;	
 }
@@ -55,7 +57,8 @@ typedef struct _ViewLocationContext {
 - (double)distanceFromRow:(int)aRow forVisibleArea:(NSRect)visibleRect;
 - (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset;
 - (void)selectRowAndScroll:(NSInteger)row;
-- (BOOL)objectIsSelected:(id)obj;
+
+- (float)tableFontHeight;
 
 - (BOOL)isActiveStyle;
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;
@@ -68,7 +71,7 @@ typedef struct _ViewLocationContext {
 - (void)_configureAttributesForCurrentLayout;
 - (void)updateHeaderViewForColumns;
 - (void)editRowAtColumnWithIdentifier:(id)identifier;
-- (void)addPermanentTableColumn:(NSTableColumn*)column;
+- (BOOL)addPermanentTableColumn:(NSTableColumn*)column;
 - (IBAction)actionHideShowColumn:(id)sender;
 - (IBAction)toggleNoteBodyPreviews:(id)sender;
 - (void)setStatusForSortedColumn:(id)item;

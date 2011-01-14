@@ -226,10 +226,30 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	return titleOfNote(note);
 }
 
-NSMutableAttributedString *_attributedStringWithoutColor(NSAttributedString *str) {
+NSAttributedString *_attributedStringWithoutColor(NSAttributedString *str) {
 	NSMutableAttributedString *colorFreeStr = [str mutableCopy];
 	[colorFreeStr removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [str length])];
 	return [colorFreeStr autorelease];
+}
+
+NSAttributedString *_attributedStringWithBold(NSAttributedString *str) {
+	NSMutableAttributedString *boldStr = [str mutableCopy];
+
+	[boldStr addAttributes:[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:[[GlobalPrefs defaultPrefs] tableFontSize]], 
+							NSFontAttributeName, nil] range:NSMakeRange(0, [str length])];
+	return [boldStr autorelease];
+}
+force_inline id unifiedCellSingleLineForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
+	BOOL isSelected = [tv isRowSelected:row];
+	id obj = note->tableTitleString ? (isSelected ? (id)_attributedStringWithBold(note->tableTitleString) : 
+									   (id)note->tableTitleString) : (id)titleOfNote(note);
+
+	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
+	[cell setObjectValue:obj];
+	[cell setNoteObject:note];
+	[cell setPreviewIsHidden:YES];
+	
+	return cell;
 }
 
 force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
@@ -241,6 +261,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
 	[cell setObjectValue:obj];
 	[cell setNoteObject:note];
+	[cell setPreviewIsHidden:NO];
 	
 	return cell;
 }
@@ -617,18 +638,31 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return largeAttributedTitleString;
 }
 
+float _LabelStringWidthForNote(NoteObject*note, GlobalPrefs *prefs) {
+	if ([labelsOfNote(note) length]) {
+		return [labelsOfNote(note) sizeWithAttributes:[NSDictionary dictionaryWithObject:
+													   [NSFont systemFontOfSize:[prefs tableFontSize]] forKey:NSFontNameAttribute]].width;
+	}
+	return 0.0;
+}
+
 - (void)updateTablePreviewString {
 	[tableTitleString release];
 	GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
-	
+
 	if ([prefs tableColumnsShowPreview]) {
 		if ([prefs horizontalLayout]) {
-			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] intrusionWidth:0.0] retain];
+			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] 
+																	 intrusionWidth:_LabelStringWidthForNote(self, prefs)] retain];
 		} else {
 			tableTitleString = [[titleString attributedSingleLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
 		}
 	} else {
-		tableTitleString = nil;
+		if ([prefs horizontalLayout]) {
+			tableTitleString = [[titleString attributedSingleLineTitleWithIntrusionWidth:_LabelStringWidthForNote(self, prefs)] retain];
+		} else {
+			tableTitleString = nil;
+		}
 	}
 }
 
@@ -831,11 +865,17 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[self updateLabelConnections];
 		
 		[self makeNoteDirtyUpdateTime:YES updateFile:NO];
-		//[self registerModificationWithOwnedServices]; //not until we have a service that knows about labels
+		//[self registerModificationWithOwnedServices];
 		
 		[delegate note:self attributeChanged:NoteLabelsColumnString];
 	}
 }
+
+- (NSArray*)labelTitles {
+	NSCharacterSet *ws = [NSCharacterSet whitespaceCharacterSet];
+	return [labelString componentsSeparatedByCharactersInSet:ws];
+}
+
 
 - (NSURL*)uniqueNoteLink {
 		

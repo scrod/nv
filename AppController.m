@@ -21,6 +21,7 @@
 #import "NotationDirectoryManager.h"
 #import "NotationFileManager.h"
 #import "NSString_NV.h"
+#import "NSString_CustomTruncation.h"
 #import "NSFileManager_NV.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
@@ -328,7 +329,7 @@ terminateApp:
 		if ([notationController aliasNeedsUpdating]) {
 			[prefsController setAliasDataForDefaultDirectory:[notationController aliasDataForNoteDirectory] sender:self];
 		}
-		if ([[GlobalPrefs defaultPrefs] tableColumnsShowPreview]) {
+		if ([[GlobalPrefs defaultPrefs] tableColumnsShowPreview] || [[GlobalPrefs defaultPrefs] horizontalLayout]) {
 			[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString] 
 										visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
 			[notesTableView setNeedsDisplay:YES];
@@ -742,6 +743,7 @@ terminateApp:
 		}
 	} else if ([selectorString isEqualToString:SEL_STR(setTableFontSize:sender:)] || [selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) {
 		
+		ResetFontRelatedTableAttributes();
 		[notesTableView updateTitleDereferencorState];
 		[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString]	
 									visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];

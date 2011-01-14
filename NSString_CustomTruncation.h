@@ -20,8 +20,12 @@
 
 @interface NSString (CustomTruncation)
 
+void ResetFontRelatedTableAttributes();
+NSDictionary *LineTruncAttributesForTitle();
+
 - (NSString*)truncatedPreviewStringOfLength:(NSUInteger)bodyCharCount;
 - (NSAttributedString*)attributedSingleLinePreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)width;
+- (NSAttributedString*)attributedSingleLineTitleWithIntrusionWidth:(float)intWidth;
 - (NSAttributedString*)attributedMultiLinePreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)upToWidth intrusionWidth:(float)intWidth;
 
 @end

@@ -25,6 +25,7 @@
 //		[self setLineBreakMode:NSLineBreakByTruncatingTail];
 		if (IsLeopardOrLater)
 			[self setTruncatesLastVisibleLine:YES];
+		[self setEditable:YES];
 	}
 	return self;
 }
@@ -33,13 +34,25 @@
 	[super dealloc];
 }
 
+- (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj 
+			   delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
+	
+	NSLog(@"selectwithframe: %@, view: %@, editor: %@, len: %d", NSStringFromRect(aRect), controlView, textObj, selLength);
+	[super selectWithFrame:aRect inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
+}
+
+
 - (NoteObject*)noteObject {
 	return noteObject;
 }
-	
+
 - (void)setNoteObject:(NoteObject*)obj {
 	[noteObject autorelease];
 	noteObject = [obj retain];
+}
+
+- (void)setPreviewIsHidden:(BOOL)value {
+	previewIsHidden = value;
 }
 
 - (NSMutableDictionary*)baseTextAttributes {
@@ -56,9 +69,11 @@
 	[super drawWithFrame:cellFrame inView:controlView];	
 	
 	//draw note date and tags
+	
+	NotesTableView *tv = (NotesTableView *)controlView;
 
 	NSMutableDictionary *baseAttrs = [self baseTextAttributes];
-	BOOL isActive = IsLeopardOrLater ? YES : [(NotesTableView*)controlView isActiveStyle];
+	BOOL isActive = (IsLeopardOrLater && [tv selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) ? YES : [tv isActiveStyle];
 	
 	if ([self isHighlighted] && isActive) {
 		[baseAttrs setObject:[NSColor whiteColor] forKey:NSForegroundColorAttributeName];
@@ -69,9 +84,16 @@
 	//if the sort-order is date-created, then show the date on which this note was created; otherwise show date modified.
 	BOOL isSortedByDateCreated = [[[GlobalPrefs defaultPrefs] sortedTableColumnKey] isEqualToString:NoteDateCreatedColumnString];
 	id (*dateReferencor)(id, id, NSInteger) = isSortedByDateCreated ? dateCreatedStringOfNote : dateModifiedStringOfNote;
-	NSString *str = dateReferencor((NotesTableView*)controlView, noteObject, NSNotFound);
+	NSString *dateStr = dateReferencor(tv, noteObject, NSNotFound);
 	
-	[str drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, [[self font] capHeight]*2.25) withAttributes:baseAttrs];
+	float fontHeight = [tv tableFontHeight];
+	
+	[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
+	
+	NSString *labelStr = labelsOfNote(noteObject);
+	if ([labelStr length])
+		[labelStr drawInRect:NSMakeRect(previewIsHidden ? NSMinX(cellFrame) : NSMaxX(cellFrame) - 70.0, 
+										NSMaxY(cellFrame) - (fontHeight + 3.0), 70.0, fontHeight) withAttributes:baseAttrs];
 }
 
 @end

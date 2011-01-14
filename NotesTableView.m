@@ -51,7 +51,9 @@
 	NSArray *columnsToDisplay = [globalPrefs visibleTableColumns];
 	allColumns = [[NSMutableArray alloc] init];
 		
-	id (*titleReferencor)(id, id, NSInteger) = [globalPrefs horizontalLayout] ? unifiedCellForNote : ([globalPrefs tableColumnsShowPreview] ? tableTitleOfNote : titleOfNote2);
+	id (*titleReferencor)(id, id, NSInteger) = [globalPrefs horizontalLayout] ? 
+		([globalPrefs tableColumnsShowPreview] ? unifiedCellForNote : unifiedCellSingleLineForNote) :
+		([globalPrefs tableColumnsShowPreview] ? tableTitleOfNote : titleOfNote2);
 	
 	NSString *colStrings[] = { NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, NoteDateCreatedColumnString };
 	SEL colMutators[] = { @selector(setTitleString:), @selector(setLabelString:), NULL, NULL };
@@ -182,6 +184,10 @@
 	[[NSApp delegate] addNotesFromPasteboard:[NSPasteboard generalPasteboard]];
 }
 
+- (float)tableFontHeight {
+	return tableFontHeight;
+}
+
 - (BOOL)isActiveStyle {
 	return isActiveStyle;
 }
@@ -192,7 +198,7 @@
 	activeStyle = YES;
 #endif
 	isActiveStyle = activeStyle;
-	[col setDereferencingFunction: [globalPrefs horizontalLayout] ? unifiedCellForNote : 
+	[col setDereferencingFunction: [globalPrefs horizontalLayout] ? ([globalPrefs tableColumnsShowPreview] ? unifiedCellForNote : unifiedCellSingleLineForNote) : 
 	 ([globalPrefs tableColumnsShowPreview] ? (activeStyle ? properlyHighlightingTableTitleOfNote : tableTitleOfNote) : titleOfNote2)];
 }
 
@@ -232,7 +238,24 @@
 		
 		[[menu itemWithTag:97] setEnabled:![globalPrefs horizontalLayout]];
 		viewMenusValid = YES;
+		
 	}
+}
+
+- (void)drawGridInClipRect:(NSRect)clipRect {
+	if (IsLeopardOrLater && [self selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) {
+		NSIndexSet *set = [self selectedRowIndexes];
+		
+		if ([set count] > 1) {
+			NSRange rows = [self rowsInRect:clipRect];
+			
+			if ([set intersectsIndexesInRange:rows]) {
+				//NSLog(@"not drawing lines in %@", NSStringFromRange(rows));
+				return;
+			}
+		}
+	}
+	[super drawGridInClipRect:clipRect];
 }
 
 - (void)_configureAttributesForCurrentLayout {
@@ -253,8 +276,8 @@
 	[self setBackgroundColor: horiz ? [NSColor colorWithCalibratedWhite:0.98 alpha:1.0] : [NSColor whiteColor]];
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
-	CGFloat lineHeight = [lm defaultLineHeightForFont:font];
-	[self setRowHeight: horiz ? (lineHeight * 3.0 + 5.0f) : lineHeight + 2.0f];
+	tableFontHeight = [lm defaultLineHeightForFont:font];
+	[self setRowHeight: horiz ? (![globalPrefs tableColumnsShowPreview] ? (tableFontHeight * 2.0 + 5.0f) : (tableFontHeight * 3.0 + 5.0f)) : tableFontHeight + 2.0f];
 	[lm release];
 	
 	[self setIntercellSpacing:NSMakeSize(12, 2)];
@@ -268,6 +291,7 @@
 	if ([selectorString isEqualToString:SEL_STR(setTableFontSize:sender:)]) {
 		
 		[self _configureAttributesForCurrentLayout];
+		
 	} else if ([selectorString isEqualToString:SEL_STR(setHorizontalLayout:sender:)]) {
 		
 		[self abortEditing];
@@ -364,10 +388,11 @@
 		while ((column = [theEnumerator nextObject]) != nil) {
 			
 			if ([[column identifier] isEqualToString:identifier]) {
-				[self addPermanentTableColumn:column];
-				[self moveColumn:[[self tableColumns] indexOfObjectIdenticalTo:column] toColumn:newColIndex];
-				colIndex = newColIndex;
-				[self sizeToFit];
+				if ([self addPermanentTableColumn:column]) {
+					[self moveColumn:[[self tableColumns] indexOfObjectIdenticalTo:column] toColumn:newColIndex];
+					colIndex = newColIndex;
+					[self sizeToFit];
+				}
 				break;
 			}
 		}
@@ -390,7 +415,12 @@
 	return nil;
 }
 
-- (void)addPermanentTableColumn:(NSTableColumn*)column {
+- (BOOL)addPermanentTableColumn:(NSTableColumn*)column {
+	if ([globalPrefs horizontalLayout]) {
+		NSBeep();
+		return NO;
+	}
+	
 	[self addTableColumn:column];
 	[globalPrefs addTableColumn:[column identifier] sender:self];
 	
@@ -403,6 +433,7 @@
 	[self updateHeaderViewForColumns];
 	
 	viewMenusValid = NO;
+	return YES;
 }
 
 - (void)updateHeaderViewForColumns {
@@ -476,6 +507,7 @@
 
 - (IBAction)toggleNoteBodyPreviews:(id)sender {
 	[globalPrefs setTableColumnsShowPreview: ![globalPrefs tableColumnsShowPreview] sender:self];
+	[self _configureAttributesForCurrentLayout];
 }
 
 - (NSMenu *)menuForColumnSorting {
@@ -614,40 +646,6 @@
 	
 	return theMenu;
 }
-
-
-- (BOOL)objectIsSelected:(id)obj {
-	NSIndexSet *indexSet = nil;
-	
-	const id *objects = [(FastListDataSource*)[self dataSource] immutableObjects];
-	if (!objects) return NO;
-		
-	//check for single-selections first to avoid selectedRowIndexes, which will always create a new object
-	if ([self numberOfSelectedRows] == 1) {
-		NSInteger selRowIndex = [self selectedRow];
-		if (selRowIndex >= 0) {
-			return obj == objects[selRowIndex];
-		}
-	}
-	
-	indexSet = [self selectedRowIndexes];
-	NSUInteger count = (NSUInteger)[self numberOfRows];
-	NSUInteger indexBuffer[20];
-	NSUInteger bufferIndex, firstIndex = [indexSet firstIndex];
-	NSUInteger indexCount = 1;
-	NSRange range = NSMakeRange(firstIndex, [indexSet lastIndex]-firstIndex+1);
-	
-	while ((indexCount = [indexSet getIndexes:indexBuffer maxCount:20 inIndexRange:&range])) {
-		
-		for (bufferIndex=0; bufferIndex < indexCount; bufferIndex++) {
-			NSUInteger objIndex = indexBuffer[bufferIndex];
-			if (objIndex < count && obj == objects[objIndex]) return YES;
-		}
-	}
-	
-    return NO;
-}
-
 
 - (void)windowDidBecomeMain:(NSNotification *)aNotification  {
 	[self setShouldUseSecondaryHighlightColor:hadHighlightInForeground];
