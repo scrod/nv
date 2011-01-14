@@ -72,6 +72,12 @@
     return self;
 }
 
+-(void)awakeFromNib
+{
+	cssString = [[[self class] css] retain];
+    htmlString = [[[self class] html] retain];
+}
+
 - (void)webView:(WebView *)sender decidePolicyForNavigationAction:(NSDictionary *)actionInformation request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id<WebPolicyDecisionListener>)listener {
 	NSString *targetURL = [[request URL] scheme];
 
@@ -176,8 +182,6 @@
     NSString *rawString = [app noteContent];
     SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
     NSString *processedString = [NSString performSelector:mode withObject:rawString];
-	NSString* cssString = [[self class] css];
-    NSString* htmlString = [[self class] html];
 	NSMutableString *outputString = [NSMutableString stringWithString:(NSString *)htmlString];
 	
 	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
@@ -440,5 +444,12 @@
 	[attachedWindow release];
 	attachedWindow = nil;
 	[shareURL release];
+}
+
+- (void)dealloc {
+    [htmlString release];
+	[cssString release];
+
+	[super dealloc];
 }
 @end

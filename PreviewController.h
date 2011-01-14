@@ -30,6 +30,8 @@
 	IBOutlet NSButton *shareCancel;
 	IBOutlet NSButton *shareConfirm;
 	NSString *shareURL;
+	NSString *cssString;
+	NSString *htmlString;
 }
 
 @property (assign) BOOL isPreviewOutdated;
@@ -49,5 +51,6 @@
 - (void)showShareURL:(NSString *)url isError:(BOOL)isError;
 - (IBAction)hideShareURL:(id)sender;
 - (IBAction)openShareURL:(id)sender;
-
++(NSString *)css;
++(NSString *)html;
 @end
