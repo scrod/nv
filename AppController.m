@@ -1477,7 +1477,7 @@ terminateApp:
 			NSString *idStr = [params objectAtIndex:i];
 			
 			if ([idStr hasPrefix:@"NV="] && [idStr length] > 3) {
-				NSData *uuidData = [[idStr substringFromIndex:3] decodeBase64WithNewlines:NO];
+				NSData *uuidData = [[[idStr substringFromIndex:3] stringByReplacingPercentEscapes] decodeBase64WithNewlines:NO];
 				if ((foundNote = [notationController noteForUUIDBytes:(CFUUIDBytes*)[uuidData bytes]]))
 					goto handleFound;
 			}
@@ -1486,7 +1486,7 @@ terminateApp:
 				NSString *serviceName = [svcs objectAtIndex:j];
 				if ([idStr hasPrefix:[NSString stringWithFormat:@"%@=", serviceName]] && [idStr length] > [serviceName length] + 1) {
 					//lookup note with identical key for this service
-					NSString *key = [idStr substringFromIndex:[serviceName length] + 1];
+					NSString *key = [[idStr substringFromIndex:[serviceName length] + 1] stringByReplacingPercentEscapes];
 					if ((foundNote = [notationController noteForKey:key ofServiceClass:[[SyncSessionController allServiceClasses] objectAtIndex:j]]))
 						goto handleFound;
 				}
