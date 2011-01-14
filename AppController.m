@@ -1540,7 +1540,17 @@ terminateApp:
 
 //mail.app-like resizing behavior wrt item selections
 - (void)willAdjustSubviews:(RBSplitView*)sender {
-	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
+	//problem: don't do this if the horizontal splitview is being resized; in horizontal layout, only do this when resizing the window
+	if (![prefsController horizontalLayout]) {
+		[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
+	}
+}
+
+- (NSSize)windowWillResize:(NSWindow *)window toSize:(NSSize)proposedFrameSize {
+	if ([prefsController horizontalLayout]) {
+		[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
+	}
+	return proposedFrameSize;
 }
 
 - (void)_expandToolbar {
