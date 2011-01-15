@@ -74,8 +74,10 @@
 
 -(void)awakeFromNib
 {
+	AppController *app = [[NSApplication sharedApplication] delegate];;
 	cssString = [[[self class] css] retain];
     htmlString = [[[self class] html] retain];
+	lastNote = [app selectedNoteObject];
 }
 
 - (void)webView:(WebView *)sender decidePolicyForNavigationAction:(NSDictionary *)actionInformation request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id<WebPolicyDecisionListener>)listener {
@@ -189,11 +191,14 @@
 	[outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
-	NSString *restoreScrollPosition = [NSString stringWithFormat:@"<script>window.onload = function(){var div = document.getElementById('contentdiv'),oldscroll = %@;div.scrollTop = oldscroll;}</script></body>",lastScrollPosition];
-	[outputString replaceOccurrencesOfString:@"</body>" withString:restoreScrollPosition options:0 range:NSMakeRange(0, [outputString length])];
+	if (lastNote == [app selectedNoteObject]) {
+		NSString *restoreScrollPosition = [NSString stringWithFormat:@"<script>window.onload = function(){var div = document.getElementById('contentdiv'),oldscroll = %@;div.scrollTop = oldscroll;}</script></body>",lastScrollPosition];
+		[outputString replaceOccurrencesOfString:@"</body>" withString:restoreScrollPosition options:0 range:NSMakeRange(0, [outputString length])];
+	} else {
+		lastNote = [app selectedNoteObject];
+	}
     [[preview mainFrame] loadHTMLString:outputString baseURL:nil];
     [sourceView replaceCharactersInRange:NSMakeRange(0, [[sourceView string] length]) withString:processedString];
-	[[preview windowScriptObject] evaluateWebScript:restoreScrollPosition];
     self.isPreviewOutdated = NO;
 }
 
@@ -452,7 +457,7 @@
 - (void)dealloc {
     [htmlString release];
 	[cssString release];
-
+	[lastNote release];
 	[super dealloc];
 }
 @end

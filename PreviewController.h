@@ -10,6 +10,7 @@
 #import "MAAttachedWindow.h"
 
 @class AppController;
+@class NoteObject;
 
 @interface PreviewController : NSWindowController 
 {
@@ -32,6 +33,8 @@
 	NSString *shareURL;
 	NSString *cssString;
 	NSString *htmlString;
+	
+	NoteObject *lastNote;
 }
 
 @property (assign) BOOL isPreviewOutdated;
