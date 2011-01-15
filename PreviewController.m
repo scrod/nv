@@ -189,12 +189,17 @@
 	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
 	
 	if (lastNote == [app selectedNoteObject]) {
-		NSString *restoreScrollPosition = [NSString stringWithFormat:@"\n<script>window.onload = function(){var div = document.getElementById('contentdiv'),oldscroll = %@;div.scrollTop = oldscroll;}</script></body>",lastScrollPosition];
+		NSString *restoreScrollPosition = [NSString stringWithFormat:@"\n<script>window.onload = function(){var div = document.getElementById('contentdiv'),oldscroll = %@;div.scrollTop = oldscroll;}</script>",lastScrollPosition];
 		processedString = [processedString stringByAppendingString:restoreScrollPosition];
 	} else {
+		[cssString release];
+		[htmlString release];
+		cssString = [[[self class] css] retain];
+		htmlString = [[[self class] html] retain];
 		lastNote = [app selectedNoteObject];
 	}
-	
+	NSString *nvSupportPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/Notational Velocity"];
+	[outputString replaceOccurrencesOfString:@"{%support%}" withString:nvSupportPath options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
