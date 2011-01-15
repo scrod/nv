@@ -178,6 +178,7 @@
 
 -(void)preview:(id)object
 {
+	NSString *lastScrollPosition = [[preview windowScriptObject] evaluateWebScript:@"document.getElementById('contentdiv').scrollTop"];
     AppController *app = object;
     NSString *rawString = [app noteContent];
     SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
@@ -188,9 +189,11 @@
 	[outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
-
+	NSString *restoreScrollPosition = [NSString stringWithFormat:@"<script>window.onload = function(){var div = document.getElementById('contentdiv'),oldscroll = %@;div.scrollTop = oldscroll;}</script></body>",lastScrollPosition];
+	[outputString replaceOccurrencesOfString:@"</body>" withString:restoreScrollPosition options:0 range:NSMakeRange(0, [outputString length])];
     [[preview mainFrame] loadHTMLString:outputString baseURL:nil];
     [sourceView replaceCharactersInRange:NSMakeRange(0, [[sourceView string] length]) withString:processedString];
+	[[preview windowScriptObject] evaluateWebScript:restoreScrollPosition];
     self.isPreviewOutdated = NO;
 }
 
