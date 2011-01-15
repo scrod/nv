@@ -494,13 +494,18 @@
 
 }
 
-- (IBAction)hideShareURL:(id)sender
+-(void)closeShareURLView
 {
 	[[shareButton window] removeChildWindow:attachedWindow];
 	[attachedWindow orderOut:self];
 	[attachedWindow release];
 	attachedWindow = nil;
 	[shareURL release];
+}
+
+- (IBAction)hideShareURL:(id)sender
+{
+	[self closeShareURLView];
 }
 
 - (IBAction)cancelShare:(id)sender
@@ -527,4 +532,5 @@
 	[lastNote release];
 	[super dealloc];
 }
+
 @end

@@ -53,10 +53,11 @@
 -(void)requestPreviewUpdate:(NSNotification *)notification;
 +(void)createCustomFiles;
 -(SEL)markupProcessorSelector:(NSInteger)previewMode;
-- (NSString *)urlEncodeValue:(NSString *)str;
-- (void)showShareURL:(NSString *)url isError:(BOOL)isError;
-- (IBAction)hideShareURL:(id)sender;
-- (IBAction)openShareURL:(id)sender;
+-(NSString *)urlEncodeValue:(NSString *)str;
+-(void)showShareURL:(NSString *)url isError:(BOOL)isError;
+-(IBAction)hideShareURL:(id)sender;
+-(void)closeShareURLView;
+-(IBAction)openShareURL:(id)sender;
 +(NSString *)css;
 +(NSString *)html;
 @end
