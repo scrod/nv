@@ -181,10 +181,10 @@
 -(void)preview:(id)object
 {
 	NSString *lastScrollPosition = [[preview windowScriptObject] evaluateWebScript:@"document.getElementById('contentdiv').scrollTop"];
-    AppController *app = object;
-    NSString *rawString = [app noteContent];
-    SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
-    NSString *processedString = [NSString performSelector:mode withObject:rawString];
+	AppController *app = object;
+	NSString *rawString = [app noteContent];
+	SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
+	NSString *processedString = [NSString performSelector:mode withObject:rawString];
 	NSMutableString *outputString = [NSMutableString stringWithString:(NSString *)htmlString];
 	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
 	
@@ -204,8 +204,8 @@
 	[outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
 	
-    [[preview mainFrame] loadHTMLString:outputString baseURL:nil];
-    [sourceView replaceCharactersInRange:NSMakeRange(0, [[sourceView string] length]) withString:processedString];
+	[[preview mainFrame] loadHTMLString:outputString baseURL:nil];
+	[sourceView replaceCharactersInRange:NSMakeRange(0, [[sourceView string] length]) withString:processedString];
     self.isPreviewOutdated = NO;
 }
 
@@ -322,23 +322,50 @@
     [receivedData release];
 }
 
--(IBAction)saveHTML:(id)sender
-{
-    // TODO high coupling; too many assumptions on architecture:
-    AppController *app = [[NSApplication sharedApplication] delegate];
-    NSString *rawString = [app noteContent];
-    NSString *processedString = [NSString documentWithProcessedMultiMarkdown:rawString];
-	
-    NSSavePanel *savePanel = [NSSavePanel savePanel];
-    NSArray *fileTypes = [[NSArray alloc] initWithObjects:@"html",@"xhtml",@"htm",nil];
-    [savePanel setAllowedFileTypes:fileTypes];
-    
-    if ([savePanel runModal] == NSFileHandlingPanelOKButton) {
-        NSURL *file = [savePanel URL];
+- (void)savePanelDidEnd:(NSSavePanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
+	if (returnCode == NSFileHandlingPanelOKButton) {
+		
+		AppController *app = [[NSApplication sharedApplication] delegate];
+		NSString *rawString = [app noteContent];
+		NSString *processedString = [[NSString alloc] init];
+
+		if ([app currentPreviewMode] == MarkdownPreview) {
+			processedString = [NSString stringWithProcessedMarkdown:rawString];
+		} else if ([app currentPreviewMode] == MultiMarkdownPreview) {
+			processedString = ( [includeTemplate state] == NSOnState ) ? [NSString documentWithProcessedMultiMarkdown:rawString] : [NSString xhtmlWithProcessedMultiMarkdown:rawString];
+		} else if ([app currentPreviewMode] == TextilePreview) {
+			processedString = ( [includeTemplate state] == NSOnState ) ? [NSString documentWithProcessedTextile:rawString] : [NSString xhtmlWithProcessedTextile:rawString];
+		}
+
+        NSURL *file = [sheet URL];
         NSError *error;
         [processedString writeToURL:file atomically:YES encoding:NSUTF8StringEncoding error:&error];
-        
     }
+}
+
+-(IBAction)saveHTML:(id)sender
+{
+	if (!accessoryView) {
+		if (![NSBundle loadNibNamed:@"SaveHTMLPreview" owner:self]) {
+			NSLog(@"Failed to load SaveHTMLPreview.nib");
+			NSBeep();
+			return;
+		}
+	}
+    // TODO high coupling; too many assumptions on architecture:
+    AppController *app = [[NSApplication sharedApplication] delegate];
+	
+    NSSavePanel *savePanel = [NSSavePanel savePanel];
+	[savePanel setAccessoryView:accessoryView];
+	[savePanel setCanCreateDirectories:YES];
+	[savePanel setCanSelectHiddenExtension:YES];
+	
+    NSArray *fileTypes = [[NSArray alloc] initWithObjects:@"html",@"xhtml",@"htm",nil];
+    [savePanel setAllowedFileTypes:fileTypes];
+
+	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
+    [savePanel beginSheetForDirectory:nil file:noteTitle modalForWindow:[self window] modalDelegate:self 
+					   didEndSelector:@selector(savePanelDidEnd:returnCode:contextInfo:) contextInfo:nil];
     
     [fileTypes release];
 }

@@ -2,10 +2,10 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="7.10">
 	<data>
 		<int key="IBDocument.SystemTarget">1030</int>
-		<string key="IBDocument.SystemVersion">10H574</string>
+		<string key="IBDocument.SystemVersion">10J567</string>
 		<string key="IBDocument.InterfaceBuilderVersion">823</string>
 		<string key="IBDocument.AppKitVersion">1038.35</string>
-		<string key="IBDocument.HIToolboxVersion">461.00</string>
+		<string key="IBDocument.HIToolboxVersion">462.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<object class="NSArray" key="dict.sortedKeys">
@@ -25,8 +25,8 @@
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<integer value="1066"/>
 			<integer value="1208"/>
-			<integer value="29"/>
 			<integer value="1146"/>
+			<integer value="1115"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1288,9 +1288,27 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 								</object>
 								<object class="NSMenuItem" id="529791966">
 									<reference key="NSMenu" ref="260390050"/>
-									<string key="NSTitle">Toggle Preview</string>
+									<string key="NSTitle">Toggle Preview Window</string>
 									<string key="NSKeyEquiv">p</string>
 									<int key="NSKeyEquivModMask">1310720</int>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="45897863"/>
+									<reference key="NSMixedImage" ref="520021446"/>
+								</object>
+								<object class="NSMenuItem" id="151463660">
+									<reference key="NSMenu" ref="260390050"/>
+									<string key="NSTitle">Toggle Source View</string>
+									<string key="NSKeyEquiv">u</string>
+									<int key="NSKeyEquivModMask">1048576</int>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="45897863"/>
+									<reference key="NSMixedImage" ref="520021446"/>
+								</object>
+								<object class="NSMenuItem" id="38564961">
+									<reference key="NSMenu" ref="260390050"/>
+									<string key="NSTitle">Save Preview HTML</string>
+									<string key="NSKeyEquiv">S</string>
+									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
 									<reference key="NSOnImage" ref="45897863"/>
 									<reference key="NSMixedImage" ref="520021446"/>
@@ -2609,6 +2627,22 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					</object>
 					<int key="connectionID">1247</int>
 				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">toggleSourceView:</string>
+						<reference key="source" ref="290648732"/>
+						<reference key="destination" ref="151463660"/>
+					</object>
+					<int key="connectionID">1249</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">savePreview:</string>
+						<reference key="source" ref="290648732"/>
+						<reference key="destination" ref="38564961"/>
+					</object>
+					<int key="connectionID">1253</int>
+				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
 				<object class="NSArray" key="orderedObjects">
@@ -3538,6 +3572,8 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<reference ref="299803762"/>
 							<reference ref="254502717"/>
 							<reference ref="180216738"/>
+							<reference ref="151463660"/>
+							<reference ref="38564961"/>
 						</object>
 						<reference key="parent" ref="184300755"/>
 					</object>
@@ -3662,6 +3698,16 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 						<reference key="object" ref="721349756"/>
 						<reference key="parent" ref="688316378"/>
 					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1248</int>
+						<reference key="object" ref="151463660"/>
+						<reference key="parent" ref="260390050"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1250</int>
+						<reference key="object" ref="38564961"/>
+						<reference key="parent" ref="260390050"/>
+					</object>
 				</object>
 			</object>
 			<object class="NSMutableDictionary" key="flattenedProperties">
@@ -3767,6 +3813,8 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<string>1212.IBPluginDependency</string>
 					<string>1244.IBPluginDependency</string>
 					<string>1246.IBPluginDependency</string>
+					<string>1248.IBPluginDependency</string>
+					<string>1250.IBPluginDependency</string>
 					<string>129.IBPluginDependency</string>
 					<string>129.ImportedFromIB2</string>
 					<string>130.IBPluginDependency</string>
@@ -4070,7 +4118,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{637, 668}, {192, 93}}</string>
+					<string>{{463, 607}, {249, 133}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -4085,6 +4133,8 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<object class="NSAffineTransform">
 						<bytes key="NSTransformStruct">AUP/AABD1QAAA</bytes>
 					</object>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -4307,7 +4357,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">1247</int>
+			<int key="maxID">1253</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -4328,7 +4378,9 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>importNotes:</string>
 							<string>printNote:</string>
 							<string>renameNote:</string>
+							<string>savePreview:</string>
 							<string>selectPreviewMode:</string>
+							<string>sharePreview:</string>
 							<string>showHelpDocument:</string>
 							<string>showPreferencesWindow:</string>
 							<string>syncWaitQuit:</string>
@@ -4336,9 +4388,13 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>toggleLayout:</string>
 							<string>toggleNVActivation:</string>
 							<string>togglePreview:</string>
+							<string>toggleSourceView:</string>
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
+							<string>id</string>
+							<string>id</string>
+							<string>id</string>
 							<string>id</string>
 							<string>id</string>
 							<string>id</string>
@@ -4371,7 +4427,9 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>importNotes:</string>
 							<string>printNote:</string>
 							<string>renameNote:</string>
+							<string>savePreview:</string>
 							<string>selectPreviewMode:</string>
+							<string>sharePreview:</string>
 							<string>showHelpDocument:</string>
 							<string>showPreferencesWindow:</string>
 							<string>syncWaitQuit:</string>
@@ -4379,6 +4437,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>toggleLayout:</string>
 							<string>toggleNVActivation:</string>
 							<string>togglePreview:</string>
+							<string>toggleSourceView:</string>
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
@@ -4419,7 +4478,15 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
+								<string key="name">savePreview:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
 								<string key="name">selectPreviewMode:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
+								<string key="name">sharePreview:</string>
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
@@ -4448,6 +4515,10 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							</object>
 							<object class="IBActionInfo">
 								<string key="name">togglePreview:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
+								<string key="name">toggleSourceView:</string>
 								<string key="candidateClassName">id</string>
 							</object>
 						</object>

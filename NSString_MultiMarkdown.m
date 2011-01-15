@@ -6,7 +6,8 @@
 //
 
 #import "NSString_MultiMarkdown.h"
-
+#import "PreviewController.h"
+#import "AppController.h"
 
 @implementation NSString (MultiMarkdown)
 
@@ -80,6 +81,25 @@
 }
 
 +(NSString*)documentWithProcessedMultiMarkdown:(NSString*)inputString
+{
+    AppController *app = [[NSApplication sharedApplication] delegate];
+	NSString *rawString = [@"format: snippet\n\n" stringByAppendingString:inputString]; 
+    NSString *processedString = [self processMultiMarkdown:rawString];
+	NSString *htmlString = [[PreviewController class] html];
+	NSString *cssString = [[PreviewController class] css];
+	NSMutableString *outputString = [NSMutableString stringWithString:(NSString *)htmlString];
+	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
+	
+	NSString *nvSupportPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/Notational Velocity"];
+	[outputString replaceOccurrencesOfString:@"{%support%}" withString:nvSupportPath options:0 range:NSMakeRange(0, [outputString length])];
+	[outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
+	[outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
+	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
+
+	return outputString;
+}
+
++(NSString*)xhtmlWithProcessedMultiMarkdown:(NSString*)inputString
 {
 	inputString = [@"format: complete\n\n" stringByAppendingString:inputString];
 	return [self processMultiMarkdown:inputString];

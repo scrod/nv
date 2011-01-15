@@ -145,6 +145,9 @@ void outletObjectAwoke(id sender);
 -(IBAction)togglePreview:(id)sender;
 -(void)postTextUpdate;
 -(IBAction)selectPreviewMode:(id)sender;
+-(IBAction)toggleSourceView:(id)sender;
+- (IBAction)savePreview:(id)sender;
+- (IBAction)sharePreview:(id)sender;
 
 -(void)setMenuItemStates;
 -(IBAction)toggleLayout:(id)sender;

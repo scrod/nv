@@ -5,9 +5,15 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class AppController;
+@class NoteObject;
+@class PreviewController;
 
 @interface NSString (Textile)
 
 + (NSString*)stringWithProcessedTextile:(NSString*)inputString;
++ (NSString*)documentWithProcessedTextile:(NSString*)inputString;
++ (NSString*)xhtmlWithProcessedTextile:(NSString*)inputString;
++ (NSString*)processTextile:(NSString*)inputString;
 
 @end

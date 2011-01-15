@@ -1788,6 +1788,24 @@ terminateApp:
     [previewController togglePreview:self];
 }
 
+- (IBAction)toggleSourceView:(id)sender
+{
+	[previewController switchTabs:self];
+}
+
+- (IBAction)savePreview:(id)sender
+{
+	if (![[previewController window] isVisible]) {
+        [previewController togglePreview:self];
+	}
+	[previewController saveHTML:self];
+}
+
+- (IBAction)sharePreview:(id)sender
+{
+	[previewController shareAsk:self];
+}
+
 - (void)postTextUpdate
 {
 	

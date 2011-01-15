@@ -33,6 +33,8 @@
 	NSString *shareURL;
 	NSString *cssString;
 	NSString *htmlString;
+	IBOutlet NSButton *includeTemplate;
+	IBOutlet NSView *accessoryView;
 	
 	NoteObject *lastNote;
 }
