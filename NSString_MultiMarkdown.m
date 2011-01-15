@@ -101,7 +101,9 @@
 
 +(NSString*)xhtmlWithProcessedMultiMarkdown:(NSString*)inputString
 {
-	inputString = [@"format: complete\n\n" stringByAppendingString:inputString];
+	AppController *app = [[NSApplication sharedApplication] delegate];
+	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
+	inputString = [[NSString stringWithFormat:@"format: complete\ntitle: %@\n\n",noteTitle] stringByAppendingString:inputString];
 	return [self processMultiMarkdown:inputString];
 }
 
