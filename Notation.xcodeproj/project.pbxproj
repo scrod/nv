@@ -133,6 +133,8 @@
 		21C737950B50C73E0048C08A /* MultiplePageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 21C737940B50C73E0048C08A /* MultiplePageView.m */; };
 		21D583620B78F0CC00245E29 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21D5834D0B78F0CC00245E29 /* ApplicationServices.framework */; };
 		21D60128098FDB46007440DF /* GlobalPrefs.m in Sources */ = {isa = PBXBuildFile; fileRef = 21D60127098FDB46007440DF /* GlobalPrefs.m */; };
+		21D6F7EF12E0C751005C2DA5 /* AppController_Importing.m in Sources */ = {isa = PBXBuildFile; fileRef = 21D6F7EE12E0C751005C2DA5 /* AppController_Importing.m */; };
+		21D6FB4912E104D6005C2DA5 /* NSBezierPath_NV.m in Sources */ = {isa = PBXBuildFile; fileRef = 21D6FB4812E104D6005C2DA5 /* NSBezierPath_NV.m */; };
 		21DB3D0F12D4FBDD0057F52B /* SecureTextEntryManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21DB3D0E12D4FBDD0057F52B /* SecureTextEntryManager.m */; };
 		21DB407E12D5383F0057F52B /* IBeamInverted.png in Resources */ = {isa = PBXBuildFile; fileRef = 21DB407D12D5383F0057F52B /* IBeamInverted.png */; };
 		21DB49BB12DE19480057F52B /* UnifiedCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 21DB49B912DE19480057F52B /* UnifiedCell.m */; };
@@ -401,6 +403,10 @@
 		21D5834D0B78F0CC00245E29 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = /System/Library/Frameworks/ApplicationServices.framework; sourceTree = "<absolute>"; };
 		21D60126098FDB46007440DF /* GlobalPrefs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GlobalPrefs.h; sourceTree = "<group>"; };
 		21D60127098FDB46007440DF /* GlobalPrefs.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GlobalPrefs.m; sourceTree = "<group>"; };
+		21D6F7ED12E0C751005C2DA5 /* AppController_Importing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppController_Importing.h; sourceTree = "<group>"; };
+		21D6F7EE12E0C751005C2DA5 /* AppController_Importing.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppController_Importing.m; sourceTree = "<group>"; };
+		21D6FB4712E104D6005C2DA5 /* NSBezierPath_NV.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSBezierPath_NV.h; sourceTree = "<group>"; };
+		21D6FB4812E104D6005C2DA5 /* NSBezierPath_NV.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSBezierPath_NV.m; sourceTree = "<group>"; };
 		21DB3D0D12D4FBDD0057F52B /* SecureTextEntryManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SecureTextEntryManager.h; sourceTree = "<group>"; };
 		21DB3D0E12D4FBDD0057F52B /* SecureTextEntryManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SecureTextEntryManager.m; sourceTree = "<group>"; };
 		21DB407D12D5383F0057F52B /* IBeamInverted.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = IBeamInverted.png; path = Images/IBeamInverted.png; sourceTree = "<group>"; };
@@ -594,6 +600,8 @@
 				D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */,
 				21B1BC341104D20E0004A7D0 /* InvocationRecorder.h */,
 				21B1BC351104D20E0004A7D0 /* InvocationRecorder.m */,
+				21D6FB4712E104D6005C2DA5 /* NSBezierPath_NV.h */,
+				21D6FB4812E104D6005C2DA5 /* NSBezierPath_NV.m */,
 				21F0793710EC5E21004FE56F /* Sync Services */,
 				212089CF0B0C2BCF00A15A69 /* Note Importing */,
 				57F27FB71197407400C63ACF /* SearchCommand.h */,
@@ -657,6 +665,8 @@
 		212089CF0B0C2BCF00A15A69 /* Note Importing */ = {
 			isa = PBXGroup;
 			children = (
+				21D6F7ED12E0C751005C2DA5 /* AppController_Importing.h */,
+				21D6F7EE12E0C751005C2DA5 /* AppController_Importing.m */,
 				212089D60B0C2CA500A15A69 /* StickiesDocument.h */,
 				212089D70B0C2CA500A15A69 /* StickiesDocument.m */,
 				212089AF0B0C24F500A15A69 /* AlienNoteImporter.h */,
@@ -1159,6 +1169,8 @@
 				21DB3D0F12D4FBDD0057F52B /* SecureTextEntryManager.m in Sources */,
 				21DB49BB12DE19480057F52B /* UnifiedCell.m in Sources */,
 				21DB4BE612DE4E3D0057F52B /* NSString_CustomTruncation.m in Sources */,
+				21D6F7EF12E0C751005C2DA5 /* AppController_Importing.m in Sources */,
+				21D6FB4912E104D6005C2DA5 /* NSBezierPath_NV.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

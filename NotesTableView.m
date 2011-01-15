@@ -277,7 +277,7 @@
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
 	tableFontHeight = [lm defaultLineHeightForFont:font];
-	[self setRowHeight: horiz ? (![globalPrefs tableColumnsShowPreview] ? (tableFontHeight * 2.0 + 5.0f) : (tableFontHeight * 3.0 + 5.0f)) : tableFontHeight + 2.0f];
+	[self setRowHeight: horiz ? (![globalPrefs tableColumnsShowPreview] ? (tableFontHeight * 2.0 + 6.0f) : (tableFontHeight * 3.0 + 5.0f)) : tableFontHeight + 2.0f];
 	[lm release];
 	
 	[self setIntercellSpacing:NSMakeSize(12, 2)];

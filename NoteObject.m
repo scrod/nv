@@ -639,14 +639,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return largeAttributedTitleString;
 }
 
-float _LabelStringWidthForNote(NoteObject*note, GlobalPrefs *prefs) {
-	if ([labelsOfNote(note) length]) {
-		return [labelsOfNote(note) sizeWithAttributes:[NSDictionary dictionaryWithObject:
-													   [NSFont systemFontOfSize:[prefs tableFontSize]] forKey:NSFontNameAttribute]].width;
-	}
-	return 0.0;
-}
-
 - (void)updateTablePreviewString {
 	[tableTitleString release];
 	GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
@@ -654,13 +646,13 @@ float _LabelStringWidthForNote(NoteObject*note, GlobalPrefs *prefs) {
 	if ([prefs tableColumnsShowPreview]) {
 		if ([prefs horizontalLayout]) {
 			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] 
-																	 intrusionWidth:_LabelStringWidthForNote(self, prefs)] retain];
+																	 intrusionWidth:labelsPreviewImage ? [labelsPreviewImage size].width : 0.0] retain];
 		} else {
 			tableTitleString = [[titleString attributedSingleLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
 		}
 	} else {
 		if ([prefs horizontalLayout]) {
-			tableTitleString = [[titleString attributedSingleLineTitleWithIntrusionWidth:_LabelStringWidthForNote(self, prefs)] retain];
+			tableTitleString = [[titleString attributedSingleLineTitle] retain];
 		} else {
 			tableTitleString = nil;
 		}
@@ -873,8 +865,103 @@ float _LabelStringWidthForNote(NoteObject*note, GlobalPrefs *prefs) {
 }
 
 - (NSArray*)labelTitles {
-	NSCharacterSet *ws = [NSCharacterSet whitespaceCharacterSet];
-	return [labelString componentsSeparatedByCharactersInSet:ws];
+	NSMutableCharacterSet *charSet = [NSMutableCharacterSet whitespaceCharacterSet];
+	[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
+
+	return [labelString componentsSeparatedByCharactersInSet:charSet];
+}
+
+- (NSImage*)labelsPreviewImage {
+	return labelsPreviewImage;
+}
+
+- (NSImage*)labelsPreviewImageOfColor:(NSColor*)aColor {
+	if ([labelString length]) {
+		float tableFontSize = [[GlobalPrefs defaultPrefs] tableFontSize];
+		NSFont *font = [NSFont systemFontOfSize:tableFontSize];
+		NSDictionary *attrs = [NSDictionary dictionaryWithObject:font forKey:NSFontNameAttribute];
+		
+		//compute dimensions of each word first using nslayoutmanager; -sizeWithAttributes: likes to ignore the font and size here for some reason
+
+		NSTextStorage *textStorage = [[NSTextStorage alloc] initWithString:@"" attributes:attrs];
+		NSTextContainer *textContainer = [[NSTextContainer alloc] initWithContainerSize:NSMakeSize(1e7, 1e7)];
+		NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
+		
+		[textContainer setLineFragmentPadding:0.0];
+		[layoutManager addTextContainer:textContainer];
+		[textStorage addLayoutManager:layoutManager];
+				
+		NSArray *words = [self labelTitles];
+		NSMutableArray *widths = [NSMutableArray arrayWithCapacity:[words count]]; //I shouldn't have to do this; -usedRectForTextContainer: is supposed to work
+		NSUInteger i;
+		float imageWidth = 0.0;
+		
+		for (i=0; i<[words count]; i++) {
+			if ([[words objectAtIndex:i] length]) {
+				
+				//Force the layout manager to layout its text
+				[[textStorage mutableString] setString:[words objectAtIndex:i]];
+				[textStorage setFont:font]; //will infuriatingly revert to measuring Lucida Grande 11 otherwise, despite what it actually says
+				
+				(void)[layoutManager glyphRangeForTextContainer:textContainer];
+				NSSize stringSize = [layoutManager usedRectForTextContainer:textContainer].size;
+				
+				imageWidth += stringSize.width + 7.5;
+				[widths addObject:[NSValue valueWithSize:stringSize]];
+			} else {
+				[widths addObject:[NSValue valueWithSize:NSZeroSize]];
+			}
+		}
+		
+				
+		NSImage *img = [[NSImage alloc] initWithSize:NSMakeSize(imageWidth, tableFontSize * 1.3 + 1.5)];
+		[img lockFocus];
+		
+		[aColor setFill];
+		
+		NSPoint nextBoxPoint = NSZeroPoint;
+		
+		for (i=0; i<[words count]; i++) {
+			NSString *word = [words objectAtIndex:i];
+			if ([word length]) {
+				[[textStorage mutableString] setString:word];
+//				[textStorage setFont:font]; //ironically unnecessary for actual path creation
+
+				NSSize wordSize = [[widths objectAtIndex:i] sizeValue];
+				
+				NSRect wordRect = NSMakeRect(nextBoxPoint.x, nextBoxPoint.y, roundf(wordSize.width + 4.0), roundf(tableFontSize * 1.3));
+				NSBezierPath *stringPath = [NSBezierPath bezierPathWithLayoutManager:layoutManager characterRange:NSMakeRange(0,[word length]) 
+																			 atPoint:NSMakePoint(nextBoxPoint.x + 2.0, 3.0)];
+				
+				wordRect.origin = nextBoxPoint;
+				
+				NSBezierPath *backgroundPath = [NSBezierPath bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 0.0, 0.0) radius:2.0f];
+				
+				[backgroundPath setWindingRule:NSEvenOddWindingRule];
+				[backgroundPath appendBezierPath:stringPath];
+				[backgroundPath fill];
+				
+				nextBoxPoint = NSMakePoint(roundf(nextBoxPoint.x + wordRect.size.width + 4.0), 0.0);
+				
+			}
+		}
+		//[[NSColor redColor] set];
+		//NSFrameRect(NSMakeRect(0, 0, [img size].width, [img size].height));
+		[img unlockFocus];
+		
+		[textContainer release];
+		[layoutManager release];
+		[textStorage release];
+		
+		return [img autorelease];
+	}
+	return nil;
+}
+
+- (void)updateLabelsPreviewImage {
+
+	[labelsPreviewImage release];
+	labelsPreviewImage = [[self labelsPreviewImageOfColor:[NSColor grayColor]] retain];
 }
 
 

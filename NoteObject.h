@@ -33,6 +33,8 @@ typedef struct _NoteFilterContext {
 	NSAttributedString *tableTitleString;
 	NSString *titleString, *labelString;
 	NSMutableAttributedString *contentString;
+	
+	NSImage *labelsPreviewImage;
     
 	//caching/searching purposes only -- created at runtime
 	char *cTitle, *cContents, *cLabels, *cTitleFoundPtr, *cContentsFoundPtr, *cLabelsFoundPtr;
@@ -146,6 +148,9 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)updateLabelConnections;
 - (void)setLabelString:(NSString*)newLabels;
 - (NSArray*)labelTitles;
+- (NSImage*)labelsPreviewImage;
+- (NSImage*)labelsPreviewImageOfColor:(NSColor*)aColor;
+- (void)updateLabelsPreviewImage;
 
 - (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
 - (void)removeAllSyncMDForService:(NSString*)serviceName;

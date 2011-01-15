@@ -18,6 +18,9 @@
 	BOOL previewIsHidden;
 }
 
+- (NSRect)nv_titleRectForFrame:(NSRect)aFrame;
+- (NSRect)nv_tagsRectForFrame:(NSRect)frame andImage:(NSImage*)img;
+
 - (void)setPreviewIsHidden:(BOOL)value;
 - (NSMutableDictionary*)baseTextAttributes;
 - (NoteObject*)noteObject;

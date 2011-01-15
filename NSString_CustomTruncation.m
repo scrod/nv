@@ -166,15 +166,12 @@ static size_t EstimatedCharCountForWidth(float upToWidth) {
 	return [attributedStringPreview autorelease];
 }
 
-- (NSAttributedString*)attributedSingleLineTitleWithIntrusionWidth:(float)intWidth {
+- (NSAttributedString*)attributedSingleLineTitle {
 	//show only a single line, with a tail indent large enough for both the date and tags (if there are any)
 	//because this method displays the title only, manual truncation isn't really necessary
 	//the highlighted version of this string should be bolded
 	
-	NSDictionary *titleTruncDict = [NSDictionary dictionaryWithObjectsAndKeys:[[LineBreakingStyle() mutableCopy] autorelease], NSParagraphStyleAttributeName, nil];
-	[[titleTruncDict objectForKey:NSParagraphStyleAttributeName] setTailIndent:-(intWidth + 55)];
-	
-	NSMutableAttributedString *titleStr = [[NSMutableAttributedString alloc] initWithString:self attributes:titleTruncDict];
+	NSMutableAttributedString *titleStr = [[NSMutableAttributedString alloc] initWithString:self attributes:LineTruncAttributesForTitle()];
 
 	return [titleStr autorelease];
 }

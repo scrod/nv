@@ -25,7 +25,7 @@ NSDictionary *LineTruncAttributesForTitle();
 
 - (NSString*)truncatedPreviewStringOfLength:(NSUInteger)bodyCharCount;
 - (NSAttributedString*)attributedSingleLinePreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)width;
-- (NSAttributedString*)attributedSingleLineTitleWithIntrusionWidth:(float)intWidth;
+- (NSAttributedString*)attributedSingleLineTitle;
 - (NSAttributedString*)attributedMultiLinePreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)upToWidth intrusionWidth:(float)intWidth;
 
 @end
