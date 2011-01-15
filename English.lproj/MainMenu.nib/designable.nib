@@ -1249,15 +1249,6 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string key="NSTitle">Preview</string>
 							<object class="NSMutableArray" key="NSMenuItems">
 								<bool key="EncodedWithXMLCoder">YES</bool>
-								<object class="NSMenuItem" id="865635529">
-									<reference key="NSMenu" ref="260390050"/>
-									<string key="NSTitle">Markdown</string>
-									<string key="NSKeyEquiv"/>
-									<int key="NSMnemonicLoc">2147483647</int>
-									<reference key="NSOnImage" ref="45897863"/>
-									<reference key="NSMixedImage" ref="520021446"/>
-									<int key="NSTag">13371</int>
-								</object>
 								<object class="NSMenuItem" id="254502717">
 									<reference key="NSMenu" ref="260390050"/>
 									<string key="NSTitle">MultiMarkdown</string>
@@ -1295,7 +1286,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 									<reference key="NSOnImage" ref="45897863"/>
 									<reference key="NSMixedImage" ref="520021446"/>
 								</object>
-								<object class="NSMenuItem" id="151463660">
+								<object class="NSMenuItem" id="92310338">
 									<reference key="NSMenu" ref="260390050"/>
 									<string key="NSTitle">Toggle Source View</string>
 									<string key="NSKeyEquiv">u</string>
@@ -1304,7 +1295,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 									<reference key="NSOnImage" ref="45897863"/>
 									<reference key="NSMixedImage" ref="520021446"/>
 								</object>
-								<object class="NSMenuItem" id="38564961">
+								<object class="NSMenuItem" id="991778529">
 									<reference key="NSMenu" ref="260390050"/>
 									<string key="NSTitle">Save Preview HTML</string>
 									<string key="NSKeyEquiv">S</string>
@@ -2516,14 +2507,6 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<int key="connectionID">1137</int>
 				</object>
 				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">markdownPreview</string>
-						<reference key="source" ref="290648732"/>
-						<reference key="destination" ref="865635529"/>
-					</object>
-					<int key="connectionID">1138</int>
-				</object>
-				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
 						<string key="label">selectPreviewMode:</string>
 						<reference key="source" ref="290648732"/>
@@ -2538,14 +2521,6 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 						<reference key="destination" ref="254502717"/>
 					</object>
 					<int key="connectionID">1141</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">selectPreviewMode:</string>
-						<reference key="source" ref="290648732"/>
-						<reference key="destination" ref="865635529"/>
-					</object>
-					<int key="connectionID">1142</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -2631,7 +2606,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<object class="IBActionConnection" key="connection">
 						<string key="label">toggleSourceView:</string>
 						<reference key="source" ref="290648732"/>
-						<reference key="destination" ref="151463660"/>
+						<reference key="destination" ref="92310338"/>
 					</object>
 					<int key="connectionID">1249</int>
 				</object>
@@ -2639,7 +2614,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<object class="IBActionConnection" key="connection">
 						<string key="label">savePreview:</string>
 						<reference key="source" ref="290648732"/>
-						<reference key="destination" ref="38564961"/>
+						<reference key="destination" ref="991778529"/>
 					</object>
 					<int key="connectionID">1253</int>
 				</object>
@@ -3567,20 +3542,14 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 						<reference key="object" ref="260390050"/>
 						<object class="NSMutableArray" key="children">
 							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="865635529"/>
 							<reference ref="529791966"/>
 							<reference ref="299803762"/>
 							<reference ref="254502717"/>
 							<reference ref="180216738"/>
-							<reference ref="151463660"/>
-							<reference ref="38564961"/>
+							<reference ref="92310338"/>
+							<reference ref="991778529"/>
 						</object>
 						<reference key="parent" ref="184300755"/>
-					</object>
-					<object class="IBObjectRecord">
-						<int key="objectID">1116</int>
-						<reference key="object" ref="865635529"/>
-						<reference key="parent" ref="260390050"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">1117</int>
@@ -3700,12 +3669,12 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">1248</int>
-						<reference key="object" ref="151463660"/>
+						<reference key="object" ref="92310338"/>
 						<reference key="parent" ref="260390050"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">1250</int>
-						<reference key="object" ref="38564961"/>
+						<reference key="object" ref="991778529"/>
 						<reference key="parent" ref="260390050"/>
 					</object>
 				</object>
@@ -3799,7 +3768,6 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<string>1114.IBPluginDependency</string>
 					<string>1115.IBEditorWindowLastContentRect</string>
 					<string>1115.IBPluginDependency</string>
-					<string>1116.IBPluginDependency</string>
 					<string>1117.IBPluginDependency</string>
 					<string>1119.IBPluginDependency</string>
 					<string>1120.IBPluginDependency</string>
@@ -4118,8 +4086,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{463, 607}, {249, 133}}</string>
-					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<string>{{463, 627}, {249, 113}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>

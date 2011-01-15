@@ -124,7 +124,7 @@
     NSInteger previewMode = [[NSUserDefaults standardUserDefaults] integerForKey:kDefaultMarkupPreviewMode];
     currentPreviewMode = previewMode;
     if (previewMode == MarkdownPreview) {
-        [markdownPreview setState:NSOnState];
+        [multiMarkdownPreview setState:NSOnState];
     } else if (previewMode == MultiMarkdownPreview) {
         [multiMarkdownPreview setState:NSOnState];
     } else if (previewMode == TextilePreview) {
