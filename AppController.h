@@ -74,7 +74,6 @@ void outletObjectAwoke(id sender);
 - (void)runDelayedUIActionsAfterLaunch;
 - (void)updateNoteMenus;
 
-- (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard;
 - (IBAction)renameNote:(id)sender;
 - (IBAction)deleteNote:(id)sender;
 - (IBAction)copyNoteLink:(id)sender;
@@ -88,7 +87,6 @@ void outletObjectAwoke(id sender);
 - (NoteObject*)createNoteIfNecessary;
 - (void)searchForString:(NSString*)string;
 - (NSUInteger)revealNote:(NoteObject*)note options:(NSUInteger)opts;
-- (BOOL)interpretNVURL:(NSURL*)aURL;
 - (BOOL)displayContentsForNoteAtIndex:(int)noteIndex;
 - (void)processChangedSelectionForTable:(NSTableView*)table;
 - (void)setEmptyViewState:(BOOL)state;

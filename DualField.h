@@ -67,6 +67,5 @@ enum { BUTTON_HIDDEN, BUTTON_NORMAL, BUTTON_PRESSED };
 - (void)snapback:(id)sender;
 
 - (unsigned int)lastLengthReplaced;
-+ (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius;
 
 @end

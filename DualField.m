@@ -14,6 +14,7 @@
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
+#import "NSBezierPath_NV.h"
 #import "LinearDividerShader.h"
 #import "AppController.h"
 #import "BookmarksController.h"
@@ -400,7 +401,7 @@
 	NSImage *image = [[NSImage alloc] initWithSize:wordRect.size];
 	[image lockFocus];
 	
-	NSBezierPath *backgroundPath = [DualField bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 1.5, 1.5) radius:1.5f];
+	NSBezierPath *backgroundPath = [NSBezierPath bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 1.5, 1.5) radius:1.5f];
 	
 	static LinearDividerShader *snapbackShader = nil;
 	if (!snapbackShader) {
@@ -422,20 +423,6 @@
 	
 	[image unlockFocus];
 	return [image autorelease];
-}
-
-
-+ (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius  {
-	NSBezierPath* path = [NSBezierPath bezierPath];
-	float smallestEdge = MIN(NSWidth(aRect), NSHeight(aRect));
-	radius = MIN(radius, 0.5f * smallestEdge);
-	NSRect rect = NSInsetRect(aRect, radius, radius);
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMinX(rect), NSMinY(rect)) radius:radius startAngle:180.0 endAngle:270.0];
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMaxX(rect), NSMinY(rect)) radius:radius startAngle:270.0 endAngle:360.0];
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMaxX(rect), NSMaxY(rect)) radius:radius startAngle:  0.0 endAngle: 90.0];
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMinX(rect), NSMaxY(rect)) radius:radius startAngle: 90.0 endAngle:180.0];
-	[path closePath];
-	return path;
 }
 
 - (void)drawRect:(NSRect)rect {
@@ -496,7 +483,7 @@
 			NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
 			focusRect.origin.y -= 0.5f;
 			//drawing could be sped up by a measurable amount if this were cached in a (partially transparent) image
-			[[DualField bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
+			[[NSBezierPath bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
 			[NSGraphicsContext restoreGraphicsState];
 		}
 	}

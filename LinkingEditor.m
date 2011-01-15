@@ -13,6 +13,7 @@
 #import "LinkingEditor.h"
 #import "GlobalPrefs.h"
 #import "AppController.h"
+#import "AppController_Importing.h"
 #import "NotesTableView.h"
 #import "NSTextFinder.h"
 #import "LinkingEditor_Indentation.h"

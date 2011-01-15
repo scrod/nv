@@ -34,6 +34,7 @@
 #import "NSCollection_utils.h"
 #import "NotesTableView.h"
 #import "UnifiedCell.h"
+#import "NSBezierPath_NV.h"
 
 #if __LP64__
 // Needed for compatability with data created by 32bit app

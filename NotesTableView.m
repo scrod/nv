@@ -11,7 +11,7 @@
 
 
 #import "NotesTableView.h"
-#import "AppController.h"
+#import "AppController_Importing.h"
 #import "FastListDataSource.h"
 #import "NoteAttributeColumn.h"
 #import "GlobalPrefs.h"
