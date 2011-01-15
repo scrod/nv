@@ -1,0 +1,5 @@
+*.pbxproj -crlf -diff -merge
+build export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+dsa_pub.pem export-ignore

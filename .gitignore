@@ -1,0 +1,15 @@
+# Xcode user-settings files
+build/*
+*.pbxuser
+*.mode1v3
+*.mode1
+
+# Mac OS X specific
+.DS_Store
+profile
+English.lproj/MainMenu~.nib/classes.nib
+English.lproj/MainMenu~.nib/data.dependency
+English.lproj/MainMenu~.nib/info.nib
+English.lproj/MainMenu~.nib/keyedobjects.nib
+scrollbar.acorn
+scrollbar2.acorn

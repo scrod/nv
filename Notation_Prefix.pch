@@ -1,0 +1,75 @@
+//
+// Prefix header for all source files of the 'Notation' target in the 'Notation' project
+//
+
+#include <AvailabilityMacros.h>
+#ifndef MAC_OS_X_VERSION_10_6
+#define MAC_OS_X_VERSION_10_6 1060
+#endif
+
+#if __OBJC__
+#import <Cocoa/Cocoa.h>
+#import <WebKit/WebKit.h>
+#endif
+
+#ifndef NSFoundationVersionNumber10_6
+#define NSFoundationVersionNumber10_6 751.00
+#endif
+#ifndef NSFoundationVersionNumber10_5
+#define NSFoundationVersionNumber10_5 677.00
+#endif
+#ifndef NSAppKitVersionNumber10_3
+#define NSAppKitVersionNumber10_3 743.0
+#endif
+
+#ifndef NSINTEGER_DEFINED
+#if __LP64__ || NS_BUILD_32_LIKE_64
+typedef long NSInteger;
+typedef unsigned long NSUInteger;
+#else
+typedef int NSInteger;
+typedef unsigned int NSUInteger;
+#endif
+
+#define NSIntegerMax    LONG_MAX
+#define NSIntegerMin    LONG_MIN
+#define NSUIntegerMax   ULONG_MAX
+
+#define NSINTEGER_DEFINED 1
+#endif
+
+#define GCC_VERSION (__GNUC__ * 10000 \
++ __GNUC_MINOR__ * 100 \
++ __GNUC_PATCHLEVEL__)
+
+#define VAR_STR(x) @#x
+
+#define SEL_STR(name) NSStringFromSelector(@selector(name))
+
+#define force_inline __attribute__((always_inline))
+
+#define UTXT_TYPE_ID 0x75747874
+#define TEXT_TYPE_ID 0x54455854
+#define HTML_TYPE_ID 0x48544D4C
+#define RTF_TYPE_ID 0x52544620
+#define RTFD_TYPE_ID 0x52544644
+#define WORD_DOC_TYPE_ID 0x5738424E
+#define PDF_TYPE_ID 0x50444620
+
+//faux carbon errors
+#define kCoderErr -818
+#define kJournalingError -819
+#define kWriteJournalErr -820
+#define kNoAuthErr -821
+#define kCompressionErr -822
+#define kPassCanceledErr -823
+#define kDataFormattingErr -824
+#define kItemVerifyErr -825
+
+#define VERIFY_SALT "Salt for verifying master key in a single iteration"
+#define LOG_SESSION_SALT "Salt for encrypting a write-ahead-log session"
+
+#define IsLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_5)
+#define IsSnowLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_6)
+
+#define NOTES_MENU_ID 89

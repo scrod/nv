@@ -1,0 +1,463 @@
+_mach_init_routine
+_errno
+__cthread_init_routine
+___keymgr_global
+_NSRTFPboardType
+_NSAppKitVersionNumber
+_NSURLPboardType
+_NSStringPboardType
+_WebArchivePboardType
+_NSFilenamesPboardType
+_NSApp
+_kCFAllocatorNull
+_NSFontAttributeName
+_NSUndoManagerDidUndoChangeNotification
+_NSWordMLTextDocumentType
+_NSHTMLTextDocumentType
+_NSDocumentTypeDocumentAttribute
+_NSUndoManagerDidRedoChangeNotification
+_kCFAllocatorDefault
+_NSInvalidArgumentException
+_NSLinkAttributeName
+_NSBackgroundColorAttributeName
+_NSForegroundColorAttributeName
+_NSUnderlineStyleAttributeName
+_NSObliquenessAttributeName
+_NSCursorAttributeName
+_NSFindPboard
+_NSStrokeWidthAttributeName
+_NSParagraphStyleAttributeName
+_kCFTypeDictionaryValueCallBacks
+_kCFTypeDictionaryKeyCallBacks
+__DefaultRuneLocale
+_NSAttachmentAttributeName
+_NSLigatureAttributeName
+_NSZeroRect
+_NSEventTrackingRunLoopMode
+_NSModalPanelRunLoopMode
+_NSZeroPoint
+_NSDefaultRunLoopMode
+_NSZeroSize
+_NSControlTextDidEndEditingNotification
+_NSWorkspaceRecycleOperation
+_FSDetermineIfRefIsEnclosedByFolder
+_NSWindowDidEndSheetNotification
+_NSWindowDidBecomeKeyNotification
+_NSWindowDidResignKeyNotification
+_NSControlTextDidChangeNotification
+_NSFileCreationDate
+_NSFileTypeRegular
+_NSFileModificationDate
+_NSFileType
+_NSFileHFSTypeCode
+_NSFileTypeDirectory
+_NSTableViewSelectionDidChangeNotification
+_NSTableViewSelectionIsChangingNotification
+_NSApplicationWillResignActiveNotification
+_NSApplicationDidBecomeActiveNotification
+___sF
+___keymgr_dwarf2_register_sections
+__init_keymgr
+__start
+dyld_stub_binding_helper
+__dyld_func_lookup
+_darwin_unwind_dyld_add_image_hook
+_darwin_unwind_dyld_remove_image_hook
+___darwin_gcc3_preregister_frame_info
+_main
+_atexit
+_NSApplicationMain
+_objc_msgSendSuper
+_objc_msgSend
+_objc_msgSend_stret
+_floor
+_floorf
+_malloc
+_fmod
+_free
+_NSStringFromSelector
+_reallocf
+_NSIsEmptyRect
+_NSRectFill
+_NSFrameRect
+-[RBSplitView initWithCoder]
+-[RBSplitSubview initWithCoder]
+-[NotesTableView initWithCoder]
++[GlobalPrefs defaultPrefs]
+-[GlobalPrefs init]
+-[HeaderViewWithMenu init]
+-[GlobalPrefs tableFontSize]
+-[GlobalPrefs visibleTableColumns]
+-[NoteAttributeColumn initWithIdentifier]
++[NoteAttributeColumn standardDictionary]
+-[NoteAttributeColumn setMutatingSelector]
+-[NoteAttributeColumn setDereferencingFunction]
+-[NoteAttributeColumn setSortingFunction]
+-[NoteAttributeColumn setReverseSortingFunction]
+-[RBSplitSubview setIdentifier]
+-[LinkingEditor acceptableDragTypes]
+-[LinkingEditor readablePasteboardTypes]
+-[RBSplitView setDelegate]
+-[RBSplitView setAutosaveNamerecursively]
++[RBSplitView removeStateUsingName]
+-[RBSplitView setBackground]
+-[RBSplitView couplingSplitView]
+-[RBSplitSubview couplingSplitView]
+-[RBSplitView setDivider]
+-[RBSplitView setDividerThickness]
+_fMAX
+-[RBSplitView setMustAdjust]
+-[AppController init]
+-[EmptyView initWithFrame]
+-[RBSplitView isFlipped]
+-[RBSplitSubview isFlipped]
+-[RBSplitView setFrameSize]
+-[RBSplitView autoresizesSubviews]
+-[RBSplitView adjustSubviews]
+-[RBSplitView(RB___ViewAdditions) RB___adjustSubviewsExcepting]
+-[RBSplitView(RB___ViewAdditions) RB___subviews]
+-[RBSplitView isHorizontal]
+-[RBSplitSubview splitView]
+-[RBSplitView dividerThickness]
+-[RBSplitSubview(RB___SubviewAdditions) RB___copyIntoCache]
+-[RBSplitSubview(RB___SubviewAdditions) RB___visibleDimension]
+-[RBSplitSubview splitViewIsHorizontal]
+-[RBSplitSubview(RB___SubviewAdditions) RB___animationDataresize]
+-[RBSplitSubview minDimension]
+-[RBSplitSubview maxDimension]
+-[RBSplitSubview asSplitView]
+-[RBSplitSubview(RB___SubviewAdditions) RB___updateFromCachewithTotalDimension]
+-[RBSplitSubview(RB___SubviewAdditions) RB___setFramewithFractionnotify]
+-[RBSplitView delegate]
+-[RBSplitSubview autoresizesSubviews]
+-[RBSplitSubview resizeSubviewsWithOldSize]
+-[RBSplitView saveState]
+-[FocusRingScrollView awakeFromNib]
+-[EmptyView awakeFromNib]
+_outletObjectAwoke
+-[LinkingEditor awakeFromNib]
+-[GlobalPrefs checkSpellingAsYouType]
+-[LinkingEditor isContinuousSpellCheckingEnabled]
+-[GlobalPrefs registerForSettingChangewithTarget]
+-[LinkingEditor preferredLinkAttributes]
+-[GlobalPrefs URLsAreClickable]
+-[AppController awakeFromNib]
+-[GlobalPrefs pastePreservesStyle]
+-[DualField awakeFromNib]
+-[NotesTableView awakeFromNib]
+-[RBSplitView awakeFromNib]
+-[AppController setupViewsAfterAppAwakened]
+-[RBSplitView restoreState]
++[RBSplitView defaultsKeyForNameisHorizontal]
+-[RBSplitView setStateFromString]
+-[RBSplitSubview(RB___SubviewAdditions) RB___setHidden]
+-[NotesTableView restoreColumns]
+-[NoteAttributeColumn updateWidthForHighlight]
+-[GlobalPrefs tableIsReverseSorted]
+-[GlobalPrefs sortedTableColumnKey]
+-[NotesTableView setSortDirectioninTableColumn]
+-[RBSplitView display]
+-[RBSplitView isDragging]
+-[RBSplitView stringWithSavedState]
+-[RBSplitSubview dimension]
+-[RBSplitSubview isCollapsed]
+-[RBSplitSubview(RB___SubviewAdditions) RB___fraction]
+-[RBSplitSubview display]
+-[DualField selectText]
+-[RBSplitView isOpaque]
+-[RBSplitSubview isOpaque]
+-[RBSplitView drawRect]
+-[RBSplitSubview drawRect]
+-[RBSplitView divider]
+-[RBSplitSubview coupledSplitView]
+-[RBSplitView drawDividerinRectbetweenViewandView]
+-[RBSplitView background]
+-[NotesTableView drawRect]
+-[FocusRingScrollView drawRect]
+-[EmptyView drawRect]
+-[RBSplitView needsDisplay]
+-[AppController applicationDidFinishLaunching]
+-[PrefsWindowController init]
+-[NotationPrefsViewController init]
+-[GlobalPrefs notationPrefs]
+_PtrToHand
+-[GlobalPrefs aliasDataForDefaultDirectory]
+_FSResolveAliasWithMountFlags
+_CFStringGetSystemEncoding
+_CFStringConvertEncodingToNSStringEncoding
+_NewFNSubscriptionUPP
+_memset
+_CFAbsoluteTimeGetCurrent
+_memcpy
+_CFStringGetLength
+_CFStringGetCharacters
+_FSMakeFSRefUnicode
+_FSRefMakePath
+-[NotationController initWithAliasDataerror]
+-[NotationController initWithDirectoryReferror]
+-[NotationController init]
+-[LabelsListController init]
++[NoteObject initialize]
+-[FastListDataSource initWithClass]
+_hoursFromAbsoluteTime
+-[NotationController _readAndInitializeSerializedNotes]
+-[NotationController(NotationFileManager) createFileIfNotPresentInNotesDirectoryforFilenamefileWasCreated]
+_FSCreateFileIfNotPresentInDirectory
+_FSRefMakeInDirectoryWithString
+_statfs
+_BlockSizeForNotation
+_getOptimalBlockSize
+_FSGetDataForkName
+_FSOpenFork
+_FSGetForkSize
+_FSReadFork
+_FSCloseFork
+_FSRefReadData
+__NSAddHandler2
+__setjmp
+__NSRemoveHandler2
+_realloc
+-[FrozenNotation initWithCoder]
+-[NotationPrefs initWithCoder]
+-[NotationPrefs updateOSTypesArray]
+-[FrozenNotation notationPrefs]
+-[NotationPrefs setDelegate]
+-[FrozenNotation unpackedNotesReturningError]
+-[NotationPrefs doesEncryption]
+_uncompress
+-[NSData(NVUtilities) uncompressedData]
+-[NSData(NVUtilities) isCompressedFormat]
+_NSStringFromClass
+-[NoteObject initWithCoder]
+-[NoteObject init]
+-[NoteObject initContentCacheCString]
+_CFStringGetCStringPtr
+-[NSString(NV) copyLowercaseASCIIString]
+_modp_tolower_copy
+___istype
+_CFStringCreateMutableCopy
+_CFStringLowercase
+_CFRelease
+_strdup
+-[NSString(NV) lowercaseUTF8String]
+_CFDictionaryCreateMutable
+_CFDictionaryGetValue
+_CFLocaleCopyCurrent
+_CFDateFormatterCreate
+_CFDateCreate
+_CFTimeZoneCopyDefault
+_CFTimeZoneGetSecondsFromGMT
+_CFDictionaryRemoveAllValues
+_CFDateFormatterCreateStringWithDate
+_CFDictionarySetValue
++[NSString(NV) relativeDateStringWithAbsoluteTime]
+_dayFromAbsoluteTime
+_resetCurrentDayTime
++[NSString(NV) relativeTimeStringWithDaterelativeDay]
+_ContainsHighAscii
+-[NoteObject setDelegate]
+-[FrozenNotation deletedNotes]
+_strlen
+_CFUUIDCreateFromString
+_CFUUIDGetUUIDBytes
+-[GlobalPrefs bookmarksController]
+-[BookmarksController initWithBookmarks]
+-[BookmarksController init]
+-[NoteBookmark initWithDictionary]
+-[NSString(NV) uuidBytes]
+-[NoteBookmark initWithNoteUUIDBytessearchString]
+-[NoteBookmark setDelegate]
+-[BookmarksController setNotes]
+-[NoteBookmark validateNoteObject]
+-[BookmarksController setRevealTargetselector]
+-[GlobalPrefs setNotationPrefssender]
+-[GlobalPrefs resolveNoteBodyFontFromNotationPrefsFromSender]
+-[NotationPrefs baseBodyFont]
+-[GlobalPrefs noteBodyFont]
+_sendCallbacksForGlobalPrefs
+-[GlobalPrefs notifyCallbacksForSelectorexcludingSender]
+-[NotationPrefsViewController settingChangedForSelectorString]
+-[NotationPrefs notesStorageFormat]
+-[NotationController databaseSettingsChangedFromOldFormat]
+_strlcpy
+_strlcat
+_open
+_fcntl
+_deflateInit2_
+-[NotationController initializeJournaling]
+-[NotationPrefs WALSessionKey]
+-[WALStorageController initWithParentFSRepencryptionKey]
+-[WALController initWithParentFSRepencryptionKey]
+-[WALController setDelegate]
+-[NotationController stopFileNotifications]
+_IsZeros
+_FSCopyAliasInfo
++[NSString(NV) pathCopiedFromAliasData]
+_CFArrayGetCount
+_CFArrayGetValues
+_mergesort
+_CFStringCompare
+_CFArrayReplaceValues
+_strchr
+_memmove
+_memcmp
+-[AppController setNotationController]
+-[NotationController setSortColumn]
+-[NotationController sortAndRedisplayNotes]
+-[NoteAttributeColumn reverseSortFunction]
+-[NSMutableArray(Sorting) sortStableUsingFunctionusingBufferofSize]
+_ResizeBuffer
+_titleOfNote
+_compareDateCreatedReverse
+_compareTitleStringReverse
+_noteContainsUTF8String
+_resetFoundPtrsForNote
+-[FastListDataSource count]
+-[FastListDataSource sortStableUsingFunction]
+-[NotationController notesListDataSource]
+-[FastListDataSource numberOfRowsInTableView]
+-[NotationController setDelegate]
+-[GlobalPrefs lastSearchString]
+-[DualField textDidEndEditing]
+-[DualField textViewshouldChangeTextInRangereplacementString]
+-[AppController controlTextDidChange]
+-[NotationController filterNotesFromString]
+-[AppController notationListMightChange]
+-[NotationController filterNotesFromUTF8StringforceUncached]
+-[FastListDataSource fillArrayFromArray]
+_replaceString
+-[FastListDataSource immutableObjects]
+-[AppController notationListDidChange]
+-[NotesTableView reloadData]
+-[HeaderViewWithMenu setIsReloading]
+-[NotesTableView deselectAll]
+-[AppController processChangedSelectionForTable]
+-[DualField setSnapbackString]
+-[DualField updateButtonIfNecessaryForEditor]
+-[AppController setEmptyViewState]
+-[EmptyView setLabelStatus]
+-[GlobalPrefs UUIDBytesOfLastSelectedNote]
+-[NSArray(NoteUtilities) indexOfNoteWithUUIDBytes]
+-[NoteObject uniqueNoteIDBytes]
+-[AppController windowWillReturnUndoManager]
+-[NotationController setUndoManager]
+-[DeletionManager initWithNotationController]
+-[NotationController aliasNeedsUpdating]
++[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation]
+-[GlobalPrefs triedToImportBlor]
+-[NotationPrefs firstTimeUsed]
+-[FocusRingScrollView windowChangedKeyNotification]
+-[NotesTableView windowDidBecomeKey]
+-[NotesTableView setShouldUseSecondaryHighlightColor]
+-[FrozenNotation dealloc]
+-[FastListDataSource tableViewobjectValueForTableColumnrow]
+_columnAttributeForObject
+_dateCreatedStringOfNote
+-[DualField resetCursorRects]
+-[RBSplitView resetCursorRects]
+-[RBSplitView isVertical]
++[RBSplitView cursor]
+-[HeaderViewWithMenu resetCursorRects]
+-[AppController applicationDidBecomeActive]
+-[NotationController checkJournalExistence]
+-[WALController logFileStillExists]
+-[NotationController currentNoteStorageFormat]
+-[NotationPrefs secureTextEntry]
+-[NotationController updateDateStringsIfNecessary]
+-[RBSplitView viewDidMoveToSuperview]
+-[RBSplitView(RB___ViewAdditions) RB___adjustOutermostIfNeeded]
+-[AppController runDelayedUIActionsAfterLaunch]
+-[BookmarksController setDelegate]
+-[BookmarksController updateBookmarksUI]
+-[GlobalPrefs setBookmarksFromSender]
+-[BookmarksController dictionaryReps]
+-[NoteBookmark dictionaryRep]
++[NSString(NV) uuidStringWithBytes]
+-[BookmarksController regenerateBookmarksMenu]
+-[NoteBookmark description]
+-[NoteBookmark noteObject]
+-[BookmarksController noteWithUUIDBytes]
+-[AppController updateNoteMenus]
+-[GlobalPrefs confirmNoteDeletion]
+-[GlobalPrefs registerAppActivationKeystrokeWithTargetselector]
+-[GlobalPrefs appActivationHotKey]
+-[PTHotKey init]
++[PTKeyCombo clearKeyCombo]
++[PTKeyCombo keyComboWithKeyCodemodifiers]
+-[PTKeyCombo initWithKeyCodemodifiers]
+-[PTHotKey setKeyCombo]
+-[PTHotKey setName]
+-[GlobalPrefs appActivationKeyCombo]
+-[PTHotKey setTarget]
+-[PTHotKey setAction]
++[PTHotKeyCenter sharedCenter]
+-[PTHotKeyCenter init]
+-[PTHotKeyCenter unregisterHotKeyForName]
+-[PTHotKeyCenter unregisterHotKey]
+-[PTHotKeyCenter registerHotKey]
+-[PTHotKey keyCombo]
+-[PTKeyCombo isValidHotKeyCombo]
+-[PTKeyCombo keyCode]
+-[PTKeyCombo modifiers]
+-[PTHotKey setCarbonHotKey]
+-[PTHotKey name]
+-[PTHotKeyCenter _updateEventHandler]
+-[NotationController checkIfNotationIsTrashed]
+-[NotationController(NotationFileManager) notesDirectoryIsTrashed]
+-[NotesTableView menuNeedsUpdate]
+-[NotesTableView menuForColumnConfiguration]
+-[NotesTableView menuForColumnSorting]
+-[FastListDataSource filterArrayUsingFunctioncontext]
+-[GlobalPrefs autoCompleteSearches]
+_noteTitleHasPrefixOfUTF8String
+-[NotationController preferredSelectedNoteIndex]
+-[NotesTableView selectRowAndScroll]
+-[AppController tableViewSelectionDidChange]
+-[AppController cacheTypedStringIfNecessary]
+-[AppController displayContentsForNoteAtIndex]
+-[NotationController noteObjectAtFilteredIndex]
+-[AppController _setCurrentNote]
+-[LinkingEditor selectedRangeWasAutomatic]
+-[NoteObject lastSelectedRange]
+-[LinkingEditor didRenderFully]
+-[NoteObject contentString]
+-[LinkingEditor layoutManagerDidInvalidateLayout]
+-[LinkingEditor setAutomaticallySelectedRange]
+-[DualField lastLengthReplaced]
+-[LinkingEditor layoutManagerdidCompleteLayoutForTextContaineratEnd]
+-[NotesTableView _shouldUseSecondaryHighlightColor]
+-[NoteObject updateContentCacheCStringIfNecessary]
+-[AppController controltextViewdoCommandBySelector]
+-[RBSplitSubview acceptsFirstResponder]
+-[LinkingEditor becomeFirstResponder]
+-[FocusRingScrollView setHasFocus]
+-[GlobalPrefs drawFocusRing]
+-[LinkingEditor keyDown]
+-[LinkingEditor insertTab]
+-[GlobalPrefs tabKeyIndents]
+-[LinkingEditor resignFirstResponder]
+-[AppController textDidEndEditing]
+-[AppController cancelOperation]
+-[NotationController notesAtIndexes]
+-[FastListDataSource objectsAtFilteredIndexes]
+-[NotesTableView viewingLocation]
+-[NotationController indexesOfNotes]
+-[FastListDataSource indexOfObjectIdenticalTo]
+-[NotesTableView setViewingLocation]
+-[NotesTableView scrollRowToVisiblewithVerticalOffset]
+-[AppController validateMenuItem]
+-[NotesTableView performKeyEquivalent]
+-[AppController applicationWillTerminate]
+-[AppController fieldSearchString]
+-[AppController typedString]
+-[GlobalPrefs setLastSearchStringselectedNotesender]
+-[AppController windowWillClose]
+-[GlobalPrefs quitWhenClosingWindow]
+-[NotesTableView windowDidResignKey]
+-[NotationController flushAllNoteChanges]
+-[NotationPrefs preferencesChanged]
+-[NotationController closeJournal]
+-[WALController destroyLogFile]
+-[WALStorageController dealloc]
+-[WALController dealloc]
+-[GlobalPrefs synchronize]

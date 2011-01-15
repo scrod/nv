@@ -1,0 +1,375 @@
+/*
+   base.css
+   MultiMarkdown Zettel rendering
+   
+   Created by Christian Tietze on 2010-09-28.
+   http://christiantietze.de
+*/
+
+/* based on:
+ *     base.css | v0.4 (06132010) | Thierry Koblentz
+ *     See: http://thinkvitamin.com/design/setting-rather-than-resetting-default-styling/
+ * typography guide:
+ *     Azbuka - CSS Typographical Base Rendering Library  
+ *     http://code.google.com/p/azbuka/
+ */
+
+/* HTML 5 fix */
+header, nav, article, footer, aside, address, section	 { display: block; }
+
+/* * * * * *
+ *
+ *   T Y P O G R A P H Y
+ *
+ */
+
+/* using height:100% on html and body allows to style containers with a 100% height
+ * the overflow declaration is to make sure there is a gutter for the scollbar in all browsers regardless of content
+ * note that there is no font-size declaration set in this rule. If you wish to include one, you should use font-size: 100.01% to prevent bugs in IE and Opera
+ */
+html {
+  height: 100%;
+  overflow-y: scroll;
+  font-size: 100.01%;
+}
+/* not all browsers set white as the default background color 
+ * color is set to create not too much contrast with the background color
+ * line-height is to ensure that text is legible enough (that there is enough space between the upper and lower line) 
+ */	
+body {
+/*  height: 100%;*/
+/*  font-size: 0.8125em; */
+  line-height: 1.618em;  /* 13px, golden rule line-height */
+  font-size-adjust:none;
+  font-style:normal;
+  font-variant:normal;
+  font-weight:normal;
+}
+
+/* this choice of font-family is supposed to render text the same across platforms
+ * letter-spacing makes the font a bit more legible
+ *
+ * See Eric Meyer's article about Fixed Monospace Sizing 
+ * http://meyerweb.com/eric/thoughts/2010/02/12/fixed-monospace-sizing/
+ */
+
+body, input, button, textarea, select, h1, h2, h3, h4, h5, h6 {
+  font-family: Georgia, "DejaVu Serif", serif;
+  letter-spacing: .05em;
+}
+pre, tt, code, kbd, samp, var {
+  font-family: "Anonymous Pro", "Courier New", Courier, monospace, serif;
+}
+
+/* These should be self explanatory
+ */
+/* h1     { font-size: 2.615em; line-height: 1.18; } /* 34px */
+h1  { font-size: 2em;     line-height: 1.19; } /* 26px */
+h2      { font-size: 1.618em; line-height: 1.24; } /* 21 */
+h3      { font-size: 1.308em; line-height: 1.23; } /* 17*/
+h4, h5, h6  { font-size: 1em;     line-height: 1.3; font-weight: 700; } /* 13px */
+
+h2, h3, h4, h5 { font-weight: normal; }
+
+/* styling for links and visited links as well as for links in a hovered, focus and active state 
+ * make sure to keep these rules in that order, with :active being last
+ * text-decoration: none is to make the links more legible while they are in a hovered, focus or active state
+ * a:focus and :focus are used to help keyboard users, you may change their styling, but make sure to give users a visual clue of the element's state.
+ * outline:none used with the pseudo-class :hover is to avoid outline when a user clicks on links
+ * note that these last rules do not do anything in IE as this browser does not support "outline"
+ */
+a:link {text-decoration: none;border-bottom: 1px solid #000;color: #000;}
+a:visited {}
+a:hover {border-bottom-color: transparent;}
+a:focus {text-decoration: none;}
+a:focus,:focus {outline: 1px dotted #000;}
+a:hover,a:active {outline: none;}
+
+/*
+ * This one is commented out as it may be overkill (users who use both a mouse and the keyboard would lose keyboard focus)
+ * Besides, this may create a performance issue
+ * html:hover a {outline: none;}
+ */
+
+/* margin and padding values are reset for all these elements
+ * you could remove from there elements you do not used in your documents, but I don't think it'd worth it 
+ */
+p, dl, dt, dd, ul, ol, li, h1, h2, h3, h4, h5, h6, pre, code, form, fieldset, legend, input, button, textarea, blockquote, th, td {
+  margin: 0;
+  padding: 0;
+}
+
+body { padding: 0.8125em 0; }
+
+/* this is to prevent border from showing around fieldsets and images (i.e., images inside anchors)
+ */
+fieldset, img {
+  border: 0;
+}
+
+/* to prevent a gap from showing below images in some browsers 
+ */
+img {vertical-align: bottom;}
+
+/* Styling of list items
+ * This styles sheet contains a class to apply on lists to reset list-type and margin on LIs
+ */
+ol li,
+ul ol li {list-style-type: decimal;}
+ul li {list-style-type: disc;}
+ul ul li {list-style-type: circle;}
+ul ul ul li {list-style-type: square;}
+ol ol li {list-style-type: lower-alpha;}
+ol ol ol li {list-style-type: lower-roman;}
+
+/* These should be self explanatory
+ * I believe *most* UAs style sub and sup like this by default so I am not sure there is value to include these rules here
+ */
+sub {
+  vertical-align: sub;
+  font-size: smaller;
+}
+
+sup {
+  vertical-align: super;
+  font-size: smaller;
+}
+
+/* color is to make that element stands out (see color set via body)
+ * padding is used so Internet Explorer does not cut-off descenders in letters like p, g, etc.)
+ */
+legend {
+  color: #000;
+  padding-bottom: .5em; 
+}
+
+/* according to Eric Meyer's reset: tables still need 'cellspacing="0"' in the markup
+ */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* caption and summary are very important for tabular data but because caption is nearly impossible to style across browsers many authors do not use it or use display:none to "hide" it (which is almost the same as not using it).
+ * so to prevent such workaround, I am positioning this element off-screen
+ */
+caption {
+  position: absolute;
+  left: -999em;
+}
+
+/* all th should be centered unless they are in tbody (table body)
+ */
+th {text-align: center;} 
+tbody th {text-align: left;} 
+
+/* code {color: #06f;} */
+code { background: rgba(255,255,255,0.8); padding: 0 0.404em; }
+pre code { padding: 0; }
+code, pre { font-size: 1em;}
+
+/* This should be self explanatory
+ */
+blockquote, q, em, cite, dfn, i, cite, var, address {
+  font-style: italic;
+}
+
+blockquote em, q em, cite em {
+  margin-left: 0.3em;
+  letter-spacing: 0.2em;
+  word-spacing: 0.3em;
+}
+
+/* to prevent some browsers from inserting quotes on "q" and "p" ("p" in blockquotes)
+ */
+blockquote p:before, blockquote p:after, q:before, q:after {content: '';}
+
+/* These should be self explanatory
+ */
+th, strong, dt, b {
+  font-weight: bold;
+}
+
+ins {
+  text-decoration: none;
+  border-bottom: 3px double #333;
+}
+
+del {text-decoration: line-through;} 
+
+abbr {
+  border-bottom: 1px dotted #333;
+  font-variant: normal;
+} 
+
+/* Creating white space (vertical gutters) via padding
+ * most authors do not set right/left padding or margin on these elements, they rather use an extra wrapper or style the container with padding to create the left and right gap/gutter they need
+ * I find that the latter creates less robust layouts because it leads authors to mix padding with width which creates issue with the broken box model (IE5 or IE6 in quirks mode) 
+ * so imho, setting this style using the child combinator (i.e., div > h1) should be the best way to do it, but unfortunately IE 6 does not support such syntax, so I have to go with the following + a reset (see next rule) 
+ *
+ * Only applicable for non-iOS devices to preserve screen real estate.
+ */
+@media screen and (min-device-width: 480px) {
+h1, h2, h3, h4, h5, h6, p, pre, ul, ol, dl, fieldset, address {padding:0 30px;}
+}
+
+/* this is to reset the left/right gaps (created by the previous and next rules) on nested elements
+ */
+dd p, dd pre, dd ul, dd ol, dd dl, li p, li pre, li ul, li ol, li dl, fieldset p, fieldset ul, fieldset ol, blockquote p {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+ul { list-style-position:outside; }
+li ul, 
+li ol  { margin:0 1.618em; }
+ul, ol { margin: 0 0 1.618em 0; }
+
+dl { margin: 0 0 1.618em 0; }
+dl dt { font-weight: 700; }
+dl dd { margin-left: 1.618em; }
+
+/* These should be self explanatory
+ */
+dd {
+  padding-left: 20px;
+  margin-top: .5em;
+}
+
+/* we cannot use padding on a table to create left and right gaps (as we do with the elements above), instead we use margin 
+ */ 
+table {
+  margin-right: 30px;
+  margin-left: 30px;
+} 
+
+/* we use margin for hr for the same reason we do for table 
+ */
+hr {
+  margin-right: 30px;
+  margin-left: 30px;
+  border-style: inset;
+  border-width: 1px;
+  margin-bottom:1.618em;
+}
+
+/* same here for blockquote to display a decent border */
+blockquote { margin-left: 30px; border-left: 0.8125em solid #ddd; padding-left: 0.8125em;}
+
+/* --top-- bottom margin solution */
+/* this is my approach to create white space between elements, you do not have to adhere to it
+ * rather than styling these elements with top and bottom margin, or simply bottom margin I only use top margin
+ */
+h1, h2, h3, h4, h5, h6 { margin-bottom: 5px;}
+pre, dl, legend, input, button, textarea, select, address, table { margin-bottom: 1.618em; }
+p { margin-bottom: 0.8125em; }
+
+/* top padding solution */
+/* this is a different approach which may be less frustrating for novice because it avoids running into collapsing margin and allows to clear floats while preserving space above the element
+ * if you decide to give this a try, then comment out the above rule and uncomment the two next ones
+ */
+ /* 
+ h1, h2, h3, h4, h5, h6, p, pre, dt, dd, li, legend, address {padding-top: 1.2em;}
+ hr, input, button, textarea, select, table {margin-top: 1.2em;}
+ */
+
+address { margin-top:1.618em; font-style: italic; }
+
+
+/* * * * * *
+ *
+ *   F O R M   E L E M E N T S
+ *
+ */
+ 
+/* this should not affect the layout of the labels unless you style them in a way that padding applies
+ * if I include this here it is mostly because when labels are styled with float and clear, top padding creates a gap between labels (bottom margin would, but not top margin)
+ */
+label {padding-top: 1.618em;}
+
+/* line height helps to set the vertical alignment of radio buttons and check boxes (remember to group these in fieldsets) 
+ */
+fieldset {line-height: 1;}
+
+/* vertical alignment of checkboxes (a different value is served to IE 7)
+ */
+input[type="checkbox"] {
+  vertical-align: bottom; 
+  *vertical-align: baseline;
+}
+
+/* vertical alignment of radio buttons
+ */
+input[type="radio"] {vertical-align: text-bottom;}
+
+/* vertical alignment of input fields for IE 6
+ */
+input {_vertical-align: text-bottom;}
+
+/* a specific font-size is set for these elements
+ * the line-height is to override FF's default styling
+ */
+input, button, textarea, select, optgroup, option {
+  font-size: .9em;
+	line-height: 1.4 !important;
+}
+
+/* this is to fix IE 6 and 7 which create extra right/left padding on buttons
+ * IMPORTANT: because IE 6 does not understand the first selector below, you need to apply the class "inputButton" to all input of type="button" in your documents
+ * the first declaration is for IE 6 and 7, the second one for IE 6 only, the third one is for all browsers.
+ */
+button,
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
+.inputButton {
+  *overflow: visible;
+  _width: 0;
+  padding: .2em .4em;
+}
+
+
+/* * * * * *
+ *
+ *   C L A S S E S
+ *
+ */
+
+/* to style elements with the default padding and margin we set on headings, paragraphs, lists, etc.
+ * for example, this class could be used on a DIV inside a blockquote or a DIV inside a FORM, etc.
+ */
+.block {
+  padding: 0 30px;
+  margin-top: 1.618em;
+}
+
+/* to swap padding for margin
+ * for example, this class could be used on a heading you'd style with a bottom border
+ */
+.padding2margin {
+  margin-right: 30px;
+  margin-left: 30px;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+/* list items are styled by default with markers (disc, etc.) and left margin
+ * if you apply the class "noMarker" to a list, its items won't display markers and won't have left margin
+ */
+.noMarker li {
+  list-style: none;
+  margin-left: 0;
+}
+
+.footnotes ol {
+	list-style-position: inside;
+}
+
+sup.footnote {
+	line-height: 0px;
+}
+
+/* ease clickability */
+sup.footnote a {
+	padding: 0.1em 0.15em;
+}
