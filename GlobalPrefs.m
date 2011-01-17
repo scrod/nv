@@ -489,14 +489,23 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	NSFont *bodyFont = [self noteBodyFont];
 	
 	if (!noteBodyAttributes && bodyFont) {
-		BOOL monospace = [self _bodyFontIsMonospace];
 		
-		noteBodyAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:bodyFont, NSFontAttributeName, 
-			[self foregroundTextColor], NSForegroundColorAttributeName,
-			/* background text color is handled directly by the NSTextView subclass and so does not need to be stored here */
-							   /*NSTextWritingDirectionEmbedding*/
-			//[NSArray arrayWithObjects:[NSNumber numberWithInt:0], [NSNumber numberWithInt:0], nil], @"NSWritingDirection", //for auto-LTR-RTL text
-		monospace ? [self noteBodyParagraphStyle] : nil, NSParagraphStyleAttributeName, nil] retain];
+		NSMutableDictionary *attrs = [[NSMutableDictionary dictionaryWithObjectsAndKeys:bodyFont, NSFontAttributeName, nil] retain];
+		
+		//not storing the foreground color in each note will make the database smaller, and black is assumed when drawing text
+		NSColor *fgColor = [self foregroundTextColor];
+		if (fgColor && ![fgColor isEqual:[NSColor blackColor]]) {
+			[attrs setObject:fgColor forKey:NSForegroundColorAttributeName];
+		}
+		// background text color is handled directly by the NSTextView subclass and so does not need to be stored here
+		if ([self _bodyFontIsMonospace]) {
+			NSParagraphStyle *pStyle = [self noteBodyParagraphStyle];
+			if (pStyle)
+				[attrs setObject:pStyle forKey:NSParagraphStyleAttributeName];
+		}
+	   /*NSTextWritingDirectionEmbedding*/
+		//[NSArray arrayWithObjects:[NSNumber numberWithInt:0], [NSNumber numberWithInt:0], nil], @"NSWritingDirection", //for auto-LTR-RTL text
+		noteBodyAttributes = attrs;
 	}
 	return noteBodyAttributes;
 }
