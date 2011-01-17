@@ -137,7 +137,7 @@
 		}
 		[newString santizeForeignStylesForImporting];
 		
-		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:newString title:noteTitle uniqueFilename:[notationController uniqueFilenameForTitle:noteTitle fromNote:nil]
+		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:newString title:noteTitle delegate:notationController
 														  format:[notationController currentNoteStorageFormat]] autorelease];
 		if (bodyLoc > 0 && [newString length] >= bodyLoc + prefixedSourceLength) [note setSelectedRange:NSMakeRange(prefixedSourceLength, bodyLoc)];
 		[notationController addNewNote:note];

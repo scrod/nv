@@ -108,7 +108,7 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	if (theDelegate) {
 		delegate = theDelegate;
 		
-		//clean up anything else that couldn't be set due to the note being created without knowledge of its delegate
+		//just in case
 		if (!filename) {
 			filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
 		}
@@ -444,12 +444,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	}
 }
 
-- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle uniqueFilename:(NSString*)aFilename format:(int)formatID {
+- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID {
     if ([self init]) {
 		
 		if (!bodyText || !aNoteTitle) {
 			return nil;
 		}
+		delegate = aDelegate;
 
 		contentString = [[NSMutableAttributedString alloc] initWithAttributedString:bodyText];
 		[self initContentCacheCString];
@@ -461,13 +462,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if (![self _setTitleString:aNoteTitle])
 		    titleString = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 		
-		[self updateTablePreviewString];
-		
 		labelString = @"";
 		cLabelsFoundPtr = cLabels = strdup("");
 		
-		filename = [aFilename retain];
 		currentFormatID = formatID;
+		filename = [[delegate uniqueFilenameForTitle:titleString fromNote:nil] retain];
 		
 		CFUUIDRef uuidRef = CFUUIDCreate(kCFAllocatorDefault);
 		uniqueNoteIDBytes = CFUUIDGetUUIDBytes(uuidRef);
@@ -481,6 +480,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		//delegate is not set yet, so we cannot dirty ourselves here
 		//[self makeNoteDirty];
     }
+	[self updateTablePreviewString];
     
     return self;
 }
@@ -645,6 +645,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 	if ([prefs tableColumnsShowPreview]) {
 		if ([prefs horizontalLayout]) {
+			//where should column width come from when delegate is nil?
 			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] 
 																	 intrusionWidth:labelsPreviewImage ? [labelsPreviewImage size].width : 0.0] retain];
 		} else {

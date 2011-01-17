@@ -138,7 +138,7 @@ NSInteger compareFileSize(id *a, id *b);
 
 - (id)delegate;
 - (void)setDelegate:(id)theDelegate;
-- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle uniqueFilename:(NSString*)aFilename format:(int)formatID;
+- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID;
 - (id)initWithCatalogEntry:(NoteCatalogEntry*)entry delegate:(id)aDelegate;
 
 - (NSSet*)labelSet;

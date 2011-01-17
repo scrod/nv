@@ -569,7 +569,11 @@ terminateApp:
 }
 
 - (void)noteImporter:(AlienNoteImporter*)importer importedNotes:(NSArray*)notes {
+	
 	[notationController addNotes:notes];
+	
+	//aliennoteimporter does not know to which delegate to assign the notes......
+	[notes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
 }
 - (IBAction)importNotes:(id)sender {
 	AlienNoteImporter *importer = [[AlienNoteImporter alloc] init];
@@ -1235,8 +1239,7 @@ terminateApp:
 		NSString *title = [[field stringValue] length] ? [field stringValue] : NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 		NSAttributedString *attributedContents = [textView textStorage] ? [textView textStorage] : [[[NSAttributedString alloc] initWithString:@"" attributes:
 																									 [prefsController noteBodyAttributes]] autorelease];		
-		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedContents title:title 
-												 uniqueFilename:[notationController uniqueFilenameForTitle:title fromNote:nil]
+		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedContents title:title delegate:notationController
 														 format:[notationController currentNoteStorageFormat]] autorelease];
 		[notationController addNewNote:note];
 		
