@@ -62,7 +62,8 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		NSString *path = [filenames objectAtIndex:i];
 		//assume that paths are of NSFileManager origin, not Carbon File Manager
 		//(note filenames are derived with the expectation of matching against Carbon File Manager)
-		[lcNamesDict setObject:path forKey:[[[path lastPathComponent] lowercaseString] stringByReplacingOccurrencesOfString:@":" withString:@"/"]];
+		[lcNamesDict setObject:path forKey:[[[[path lastPathComponent] precomposedStringWithCanonicalMapping] 
+											 lowercaseString] stringByReplacingOccurrencesOfString:@":" withString:@"/"]];
 	}
 	
 	NSMutableSet *foundNotes = [NSMutableSet setWithCapacity:[filenames	count]];

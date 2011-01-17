@@ -243,6 +243,9 @@
 }
 
 - (void)drawGridInClipRect:(NSRect)clipRect {
+	if (![self dataSource]) {
+		return;
+	}
 	if (IsLeopardOrLater && [self selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) {
 		NSIndexSet *set = [self selectedRowIndexes];
 		

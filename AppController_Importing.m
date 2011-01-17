@@ -204,7 +204,7 @@
 		
 		//parameters: "title" and one of the following for the body: "txt", "html" (maybe "md" for markdown in the future)
 		//if title is missing, add the body via -[addNotesFromPasteboard:]
-		NSString *title = nil, *txtBody = nil, *htmlBody = nil;
+		NSString *title = nil, *txtBody = nil, *htmlBody = nil, *tags = nil;
 		for (i=0; i<[params count]; i++) {
 			NSString *compStr = [params objectAtIndex:i];
 			if ([compStr hasPrefix:@"title="] && [compStr length] > 6) {
@@ -213,6 +213,8 @@
 				txtBody = [[compStr substringFromIndex:4] stringByReplacingPercentEscapes];
 			} else if ([compStr hasPrefix:@"html="] && [compStr length] > 5) {
 				htmlBody = [[compStr substringFromIndex:5] stringByReplacingPercentEscapes];
+			} else if ([compStr hasPrefix:@"tags="] && [compStr length] > 5) {
+				tags = [[compStr substringFromIndex:5] stringByReplacingPercentEscapes];
 			}
 		}
 		if (title && (txtBody || htmlBody)) {
@@ -227,10 +229,12 @@
 			[attributedContents removeAttachments];
 			[attributedContents santizeForeignStylesForImporting];
 			
-			NoteObject *note = [[[NoteObject alloc] initWithNoteBody:[attributedContents autorelease] title:title 
-													  uniqueFilename:[notationController uniqueFilenameForTitle:title fromNote:nil]
+			NoteObject *note = [[[NoteObject alloc] initWithNoteBody:[attributedContents autorelease] title:title delegate:notationController
 															  format:[notationController currentNoteStorageFormat]] autorelease];
 			[notationController addNewNote:note];
+			if ([tags length]) {
+				[note setLabelString:tags];
+			}
 			return YES;
 		} else if (txtBody || htmlBody) {
 			NSPasteboard *pboard = [NSPasteboard pasteboardWithUniqueName];

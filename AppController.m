@@ -451,16 +451,18 @@ terminateApp:
 - (IBAction)switchViewLayout:(id)sender {
 	ViewLocationContext ctx = [notesTableView viewingLocation];
 	ctx.pivotRowWasEdge = NO;
+	[notesTableView noteFirstVisibleRow];
 	
 	[self _expandToolbar];
 	
 	[prefsController setHorizontalLayout:![prefsController horizontalLayout] sender:self];
 	[notationController updateDateStringsIfNecessary];
-	[notationController regenerateAllPreviews];
 	[self _configureDividerForCurrentLayout];
+	[notationController regenerateAllPreviews];
 	[splitView adjustSubviews];
 	
 	[notesTableView setViewingLocation:ctx];
+	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
 	
 	[self updateNoteMenus];
 }
