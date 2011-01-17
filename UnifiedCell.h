@@ -12,16 +12,20 @@
 #import <Cocoa/Cocoa.h>
 
 @class NoteObject;
+@class NotesTableView;
 
 @interface UnifiedCell : NSTextFieldCell {
 	NoteObject *noteObject;
 	BOOL previewIsHidden;
 }
 
+
+NSAttributedString *AttributedStringForSelection(NSAttributedString *str);
 - (NSRect)nv_titleRectForFrame:(NSRect)aFrame;
 - (NSRect)nv_tagsRectForFrame:(NSRect)frame andImage:(NSImage*)img;
 
 - (void)setPreviewIsHidden:(BOOL)value;
++ (NSColor*)dateColorForTint;
 - (NSMutableDictionary*)baseTextAttributes;
 - (NoteObject*)noteObject;
 - (void)setNoteObject:(NoteObject*)obj;

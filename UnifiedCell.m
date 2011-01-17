@@ -34,6 +34,24 @@
 	[super dealloc];
 }
 
+#if 0
+- (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
+	NSTextView *tv = (NSTextView *)textObj;
+	NSTextContainer *tc = [tv textContainer];
+	[tc setContainerSize:NSMakeSize(1.0e7, 1.0e7)];
+	[tc setWidthTracksTextView:NO];
+	[tc setHeightTracksTextView:NO];
+	
+	[tv setMinSize:[tv frame].size];
+    [tv setMaxSize:NSMakeSize(1.0e7, [tv frame].size.height)];
+    [tv setHorizontallyResizable:YES];
+    [tv setVerticallyResizable:NO];
+    [tv setAutoresizingMask:NSViewNotSizable];
+	
+	return tv;
+}
+#endif
+
 - (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj 
 			   delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
 
@@ -60,10 +78,10 @@
 	float fontHeight = [(NotesTableView*)[self controlView] tableFontHeight];
 	NSSize size = img ? [img size] : NSMakeSize(30.0, fontHeight + 2.0f);
 	
-	NSPoint pos = NSMakePoint((previewIsHidden ? NSMinX(frame) : NSMaxX(frame) - size.width), 
+	NSPoint pos = NSMakePoint((previewIsHidden ? NSMinX(frame) + 3.0 : NSMaxX(frame) - size.width), 
 							  (previewIsHidden ? NSMinY(frame) + fontHeight + size.height : NSMaxY(frame) - 3.0));
 	
-	return (NSRect){pos, size}; //NSMakeRect(pos.x, pos.y, [img size].width, [img size].height);
+	return (NSRect){pos, size};
 }
 
 //- (BOOL)isScrollable {
@@ -86,6 +104,52 @@
 	previewIsHidden = value;
 }
 
++ (NSColor*)dateColorForTint {
+	static NSColor *color = nil;
+	static NSControlTint lastTint = -1;
+	
+	NSControlTint tint = [NSColor currentControlTint];
+	
+	if (!color || lastTint != tint) {
+		if (tint == NSBlueControlTint) {
+			color = [NSColor colorWithCalibratedRed:0.31 green:.494 blue:0.765 alpha:1.0];
+		} else if (tint == NSGraphiteControlTint) {
+			color = [NSColor colorWithCalibratedRed:0.498 green:0.525 blue:0.573 alpha:1.0];
+		} else {
+			color = [NSColor grayColor];
+		}
+		lastTint = tint;
+		[color retain];
+	}
+	return color;
+}
+
+static NSShadow* ShadowForSnowLeopard() {
+	static NSShadow *sh = nil;
+	if (!sh) {
+		sh = [[NSShadow alloc] init];
+		[sh setShadowOffset:NSMakeSize(0,-1)];
+		[sh setShadowColor:[NSColor colorWithCalibratedWhite:0.15 alpha:0.67]];
+		[sh setShadowBlurRadius:0.5];
+	}
+	return sh;
+}
+
+NSAttributedString *AttributedStringForSelection(NSAttributedString *str) {
+	//used to modify the cell's attributed string before display when it is selected
+	
+	//snow leopard is stricter about applying the default highlight-attributes (e.g., no shadow unless no paragraph formatting)
+	//so add the shadow here for snow leopard on selected rows
+
+	NSRange fullRange = NSMakeRange(0, [str length]);
+	NSMutableAttributedString *colorFreeStr = [str mutableCopy];
+	[colorFreeStr removeAttribute:NSForegroundColorAttributeName range:fullRange];
+	if (IsSnowLeopardOrLater) {
+		[colorFreeStr addAttribute:NSShadowAttributeName value:ShadowForSnowLeopard() range:NSMakeRange(0, [str length])];
+	}
+	return [colorFreeStr autorelease];
+}
+
 - (NSMutableDictionary*)baseTextAttributes {
 	static NSMutableParagraphStyle *alignStyle = nil;
 	if (!alignStyle) {
@@ -106,8 +170,12 @@
 	NSMutableDictionary *baseAttrs = [self baseTextAttributes];
 	BOOL isActive = (IsLeopardOrLater && [tv selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) ? YES : [tv isActiveStyle];
 	
-	NSColor *textColor = ([self isHighlighted] && isActive) ? [NSColor whiteColor] : (![self isHighlighted] ? [NSColor colorForControlTint:[self controlTint]] : nil);
-	[baseAttrs setObject:textColor forKey:NSForegroundColorAttributeName];
+	NSColor *textColor = ([self isHighlighted] && isActive) ? [NSColor whiteColor] : (![self isHighlighted] ? [[self class] dateColorForTint]/*[NSColor grayColor]*/ : nil);
+	if (textColor)
+		[baseAttrs setObject:textColor forKey:NSForegroundColorAttributeName];
+	if (IsSnowLeopardOrLater && [self isHighlighted]) {
+		[baseAttrs setObject:ShadowForSnowLeopard() forKey:NSShadowAttributeName];
+	}	
 	
 	//if the sort-order is date-created, then show the date on which this note was created; otherwise show date modified.
 	BOOL isSortedByDateCreated = [[[GlobalPrefs defaultPrefs] sortedTableColumnKey] isEqualToString:NoteDateCreatedColumnString];
@@ -118,13 +186,12 @@
 	
 	[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
 
-	[noteObject updateLabelsPreviewImage];
 	NSImage *img = ([self isHighlighted] && isActive) ? [noteObject labelsPreviewImageOfColor:[NSColor whiteColor]] : [noteObject labelsPreviewImage];
 	
 	if (img) {
-		//[img compositeToPoint:NSMakePoint((previewIsHidden ? NSMinX(cellFrame) : NSMaxX(cellFrame) - [img size].width), 
-//										  (previewIsHidden ? NSMinY(cellFrame) + fontHeight + [img size].height : NSMaxY(cellFrame) - 3.0)) operation:NSCompositeSourceOver];
-		[img compositeToPoint:[self nv_tagsRectForFrame:cellFrame andImage:img].origin operation:NSCompositeSourceOver];
+		NSRect rect = [self nv_tagsRectForFrame:cellFrame andImage:img];
+		rect = [controlView centerScanRect:rect];
+		[img compositeToPoint:rect.origin operation:NSCompositeSourceOver];
 	}
 #if 0
 	NSString *labelStr = labelsOfNote(noteObject);

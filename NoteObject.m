@@ -227,44 +227,33 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	return titleOfNote(note);
 }
 
-NSAttributedString *_attributedStringWithoutColor(NSAttributedString *str) {
-	NSMutableAttributedString *colorFreeStr = [str mutableCopy];
-	[colorFreeStr removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [str length])];
-	return [colorFreeStr autorelease];
-}
 
-NSAttributedString *_attributedStringWithBold(NSAttributedString *str) {
-	NSMutableAttributedString *boldStr = [str mutableCopy];
-
-	[boldStr addAttributes:[NSDictionary dictionaryWithObjectsAndKeys:[NSFont boldSystemFontOfSize:[[GlobalPrefs defaultPrefs] tableFontSize]], 
-							NSFontAttributeName, nil] range:NSMakeRange(0, [str length])];
-	return [boldStr autorelease];
-}
 force_inline id unifiedCellSingleLineForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
-	BOOL isSelected = [tv isRowSelected:row];
-	id obj = note->tableTitleString ? (isSelected ? (id)_attributedStringWithBold(note->tableTitleString) : 
-									   (id)note->tableTitleString) : (id)titleOfNote(note);
-
+	
+	id obj = note->tableTitleString ? (id)note->tableTitleString : (id)titleOfNote(note);
+	
 	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
-	[cell setObjectValue:obj];
+	//	[cell setObjectValue:obj];
 	[cell setNoteObject:note];
 	[cell setPreviewIsHidden:YES];
 	
-	return cell;
+	return obj;
 }
 
 force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
+	//snow leopard is stricter about applying the default highlight-attributes (e.g., no shadow unless no paragraph formatting)
+	//so add the shadow here for snow leopard on selected rows
 	
-	BOOL isSelected = [tv isRowSelected:row];
-	id obj = note->tableTitleString ? (isSelected ? (id)_attributedStringWithoutColor(note->tableTitleString) : 
+	id obj = note->tableTitleString ? ([tv isRowSelected:row] ? (id)AttributedStringForSelection(note->tableTitleString) : 
 									   (id)note->tableTitleString) : (id)titleOfNote(note);
 	
 	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
-	[cell setObjectValue:obj];
+	//	NSLog(@"set obj value %@", [obj isKindOfClass:[NSAttributedString class]] ? [obj string] : obj);
+	//	[cell setObjectValue:obj];
 	[cell setNoteObject:note];
 	[cell setPreviewIsHidden:NO];
 	
-	return cell;
+	return obj;
 }
 
 //make notationcontroller should send setDelegate: and setLabelString: (if necessary) to each note when unarchiving this way
@@ -634,7 +623,12 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	[noAttrBreak release];
 
 	//other header things here, too? like date created/mod/printed? tags?
-	[largeAttributedTitleString appendAttributedString:[self contentString]];
+	NSMutableAttributedString *contentMinusColor = [[self contentString] mutableCopy];
+	[contentMinusColor removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [contentMinusColor length])];
+	
+	[largeAttributedTitleString appendAttributedString:contentMinusColor];
+	
+	[contentMinusColor release];
 	
 	return largeAttributedTitleString;
 }
