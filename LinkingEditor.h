@@ -49,7 +49,7 @@
 - (void)setAutomaticallySelectedRange:(NSRange)newRange;
 - (void)removeHighlightedTerms;
 - (void)highlightRangesTemporarily:(CFArrayRef)ranges;
-- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString;
+- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString avoidHighlight:(BOOL)noHighlight;
 - (void)defaultStyle:(id)sender;
 - (void)strikethroughNV:(id)sender;
 - (void)bold:(id)sender;

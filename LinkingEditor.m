@@ -116,7 +116,7 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 		} else {
 			NSString *typedString = [[NSApp delegate] typedString];
 			if (typedString)
-				[self highlightTermsTemporarilyReturningFirstRange:typedString];
+				[self highlightTermsTemporarilyReturningFirstRange:typedString avoidHighlight:NO];
 		}
 	}
 }
@@ -525,7 +525,7 @@ copyRTFType:
 	}
 }
 
-- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString {
+- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString avoidHighlight:(BOOL)noHighlight {
 	
 	//if lengths of respective UTF8-string equivalents for contentString are the same, we should revert to cstring-based algorithm
 	
@@ -550,7 +550,13 @@ copyRTFType:
 					CFRange *range = (CFRange *)CFArrayGetValueAtIndex(ranges, rangeIndex);
 					
 					if (range && range->length > 0 && range->location + range->length <= CFStringGetLength(bodyString)) {
-						if (firstRange.location > (NSUInteger)range->location) firstRange = *(NSRange*)range;
+						if (firstRange.location > (NSUInteger)range->location) {
+							firstRange = *(NSRange*)range;
+							if (noHighlight) {
+								CFRelease(ranges);
+								goto returnEarly;
+							}
+						}
 						[[self layoutManager] addTemporaryAttributes:highlightDict forCharacterRange:*(NSRange*)range];
 					} else {
 						NSLog(@"highlightTermsTemporarily: Invalid range (%@)", range ? NSStringFromRange(*(NSRange*)range) : @"?");
@@ -559,6 +565,7 @@ copyRTFType:
 				CFRelease(ranges);
 			}
 		}
+	returnEarly:
 		CFRelease(terms);
 	}
 	return (firstRange);

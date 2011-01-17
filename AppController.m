@@ -1127,8 +1127,9 @@ terminateApp:
 		//[textView setAutomaticallySelectedRange:NSMakeRange(0,0)];
 		
 		//highlight terms--delay this, too
-		if ([prefsController highlightSearchTerms] && (unsigned)noteIndex != [notationController preferredSelectedNoteIndex])
-			firstFoundTermRange = [textView highlightTermsTemporarilyReturningFirstRange:typedString];
+		if ((unsigned)noteIndex != [notationController preferredSelectedNoteIndex])
+			firstFoundTermRange = [textView highlightTermsTemporarilyReturningFirstRange:typedString avoidHighlight:
+								   ![prefsController highlightSearchTerms]];
 		
 		//if there was nothing selected, select the first found range
 		if (!noteSelectionRange.length && firstFoundTermRange.location != NSNotFound)
