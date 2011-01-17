@@ -867,12 +867,15 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (NSImage*)labelsPreviewImage {
+	if (!labelsPreviewImage && [labelString length]) {
+		[self updateLabelsPreviewImage];
+	}
 	return labelsPreviewImage;
 }
 
 - (NSImage*)labelsPreviewImageOfColor:(NSColor*)aColor {
 	if ([labelString length]) {
-		float tableFontSize = [[GlobalPrefs defaultPrefs] tableFontSize];
+		float tableFontSize = [[GlobalPrefs defaultPrefs] tableFontSize] - 1.0;
 		NSFont *font = [NSFont systemFontOfSize:tableFontSize];
 		NSDictionary *attrs = [NSDictionary dictionaryWithObject:font forKey:NSFontNameAttribute];
 		
@@ -886,62 +889,48 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[layoutManager addTextContainer:textContainer];
 		[textStorage addLayoutManager:layoutManager];
 				
-		NSArray *words = [self labelTitles];
-		NSMutableArray *widths = [NSMutableArray arrayWithCapacity:[words count]]; //I shouldn't have to do this; -usedRectForTextContainer: is supposed to work
+		NSArray *words = [self orderedLabelTitles];
+		NSBezierPath *blocksPath = [NSBezierPath bezierPath];
+		NSPoint nextBoxPoint = NSZeroPoint;
 		NSUInteger i;
 		float imageWidth = 0.0;
 		
 		for (i=0; i<[words count]; i++) {
-			if ([[words objectAtIndex:i] length]) {
+			NSString *word = [words objectAtIndex:i];
+			if ([word length]) {
 				
 				//Force the layout manager to layout its text
-				[[textStorage mutableString] setString:[words objectAtIndex:i]];
+				[[textStorage mutableString] setString:word];
 				[textStorage setFont:font]; //will infuriatingly revert to measuring Lucida Grande 11 otherwise, despite what it actually says
 				
 				(void)[layoutManager glyphRangeForTextContainer:textContainer];
-				NSSize stringSize = [layoutManager usedRectForTextContainer:textContainer].size;
-				
-				imageWidth += stringSize.width + 7.5;
-				[widths addObject:[NSValue valueWithSize:stringSize]];
-			} else {
-				[widths addObject:[NSValue valueWithSize:NSZeroSize]];
-			}
-		}
-		
-				
-		NSImage *img = [[NSImage alloc] initWithSize:NSMakeSize(imageWidth, tableFontSize * 1.3 + 1.5)];
-		[img lockFocus];
-		
-		[aColor setFill];
-		
-		NSPoint nextBoxPoint = NSZeroPoint;
-		
-		for (i=0; i<[words count]; i++) {
-			NSString *word = [words objectAtIndex:i];
-			if ([word length]) {
-				[[textStorage mutableString] setString:word];
-//				[textStorage setFont:font]; //ironically unnecessary for actual path creation
-
-				NSSize wordSize = [[widths objectAtIndex:i] sizeValue];
+				NSSize wordSize = [layoutManager usedRectForTextContainer:textContainer].size;
 				
 				NSRect wordRect = NSMakeRect(nextBoxPoint.x, nextBoxPoint.y, roundf(wordSize.width + 4.0), roundf(tableFontSize * 1.3));
+				imageWidth += wordRect.size.width + 4.0;
+				
 				NSBezierPath *stringPath = [NSBezierPath bezierPathWithLayoutManager:layoutManager characterRange:NSMakeRange(0,[word length]) 
 																			 atPoint:NSMakePoint(nextBoxPoint.x + 2.0, 3.0)];
-				
 				wordRect.origin = nextBoxPoint;
 				
-				NSBezierPath *backgroundPath = [NSBezierPath bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 0.0, 0.0) radius:2.0f];
+				NSBezierPath *backgroundPath = [NSBezierPath bezierPathWithRoundRectInRect:wordRect radius:2.0f];
 				
 				[backgroundPath setWindingRule:NSEvenOddWindingRule];
 				[backgroundPath appendBezierPath:stringPath];
-				[backgroundPath fill];
+				
+				[blocksPath appendBezierPath:backgroundPath];
 				
 				nextBoxPoint = NSMakePoint(roundf(nextBoxPoint.x + wordRect.size.width + 4.0), 0.0);
-				
 			}
 		}
-		//[[NSColor redColor] set];
-		//NSFrameRect(NSMakeRect(0, 0, [img size].width, [img size].height));
+		
+				
+		NSImage *img = [[NSImage alloc] initWithSize:NSMakeSize(imageWidth - 4.0, tableFontSize * 1.3 + 1.5)];
+		[img lockFocus];
+		
+		[aColor setFill];
+		[blocksPath fill];
+		
 		[img unlockFocus];
 		
 		[textContainer release];
@@ -956,7 +945,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 - (void)updateLabelsPreviewImage {
 
 	[labelsPreviewImage release];
-	labelsPreviewImage = [[self labelsPreviewImageOfColor:[NSColor grayColor]] retain];
+	labelsPreviewImage = [[self labelsPreviewImageOfColor:[NSColor colorWithCalibratedWhite:0.55 alpha:1.0]] retain];
 }
 
 
