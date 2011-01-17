@@ -229,7 +229,10 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	[fgColor getHue:&hue saturation:&saturation brightness:&brightness alpha:NULL];
 	
 	//make the insertion point lighter than the foreground color if the background is dark and vise versa
-	return [fgColor blendedColorWithFraction:0.4 ofColor:_perceptualBrightness(bgColor) > 0.5 ? [NSColor whiteColor] : [NSColor blackColor]];
+	NSColor *brighter = [fgColor blendedColorWithFraction:0.4 ofColor:[NSColor whiteColor]];
+	NSColor *darker = [fgColor blendedColorWithFraction:0.4 ofColor:[NSColor blackColor]];
+
+	return _perceptualColorDifference(brighter, bgColor) > _perceptualColorDifference(darker, bgColor) ? brighter : darker;
 }
 
 - (NSDictionary*)preferredLinkAttributes {
