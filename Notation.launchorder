@@ -206,7 +206,7 @@ _FSCreateFileIfNotPresentInDirectory
 _FSRefMakeInDirectoryWithString
 _statfs
 _BlockSizeForNotation
-_getOptimalBlockSize
+_GetVolumeInfo
 _FSGetDataForkName
 _FSOpenFork
 _FSGetForkSize

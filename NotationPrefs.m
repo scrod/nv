@@ -142,7 +142,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	 1: First NSArchiver (was unused--maps to 0)
 	 2: First NSKeyedArchiver
 	 3: First syncServicesMD and date created/modified syncing to files
-	 4: storage of font foreground colors in notes
+	 4: tracking of file size and attribute mod dates, font foreground colors, openmeta labels
 	 */
 	[coder encodeInt32:EPOC_ITERATION forKey:VAR_STR(epochIteration)];
 	

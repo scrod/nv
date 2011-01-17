@@ -87,6 +87,8 @@ typedef struct _NoteCatalogEntry {
 	unsigned int lastCheckedDateInHours;
 	int lastLayoutStyleGenerated;
     long blockSize;
+	struct statfs *statfsInfo;
+	CFUUIDRef diskUUID;
     FSRef noteDirectoryRef, noteDatabaseRef;
     AliasHandle aliasHandle;
     BOOL aliasNeedsUpdating;

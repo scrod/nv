@@ -184,6 +184,9 @@
 				NSLog(@"found and removed spurious DB notes");
 				[self refilterNotes];
 			}
+			//remove and re-add link attributes for all notes
+			//remove underline attribute for all notes
+			//add automatic strike-through attribute for all notes
 		}
 		
 		if (epochIteration < EPOC_ITERATION) {
@@ -307,6 +310,7 @@ returnResult:
 	} else {
 		[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:self];
 		//[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)]; //not until we get an actual tag browser
+		//InitializeDiskUUIDIfNecessary(self);
 	}
 	
 	[deletedNotes release];
@@ -769,7 +773,7 @@ bail:
 	[self resortAllNotes];
     [self refilterNotes];
     
-    [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];
+    [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];	
 }
 
 //do not update the view here (why not?)

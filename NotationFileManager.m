@@ -30,7 +30,8 @@ NSString *NotesDatabaseFileName = @"Notes & Settings";
 
 @implementation NotationController (NotationFileManager)
 
-static long getOptimalBlockSize(NotationController *controller);
+static BOOL VolumeSupportsExchangeObjects(NotationController *controller);
+static struct statfs *StatFSVolumeInfo(NotationController *controller);
 
 OSStatus CreateDirectoryIfNotPresent(FSRef *parentRef, CFStringRef subDirectoryName, FSRef *childRef) {
     UniChar chars[256];
@@ -53,44 +54,206 @@ OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef) {
     OSStatus result = noErr;
     
     do {
-	CFStringRef filename = CreateRandomizedFileName();
-	nameLength = CFStringGetLength(filename);
-	result = FSRefMakeInDirectoryWithString(parentRef, childTempRef, filename, chars);
-	CFRelease(filename);
-	
+		CFStringRef filename = CreateRandomizedFileName();
+		nameLength = CFStringGetLength(filename);
+		result = FSRefMakeInDirectoryWithString(parentRef, childTempRef, filename, chars);
+		CFRelease(filename);
+		
     } while (result == noErr);
     
     if (result == fnfErr) {
-	result = FSCreateFileUnicode(parentRef, nameLength, chars, kFSCatInfoNone, NULL, childTempRef, NULL);
+		result = FSCreateFileUnicode(parentRef, nameLength, chars, kFSCatInfoNone, NULL, childTempRef, NULL);
     }
-    
     
     return result;
 }
 
-static long getOptimalBlockSize(NotationController *controller) {
-    struct statfs sfsb;
-    OSStatus err = noErr;
-    const UInt32 maxPathSize = 8 * 1024; //you can never have a large enough path buffer
-    UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
-    
-    if ((err = FSRefMakePath(&(controller->noteDirectoryRef), convertedPath, maxPathSize)) == noErr) {
+
+/*
+ Read the UUID from a mounted volume, by calling getattrlist().
+ Assumes the path is the mount point of an HFS volume.
+ */
+static BOOL GetVolumeUUIDAttr(const char *path, VolumeUUID *volumeUUIDPtr) {
+	struct attrlist alist;
+	struct FinderAttrBuf {
+		u_int32_t info_length;
+		u_int32_t finderinfo[8];
+	} volFinderInfo;
 	
-	if (!statfs((char*)convertedPath, &sfsb))
-	    return sfsb.f_iosize;
-	else
-	    NSLog(@"statfs: error %d\n", errno);
-    } else
-	NSLog(@"FSRefMakePath: error %d\n", err);
-    
-    free(convertedPath);
-    
-    return 0;
+	int result = -1;
+	
+	/* Set up the attrlist structure to get the volume's Finder Info */
+	alist.bitmapcount = 5;
+	alist.reserved = 0;
+	alist.commonattr = ATTR_CMN_FNDRINFO;
+	alist.volattr = ATTR_VOL_INFO;
+	alist.dirattr = 0;
+	alist.fileattr = 0;
+	alist.forkattr = 0;
+	
+	/* Get the Finder Info */
+	if ((result = getattrlist(path, &alist, &volFinderInfo, sizeof(volFinderInfo), 0))) {
+		NSLog(@"GetVolumeUUIDAttr error: %d", result);
+		return NO;
+	}
+	
+	/* Copy the UUID from the Finder Into to caller's buffer */
+	VolumeUUID *finderInfoUUIDPtr = (VolumeUUID *)(&volFinderInfo.finderinfo[6]);
+	volumeUUIDPtr->v.high = OSSwapBigToHostInt32(finderInfoUUIDPtr->v.high);
+	volumeUUIDPtr->v.low = OSSwapBigToHostInt32(finderInfoUUIDPtr->v.low);
+	
+	return YES;
 }
+
+
+// Create a version 3 UUID; derived using "name" via MD5 checksum.
+static void uuid_create_md5_from_name(unsigned char result_uuid[16], const void *name, int namelen) {
+	
+	static unsigned char FSUUIDNamespaceSHA1[16] = { 
+		0xB3, 0xE2, 0x0F, 0x39, 0xF2, 0x92, 0x11, 0xD6, 
+		0x97, 0xA4, 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC
+	};
+	
+    MD5_CTX c;
+	
+    MD5_Init(&c);
+    MD5_Update(&c, FSUUIDNamespaceSHA1, sizeof(FSUUIDNamespaceSHA1));
+    MD5_Update(&c, name, namelen);
+    MD5_Final(result_uuid, &c);
+	
+    result_uuid[6] = (result_uuid[6] & 0x0F) | 0x30;
+    result_uuid[8] = (result_uuid[8] & 0x3F) | 0x80;
+}
+
+
+CFUUIDRef CopyHFSVolumeUUIDForMount(const char *mntonname) {
+	VolumeUUID targetVolumeUUID;
+	CFUUIDBytes uuidBytes;
+	
+	unsigned char rawUUID[8];
+	
+	if (!GetVolumeUUIDAttr(mntonname, &targetVolumeUUID))
+		return NULL;
+	
+	((uint32_t *)rawUUID)[0] = OSSwapHostToBigInt32(targetVolumeUUID.v.high);
+	((uint32_t *)rawUUID)[1] = OSSwapHostToBigInt32(targetVolumeUUID.v.low);
+	
+	uuid_create_md5_from_name((void*)&uuidBytes, rawUUID, sizeof(rawUUID));
+	
+	return CFUUIDCreateFromUUIDBytes(NULL, uuidBytes);
+}
+
+CFUUIDRef CopySyntheticUUIDForVolumeCreationDate(FSRef *fsRef) {
+	
+	FSCatalogInfo fileInfo;
+	if (FSGetCatalogInfo(fsRef, kFSCatInfoVolume, &fileInfo, NULL, NULL, NULL) == noErr) {
+		
+		FSVolumeInfo volInfo;
+		OSStatus err = FSGetVolumeInfo(fileInfo.volume, 0, NULL, kFSVolInfoCreateDate, &volInfo, NULL, NULL);
+		if (err == noErr) {
+		
+			CFAbsoluteTime aTime;
+			UCConvertUTCDateTimeToCFAbsoluteTime(&(volInfo.createDate), &aTime);
+			NSLog(@"got time: %@", CFDateCreate (NULL,aTime));
+			CFUUIDBytes uuidBytes;
+			
+			volInfo.createDate.lowSeconds = OSSwapHostToBigInt32(volInfo.createDate.lowSeconds);
+			volInfo.createDate.highSeconds = OSSwapHostToBigInt32(volInfo.createDate.lowSeconds);
+			volInfo.createDate.fraction = OSSwapHostToBigInt32(volInfo.createDate.lowSeconds);
+			
+			uuid_create_md5_from_name((void*)&uuidBytes, (void*)&volInfo.createDate, sizeof(UTCDateTime));
+			
+			return CFUUIDCreateFromUUIDBytes(NULL, uuidBytes);
+		} else {
+			NSLog(@"can't even get the volume creation date -- what are you trying to do to me?");
+		}
+	}
+	return NULL;
+}
+
+static BOOL VolumeSupportsExchangeObjects(NotationController *controller) {
+	
+	if (controller->volumeSupportsExchangeObjects == -1) {
+		/* get source volume's path */
+		struct statfs * sfsb = StatFSVolumeInfo(controller);
+		if (sfsb) {
+			/* query getattrlist to see if that volume supports FSExchangeObjects */
+			controller->volumeSupportsExchangeObjects = ( 0 != (volumeCapabilities(sfsb->f_mntonname) & VOL_CAP_INT_EXCHANGEDATA));
+		}
+	}
+	return controller->volumeSupportsExchangeObjects;
+}
+
+
+void InitializeDiskUUIDIfNecessary(NotationController *controller) {
+	//create a CFUUIDRef that identifies the volume this database sits on
+	
+	//don't bother unless we will be reading notes as separate files; otherwise there's no need to track the source of the attr mod dates
+	//maybe disk UUIDs will be used in the future for something else; at that point this check should be altered
+	
+	if (!controller->diskUUID && [controller currentNoteStorageFormat] != SingleDatabaseFormat) {
+		
+		struct statfs * sfsb = StatFSVolumeInfo(controller);
+		//if this is not an hfs+ disk, then get the FSEvents UUID
+		//if this is not Leopard or the FSEvents UUID is null, 
+		//then take MD5 sum of creation date + some other info?
+
+		if (!strcmp(sfsb->f_fstypename, "hfs")) {
+			//FSEvents failed us (or is not available) -- so if this is an HFS volume, then try getattrlist instead
+			
+			if ((controller->diskUUID = CopyHFSVolumeUUIDForMount(sfsb->f_mntonname))) {
+				NSLog(@"got HFS diskUUID: %@", [(id)CFUUIDCreateString(NULL, controller->diskUUID) autorelease]);
+			}
+		}
+
+		//ah but what happens when a non-hfs disk is first mounted on leopard+, and then moves to a tiger machine?
+		//then it's screwed anyway I suppose, unless we can synthesize a UUID somehow else and then track what kind each are!
+		if (!controller->diskUUID && IsLeopardOrLater) {
+			//this is not an hfs disk, or it's an afp mount, or whatever
+			
+			if ((controller->diskUUID = FSEventsCopyUUIDForDevice(sfsb->f_fsid.val[0]))) {
+				NSLog(@"got FSEvents diskUUID: %@", [(id)CFUUIDCreateString(NULL, controller->diskUUID) autorelease]);
+			}
+		}
+		
+		if (!controller->diskUUID) {
+			//HFS-UUID-check failed
+			if ((controller->diskUUID = CopySyntheticUUIDForVolumeCreationDate(&(controller->noteDirectoryRef)))) {
+				NSLog(@"got synthetic diskUUID from creation date: %@", [(id)CFUUIDCreateString(NULL, controller->diskUUID) autorelease]);
+			}
+		}
+	}
+}
+
+static struct statfs *StatFSVolumeInfo(NotationController *controller) {
+	if (!controller->statfsInfo) {
+		OSStatus err = noErr;
+		const UInt32 maxPathSize = 4 * 1024;
+		UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
+		
+		if ((err = FSRefMakePath(&(controller->noteDirectoryRef), convertedPath, maxPathSize)) == noErr) {
+			
+			controller->statfsInfo = calloc(1, sizeof(struct statfs));
+			
+			if (statfs((char*)convertedPath, controller->statfsInfo))
+				NSLog(@"statfs: error %d\n", errno);
+		} else
+			NSLog(@"FSRefMakePath: error %d\n", err);
+		
+		free(convertedPath);
+	}
+	return controller->statfsInfo;
+}
+
 
 long BlockSizeForNotation(NotationController *controller) {
     if (!controller->blockSize) {
-	controller->blockSize = MAX(getOptimalBlockSize(controller), 16 * 1024);
+		long iosize = 0;
+
+		struct statfs * sfsb = StatFSVolumeInfo(controller);
+		if (sfsb) iosize = sfsb->f_iosize;
+		
+		controller->blockSize = MAX(iosize, 16 * 1024);
     }
     
     return controller->blockSize;
@@ -421,9 +584,7 @@ terminate:
     //if destRef is not zeros, just assume that it exists and retry if it doesn't
 	FSRef newSourceRef, newDestRef;
 	
-	if (volumeSupportsExchangeObjects == -1)
-		volumeSupportsExchangeObjects = VolumeOfFSRefSupportsExchangeObjects(&tempFileRef);
-	if (!volumeSupportsExchangeObjects) {
+	if (VolumeSupportsExchangeObjects(self) != 1) {
 		//NSLog(@"emulating fsexchange objects");
 		if ((err = FSExchangeObjectsEmulate(&tempFileRef, destRef, &newSourceRef, &newDestRef)) == noErr) {
 			memcpy(&tempFileRef, &newSourceRef, sizeof(FSRef));

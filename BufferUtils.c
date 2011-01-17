@@ -57,7 +57,6 @@ static const unsigned char gsToLowerMap[256] = {
 #endif
 
 static u_int32_t u8_nextchar(const char *s, size_t *i);
-char *u8_strchr(const char *s, u_int32_t ch, size_t *charn);
 
 char *replaceString(char *oldString, const char *newString) {
     size_t newLen = strlen(newString) + 1;
@@ -318,6 +317,8 @@ CFStringRef GetRelativeDateStringFromTimeAndLocaleInfo(CFAbsoluteTime time, CFSt
 				    months[unitsDate.month], unitsDate.day, unitsDate.year, unitsDate.hour, unitsDate.minute, amppmStr);
 }
 #endif
+
+//void AddAttrModTimeForDiskSN
 
 CFStringRef CreateRandomizedFileName() {
     static int sequence = 0;

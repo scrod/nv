@@ -23,10 +23,21 @@
 
 extern NSString *NotesDatabaseFileName;
 
+typedef union VolumeUUID {
+	u_int32_t value[2];
+	struct {
+		u_int32_t high;
+		u_int32_t low;
+	} v;
+} VolumeUUID;
+
+
 @interface NotationController (NotationFileManager)
 
 OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef);
 OSStatus CreateDirectoryIfNotPresent(FSRef *parentRef, CFStringRef subDirectoryName, FSRef *childRef);
+CFUUIDRef CopyHFSVolumeUUIDForMount(const char *mntonname);
+void InitializeDiskUUIDIfNecessary(NotationController *controller);
 long BlockSizeForNotation(NotationController *controller);
 
 - (BOOL)notesDirectoryIsTrashed;
