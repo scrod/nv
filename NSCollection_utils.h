@@ -53,9 +53,6 @@
 - (NSUInteger)indexOfNoteWithUUIDBytes:(CFUUIDBytes*)bytes;
 - (NSArray*)objectsFromDictionariesForKey:(id)aKey;
 
-+ (NSArray*)getUserTagsNoRestore:(NSString*)path;
-- (BOOL)setAsUserTagsForPath:(NSString*)path;
-	
 @end
 
 @interface NSMutableArray (Sorting)

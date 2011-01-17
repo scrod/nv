@@ -56,6 +56,8 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	cTitle = cContents = cLabels = cTitleFoundPtr = cContentsFoundPtr = cLabelsFoundPtr = NULL;
 	
 	bzero(&fileModifiedDate, sizeof(UTCDateTime));
+	bzero(&attrsModifiedDate, sizeof(UTCDateTime));
+
 	modifiedDate = createdDate = 0.0;
 	currentFormatID = SingleDatabaseFormat;
 	logSequenceNumber = logicalSize = nodeID = 0;
@@ -201,6 +203,7 @@ DefModelAttrAccessor(fileSizeOfNote, logicalSize)
 DefModelAttrAccessor(titleOfNote, titleString)
 DefModelAttrAccessor(labelsOfNote, labelString)
 DefModelAttrAccessor(fileModifiedDateOfNote, fileModifiedDate)
+DefModelAttrAccessor(attrsModifiedDateOfNote, attrsModifiedDate)
 DefModelAttrAccessor(modifiedDateOfNote, modifiedDate)
 DefModelAttrAccessor(createdDateOfNote, createdDate)
 DefModelAttrAccessor(storageFormatOfNote, currentFormatID)
@@ -279,9 +282,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			currentFormatID = [decoder decodeInt32ForKey:VAR_STR(currentFormatID)];
 			nodeID = [decoder decodeInt32ForKey:VAR_STR(nodeID)];
 			logicalSize = [decoder decodeInt32ForKey:VAR_STR(logicalSize)];
-			fileModifiedDate.highSeconds = [decoder decodeInt32ForKey:@"fileModDateHigh"];
-			fileModifiedDate.lowSeconds = [decoder decodeInt32ForKey:@"fileModDateLow"];
-			fileModifiedDate.fraction = [decoder decodeInt32ForKey:@"fileModDateFrac"];
+			
+			int64_t fileModifiedDate64 = [decoder decodeInt64ForKey:VAR_STR(fileModifiedDate)];
+			memcpy(&fileModifiedDate, &fileModifiedDate64, sizeof(int64_t));
+			
+			int64_t attrsModifiedDate64 = [decoder decodeInt64ForKey:VAR_STR(attrsModifiedDate)];
+			memcpy(&attrsModifiedDate, &attrsModifiedDate64, sizeof(int64_t));
+			
 			fileEncoding = [decoder decodeInt32ForKey:VAR_STR(fileEncoding)];
 
 			NSUInteger decodedUUIDByteCount = 0;
@@ -382,9 +389,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[coder encodeInt32:nodeID forKey:VAR_STR(nodeID)];
 		[coder encodeInt32:logicalSize forKey:VAR_STR(logicalSize)];
 
-		[coder encodeInt32:fileModifiedDate.highSeconds forKey:@"fileModDateHigh"];
-		[coder encodeInt32:fileModifiedDate.lowSeconds forKey:@"fileModDateLow"];
-		[coder encodeInt32:fileModifiedDate.fraction forKey:@"fileModDateFrac"];
+		[coder encodeInt64:*(int64_t*)&attrsModifiedDate forKey:VAR_STR(attrsModifiedDate)];
+		[coder encodeInt64:*(int64_t*)&fileModifiedDate forKey:VAR_STR(fileModifiedDate)];
 		[coder encodeInt32:fileEncoding forKey:VAR_STR(fileEncoding)];
 		
 		[coder encodeBytes:(const uint8_t *)&uniqueNoteIDBytes length:sizeof(CFUUIDBytes) forKey:VAR_STR(uniqueNoteIDBytes)];
@@ -463,8 +469,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		createdDate = modifiedDate = CFAbsoluteTimeGetCurrent();
 		dateCreatedString = [dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain] retain];
-		if (UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &fileModifiedDate) != noErr)
-		    NSLog(@"Error initializing file modification date");
+		UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &fileModifiedDate);
+		UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &attrsModifiedDate);
 		
 		//delegate is not set yet, so we cannot dirty ourselves here
 		//[self makeNoteDirty];
@@ -482,6 +488,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		filename = [(NSString*)entry->filename copy];
 		currentFormatID = [delegate currentNoteStorageFormat];
 		fileModifiedDate = entry->lastModified;
+		attrsModifiedDate = entry->lastAttrModified;
 		nodeID = entry->nodeID;
 		logicalSize = entry->logicalSize;
 		
@@ -852,18 +859,33 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		[self updateLabelConnections];
 		
-		[self makeNoteDirtyUpdateTime:YES updateFile:NO];
+		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
 		//[self registerModificationWithOwnedServices];
 		
 		[delegate note:self attributeChanged:NoteLabelsColumnString];
 	}
 }
 
-- (NSArray*)labelTitles {
-	NSMutableCharacterSet *charSet = [NSMutableCharacterSet whitespaceCharacterSet];
-	[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
+- (NSArray*)orderedLabelTitles {
+	
+	NSArray *array = nil;
+	if (IsLeopardOrLater) {
+		NSMutableCharacterSet *charSet = [NSMutableCharacterSet whitespaceCharacterSet];
+		[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
 
-	return [labelString componentsSeparatedByCharactersInSet:charSet];
+		array = [labelString componentsSeparatedByCharactersInSet:charSet];
+	} else {
+		BOOL lacksSpace = [labelString rangeOfString:@" " options:NSLiteralSearch].location == NSNotFound;
+		array = [labelString componentsSeparatedByString: lacksSpace ? @"," : @" "];
+	}
+	NSMutableArray *titles = [NSMutableArray arrayWithCapacity:[array count]];
+	
+	NSUInteger i;
+	for (i=0; i<[array count]; i++) {
+		NSString *aWord = [array objectAtIndex:i];
+		if ([aWord length] > 0) [titles addObject:aWord];
+	}
+	return titles;
 }
 
 - (NSImage*)labelsPreviewImage {
@@ -1103,6 +1125,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if (PlainTextFormat == formatID) {
 			(void)[self writeCurrentFileEncodingToFSRef:noteFileRefInit(self)];
 		}
+		NSFileManager *fileMan = [NSFileManager defaultManager];
+		[fileMan setOpenMetaTags:[self orderedLabelTitles] atFSPath:[[fileMan pathWithFSRef:noteFileRefInit(self)] fileSystemRepresentation]];
+		
 		//always hide the file extension for all types
 		LSSetExtensionHiddenForRef(noteFileRefInit(self), TRUE);
 		
@@ -1159,6 +1184,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		return err;
 	}
 	fileModifiedDate = catInfo.contentModDate;
+	attrsModifiedDate = catInfo.attributeModDate;
 	nodeID = catInfo.nodeID;
 	logicalSize = (UInt32)(catInfo.dataLogicalSize & 0xFFFFFFFF);
 	
@@ -1260,6 +1286,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		FSCatalogInfo info;
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			fileModifiedDate = info.contentModDate;
+			attrsModifiedDate = info.attributeModDate;
 			nodeID = info.nodeID;
 			logicalSize = (UInt32)(info.dataLogicalSize & 0xFFFFFFFF);
 			
@@ -1270,6 +1297,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (BOOL)updateFromCatalogEntry:(NoteCatalogEntry*)catEntry {
+	BOOL didRestoreLabels = NO;
+	
     NSMutableData *data = [delegate dataFromFileInNotesDirectory:noteFileRefInit(self) forCatalogEntry:catEntry];
     if (!data) {
 		NSLog(@"Couldn't update note from file on disk given catalog entry");
@@ -1282,20 +1311,45 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	[self setFilename:(NSString*)catEntry->filename withExternalTrigger:YES];
     
     fileModifiedDate = catEntry->lastModified;
+	attrsModifiedDate = catEntry->lastAttrModified;
     nodeID = catEntry->nodeID;
 	logicalSize = catEntry->logicalSize;
-
+	
+	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
+	if (FSRefMakePath(noteFileRefInit(self), [pathData mutableBytes], [pathData length]) == noErr) {
+		
+		NSArray *openMetaTags = [[NSFileManager defaultManager] getOpenMetaTagsAtFSPath:[pathData bytes]];
+		if (openMetaTags) {
+			//overwrite this note's labels with those from the file; merging may be the wrong thing to do here
+			[self setLabelString:[openMetaTags componentsJoinedByString:@" "]];
+		} else if ([labelString length]) {
+			//this file has either never had tags or has had them cleared by accident (e.g., non-user intervention)
+			//so if this note still has tags, then restore them now.
+			
+			NSLog(@"restoring lost tags for %@", titleString);
+			[[NSFileManager defaultManager] setOpenMetaTags:[self orderedLabelTitles] atFSPath:[pathData bytes]];
+			didRestoreLabels = YES;
+		}
+	}
+	
 	OSStatus err = noErr;
 	CFAbsoluteTime aModDate, aCreateDate;
 	if (noErr == (err = UCConvertUTCDateTimeToCFAbsoluteTime(&fileModifiedDate, &aModDate))) {
 		[self setDateModified:aModDate];
 	}
-	if (createdDate == 0.0) {
+	
+	if (createdDate == 0.0 || didRestoreLabels) {
 		//when reading files from disk for the first time, grab their creation date
+		//or if this file has just been altered, grab its newly-changed modification dates
+		
 		FSCatalogInfo info;
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
-			if (UCConvertUTCDateTimeToCFAbsoluteTime(&info.createDate, &aCreateDate) == noErr) {
+			if (createdDate == 0.0 && UCConvertUTCDateTimeToCFAbsoluteTime(&info.createDate, &aCreateDate) == noErr) {
 				[self setDateAdded:aCreateDate];
+			}
+			if (didRestoreLabels) {
+				fileModifiedDate = info.contentModDate;
+				attrsModifiedDate = info.attributeModDate;
 			}
 		}
 	}
@@ -1525,6 +1579,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	if (PlainTextFormat == storageFormat) {
 		(void)[self writeCurrentFileEncodingToFSRef:&fileRef];
 	}
+	NSFileManager *fileMan = [NSFileManager defaultManager];
+	[fileMan setOpenMetaTags:[self orderedLabelTitles] atFSPath:[[fileMan pathWithFSRef:&fileRef] fileSystemRepresentation]];
 	
 	//also export the note's modification and creation dates
 	FSCatalogInfo catInfo;

@@ -27,10 +27,8 @@
 static int dayFromAbsoluteTime(CFAbsoluteTime absTime);
 
 - (NSMutableSet*)labelSetFromWordsAndContainingNote:(NoteObject*)note {
-	NSMutableCharacterSet *charSet = [NSMutableCharacterSet whitespaceCharacterSet];
-	[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
-	
-	NSArray *words = [self componentsSeparatedByCharactersInSet:charSet];
+
+	NSArray *words = [self componentsSeparatedByString:@","];
 	NSMutableSet *labelSet = [NSMutableSet setWithCapacity:[words count]];
 	
 	unsigned int i;

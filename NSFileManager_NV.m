@@ -21,22 +21,21 @@
 
 @implementation NSFileManager (NV)
 
+#define kMaxDataSize 4096
 
-- (id)getXAttr:(NSString*)inKeyName atPath:(NSString*)path {
+- (id)getOpenMetaTagsAtFSPath:(const char*)path {
+	//return convention: empty tags should be an empty array; 
+	//for files that have never been tagged, or that have had their tags removed, return 
+	//files might lose their metadata if edited externally or synced without being first encoded
 	
-#if 0
-	const char *pathUTF8 = [path fileSystemRepresentation];
-	if ([path length] == 0 || pathUTF8 == nil) {
-		return nil;
-	}
+	if (!path) return nil;
 	
-	const char* inKeyNameC = [inKeyName fileSystemRepresentation];
+	const char* inKeyNameC = "com.apple.metadata:kMDItemOMUserTags";
 	// retrieve data from store. 
 	char* data[kMaxDataSize];
 	ssize_t dataSize = kMaxDataSize; // ssize_t means SIGNED size_t as getXattr returns - 1 for no attribute found
 	NSData* nsData = nil;
-	dataSize = getxattr(pathUTF8, inKeyNameC, data, dataSize, 0, XATTR_NOFOLLOW);
-	if (dataSize > 0) {
+	if ((dataSize = getxattr(path, inKeyNameC, data, dataSize, 0, 0)) > 0) {
 		nsData = [NSData dataWithBytes:data	length:dataSize];
 	} else {
 		// I get EINVAL sometimes when setting/getting xattrs on afp servers running 10.5. When I get this error, I find that everything is working correctly... so it seems to make sense to ignore them
@@ -51,25 +50,22 @@
 	NSString* errorString = nil;
 	id outObject = [NSPropertyListSerialization propertyListFromData:nsData mutabilityOption:kCFPropertyListImmutable format:&formatFound errorDescription:&errorString];
 	if (errorString) {
+		NSLog(@"%s: error deserializing labels: %@", _cmd, errorString);
+		[errorString autorelease];
 		return nil;
 	}
 	
 	return outObject;
-#endif
-	return nil;
+
 }
 
 
-- (BOOL)setXAttr:(id)plistObject forKey:(NSString*)inKeyName atPath:(NSString*)path {
-#if 0
-	const char *pathUTF8 = [path fileSystemRepresentation];
-	if ([path length] == 0 || pathUTF8 == nil) {
-		return NO;
-	}
+- (BOOL)setOpenMetaTags:(id)plistObject atFSPath:(const char*)path {
+	if (!path) return NO;
 	
 	// If the object passed in has no data - is a string of length 0 or an array or dict with 0 objects, then we remove the data at the key.
 	
-	const char* inKeyNameC = [inKeyName fileSystemRepresentation];
+	const char* inKeyNameC = "com.apple.metadata:kMDItemOMUserTags";
 	
 	long returnVal = 0;
 	
@@ -79,8 +75,8 @@
 		NSString *errorString = nil;
 		dataToSendNS = [NSPropertyListSerialization dataFromPropertyList:plistObject format:kCFPropertyListBinaryFormat_v1_0 errorDescription:&errorString];
 		if (errorString) {
+			NSLog(@"%s: error serializing labels: %@", _cmd, errorString);
 			[errorString autorelease];
-			dataToSendNS = nil;
 			return NO;
 		}
 	}
@@ -89,18 +85,17 @@
 		// also reject for tags over the maximum size:
 		if ([dataToSendNS length] > kMaxDataSize)
 			return NO;
-		
-		returnVal = setxattr(pathUTF8, inKeyNameC, [dataToSendNS bytes], [dataToSendNS length], 0, XATTR_NOFOLLOW);
+		returnVal = setxattr(path, inKeyNameC, [dataToSendNS bytes], [dataToSendNS length], 0, 0);
 	} else {
-		returnVal = removexattr(pathUTF8, inKeyNameC, XATTR_NOFOLLOW);
+		returnVal = removexattr(path, inKeyNameC, 0);
 	}
 	
-	
-	int theErrorNumber = errno;	
-	// return original error 
-	return [NSError errorWithDomain:NSPOSIXErrorDomain code:theErrorNumber userInfo:[NSDictionary dictionaryWithObject:[self errnoString:theErrorNumber] forKey:@"info"]];
-#endif
-	return NO;
+	if (returnVal < 0) {
+		NSLog(@"%s: couldn't set/remove attribute: %d", _cmd, errno);
+		return NO;
+	}
+
+	return YES;
 }
 
 //TODO: use volumeCapabilities in FSExchangeObjectsCompat.c to skip some work on volumes for which we know we would receive ENOTSUP
@@ -176,7 +171,7 @@ errorReturn:
 - (NSString*)pathWithFSRef:(FSRef*)fsRef {
 	NSString *path = nil;
 	
-	const UInt32 maxPathSize = 8 * 1024;
+	const UInt32 maxPathSize = 4 * 1024;
 	UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
 	if (FSRefMakePath(fsRef, convertedPath, maxPathSize) == noErr) {
 		path = [self stringWithFileSystemRepresentation:(char*)convertedPath length:strlen((char*)convertedPath)];

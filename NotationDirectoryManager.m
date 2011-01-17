@@ -268,7 +268,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
         do {
             // Grab a batch of source files to process from the source directory
             status = FSGetCatalogInfoBulk(dirIterator, kMaxFileIteratorCount, &dirObjectCount, NULL,
-										  kFSCatInfoNodeFlags | kFSCatInfoFinderInfo | kFSCatInfoContentMod | kFSCatInfoDataSizes | kFSCatInfoNodeID,
+										  kFSCatInfoNodeFlags | kFSCatInfoFinderInfo | kFSCatInfoContentMod | 
+										  kFSCatInfoAttrMod | kFSCatInfoDataSizes | kFSCatInfoNodeID,
 										  fsCatInfoArray, NULL, NULL, HFSUniNameArray);
 			
             if ((status == errFSNoMoreItems || status == noErr) && dirObjectCount) {
@@ -300,7 +301,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 						entry->fileType = ((FileInfo *)fsCatInfoArray[i].finderInfo)->fileType;
 						entry->logicalSize = (UInt32)(fsCatInfoArray[i].dataLogicalSize & 0xFFFFFFFF);
 						entry->nodeID = (UInt32)fsCatInfoArray[i].nodeID;
-						entry->lastModified = fsCatInfoArray[i].contentModDate;
+						memcpy(&(entry->lastModified), &(fsCatInfoArray[i].contentModDate), sizeof(UTCDateTime));
+						memcpy(&(entry->lastAttrModified), &(fsCatInfoArray[i].attributeModDate), sizeof(UTCDateTime));
+
 						
 						if (filename->length > entry->filenameCharCount) {
 							entry->filenameCharCount = filename->length;
@@ -343,19 +346,20 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry {
 	//check dates
 	UTCDateTime lastReadDate = fileModifiedDateOfNote(aNoteObject);
-	UTCDateTime fileModDate = catEntry->lastModified;
+	UTCDateTime lastAttrModDate = attrsModifiedDateOfNote(aNoteObject);
 	
 	//should we always update the note's stored inode here regardless?
+//	NSLog(@"content mod: %d,%d,%d, attr mod: %d,%d,%d", catEntry->lastModified.highSeconds,catEntry->lastModified.lowSeconds,catEntry->lastModified.fraction,
+//		  catEntry->lastAttrModified.highSeconds,catEntry->lastAttrModified.lowSeconds,catEntry->lastAttrModified.fraction);
 	
 	if (fileSizeOfNote(aNoteObject) != catEntry->logicalSize ||
-		lastReadDate.lowSeconds != fileModDate.lowSeconds ||
-		lastReadDate.highSeconds != fileModDate.highSeconds ||
-		lastReadDate.fraction != fileModDate.fraction) {
+		*(int64_t*)&lastReadDate != *(int64_t*)&(catEntry->lastModified) ||
+		//PROBLEM: the attribute modified date can't be set, and so cannot be synced
+		//so this will be different on different computers
+		*(int64_t*)&lastAttrModDate != *(int64_t*)&(catEntry->lastAttrModified)) {
+
 		//assume the file on disk was modified by someone other than us
-		
-		//figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
-		//if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
-		
+				
 		//check if this note has changes in memory that still need to be committed -- that we _know_ the other writer never had a chance to see
 		if (![unwrittenNotes containsObject:aNoteObject]) {
 			

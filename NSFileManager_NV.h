@@ -24,8 +24,8 @@
 @interface NSFileManager (NV)
 
 
-- (id)getXAttr:(NSString*)inKeyName atPath:(NSString*)path;
-- (BOOL)setXAttr:(id)plistObject forKey:(NSString*)inKeyName atPath:(NSString*)path;
+- (id)getOpenMetaTagsAtFSPath:(const char*)path;
+- (BOOL)setOpenMetaTags:(id)plistObject atFSPath:(const char*)path;
 
 - (NSString*)pathCopiedFromAliasData:(NSData*)aliasData;
 - (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path;
