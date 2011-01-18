@@ -1360,7 +1360,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
     #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     NSPasteboardItem *pbitem = [[[NSPasteboardItem alloc] init] autorelease];
-    [pbitem setData:password forType:@"public.plain-text"];
+    [pbitem setData:[password dataUsingEncoding:NSUTF8StringEncoding] forType:@"public.plain-text"];
     [pb writeObjects:[NSArray arrayWithObject:pbitem]];
     #else
     [pb declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
