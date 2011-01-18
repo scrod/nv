@@ -60,6 +60,7 @@
 		2144957A0ADCC06300E2A2B6 /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
 		214495870ADCC07E00E2A2B6 /* PassphraseChanger.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */; };
 		21469C8C0BEBA6A10094835F /* TemporaryFileCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */; };
+		215309F412E4E92300AF2739 /* DiskUUIDEntry.m in Sources */ = {isa = PBXBuildFile; fileRef = 215309F312E4E92300AF2739 /* DiskUUIDEntry.m */; };
 		21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
 		21544FC10B06332600C0D1D5 /* KeyDerivationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */; };
 		215452080B06541800C0D1D5 /* PassphraseChanger.m in Sources */ = {isa = PBXBuildFile; fileRef = 215450F80B06509600C0D1D5 /* PassphraseChanger.m */; };
@@ -293,6 +294,8 @@
 		2144987D0AE192F900E2A2B6 /* PassphraseChanger.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PassphraseChanger.h; sourceTree = "<group>"; };
 		21469C890BEBA6A10094835F /* TemporaryFileCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCache.h; sourceTree = "<group>"; };
 		21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCache.m; sourceTree = "<group>"; };
+		215309F212E4E92300AF2739 /* DiskUUIDEntry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DiskUUIDEntry.h; sourceTree = "<group>"; };
+		215309F312E4E92300AF2739 /* DiskUUIDEntry.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DiskUUIDEntry.m; sourceTree = "<group>"; };
 		21544FB90B06331800C0D1D5 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
 		21544FBF0B06332600C0D1D5 /* KeyDerivationManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = KeyDerivationManager.h; sourceTree = "<group>"; };
 		21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = KeyDerivationManager.m; sourceTree = "<group>"; };
@@ -602,6 +605,8 @@
 				21B1BC351104D20E0004A7D0 /* InvocationRecorder.m */,
 				21D6FB4712E104D6005C2DA5 /* NSBezierPath_NV.h */,
 				21D6FB4812E104D6005C2DA5 /* NSBezierPath_NV.m */,
+				215309F212E4E92300AF2739 /* DiskUUIDEntry.h */,
+				215309F312E4E92300AF2739 /* DiskUUIDEntry.m */,
 				21F0793710EC5E21004FE56F /* Sync Services */,
 				212089CF0B0C2BCF00A15A69 /* Note Importing */,
 				57F27FB71197407400C63ACF /* SearchCommand.h */,
@@ -1171,6 +1176,7 @@
 				21DB4BE612DE4E3D0057F52B /* NSString_CustomTruncation.m in Sources */,
 				21D6F7EF12E0C751005C2DA5 /* AppController_Importing.m in Sources */,
 				21D6FB4912E104D6005C2DA5 /* NSBezierPath_NV.m in Sources */,
+				215309F412E4E92300AF2739 /* DiskUUIDEntry.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

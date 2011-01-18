@@ -25,6 +25,7 @@
 #import "NSData_transformations.h"
 #import "NotationFileManager.h"
 #import "SecureTextEntryManager.h"
+#import "DiskUUIDEntry.h"
 #include <CoreServices/CoreServices.h>
 #include <Security/Security.h>
 #include <ApplicationServices/ApplicationServices.h>
@@ -63,6 +64,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		confirmFileDeletion = YES;
 		storesPasswordInKeychain = secureTextEntry = doesEncryption = NO;
 		syncServiceAccounts = [[NSMutableDictionary alloc] init];
+		seenDiskUUIDEntries = [[NSMutableArray alloc] init];
 		notesStorageFormat = SingleDatabaseFormat;
 		hashIterationCount = DEFAULT_HASH_ITERATIONS;
 		keyLengthInBits = DEFAULT_KEY_LENGTH;
@@ -120,6 +122,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 			syncServiceAccounts = [[NSMutableDictionary alloc] init];
 		keychainDatabaseIdentifier = [[decoder decodeObjectForKey:VAR_STR(keychainDatabaseIdentifier)] retain];
 		
+		if (!(seenDiskUUIDEntries = [[decoder decodeObjectForKey:VAR_STR(seenDiskUUIDEntries)] retain]))
+			seenDiskUUIDEntries = [[NSMutableArray alloc] init];
+		
 		masterSalt = [[decoder decodeObjectForKey:VAR_STR(masterSalt)] retain];
 		dataSessionSalt = [[decoder decodeObjectForKey:VAR_STR(dataSessionSalt)] retain];
 		verifierKey = [[decoder decodeObjectForKey:VAR_STR(verifierKey)] retain];
@@ -166,6 +171,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	
 	[coder encodeObject:keychainDatabaseIdentifier forKey:VAR_STR(keychainDatabaseIdentifier)];
 	
+	[coder encodeObject:seenDiskUUIDEntries forKey:VAR_STR(seenDiskUUIDEntries)];
+	
 	[coder encodeObject:masterSalt forKey:VAR_STR(masterSalt)];
 	[coder encodeObject:dataSessionSalt forKey:VAR_STR(dataSessionSalt)];
 	[coder encodeObject:verifierKey forKey:VAR_STR(verifierKey)];
@@ -183,6 +190,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	free(allowedTypes);
 	
 	[syncServiceAccounts release];
+	[seenDiskUUIDEntries release];
 	[keychainDatabaseIdentifier release];
 	[baseBodyFont release];
     
@@ -780,6 +788,25 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		[delegate syncSettingsChangedForService:serviceName];
 	}
+}
+
+- (NSUInteger)tableIndexOfDiskUUID:(CFUUIDRef)UUIDRef {
+	//if this UUID doesn't yet exist, then add it and return the last index
+	
+	DiskUUIDEntry *diskEntry = [[[DiskUUIDEntry alloc] initWithUUIDRef:UUIDRef] autorelease];
+	
+	NSUInteger idx = [seenDiskUUIDEntries indexOfObject: diskEntry];
+	if (NSNotFound != idx) {
+		[[seenDiskUUIDEntries objectAtIndex:idx] see];
+		return idx;
+	}
+	
+	NSLog(@"saw new disk UUID: %@ (array was %@)", diskEntry, seenDiskUUIDEntries);
+	[seenDiskUUIDEntries addObject:diskEntry];
+	
+	preferencesChanged = YES;
+	
+	return [seenDiskUUIDEntries count] - 1;
 }
 
 - (void)checkForKnownRedundantSyncConduitsAtPath:(NSString*)dbPath {

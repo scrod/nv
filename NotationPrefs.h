@@ -46,6 +46,8 @@ extern NSString *SyncPrefsDidChangeNotification;
 	
 	NSData *masterSalt, *dataSessionSalt, *verifierKey;
 	
+	NSMutableArray *seenDiskUUIDEntries;
+	
 	UInt32 epochIteration;
 	BOOL firstTimeUsed;
 	BOOL preferencesChanged;
@@ -114,6 +116,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 
+- (NSUInteger)tableIndexOfDiskUUID:(CFUUIDRef)UUIDRef;
 - (void)checkForKnownRedundantSyncConduitsAtPath:(NSString*)dbPath;
 
 + (NSString*)pathExtensionForFormat:(int)format;
