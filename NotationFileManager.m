@@ -99,8 +99,8 @@ static BOOL GetVolumeUUIDAttr(const char *path, VolumeUUID *volumeUUIDPtr) {
 	
 	/* Copy the UUID from the Finder Into to caller's buffer */
 	VolumeUUID *finderInfoUUIDPtr = (VolumeUUID *)(&volFinderInfo.finderinfo[6]);
-	volumeUUIDPtr->v.high = OSSwapBigToHostInt32(finderInfoUUIDPtr->v.high);
-	volumeUUIDPtr->v.low = OSSwapBigToHostInt32(finderInfoUUIDPtr->v.low);
+	volumeUUIDPtr->v.high = CFSwapInt32BigToHost(finderInfoUUIDPtr->v.high);
+	volumeUUIDPtr->v.low = CFSwapInt32BigToHost(finderInfoUUIDPtr->v.low);
 	
 	return YES;
 }
@@ -128,16 +128,16 @@ static void uuid_create_md5_from_name(unsigned char result_uuid[16], const void 
 
 CFUUIDRef CopyHFSVolumeUUIDForMount(const char *mntonname) {
 	VolumeUUID targetVolumeUUID;
-	CFUUIDBytes uuidBytes;
 	
 	unsigned char rawUUID[8];
 	
 	if (!GetVolumeUUIDAttr(mntonname, &targetVolumeUUID))
 		return NULL;
 	
-	((uint32_t *)rawUUID)[0] = OSSwapHostToBigInt32(targetVolumeUUID.v.high);
-	((uint32_t *)rawUUID)[1] = OSSwapHostToBigInt32(targetVolumeUUID.v.low);
+	((uint32_t *)rawUUID)[0] = CFSwapInt32HostToBig(targetVolumeUUID.v.high);
+	((uint32_t *)rawUUID)[1] = CFSwapInt32HostToBig(targetVolumeUUID.v.low);
 	
+	CFUUIDBytes uuidBytes;
 	uuid_create_md5_from_name((void*)&uuidBytes, rawUUID, sizeof(rawUUID));
 	
 	return CFUUIDCreateFromUUIDBytes(NULL, uuidBytes);
@@ -151,16 +151,11 @@ CFUUIDRef CopySyntheticUUIDForVolumeCreationDate(FSRef *fsRef) {
 		FSVolumeInfo volInfo;
 		OSStatus err = FSGetVolumeInfo(fileInfo.volume, 0, NULL, kFSVolInfoCreateDate, &volInfo, NULL, NULL);
 		if (err == noErr) {
-		
-			CFAbsoluteTime aTime;
-			UCConvertUTCDateTimeToCFAbsoluteTime(&(volInfo.createDate), &aTime);
-			NSLog(@"got time: %@", CFDateCreate (NULL,aTime));
+			volInfo.createDate.highSeconds = CFSwapInt16HostToBig(volInfo.createDate.highSeconds);
+			volInfo.createDate.lowSeconds = CFSwapInt32HostToBig(volInfo.createDate.lowSeconds);
+			volInfo.createDate.fraction = CFSwapInt16HostToBig(volInfo.createDate.fraction);
+
 			CFUUIDBytes uuidBytes;
-			
-			volInfo.createDate.lowSeconds = OSSwapHostToBigInt32(volInfo.createDate.lowSeconds);
-			volInfo.createDate.highSeconds = OSSwapHostToBigInt32(volInfo.createDate.lowSeconds);
-			volInfo.createDate.fraction = OSSwapHostToBigInt32(volInfo.createDate.lowSeconds);
-			
 			uuid_create_md5_from_name((void*)&uuidBytes, (void*)&volInfo.createDate, sizeof(UTCDateTime));
 			
 			return CFUUIDCreateFromUUIDBytes(NULL, uuidBytes);
@@ -184,44 +179,48 @@ static BOOL VolumeSupportsExchangeObjects(NotationController *controller) {
 	return controller->volumeSupportsExchangeObjects;
 }
 
+- (void)purgeOldAttrModTimesFromNotes {
+	//here's where notes' AttrModDiskPair arrays would have older times removed, depending on -[DiskUUIDEntry lastAccessed]
+	//each note will use RemoveAttrModTimeWithDiskIDIndex
+}
 
-void InitializeDiskUUIDIfNecessary(NotationController *controller) {
+- (void)initializeDiskUUIDIfNecessary {
 	//create a CFUUIDRef that identifies the volume this database sits on
 	
 	//don't bother unless we will be reading notes as separate files; otherwise there's no need to track the source of the attr mod dates
 	//maybe disk UUIDs will be used in the future for something else; at that point this check should be altered
 	
-	if (!controller->diskUUID && [controller currentNoteStorageFormat] != SingleDatabaseFormat) {
+	if (!diskUUID && [self currentNoteStorageFormat] != SingleDatabaseFormat) {
 		
-		struct statfs * sfsb = StatFSVolumeInfo(controller);
+		struct statfs * sfsb = StatFSVolumeInfo(self);
 		//if this is not an hfs+ disk, then get the FSEvents UUID
 		//if this is not Leopard or the FSEvents UUID is null, 
 		//then take MD5 sum of creation date + some other info?
 
 		if (!strcmp(sfsb->f_fstypename, "hfs")) {
-			//FSEvents failed us (or is not available) -- so if this is an HFS volume, then try getattrlist instead
-			
-			if ((controller->diskUUID = CopyHFSVolumeUUIDForMount(sfsb->f_mntonname))) {
-				NSLog(@"got HFS diskUUID: %@", [(id)CFUUIDCreateString(NULL, controller->diskUUID) autorelease]);
+			//if this is an HFS volume, then use getattrlist to get finderinfo from the volume
+			if ((diskUUID = CopyHFSVolumeUUIDForMount(sfsb->f_mntonname))) {
+				NSLog(@"got HFS diskUUID: %@", [(id)CFUUIDCreateString(NULL, diskUUID) autorelease]);
 			}
 		}
 
 		//ah but what happens when a non-hfs disk is first mounted on leopard+, and then moves to a tiger machine?
-		//then it's screwed anyway I suppose, unless we can synthesize a UUID somehow else and then track what kind each are!
-		if (!controller->diskUUID && IsLeopardOrLater) {
-			//this is not an hfs disk, or it's an afp mount, or whatever
-			
-			if ((controller->diskUUID = FSEventsCopyUUIDForDevice(sfsb->f_fsid.val[0]))) {
-				NSLog(@"got FSEvents diskUUID: %@", [(id)CFUUIDCreateString(NULL, controller->diskUUID) autorelease]);
+		//or vise-versa; that calls for tracking how the UUIDs were generated, and grouping them together when others are found;
+		//this is probably unnecessary for now
+		if (!diskUUID && IsLeopardOrLater) {
+			//this is not an hfs disk, and this computer is new enough to have FSEvents	
+			if ((diskUUID = FSEventsCopyUUIDForDevice(sfsb->f_fsid.val[0]))) {
+				NSLog(@"got FSEvents diskUUID: %@", [(id)CFUUIDCreateString(NULL, diskUUID) autorelease]);
 			}
 		}
 		
-		if (!controller->diskUUID) {
-			//HFS-UUID-check failed
-			if ((controller->diskUUID = CopySyntheticUUIDForVolumeCreationDate(&(controller->noteDirectoryRef)))) {
-				NSLog(@"got synthetic diskUUID from creation date: %@", [(id)CFUUIDCreateString(NULL, controller->diskUUID) autorelease]);
+		if (!diskUUID) {
+			//all other checks failed; just use the volume's creation date
+			if ((diskUUID = CopySyntheticUUIDForVolumeCreationDate(&noteDirectoryRef))) {
+				NSLog(@"got synthetic diskUUID from creation date: %@", [(id)CFUUIDCreateString(NULL, diskUUID) autorelease]);
 			}
 		}
+		diskUUIDIndex = [notationPrefs tableIndexOfDiskUUID:diskUUID];
 	}
 }
 
@@ -245,6 +244,9 @@ static struct statfs *StatFSVolumeInfo(NotationController *controller) {
 	return controller->statfsInfo;
 }
 
+unsigned int diskUUIDIndexForNotation(NotationController *controller) {
+	return controller->diskUUIDIndex;
+}
 
 long BlockSizeForNotation(NotationController *controller) {
     if (!controller->blockSize) {

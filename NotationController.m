@@ -294,6 +294,10 @@ returnResult:
 	if (!(notationPrefs = [[frozenNotation notationPrefs] retain]))
 		notationPrefs = [[NotationPrefs alloc] init];
 	[notationPrefs setDelegate:self];
+
+	//notationPrefs will have the index of the current disk UUID (or we will add it otherwise) 
+	//which will be used to determine which attr-mod-time to use for each note after decoding
+	[self initializeDiskUUIDIfNecessary];
 	
 	[allNotes release];
 	
@@ -310,14 +314,12 @@ returnResult:
 	} else {
 		[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:self];
 		//[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)]; //not until we get an actual tag browser
-		//InitializeDiskUUIDIfNecessary(self);
 	}
 	
 	[deletedNotes release];
-	
 	if (!(deletedNotes = [[frozenNotation deletedNotes] retain]))
 	    deletedNotes = [[NSMutableSet alloc] init];
-		
+			
 	[prefsController setNotationPrefs:notationPrefs sender:self];
 	
 	if(notesData)
@@ -515,6 +517,10 @@ bail:
 				NSLog(@"Couldn't sync wal file--is this an error for note flushing?");
 			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
 		}
+		
+		//purge attr-mod-times for old disk uuids here
+		[self purgeOldAttrModTimesFromNotes];
+		
 		
 		NSData *serializedData = [FrozenNotation frozenDataWithExistingNotes:allNotes deletedNotes:deletedNotes prefs:notationPrefs];
 		if (!serializedData) {
@@ -1251,7 +1257,7 @@ bail:
 		
 		if (!touchedNotes) {
 			//I can't think of any situation where notes were filtered and not touched--EXCEPT WHEN REMOVING A NOTE (>= vs. ==)
-			assert(filteredNoteCount >= [allNotes count]);
+			NSAssert(filteredNoteCount >= [allNotes count], @"filtered notes were claimed to be filtered but were not");
 			
 			//reset found-ptr values; the search string was effectively blank and so no notes were examined
 			for (i=0; i<filteredNoteCount; i++)

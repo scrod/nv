@@ -37,8 +37,11 @@ typedef union VolumeUUID {
 OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef);
 OSStatus CreateDirectoryIfNotPresent(FSRef *parentRef, CFStringRef subDirectoryName, FSRef *childRef);
 CFUUIDRef CopyHFSVolumeUUIDForMount(const char *mntonname);
-void InitializeDiskUUIDIfNecessary(NotationController *controller);
 long BlockSizeForNotation(NotationController *controller);
+unsigned int diskUUIDIndexForNotation(NotationController *controller);
+
+- (void)purgeOldAttrModTimesFromNotes;
+- (void)initializeDiskUUIDIfNecessary;
 
 - (BOOL)notesDirectoryIsTrashed;
 
