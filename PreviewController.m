@@ -164,6 +164,7 @@
 		[tabSwitcher setTitle:@"View Source"];
 
         [wnd orderFront:self];
+		[wnd setLevel:NSScreenSaverWindowLevel];
     }
     
     // save visibility to defaults

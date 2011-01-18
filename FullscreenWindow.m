@@ -17,6 +17,7 @@
 
 @implementation FullscreenWindow
 
+
 - (BOOL)makeFirstResponder:(NSResponder *)aResponder
 {
 	BOOL result = [super makeFirstResponder:aResponder];

@@ -1666,6 +1666,9 @@ terminateApp:
 	//otherwise, if there are unsynced notes to send, then push them right now and wait until session is no longer running	
 	//use waitForUncommitedChangesWithTarget:selector: and provide a callback to send NSTerminateNow
 	
+	if (fullscreenWindow) {
+		[self toggleFullscreen:self];
+	}
 	InvocationRecorder *invRecorder = [InvocationRecorder invocationRecorder];
 	[[invRecorder prepareWithInvocationTarget:self] _finishSyncWait];
 	
@@ -1834,7 +1837,7 @@ terminateApp:
 - (IBAction)toggleFullscreen:(id)sender
 {
 	[textView setHidden:YES];
-	
+
 	if (fullscreenWindow)
 	{
 		NSView *firstResponder = (NSView *)[fullscreenWindow firstResponder];
@@ -1902,7 +1905,6 @@ terminateApp:
 							backing:NSBackingStoreBuffered
 							defer:YES
 							screen:[window screen]];
-		
 		NSView *contentView = [[[window contentView] retain] autorelease];
 		[window setContentView:[[[NSView alloc] init] autorelease]];
 		
@@ -1922,7 +1924,7 @@ terminateApp:
 		 display:YES
 		 animate:YES];
 		NSRect screenRect = [textView frame];
-		NSSize viewSize = {(screenRect.size.width - 800) / 2,40};
+		NSSize viewSize = {(screenRect.size.width - 650) / 2,40};
 		
 		[textView setTextContainerInset:viewSize];
 		

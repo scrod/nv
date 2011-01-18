@@ -22,7 +22,7 @@
 	IBOutlet NSButton *viewOnWebButton;
     BOOL isPreviewOutdated;
 	NSMutableData *receivedData;
-//    IBOutlet NSWindow *wnd;
+	//IBOutlet NSPanel *wnd;
 	MAAttachedWindow *attachedWindow;
 	MAAttachedWindow *confirmWindow;
 	IBOutlet NSTextField *urlTextField;

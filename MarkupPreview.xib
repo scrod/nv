@@ -23,9 +23,9 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="122"/>
 			<integer value="157"/>
 			<integer value="133"/>
+			<integer value="3"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1136,10 +1136,10 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 						<bytes key="NSTransformStruct">P4AAAL+AAADCCAAAxAIAAA</bytes>
 					</object>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{432, 390}, {445, 528}}</string>
+					<string>{{561, 433}, {445, 528}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{432, 390}, {445, 528}}</string>
+					<string>{{561, 433}, {445, 528}}</string>
 					<boolean value="NO"/>
 					<boolean value="YES"/>
 					<string>{150, 242}</string>
@@ -1188,7 +1188,7 @@ ZQCUhAEqhIQLe0NHU2l6ZT1kZH2age8Agb0BhoY</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">175</int>
+			<int key="maxID">176</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
