@@ -68,12 +68,13 @@ char *replaceString(char *oldString, const char *newString) {
     return resizedString;
 }
 
-void ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize) {
-	assert(buffer && bufSize);
+
+void _ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufObjCount, unsigned int elemSize) {
+	assert(buffer && bufObjCount);
 	
-	if (*bufSize < objCount || !*buffer) {
-		*buffer = (void **)realloc(*buffer, sizeof(void*) * objCount);
-		*bufSize = objCount;
+	if (*bufObjCount < objCount || !*buffer) {
+		*buffer = (void **)realloc(*buffer, elemSize * objCount);
+		*bufObjCount = objCount;
 	}
 	
 }
@@ -271,27 +272,6 @@ NSInteger genericSortContextLast(void* one, void* two, int (*context) (void*, vo
 void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const void *, const void *)) {
 	qsort_r((void *)buffer, (size_t)objCount, sizeof(void*), compar, (int (*)(void *, const void *, const void *))genericSortContextFirst);
 }
-
-/*
-CFStringRef CopyReasonFromFSErr(OSStatus err) {
-    
-    size_t codeCount = sizeof(errorCodes) / sizeof(OSStatus);
-    size_t stringCount = sizeof(errorStrings) / sizeof(char*);
-    assert(stringCount == codeCount);
-    
-    unsigned int i;
-    
-    if (err < 0) {
-	
-	for (i=0; i<codeCount; i++) {
-	    if (errorCodes[i] == err)
-		return CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, errorStrings[i], kCFStringEncodingUTF8, kCFAllocatorNull);
-	}
-	return CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR("an error of type %d occurred"), err);
-    }
-    
-    return CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, strerror((int)err), kCFStringEncodingUTF8, kCFAllocatorNull);
-}*/
 
 #if 0
 //this does not use the user's defined date styles

@@ -399,9 +399,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     unsigned int aSize = [allNotes count];
     unsigned int bSize = catCount;
     
-	ResizeBuffer((void***)&allNotesBuffer, aSize, &allNotesBufferSize);
+	ResizeArray(&allNotesBuffer, aSize, &allNotesBufferSize);
 	
-	assert(allNotesBuffer != NULL);
+	NSAssert(allNotesBuffer != NULL, @"sorting buffer not initialized");
 	
     NoteObject **currentNotes = allNotesBuffer;
     [allNotes getObjects:(id*)currentNotes];

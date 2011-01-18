@@ -19,8 +19,9 @@
 
 #include <Carbon/Carbon.h>
 
+#define ResizeArray(__DirectBuffer, __objCount, __bufObjCount)	_ResizeBuffer((void***)(__DirectBuffer), (__objCount), (__bufObjCount), sizeof(typeof(**(__DirectBuffer))))
 char *replaceString(char *oldString, const char *newString);
-void ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize);
+void _ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize, unsigned int elemSize);
 int IsZeros(const void *s1, size_t n);
 int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint);
 void modp_tolower_copy(char* dest, const char* str, int len);
