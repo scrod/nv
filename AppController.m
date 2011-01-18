@@ -573,9 +573,6 @@ terminateApp:
 - (void)noteImporter:(AlienNoteImporter*)importer importedNotes:(NSArray*)notes {
 	
 	[notationController addNotes:notes];
-	
-	//aliennoteimporter does not know to which delegate to assign the notes......
-	[notes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
 }
 - (IBAction)importNotes:(id)sender {
 	AlienNoteImporter *importer = [[AlienNoteImporter alloc] init];

@@ -18,6 +18,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import "NotationController.h"
+#import "BufferUtils.h"
 #import "SynchronizedNoteProtocol.h"
 
 @class LabelObject;
@@ -52,10 +53,12 @@ typedef struct _NoteFilterContext {
 	NSString *filename;
 	UInt32 nodeID;
 	UInt32 logicalSize;
-	UTCDateTime fileModifiedDate, attrsModifiedDate;
+	UTCDateTime fileModifiedDate, *attrsModifiedDate;
+	AttrModDiskPair *attrModDiskPairs;
+	unsigned int attrModPairCount;
 	int currentFormatID;
 	NSStringEncoding fileEncoding;
-	BOOL shouldWriteToFile;
+	BOOL shouldWriteToFile, didUnarchive;
 	
 	//for storing in write-ahead-log
 	unsigned int logSequenceNumber;

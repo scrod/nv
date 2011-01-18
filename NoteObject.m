@@ -49,6 +49,7 @@ typedef NSRange NSRange32;
 @implementation NoteObject
 
 static FSRef *noteFileRefInit(NoteObject* obj);
+static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime);
 
 - (id)init {
     if ([super init]) {
@@ -56,8 +57,10 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	cTitle = cContents = cLabels = cTitleFoundPtr = cContentsFoundPtr = cLabelsFoundPtr = NULL;
 	
 	bzero(&fileModifiedDate, sizeof(UTCDateTime));
-	bzero(&attrsModifiedDate, sizeof(UTCDateTime));
-
+	
+	attrModDiskPairs = calloc(1, sizeof(AttrModDiskPair));
+	attrModPairCount = 1;
+	
 	modifiedDate = createdDate = 0.0;
 	currentFormatID = SingleDatabaseFormat;
 	logSequenceNumber = logicalSize = nodeID = 0;
@@ -90,6 +93,9 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	[dateModifiedString release];
 	[dateCreatedString release];
 	[prefixParentNotes release];
+	
+	if (attrModDiskPairs)
+		free(attrModDiskPairs);
 		
 	if (cTitle)
 		free(cTitle);
@@ -110,10 +116,9 @@ static FSRef *noteFileRefInit(NoteObject* obj);
 	if (theDelegate) {
 		delegate = theDelegate;
 		
-		//just in case
-		if (!filename) {
-			filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
-		}
+		//do things that ought to have been done during init, but were not possible due to lack of delegate information
+		if (!filename) filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
+		if (!tableTitleString && !didUnarchive) [self updateTablePreviewString];
 	}
 }
 
@@ -233,7 +238,6 @@ DefModelAttrAccessor(fileSizeOfNote, logicalSize)
 DefModelAttrAccessor(titleOfNote, titleString)
 DefModelAttrAccessor(labelsOfNote, labelString)
 DefModelAttrAccessor(fileModifiedDateOfNote, fileModifiedDate)
-DefModelAttrAccessor(attrsModifiedDateOfNote, attrsModifiedDate)
 DefModelAttrAccessor(modifiedDateOfNote, modifiedDate)
 DefModelAttrAccessor(createdDateOfNote, createdDate)
 DefModelAttrAccessor(storageFormatOfNote, currentFormatID)
@@ -301,6 +305,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if ([decoder allowsKeyedCoding]) {
 			//(hopefully?) no versioning necessary here
 			
+			//for knowing when to delay certain initializations during launch (e.g., preview generation)
+			didUnarchive = YES;
+			
 			modifiedDate = [decoder decodeDoubleForKey:VAR_STR(modifiedDate)];
 			createdDate = [decoder decodeDoubleForKey:VAR_STR(createdDate)];
 			selectedRange.location = [decoder decodeInt32ForKey:@"selectionRangeLocation"];
@@ -315,9 +322,12 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			
 			int64_t fileModifiedDate64 = [decoder decodeInt64ForKey:VAR_STR(fileModifiedDate)];
 			memcpy(&fileModifiedDate, &fileModifiedDate64, sizeof(int64_t));
-			
-			int64_t attrsModifiedDate64 = [decoder decodeInt64ForKey:VAR_STR(attrsModifiedDate)];
-			memcpy(&attrsModifiedDate, &attrsModifiedDate64, sizeof(int64_t));
+						
+			NSUInteger decodedAttrModsByteCount = 0;
+			const uint8_t *decodedAttrModsBytes = [decoder decodeBytesForKey:VAR_STR(attrModDiskPairs) returnedLength:&decodedAttrModsByteCount];
+			if (decodedAttrModsBytes && decodedAttrModsByteCount) {
+				CopyAttrModPairsToOrder(&attrModDiskPairs, &attrModPairCount, (AttrModDiskPair *)decodedAttrModsBytes, decodedAttrModsByteCount, 1);
+			}
 			
 			fileEncoding = [decoder decodeInt32ForKey:VAR_STR(fileEncoding)];
 
@@ -419,7 +429,12 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[coder encodeInt32:nodeID forKey:VAR_STR(nodeID)];
 		[coder encodeInt32:logicalSize forKey:VAR_STR(logicalSize)];
 
-		[coder encodeInt64:*(int64_t*)&attrsModifiedDate forKey:VAR_STR(attrsModifiedDate)];
+		uint8_t *flippedModDiskPairs = calloc(attrModPairCount, sizeof(AttrModDiskPair));
+		CopyAttrModPairsToOrder((AttrModDiskPair**)&flippedModDiskPairs, &attrModPairCount, attrModDiskPairs, attrModPairCount * sizeof(AttrModDiskPair), 0);
+		
+		[coder encodeBytes:flippedModDiskPairs length:attrModPairCount * sizeof(AttrModDiskPair) forKey:VAR_STR(attrModDiskPairs)];
+		free(flippedModDiskPairs);
+		
 		[coder encodeInt64:*(int64_t*)&fileModifiedDate forKey:VAR_STR(fileModifiedDate)];
 		[coder encodeInt32:fileEncoding forKey:VAR_STR(fileEncoding)];
 		
@@ -470,6 +485,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID {
+	//delegate optional here
     if ([self init]) {
 		
 		if (!bodyText || !aNoteTitle) {
@@ -500,12 +516,12 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		createdDate = modifiedDate = CFAbsoluteTimeGetCurrent();
 		dateCreatedString = [dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain] retain];
 		UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &fileModifiedDate);
-		UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &attrsModifiedDate);
 		
 		//delegate is not set yet, so we cannot dirty ourselves here
 		//[self makeNoteDirty];
     }
-	[self updateTablePreviewString];
+	if (delegate)
+		[self updateTablePreviewString];
     
     return self;
 }
@@ -513,12 +529,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 //only get the fsrefs until we absolutely need them
 
 - (id)initWithCatalogEntry:(NoteCatalogEntry*)entry delegate:(id)aDelegate {
+	NSAssert(aDelegate != nil, @"must supply a delegate");
     if ([self init]) {
 		delegate = aDelegate;
 		filename = [(NSString*)entry->filename copy];
 		currentFormatID = [delegate currentNoteStorageFormat];
 		fileModifiedDate = entry->lastModified;
-		attrsModifiedDate = entry->lastAttrModified;
+		setAttrModifiedDate(self, &(entry->lastAttrModified));
 		nodeID = entry->nodeID;
 		logicalSize = entry->logicalSize;
 		
@@ -671,12 +688,12 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (void)updateTablePreviewString {
+	//delegate required for this method
 	[tableTitleString release];
 	GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
 
 	if ([prefs tableColumnsShowPreview]) {
 		if ([prefs horizontalLayout]) {
-			//where should column width come from when delegate is nil?
 			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] 
 																	 intrusionWidth:labelsPreviewImage ? [labelsPreviewImage size].width : 0.0] retain];
 		} else {
@@ -1214,7 +1231,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		return err;
 	}
 	fileModifiedDate = catInfo.contentModDate;
-	attrsModifiedDate = catInfo.attributeModDate;
+	setAttrModifiedDate(self, &catInfo.attributeModDate);
 	nodeID = catInfo.nodeID;
 	logicalSize = (UInt32)(catInfo.dataLogicalSize & 0xFFFFFFFF);
 	
@@ -1316,7 +1333,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		FSCatalogInfo info;
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			fileModifiedDate = info.contentModDate;
-			attrsModifiedDate = info.attributeModDate;
+			setAttrModifiedDate(self, &info.attributeModDate);
 			nodeID = info.nodeID;
 			logicalSize = (UInt32)(info.dataLogicalSize & 0xFFFFFFFF);
 			
@@ -1341,7 +1358,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	[self setFilename:(NSString*)catEntry->filename withExternalTrigger:YES];
     
     fileModifiedDate = catEntry->lastModified;
-	attrsModifiedDate = catEntry->lastAttrModified;
+	setAttrModifiedDate(self, &(catEntry->lastAttrModified));
     nodeID = catEntry->nodeID;
 	logicalSize = catEntry->logicalSize;
 	
@@ -1379,7 +1396,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			}
 			if (didRestoreLabels) {
 				fileModifiedDate = info.contentModDate;
-				attrsModifiedDate = info.attributeModDate;
+				setAttrModifiedDate(self, &info.attributeModDate);
 			}
 		}
 	}

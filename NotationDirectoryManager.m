@@ -18,6 +18,7 @@
 #import "NotationDirectoryManager.h"
 #import "NSFileManager_NV.h"
 #import "NotationPrefs.h"
+#import "BufferUtils.h"
 #import "GlobalPrefs.h"
 #import "NotationSyncServiceManager.h"
 #import "NoteObject.h"
@@ -302,8 +303,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 						entry->fileType = ((FileInfo *)fsCatInfoArray[i].finderInfo)->fileType;
 						entry->logicalSize = (UInt32)(fsCatInfoArray[i].dataLogicalSize & 0xFFFFFFFF);
 						entry->nodeID = (UInt32)fsCatInfoArray[i].nodeID;
-						memcpy(&(entry->lastModified), &(fsCatInfoArray[i].contentModDate), sizeof(UTCDateTime));
-						memcpy(&(entry->lastAttrModified), &(fsCatInfoArray[i].attributeModDate), sizeof(UTCDateTime));
+						entry->lastModified = fsCatInfoArray[i].contentModDate;
+						entry->lastAttrModified = fsCatInfoArray[i].attributeModDate;
 
 						
 						if (filename->length > entry->filenameCharCount) {
@@ -347,7 +348,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry {
 	//check dates
 	UTCDateTime lastReadDate = fileModifiedDateOfNote(aNoteObject);
-	UTCDateTime lastAttrModDate = attrsModifiedDateOfNote(aNoteObject);
+	UTCDateTime *lastAttrModDate = attrsModifiedDateOfNote(aNoteObject);
 	
 	//should we always update the note's stored inode here regardless?
 //	NSLog(@"content mod: %d,%d,%d, attr mod: %d,%d,%d", catEntry->lastModified.highSeconds,catEntry->lastModified.lowSeconds,catEntry->lastModified.fraction,
@@ -355,9 +356,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	
 	if (fileSizeOfNote(aNoteObject) != catEntry->logicalSize ||
 		*(int64_t*)&lastReadDate != *(int64_t*)&(catEntry->lastModified) ||
-		//PROBLEM: the attribute modified date can't be set, and so cannot be synced
-		//so this will be different on different computers
-		*(int64_t*)&lastAttrModDate != *(int64_t*)&(catEntry->lastAttrModified)) {
+		*(int64_t*)lastAttrModDate != *(int64_t*)&(catEntry->lastAttrModified)) {
 
 		//assume the file on disk was modified by someone other than us
 				

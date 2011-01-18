@@ -266,7 +266,7 @@
 	}
 	
 	//write length, checksum of data, record salt, then data itself
-    assert(sizeof(record) == sizeof(record.recordBuffer));
+    //assert(sizeof(record) == sizeof(record.recordBuffer));
     
     record.dataLength = CFSwapInt32HostToBig([data length]);
     record.checksum = CFSwapInt32HostToBig([data CRC32]);
