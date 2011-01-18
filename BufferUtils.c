@@ -298,7 +298,82 @@ CFStringRef GetRelativeDateStringFromTimeAndLocaleInfo(CFAbsoluteTime time, CFSt
 }
 #endif
 
-//void AddAttrModTimeForDiskSN
+//these two methods manipulate notes' attrmodtime-disk-pair sets, changing the buffers in place
+//on return, pairCount will be set to the number of attrmodtdiskpair structs currently in the buffer
+
+void RemoveAttrModTimeWithDiskIDIndex(UInt16 diskIndex, AttrModDiskPair **attrModPairs, unsigned int *pairCount) {
+	//used to periodically clean out attr-mod-times for disks that have not been seen in a while
+	
+	//if an entry exists, push everything below it upward and resize the buffer (or just copy to a new buffer)
+	//otherwise do nothing
+	
+	NSUInteger i = 0, count = *pairCount;
+	
+	AttrModDiskPair *pairs = *attrModPairs;
+	for (i=0; i<count; i++) {
+		if (pairs[i].diskIDIndex == diskIndex) {
+			
+			if (i < count - 1) {
+				//if pair isn't the last struct, then bring everything after pair up one spot
+				memmove(&pairs[i], &pairs[i + 1], sizeof(AttrModDiskPair) * ((count - 1) - i));
+			}
+			ResizeArray(attrModPairs, count - 1, pairCount);
+			return;
+		}
+	}
+}
+
+unsigned int SetAttrModTimeForDiskIDIndex(UTCDateTime *dateTime, UInt16 diskIndex, AttrModDiskPair **attrModPairs, unsigned int *pairCount) {
+	//if an entry for this diskIndex already exists, then just update it in place
+	//if an entry does not exist, then resize the buffer and add one at the end
+	
+	NSUInteger i = 0, count = *pairCount;
+	
+	AttrModDiskPair *pairs = *attrModPairs;
+	for (i=0; i<count; i++) {
+		//use this slot if the diskIndex matches OR it's the first one listed and its attrTime hasn't been touched
+		if (pairs[i].diskIDIndex == diskIndex || (!i && *(int64_t*)&(pairs[i].attrTime) == 0LL)) {
+			pairs[i].attrTime = *dateTime;
+			return i;
+		}
+	}
+	ResizeArray(attrModPairs, count + 1, pairCount);
+	
+	pairs = *attrModPairs;
+	pairs[count].attrTime = *dateTime;
+	pairs[count].diskIDIndex = diskIndex;
+	
+	return count;
+}
+
+void CopyAttrModPairsToOrder(AttrModDiskPair **flippedPairs, unsigned int *existingCount, AttrModDiskPair *attrModPairs, size_t bufferSize, int toHostOrder) {
+	//for decoding and encoding an array of AttrModDiskPair structs as a single buffer
+	//swap between host order and big endian
+	//resizes flippedPairs if it is too small (based on *existingCount)
+	
+	NSUInteger i, count = bufferSize / sizeof(AttrModDiskPair);
+	
+	ResizeArray(flippedPairs, count, existingCount);
+	AttrModDiskPair *newPairs = *flippedPairs;
+		
+	if (toHostOrder) {
+		for (i=0; i<count; i++) {
+			AttrModDiskPair pair = attrModPairs[i];
+			newPairs[i].attrTime.highSeconds = CFSwapInt16BigToHost(pair.attrTime.highSeconds);
+			newPairs[i].attrTime.lowSeconds = CFSwapInt32BigToHost(pair.attrTime.lowSeconds);
+			newPairs[i].attrTime.fraction = CFSwapInt16BigToHost(pair.attrTime.fraction);
+			newPairs[i].diskIDIndex = CFSwapInt16BigToHost(pair.diskIDIndex);
+		}
+	} else {
+		for (i=0; i<count; i++) {
+			AttrModDiskPair pair = attrModPairs[i];
+			newPairs[i].attrTime.highSeconds = CFSwapInt16HostToBig(pair.attrTime.highSeconds);
+			newPairs[i].attrTime.lowSeconds = CFSwapInt32HostToBig(pair.attrTime.lowSeconds);
+			newPairs[i].attrTime.fraction = CFSwapInt16HostToBig(pair.attrTime.fraction);
+			newPairs[i].diskIDIndex = CFSwapInt16HostToBig(pair.diskIDIndex);
+		}
+	}
+}
 
 CFStringRef CreateRandomizedFileName() {
     static int sequence = 0;

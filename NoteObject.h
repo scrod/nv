@@ -107,7 +107,7 @@ NSInteger compareFileSize(id *a, id *b);
 	UInt32 fileNodeIDOfNote(NoteObject *note);
 	UInt32 fileSizeOfNote(NoteObject *note);
 	UTCDateTime fileModifiedDateOfNote(NoteObject *note);
-	UTCDateTime attrsModifiedDateOfNote(NoteObject *note);
+	UTCDateTime *attrsModifiedDateOfNote(NoteObject *note);
 	CFAbsoluteTime modifiedDateOfNote(NoteObject *note);
 	CFAbsoluteTime createdDateOfNote(NoteObject *note);
 

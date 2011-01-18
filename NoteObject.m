@@ -124,6 +124,36 @@ static FSRef *noteFileRefInit(NoteObject* obj) {
 	return obj->noteFileRef;
 }
 
+static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime) {
+	assert(note->delegate != nil);
+	assert(note->attrModDiskPairs);
+	unsigned int idx = SetAttrModTimeForDiskIDIndex(dateTime, (UInt16)diskUUIDIndexForNotation(note->delegate), 
+												   &(note->attrModDiskPairs), &(note->attrModPairCount));
+	note->attrsModifiedDate = &(note->attrModDiskPairs[idx].attrTime);
+}
+
+UTCDateTime *attrsModifiedDateOfNote(NoteObject *note) {
+	//once unarchived, the disk UUID index won't change, so this pointer will always reflect the current attr mod time
+	if (!note->attrsModifiedDate) {
+		
+		assert(note->attrModDiskPairs);
+		assert(note->delegate != nil);
+		//init from delegate based on disk table index
+		unsigned int i, tableIndex = diskUUIDIndexForNotation(note->delegate);
+		
+		for (i=0; i<note->attrModPairCount; i++) {
+			if (note->attrModDiskPairs[i].diskIDIndex == tableIndex) {
+				note->attrsModifiedDate = &(note->attrModDiskPairs[i].attrTime);
+				goto giveDate;
+			}
+		}
+		//this note doesn't have a file-modified date, so initialize one here
+		setAttrModifiedDate(note, &(note->fileModifiedDate));
+	}
+giveDate:	
+	return note->attrsModifiedDate;
+}
+
 NSInteger compareFilename(id *one, id *two) {
     
     return (NSInteger)CFStringCompare((CFStringRef)((*(NoteObject**)one)->filename), 

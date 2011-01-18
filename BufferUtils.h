@@ -20,6 +20,18 @@
 #include <Carbon/Carbon.h>
 
 #define ResizeArray(__DirectBuffer, __objCount, __bufObjCount)	_ResizeBuffer((void***)(__DirectBuffer), (__objCount), (__bufObjCount), sizeof(typeof(**(__DirectBuffer))))
+
+typedef struct _AttrModDiskPair {
+	
+	//index in a table of disk UUIDs; should be the disk from which this time was gathered
+	//the disk UUIDs table is tracked separately in FrozenNotation; it should only ever be appended-to
+	UInt16 diskIDIndex;
+	
+	//the attribute modification time of a file
+	UTCDateTime attrTime;
+	
+} AttrModDiskPair;
+
 char *replaceString(char *oldString, const char *newString);
 void _ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize, unsigned int elemSize);
 int IsZeros(const void *s1, size_t n);
@@ -33,6 +45,11 @@ unsigned DumbWordCount(const void *s1, size_t len);
 NSInteger genericSortContextFirst(int (*context) (void*, void*), void* one, void* two);
 NSInteger genericSortContextLast(void* one, void* two, int (*context) (void*, void*));
 void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const void *, const void *));
+
+void RemoveAttrModTimeWithDiskIDIndex(UInt16 diskIndex, AttrModDiskPair **attrModPairs, unsigned int *pairCount);
+unsigned int SetAttrModTimeForDiskIDIndex(UTCDateTime *dateTime, UInt16 diskIndex, AttrModDiskPair **attrModPairs, unsigned int *pairCount);
+void CopyAttrModPairsToOrder(AttrModDiskPair **flippedPairs, unsigned int *existingCount, AttrModDiskPair *attrModPairs, size_t bufferSize, int toHostOrder);
+
 CFStringRef CreateRandomizedFileName();
 OSStatus FSCreateFileIfNotPresentInDirectory(FSRef *directoryRef, FSRef *childRef, CFStringRef filename, Boolean *created);
 OSStatus FSRefMakeInDirectoryWithString(FSRef *directoryRef, FSRef *childRef, CFStringRef filename, UniChar* charsBuffer);
