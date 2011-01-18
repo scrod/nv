@@ -23,10 +23,10 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
+			<integer value="1016"/>
 			<integer value="1208"/>
-			<integer value="169"/>
 			<integer value="1066"/>
-			<integer value="1012"/>
+			<integer value="24"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1513,6 +1513,15 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 									<reference key="NSOnImage" ref="45897863"/>
 									<reference key="NSMixedImage" ref="520021446"/>
 								</object>
+								<object class="NSMenuItem" id="936475942">
+									<reference key="NSMenu" ref="505376487"/>
+									<string key="NSTitle">Toggle Full Screen</string>
+									<string key="NSKeyEquiv">f</string>
+									<int key="NSKeyEquivModMask">1310720</int>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="45897863"/>
+									<reference key="NSMixedImage" ref="520021446"/>
+								</object>
 								<object class="NSMenuItem" id="507015571">
 									<reference key="NSMenu" ref="505376487"/>
 									<bool key="NSIsDisabled">YES</bool>
@@ -2618,6 +2627,14 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					</object>
 					<int key="connectionID">1253</int>
 				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">toggleFullscreen:</string>
+						<reference key="source" ref="290648732"/>
+						<reference key="destination" ref="936475942"/>
+					</object>
+					<int key="connectionID">1256</int>
+				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
 				<object class="NSArray" key="orderedObjects">
@@ -2743,6 +2760,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<reference ref="507015571"/>
 							<reference ref="1006735492"/>
 							<reference ref="276928840"/>
+							<reference ref="936475942"/>
 						</object>
 						<reference key="parent" ref="321486406"/>
 					</object>
@@ -3677,6 +3695,11 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 						<reference key="object" ref="991778529"/>
 						<reference key="parent" ref="260390050"/>
 					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1254</int>
+						<reference key="object" ref="936475942"/>
+						<reference key="parent" ref="505376487"/>
+					</object>
 				</object>
 			</object>
 			<object class="NSMutableDictionary" key="flattenedProperties">
@@ -3783,6 +3806,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<string>1246.IBPluginDependency</string>
 					<string>1248.IBPluginDependency</string>
 					<string>1250.IBPluginDependency</string>
+					<string>1254.IBPluginDependency</string>
 					<string>129.IBPluginDependency</string>
 					<string>129.ImportedFromIB2</string>
 					<string>130.IBPluginDependency</string>
@@ -4106,6 +4130,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
@@ -4184,7 +4209,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{773, 668}, {194, 93}}</string>
+					<string>{{599, 627}, {217, 113}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>{{149, 740}, {582, 20}}</string>
@@ -4324,7 +4349,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">1253</int>
+			<int key="maxID">1256</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -4352,6 +4377,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>showPreferencesWindow:</string>
 							<string>syncWaitQuit:</string>
 							<string>tagNote:</string>
+							<string>toggleFullscreen:</string>
 							<string>toggleLayout:</string>
 							<string>toggleNVActivation:</string>
 							<string>togglePreview:</string>
@@ -4359,6 +4385,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
+							<string>id</string>
 							<string>id</string>
 							<string>id</string>
 							<string>id</string>
@@ -4401,6 +4428,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>showPreferencesWindow:</string>
 							<string>syncWaitQuit:</string>
 							<string>tagNote:</string>
+							<string>toggleFullscreen:</string>
 							<string>toggleLayout:</string>
 							<string>toggleNVActivation:</string>
 							<string>togglePreview:</string>
@@ -4473,6 +4501,10 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
+								<string key="name">toggleFullscreen:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
 								<string key="name">toggleLayout:</string>
 								<string key="candidateClassName">id</string>
 							</object>
@@ -4498,6 +4530,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>editorStatusView</string>
 							<string>field</string>
 							<string>horizontalRule</string>
+							<string>mainWindow</string>
 							<string>markdownPreview</string>
 							<string>multiMarkdownPreview</string>
 							<string>noteScroller</string>
@@ -4521,6 +4554,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>EmptyView</string>
 							<string>DualField</string>
 							<string>NSBox</string>
+							<string>NSWindow</string>
 							<string>NSMenuItem</string>
 							<string>NSMenuItem</string>
 							<string>BlueTransparentScroller</string>
@@ -4547,6 +4581,7 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<string>editorStatusView</string>
 							<string>field</string>
 							<string>horizontalRule</string>
+							<string>mainWindow</string>
 							<string>markdownPreview</string>
 							<string>multiMarkdownPreview</string>
 							<string>noteScroller</string>
@@ -4581,6 +4616,10 @@ AbIAAAAAAAgACAAIAAgAAQABAAEAAQ</bytes>
 							<object class="IBToOneOutletInfo">
 								<string key="name">horizontalRule</string>
 								<string key="candidateClassName">NSBox</string>
+							</object>
+							<object class="IBToOneOutletInfo">
+								<string key="name">mainWindow</string>
+								<string key="candidateClassName">NSWindow</string>
 							</object>
 							<object class="IBToOneOutletInfo">
 								<string key="name">markdownPreview</string>

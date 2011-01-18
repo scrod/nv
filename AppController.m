@@ -11,6 +11,7 @@
 
 
 #import "AppController.h"
+#import "FullscreenWindow.h"
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "AlienNoteImporter.h"
@@ -1829,4 +1830,104 @@ terminateApp:
     
     [self postTextUpdate];
 }
+
+- (IBAction)toggleFullscreen:(id)sender
+{
+	[textView setHidden:YES];
+	
+	if (fullscreenWindow)
+	{
+		NSView *firstResponder = (NSView *)[fullscreenWindow firstResponder];
+		if ([firstResponder isKindOfClass:[NSTextView class]] &&
+			[[(NSTextView *)firstResponder delegate] isKindOfClass:[NSTextField class]])
+		{
+			firstResponder = [(NSTextView *)firstResponder delegate];
+		}
+		else if (![firstResponder isKindOfClass:[NSView class]])
+		{
+			firstResponder = nil;
+		}
+		
+		NSRect newFrame = [fullscreenWindow frameRectForContentRect:
+						   [window contentRectForFrameRect:[window frame]]];
+		[fullscreenWindow
+		 setFrame:newFrame
+		 display:YES
+		 animate:YES];
+		
+		NSView *contentView = [[[fullscreenWindow contentView] retain] autorelease];
+		[fullscreenWindow setContentView:[[[NSView alloc] init] autorelease]];
+		
+		[window setContentView:contentView];
+		if (firstResponder)
+		{
+			[window makeFirstResponder:firstResponder];
+		}
+		[window makeKeyAndOrderFront:nil];
+		
+		[fullscreenWindow close];
+		fullscreenWindow = nil;
+		
+		if ([[window screen] isEqual:[[NSScreen screens] objectAtIndex:0]])
+		{
+			[NSMenu setMenuBarVisible:YES];
+		}
+		
+		[textView setTextContainerInset:NSMakeSize(20,40)];
+		[notesList setHidden:NO];
+	}
+	else
+	{
+		[notesList setHidden:YES];
+		NSView *firstResponder = (NSView *)[window firstResponder];
+		if ([firstResponder isKindOfClass:[NSTextView class]] &&
+			[[(NSTextView *)firstResponder delegate] isKindOfClass:[NSTextField class]])
+		{
+			firstResponder = [(NSTextView *)firstResponder delegate];
+		}
+		else if (![firstResponder isKindOfClass:[NSView class]])
+		{
+			firstResponder = nil;
+		}
+		
+		if ([[window screen] isEqual:[[NSScreen screens] objectAtIndex:0]])
+		{
+			[NSMenu setMenuBarVisible:NO];
+		}
+		
+		[window orderOut:nil];
+		fullscreenWindow = [[FullscreenWindow alloc]
+							initWithContentRect:[window contentRectForFrameRect:[window frame]]
+							styleMask:NSBorderlessWindowMask
+							backing:NSBackingStoreBuffered
+							defer:YES
+							screen:[window screen]];
+		
+		NSView *contentView = [[[window contentView] retain] autorelease];
+		[window setContentView:[[[NSView alloc] init] autorelease]];
+		
+		[fullscreenWindow setHidesOnDeactivate:YES];
+		[fullscreenWindow setLevel:NSFloatingWindowLevel];
+		[fullscreenWindow setContentView:contentView];
+		[fullscreenWindow setTitle:[window title]];
+		if (firstResponder)
+		{
+			[fullscreenWindow makeFirstResponder:firstResponder];
+		}
+		[fullscreenWindow makeKeyAndOrderFront:nil];
+		
+		[fullscreenWindow setFrame:
+		 [fullscreenWindow
+		  frameRectForContentRect:[[fullscreenWindow screen] frame]]
+		 display:YES
+		 animate:YES];
+		NSRect screenRect = [textView frame];
+		NSSize viewSize = {(screenRect.size.width - 800) / 2,40};
+		
+		[textView setTextContainerInset:viewSize];
+		
+	}
+	[textView setHidden:NO];
+}
+
 @end

@@ -53,7 +53,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	 @selector(setSearchTermHighlightColor:sender:),	
  	 @selector(setNotesListBackgroundColor:sender:), nil];
 	
-	[self setTextContainerInset:NSMakeSize(20, 15)];
+	[self setTextContainerInset:NSMakeSize(20, 40)];
 	[self setSmartInsertDeleteEnabled:NO];
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
@@ -553,7 +553,10 @@ copyRTFType:
 
 #define STROKE_WIDTH_FOR_BOLD (-3.50)
 #define OBLIQUENESS_FOR_ITALIC (0.20)
-- (void)bold:(id)sender {	
+- (void)bold:(id)sender {
+	if ([self selectedRange].length) {
+		[self insertText:@"**"];
+	}
 	[self applyStyleOfTrait:NSBoldFontMask alternateAttributeName:NSStrokeWidthAttributeName 
 	alternateAttributeValue:[NSNumber numberWithFloat:STROKE_WIDTH_FOR_BOLD]];	
 	

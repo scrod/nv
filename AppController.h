@@ -93,6 +93,8 @@
     IBOutlet NSMenuItem *textilePreview;
     NSInteger currentPreviewMode;
 
+	IBOutlet NSWindow *mainWindow;
+	NSWindow *fullscreenWindow;
 }
 
 void outletObjectAwoke(id sender);
@@ -155,4 +157,6 @@ void outletObjectAwoke(id sender);
 
 -(void)updateScheme;
 -(void)updateRTL;
+
+- (IBAction)toggleFullscreen:(id)sender;
 @end
