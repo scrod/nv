@@ -18,7 +18,7 @@ try: from textwrap import wrap
 except: pass
 
 # Use Unicode characters instead of their ascii psuedo-replacements
-UNICODE_SNOB = 1
+UNICODE_SNOB = 0
 
 # Put the links after each paragraph instead of at the end.
 LINKS_EACH_PARAGRAPH = 1
