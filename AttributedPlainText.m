@@ -71,6 +71,14 @@
 	return title;
 }
 
+- (NSString*)getLeadingSyntheticTitle {
+	NSUInteger bodyLoc = 0;
+	
+	NSString *title = [[self string] syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+	
+	return title;	
+}
+
 - (void)prefixWithSourceString:(NSString*)source {
 	source = [NSString stringWithFormat:@"From <%@>:\n\n", source];
 	[self insertAttributedString:[[[NSAttributedString alloc] initWithString:source] autorelease] atIndex:0];

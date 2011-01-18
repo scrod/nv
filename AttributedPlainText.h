@@ -27,6 +27,7 @@
 - (void)prefixWithSourceString:(NSString*)source;
 
 - (NSString*)trimLeadingSyntheticTitle;
+- (NSString*)getLeadingSyntheticTitle;
 
 #if SEPARATE_ATTRS
 + (NSMutableAttributedString*)attributedStringWithString:(NSString*)text attributesByRange:(NSDictionary*)attributes font:(NSFont*)font;

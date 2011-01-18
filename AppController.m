@@ -613,13 +613,14 @@ terminateApp:
 		if (hasRTFData && ![prefsController pastePreservesStyle]) //fallback scenario
 			newString = [[[NSMutableAttributedString alloc] initWithString:[newString string]] autorelease];
 		
-		NSString *noteTitle = [newString trimLeadingSyntheticTitle];
+		NSString *noteTitle = [newString getLeadingSyntheticTitle];
 		if ([sourceIdentiferString length] > 0) {
 			//add the URL or wherever it was that this piece of text came from
 			[newString prefixWithSourceString:sourceIdentiferString];
 		}
 		[newString santizeForeignStylesForImporting];
 		note = [notationController addNote:newString withTitle:noteTitle];
+		[self renameNote:self];
 		return note != nil;
 	}
 	
