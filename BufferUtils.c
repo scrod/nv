@@ -334,6 +334,7 @@ unsigned int SetAttrModTimeForDiskIDIndex(UTCDateTime *dateTime, UInt16 diskInde
 		//use this slot if the diskIndex matches OR it's the first one listed and its attrTime hasn't been touched
 		if (pairs[i].diskIDIndex == diskIndex || (!i && *(int64_t*)&(pairs[i].attrTime) == 0LL)) {
 			pairs[i].attrTime = *dateTime;
+			pairs[i].diskIDIndex = diskIndex;
 			return i;
 		}
 	}

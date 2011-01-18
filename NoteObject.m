@@ -59,6 +59,7 @@ static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime);
 	bzero(&fileModifiedDate, sizeof(UTCDateTime));
 	
 	attrModDiskPairs = calloc(1, sizeof(AttrModDiskPair));
+	attrModDiskPairs[0].diskIDIndex = -1;
 	attrModPairCount = 1;
 	
 	modifiedDate = createdDate = 0.0;
