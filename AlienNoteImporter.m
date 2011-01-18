@@ -46,6 +46,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	if ([super init]) {
 		shouldGrabCreationDates = NO;
 		documentSettings = [[NSMutableDictionary alloc] init];
+		shouldUseReadability = NO;
 	}
 	return self;
 }
@@ -130,7 +131,6 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 - (void)dealloc {
 	[documentSettings release];
 	[source release];
-	
 	[super dealloc];
 }
 
@@ -430,7 +430,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	if (fileType == HTML_TYPE_ID || [extension isEqualToString:@"htm"] || [extension isEqualToString:@"html"] || [extension isEqualToString:@"shtml"]) {
 		//should convert to text with markdown here
 		if ([[GlobalPrefs defaultPrefs] useMarkdownImport]) {
-			if ([[GlobalPrefs defaultPrefs] useReadability]) {
+			if ([[GlobalPrefs defaultPrefs] useReadability] || [self shouldUseReadability]) {
 				attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:[self contentUsingReadability:filename] 
 																				  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 			} else {
@@ -585,6 +585,16 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 			return [NSArray arrayWithObject:note];
 	}
 	return nil;
+}
+
+-(BOOL)shouldUseReadability
+{
+    return shouldUseReadability;
+}
+
+-(void) setShouldUseReadability:(BOOL)value
+{
+	shouldUseReadability = value;
 }
 
 @end

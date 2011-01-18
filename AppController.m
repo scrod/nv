@@ -570,7 +570,12 @@ terminateApp:
 					linkTitleType = [NSString customPasteboardTypeOfCode:0x75726C64];
 					linkTitle = [types containsObject:linkTitleType] ? [[pasteboard stringForType:linkTitleType] syntheticTitleAndTrimmedBody:NULL] : nil;
 				}
-				[[[[AlienNoteImporter alloc] init] autorelease] importURLInBackground:url linkTitle:linkTitle receptionDelegate:self];
+				AlienNoteImporter *importer = [[[AlienNoteImporter alloc] init] autorelease];
+				NSEvent *event = [window currentEvent];
+				if ([event modifierFlags] & NSAlternateKeyMask) {
+					[importer setShouldUseReadability:YES];
+				}
+				[importer importURLInBackground:url linkTitle:linkTitle receptionDelegate:self];
 				return YES;
 			}
 		}		
