@@ -54,6 +54,8 @@ static NSString *NumberOfSpacesInTabKey = @"NumberOfSpacesInTab";
 static NSString *DrawFocusRingKey = @"DrawFocusRing";
 static NSString *MakeURLsClickableKey = @"MakeURLsClickable";
 static NSString *RTLKey = @"rtl";
+static NSString *UseMarkdownImportKey = @"UseMarkdownImport";
+static NSString *UseReadabilityKey = @"UseReadability";
 static NSString *AlternatingRowsKey = @"AlternatingRows";
 static NSString *AppActivationKeyCodeKey = @"AppActivationKeyCode";
 static NSString *AppActivationModifiersKey = @"AppActivationModifiers";
@@ -114,6 +116,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], DrawFocusRingKey,
 			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
 			[NSNumber numberWithBool:NO], RTLKey,
+			[NSNumber numberWithBool:NO], UseMarkdownImportKey,
+			[NSNumber numberWithBool:NO], UseReadabilityKey,
 			[NSNumber numberWithBool:YES], AlternatingRowsKey,
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
 			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
@@ -372,6 +376,23 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (BOOL)rtl {
 	return [defaults boolForKey:RTLKey];
 }
+- (void)setUseMarkdownImport:(BOOL)value sender:(id)sender {
+	[defaults setBool:value forKey:UseMarkdownImportKey];
+	
+	SEND_CALLBACKS();
+}
+- (BOOL)useMarkdownImport {
+	return [defaults boolForKey:UseMarkdownImportKey];
+}
+- (void)setUseReadability:(BOOL)value sender:(id)sender {
+	[defaults setBool:value forKey:UseReadabilityKey];
+	
+	SEND_CALLBACKS();
+}
+- (BOOL)useReadability {
+	return [defaults boolForKey:UseReadabilityKey];
+}
+
 - (void)setAlternatingRows:(BOOL)value sender:(id)sender {
 	[defaults setBool:value forKey:AlternatingRowsKey];
 	

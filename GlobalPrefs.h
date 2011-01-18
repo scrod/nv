@@ -115,6 +115,12 @@ extern NSString *NVPTFPboardType;
 - (void)setRTL:(BOOL)value sender:(id)sender;
 - (BOOL)rtl;
 
+- (void)setUseMarkdownImport:(BOOL)value sender:(id)sender;
+- (BOOL)useMarkdownImport;
+
+- (void)setUseReadability:(BOOL)value sender:(id)sender;
+- (BOOL)useReadability;
+
 - (void)setAlternatingRows:(BOOL)value sender:(id)sender;
 - (BOOL)alternatingRows;
 

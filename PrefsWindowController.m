@@ -164,6 +164,15 @@
 	[[NSApp delegate] updateRTL];
 }
 
+- (IBAction)changedUseMarkdownImport:(id)sender {
+	[prefsController setUseMarkdownImport:[useMarkdownImportButton state] sender:self];
+	[useReadabilityButton setEnabled:[useMarkdownImportButton state]];
+}
+
+- (IBAction)changedUseReadability:(id)sender {
+	[prefsController setUseReadability:[useReadabilityButton state] sender:self];
+}
+
 - (IBAction)changedNoteDeletion:(id)sender {
 	[prefsController setConfirmNoteDeletion:[confirmDeletionButton state] sender:self];
 }
@@ -389,6 +398,9 @@
 	[softTabsButton setState:[prefsController softTabs]];
 	[makeURLsClickable setState:[prefsController URLsAreClickable]];
 	[rtlButton setState:[prefsController rtl]];
+	[useMarkdownImportButton setState:[prefsController useMarkdownImport]];
+	[useReadabilityButton setState:[prefsController useReadability]];
+	[useReadabilityButton setEnabled:[useMarkdownImportButton state]];
 	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
 	[notesListBackgroundColorWell setColor:[prefsController notesListBackgroundColor]];
     [self previewNoteBodyFont];

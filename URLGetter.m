@@ -11,6 +11,7 @@
 
 
 #import "URLGetter.h"
+#import "GlobalPrefs.h"
 
 @implementation URLGetter
 
@@ -26,7 +27,6 @@
 		userData = [someObj retain];
 		
 		downloader = [[NSURLDownload alloc] initWithRequest:[NSURLRequest requestWithURL:url] delegate:self];
-		
 		[self startProgressIndication:self];
 	}
 	
@@ -164,7 +164,7 @@
 		if (![[fileMan directoryContentsAtPath:tempDirectory] count])
 			[fileMan removeFileAtPath:tempDirectory handler:NULL];
 		else
-			NSLog(@"note removing %@ because it still contains files!", tempDirectory);
+			NSLog(@"not removing %@ because it still contains files!", tempDirectory);
 		[tempDirectory release];
 		tempDirectory = nil;
 	}

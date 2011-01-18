@@ -310,6 +310,113 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	return nil;
 }
 
+- (NSString *) contentUsingReadability: (NSString *)htmlFile
+{
+    NSBundle *bundle = [NSBundle mainBundle];
+    NSString *readabilityPath;
+    readabilityPath = [bundle pathForAuxiliaryExecutable: @"readability.py"];
+	
+    NSTask *task = [[NSTask alloc] init];
+    [task setLaunchPath: readabilityPath];
+	
+	NSArray *arguments;
+    arguments = [NSArray arrayWithObjects: htmlFile, nil];
+    [task setArguments: arguments];
+	
+	NSPipe *rpipe;
+    rpipe = [NSPipe pipe];
+    [task setStandardOutput: rpipe];
+	
+    NSFileHandle *file;
+    file = [rpipe fileHandleForReading];
+	
+    [task launch];
+	
+    NSData *data;
+    data = [file readDataToEndOfFile];
+	
+    NSString *string;
+    string = [[NSString alloc] initWithData: data
+								   encoding: NSUTF8StringEncoding];
+	
+	return [self markdownFromSource:string];
+}
+
+- (NSString *) markdownFromHTMLFile: (NSString *)htmlFile
+{
+    NSBundle *bundle = [NSBundle mainBundle];
+    NSString *readabilityPath;
+    readabilityPath = [bundle pathForAuxiliaryExecutable: @"html2text.py"];
+	
+    NSTask *task = [[NSTask alloc] init];
+    [task setLaunchPath: readabilityPath];
+	
+	NSArray *arguments;
+    arguments = [NSArray arrayWithObjects: htmlFile, nil];
+    [task setArguments: arguments];
+	
+	NSPipe *rpipe;
+    rpipe = [NSPipe pipe];
+    [task setStandardOutput: rpipe];
+	
+    NSFileHandle *file;
+    file = [rpipe fileHandleForReading];
+	
+    [task launch];
+	
+    NSData *data;
+    data = [file readDataToEndOfFile];
+	
+    NSString *string;
+    string = [[NSString alloc] initWithData: data
+								   encoding: NSUTF8StringEncoding];
+	
+	return string;
+}
+
+- (NSString *) markdownFromSource: (NSString *)htmlString
+{
+    NSBundle *bundle = [NSBundle mainBundle];
+    NSString *readabilityPath;
+    readabilityPath = [bundle pathForAuxiliaryExecutable: @"html2text.py"];
+	
+    NSTask *task = [[NSTask alloc] init];
+    [task setLaunchPath: readabilityPath];
+	
+    NSPipe *readPipe = [NSPipe pipe];
+    NSFileHandle *readHandle = [readPipe fileHandleForReading];
+	
+    NSPipe *writePipe = [NSPipe pipe];
+    NSFileHandle *writeHandle = [writePipe fileHandleForWriting];
+	
+    [task setStandardInput: writePipe];
+    [task setStandardOutput: readPipe];
+	
+    [task launch];
+	
+    [writeHandle writeData: [htmlString dataUsingEncoding: NSASCIIStringEncoding]];
+    [writeHandle closeFile];
+	
+    NSMutableData *data = [[NSMutableData alloc] init];
+    NSData *readData;
+	
+    while ((readData = [readHandle availableData])
+           && [readData length]) {
+        [data appendData: readData];
+    }
+	
+    NSString *strippedString;
+    strippedString = [[NSString alloc]
+					  initWithData: data
+					  encoding: NSASCIIStringEncoding];
+	
+    [task release];
+    [data release];
+    [strippedString autorelease];
+	
+    return (strippedString);
+}
+
 //auto-detect based on file type/extension/header
 //if unable to find, revert to spotlight importer
 - (NoteObject*)noteWithFile:(NSString*)filename {
@@ -320,11 +427,19 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	NSString *sourceIdentifierString = nil;
 	
 	NSMutableAttributedString *attributedStringFromData = nil;
-	
 	if (fileType == HTML_TYPE_ID || [extension isEqualToString:@"htm"] || [extension isEqualToString:@"html"] || [extension isEqualToString:@"shtml"]) {
 		//should convert to text with markdown here
-		attributedStringFromData = [[NSMutableAttributedString alloc] initWithHTML:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
-		
+		if ([[GlobalPrefs defaultPrefs] useMarkdownImport]) {
+			if ([[GlobalPrefs defaultPrefs] useReadability]) {
+				attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:[self contentUsingReadability:filename] 
+																				  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
+			} else {
+				attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:[self markdownFromHTMLFile:filename] 
+																				  attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
+			}
+		 } else {
+			attributedStringFromData = [[NSMutableAttributedString alloc] initWithHTML:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
+		 }
 	} else if (fileType == RTF_TYPE_ID || [extension isEqualToString:@"rtf"] || [extension isEqualToString:@"nvhelp"] || [extension isEqualToString:@"rtx"]) {
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTF:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		

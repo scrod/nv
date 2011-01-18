@@ -33,6 +33,8 @@
 	IBOutlet NSButton *softTabsButton;
 	IBOutlet NSButton *makeURLsClickable;
 	IBOutlet NSButton *rtlButton;
+	IBOutlet NSButton *useMarkdownImportButton;
+	IBOutlet NSButton *useReadabilityButton;
 	IBOutlet NSColorWell *searchHighlightColorWell;
     IBOutlet NSColorWell *notesListBackgroundColorWell;
 	IBOutlet NSButton *alternatingRowsButton;
@@ -55,6 +57,8 @@
 - (IBAction)changedNotesListBackgroundColorWell:(id)sender;
 - (IBAction)changedMakeURLsClickable:(id)sender;
 - (IBAction)changedRTL:(id)sender;
+- (IBAction)changedUseMarkdownImport:(id)sender;
+- (IBAction)changedUseReadability:(id)sender;
 - (IBAction)changedStyledTextBehavior:(id)sender;
 - (IBAction)changedAutoSuggestLinks:(id)sender;
 - (IBAction)setAppShortcut:(id)sender;

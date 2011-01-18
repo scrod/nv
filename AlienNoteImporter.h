@@ -61,6 +61,9 @@ extern NSString *RetrievedPasswordKey;
 - (NSArray*)notesInDirectory:(NSString*)filename;
 - (NSArray*)notesInFile:(NSString*)filename;
 
+- (NSString*) contentUsingReadability: (NSString *)htmlFile;
+- (NSString*) markdownFromSource: (NSString *)htmlString;
+- (NSString*) markdownFromHTMLFile: (NSString *)htmlFile;
 @end
 
 @interface AlienNoteImporter (DialogDelegate)
