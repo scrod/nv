@@ -34,6 +34,7 @@
 #import "NSCollection_utils.h"
 #import "NotesTableView.h"
 #import "UnifiedCell.h"
+#import "LabelColumnCell.h"
 #import "NSBezierPath_NV.h"
 
 #if __LP64__
@@ -54,27 +55,15 @@ static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime);
 - (id)init {
     if ([super init]) {
 	
-	cTitle = cContents = cLabels = cTitleFoundPtr = cContentsFoundPtr = cLabelsFoundPtr = NULL;
-	
-	bzero(&fileModifiedDate, sizeof(UTCDateTime));
-	
-	attrModDiskPairs = calloc(1, sizeof(AttrModDiskPair));
-	attrModDiskPairs[0].diskIDIndex = -1;
-	attrModPairCount = 1;
-	
-	modifiedDate = createdDate = 0.0;
-	currentFormatID = SingleDatabaseFormat;
-	logSequenceNumber = logicalSize = nodeID = 0;
-	fileEncoding = NSUTF8StringEncoding;
-	contentsWere7Bit = NO;
-	
-	selectedRange = NSMakeRange(NSNotFound, 0);
-	
-	//these are created either when the object is initialized from disk or when it writes its files to disk
-	//bzero(&noteFileRef, sizeof(FSRef));
-	
-	//labelSet = [[NSMutableSet alloc] init];
-	
+		attrModDiskPairs = calloc(1, sizeof(AttrModDiskPair));
+		attrModDiskPairs[0].diskIDIndex = -1;
+		attrModPairCount = 1;
+		
+		currentFormatID = SingleDatabaseFormat;
+		fileEncoding = NSUTF8StringEncoding;
+		selectedRange = NSMakeRange(NSNotFound, 0);
+		
+		//other instance variables initialized on demand
     }
 	
     return self;
@@ -245,9 +234,8 @@ DefModelAttrAccessor(storageFormatOfNote, currentFormatID)
 DefModelAttrAccessor(fileEncodingOfNote, fileEncoding)
 DefModelAttrAccessor(prefixParentsOfNote, prefixParentNotes)
 
-DefColAttrAccessor(wordCountOfNote, wordCountString)
+//DefColAttrAccessor(wordCountOfNote, wordCountString)
 DefColAttrAccessor(titleOfNote2, titleString)
-DefColAttrAccessor(labelsOfNote2, labelString)
 DefColAttrAccessor(dateCreatedStringOfNote, dateCreatedString)
 DefColAttrAccessor(dateModifiedStringOfNote, dateModifiedString)
 
