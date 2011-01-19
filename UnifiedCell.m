@@ -197,7 +197,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 	
 	[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
 
-	NSImage *img = ([self isHighlighted] && isActive) ? [noteObject labelsPreviewImageOfColor:[NSColor whiteColor]] : [noteObject labelsPreviewImage];
+	NSImage *img = ([self isHighlighted] && isActive) ? [noteObject highlightedLabelsPreviewImage] : [noteObject labelsPreviewImage];
 	
 	if (img) {
 		NSRect rect = [self nv_tagsRectForFrame:cellFrame andImage:img];

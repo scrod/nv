@@ -35,7 +35,7 @@ typedef struct _NoteFilterContext {
 	NSString *titleString, *labelString;
 	NSMutableAttributedString *contentString;
 	
-	NSImage *labelsPreviewImage;
+	NSImage *labelsPreviewImage, *highlightedLabelsPreviewImage;
     
 	//caching/searching purposes only -- created at runtime
 	char *cTitle, *cContents, *cLabels, *cTitleFoundPtr, *cContentsFoundPtr, *cLabelsFoundPtr;
@@ -44,7 +44,7 @@ typedef struct _NoteFilterContext {
 	//if this note's title is "Chicken Shack menu listing", its prefix parent might have the title "Chicken Shack"
 	NSMutableArray *prefixParentNotes;
 	
-	NSString *wordCountString;
+//	NSString *wordCountString;
 	NSString *dateModifiedString, *dateCreatedString;
 	
 	id delegate; //the notes controller
@@ -131,7 +131,6 @@ NSInteger compareFileSize(id *a, id *b);
 	id unifiedCellSingleLineForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id labelColumnCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
-	id labelsOfNote2(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id dateCreatedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id dateModifiedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id wordCountOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
@@ -154,8 +153,9 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)setLabelString:(NSString*)newLabels;
 - (NSArray*)orderedLabelTitles;
 - (void)invalidateLabelsPreviewImage;
+- (NSImage*)highlightedLabelsPreviewImage;
 - (NSImage*)labelsPreviewImage;
-- (NSImage*)labelsPreviewImageOfColor:(NSColor*)aColor;
+- (NSImage*)_labelsPreviewImageOfColor:(NSColor*)aColor;
 
 - (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
 - (void)removeAllSyncMDForService:(NSString*)serviceName;

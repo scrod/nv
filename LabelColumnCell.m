@@ -57,11 +57,11 @@
 	}
 	
 	if (!isEditing) {
-		NSImage *img = ([self isHighlighted] && [tv isActiveStyle]) ? [noteObject labelsPreviewImageOfColor:[NSColor whiteColor]] : [noteObject labelsPreviewImage];
+		NSImage *img = ([self isHighlighted] && [tv isActiveStyle]) ? [noteObject highlightedLabelsPreviewImage] : [noteObject labelsPreviewImage];
 		if (img) {
 			[[NSGraphicsContext currentContext] saveGraphicsState];
 			NSRectClip(cellFrame);
-			NSPoint imgSpot = NSMakePoint(NSMinX(cellFrame), NSMaxY(cellFrame) - 1.0);
+			NSPoint imgSpot = NSMakePoint(NSMinX(cellFrame), NSMaxY(cellFrame) - ceilf(((cellFrame.size.height + 1.0) - [img size].height)/2.0));
 			[img compositeToPoint:imgSpot operation:NSCompositeSourceOver];
 			[[NSGraphicsContext currentContext] restoreGraphicsState];
 		}

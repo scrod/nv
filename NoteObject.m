@@ -267,7 +267,7 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 
 force_inline id labelColumnCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
 	
-	UnifiedCell *cell = [[tv tableColumnWithIdentifier:NoteLabelsColumnString] dataCellForRow:row];
+	LabelColumnCell *cell = [[tv tableColumnWithIdentifier:NoteLabelsColumnString] dataCellForRow:row];
 	[cell setNoteObject:note];
 	
 	return labelsOfNote(note);
@@ -952,18 +952,27 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (void)invalidateLabelsPreviewImage {
+	[highlightedLabelsPreviewImage release];
+	highlightedLabelsPreviewImage = nil;
 	[labelsPreviewImage release];
 	labelsPreviewImage = nil;
 }
 
+- (NSImage*)highlightedLabelsPreviewImage {
+	if (!highlightedLabelsPreviewImage && [labelString length]) {
+		highlightedLabelsPreviewImage = [[self _labelsPreviewImageOfColor:[NSColor whiteColor]] retain];
+	}
+	return highlightedLabelsPreviewImage;	
+}
+
 - (NSImage*)labelsPreviewImage {
 	if (!labelsPreviewImage && [labelString length]) {
-		labelsPreviewImage = [[self labelsPreviewImageOfColor:[NSColor colorWithCalibratedWhite:0.55 alpha:1.0]] retain];
+		labelsPreviewImage = [[self _labelsPreviewImageOfColor:[NSColor colorWithCalibratedWhite:0.55 alpha:1.0]] retain];
 	}
 	return labelsPreviewImage;
 }
 
-- (NSImage*)labelsPreviewImageOfColor:(NSColor*)aColor {
+- (NSImage*)_labelsPreviewImageOfColor:(NSColor*)aColor {
 	if ([labelString length]) {
 		float tableFontSize = [[GlobalPrefs defaultPrefs] tableFontSize] - 1.0;
 		NSFont *font = [NSFont systemFontOfSize:tableFontSize];
