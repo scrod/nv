@@ -248,23 +248,42 @@
 }
 
 - (void)drawGridInClipRect:(NSRect)clipRect {
+	//draw lines manually to avoid interfering with title-focusrings and selection highlighting on leopard+
 	if (![self dataSource]) {
 		return;
 	}
-	if (IsLeopardOrLater && [self selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) {
-		NSIndexSet *set = [self selectedRowIndexes];
-		
-		if ([set count] >= 1) {
-			NSRange rows = [self rowsInRect:clipRect];
-			
-			if ([set intersectsIndexesInRange:rows]) {
-				//NSLog(@"not drawing lines in %@", NSStringFromRange(rows));
-				//this is not a good way to avoid drawing over highlighted rows
-				return;
-			}
+	[NSGraphicsContext saveGraphicsState];
+    [[NSGraphicsContext currentContext] setShouldAntialias:NO];
+
+	NSBezierPath *line = [NSBezierPath bezierPath];
+    NSUInteger i;
+	
+    [[self gridColor] setStroke];
+	
+	NSIndexSet *set = [self selectedRowIndexes];
+	NSInteger editedRow = [self editedRow];
+	
+	NSRange rangeOfRows = [self rowsInRect:clipRect];
+	float yToDraw = -0.5;
+	float ySpacing = [self rowHeight] + [self intercellSpacing].height;
+	float rowRectOrigin = ySpacing * rangeOfRows.location;
+	
+	for (i = rangeOfRows.location; i < rangeOfRows.location + rangeOfRows.length; i++) {
+		//don't draw this line if it's next to a selected row, or the row after it is being edited
+		if (![set containsIndex:i] && editedRow != (NSInteger)(i+1)) {			
+			yToDraw = rowRectOrigin + ySpacing - 0.5;
+			[line moveToPoint:NSMakePoint(clipRect.origin.x, yToDraw)];
+			[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, yToDraw)];
 		}
+		rowRectOrigin += ySpacing;
 	}
-	[super drawGridInClipRect:clipRect];
+//	while (yToDraw < clipRect.size.height) {
+//		yToDraw += ySpacing;
+//		[line moveToPoint:NSMakePoint(clipRect.origin.x, yToDraw)];
+//		[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, yToDraw)];
+//	}
+	[line stroke];
+	[NSGraphicsContext restoreGraphicsState];
 }
 
 - (void)_configureAttributesForCurrentLayout {
@@ -386,11 +405,10 @@
 
 - (void)editRowAtColumnWithIdentifier:(id)identifier {
 	
-	int colIndex = [self columnWithIdentifier:identifier];
+	int colIndex = [self columnWithIdentifier:[globalPrefs horizontalLayout] ? NoteTitleColumnString : identifier];
     if (colIndex < 0) {
-		
-		BOOL isTitleCol = [identifier isEqualToString:NoteTitleColumnString];
-		int newColIndex = (int)(!isTitleCol);
+		//always move title column to 0 index
+		int newColIndex = (int)(![identifier isEqualToString:NoteTitleColumnString]);
 		
 		NSTableColumn *column = [allColsDict objectForKey:identifier];
 		if (column && [self addPermanentTableColumn:column]) {
@@ -907,14 +925,16 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	NSEventType type = [event type];
 	if (type == NSLeftMouseDown || type == NSLeftMouseUp) {
+		
 		NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
+		
+		//mouse is inside this column's row's cell's tags frame
 		UnifiedCell *cell = [[[self tableColumns] objectAtIndex:columnIndex] dataCellForRow:rowIndex];
 		NSRect tagCellRect = [cell nv_tagsRectForFrame:[self frameOfCellAtColumn:columnIndex row:rowIndex] andImage:nil];
+		
 		return [self mouse:p inRect:tagCellRect];
 	} else if (type == NSKeyDown) {
-		
-		//look at the key combination
-		return NO;
+		return [event firstCharacter] == 't' && ([event modifierFlags] & (NSShiftKeyMask | NSCommandKeyMask)) != 0;
 	}
 	
 	return NO;
@@ -951,7 +971,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		NSRange range = NSMakeRange(0, [[editor string] length]);
 		if (tagsInTitleColumn && dereferencingFunction(col) != unifiedCellSingleLineForNote) {
 			
-			//the textview will comply!
+			//the textview will comply! when editing tags, use a smaller font, right-aligned
 			[editor setAlignment:NSRightTextAlignment range:range];
 			NSFont *smallerFont = [NSFont systemFontOfSize:[globalPrefs tableFontSize] - 1.0];
 			[editor setFont:smallerFont range:range];

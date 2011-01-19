@@ -63,15 +63,12 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:YES];
 	[self setBackgroundColor:[prefsController backgroundTextColor]];
-	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:
-								  [prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]]];
+	[self updateTextColors];
 	[[self window] setAcceptsMouseMovedEvents:YES];
 
 	didRenderFully = NO;
 	[[self layoutManager] setDelegate:self];
-	
-	[self setLinkTextAttributes:[self preferredLinkAttributes]];
-	
+		
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowDidBecomeMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
 	
 	
