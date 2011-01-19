@@ -418,6 +418,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 			
 			return YES;
 		}
+		[object release];
 		return NO;
     }
 	

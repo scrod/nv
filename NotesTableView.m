@@ -626,7 +626,7 @@
 														  action:@selector(copyNoteLink:) keyEquivalent:@"c"];
 	[noteLinkItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
 	[noteLinkItem setTarget:target];
-	[theMenu addItem:noteLinkItem];
+	[theMenu addItem:[noteLinkItem autorelease]];
 
 	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(exportNote:)];
 	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];

@@ -575,7 +575,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	//don't need to cache the unarchived color, as it's not used in a random-access pattern
 	
 	NSData *theData = [defaults dataForKey:BackgroundTextColorKey];
-	if (theData) return (NSColor *)[[NSUnarchiver unarchiveObjectWithData:theData] retain];
+	if (theData) return (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
 
 	return nil;	
 }
