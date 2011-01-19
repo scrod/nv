@@ -77,6 +77,8 @@ NSString *NVPTFPboardType = @"Notational Velocity Poor Text Format";
 
 NSString *HotKeyAppToFrontName = @"bring Notational Velocity to the foreground";
 
+BOOL _ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
+
 @implementation GlobalPrefs
 
 static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id originalSender) {
@@ -214,6 +216,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	notationPrefs = [newNotationPrefs retain];
 	
 	[self resolveNoteBodyFontFromNotationPrefsFromSender:sender];
+	[self resolveForegroundColorFromNotationPrefsFromSender:sender];
 	
 	SEND_CALLBACKS();
 }
@@ -414,6 +417,36 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	return [defaults integerForKey:NumberOfSpacesInTabKey];
 }
 
+BOOL _ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
+	//sometimes floating point numbers really don't like to be compared to each other
+
+	CGFloat pRed, pGreen, pBlue, gRed, gGreen, gBlue, pAlpha, gAlpha;
+	[[c1 colorUsingColorSpaceName:NSCalibratedRGBColorSpace] getRed:&pRed green:&pGreen blue:&pBlue alpha:&pAlpha];
+	[[c2 colorUsingColorSpaceName:NSCalibratedRGBColorSpace] getRed:&gRed green:&gGreen blue:&gBlue alpha:&gAlpha];
+	
+#define SCR(__ch) ((int)roundf(((__ch) * 255.0)))
+	
+	return (SCR(pRed) == SCR(gRed) && SCR(pBlue) == SCR(gBlue) && SCR(pGreen) == SCR(gGreen) && SCR(pAlpha) == SCR(gAlpha));
+}
+
+- (void)resolveForegroundColorFromNotationPrefsFromSender:(id)sender {
+	NSColor *prefsFGColor = [notationPrefs foregroundColor];
+	if (prefsFGColor) {
+		NSColor *fgColor = [self foregroundTextColor];
+		
+		if (!_ColorsEqualWith8BitChannels(prefsFGColor, fgColor)) {
+			
+			NSLog(@"archived notationPrefs foreground text color (%@) does not match current global global foreground color (%@)!", prefsFGColor, fgColor);
+			[noteBodyAttributes release];
+			noteBodyAttributes = nil;
+			
+			[defaults setObject:[NSArchiver archivedDataWithRootObject:prefsFGColor] forKey:ForegroundTextColorKey];
+			
+			SEND_CALLBACKS();
+		}
+	}
+}
+
 - (void)resolveNoteBodyFontFromNotationPrefsFromSender:(id)sender {
 	
 	NSFont *prefsFont = [notationPrefs baseBodyFont];
@@ -494,7 +527,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		
 		//not storing the foreground color in each note will make the database smaller, and black is assumed when drawing text
 		NSColor *fgColor = [self foregroundTextColor];
-		if (fgColor && ![fgColor isEqual:[NSColor blackColor]]) {
+		if (!_ColorsEqualWith8BitChannels([NSColor blackColor], fgColor)) {
 			[attrs setObject:fgColor forKey:NSForegroundColorAttributeName];
 		}
 		// background text color is handled directly by the NSTextView subclass and so does not need to be stored here
@@ -546,7 +579,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 
 - (void)setForegroundTextColor:(NSColor*)aColor sender:(id)sender {
-	if (aColor) {		
+	if (aColor) {
 		[noteBodyAttributes release];
 		noteBodyAttributes = nil;
 		

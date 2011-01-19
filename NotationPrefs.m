@@ -69,6 +69,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		hashIterationCount = DEFAULT_HASH_ITERATIONS;
 		keyLengthInBits = DEFAULT_KEY_LENGTH;
 		baseBodyFont = [[[GlobalPrefs defaultPrefs] noteBodyFont] retain];
+		foregroundColor = [[[GlobalPrefs defaultPrefs] foregroundTextColor] retain];
 		epochIteration = 0;
 		
 		[self updateOSTypesArray];
@@ -85,6 +86,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		//if we're initializing from an archive, we've obviously been run at least once before
 		firstTimeUsed = NO;
+		
+		preferencesChanged = NO;
 		
 		epochIteration = [decoder decodeInt32ForKey:VAR_STR(epochIteration)];
 		notesStorageFormat = [decoder decodeIntForKey:VAR_STR(notesStorageFormat)];
@@ -107,7 +110,18 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 			NSLog(@"setting base body to current default: %@", baseBodyFont);
 			preferencesChanged = YES;
 		}
-				
+		@try {
+			foregroundColor = [[decoder decodeObjectForKey:VAR_STR(foregroundColor)] retain];
+		} @catch (NSException *e) {
+			NSLog(@"Error trying to unarchive foreground text color (%@, %@)", [e name], [e reason]);
+		}
+		if (!foregroundColor || ![foregroundColor isKindOfClass:[NSColor class]]) {
+			NSLog(@"fg color is bad: %@", foregroundColor);
+			foregroundColor = [[[GlobalPrefs defaultPrefs] foregroundTextColor] retain];
+			NSLog(@"setting foreground text color to current default: %@", foregroundColor);
+			preferencesChanged = YES;
+		}
+		
 		confirmFileDeletion = [decoder decodeBoolForKey:VAR_STR(confirmFileDeletion)];
 		
 		unsigned int i;
@@ -134,8 +148,6 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		[self updateOSTypesArray];
     }
 	
-    preferencesChanged = NO;
-	
     return self;
 }
 
@@ -160,7 +172,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	
 	[coder encodeBool:confirmFileDeletion forKey:VAR_STR(confirmFileDeletion)];
 	[coder encodeObject:baseBodyFont forKey:VAR_STR(baseBodyFont)];
-		
+	[coder encodeObject:foregroundColor forKey:VAR_STR(foregroundColor)];
+	
 	unsigned int i;
 	for (i=0; i<4; i++) {	
 		[coder encodeObject:typeStrings[i] forKey:[VAR_STR(typeStrings) stringByAppendingFormat:@".%d",i]];
@@ -193,6 +206,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	[seenDiskUUIDEntries release];
 	[keychainDatabaseIdentifier release];
 	[baseBodyFont release];
+	[foregroundColor release];
     
     [super dealloc];
 }
@@ -350,6 +364,17 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 - (BOOL)firstTimeUsed {
 	return firstTimeUsed;
+}
+
+- (void)setForegroundTextColor:(NSColor*)aColor {
+	[foregroundColor autorelease];
+	foregroundColor = [aColor retain];
+	
+	preferencesChanged = YES;
+}
+
+- (NSColor*)foregroundColor {
+	return foregroundColor;
 }
 
 - (void)setBaseBodyFont:(NSFont*)aFont {

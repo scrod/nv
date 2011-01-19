@@ -30,6 +30,7 @@
 		fontPanelWasOpen = NO;
 		
 		[prefsController registerForSettingChange:@selector(resolveNoteBodyFontFromNotationPrefsFromSender:) withTarget:self];
+		[prefsController registerForSettingChange:@selector(resolveForegroundColorFromNotationPrefsFromSender:) withTarget:self];
 		[prefsController registerForSettingChange:@selector(setCheckSpellingAsYouType:sender:) withTarget:self];
     }
     return self;
@@ -220,6 +221,8 @@
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
     if ([selectorString isEqualToString:SEL_STR(resolveNoteBodyFontFromNotationPrefsFromSender:)]) {
 		[self previewNoteBodyFont];
+	} else if ([selectorString isEqualToString:SEL_STR(resolveForegroundColorFromNotationPrefsFromSender:)]) {
+		[foregroundColorWell setColor:[prefsController foregroundTextColor]];
 	} else if ([selectorString isEqualToString:SEL_STR(setCheckSpellingAsYouType:sender:)]) {
 		[checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
 	}

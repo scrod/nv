@@ -1127,6 +1127,7 @@ bail:
 	[allNotes makeObjectsPerformSelector:@selector(updateUnstyledTextWithBaseFont:) withObject:baseFont];
 	
 	[notationPrefs setBaseBodyFont:[prefsController noteBodyFont]];
+	[notationPrefs setForegroundTextColor:[prefsController foregroundTextColor]];
 }
 
 //used by BookmarksController

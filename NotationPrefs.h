@@ -37,6 +37,7 @@ extern NSString *SyncPrefsDidChangeNotification;
 	
 	unsigned int hashIterationCount, keyLengthInBits;
 	
+	NSColor *foregroundColor;
 	NSFont *baseBodyFont;
 	int notesStorageFormat;
 	BOOL confirmFileDeletion;
@@ -64,6 +65,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 + (NSMutableArray*)defaultTypeStringsForFormat:(int)formatID;
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID;
 - (BOOL)preferencesChanged;
+- (void)setForegroundTextColor:(NSColor*)aColor;
+- (NSColor*)foregroundColor;
 - (void)setBaseBodyFont:(NSFont*)aFont;
 - (NSFont*)baseBodyFont;
 

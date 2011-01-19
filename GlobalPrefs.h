@@ -73,9 +73,10 @@ extern NSString *NVPTFPboardType;
 - (BOOL)tableColumnsShowPreview;
 - (void)setTableColumnsShowPreview:(BOOL)showPreview sender:(id)sender;
 
+- (void)resolveForegroundColorFromNotationPrefsFromSender:(id)sender;
 - (void)resolveNoteBodyFontFromNotationPrefsFromSender:(id)sender;
-- (void)_setNoteBodyFont:(NSFont*)aFont;
 - (void)setNoteBodyFont:(NSFont*)aFont sender:(id)sender;
+- (void)_setNoteBodyFont:(NSFont*)aFont;
 - (NSFont*)noteBodyFont;
 - (NSDictionary*)noteBodyAttributes;
 - (NSParagraphStyle*)noteBodyParagraphStyle;

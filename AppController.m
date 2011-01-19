@@ -262,6 +262,7 @@ void outletObjectAwoke(id sender) {
 	 @selector(setAliasDataForDefaultDirectory:sender:),  //when someone wants to load a new database
 	 @selector(setSortedTableColumnKey:reversed:sender:),  //when sorting prefs changed
 	 @selector(setNoteBodyFont:sender:),  //when to tell notationcontroller to restyle its notes
+	 @selector(setForegroundTextColor:sender:),  //ditto
 	 @selector(setTableFontSize:sender:),  //when to tell notationcontroller to regenerate the (now potentially too-short) note-body previews
 	 @selector(setTableColumnsShowPreview:sender:),  //when to tell notationcontroller to generate or disable note-body previews
 	 @selector(setConfirmNoteDeletion:sender:),  //whether "delete note" should have an ellipsis
@@ -622,7 +623,7 @@ terminateApp:
 		
 		if (changedColumns) [notesTableView setViewingLocation:ctx];
 		
-	} else if ([selectorString isEqualToString:SEL_STR(setNoteBodyFont:sender:)]) {
+	} else if ([selectorString isEqualToString:SEL_STR(setNoteBodyFont:sender:)] || [selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
 		
 		[notationController restyleAllNotes];
 		if (currentNote) {
