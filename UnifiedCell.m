@@ -14,7 +14,9 @@
 #import "NoteObject.h"
 #import "NotesTableView.h"
 #import "GlobalPrefs.h"
+#import "NSBezierPath_NV.h"
 #import "NSString_CustomTruncation.h"
+#import "NoteAttributeColumn.h"
 
 @implementation UnifiedCell
 
@@ -35,8 +37,12 @@
 }
 
 #if 0
+//changes will hereafter affect all field editors for the window; do not want
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
-	NSTextView *tv = (NSTextView *)textObj;
+	NSTextView *tv = (NSTextView *)[super setUpFieldEditorAttributes:textObj];
+	
+	[tv setTextContainerInset:NSMakeSize(-2,-2)];
+	
 	NSTextContainer *tc = [tv textContainer];
 	[tc setContainerSize:NSMakeSize(1.0e7, 1.0e7)];
 	[tc setWidthTracksTextView:NO];
@@ -47,46 +53,51 @@
     [tv setHorizontallyResizable:YES];
     [tv setVerticallyResizable:NO];
     [tv setAutoresizingMask:NSViewNotSizable];
-	
 	return tv;
 }
 #endif
 
 - (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj 
 			   delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
-
-	//aRect.size.height = [(NotesTableView*)[self controlView] tableFontHeight] + 2.0f;
-
-	NSLog(@"selectwithframe: %@, view: %@, editor: %@, len: %d", NSStringFromRect(aRect), controlView, textObj, selLength);
-
-	[super selectWithFrame:[self nv_titleRectForFrame:aRect] inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
+	
+	NSRect rect = [(NotesTableView*)controlView lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:aRect andImage:nil] : [self nv_titleRectForFrame:aRect];
+	[super selectWithFrame:rect inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
+	
+	[controlView setKeyboardFocusRingNeedsDisplayInRect:NSInsetRect([self nv_tagsRectForFrame:aRect andImage:nil], -3, -3)];
 }
 
 - (NSFocusRingType)focusRingType {
 	return NSFocusRingTypeNone;
 }
 
+- (float)tableFontFrameHeight {
+	return [(NotesTableView*)[self controlView] tableFontHeight] + 1.0f;
+}
+
 - (NSRect)nv_titleRectForFrame:(NSRect)aFrame {
 	//fixed based on width of the cell
 
-	//high could justifiably vary based on wrapped height of title string
-	return NSMakeRect(aFrame.origin.x, aFrame.origin.y, aFrame.size.width, [(NotesTableView*)[self controlView] tableFontHeight] + 2.0f);
+	//height could justifiably vary based on wrapped height of title string
+	return NSMakeRect(aFrame.origin.x, aFrame.origin.y, aFrame.size.width, [self tableFontFrameHeight]);
 }
 
 - (NSRect)nv_tagsRectForFrame:(NSRect)frame andImage:(NSImage*)img {
 	//if no tags, return a default small frame to allow adding them
-	float fontHeight = [(NotesTableView*)[self controlView] tableFontHeight];
-	NSSize size = img ? [img size] : NSMakeSize(30.0, fontHeight + 2.0f);
+	float fontHeight = [self tableFontFrameHeight];
+	NSSize size = img ? [img size] : NSMakeSize(NSWidth(frame), fontHeight);
 	
 	NSPoint pos = NSMakePoint((previewIsHidden ? NSMinX(frame) + 3.0 : NSMaxX(frame) - size.width), 
 							  (previewIsHidden ? NSMinY(frame) + fontHeight + size.height : NSMaxY(frame) - 3.0));
+	if (!img) {
+		pos.y -= fontHeight;
+	}
 	
 	return (NSRect){pos, size};
 }
 
 //- (BOOL)isScrollable {
 //	if ([self isHighlighted] && [(NotesTableView *)[self controlView] currentEditor]) {
-//		return NO;
+//		return YES;
 //	}
 //	return [super isScrollable];
 //}
@@ -135,7 +146,7 @@ static NSShadow* ShadowForSnowLeopard() {
 	return sh;
 }
 
-NSAttributedString *AttributedStringForSelection(NSAttributedString *str) {
+NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL withShadow) {
 	//used to modify the cell's attributed string before display when it is selected
 	
 	//snow leopard is stricter about applying the default highlight-attributes (e.g., no shadow unless no paragraph formatting)
@@ -144,7 +155,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str) {
 	NSRange fullRange = NSMakeRange(0, [str length]);
 	NSMutableAttributedString *colorFreeStr = [str mutableCopy];
 	[colorFreeStr removeAttribute:NSForegroundColorAttributeName range:fullRange];
-	if (IsSnowLeopardOrLater) {
+	if (withShadow) {
 		[colorFreeStr addAttribute:NSShadowAttributeName value:ShadowForSnowLeopard() range:NSMakeRange(0, [str length])];
 	}
 	return [colorFreeStr autorelease];
@@ -175,7 +186,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str) {
 		[baseAttrs setObject:textColor forKey:NSForegroundColorAttributeName];
 	if (IsSnowLeopardOrLater && [self isHighlighted]) {
 		[baseAttrs setObject:ShadowForSnowLeopard() forKey:NSShadowAttributeName];
-	}	
+	}
 	
 	//if the sort-order is date-created, then show the date on which this note was created; otherwise show date modified.
 	BOOL isSortedByDateCreated = [[[GlobalPrefs defaultPrefs] sortedTableColumnKey] isEqualToString:NoteDateCreatedColumnString];
@@ -191,23 +202,47 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str) {
 	if (img) {
 		NSRect rect = [self nv_tagsRectForFrame:cellFrame andImage:img];
 		rect = [controlView centerScanRect:rect];
+		
+		//clip the tags image within the bounds of the cell so that narrow columns look nicer
+		[NSGraphicsContext saveGraphicsState];
+		NSRectClip(cellFrame);
+		
 		[img compositeToPoint:rect.origin operation:NSCompositeSourceOver];
+		
+		[NSGraphicsContext restoreGraphicsState];
 	}
-#if 0
-	NSString *labelStr = labelsOfNote(noteObject);
-	if ([labelStr length]) {
-		[labelStr drawInRect:NSMakeRect(previewIsHidden ? NSMinX(cellFrame) : NSMaxX(cellFrame) - 70.0, 
-										NSMaxY(cellFrame) - (fontHeight + 3.0), 70.0, fontHeight) withAttributes:baseAttrs];
-	}
-#endif
 	
 	if ([tv currentEditor] && [self isHighlighted]) {
+		//needed because the body text is normally not drawn while editing
 		NSMutableAttributedString *cloneStr = [[self attributedStringValue] mutableCopy];
-		[cloneStr addAttributes:[NSDictionary dictionaryWithObjectsAndKeys:[self font], NSFontAttributeName, textColor, NSForegroundColorAttributeName, nil] range:NSMakeRange(0, [cloneStr length])];
+		[cloneStr addAttributes:[NSDictionary dictionaryWithObjectsAndKeys:[self font], NSFontAttributeName, textColor, 
+								 NSForegroundColorAttributeName, nil] range:NSMakeRange(0, [cloneStr length])];
+		[cloneStr addAttributes:LineTruncAttributesForTitle() range:NSMakeRange(0, [titleOfNote(noteObject) length])];
 		
 		[cloneStr drawWithRect:NSInsetRect([self titleRectForBounds:cellFrame], 2., 0.) options: NSStringDrawingTruncatesLastVisibleLine | NSStringDrawingUsesLineFragmentOrigin];
 		[cloneStr release];
 		
+		//draw a slightly different focus ring than what would have been drawn
+		NSRect rect = [tv lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:cellFrame andImage:nil] : [self nv_titleRectForFrame:cellFrame];
+
+		if ([tv lastEventActivatedTagEdit]) {
+			rect = NSInsetRect(rect, -2, -1);
+		} else {
+			rect = NSInsetRect(rect, -2, -1);
+		}
+		
+		[NSGraphicsContext saveGraphicsState];
+		NSBezierPath *path = [NSBezierPath bezierPathWithRect:rect];
+		
+		//megafocusring casts a shadow both outside and inside
+		if ([tv lastEventActivatedTagEdit]) {
+		NSSetFocusRingStyle(NSFocusRingBelow);
+		[path fill];
+		}
+		NSSetFocusRingStyle(NSFocusRingOnly);
+		[path fill];
+
+		[NSGraphicsContext restoreGraphicsState];
 		
 	}
 }

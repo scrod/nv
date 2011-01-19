@@ -632,6 +632,7 @@ terminateApp:
 		
 		ResetFontRelatedTableAttributes();
 		[notesTableView updateTitleDereferencorState];
+		[notationController invalidateAllLabelPreviewImages];
 		[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString]	
 									visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
 				

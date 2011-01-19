@@ -125,6 +125,7 @@
    forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	
 	[objects[rowIndex] performSelector:columnAttributeMutator((NoteAttributeColumn*)aTableColumn) withObject:anObject];
+	[(NoteAttributeColumn*)aTableColumn editingFinished];
 }
 
 

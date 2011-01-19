@@ -52,6 +52,16 @@ SEL columnAttributeMutator(NoteAttributeColumn *col) {
 	return col->mutateObjectSelector;
 }
 
+- (void)setMutatingSelectorForNextEdit:(SEL)selector {
+	originalMutateObjectSelector = mutateObjectSelector;
+	[self setMutatingSelector:selector];
+}
+
+- (void)editingFinished {
+	if (originalMutateObjectSelector)
+		[self setMutatingSelector:originalMutateObjectSelector];
+}
+
 - (void)setMutatingSelector:(SEL)selector {
 	mutateObjectSelector = selector;
 }

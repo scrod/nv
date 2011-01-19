@@ -130,6 +130,7 @@ NSInteger compareFileSize(id *a, id *b);
 	id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id unifiedCellSingleLineForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
+	id labelColumnCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id labelsOfNote2(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id dateCreatedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id dateModifiedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
@@ -152,9 +153,9 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)updateLabelConnections;
 - (void)setLabelString:(NSString*)newLabels;
 - (NSArray*)orderedLabelTitles;
+- (void)invalidateLabelsPreviewImage;
 - (NSImage*)labelsPreviewImage;
 - (NSImage*)labelsPreviewImageOfColor:(NSColor*)aColor;
-- (void)updateLabelsPreviewImage;
 
 - (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
 - (void)removeAllSyncMDForService:(NSString*)serviceName;

@@ -265,13 +265,19 @@ force_inline id properlyHighlightingTableTitleOfNote(NotesTableView *tv, NoteObj
 	return titleOfNote(note);
 }
 
+force_inline id labelColumnCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
+	
+	UnifiedCell *cell = [[tv tableColumnWithIdentifier:NoteLabelsColumnString] dataCellForRow:row];
+	[cell setNoteObject:note];
+	
+	return labelsOfNote(note);
+}
 
 force_inline id unifiedCellSingleLineForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
 	
 	id obj = note->tableTitleString ? (id)note->tableTitleString : (id)titleOfNote(note);
 	
 	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
-	//	[cell setObjectValue:obj];
 	[cell setNoteObject:note];
 	[cell setPreviewIsHidden:YES];
 	
@@ -282,14 +288,16 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	//snow leopard is stricter about applying the default highlight-attributes (e.g., no shadow unless no paragraph formatting)
 	//so add the shadow here for snow leopard on selected rows
 	
-	id obj = note->tableTitleString ? ([tv isRowSelected:row] ? (id)AttributedStringForSelection(note->tableTitleString) : 
-									   (id)note->tableTitleString) : (id)titleOfNote(note);
-	
 	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
-	//	NSLog(@"set obj value %@", [obj isKindOfClass:[NSAttributedString class]] ? [obj string] : obj);
-	//	[cell setObjectValue:obj];
 	[cell setNoteObject:note];
 	[cell setPreviewIsHidden:NO];
+
+	BOOL rowSelected = [tv isRowSelected:row];
+	BOOL drawShadow = IsSnowLeopardOrLater || (IsLeopardOrLater && rowSelected && [tv currentEditor]);
+	
+	id obj = note->tableTitleString ? (rowSelected ? (id)AttributedStringForSelection(note->tableTitleString, drawShadow) : 
+									   (id)note->tableTitleString) : (id)titleOfNote(note);
+	
 	
 	return obj;
 }
@@ -695,8 +703,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 	if ([prefs tableColumnsShowPreview]) {
 		if ([prefs horizontalLayout]) {
+			//labelsPreviewImage does work only when the image is explicitly invalidated, and because updateTablePreviewString 
+			//is called for visible notes at launch and resize only, generation of images for invisible notes is delayed until after launch
+			NSImage *img = [self labelsPreviewImage];
 			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] 
-																	 intrusionWidth:labelsPreviewImage ? [labelsPreviewImage size].width : 0.0] retain];
+																	 intrusionWidth:img ? [img size].width : 0.0] retain];
 		} else {
 			tableTitleString = [[titleString attributedSingleLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
 		}
@@ -906,6 +917,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		cLabelsFoundPtr = cLabels = replaceString(cLabels, [labelString lowercaseUTF8String]);
 		
 		[self updateLabelConnections];
+		[self invalidateLabelsPreviewImage];
+		if ([[GlobalPrefs defaultPrefs] horizontalLayout]) {
+			[self updateTablePreviewString];
+		}
 		
 		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
 		//[self registerModificationWithOwnedServices];
@@ -936,9 +951,14 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return titles;
 }
 
+- (void)invalidateLabelsPreviewImage {
+	[labelsPreviewImage release];
+	labelsPreviewImage = nil;
+}
+
 - (NSImage*)labelsPreviewImage {
 	if (!labelsPreviewImage && [labelString length]) {
-		[self updateLabelsPreviewImage];
+		labelsPreviewImage = [[self labelsPreviewImageOfColor:[NSColor colorWithCalibratedWhite:0.55 alpha:1.0]] retain];
 	}
 	return labelsPreviewImage;
 }
@@ -960,6 +980,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[textStorage addLayoutManager:layoutManager];
 				
 		NSArray *words = [self orderedLabelTitles];
+		if (![words count])
+			return nil;
+		
 		NSBezierPath *blocksPath = [NSBezierPath bezierPath];
 		NSPoint nextBoxPoint = NSZeroPoint;
 		NSUInteger i;
@@ -1010,12 +1033,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		return [img autorelease];
 	}
 	return nil;
-}
-
-- (void)updateLabelsPreviewImage {
-
-	[labelsPreviewImage release];
-	labelsPreviewImage = [[self labelsPreviewImageOfColor:[NSColor colorWithCalibratedWhite:0.55 alpha:1.0]] retain];
 }
 
 

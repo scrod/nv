@@ -180,6 +180,7 @@ typedef struct _NoteCatalogEntry {
 - (float)titleColumnWidth;
 - (void)regeneratePreviewsForColumn:(NSTableColumn*)col visibleFilteredRows:(NSRange)rows forceUpdate:(BOOL)force;
 - (void)regenerateAllPreviews;
+- (void)invalidateAllLabelPreviewImages;
 
 //for setting up the nstableviews
 - (id)labelsListDataSource;

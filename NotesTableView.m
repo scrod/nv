@@ -18,6 +18,7 @@
 #import "NotationPrefs.h"
 #import "NoteObject.h"
 #import "NSCollection_utils.h"
+#import "LabelColumnCell.h"
 #import "UnifiedCell.h"
 #import "HeaderViewWithMenu.h"
 #import "NSString_NV.h"
@@ -49,7 +50,8 @@
 	cornerView = [[self cornerView] retain];
 	
 	NSArray *columnsToDisplay = [globalPrefs visibleTableColumns];
-	allColumns = [[NSMutableArray alloc] init];
+	allColumns = [[NSMutableArray alloc] initWithCapacity:4];
+	allColsDict = [[NSMutableDictionary alloc] initWithCapacity:4];
 		
 	id (*titleReferencor)(id, id, NSInteger) = [globalPrefs horizontalLayout] ? 
 		([globalPrefs tableColumnsShowPreview] ? unifiedCellForNote : unifiedCellSingleLineForNote) :
@@ -57,7 +59,7 @@
 	
 	NSString *colStrings[] = { NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, NoteDateCreatedColumnString };
 	SEL colMutators[] = { @selector(setTitleString:), @selector(setLabelString:), NULL, NULL };
-	id (*colReferencors[])(id, id, NSInteger) = {titleReferencor, labelsOfNote2, dateModifiedStringOfNote, dateCreatedStringOfNote };
+	id (*colReferencors[])(id, id, NSInteger) = {titleReferencor, labelColumnCellForNote, dateModifiedStringOfNote, dateCreatedStringOfNote };
 	NSInteger (*sortFunctions[])(id*, id*) = { compareTitleString, compareLabelString, compareDateModified, compareDateCreated };
 	NSInteger (*reverseSortFunctions[])(id*, id*) = { compareTitleStringReverse, compareLabelStringReverse, compareDateModifiedReverse, 
 	    compareDateCreatedReverse };
@@ -74,10 +76,12 @@
 	    [column setReverseSortingFunction:reverseSortFunctions[i]];
 		[column setResizingMask:NSTableColumnUserResizingMask];
 		
+		[allColsDict setObject:column forKey:colStrings[i]];
 		[allColumns addObject:column];
 	    [column release];
 	}
 	
+	[[self noteAttributeColumnForIdentifier:NoteLabelsColumnString] setDataCell: [[[LabelColumnCell alloc] init] autorelease]];
 	[self _configureAttributesForCurrentLayout];
 	[self setAllowsColumnSelection:NO];
 	//[self setVerticalMotionCanBeginDrag:NO];
@@ -102,6 +106,7 @@
 - (void)dealloc {
 	[loadStatusAttributes release];
     [allColumns release];
+	[allColsDict release];
 	[headerView release];
     
     [super dealloc];
@@ -249,11 +254,12 @@
 	if (IsLeopardOrLater && [self selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) {
 		NSIndexSet *set = [self selectedRowIndexes];
 		
-		if ([set count] > 1) {
+		if ([set count] >= 1) {
 			NSRange rows = [self rowsInRect:clipRect];
 			
 			if ([set intersectsIndexesInRange:rows]) {
 				//NSLog(@"not drawing lines in %@", NSStringFromRange(rows));
+				//this is not a good way to avoid drawing over highlighted rows
 				return;
 			}
 		}
@@ -386,18 +392,11 @@
 		BOOL isTitleCol = [identifier isEqualToString:NoteTitleColumnString];
 		int newColIndex = (int)(!isTitleCol);
 		
-		NSEnumerator *theEnumerator = [allColumns objectEnumerator];
-		NSTableColumn *column = nil;
-		while ((column = [theEnumerator nextObject]) != nil) {
-			
-			if ([[column identifier] isEqualToString:identifier]) {
-				if ([self addPermanentTableColumn:column]) {
-					[self moveColumn:[[self tableColumns] indexOfObjectIdenticalTo:column] toColumn:newColIndex];
-					colIndex = newColIndex;
-					[self sizeToFit];
-				}
-				break;
-			}
+		NSTableColumn *column = [allColsDict objectForKey:identifier];
+		if (column && [self addPermanentTableColumn:column]) {
+			[self moveColumn:[[self tableColumns] indexOfObjectIdenticalTo:column] toColumn:newColIndex];
+			colIndex = newColIndex;
+			[self sizeToFit];
 		}
 	}
 	
@@ -408,14 +407,7 @@
 }
 
 - (NoteAttributeColumn*)noteAttributeColumnForIdentifier:(NSString*)identifier {
-	NSEnumerator *theEnumerator = [allColumns objectEnumerator];
-    NoteAttributeColumn *theColumn = nil;
-    while ((theColumn = [theEnumerator nextObject]) != nil) {
-		if ([[theColumn identifier] isEqualToString:identifier])
-			return theColumn;
-	}
-
-	return nil;
+	return [allColsDict objectForKey:identifier];
 }
 
 - (BOOL)addPermanentTableColumn:(NSTableColumn*)column {
@@ -906,22 +898,70 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	return NO;
 }
 
+- (BOOL)eventIsTagEdit:(NSEvent*)event forColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex {
+	//is it a mouse event? is it within the tags area?
+	//is it a keyboard event? is it command-shift-t?
+	
+	if (![globalPrefs horizontalLayout])
+		return NO;
+	
+	NSEventType type = [event type];
+	if (type == NSLeftMouseDown || type == NSLeftMouseUp) {
+		NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
+		UnifiedCell *cell = [[[self tableColumns] objectAtIndex:columnIndex] dataCellForRow:rowIndex];
+		NSRect tagCellRect = [cell nv_tagsRectForFrame:[self frameOfCellAtColumn:columnIndex row:rowIndex] andImage:nil];
+		return [self mouse:p inRect:tagCellRect];
+	} else if (type == NSKeyDown) {
+		
+		//look at the key combination
+		return NO;
+	}
+	
+	return NO;
+}
+
+- (BOOL)lastEventActivatedTagEdit {
+	return lastEventActivatedTagEdit;
+}
+
 - (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)theEvent select:(BOOL)flag {
 
+	BOOL isTitleCol = [self columnWithIdentifier:NoteTitleColumnString] == columnIndex;
+	
+	//if theEvent's mouselocation is inside rowIndex cell's tag rect and this edit is in horizontal mode in the title column
+	BOOL tagsInTitleColumn = [globalPrefs horizontalLayout] && isTitleCol && [self eventIsTagEdit:theEvent forColumn:columnIndex row:rowIndex];
+	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
+
+	if ((lastEventActivatedTagEdit = tagsInTitleColumn)) {
+		[col setMutatingSelectorForNextEdit:@selector(setLabelString:)];
+	}
+	
 	[super editColumn:columnIndex row:rowIndex withEvent:theEvent select:flag];
 	
 	//become/resignFirstResponder can't handle the field-editor case for row-highlighting style, so do it here:
 	[self updateTitleDereferencorState];
 	
 	//this is way easier and faster than a custom formatter! just change the title while we're editing!
-	if ([self columnWithIdentifier:NoteTitleColumnString] == columnIndex) {
-		//we're editing a title
+	if (isTitleCol) {
 		NoteObject *note = [(FastListDataSource*)[self dataSource] immutableObjects][rowIndex];
 		
 		NSTextView *editor = (NSTextView*)[self currentEditor];
-		[editor setString:titleOfNote(note)];
-		if (flag) [editor setSelectedRange:NSMakeRange(0, [titleOfNote(note) length])];
-	}
+		[editor setString: tagsInTitleColumn ? labelsOfNote(note) : titleOfNote(note)];
+		
+		NSRange range = NSMakeRange(0, [[editor string] length]);
+		if (tagsInTitleColumn && dereferencingFunction(col) != unifiedCellSingleLineForNote) {
+			
+			//the textview will comply!
+			[editor setAlignment:NSRightTextAlignment range:range];
+			NSFont *smallerFont = [NSFont systemFontOfSize:[globalPrefs tableFontSize] - 1.0];
+			[editor setFont:smallerFont range:range];
+			NSMutableParagraphStyle *pstyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
+			[pstyle setAlignment:NSRightTextAlignment];
+			[editor setTypingAttributes:[NSDictionary dictionaryWithObjectsAndKeys:pstyle, NSParagraphStyleAttributeName, smallerFont, NSFontAttributeName, nil]];
+		}
+		
+		if (flag) [editor setSelectedRange:range];
+	}	
 }
 
 - (void)textDidEndEditing:(NSNotification *)aNotification {
@@ -972,6 +1012,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (void)drawRect:(NSRect)rect {
+	
     //force fully live resizing of columns while resizing window
     [super drawRect:rect];
 	

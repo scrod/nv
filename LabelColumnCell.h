@@ -1,3 +1,9 @@
+//
+//  LabelColumnCell.h
+//  Notation
+//
+//  Created by Zachary Schneirov on 1/18/11.
+
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
   Redistribution and use in source and binary forms, with or without modification, are permitted 
   provided that the following conditions are met:
@@ -12,23 +18,11 @@
 #import <Cocoa/Cocoa.h>
 
 @class NoteObject;
-@class NotesTableView;
 
-@interface UnifiedCell : NSTextFieldCell {
+@interface LabelColumnCell : NSTextFieldCell {
 	NoteObject *noteObject;
-	BOOL previewIsHidden;
 }
 
-
-NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL withShadow);
-- (NSRect)nv_titleRectForFrame:(NSRect)aFrame;
-- (NSRect)nv_tagsRectForFrame:(NSRect)frame andImage:(NSImage*)img;
-
-- (float)tableFontFrameHeight;
-
-- (void)setPreviewIsHidden:(BOOL)value;
-+ (NSColor*)dateColorForTint;
-- (NSMutableDictionary*)baseTextAttributes;
 - (NoteObject*)noteObject;
 - (void)setNoteObject:(NoteObject*)obj;
 

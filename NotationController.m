@@ -1457,6 +1457,10 @@ bail:
 	}
 }
 
+- (void)invalidateAllLabelPreviewImages {
+	[allNotes makeObjectsPerformSelector:@selector(invalidateLabelsPreviewImage)];
+}
+
 - (void)regenerateAllPreviews {
 	[allNotes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
 }

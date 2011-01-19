@@ -27,12 +27,14 @@ typedef struct _ViewLocationContext {
 @interface NotesTableView : NSTableView {
 	IBOutlet NSTextField *controlField;
 	NSMutableArray *allColumns;
+	NSMutableDictionary *allColsDict;
 	
 	NSInteger firstRowIndexBeforeSplitResize;
 	
 	BOOL viewMenusValid;
 	BOOL hadHighlightInForeground, hadHighlightInBackground;
 	BOOL shouldUseSecondaryHighlightColor, isActiveStyle;
+	BOOL lastEventActivatedTagEdit;
 		
 	GlobalPrefs *globalPrefs;
 	NSMenuItem *dummyItem;
@@ -70,6 +72,8 @@ typedef struct _ViewLocationContext {
 - (void)restoreColumns;
 - (void)_configureAttributesForCurrentLayout;
 - (void)updateHeaderViewForColumns;
+- (BOOL)eventIsTagEdit:(NSEvent*)event forColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex;
+- (BOOL)lastEventActivatedTagEdit;
 - (void)editRowAtColumnWithIdentifier:(id)identifier;
 - (BOOL)addPermanentTableColumn:(NSTableColumn*)column;
 - (IBAction)actionHideShowColumn:(id)sender;
