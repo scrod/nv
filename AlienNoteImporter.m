@@ -25,6 +25,7 @@
 #import "NSData_transformations.h"
 #import "NSCollection_utils.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "NotationPrefs.h"
 #import "NotationController.h"
 #import "NoteObject.h"
@@ -425,6 +426,12 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				[noteObject setDateAdded:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileCreationDate])];
 			}
 			[noteObject setDateModified:CFDateGetAbsoluteTime((CFDateRef)[attributes objectForKey:NSFileModificationDate])];
+			
+			//transfer any openmeta tags associated with this file as tags for the new note
+			NSArray *openMetaTags = [[NSFileManager defaultManager] getOpenMetaTagsAtFSPath:[filename fileSystemRepresentation]];
+			if (openMetaTags) {
+				[noteObject setLabelString:[openMetaTags componentsJoinedByString:@" "]];	
+			}
 			
 			return [noteObject autorelease];
 		} else {
