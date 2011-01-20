@@ -18,6 +18,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class NoteAttributeColumn;
+
 @interface FastListDataSource : NSObject {
 	id *objects;
     NSUInteger count;
@@ -40,3 +42,10 @@
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView;
 
 @end
+
+@interface NSObject (FastListDataSourceColumnEditing)
+
+- (SEL)attributeSetterForColumn:(NoteAttributeColumn*)col;
+
+@end
+

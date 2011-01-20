@@ -940,6 +940,13 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	return NO;
 }
 
+- (SEL)attributeSetterForColumn:(NoteAttributeColumn*)col {
+	if ([globalPrefs horizontalLayout] && [[col identifier] isEqualToString:NoteTitleColumnString]) {
+		return lastEventActivatedTagEdit ? @selector(setLabelString:) : @selector(setTitleString:);
+	}
+	return columnAttributeMutator(col);
+}
+
 - (BOOL)lastEventActivatedTagEdit {
 	return lastEventActivatedTagEdit;
 }
@@ -952,9 +959,11 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	BOOL tagsInTitleColumn = [globalPrefs horizontalLayout] && isTitleCol && [self eventIsTagEdit:theEvent forColumn:columnIndex row:rowIndex];
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
 
-	if ((lastEventActivatedTagEdit = tagsInTitleColumn)) {
-		[col setMutatingSelectorForNextEdit:@selector(setLabelString:)];
+	if ([self editedRow] == rowIndex && [self currentEditor]) {
+		if (lastEventActivatedTagEdit != tagsInTitleColumn)
+			[self abortEditing];
 	}
+	lastEventActivatedTagEdit = tagsInTitleColumn;
 	
 	[super editColumn:columnIndex row:rowIndex withEvent:theEvent select:flag];
 	

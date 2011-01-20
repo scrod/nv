@@ -124,8 +124,10 @@
 - (void)tableView:(NSTableView *)aTableView setObjectValue:(id)anObject 
    forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	
-	[objects[rowIndex] performSelector:columnAttributeMutator((NoteAttributeColumn*)aTableColumn) withObject:anObject];
-	[(NoteAttributeColumn*)aTableColumn editingFinished];
+	//allow the tableview to override the selector destination for this object value
+	SEL colAttributeMutator = [(NotesTableView*)aTableView attributeSetterForColumn:(NoteAttributeColumn*)aTableColumn];
+	
+	[objects[rowIndex] performSelector:colAttributeMutator ? colAttributeMutator : columnAttributeMutator((NoteAttributeColumn*)aTableColumn) withObject:anObject];
 }
 
 
