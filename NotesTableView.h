@@ -34,8 +34,10 @@ typedef struct _ViewLocationContext {
 	BOOL viewMenusValid;
 	BOOL hadHighlightInForeground, hadHighlightInBackground;
 	BOOL shouldUseSecondaryHighlightColor, isActiveStyle;
-	BOOL lastEventActivatedTagEdit;
-		
+	BOOL lastEventActivatedTagEdit, wasDeleting, isAutocompleting;
+	
+	id labelsListSource;
+	
 	GlobalPrefs *globalPrefs;
 	NSMenuItem *dummyItem;
 	HeaderViewWithMenu *headerView;
@@ -87,6 +89,9 @@ typedef struct _ViewLocationContext {
 
 - (void)incrementNoteSelection:(id)sender;
 
+- (id)labelsListSource;
+- (void)setLabelsListSource:(id)labelsSource;
+
 @end
 
 @interface NSTableView (Private)
@@ -96,3 +101,4 @@ typedef struct _ViewLocationContext {
 //10.3 only
 - (void)_sizeToFitIfNecessary;
 @end
+

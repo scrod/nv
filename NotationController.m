@@ -313,7 +313,6 @@ returnResult:
 		allNotes = [[NSMutableArray alloc] init];
 	} else {
 		[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:self];
-		//[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)]; //not until we get an actual tag browser
 	}
 	
 	[deletedNotes release];
@@ -1138,6 +1137,9 @@ bail:
 	return nil;	
 }
 
+- (void)updateLabelConnectionsAfterDecoding {
+	[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)];
+}
 
 //re-searching for all notes each time a label is added or removed is unnecessary, I think
 - (void)note:(NoteObject*)note didAddLabelSet:(NSSet*)labelSet {

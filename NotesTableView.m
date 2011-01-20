@@ -912,9 +912,38 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			}
 			return YES;
 		}
-	}
+	} else if (command == @selector(insertTab:)) {
+		
+		if ([globalPrefs horizontalLayout] && !lastEventActivatedTagEdit) {
+			//if we're currently renaming a note in horizontal mode, then tab should move focus to tags area
+			
+			[self editRowAtColumnWithIdentifier:NoteLabelsColumnString];
+			return YES;
+		}
+	}	
+	
 	return NO;
 }
+
+- (BOOL)textView:(NSTextView *)aTextView shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
+	wasDeleting = ![replacementString length];
+	return YES;
+}
+
+- (id)labelsListSource {
+	return labelsListSource;
+}
+
+- (void)setLabelsListSource:(id)labelsSource {
+	labelsListSource = labelsSource;
+}
+
+- (NSArray *)textView:(NSTextView *)aTextView completions:(NSArray *)words  forPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger *)anIndex {
+
+	NSArray *tags = [labelsListSource labelTitlesPrefixedByString:[[aTextView string] substringWithRange:charRange] indexOfSelectedItem:anIndex];
+	return tags;
+}
+
 
 - (BOOL)eventIsTagEdit:(NSEvent*)event forColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex {
 	//is it a mouse event? is it within the tags area?
@@ -933,15 +962,20 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		NSRect tagCellRect = [cell nv_tagsRectForFrame:[self frameOfCellAtColumn:columnIndex row:rowIndex] andImage:nil];
 		
 		return [self mouse:p inRect:tagCellRect];
+		
 	} else if (type == NSKeyDown) {
-		return [event firstCharacter] == 't' && ([event modifierFlags] & (NSShiftKeyMask | NSCommandKeyMask)) != 0;
+		
+		//activated either using the shortcut or using tab, when there was already an editor, and the last event invoked rename
+		
+		return ([event firstCharacter] == 't' && ([event modifierFlags] & (NSShiftKeyMask | NSCommandKeyMask)) != 0) || 
+		([event firstCharacter] == NSTabCharacter && !lastEventActivatedTagEdit && [self currentEditor]);
 	}
 	
 	return NO;
 }
 
 - (SEL)attributeSetterForColumn:(NoteAttributeColumn*)col {
-	if ([globalPrefs horizontalLayout] && [[col identifier] isEqualToString:NoteTitleColumnString]) {
+	if ([globalPrefs horizontalLayout] && [self columnWithIdentifier:[col identifier]] == 0) {
 		return lastEventActivatedTagEdit ? @selector(setLabelString:) : @selector(setTitleString:);
 	}
 	return columnAttributeMutator(col);
@@ -957,7 +991,6 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	//if theEvent's mouselocation is inside rowIndex cell's tag rect and this edit is in horizontal mode in the title column
 	BOOL tagsInTitleColumn = [globalPrefs horizontalLayout] && isTitleCol && [self eventIsTagEdit:theEvent forColumn:columnIndex row:rowIndex];
-	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
 
 	if ([self editedRow] == rowIndex && [self currentEditor]) {
 		if (lastEventActivatedTagEdit != tagsInTitleColumn)
@@ -978,8 +1011,9 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		[editor setString: tagsInTitleColumn ? labelsOfNote(note) : titleOfNote(note)];
 		
 		NSRange range = NSMakeRange(0, [[editor string] length]);
+#if 0
+		NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
 		if (tagsInTitleColumn && dereferencingFunction(col) != unifiedCellSingleLineForNote) {
-			
 			//the textview will comply! when editing tags, use a smaller font, right-aligned
 			[editor setAlignment:NSRightTextAlignment range:range];
 			NSFont *smallerFont = [NSFont systemFontOfSize:[globalPrefs tableFontSize] - 1.0];
@@ -988,6 +1022,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			[pstyle setAlignment:NSRightTextAlignment];
 			[editor setTypingAttributes:[NSDictionary dictionaryWithObjectsAndKeys:pstyle, NSParagraphStyleAttributeName, smallerFont, NSFontAttributeName, nil]];
 		}
+#endif
 		
 		if (flag) [editor setSelectedRange:range];
 	}	
@@ -1007,6 +1042,21 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 - (void)cancelOperation:(id)sender {
 	[self abortEditing];
 	[[NSApp delegate] cancelOperation:sender];
+}
+
+- (void)textDidChange:(NSNotification *)aNotification {
+	NSInteger col = [self editedColumn];
+	if (col > -1 && [self attributeSetterForColumn:[[self tableColumns] objectAtIndex:col]] == @selector(setLabelString:)) {
+		//text changed while editing tags; autocomplete!
+		
+		NSTextView *editor = [aNotification object];
+		
+		if (!isAutocompleting && !wasDeleting) {		
+			isAutocompleting = YES;
+			[editor complete:self];
+			isAutocompleting = NO;
+		}
+	}
 }
 
 - (void)viewWillStartLiveResize {

@@ -26,27 +26,6 @@
 
 static int dayFromAbsoluteTime(CFAbsoluteTime absTime);
 
-- (NSMutableSet*)labelSetFromWordsAndContainingNote:(NoteObject*)note {
-
-	NSArray *words = [self componentsSeparatedByString:@","];
-	NSMutableSet *labelSet = [NSMutableSet setWithCapacity:[words count]];
-	
-	unsigned int i;
-	for (i=0; i<[words count]; i++) {
-		NSString *aWord = [words objectAtIndex:i];
-		
-		if ([aWord length] > 0) {
-			LabelObject *aLabel = [[LabelObject alloc] initWithTitle:aWord];
-			[aLabel addNote:note];
-			
-			[labelSet addObject:aLabel];
-			[aLabel autorelease];
-		}
-	}
-	
-	return labelSet; 
-}
-
 enum {NoSpecialDay = -1, ThisDay = 0, NextDay = 1, PriorDay = 2};
 
 static const double dayInSeconds = 86400.0;

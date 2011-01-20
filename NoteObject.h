@@ -151,6 +151,7 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)updateLabelConnectionsAfterDecoding;
 - (void)updateLabelConnections;
 - (void)setLabelString:(NSString*)newLabels;
+- (NSMutableSet*)labelSetFromCurrentString;
 - (NSArray*)orderedLabelTitles;
 - (void)invalidateLabelsPreviewImage;
 - (NSImage*)highlightedLabelsPreviewImage;

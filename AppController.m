@@ -157,6 +157,7 @@ void outletObjectAwoke(id sender) {
 	[self updateNoteMenus];
 	[textView setupFontMenu];
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(toggleNVActivation:)];
+	[notationController updateLabelConnectionsAfterDecoding];
 	[notationController checkIfNotationIsTrashed];
 	[[SecureTextEntryManager sharedInstance] checkForIncompatibleApps];
 	
@@ -311,6 +312,7 @@ terminateApp:
 		}
 		[notationController setSortColumn:[notesTableView noteAttributeColumnForIdentifier:[prefsController sortedTableColumnKey]]];
 		[notesTableView setDataSource:[notationController notesListDataSource]];
+		[notesTableView setLabelsListSource:[notationController labelsListDataSource]];
 		[notationController setDelegate:self];
 		
 		//allow resolution of UUIDs to NoteObjects from saved searches

@@ -22,7 +22,6 @@
 
 unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime);
 void resetCurrentDayTime();
-- (NSMutableSet*)labelSetFromWordsAndContainingNote:(NoteObject*)note;
 + (NSString*)relativeTimeStringWithDate:(CFDateRef)date relativeDay:(int)day;
 + (NSString*)relativeDateStringWithAbsoluteTime:(CFAbsoluteTime)absTime;
 CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);

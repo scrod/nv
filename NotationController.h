@@ -159,6 +159,7 @@ typedef struct _NoteCatalogEntry {
 
 - (void)filterNotesFromLabelAtIndex:(int)labelIndex;
 - (void)filterNotesFromLabelIndexSet:(NSIndexSet*)indexSet;
+- (void)updateLabelConnectionsAfterDecoding;
 
 - (void)refilterNotes;
 - (BOOL)filterNotesFromString:(NSString*)string;

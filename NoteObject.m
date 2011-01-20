@@ -873,10 +873,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (void)updateLabelConnections {
-	return;
-	//find differences between previous labels and new ones
+	//find differences between previous labels and new ones		
 	NSMutableSet *oldLabelSet = labelSet;
-	NSMutableSet *newLabelSet = [labelString labelSetFromWordsAndContainingNote:self];
+	NSMutableSet *newLabelSet = [self labelSetFromCurrentString];
+	
+	if (!oldLabelSet) {
+		oldLabelSet = labelSet = [[NSMutableSet alloc] initWithCapacity:[newLabelSet count]];
+	}
 	
 	//what's left-over
 	NSMutableSet *oldLabels = [oldLabelSet mutableCopy];
@@ -917,12 +920,37 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	}
 }
 
+- (NSMutableSet*)labelSetFromCurrentString {
+	
+	NSArray *words = [self orderedLabelTitles];
+	NSMutableSet *newLabelSet = [NSMutableSet setWithCapacity:[words count]];
+	
+	unsigned int i;
+	for (i=0; i<[words count]; i++) {
+		NSString *aWord = [words objectAtIndex:i];
+		
+		if ([aWord length] > 0) {
+			LabelObject *aLabel = [[LabelObject alloc] initWithTitle:aWord];
+			[aLabel addNote:self];
+			
+			[newLabelSet addObject:aLabel];
+			[aLabel autorelease];
+		}
+	}
+	
+	return newLabelSet; 
+}
+
+
 - (NSArray*)orderedLabelTitles {
 	
 	NSArray *array = nil;
 	if (IsLeopardOrLater) {
-		NSMutableCharacterSet *charSet = [NSMutableCharacterSet whitespaceCharacterSet];
-		[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
+		static NSMutableCharacterSet *charSet = nil;
+		if (!charSet) {
+			charSet = [[NSMutableCharacterSet whitespaceCharacterSet] retain];
+			[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
+		}
 
 		array = [labelString componentsSeparatedByCharactersInSet:charSet];
 	} else {
