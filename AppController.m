@@ -196,6 +196,11 @@ void outletObjectAwoke(id sender) {
 	
 	NSString *subMessage = @"";
 	
+	//if the option key is depressed, go straight to picking a new notes folder location
+	if (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & NSDeviceIndependentModifierFlagsMask)) {
+		goto showOpenPanel;
+	}
+	
 	if (aliasData) {
 	    newNotation = [[NotationController alloc] initWithAliasData:aliasData error:&err];
 	    subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.",nil);
