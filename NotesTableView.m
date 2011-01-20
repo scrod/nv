@@ -920,7 +920,15 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			[self editRowAtColumnWithIdentifier:NoteLabelsColumnString];
 			return YES;
 		}
-	}	
+	} else if (command == @selector(insertBacktab:)) {
+		
+		if ([globalPrefs horizontalLayout] && lastEventActivatedTagEdit) {
+			//if we're currently tagging a note in horizontal mode, then tab should move focus to renaming
+			
+			[self editRowAtColumnWithIdentifier:NoteTitleColumnString];
+			return YES;
+		}
+	}
 	
 	return NO;
 }
