@@ -130,6 +130,8 @@ typedef struct _NoteCatalogEntry {
 - (void)synchronizeNoteChanges:(NSTimer*)timer;
 
 - (void)updateDateStringsIfNecessary;
+- (void)makeForegroundTextColorMatchGlobalPrefs;
+- (void)setForegroundTextColor:(NSColor*)aColor;
 - (void)restyleAllNotes;
 - (void)setUndoManager:(NSUndoManager*)anUndoManager;
 - (NSUndoManager*)undoManager;

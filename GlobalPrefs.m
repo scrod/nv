@@ -77,7 +77,6 @@ NSString *NVPTFPboardType = @"Notational Velocity Poor Text Format";
 
 NSString *HotKeyAppToFrontName = @"bring Notational Velocity to the foreground";
 
-BOOL _ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 
 @implementation GlobalPrefs
 
@@ -216,7 +215,6 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	notationPrefs = [newNotationPrefs retain];
 	
 	[self resolveNoteBodyFontFromNotationPrefsFromSender:sender];
-	[self resolveForegroundColorFromNotationPrefsFromSender:sender];
 	
 	SEND_CALLBACKS();
 }
@@ -385,10 +383,18 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	}
 }
 
-- (NSColor*)searchTermHighlightColor {
+- (NSColor*)searchTermHighlightColorRaw:(BOOL)isRaw {
 	
 	NSData *theData = [defaults dataForKey:SearchTermHighlightColorKey];
-	if (theData) return (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
+	if (theData) {
+		NSColor *color = (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
+		if (isRaw) return color;
+		if (color) {
+			//nslayoutmanager temporary attributes don't seem to like alpha components, so synthesize translucency using the bg color
+			NSColor *fauxAlphaSTHC = [[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace] colorWithAlphaComponent:1.0];
+			return [fauxAlphaSTHC blendedColorWithFraction:(1.0 - [color alphaComponent]) ofColor:[self backgroundTextColor]];
+		}
+	}
 
 	return nil;
 }
@@ -396,7 +402,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (NSDictionary*)searchTermHighlightAttributes {
 	NSColor *highlightColor = nil;
 	
-	if (!searchTermHighlightAttributes && (highlightColor = [self searchTermHighlightColor])) {
+	if (!searchTermHighlightAttributes && (highlightColor = [self searchTermHighlightColorRaw:NO])) {
 		searchTermHighlightAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:highlightColor, NSBackgroundColorAttributeName, nil] retain];
 	}
 	return searchTermHighlightAttributes;
@@ -417,7 +423,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	return [defaults integerForKey:NumberOfSpacesInTabKey];
 }
 
-BOOL _ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
+BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	//sometimes floating point numbers really don't like to be compared to each other
 
 	CGFloat pRed, pGreen, pBlue, gRed, gGreen, gBlue, pAlpha, gAlpha;
@@ -427,24 +433,6 @@ BOOL _ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 #define SCR(__ch) ((int)roundf(((__ch) * 255.0)))
 	
 	return (SCR(pRed) == SCR(gRed) && SCR(pBlue) == SCR(gBlue) && SCR(pGreen) == SCR(gGreen) && SCR(pAlpha) == SCR(gAlpha));
-}
-
-- (void)resolveForegroundColorFromNotationPrefsFromSender:(id)sender {
-	NSColor *prefsFGColor = [notationPrefs foregroundColor];
-	if (prefsFGColor) {
-		NSColor *fgColor = [self foregroundTextColor];
-		
-		if (!_ColorsEqualWith8BitChannels(prefsFGColor, fgColor)) {
-			
-			NSLog(@"archived notationPrefs foreground text color (%@) does not match current global global foreground color (%@)!", prefsFGColor, fgColor);
-			[noteBodyAttributes release];
-			noteBodyAttributes = nil;
-			
-			[defaults setObject:[NSArchiver archivedDataWithRootObject:prefsFGColor] forKey:ForegroundTextColorKey];
-			
-			SEND_CALLBACKS();
-		}
-	}
 }
 
 - (void)resolveNoteBodyFontFromNotationPrefsFromSender:(id)sender {
@@ -527,7 +515,7 @@ BOOL _ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		
 		//not storing the foreground color in each note will make the database smaller, and black is assumed when drawing text
 		NSColor *fgColor = [self foregroundTextColor];
-		if (!_ColorsEqualWith8BitChannels([NSColor blackColor], fgColor)) {
+		if (!ColorsEqualWith8BitChannels([NSColor blackColor], fgColor)) {
 			[attrs setObject:fgColor forKey:NSForegroundColorAttributeName];
 		}
 		// background text color is handled directly by the NSTextView subclass and so does not need to be stored here
@@ -598,6 +586,12 @@ BOOL _ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 - (void)setBackgroundTextColor:(NSColor*)aColor sender:(id)sender {
 	
 	if (aColor) {
+		//highlight color is based on blended-alpha version of background color
+		//(because nslayoutmanager temporary attributes don't seem to like alpha components)
+		//so it's necessary to invalidate the effective cache of that computed highlight color
+		[searchTermHighlightAttributes release];
+		searchTermHighlightAttributes = nil;
+
 		[defaults setObject:[NSArchiver archivedDataWithRootObject:aColor] forKey:BackgroundTextColorKey];
 	
 		SEND_CALLBACKS();

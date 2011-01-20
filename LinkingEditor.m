@@ -35,7 +35,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 
 @implementation LinkingEditor
 
-CGFloat _perceptualBrightness(NSColor*a);
+CGFloat _perceptualDarkness(NSColor*a);
 NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 
 - (void)awakeFromNib {
@@ -70,7 +70,8 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 	[[self layoutManager] setDelegate:self];
 		
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowDidBecomeMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
-	
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
+
 	
 	outletObjectAwoke(self);
 }
@@ -153,19 +154,22 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 }
 
 - (void)setBackgroundColor:(NSColor*)aColor {
-	backgroundIsDark = (_perceptualBrightness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
+	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
 	[super setBackgroundColor:aColor];
 }
 
 - (void)updateTextColors {
-	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:
-								  [prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]]];
-	[self setLinkTextAttributes:[self preferredLinkAttributes]];
+	NSColor *fgColor = [prefsController foregroundTextColor];
+	NSColor *bgColor = [prefsController backgroundTextColor];
 	
+	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:fgColor backgroundColor:bgColor]];
+	[self setLinkTextAttributes:[self preferredLinkAttributes]];
+	[self setSelectedTextAttributes:[NSDictionary dictionaryWithObject:[self _selectionColorForForegroundColor:fgColor backgroundColor:bgColor] 
+																forKey:NSBackgroundColorAttributeName]];
 }
 
 #define _CM(__ch) ((__ch) * 255.0)
-CGFloat _perceptualBrightness(NSColor*a) {
+CGFloat _perceptualDarkness(NSColor*a) {
 	//0 to 1; the higher the darker
 	
 	CGFloat aRed, aGreen, aBlue;
@@ -197,7 +201,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	if (brightness <= 0.24)
 		return [NSColor blueColor];
 	
-	brightness = _perceptualBrightness(bgColor) > 0.5 ? MAX(0.75, brightness) : MIN(0.35, brightness);
+	brightness = _perceptualDarkness(bgColor) > 0.5 ? MAX(0.75, brightness) : MIN(0.35, brightness);
 	
 	saturation = MAX(0.5, saturation);
 	
@@ -217,6 +221,31 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 			  _perceptualColorDifference(proposedLinkColor, fgColor) < 170.0) && --rotationsLeft > 0);
 	return proposedLinkColor;
 }
+
+- (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
+	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+
+	NSColor *proposedBlend = [fgColor blendedColorWithFraction:0.5 ofColor:bgColor];
+	NSColor *defaultColor = [[NSColor selectedTextBackgroundColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	
+	float fgDiff = _perceptualColorDifference(proposedBlend, fgColor);
+	float fgSelDiff = _perceptualColorDifference(defaultColor, fgColor);
+	
+	//selection color should be between foreground and background in terms of brightness
+	//but the selection-color-difference from the foreground text needs to be great enough as well,
+	//and the proposed-color-difference from the foreground can't be too poor
+	//this heuristic chooses all the system-highlight colors in default fg/bg combinations and fg/bg blends in all others
+	
+//	NSLog(@"fg diff of proposed: %g fg diff of sel: %g", fgDiff, fgSelDiff);
+	if ((_perceptualDarkness(fgColor) > _perceptualDarkness(defaultColor) && 
+		 _perceptualDarkness(defaultColor) > _perceptualDarkness(bgColor) && fgSelDiff > 300.0) || fgDiff < 170.0)
+		return defaultColor;
+	
+	//amplify the background balance after testing
+	return [fgColor blendedColorWithFraction:0.69 ofColor:bgColor];
+}
+
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
 	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
@@ -1384,6 +1413,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 }
 
 - (void)dealloc {
+	[[NSNotificationCenter defaultCenter] removeObserver: self];
 	[invertedIBeamCursor release];
 	[super dealloc];
 }

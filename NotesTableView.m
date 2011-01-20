@@ -277,11 +277,12 @@
 		}
 		rowRectOrigin += ySpacing;
 	}
-//	while (yToDraw < clipRect.size.height) {
-//		yToDraw += ySpacing;
-//		[line moveToPoint:NSMakePoint(clipRect.origin.x, yToDraw)];
-//		[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, yToDraw)];
-//	}
+	//draw everything after the visible range of rows
+	while (rowRectOrigin < clipRect.size.height) {
+		rowRectOrigin += ySpacing;
+		[line moveToPoint:NSMakePoint(clipRect.origin.x, rowRectOrigin)];
+		[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, rowRectOrigin)];
+	}
 	[line stroke];
 	[NSGraphicsContext restoreGraphicsState];
 }

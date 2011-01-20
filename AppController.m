@@ -66,6 +66,8 @@
 - (void)awakeFromNib {
 	prefsController = [GlobalPrefs defaultPrefs];
 	
+	[NSColor setIgnoresAlpha:NO];
+	
 	NSView *dualSV = [field superview];
 	dualFieldItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"DualField"];
 	//[[dualSV superview] setFrameSize:NSMakeSize([[dualSV superview] frame].size.width, [[dualSV superview] frame].size.height -1)];
@@ -630,12 +632,18 @@ terminateApp:
 		
 		if (changedColumns) [notesTableView setViewingLocation:ctx];
 		
-	} else if ([selectorString isEqualToString:SEL_STR(setNoteBodyFont:sender:)] || [selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
+	} else if ([selectorString isEqualToString:SEL_STR(setNoteBodyFont:sender:)]) {
 		
 		[notationController restyleAllNotes];
 		if (currentNote) {
 			[self contentsUpdatedForNote:currentNote];
 		}
+	} else if ([selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
+		
+		[notationController setForegroundTextColor:[prefsController foregroundTextColor]];
+		if (currentNote) {
+			[self contentsUpdatedForNote:currentNote];
+		} 
 	} else if ([selectorString isEqualToString:SEL_STR(setTableFontSize:sender:)] || [selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) {
 		
 		ResetFontRelatedTableAttributes();

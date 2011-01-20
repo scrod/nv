@@ -321,6 +321,8 @@ returnResult:
 			
 	[prefsController setNotationPrefs:notationPrefs sender:self];
 	
+	[self makeForegroundTextColorMatchGlobalPrefs];
+	
 	if(notesData)
 	    free(notesData);
 	
@@ -1106,7 +1108,7 @@ bail:
 - (void)updateDateStringsIfNecessary {
 	
 	unsigned int currentHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
-	BOOL isHorizontalLayout = [[GlobalPrefs defaultPrefs] horizontalLayout];
+	BOOL isHorizontalLayout = [prefsController horizontalLayout];
 	
 	if (currentHours != lastCheckedDateInHours || isHorizontalLayout != lastLayoutStyleGenerated) {
 		lastCheckedDateInHours = currentHours;
@@ -1119,6 +1121,28 @@ bail:
 	}
 }
 
+- (void)makeForegroundTextColorMatchGlobalPrefs {
+	NSColor *prefsFGColor = [notationPrefs foregroundColor];
+	if (prefsFGColor) {
+		NSColor *fgColor = [prefsController foregroundTextColor];
+		
+		if (!ColorsEqualWith8BitChannels(prefsFGColor, fgColor)) {
+			
+			NSLog(@"setting notationPrefs foreground text color (%@) to the global foreground color (%@)", prefsFGColor, fgColor);
+			[self setForegroundTextColor:fgColor];
+		}
+	}
+}
+
+- (void)setForegroundTextColor:(NSColor*)fgColor {
+	//do not update the notes in any other way, nor the database, but to set this color in notationPrefs as well
+	NSAssert(fgColor != nil, @"foreground color cannot be nil");
+
+	[allNotes makeObjectsPerformSelector:@selector(setForegroundTextColorOnly:) withObject:fgColor];
+	
+	[notationPrefs setForegroundTextColor:fgColor];
+}
+
 - (void)restyleAllNotes {
 	NSFont *baseFont = [notationPrefs baseBodyFont];
 	NSAssert(baseFont != nil, @"base body font from notation prefs should ALWAYS be valid!");
@@ -1126,7 +1150,6 @@ bail:
 	[allNotes makeObjectsPerformSelector:@selector(updateUnstyledTextWithBaseFont:) withObject:baseFont];
 	
 	[notationPrefs setBaseBodyFont:[prefsController noteBodyFont]];
-	[notationPrefs setForegroundTextColor:[prefsController foregroundTextColor]];
 }
 
 //used by BookmarksController

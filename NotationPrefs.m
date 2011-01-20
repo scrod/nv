@@ -110,15 +110,15 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 			NSLog(@"setting base body to current default: %@", baseBodyFont);
 			preferencesChanged = YES;
 		}
+		//foregroundColor does not receive the same treatment as basebodyfont; in the event of a discrepancy between global and per-db settings,
+		//the former is applied to the notes in the database, while the latter is restored from the database itself
 		@try {
 			foregroundColor = [[decoder decodeObjectForKey:VAR_STR(foregroundColor)] retain];
 		} @catch (NSException *e) {
 			NSLog(@"Error trying to unarchive foreground text color (%@, %@)", [e name], [e reason]);
 		}
 		if (!foregroundColor || ![foregroundColor isKindOfClass:[NSColor class]]) {
-			NSLog(@"fg color is bad: %@", foregroundColor);
 			foregroundColor = [[[GlobalPrefs defaultPrefs] foregroundTextColor] retain];
-			NSLog(@"setting foreground text color to current default: %@", foregroundColor);
 			preferencesChanged = YES;
 		}
 		

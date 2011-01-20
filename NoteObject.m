@@ -797,6 +797,14 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     }
 }
 
+- (void)setForegroundTextColorOnly:(NSColor*)aColor {
+	//called when notationPrefs font doesn't match globalprefs font, or user changes the font
+	[contentString removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [contentString length])];
+	if (aColor) {
+		[contentString addAttribute:NSForegroundColorAttributeName value:aColor range:NSMakeRange(0, [contentString length])];
+	}
+}
+
 //how do we write a thousand RTF files at once, repeatedly? 
 
 - (void)updateUnstyledTextWithBaseFont:(NSFont*)baseFont {

@@ -33,6 +33,8 @@ extern NSString *NVPTFPboardType;
 @class PTKeyCombo;
 @class PTHotKey;
 
+BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
+
 @interface GlobalPrefs : NSObject {
 	NSUserDefaults *defaults;
 	
@@ -73,7 +75,6 @@ extern NSString *NVPTFPboardType;
 - (BOOL)tableColumnsShowPreview;
 - (void)setTableColumnsShowPreview:(BOOL)showPreview sender:(id)sender;
 
-- (void)resolveForegroundColorFromNotationPrefsFromSender:(id)sender;
 - (void)resolveNoteBodyFontFromNotationPrefsFromSender:(id)sender;
 - (void)setNoteBodyFont:(NSFont*)aFont sender:(id)sender;
 - (void)_setNoteBodyFont:(NSFont*)aFont;
@@ -123,7 +124,7 @@ extern NSString *NVPTFPboardType;
 - (BOOL)highlightSearchTerms;
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender;
 - (NSDictionary*)searchTermHighlightAttributes;
-- (NSColor*)searchTermHighlightColor;
+- (NSColor*)searchTermHighlightColorRaw:(BOOL)isRaw;
 
 - (void)setSoftTabs:(BOOL)value sender:(id)sender;
 - (BOOL)softTabs;

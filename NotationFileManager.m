@@ -199,9 +199,7 @@ static BOOL VolumeSupportsExchangeObjects(NotationController *controller) {
 
 		if (!strcmp(sfsb->f_fstypename, "hfs")) {
 			//if this is an HFS volume, then use getattrlist to get finderinfo from the volume
-			if ((diskUUID = CopyHFSVolumeUUIDForMount(sfsb->f_mntonname))) {
-				NSLog(@"got HFS diskUUID: %@", [(id)CFUUIDCreateString(NULL, diskUUID) autorelease]);
-			}
+			diskUUID = CopyHFSVolumeUUIDForMount(sfsb->f_mntonname);
 		}
 
 		//ah but what happens when a non-hfs disk is first mounted on leopard+, and then moves to a tiger machine?
@@ -209,16 +207,12 @@ static BOOL VolumeSupportsExchangeObjects(NotationController *controller) {
 		//this is probably unnecessary for now
 		if (!diskUUID && IsLeopardOrLater) {
 			//this is not an hfs disk, and this computer is new enough to have FSEvents	
-			if ((diskUUID = FSEventsCopyUUIDForDevice(sfsb->f_fsid.val[0]))) {
-				NSLog(@"got FSEvents diskUUID: %@", [(id)CFUUIDCreateString(NULL, diskUUID) autorelease]);
-			}
+			diskUUID = FSEventsCopyUUIDForDevice(sfsb->f_fsid.val[0]);
 		}
 		
 		if (!diskUUID) {
 			//all other checks failed; just use the volume's creation date
-			if ((diskUUID = CopySyntheticUUIDForVolumeCreationDate(&noteDirectoryRef))) {
-				NSLog(@"got synthetic diskUUID from creation date: %@", [(id)CFUUIDCreateString(NULL, diskUUID) autorelease]);
-			}
+			diskUUID = CopySyntheticUUIDForVolumeCreationDate(&noteDirectoryRef);
 		}
 		diskUUIDIndex = [notationPrefs tableIndexOfDiskUUID:diskUUID];
 	}
