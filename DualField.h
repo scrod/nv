@@ -48,6 +48,8 @@ enum { BUTTON_HIDDEN, BUTTON_NORMAL, BUTTON_PRESSED };
 	
 	//cleared when doing a new manual search
 	NSMutableArray *followedLinks;
+	
+	NSCursor *IBeamCursor;
 }
 
 - (void)setTrackingRect;

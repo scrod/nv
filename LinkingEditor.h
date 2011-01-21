@@ -13,6 +13,7 @@
 
 
 #import <Cocoa/Cocoa.h>
+#import <objc/runtime.h>
 
 @class NotesTableView;
 @class NoteObject;
@@ -34,7 +35,6 @@
 	NSRange changedRange;
 	BOOL isAutocompleting, wasDeleting;
 	
-	NSCursor *invertedIBeamCursor;
 	BOOL backgroundIsDark, mouseInside;
 	
 	//ludicrous ivars used to hack NSTextFinder. just write your own, damnit!
@@ -42,6 +42,8 @@
 	NSString *lastImportedFindString;
 	NSString *stringDuringFind;
 	NoteObject *noteDuringFind;
+	
+	IMP defaultIBeamCursorIMP, whiteIBeamCursorIMP;
 }
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
@@ -65,7 +67,7 @@
 - (void)indicateRange:(NSValue*)rangeValue;
 
 - (void)fixTypingAttributesForSubstitutedFonts;
-- (void)fixMouseCursorForBackground;
+- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside;
 
 - (void)setupFontMenu;
 

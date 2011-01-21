@@ -125,6 +125,8 @@
 		[field setNextKeyView:textView];
 		[textView setNextKeyView:field];
 		[window setAutorecalculatesKeyViewLoop:NO];
+		
+		[self setEmptyViewState:YES];
 				
 		//this is necessary on 10.3; keep just in case
 		[splitView display];

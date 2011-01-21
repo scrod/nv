@@ -205,6 +205,9 @@
 	[myCell setAllowsUndo:NO];
 	[myCell setLineBreakMode:NSLineBreakByCharWrapping];
 	
+	//remember this now to make sure we always use the same one, in case +IBeamCursor just happens to return a different object later (hint hint)
+	IBeamCursor = [[NSCursor IBeamCursor] retain];
+	
 	followedLinks = [[NSMutableArray alloc] init];
 }
 
@@ -277,7 +280,7 @@
 	} else {
 		textArea = NSUnionRect(textArea, clearButtonArea);
 	}
-	[self addCursorRect: textArea cursor: [NSCursor IBeamCursor]];
+	[self addCursorRect: textArea cursor: IBeamCursor];
 	
 	[self removeAllToolTips];
 	textAreaTag = [self addToolTipRect:textArea owner:self userData:NULL];

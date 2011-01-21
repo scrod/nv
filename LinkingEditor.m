@@ -33,10 +33,27 @@
 static long (*GetGetScriptManagerVariablePointer())(short);
 #endif
 
+
+@interface NSCursor (WhiteIBeamCursor)
++ (NSCursor*)whiteIBeamCursor;
+@end
+
+@implementation NSCursor (WhiteIBeamCursor)
+
++ (NSCursor*)whiteIBeamCursor {
+	static NSCursor *invertedIBeamCursor = nil;
+	if (!invertedIBeamCursor) {
+		invertedIBeamCursor = [[NSCursor alloc] initWithImage:[NSImage imageNamed:@"IBeamInverted"] hotSpot:NSMakePoint(4,5)];
+	}
+	return invertedIBeamCursor;	
+}
+
+@end
+
+
 @implementation LinkingEditor
 
 CGFloat _perceptualDarkness(NSColor*a);
-NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 
 - (void)awakeFromNib {
 	
@@ -64,13 +81,20 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 	[self setDrawsBackground:YES];
 	[self setBackgroundColor:[prefsController backgroundTextColor]];
 	[self updateTextColors];
+	
 	[[self window] setAcceptsMouseMovedEvents:YES];
+	if (IsLeopardOrLater) {
+		defaultIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(IBeamCursor)));
+		whiteIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(whiteIBeamCursor)));
+	}
 
 	didRenderFully = NO;
 	[[self layoutManager] setDelegate:self];
-		
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowDidBecomeMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
+	
+	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
+	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidResignMainNotification object:[self window]];
+	[center addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
 
 	
 	outletObjectAwoke(self);
@@ -132,7 +156,9 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 	}
 	
 	[self setTypingAttributes:[prefsController noteBodyAttributes]];
-		
+	
+	[self performSelector:@selector(_fixCursorForBackgroundUpdatingMouseInside:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0];
+	
 	return [super becomeFirstResponder];
 }
 
@@ -144,7 +170,9 @@ NSCursor *InvertedIBeamCursor(LinkingEditor*self);
 
 - (BOOL)resignFirstResponder {
 	[notesTableView setShouldUseSecondaryHighlightColor:NO];
-		
+	
+	[self performSelector:@selector(_fixCursorForBackgroundUpdatingMouseInside:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0];
+	
 	return [super resignFirstResponder];
 }
 
@@ -832,26 +860,17 @@ copyRTFType:
 
 - (void)insertTabIgnoringFieldEditor:(id)sender {
 	
-	
-	BOOL shouldShiftText = NO;
-	
-	if ([self selectedRange].length > 0) { // Check to see if the selection is in the text or if it's at the beginning of a line or in whitespace; if one doesn't do this one shifts the line if there's only one suggestion in the auto-complete
-		NSRange rangeOfFirstLine = [[self string] lineRangeForRange:NSMakeRange([self selectedRange].location, 0)];
-		unsigned int firstCharacterOfFirstLine = rangeOfFirstLine.location;
-		while ([[self string] characterAtIndex:firstCharacterOfFirstLine] == ' ' || [[self string] characterAtIndex:firstCharacterOfFirstLine] == '\t') {
-			firstCharacterOfFirstLine++;
-		}
-		if ([self selectedRange].location <= firstCharacterOfFirstLine) {
-			shouldShiftText = YES;
-		}
-	}
-	
-	if (shouldShiftText) {
+	NSRange range = [self selectedRange];
+	if (range.length > 0 && [[self string] rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] options:NSLiteralSearch range:range].location != NSNotFound) {
+		//tab shifts text only if there is more than one line selected (i.e., the selection contains at least one line break)
+		
 		[self shiftRightAction:nil];
+		
 	} else if ([prefsController softTabs]) {
+		
 		int numberOfSpacesPerTab = [prefsController numberOfSpacesInTab];
 
-		int locationOnLine = [self selectedRange].location - [[self string] lineRangeForRange:[self selectedRange]].location;
+		int locationOnLine = range.location - [[self string] lineRangeForRange:range].location;
 		if (numberOfSpacesPerTab != 0) {
 			int numberOfSpacesLess = locationOnLine % numberOfSpacesPerTab;
 			numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
@@ -964,52 +983,55 @@ copyRTFType:
 }*/
 
 - (void)mouseEntered:(NSEvent*)anEvent {
-	[super mouseEntered:anEvent];
 	mouseInside = YES;
-	[self fixMouseCursorForBackground];
+	[self fixCursorForBackgroundUpdatingMouseInside:NO];
 }
 - (void)mouseExited:(NSEvent*)anEvent {
-	[super mouseEntered:anEvent];
 	mouseInside = NO;
-	[self fixMouseCursorForBackground];
-}
-- (void)mouseMoved:(NSEvent*)anEvent {
-	//NSTextView actually sets the cursor every time it moves -- is that really necessary, guys?
-	[super mouseMoved:anEvent];
-	[self fixMouseCursorForBackground];
-}
-- (void)cursorUpdate:(NSEvent*)anEvent {
-	[super cursorUpdate:anEvent];
-	[self fixMouseCursorForBackground];
+	[self fixCursorForBackgroundUpdatingMouseInside:NO];
 }
 
-- (void)resetCursorRects {
-	if ([self isHiddenOrHasHiddenAncestor]) //<-- does not work
-		[self addCursorRect:[self bounds] cursor:[NSCursor arrowCursor]];
+- (void)_fixCursorForBackgroundUpdatingMouseInside:(NSNumber*)num {
+	[self fixCursorForBackgroundUpdatingMouseInside:[num boolValue]];
+}
+
+- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside {
 	
-	if (backgroundIsDark)
-		[self addCursorRect:[self bounds] cursor:InvertedIBeamCursor(self)];
-}
-
-NSCursor *InvertedIBeamCursor(LinkingEditor*self) {
-	if (!self->invertedIBeamCursor) {
-		self->invertedIBeamCursor = [[NSCursor alloc] initWithImage:[NSImage imageNamed:@"IBeamInverted"] hotSpot:[[NSCursor IBeamCursor] hotSpot]];
-		[self->invertedIBeamCursor setOnMouseEntered:YES];
-	}
-	return self->invertedIBeamCursor;
-}
-
-- (void)fixMouseCursorForBackground {
-	
-	if (mouseInside && backgroundIsDark && backgroundIsDark == [[NSCursor currentCursor] isEqual:[NSCursor IBeamCursor]]) {
-		[InvertedIBeamCursor(self) set];
+	if (IsLeopardOrLater && whiteIBeamCursorIMP && defaultIBeamCursorIMP) {
+		if (setMouseInside)
+			mouseInside = [self mouse:[self convertPoint:[[self window] mouseLocationOutsideOfEventStream] fromView:nil] inRect:[self bounds]];
+		
+		BOOL shouldBeWhite = mouseInside && backgroundIsDark && ![self isHidden];
+		Class class = [NSCursor class];
+		
+		//set method implementation directly; whiteIBeamCursorIMP and defaultIBeamCursorIMP always point to the same respective blocks of code
+		Method defaultIBeamCursorMethod = class_getClassMethod(class, @selector(IBeamCursor));
+		method_setImplementation(defaultIBeamCursorMethod, shouldBeWhite ? whiteIBeamCursorIMP : defaultIBeamCursorIMP);
+		
+		NSCursor *currentCursor = [NSCursor currentCursor];
+		NSCursor *whiteCursor = whiteIBeamCursorIMP(class, @selector(whiteIBeamCursor));
+		NSCursor *defaultCursor = defaultIBeamCursorIMP(class, @selector(IBeamCursor));
+		
+		//if the current cursor is set incorrectly, and and it's not a non-IBeam cursor, then update it (IBeamCursor points to our recently-set implementation)
+		if ((currentCursor == whiteCursor) != shouldBeWhite && (currentCursor == whiteCursor || currentCursor == defaultCursor)) {
+			[[NSCursor IBeamCursor] set];
+		}
 	}
 }
 
-- (void)windowDidBecomeMain:(NSNotification *)aNotification  {
-	//on snow leoaprd, changing the window ordering seems to occasionally trigger mouseExited events w/o a corresponding mouseEntered
-	mouseInside = [self mouse:[self convertPoint:[[[self window] currentEvent] locationInWindow] fromView:nil] inRect:[self bounds]];
-	[self fixMouseCursorForBackground];
+//hiding or showing the view does not always produce mouseEntered/Exited events
+- (void)viewDidUnhide {
+	[self fixCursorForBackgroundUpdatingMouseInside:YES];
+	[super viewDidUnhide];
+}
+- (void)viewDidHide {
+	[self fixCursorForBackgroundUpdatingMouseInside:YES];
+	[super viewDidHide];
+}
+
+- (void)windowBecameOrResignedMain:(NSNotification *)aNotification  {
+	//changing the window ordering seems to occasionally trigger mouseExited events w/o a corresponding mouseEntered
+	[self fixCursorForBackgroundUpdatingMouseInside:YES];
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
@@ -1296,6 +1318,9 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 }
 
 - (void)insertNewline:(id)sender {
+	//reset custom styles after each line
+	[self setTypingAttributes:[prefsController noteBodyAttributes]];
+	
 	[super insertNewline:sender];
 	// If we should indent automatically, check the previous line and scan all the whitespace at the beginning of the line into a string and insert that string into the new line
 	//NSString *lastLineString = [[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]];
@@ -1427,7 +1452,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver: self];
-	[invertedIBeamCursor release];
 	[super dealloc];
 }
 
