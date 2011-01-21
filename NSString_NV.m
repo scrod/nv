@@ -183,6 +183,31 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return absTime;
 }
 
+- (NSArray*)labelCompatibleWords {
+	NSArray *array = nil;
+	if (IsLeopardOrLater) {
+		static NSMutableCharacterSet *charSet = nil;
+		if (!charSet) {
+			charSet = [[NSMutableCharacterSet whitespaceCharacterSet] retain];
+			[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
+		}
+		
+		array = [self componentsSeparatedByCharactersInSet:charSet];
+	} else {
+		BOOL lacksSpace = [self rangeOfString:@" " options:NSLiteralSearch].location == NSNotFound;
+		array = [self componentsSeparatedByString: lacksSpace ? @"," : @" "];
+	}
+	NSMutableArray *titles = [NSMutableArray arrayWithCapacity:[array count]];
+	
+	NSUInteger i;
+	for (i=0; i<[array count]; i++) {
+		NSString *aWord = [array objectAtIndex:i];
+		if ([aWord length] > 0 && ![aWord isEqualToString:@","]) {
+			[titles addObject:aWord];
+		}
+	}
+	return titles;
+}
 
 - (CFArrayRef)copyRangesOfWordsInString:(NSString*)findString inRange:(NSRange)limitRange {
 	CFStringRef quoteStr = CFSTR("\"");

@@ -508,7 +508,7 @@ terminateApp:
 			[notationController removeNote:retainedDeleteObj];
 		}
 		
-		if ([[alert suppressionButton] state] == NSOnState) {
+		if (IsLeopardOrLater && [[alert suppressionButton] state] == NSOnState) {
 			[prefsController setConfirmNoteDeletion:NO sender:self];
 		}
 	}

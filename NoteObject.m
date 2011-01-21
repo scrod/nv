@@ -805,6 +805,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	}
 }
 
+- (void)_resanitizeContent {
+	[contentString santizeForeignStylesForImporting];
+	
+	if ([delegate currentNoteStorageFormat] == RTFTextFormat)
+		[self makeNoteDirtyUpdateTime:NO updateFile:YES];
+}
+
 //how do we write a thousand RTF files at once, repeatedly? 
 
 - (void)updateUnstyledTextWithBaseFont:(NSFont*)baseFont {
@@ -951,28 +958,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 
 - (NSArray*)orderedLabelTitles {
-	
-	NSArray *array = nil;
-	if (IsLeopardOrLater) {
-		static NSMutableCharacterSet *charSet = nil;
-		if (!charSet) {
-			charSet = [[NSMutableCharacterSet whitespaceCharacterSet] retain];
-			[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
-		}
-
-		array = [labelString componentsSeparatedByCharactersInSet:charSet];
-	} else {
-		BOOL lacksSpace = [labelString rangeOfString:@" " options:NSLiteralSearch].location == NSNotFound;
-		array = [labelString componentsSeparatedByString: lacksSpace ? @"," : @" "];
-	}
-	NSMutableArray *titles = [NSMutableArray arrayWithCapacity:[array count]];
-	
-	NSUInteger i;
-	for (i=0; i<[array count]; i++) {
-		NSString *aWord = [array objectAtIndex:i];
-		if ([aWord length] > 0) [titles addObject:aWord];
-	}
-	return titles;
+	return [labelString labelCompatibleWords];
 }
 
 - (void)invalidateLabelsPreviewImage {
@@ -1160,6 +1146,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
     NSData *formattedData = nil;
     NSError *error = nil;
+	NSMutableAttributedString *contentMinusColor = nil;
 	
     int formatID = [delegate currentNoteStorageFormat];
     switch (formatID) {
@@ -1182,7 +1169,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			}
 			break;
 		case RTFTextFormat:
-			formattedData = [contentString RTFFromRange:NSMakeRange(0, [contentString length]) documentAttributes:nil];
+			contentMinusColor = [contentString mutableCopy];
+			[contentMinusColor removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [contentMinusColor length])];
+			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:nil];
+			[contentMinusColor release];
 			
 			break;
 		case HTMLFormat:
@@ -1617,29 +1607,33 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	NSData *formattedData = nil;
 	NSError *error = nil;
 	
+	NSMutableAttributedString *contentMinusColor = [[contentString mutableCopy] autorelease];
+	[contentMinusColor removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [contentMinusColor length])];
+
+	
 	switch (storageFormat) {
 		case SingleDatabaseFormat:
 			NSAssert(NO, @"Warning! Tried to export data in single-db format!?");
 		case PlainTextFormat:
-			if (!(formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:NO])) {
+			if (!(formattedData = [[contentMinusColor string] dataUsingEncoding:fileEncoding allowLossyConversion:NO])) {
 				[self _setFileEncoding:NSUTF8StringEncoding];
 				NSLog(@"promoting to unicode (UTF-8) on export--probably because internal format is singledb");
-				formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:YES];
+				formattedData = [[contentMinusColor string] dataUsingEncoding:fileEncoding allowLossyConversion:YES];
 			}
 			break;
 		case RTFTextFormat:
-			formattedData = [contentString RTFFromRange:NSMakeRange(0, [contentString length]) documentAttributes:nil];
+			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:nil];
 			break;
 		case HTMLFormat:
-			formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
+			formattedData = [contentMinusColor dataFromRange:NSMakeRange(0, [contentMinusColor length]) 
 									  documentAttributes:[NSDictionary dictionaryWithObject:NSHTMLTextDocumentType 
 																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
 			break;
 		case WordDocFormat:
-			formattedData = [contentString docFormatFromRange:NSMakeRange(0, [contentString length]) documentAttributes:nil];
+			formattedData = [contentMinusColor docFormatFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:nil];
 			break;
 		case WordXMLFormat:
-			formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
+			formattedData = [contentMinusColor dataFromRange:NSMakeRange(0, [contentMinusColor length]) 
 									  documentAttributes:[NSDictionary dictionaryWithObject:NSWordMLTextDocumentType 
 																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
 			break;
@@ -1648,7 +1642,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     }
 	if (!formattedData)
 		return kDataFormattingErr;
-	
+		
 	//can use our already-determined filename to write here
 	//but what about file names that were the same except for their extension? e.g., .txt vs. .text
 	//this will give them the same extension and cause an overwrite

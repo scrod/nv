@@ -187,6 +187,7 @@
 			//remove and re-add link attributes for all notes
 			//remove underline attribute for all notes
 			//add automatic strike-through attribute for all notes
+			[allNotes makeObjectsPerformSelector:@selector(_resanitizeContent)];
 		}
 		
 		if (epochIteration < EPOC_ITERATION) {
@@ -1126,16 +1127,15 @@ bail:
 	if (prefsFGColor) {
 		NSColor *fgColor = [prefsController foregroundTextColor];
 		
-		if (!ColorsEqualWith8BitChannels(prefsFGColor, fgColor)) {
-			
-			NSLog(@"setting notationPrefs foreground text color (%@) to the global foreground color (%@)", prefsFGColor, fgColor);
+		if (!ColorsEqualWith8BitChannels(prefsFGColor, fgColor)) {			
 			[self setForegroundTextColor:fgColor];
 		}
 	}
 }
 
 - (void)setForegroundTextColor:(NSColor*)fgColor {
-	//do not update the notes in any other way, nor the database, but to set this color in notationPrefs as well
+	//do not update the notes in any other way, nor the database, other than also setting this color in notationPrefs
+	//foreground color is archived only for practicality, and should be for display only
 	NSAssert(fgColor != nil, @"foreground color cannot be nil");
 
 	[allNotes makeObjectsPerformSelector:@selector(setForegroundTextColorOnly:) withObject:fgColor];

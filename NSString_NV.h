@@ -53,6 +53,8 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 - (BOOL)superficiallyResemblesAnHTTPURL;
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err;
 
+- (NSArray*)labelCompatibleWords;
+
 - (BOOL)UTIOfFileConformsToType:(NSString*)type;
 
 - (CFUUIDBytes)uuidBytes;

@@ -20,7 +20,6 @@
 
 
 extern NSString *ShouldHideSecureTextEntryWarningKey;
-extern const char * VerMarker;
 
 @interface SecureTextEntryManager : NSObject {
 

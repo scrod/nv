@@ -205,6 +205,7 @@ NSInteger compareFileSize(id *a, id *b);
 - (NSAttributedString*)printableStringRelativeToBodyFont:(NSFont*)bodyFont;
 - (NSString*)combinedContentWithContextSeparator:(NSString*)sepWContext;
 - (void)setForegroundTextColorOnly:(NSColor*)aColor;
+- (void)_resanitizeContent;
 - (void)updateUnstyledTextWithBaseFont:(NSFont*)baseFont;
 - (void)updateDateStrings;
 - (void)setDateModified:(CFAbsoluteTime)newTime;

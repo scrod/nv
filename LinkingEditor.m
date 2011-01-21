@@ -1147,12 +1147,25 @@ cancelCompetion:
 }
 
 - (void)insertCompletion:(NSString *)word forPartialWordRange:(NSRange)charRange movement:(NSInteger)movement isFinal:(BOOL)isFinal {
+	NSString *str = [self string];
 	
 	isFinal = isFinal && movement != NSRightTextMovement;
 	
 	if (isFinal && [word length] && (movement == NSReturnTextMovement || movement == NSTabTextMovement)) {
-		word = [word stringByAppendingString:@"]]"];
-	}	
+		
+		//automatically add a trailing double-bracket if one does not already exist
+		NSRange endRange = NSMakeRange(charRange.location + [word length], 2);
+		if ([str length] < NSMaxRange(endRange) || ![[str substringWithRange:endRange] isEqualToString:@"]]"]) {
+			word = [word stringByAppendingString:@"]]"];
+		}
+	}
+	
+	//preserve capitalization by transferring charRange substring into word
+	if (charRange.length <= [word length]) { 
+		NSString *existingWord = [str substringWithRange:charRange];
+		word = [existingWord stringByAppendingString:[word substringFromIndex:[existingWord length]]];
+	}
+	
 	[super insertCompletion:word forPartialWordRange:charRange movement:movement isFinal:isFinal];
 }
 

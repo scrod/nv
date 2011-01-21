@@ -949,7 +949,9 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 - (NSArray *)textView:(NSTextView *)aTextView completions:(NSArray *)words  forPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger *)anIndex {
 
-	NSArray *tags = [labelsListSource labelTitlesPrefixedByString:[[aTextView string] substringWithRange:charRange] indexOfSelectedItem:anIndex];
+	NSSet *existingWordSet = [NSSet setWithArray:[[aTextView string] labelCompatibleWords]];
+	NSArray *tags = [labelsListSource labelTitlesPrefixedByString:[[aTextView string] substringWithRange:charRange] 
+											  indexOfSelectedItem:anIndex minusWordSet:existingWordSet];
 	return tags;
 }
 
@@ -1060,7 +1062,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		
 		NSTextView *editor = [aNotification object];
 		
-		if (!isAutocompleting && !wasDeleting) {		
+		//NSLog(@"isAutocompleting: %d, wasDeleting: %d", isAutocompleting, wasDeleting);
+		if (!isAutocompleting && !wasDeleting) {
 			isAutocompleting = YES;
 			[editor complete:self];
 			isAutocompleting = NO;

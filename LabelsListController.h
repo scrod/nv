@@ -31,7 +31,7 @@
 - (void)filterLabelSet:(NSSet*)labelSet;
 - (void)recomputeListFromFilteredSet;
 
-- (NSArray*)labelTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex;
+- (NSArray*)labelTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex minusWordSet:(NSSet*)antiSet;
 
 - (NSSet*)notesAtFilteredIndex:(int)labelIndex;
 - (NSSet*)notesAtFilteredIndexes:(NSIndexSet*)anIndexSet;

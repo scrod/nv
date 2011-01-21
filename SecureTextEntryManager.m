@@ -23,8 +23,6 @@ NSString *ShouldHideSecureTextEntryWarningKey = @"ShouldHideSecureTextEntryWarni
 
 static SecureTextEntryManager *sharedInstance = nil;
 
-const char * VerMarker __attribute__ ((used)) = __DATE__;
-
 @implementation SecureTextEntryManager
 
 + (SecureTextEntryManager*)sharedInstance {
@@ -149,7 +147,7 @@ const char * VerMarker __attribute__ ((used)) = __DATE__;
 					[alert setShowsSuppressionButton:YES];
 				}
 				[alert runModal];
-				if ([[alert suppressionButton] state] == NSOnState) {
+				if (IsLeopardOrLater && [[alert suppressionButton] state] == NSOnState) {
 					[[NSUserDefaults standardUserDefaults] setBool:YES forKey:ShouldHideSecureTextEntryWarningKey];
 				}
 				CFRelease(infoDict);
