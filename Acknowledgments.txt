@@ -2,6 +2,16 @@ Portions of Notational Velocity contain the following copyrighted materials, the
 
 --
 
+Notational Velocity Icon
+
+Copyright (c) 2011 Taylor Carrigan. All rights reserved.
+
+http://taylorcarrigan.com/
+
+This icon may not be used for commercial purposes.
+
+--
+
 Sparkle Framework
 
 Copyright (c) 2006 Andy Matuschak
