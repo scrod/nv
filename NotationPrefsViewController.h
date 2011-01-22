@@ -43,6 +43,7 @@
     IBOutlet NSButton *newTypeButton;
     IBOutlet NSTextField *syncAccountField;
     IBOutlet NSTextField *syncPasswordField;
+	IBOutlet NSButton *makeDefaultExtensionButton;
     IBOutlet NSButton *removeExtensionButton;
     IBOutlet NSButton *removeTypeButton;
     IBOutlet NSButton *confirmFileDeletionButton;
@@ -95,6 +96,7 @@
 - (int)notesStorageFormatInProgress;
 - (void)runQueuedStorageFormatChangeInvocation;
 - (IBAction)visitSimplenoteSite:(id)sender;
+- (IBAction)makeDefaultExtension:(id)sender;
 - (IBAction)removedExtension:(id)sender;
 - (IBAction)removedType:(id)sender;
 

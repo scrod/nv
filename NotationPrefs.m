@@ -59,6 +59,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		for (i=0; i<4; i++) {
 			typeStrings[i] = [[NotationPrefs defaultTypeStringsForFormat:i] retain];
 			pathExtensions[i] = [[NotationPrefs defaultPathExtensionsForFormat:i] retain];
+			chosenExtIndices[i] = 0;
 		}
 		
 		confirmFileDeletion = YES;
@@ -130,6 +131,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 				typeStrings[i] = [[NotationPrefs defaultTypeStringsForFormat:i] retain];
 			if (!(pathExtensions[i] = [[decoder decodeObjectForKey:[VAR_STR(pathExtensions) stringByAppendingFormat:@".%d",i]] retain]))
 				pathExtensions[i] = [[NotationPrefs defaultPathExtensionsForFormat:i] retain];
+			chosenExtIndices[i] = [decoder decodeIntForKey:[VAR_STR(chosenExtIndices) stringByAppendingFormat:@".%d",i]];
 		}
 		
 		if (!(syncServiceAccounts = [[decoder decodeObjectForKey:VAR_STR(syncServiceAccounts)] retain]))
@@ -178,6 +180,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	for (i=0; i<4; i++) {	
 		[coder encodeObject:typeStrings[i] forKey:[VAR_STR(typeStrings) stringByAppendingFormat:@".%d",i]];
 		[coder encodeObject:pathExtensions[i] forKey:[VAR_STR(pathExtensions) stringByAppendingFormat:@".%d",i]];
+		[coder encodeInt:chosenExtIndices[i] forKey:[VAR_STR(chosenExtIndices) stringByAppendingFormat:@".%d",i]];
 	}
 	
 	[coder encodeObject:[self syncServiceAccountsForArchiving] forKey:VAR_STR(syncServiceAccounts)];
@@ -240,7 +243,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	case RTFTextFormat: 
 	    return [NSMutableArray arrayWithObjects:@"rtf", nil];
 	case HTMLFormat:
-	    return [NSMutableArray arrayWithObjects:@"htm", @"html", nil];
+	    return [NSMutableArray arrayWithObjects:@"html", @"htm", nil];
 	case WordDocFormat:
 		return [NSMutableArray arrayWithObjects:@"doc", nil];
 	case WordXMLFormat:
@@ -918,6 +921,12 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (NSString*)pathExtensionAtIndex:(int)pathIndex {
     return [pathExtensions[notesStorageFormat] objectAtIndex:pathIndex];
 }
+- (unsigned int)indexOfChosenPathExtension {
+	return chosenExtIndices[notesStorageFormat];
+}
+- (NSString*)chosenPathExtensionForFormat:(int)format {
+	return [pathExtensions[format] objectAtIndex:chosenExtIndices[format]];
+}
 
 - (void)updateOSTypesArray {
     if (!typeStrings[notesStorageFormat])
@@ -934,25 +943,44 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
     
     NSString *actualExt = [extension stringAsSafePathExtension];
 	[pathExtensions[notesStorageFormat] addObject:actualExt];
-    
-    preferencesChanged = YES;
-}
-
-- (void)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex {
-
-    [pathExtensions[notesStorageFormat] removeObjectAtIndex:extensionIndex];
 	
-    preferencesChanged = YES;
+	preferencesChanged = YES;
 }
 
-- (void)addAllowedType:(NSString*)type {
+- (BOOL)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex {
+
+	if ([pathExtensions[notesStorageFormat] count] > 1) {
+		[pathExtensions[notesStorageFormat] removeObjectAtIndex:extensionIndex];
+		
+		if (chosenExtIndices[notesStorageFormat] >= [pathExtensions[notesStorageFormat] count])
+			chosenExtIndices[notesStorageFormat] = 0;
+		
+		preferencesChanged = YES;
+		return YES;
+	}
+	return NO;
+}
+- (BOOL)setChosenPathExtensionAtIndex:(unsigned int)extensionIndex {
+	if ([pathExtensions[notesStorageFormat] count] > extensionIndex &&
+		[[pathExtensions[notesStorageFormat] objectAtIndex:extensionIndex] length]) {
+		chosenExtIndices[notesStorageFormat] = extensionIndex;
+		
+		preferencesChanged = YES;
+		return YES;
+	}
+	return NO;
+}
+
+- (BOOL)addAllowedType:(NSString*)type {
     
 	if (type) {
 		[typeStrings[notesStorageFormat] addObject:[type fourCharTypeString]];
 		[self updateOSTypesArray];
 		
 		preferencesChanged = YES;
+		return YES;
 	}
+	return NO;
 }
 
 - (void)removeAllowedTypeAtIndex:(unsigned int)typeIndex {

@@ -42,6 +42,7 @@ extern NSString *SyncPrefsDidChangeNotification;
 	int notesStorageFormat;
 	BOOL confirmFileDeletion;
 	
+	unsigned int chosenExtIndices[4];
     NSMutableArray *typeStrings[4], *pathExtensions[4];
     OSType *allowedTypes;
 	
@@ -127,13 +128,16 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 //used to view tableviews
 - (NSString*)typeStringAtIndex:(int)typeIndex;
 - (NSString*)pathExtensionAtIndex:(int)pathIndex;
+- (unsigned int)indexOfChosenPathExtension;
+- (NSString*)chosenPathExtensionForFormat:(int)format;
 - (int)typeStringsCount;
 - (int)pathExtensionsCount;
 
 //used to edit tableviews
 - (void)addAllowedPathExtension:(NSString*)extension;
-- (void)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex;
-- (void)addAllowedType:(NSString*)type;
+- (BOOL)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex;
+- (BOOL)setChosenPathExtensionAtIndex:(unsigned int)extensionIndex;
+- (BOOL)addAllowedType:(NSString*)type;
 - (void)removeAllowedTypeAtIndex:(unsigned int)index;
 - (BOOL)setExtension:(NSString*)newExtension atIndex:(unsigned int)oldIndex;
 - (BOOL)setType:(NSString*)newType atIndex:(unsigned int)oldIndex;

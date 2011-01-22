@@ -415,7 +415,7 @@ terminate:
 	
 	//use the note's current format if the current default format is for a database; get the "ideal" extension for that format
 	int noteFormat = [notationPrefs notesStorageFormat] || !note ? [notationPrefs notesStorageFormat] : storageFormatOfNote(note);
-	NSString *extension = [NotationPrefs pathExtensionForFormat:noteFormat];
+	NSString *extension = [notationPrefs chosenPathExtensionForFormat:noteFormat];
 	
 	//if the note's current extension is compatible with the storage format above, then use the existing extension instead
 	if (note && filenameOfNote(note) && [notationPrefs pathExtensionAllowed:[filenameOfNote(note) pathExtension] forFormat:noteFormat])

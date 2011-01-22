@@ -102,6 +102,17 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (BOOL)tableView:(NSTableView *)aTableView shouldSelectRow:(NSInteger)rowIndex {
     return (notationPrefs && [notationPrefs notesStorageFormat]);
 }
+- (void)tableViewSelectionDidChange:(NSNotification *)aNotification {
+	NSTableView *tv = [aNotification object];
+	BOOL isRowSelected = [tv selectedRow] > -1;
+	
+	if (tv == allowedExtensionsTable) {
+		[removeExtensionButton setEnabled:isRowSelected];
+		[makeDefaultExtensionButton setEnabled:isRowSelected];
+	} else if (tv == allowedTypesTable) {
+		[removeTypeButton setEnabled:isRowSelected];
+	}
+}
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
 	
@@ -181,9 +192,10 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (void)setSeparateFileControlsState:(BOOL)separateFileControlsState {
 	[newExtensionButton setEnabled:separateFileControlsState];
-	[removeExtensionButton setEnabled:separateFileControlsState];
+	[removeExtensionButton setEnabled:separateFileControlsState && [allowedExtensionsTable selectedRow] > -1];
+	[makeDefaultExtensionButton setEnabled:separateFileControlsState && [allowedExtensionsTable selectedRow] > -1];
 	[newTypeButton setEnabled:separateFileControlsState];
-	[removeTypeButton setEnabled:separateFileControlsState];
+	[removeTypeButton setEnabled:separateFileControlsState && [allowedTypesTable selectedRow] > -1];
 	
 	[allowedTypesTable setEnabled:separateFileControlsState];
 	[allowedExtensionsTable setEnabled:separateFileControlsState];
@@ -222,11 +234,20 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 
-	if (aTableView == allowedExtensionsTable)
-		return [notationPrefs pathExtensionAtIndex:rowIndex];
-	else if (aTableView == allowedTypesTable)
+	if (aTableView == allowedExtensionsTable) {
+		NSString *extension = [notationPrefs pathExtensionAtIndex:rowIndex];
+		
+		if ([notationPrefs indexOfChosenPathExtension] == (unsigned int)rowIndex) {
+			return [[[NSAttributedString alloc] initWithString:extension attributes:
+					[NSDictionary dictionaryWithObjectsAndKeys:
+					 [NSFont boldSystemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, nil]] autorelease];
+		}
+		return extension;
+			
+	} else if (aTableView == allowedTypesTable) {
+		
 		return [notationPrefs typeStringAtIndex:rowIndex];
-	
+	}
 	return 0;
 }
 
@@ -243,7 +264,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
     [notationPrefs addAllowedPathExtension:@""];
 	[allowedExtensionsTable reloadData];
 	
-	[allowedExtensionsTable selectRow:[notationPrefs pathExtensionsCount]-1 byExtendingSelection:NO];
+	[allowedExtensionsTable selectRowIndexes:[NSIndexSet indexSetWithIndex:[notationPrefs pathExtensionsCount]-1] byExtendingSelection:NO];
 	[allowedExtensionsTable editColumn:0 row:[notationPrefs pathExtensionsCount]-1 withEvent:nil select:YES];
 }
 
@@ -251,7 +272,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
     [notationPrefs addAllowedType:@""];
 	[allowedTypesTable reloadData];
 	
-	[allowedTypesTable selectRow:[notationPrefs typeStringsCount]-1 byExtendingSelection:NO];
+	[allowedTypesTable selectRowIndexes:[NSIndexSet indexSetWithIndex:[notationPrefs typeStringsCount]-1] byExtendingSelection:NO];
 	[allowedTypesTable editColumn:0 row:[notationPrefs typeStringsCount]-1 withEvent:nil select:YES];
 
 }
@@ -451,15 +472,29 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
     [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://simplenoteapp.com/"]];
 }
 
-- (IBAction)removedExtension:(id)sender {
+- (IBAction)makeDefaultExtension:(id)sender {
+	[[allowedExtensionsTable window] makeFirstResponder:allowedExtensionsTable];
+	
 	int selectedRow = [allowedExtensionsTable selectedRow];
 	if (selectedRow > -1)
-		[notationPrefs removeAllowedPathExtensionAtIndex:selectedRow];
+		[notationPrefs setChosenPathExtensionAtIndex:selectedRow];
+	
+	[allowedExtensionsTable reloadData];	
+}
+
+- (IBAction)removedExtension:(id)sender {
+	[allowedExtensionsTable abortEditing];
+	
+	int selectedRow = [allowedExtensionsTable selectedRow];
+	if (selectedRow > -1)
+		if (![notationPrefs removeAllowedPathExtensionAtIndex:selectedRow]) NSBeep();
 	
 	[allowedExtensionsTable reloadData];
 }
 
 - (IBAction)removedType:(id)sender {
+	[allowedTypesTable abortEditing];
+	
 	int selectedRow = [allowedTypesTable selectedRow];
 	if (selectedRow > -1)
 		[notationPrefs removeAllowedTypeAtIndex:selectedRow];
