@@ -925,6 +925,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return chosenExtIndices[notesStorageFormat];
 }
 - (NSString*)chosenPathExtensionForFormat:(int)format {
+	if (chosenExtIndices[format] >= [pathExtensions[format] count])
+		return [NotationPrefs pathExtensionForFormat:format];
+	
 	return [pathExtensions[format] objectAtIndex:chosenExtIndices[format]];
 }
 
@@ -949,7 +952,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 - (BOOL)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex {
 
-	if ([pathExtensions[notesStorageFormat] count] > 1) {
+	if ([pathExtensions[notesStorageFormat] count] > 1 && extensionIndex < [pathExtensions[notesStorageFormat] count]) {
 		[pathExtensions[notesStorageFormat] removeObjectAtIndex:extensionIndex];
 		
 		if (chosenExtIndices[notesStorageFormat] >= [pathExtensions[notesStorageFormat] count])

@@ -104,8 +104,6 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
 	return relativeTimeString;
 }
 
-int uncachedDateCount = 0;
-
 //take into account yesterday/today thing
 //this method _will_ affect application launch time
 + (NSString*)relativeDateStringWithAbsoluteTime:(CFAbsoluteTime)absTime {
@@ -137,8 +135,6 @@ int uncachedDateCount = 0;
 		}
 		
 		CFRelease(date);
-
-		uncachedDateCount++;
 		
 		//ints as pointers ints as pointers ints as pointers
 		CFDictionarySetValue(dateStringsCache, (const void *)minutesCount, (const void *)dateString);
