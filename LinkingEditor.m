@@ -1171,6 +1171,7 @@ cancelCompetion:
 
 - (void)insertCompletion:(NSString *)word forPartialWordRange:(NSRange)charRange movement:(NSInteger)movement isFinal:(BOOL)isFinal {
 	NSString *str = [self string];
+	BOOL finalizedCompletion = NO;
 	
 	isFinal = isFinal && movement != NSRightTextMovement;
 	
@@ -1181,10 +1182,11 @@ cancelCompetion:
 		if ([str length] < NSMaxRange(endRange) || ![[str substringWithRange:endRange] isEqualToString:@"]]"]) {
 			word = [word stringByAppendingString:@"]]"];
 		}
+		finalizedCompletion = YES;
 	}
 	
 	//preserve capitalization by transferring charRange substring into word
-	if (charRange.length <= [word length]) { 
+	if (!finalizedCompletion && charRange.length <= [word length]) { 
 		NSString *existingWord = [str substringWithRange:charRange];
 		word = [existingWord stringByAppendingString:[word substringFromIndex:[existingWord length]]];
 	}
