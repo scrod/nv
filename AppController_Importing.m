@@ -195,7 +195,7 @@
 		//if this search had initiated a clearing of the history, then make sure it doesn't happen
 		[NSObject cancelPreviousPerformRequestsWithTarget:field selector:@selector(clearFollowedLinks) object:nil];
 		
-		if (foundNote) [self revealNote:foundNote options:NVDefaultReveal];
+		if (foundNote) [self revealNote:foundNote options:NVOrderFrontWindow];
 		return YES;
 		
 	} else if ([[aURL host] isEqualToString:@"make"]) {

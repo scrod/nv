@@ -16,6 +16,7 @@
 
 #import "NotationController.h"
 #import "NotesTableView.h"
+#import "Spaces.h"
 
 @class LinkingEditor;
 @class EmptyView;
@@ -60,6 +61,7 @@
     GlobalPrefs *prefsController;
     NotationController *notationController;
 	
+	SpaceSwitchingContext spaceSwitchCtx;
 	ViewLocationContext listUpdateViewCtx;
 	BOOL isFilteringFromTyping, typedStringIsCached;
 	BOOL isCreatingANote;
