@@ -47,6 +47,7 @@ static NSString *TabKeyIndentsKey = @"TabKeyIndents";
 static NSString *PastePreservesStyleKey = @"PastePreservesStyle";
 static NSString *AutoFormatsDoneTagKey = @"AutoFormatsDoneTag";
 static NSString *AutoSuggestLinksKey = @"AutoSuggestLinks";
+static NSString *AutoIndentsNewLinesKey = @"AutoIndentsNewLines";
 static NSString *HighlightSearchTermsKey = @"HighlightSearchTerms";
 static NSString *SearchTermHighlightColorKey = @"SearchTermHighlightColor";
 static NSString *ForegroundTextColorKey = @"ForegroundTextColor";
@@ -101,6 +102,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		[defaults registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:
 			[NSNumber numberWithBool:YES], AutoSuggestLinksKey,
 			[NSNumber numberWithBool:YES], AutoFormatsDoneTagKey, 
+			[NSNumber numberWithBool:YES], AutoIndentsNewLinesKey, 
 			[NSNumber numberWithBool:NO], UseSoftTabsKey,
 			[NSNumber numberWithInt:4], NumberOfSpacesInTabKey,
 			[NSNumber numberWithBool:YES], PastePreservesStyleKey,
@@ -342,6 +344,14 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 - (BOOL)autoFormatsDoneTag {
 	return [defaults boolForKey:AutoFormatsDoneTagKey];
+}
+- (BOOL)autoIndentsNewLines {
+	return [defaults boolForKey:AutoIndentsNewLinesKey];
+}
+- (void)setAutoIndentsNewLines:(BOOL)value sender:(id)sender {
+	[defaults setBool:value forKey:AutoIndentsNewLinesKey];
+	
+	SEND_CALLBACKS();
 }
 
 - (void)setLinksAutoSuggested:(BOOL)value sender:(id)sender {

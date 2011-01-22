@@ -1004,8 +1004,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	BOOL tagsInTitleColumn = [globalPrefs horizontalLayout] && isTitleCol && [self eventIsTagEdit:theEvent forColumn:columnIndex row:rowIndex];
 
 	if ([self editedRow] == rowIndex && [self currentEditor]) {
-		if (lastEventActivatedTagEdit != tagsInTitleColumn)
-			[self abortEditing];
+		//this row is currently being edited; finish editing before start it again anywhere else
+		[[self window] makeFirstResponder:self];
 	}
 	lastEventActivatedTagEdit = tagsInTitleColumn;
 	

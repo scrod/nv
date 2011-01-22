@@ -1325,15 +1325,18 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	[self setTypingAttributes:[prefsController noteBodyAttributes]];
 	
 	[super insertNewline:sender];
-	// If we should indent automatically, check the previous line and scan all the whitespace at the beginning of the line into a string and insert that string into the new line
-	//NSString *lastLineString = [[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]];
-	NSString *previousLineWhitespaceString;
-	NSScanner *previousLineScanner = [[NSScanner alloc] initWithString:[[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]]];
-	[previousLineScanner setCharactersToBeSkipped:nil];		
-	if ([previousLineScanner scanCharactersFromSet:[NSCharacterSet whitespaceCharacterSet] intoString:&previousLineWhitespaceString]) {
-		[self insertText:previousLineWhitespaceString];
+	
+	if ([prefsController autoIndentsNewLines]) {
+		// If we should indent automatically, check the previous line and scan all the whitespace at the beginning of the line into a string and insert that string into the new line
+		//NSString *lastLineString = [[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]];
+		NSString *previousLineWhitespaceString;
+		NSScanner *previousLineScanner = [[NSScanner alloc] initWithString:[[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]]];
+		[previousLineScanner setCharactersToBeSkipped:nil];		
+		if ([previousLineScanner scanCharactersFromSet:[NSCharacterSet whitespaceCharacterSet] intoString:&previousLineWhitespaceString]) {
+			[self insertText:previousLineWhitespaceString];
+		}
+		[previousLineScanner release];
 	}
-	[previousLineScanner release];
 }
 
 - (void)setupFontMenu {
