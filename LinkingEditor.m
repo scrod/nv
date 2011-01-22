@@ -1021,7 +1021,8 @@ copyRTFType:
 
 //hiding or showing the view does not always produce mouseEntered/Exited events
 - (void)viewDidUnhide {
-	[self fixCursorForBackgroundUpdatingMouseInside:YES];
+	[self performSelector:@selector(_fixCursorForBackgroundUpdatingMouseInside:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0];
+
 	[super viewDidUnhide];
 }
 - (void)viewDidHide {
