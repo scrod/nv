@@ -10,7 +10,7 @@ Dies ist der Inhalt einer Notiz. Deine Notizen können so lang oder kurz sein wie
 \b fett
 \b0 , 
 \i kursiv
-\i0  oder \ul unterstrichen\ulnone  hervorheben. \
+\i0  oder \strike \strikec0 durchgestrichen\strike0\striked0  hervorheben. \
 \
 Du kannst so viele Notizen anlegen wie du möchtest--Notational Velocity kann tausende davon händeln und ist sozusagen ein Informationsverarbeitungswunder.\
 \

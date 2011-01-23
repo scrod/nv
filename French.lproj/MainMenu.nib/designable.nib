@@ -22,9 +22,9 @@
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
 			<integer value="21"/>
+			<integer value="1080"/>
 			<integer value="1066"/>
 			<integer value="29"/>
-			<integer value="1080"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -986,6 +986,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 						<reference key="NSOnImage" ref="259802817"/>
 						<reference key="NSMixedImage" ref="853026812"/>
 						<string key="NSAction">submenuAction:</string>
+						<int key="NSTag">99</int>
 						<object class="NSMenu" key="NSSubmenu" id="645308513">
 							<string key="NSTitle">Affichage</string>
 							<object class="NSMutableArray" key="NSMenuItems">
@@ -3752,7 +3753,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<string>{{544, 568}, {271, 93}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{205, 809}, {621, 20}}</string>
+					<string>{{140, 809}, {621, 20}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>{{414, 575}, {147, 102}}</string>
@@ -3762,7 +3763,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{480, 626}, {357, 183}}</string>
+					<string>{{415, 626}, {357, 183}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>

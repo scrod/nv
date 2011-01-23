@@ -23,22 +23,50 @@ Tab			D\'e9place le curseur entre les zones de texte\
 \f0  D			D\'e9selectionne la note active, restaure la zone de recherche\
 
 \f1 \uc0\u8984 
-\f0  Maj V		Colle le contenu du presse-papier dans une nouvelle note\
+\f1 \uc0\u8679 
+\f0  V		Colle le contenu du presse-papier dans une nouvelle note\
 
 \f1 \uc0\u8984 
 \f0  R			Renomme la note s\'e9lectionn\'e9e\
 
-\f1 \uc0\u8984 
-\f0  Suppr 		Supprime la ou les note(s) s\'e9lectionn\'e9e(s)\
+\f1 \cf0 \uc0\u8984 
+\f0  
+\f1 \uc0\u9003 	
+\f0 	Supprime la ou les note(s) s\'e9lectionn\'e9e(s)\
+
+\f1 \cf0 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679  T
+\f0 		Etiquette la note s\'e9lectionn\'e9e\
 
 \f1 \uc0\u8984 
 \f0  G			Occurrence suivante du texte recherch\'e9\
 
 \f1 \uc0\u8984 
-\f0  Maj G		Occurrence pr\'e9c\'e9dente du texte recherch\'e9\
+\f0  
+\f1 \uc0\u8679
+\f0  G		Occurrence pr\'e9c\'e9dente du texte recherch\'e9\
 
 \f1 \uc0\u8984 
-\f0  Maj D		Ajouter la note s\'e9lectionn\'e9e aux signets\
+\f0  
+\f1 \uc0\u8617 
+\f0 			Ouvrir toute URL sous le point d'insertion\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8592 
+\f0 			Passer en \'e9dition du titre quand est au d\'e9but du corps de la note\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8594 
+\f0 			Passer dans le corps de la note quand est à la fin d'un titre\
+
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  D		Ajouter la note s\'e9lectionn\'e9e aux signets\
 
 \f1 \uc0\u8984 
 \f0  P			Imprimer la/les note(s)\
@@ -58,7 +86,9 @@ Tab			D\'e9place le curseur entre les zones de texte\
 
 \f1 \uc0\u8984 
 \f0  ]			(right square bracket) D\'e9cale vers la gauche une ou plusieurs lignes\
-Option Tab	Indente la ligne\
+
+\f1 \uc0\u8997 
+\f0  Tab		Indenter la ligne\
 
 \f1 \uc0\u8984 
 \f0  T			Convertir en texte brut (supprime les styles)\
@@ -70,5 +100,5 @@ Option Tab	Indente la ligne\
 \f0  I			Mettre en italiques\
 
 \f1 \uc0\u8984 
-\f0  Y			Barr\'e9\
+\f0  Y			Barrer
 }

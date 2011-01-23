@@ -647,4 +647,4 @@
 "Importing content..." = "Importiere Inhalt…";
 
 /* prefix for source-URLs inserted into imported notes; e.g., "From <http://www.apple.com>: ..." */
-"From" = "From";
+"From" = "Von";

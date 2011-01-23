@@ -980,6 +980,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 						<reference key="NSOnImage" ref="259802817"/>
 						<reference key="NSMixedImage" ref="853026812"/>
 						<string key="NSAction">submenuAction:</string>
+						<int key="NSTag">99</int>
 						<object class="NSMenu" key="NSSubmenu" id="645308513">
 							<string key="NSTitle">Darstellung</string>
 							<object class="NSMutableArray" key="NSMenuItems">
@@ -1181,7 +1182,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 													<int key="NSfFlags">16</int>
 												</object>
 												<reference ref="585756368"/>
-												<object class="NSParagraphStyle" id="113267635">
+												<object class="NSParagraphStyle">
 													<int key="NSAlignment">4</int>
 													<nil key="NSTabStops"/>
 												</object>
@@ -1251,7 +1252,10 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 													<int key="NSfFlags">16</int>
 												</object>
 												<reference ref="154859007"/>
-												<reference ref="113267635"/>
+												<object class="NSParagraphStyle">
+													<int key="NSAlignment">4</int>
+													<nil key="NSTabStops"/>
+												</object>
 												<integer value="1"/>
 											</object>
 										</object>
@@ -3751,7 +3755,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<string>{{662, 281}, {240, 93}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{266, 676}, {659, 20}}</string>
+					<string>{{102, 676}, {659, 20}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>{{414, 575}, {147, 102}}</string>
@@ -3761,7 +3765,7 @@ cHlyaWdodCBBcHBsZSBDb21wdXRlciwgSW5jLiwgMjAwNQAAAAA</bytes>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
-					<string>{{578, 493}, {344, 183}}</string>
+					<string>{{414, 493}, {344, 183}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>

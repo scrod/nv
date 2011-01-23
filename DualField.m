@@ -231,21 +231,23 @@
 	if (tag == docIconTag) {
 		//should be conditional on whether snapback exists, and include the snapback string
 		if ([[self cell] snapbackButtonIsVisible]) {
-			return [NSString stringWithFormat:NSLocalizedString(@"Go back to search; press %@-D to deselect", nil), [NSString stringWithCharacters:&ch length:1]];
+			return [NSString stringWithFormat:NSLocalizedString(@"Go back to search; press %@-D to deselect", @"tooltip string for search/title field"), 
+					[NSString stringWithCharacters:&ch length:1]];
 		} else {
-			return @"Now searching for this text";
+			return NSLocalizedString(@"Now searching for this text", @"tooltip string for search/title field");
 		}
 	} else if (tag == clearButtonTag) {
 		if ([[self cell] clearButtonIsVisible]) {
-			return @"Clear the search; press ESC";
+			return NSLocalizedString(@"Clear the search; press ESC", @"tooltip string for search/title field");
 		} else {
-			return @"Type any text to search; press Return to create a note";
+			return NSLocalizedString(@"Type any text to search; press Return to create a note", @"tooltip string for search/title field");
 		}
 	} else if (tag == textAreaTag) {
 		if ([self showsDocumentIcon]) {
-			return [NSString stringWithFormat:@"Now editing this note; rename it with %@-R", [NSString stringWithCharacters:&ch length:1]];
+			return [NSString stringWithFormat:NSLocalizedString(@"Now editing this note; rename it with %@-R", @"tooltip string for search/title field"),
+					[NSString stringWithCharacters:&ch length:1]];
 		} else {
-			return @"Type any text to search; press Return to create a note";
+			return NSLocalizedString(@"Type any text to search; press Return to create a note", @"tooltip string for search/title field");
 		}
 	}
 	return nil;
