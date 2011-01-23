@@ -197,7 +197,7 @@
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
 			if (NSRunCriticalAlertPanel(NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil), 
 										NSLocalizedString(@"If you make changes, some settings and metadata will be lost.", nil), 
-										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn);
+										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn)
 			exit(0);
 		}
 	}	
