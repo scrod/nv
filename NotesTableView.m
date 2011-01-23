@@ -26,6 +26,8 @@
 #define STATUS_STRING_FONT_SIZE 16.0f
 #define SET_DUAL_HIGHLIGHTS 0
 
+#define SYNTHETIC_TAGS_COLUMN_INDEX 200
+
 @implementation NotesTableView
 
 //there's something wrong with this initialization under panther, I think
@@ -241,9 +243,7 @@
 		[menu setSubmenu:[self menuForColumnConfiguration:nil] forItem:[menu itemWithTag:97]];
 		[menu setSubmenu:[self menuForColumnSorting] forItem:[menu itemWithTag:98]];
 		
-		[[menu itemWithTag:97] setEnabled:![globalPrefs horizontalLayout]];
-		viewMenusValid = YES;
-		
+		viewMenusValid = YES;		
 	}
 }
 
@@ -306,7 +306,9 @@
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
 	tableFontHeight = [lm defaultLineHeightForFont:font];
-	[self setRowHeight: horiz ? (![globalPrefs tableColumnsShowPreview] ? (tableFontHeight * 2.0 + 6.0f) : (tableFontHeight * 3.0 + 5.0f)) : tableFontHeight + 2.0f];
+	float h[4] = {(tableFontHeight * 3.0 + 5.0f), (tableFontHeight * 2.0 + 6.0f), (tableFontHeight + 4.0f), tableFontHeight + 2.0f};
+	[self setRowHeight: horiz ? ([globalPrefs tableColumnsShowPreview] ? h[0] : 
+								 (ColumnIsSet(NoteLabelsColumn,[globalPrefs tableColumnsBitmap]) ? h[1] : h[2])) : h[3]];
 	[lm release];
 	
 	[self setIntercellSpacing:NSMakeSize(12, 2)];
@@ -405,24 +407,44 @@
 }
 
 - (void)editRowAtColumnWithIdentifier:(id)identifier {
+	NSInteger colIndex = -1;
+	NSInteger selected = [self selectedRow];
 	
-	int colIndex = [self columnWithIdentifier:[globalPrefs horizontalLayout] ? NoteTitleColumnString : identifier];
-    if (colIndex < 0) {
-		//always move title column to 0 index
-		int newColIndex = (int)(![identifier isEqualToString:NoteTitleColumnString]);
+	if (selected < 0) {
+		NSBeep();
+		return;
+	}
+	
+	if ([globalPrefs horizontalLayout]) {
 		
-		NSTableColumn *column = [allColsDict objectForKey:identifier];
+		//default to editing title if this is attempted in horizontal mode for any column other than tags
+		//(which currently are the only two editable columns, anyway)
+		colIndex = [identifier isEqualToString:NoteLabelsColumnString] ? SYNTHETIC_TAGS_COLUMN_INDEX : 0;
+		
+		if (SYNTHETIC_TAGS_COLUMN_INDEX == colIndex && !ColumnIsSet(NoteLabelsColumn, [globalPrefs tableColumnsBitmap])) {
+			[self addPermanentTableColumn:[self noteAttributeColumnForIdentifier:NoteLabelsColumnString]];
+		}
+	} else if ((colIndex = [self columnWithIdentifier:identifier]) < 0) {
+		//always move title column to 0 index
+		NSInteger newColIndex = (NSInteger)(![identifier isEqualToString:NoteTitleColumnString]);
+		
+		NSTableColumn *column = [self noteAttributeColumnForIdentifier:identifier];
 		if (column && [self addPermanentTableColumn:column]) {
-			[self moveColumn:[[self tableColumns] indexOfObjectIdenticalTo:column] toColumn:newColIndex];
-			colIndex = newColIndex;
-			[self sizeToFit];
+			
+			NSUInteger addedColIndex = [[self tableColumns] indexOfObjectIdenticalTo:column];
+			if (addedColIndex < [[self tableColumns] count]) {
+				[self moveColumn:addedColIndex toColumn:newColIndex];
+				colIndex = newColIndex;
+				[self sizeToFit];
+			}
 		}
 	}
 	
-	int selected = [self selectedRow];
-	if (selected > -1 && colIndex > -1) {
+	if (colIndex > -1) {
 		[self editColumn:colIndex row:selected withEvent:[[self window] currentEvent] select:YES];
-	} else NSBeep();
+	} else {
+		NSBeep();
+	}
 }
 
 - (NoteAttributeColumn*)noteAttributeColumnForIdentifier:(NSString*)identifier {
@@ -430,13 +452,13 @@
 }
 
 - (BOOL)addPermanentTableColumn:(NSTableColumn*)column {
-	if ([globalPrefs horizontalLayout]) {
-		NSBeep();
-		return NO;
+	if (![globalPrefs horizontalLayout]) {
+		[self addTableColumn:column];
 	}
-	
-	[self addTableColumn:column];
 	[globalPrefs addTableColumn:[column identifier] sender:self];
+	
+	if ([globalPrefs horizontalLayout]) //for now, for extending rowheight when tags are shown/hidden
+		[self _configureAttributesForCurrentLayout];
 	
 	if ([[column identifier] isEqualToString:[globalPrefs sortedTableColumnKey]]) {
 		[(NoteAttributeColumn*)[self highlightedTableColumn] updateWidthForHighlight];
@@ -491,13 +513,21 @@
 
 - (IBAction)actionHideShowColumn:(id)sender {
     NSTableColumn *column = [sender representedObject]; 
-    if ([[self tableColumns] containsObject:column]) {
+	
+	if ([globalPrefs horizontalLayout] && [[column identifier] isEqualToString:NoteTitleColumnString]) {
+		NSBeep();
+		return;
+	}
 		
-		if ([self numberOfColumns] > 1) {
+    if ([[globalPrefs visibleTableColumns] containsObject:[column identifier]]) {
+		
+		if ([[globalPrefs visibleTableColumns] count] > 1) {
 			[self abortEditing];
 			[self removeTableColumn:column];
 			[globalPrefs removeTableColumn:[column identifier] sender:self];
 			viewMenusValid = NO;
+			if ([globalPrefs horizontalLayout]) //for now, in case we are hiding tags when previews are not visible
+				[self _configureAttributesForCurrentLayout];
 		} else {
 			NSBeep();
 		}
@@ -509,11 +539,11 @@
 		
 		NSArray *cols = [self tableColumns];
 		
-		unsigned addedColIndex = [cols indexOfObjectIdenticalTo:column];
-		unsigned clickedColIndex = [sender tag];
+		NSUInteger addedColIndex = [cols indexOfObjectIdenticalTo:column];
+		NSInteger clickedColIndex = [sender tag];
 		
-		if (clickedColIndex < [cols count] && addedColIndex < [cols count])
-			[self moveColumn:addedColIndex toColumn:clickedColIndex+1];
+		if ((NSUInteger)clickedColIndex < [cols count] && addedColIndex < [cols count])
+			[self moveColumn:addedColIndex toColumn:clickedColIndex + 1];
     }
     
     [self sizeToFit];
@@ -547,7 +577,8 @@
 - (NSMenu *)menuForColumnConfiguration:(NSTableColumn *)inSelectedColumn {
     NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@""] autorelease];
     
-    NSArray *cols = [self tableColumns];
+	NSArray *prefsCols = [globalPrefs visibleTableColumns];
+	
     NSEnumerator *theEnumerator = [allColumns objectEnumerator];
     NSTableColumn *theColumn = nil;
     while ((theColumn = [theEnumerator nextObject]) != nil) {
@@ -556,9 +587,8 @@
 													   keyEquivalent:@""] autorelease];
 		[theMenuItem setTarget:self];
 		[theMenuItem setRepresentedObject:theColumn];
-		[theMenuItem setState:[cols containsObject:theColumn]];
-		[theMenuItem setTag:(inSelectedColumn ? [cols indexOfObjectIdenticalTo:inSelectedColumn] : 0)];
-		[theMenuItem setEnabled:![globalPrefs horizontalLayout]];
+		[theMenuItem setState:[prefsCols containsObject:[theColumn identifier]]];
+		[theMenuItem setTag:(inSelectedColumn ? [[self tableColumns] indexOfObjectIdenticalTo:inSelectedColumn] : 0)];
 		
 		[theMenu addItem:theMenuItem];
     }
@@ -977,6 +1007,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	} else if (type == NSKeyDown) {
 		
 		//activated either using the shortcut or using tab, when there was already an editor, and the last event invoked rename
+		//checking for the keyboard equivalent here is redundant in theory
 		
 		return ([event firstCharacter] == 't' && ([event modifierFlags] & (NSShiftKeyMask | NSCommandKeyMask)) != 0) || 
 		([event firstCharacter] == NSTabCharacter && !lastEventActivatedTagEdit && [self currentEditor]);
@@ -996,26 +1027,27 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	return lastEventActivatedTagEdit;
 }
 
-- (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)theEvent select:(BOOL)flag {
+- (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)event select:(BOOL)flag {
 
 	BOOL isTitleCol = [self columnWithIdentifier:NoteTitleColumnString] == columnIndex;
 	
-	//if theEvent's mouselocation is inside rowIndex cell's tag rect and this edit is in horizontal mode in the title column
-	BOOL tagsInTitleColumn = [globalPrefs horizontalLayout] && isTitleCol && [self eventIsTagEdit:theEvent forColumn:columnIndex row:rowIndex];
-
+	//if event's mouselocation is inside rowIndex cell's tag rect and this edit is in horizontal mode in the title column
+	BOOL tagsInTitleColumn = [globalPrefs horizontalLayout] && ((isTitleCol && [self eventIsTagEdit:event forColumn:columnIndex row:rowIndex]) ||
+																SYNTHETIC_TAGS_COLUMN_INDEX == columnIndex);
+	
 	if ([self editedRow] == rowIndex && [self currentEditor]) {
 		//this row is currently being edited; finish editing before start it again anywhere else
 		[[self window] makeFirstResponder:self];
 	}
 	lastEventActivatedTagEdit = tagsInTitleColumn;
 	
-	[super editColumn:columnIndex row:rowIndex withEvent:theEvent select:flag];
+	[super editColumn:tagsInTitleColumn ? 0 : columnIndex row:rowIndex withEvent:event select:flag];
 	
 	//become/resignFirstResponder can't handle the field-editor case for row-highlighting style, so do it here:
 	[self updateTitleDereferencorState];
 	
 	//this is way easier and faster than a custom formatter! just change the title while we're editing!
-	if (isTitleCol) {
+	if (isTitleCol || tagsInTitleColumn) {
 		NoteObject *note = [(FastListDataSource*)[self dataSource] immutableObjects][rowIndex];
 		
 		NSTextView *editor = (NSTextView*)[self currentEditor];

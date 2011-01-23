@@ -100,6 +100,7 @@ void outletObjectAwoke(id sender);
 - (void)_setCurrentNote:(NoteObject*)aNote;
 - (void)_expandToolbar;
 - (void)_collapseToolbar;
+- (void)_forceRegeneratePreviewsForTitleColumn;
 - (void)_configureDividerForCurrentLayout;
 - (NoteObject*)selectedNoteObject;
 

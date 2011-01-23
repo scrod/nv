@@ -639,6 +639,8 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 
 - (void)removeTableColumn:(NSString*)columnKey sender:(id)sender {
 	[tableColumns removeObject:columnKey];
+	tableColsBitmap = 0U;
+	
 	[defaults setObject:tableColumns forKey:TableColumnsVisibleKey];
 	
 	SEND_CALLBACKS();
@@ -646,6 +648,8 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 - (void)addTableColumn:(NSString*)columnKey sender:(id)sender {
 	if (![tableColumns containsObject:columnKey]) {
 		[tableColumns addObject:columnKey];
+		tableColsBitmap = 0U;
+		
 		[defaults setObject:tableColumns forKey:TableColumnsVisibleKey];
 		
 		SEND_CALLBACKS();
@@ -653,13 +657,30 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 }
 
 - (NSArray*)visibleTableColumns {
-	if (!tableColumns)
+	if (!tableColumns) {
 		tableColumns = [[NSMutableArray arrayWithArray:[defaults arrayForKey:TableColumnsVisibleKey]] retain];
+		tableColsBitmap = 0U;
+	}
 	
 	if (![tableColumns count])
 		[self addTableColumn:NoteTitleColumnString sender:self];
 		
 	return tableColumns;
+}
+
+
+- (unsigned int)tableColumnsBitmap {
+	if (tableColsBitmap == 0U) {
+		if ([tableColumns containsObject:NoteTitleColumnString])
+			tableColsBitmap = (tableColsBitmap | (1 << NoteTitleColumn));
+		if ([tableColumns containsObject:NoteLabelsColumnString])
+			tableColsBitmap = (tableColsBitmap | (1 << NoteLabelsColumn));
+		if ([tableColumns containsObject:NoteDateModifiedColumnString])
+			tableColsBitmap = (tableColsBitmap | (1 << NoteDateModifiedColumn));
+		if ([tableColumns containsObject:NoteDateCreatedColumnString])
+			tableColsBitmap = (tableColsBitmap | (1 << NoteDateCreatedColumn));		
+	}
+	return tableColsBitmap;
 }
 
 - (void)setSortedTableColumnKey:(NSString*)sortedKey reversed:(BOOL)reversed sender:(id)sender {

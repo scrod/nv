@@ -110,10 +110,15 @@ static NSDictionary *LineTruncAttributes() {
 
 NSDictionary *LineTruncAttributesForTitle() {
 	if (!titleTruncAttrs) {
-		titleTruncAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:[LineBreakingStyle() mutableCopy], NSParagraphStyleAttributeName, 
+		unsigned int bitmap = [[GlobalPrefs defaultPrefs] tableColumnsBitmap];
+		
+		titleTruncAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:[[LineBreakingStyle() mutableCopy] autorelease], NSParagraphStyleAttributeName, 
 							[NSFont boldSystemFontOfSize:[[GlobalPrefs defaultPrefs] tableFontSize]], NSFontAttributeName, nil] retain];
-		//account for right-"aligned" date string, which will be relatively constant, so this can be cached
-		[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent:-55.0];
+		
+		if (ColumnIsSet(NoteDateCreatedColumn, bitmap) || ColumnIsSet(NoteDateModifiedColumn, bitmap)) {
+			//account for right-"aligned" date string, which will be relatively constant, so this can be cached
+			[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent:-55.0];
+		}
 	}
 	return titleTruncAttrs;
 }

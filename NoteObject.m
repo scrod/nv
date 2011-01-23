@@ -693,7 +693,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if ([prefs horizontalLayout]) {
 			//labelsPreviewImage does work only when the image is explicitly invalidated, and because updateTablePreviewString 
 			//is called for visible notes at launch and resize only, generation of images for invisible notes is delayed until after launch
-			NSImage *img = [self labelsPreviewImage];
+			
+			NSImage *img = ColumnIsSet(NoteLabelsColumn, [prefs tableColumnsBitmap]) ? [self labelsPreviewImage] : nil;
 			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] 
 																	 intrusionWidth:img ? [img size].width : 0.0] retain];
 		} else {

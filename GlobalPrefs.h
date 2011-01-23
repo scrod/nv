@@ -33,6 +33,11 @@ extern NSString *NVPTFPboardType;
 @class PTKeyCombo;
 @class PTHotKey;
 
+enum { NoteTitleColumn, NoteLabelsColumn, NoteDateModifiedColumn, NoteDateCreatedColumn };
+
+#define ColumnIsSet(__ColumnEnum, __columnsBitmap) (((1 << __ColumnEnum) & __columnsBitmap) != 0)
+
+
 BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 
 @interface GlobalPrefs : NSObject {
@@ -52,6 +57,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 	BOOL autoCompleteSearches;
 	
 	NSMutableArray *tableColumns;
+	unsigned int tableColsBitmap;
 }
 
 + (GlobalPrefs *)defaultPrefs;
@@ -67,6 +73,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 - (void)removeTableColumn:(NSString*)columnKey sender:(id)sender;
 - (void)addTableColumn:(NSString*)columnKey sender:(id)sender;
 - (NSArray*)visibleTableColumns;
+- (unsigned int)tableColumnsBitmap;
 
 - (void)setSortedTableColumnKey:(NSString*)sortedKey reversed:(BOOL)reversed sender:(id)sender;
 - (NSString*)sortedTableColumnKey;

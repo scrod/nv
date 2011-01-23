@@ -188,28 +188,39 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		[baseAttrs setObject:ShadowForSnowLeopard() forKey:NSShadowAttributeName];
 	}
 	
-	//if the sort-order is date-created, then show the date on which this note was created; otherwise show date modified.
-	BOOL isSortedByDateCreated = [[[GlobalPrefs defaultPrefs] sortedTableColumnKey] isEqualToString:NoteDateCreatedColumnString];
-	id (*dateReferencor)(id, id, NSInteger) = isSortedByDateCreated ? dateCreatedStringOfNote : dateModifiedStringOfNote;
-	NSString *dateStr = dateReferencor(tv, noteObject, NSNotFound);
-	
 	float fontHeight = [tv tableFontHeight];
 	
-	[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
-
-	NSImage *img = ([self isHighlighted] && isActive) ? [noteObject highlightedLabelsPreviewImage] : [noteObject labelsPreviewImage];
+	//if the sort-order is date-created, then show the date on which this note was created; otherwise show date modified.
+	unsigned int columnsBitmap = [[GlobalPrefs defaultPrefs] tableColumnsBitmap];
 	
-	if (img) {
-		NSRect rect = [self nv_tagsRectForFrame:cellFrame andImage:img];
-		rect = [controlView centerScanRect:rect];
+	if (ColumnIsSet(NoteDateCreatedColumn, columnsBitmap) || ColumnIsSet(NoteDateModifiedColumn, columnsBitmap)) {
+		BOOL showDateCreated = NO;
 		
-		//clip the tags image within the bounds of the cell so that narrow columns look nicer
-		[NSGraphicsContext saveGraphicsState];
-		NSRectClip(cellFrame);
+		if (ColumnIsSet(NoteDateCreatedColumn, columnsBitmap) && ColumnIsSet(NoteDateModifiedColumn, columnsBitmap)) {
+			showDateCreated = [[[GlobalPrefs defaultPrefs] sortedTableColumnKey] isEqualToString:NoteDateCreatedColumnString];
+		} else if (ColumnIsSet(NoteDateCreatedColumn, columnsBitmap)) {
+			showDateCreated = YES;
+		}
 		
-		[img compositeToPoint:rect.origin operation:NSCompositeSourceOver];
+		NSString *dateStr = (showDateCreated ? dateCreatedStringOfNote : dateModifiedStringOfNote)(tv, noteObject, NSNotFound);
+		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
+	}
+
+	if (ColumnIsSet(NoteLabelsColumn, columnsBitmap)) {
+		NSImage *img = ([self isHighlighted] && isActive) ? [noteObject highlightedLabelsPreviewImage] : [noteObject labelsPreviewImage];
 		
-		[NSGraphicsContext restoreGraphicsState];
+		if (img) {
+			NSRect rect = [self nv_tagsRectForFrame:cellFrame andImage:img];
+			rect = [controlView centerScanRect:rect];
+			
+			//clip the tags image within the bounds of the cell so that narrow columns look nicer
+			[NSGraphicsContext saveGraphicsState];
+			NSRectClip(cellFrame);
+			
+			[img compositeToPoint:rect.origin operation:NSCompositeSourceOver];
+			
+			[NSGraphicsContext restoreGraphicsState];
+		}
 	}
 	
 	if ([tv currentEditor] && [self isHighlighted]) {
@@ -224,12 +235,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		
 		//draw a slightly different focus ring than what would have been drawn
 		NSRect rect = [tv lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:cellFrame andImage:nil] : [self nv_titleRectForFrame:cellFrame];
-
-		if ([tv lastEventActivatedTagEdit]) {
-			rect = NSInsetRect(rect, -2, -1);
-		} else {
-			rect = NSInsetRect(rect, -2, -1);
-		}
+		rect = NSInsetRect(rect, -2, -1);
 		
 		[NSGraphicsContext saveGraphicsState];
 		NSBezierPath *path = [NSBezierPath bezierPathWithRect:rect];

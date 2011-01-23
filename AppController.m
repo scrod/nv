@@ -279,6 +279,8 @@ void outletObjectAwoke(id sender) {
 	 @selector(setNoteBodyFont:sender:),  //when to tell notationcontroller to restyle its notes
 	 @selector(setForegroundTextColor:sender:),  //ditto
 	 @selector(setTableFontSize:sender:),  //when to tell notationcontroller to regenerate the (now potentially too-short) note-body previews
+	 @selector(addTableColumn:sender:),  //ditto
+	 @selector(removeTableColumn:sender:),  //ditto
 	 @selector(setTableColumnsShowPreview:sender:),  //when to tell notationcontroller to generate or disable note-body previews
 	 @selector(setConfirmNoteDeletion:sender:),  //whether "delete note" should have an ellipsis
 	 @selector(setAutoCompleteSearches:sender:), nil];   //when to tell notationcontroller to build its title-prefix connections
@@ -342,9 +344,8 @@ terminateApp:
 		if ([notationController aliasNeedsUpdating]) {
 			[prefsController setAliasDataForDefaultDirectory:[notationController aliasDataForNoteDirectory] sender:self];
 		}
-		if ([[GlobalPrefs defaultPrefs] tableColumnsShowPreview] || [[GlobalPrefs defaultPrefs] horizontalLayout]) {
-			[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString] 
-										visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
+		if ([prefsController tableColumnsShowPreview] || [prefsController horizontalLayout]) {
+			[self _forceRegeneratePreviewsForTitleColumn];
 			[notesTableView setNeedsDisplay:YES];
 		}
 		[titleBarButton setMenu:[[notationController syncSessionController] syncStatusMenu]];
@@ -430,7 +431,7 @@ terminateApp:
 							  NSLocalizedString(@"Delete", nil), trailingQualifier]];
 	}
 	
-	NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTitle:@"View"] submenu];
+	NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTag:99] submenu];
 	
 	menuIndex = [viewMenu indexOfItemWithTarget:notesTableView andAction:@selector(toggleNoteBodyPreviews:)];
 	NSMenuItem *bodyPreviewItem = nil;
@@ -446,6 +447,11 @@ terminateApp:
 		 NSLocalizedString(@"Switch to Vertical Layout", @"title of alternate view layout menu item") : 
 		 NSLocalizedString(@"Switch to Horizontal Layout", @"title of view layout menu item")];		
 	}
+}
+
+- (void)_forceRegeneratePreviewsForTitleColumn {
+	[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString]	
+								visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
 }
 
 - (void)_configureDividerForCurrentLayout {
@@ -656,12 +662,15 @@ terminateApp:
 		ResetFontRelatedTableAttributes();
 		[notesTableView updateTitleDereferencorState];
 		[notationController invalidateAllLabelPreviewImages];
-		[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString]	
-									visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
+		[self _forceRegeneratePreviewsForTitleColumn];
 				
 		if ([selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) [self updateNoteMenus];
 		
 		[notesTableView performSelector:@selector(reloadData) withObject:nil afterDelay:0];
+	} else if ([selectorString isEqualToString:SEL_STR(addTableColumn:sender:)] || [selectorString isEqualToString:SEL_STR(removeTableColumn:sender:)]) {
+		
+		ResetFontRelatedTableAttributes();
+		[self _forceRegeneratePreviewsForTitleColumn];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setConfirmNoteDeletion:sender:)]) {
 		[self updateNoteMenus];
