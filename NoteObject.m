@@ -991,13 +991,19 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		//compute dimensions of each word first using nslayoutmanager; -sizeWithAttributes: likes to ignore the font and size here for some reason
 
-		NSTextStorage *textStorage = [[NSTextStorage alloc] initWithString:@"" attributes:attrs];
-		NSTextContainer *textContainer = [[NSTextContainer alloc] initWithContainerSize:NSMakeSize(1e7, 1e7)];
-		NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
+		static NSTextStorage *textStorage = nil;
+		static NSTextContainer *textContainer = nil; 
+		static NSLayoutManager *layoutManager = nil; 
 		
-		[textContainer setLineFragmentPadding:0.0];
-		[layoutManager addTextContainer:textContainer];
-		[textStorage addLayoutManager:layoutManager];
+		if (!layoutManager) {
+			textStorage = [[NSTextStorage alloc] initWithString:@"" attributes:attrs];
+			textContainer = [[NSTextContainer alloc] initWithContainerSize:NSMakeSize(1e7, 1e7)];
+			layoutManager = [[NSLayoutManager alloc] init];
+			
+			[textContainer setLineFragmentPadding:0.0];
+			[layoutManager addTextContainer:textContainer];
+			[textStorage addLayoutManager:layoutManager];
+		}
 				
 		NSArray *words = [self orderedLabelTitles];
 		if (![words count])
@@ -1045,11 +1051,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[blocksPath fill];
 		
 		[img unlockFocus];
-		
-		[textContainer release];
-		[layoutManager release];
-		[textStorage release];
-		
+				
 		return [img autorelease];
 	}
 	return nil;

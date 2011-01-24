@@ -671,6 +671,7 @@ terminateApp:
 		
 		ResetFontRelatedTableAttributes();
 		[self _forceRegeneratePreviewsForTitleColumn];
+		[notesTableView performSelector:@selector(reloadDataIfNotEditing) withObject:nil afterDelay:0];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setConfirmNoteDeletion:sender:)]) {
 		[self updateNoteMenus];

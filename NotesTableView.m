@@ -420,10 +420,6 @@
 		//default to editing title if this is attempted in horizontal mode for any column other than tags
 		//(which currently are the only two editable columns, anyway)
 		colIndex = [identifier isEqualToString:NoteLabelsColumnString] ? SYNTHETIC_TAGS_COLUMN_INDEX : 0;
-		
-		if (SYNTHETIC_TAGS_COLUMN_INDEX == colIndex && !ColumnIsSet(NoteLabelsColumn, [globalPrefs tableColumnsBitmap])) {
-			[self addPermanentTableColumn:[self noteAttributeColumnForIdentifier:NoteLabelsColumnString]];
-		}
 	} else if ((colIndex = [self columnWithIdentifier:identifier]) < 0) {
 		//always move title column to 0 index
 		NSInteger newColIndex = (NSInteger)(![identifier isEqualToString:NoteTitleColumnString]);
@@ -1063,6 +1059,10 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		[[self window] makeFirstResponder:self];
 	}
 	lastEventActivatedTagEdit = tagsInTitleColumn;
+	
+	if (tagsInTitleColumn && !ColumnIsSet(NoteLabelsColumn, [globalPrefs tableColumnsBitmap])) {
+		[self addPermanentTableColumn:[self noteAttributeColumnForIdentifier:NoteLabelsColumnString]];
+	}
 	
 	[super editColumn:tagsInTitleColumn ? 0 : columnIndex row:rowIndex withEvent:event select:flag];
 	

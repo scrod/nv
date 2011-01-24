@@ -110,10 +110,14 @@ static NSDictionary *LineTruncAttributes() {
 
 NSDictionary *LineTruncAttributesForTitle() {
 	if (!titleTruncAttrs) {
-		unsigned int bitmap = [[GlobalPrefs defaultPrefs] tableColumnsBitmap];
+		GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
+		unsigned int bitmap = [prefs tableColumnsBitmap];
+		float fontSize = [prefs tableFontSize];
+		BOOL usesBold = ColumnIsSet(NoteLabelsColumn, bitmap) || ColumnIsSet(NoteDateCreatedColumn, bitmap) ||
+		ColumnIsSet(NoteDateModifiedColumn, bitmap) || [prefs tableColumnsShowPreview];
 		
 		titleTruncAttrs = [[NSDictionary dictionaryWithObjectsAndKeys:[[LineBreakingStyle() mutableCopy] autorelease], NSParagraphStyleAttributeName, 
-							[NSFont boldSystemFontOfSize:[[GlobalPrefs defaultPrefs] tableFontSize]], NSFontAttributeName, nil] retain];
+							(usesBold ? [NSFont boldSystemFontOfSize:fontSize] : [NSFont systemFontOfSize:fontSize]), NSFontAttributeName, nil] retain];
 		
 		if (ColumnIsSet(NoteDateCreatedColumn, bitmap) || ColumnIsSet(NoteDateModifiedColumn, bitmap)) {
 			//account for right-"aligned" date string, which will be relatively constant, so this can be cached
