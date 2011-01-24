@@ -182,13 +182,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 - (NSArray*)labelCompatibleWords {
 	NSArray *array = nil;
 	if (IsLeopardOrLater) {
-		static NSMutableCharacterSet *charSet = nil;
-		if (!charSet) {
-			charSet = [[NSMutableCharacterSet whitespaceCharacterSet] retain];
-			[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
-		}
-		
-		array = [self componentsSeparatedByCharactersInSet:charSet];
+		array = [self componentsSeparatedByCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
 	} else {
 		BOOL lacksSpace = [self rangeOfString:@" " options:NSLiteralSearch].location == NSNotFound;
 		array = [self componentsSeparatedByString: lacksSpace ? @"," : @" "];
@@ -718,6 +712,16 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 @end
 
 @implementation NSCharacterSet (NV)
+
++ (NSCharacterSet*)labelSeparatorCharacterSet {
+	static NSMutableCharacterSet *charSet = nil;
+	if (!charSet) {
+		charSet = [[NSMutableCharacterSet whitespaceCharacterSet] retain];
+		[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
+	}
+
+	return charSet;
+}
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 + (id)newlineCharacterSet {
