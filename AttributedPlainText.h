@@ -21,6 +21,7 @@
 #define SEPARATE_ATTRS 0
 
 extern NSString *NVHiddenDoneTagAttributeName;
+extern NSString *NVHiddenBulletIndentAttributeName;
 
 @interface NSMutableAttributedString (AttributedPlainText)
 

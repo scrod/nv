@@ -35,7 +35,7 @@ extern NSString *NVPTFPboardType;
 
 enum { NoteTitleColumn, NoteLabelsColumn, NoteDateModifiedColumn, NoteDateCreatedColumn };
 
-#define ColumnIsSet(__ColumnEnum, __columnsBitmap) (((1 << __ColumnEnum) & __columnsBitmap) != 0)
+#define ColumnIsSet(__ColumnEnum, __columnsBitmap) (((1 << (__ColumnEnum)) & (__columnsBitmap)) != 0)
 
 
 BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
@@ -123,6 +123,9 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 
 - (BOOL)autoIndentsNewLines;
 - (void)setAutoIndentsNewLines:(BOOL)value sender:(id)sender;
+
+- (BOOL)autoFormatsListBullets;
+- (void)setAutoFormatsListBullets:(BOOL)value sender:(id)sender;
 
 - (void)setLinksAutoSuggested:(BOOL)value sender:(id)sender;
 - (BOOL)linksAutoSuggested;

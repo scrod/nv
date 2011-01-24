@@ -81,6 +81,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 @interface NSCharacterSet (NV)
 
 + (NSCharacterSet*)labelSeparatorCharacterSet;
++ (NSCharacterSet*)listBulletsCharacterSet;
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 + (id)newlineCharacterSet;

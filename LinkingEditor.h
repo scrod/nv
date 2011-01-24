@@ -69,6 +69,9 @@
 - (void)fixTypingAttributesForSubstitutedFonts;
 - (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside;
 
+- (BOOL)_selectionAbutsBulletIndentRange;
+- (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange;
+
 - (void)setupFontMenu;
 
 - (BOOL)didRenderFully;

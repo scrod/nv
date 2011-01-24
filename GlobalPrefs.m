@@ -46,6 +46,7 @@ static NSString *QuitWhenClosingMainWindowKey = @"QuitWhenClosingMainWindow";
 static NSString *TabKeyIndentsKey = @"TabKeyIndents";
 static NSString *PastePreservesStyleKey = @"PastePreservesStyle";
 static NSString *AutoFormatsDoneTagKey = @"AutoFormatsDoneTag";
+static NSString *AutoFormatsListBulletsKey = @"AutoFormatsListBullets";
 static NSString *AutoSuggestLinksKey = @"AutoSuggestLinks";
 static NSString *AutoIndentsNewLinesKey = @"AutoIndentsNewLines";
 static NSString *HighlightSearchTermsKey = @"HighlightSearchTerms";
@@ -103,6 +104,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:YES], AutoSuggestLinksKey,
 			[NSNumber numberWithBool:YES], AutoFormatsDoneTagKey, 
 			[NSNumber numberWithBool:YES], AutoIndentsNewLinesKey, 
+			[NSNumber numberWithBool:YES], AutoFormatsListBulletsKey,
 			[NSNumber numberWithBool:NO], UseSoftTabsKey,
 			[NSNumber numberWithInt:4], NumberOfSpacesInTabKey,
 			[NSNumber numberWithBool:YES], PastePreservesStyleKey,
@@ -345,6 +347,15 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (BOOL)autoFormatsDoneTag {
 	return [defaults boolForKey:AutoFormatsDoneTagKey];
 }
+- (BOOL)autoFormatsListBullets {
+	return [defaults boolForKey:AutoFormatsListBulletsKey];
+}
+- (void)setAutoFormatsListBullets:(BOOL)value sender:(id)sender {
+	[defaults setBool:value forKey:AutoFormatsListBulletsKey];
+	
+	SEND_CALLBACKS();
+}
+
 - (BOOL)autoIndentsNewLines {
 	return [defaults boolForKey:AutoIndentsNewLinesKey];
 }

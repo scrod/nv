@@ -848,21 +848,31 @@ copyRTFType:
 	[self selectedRangeWasAutomatic:&wasAutomatic];
 	
 	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length] || didChangeIntoAutomaticRange)) {
-		[self insertTabIgnoringFieldEditor:sender];		
+		[self insertTabIgnoringFieldEditor:sender];
 	} else {
 		[[self window] selectNextKeyView:self];
 	}
 }
 
 - (void)insertBacktab:(id)sender {
-	[[self window] selectPreviousKeyView:self];
+	//check temporary NVHiddenBulletIndentAttributeName here first
+	
+	if ([prefsController autoFormatsListBullets] && [self _selectionAbutsBulletIndentRange]) {
+		
+		[self shiftLeftAction:nil];
+	} else {
+	
+		[[self window] selectPreviousKeyView:self];
+	}
 }
 
 - (void)insertTabIgnoringFieldEditor:(id)sender {
 	
 	NSRange range = [self selectedRange];
-	if (range.length > 0 && [[self string] rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] options:NSLiteralSearch range:range].location != NSNotFound) {
-		//tab shifts text only if there is more than one line selected (i.e., the selection contains at least one line break)
+	if ((range.length > 0 && [[self string] rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet] 
+														   options:NSLiteralSearch range:range].location != NSNotFound) ||
+		([prefsController autoFormatsListBullets] && [self _selectionAbutsBulletIndentRange])) {
+		//tab shifts text only if there is more than one line selected (i.e., the selection contains at least one line break), or an indented bullet is near
 		
 		[self shiftRightAction:nil];
 		
@@ -1320,6 +1330,31 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	}
 }
 
+- (BOOL)_selectionAbutsBulletIndentRange {
+
+	NSRange range = [self selectedRange];
+	NSRange backBulletRange = NSMakeRange(range.location - 2, 2);
+	NSRange frontBulletRange = NSMakeRange(range.location, 2);
+	
+	return ((backBulletRange.location > 0 && NSMaxRange(backBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:backBulletRange]) || 
+			(NSMaxRange(frontBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:frontBulletRange]));
+}
+
+- (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange {
+	NSRange effectiveRange = NSMakeRange(aRange.location, 0);
+	
+	while (NSMaxRange(effectiveRange) < NSMaxRange(aRange)) {
+		
+		if ([[self layoutManager] temporaryAttribute:NVHiddenBulletIndentAttributeName 
+									atCharacterIndex:NSMaxRange(effectiveRange) 
+									  effectiveRange:&effectiveRange] && NSEqualRanges(effectiveRange, aRange)) {
+			return YES;
+		}
+	}
+	
+	return NO;	
+}
+
 - (void)insertNewline:(id)sender {
 	//reset custom styles after each line
 	[self setTypingAttributes:[prefsController noteBodyAttributes]];
@@ -1328,12 +1363,47 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	
 	if ([prefsController autoIndentsNewLines]) {
 		// If we should indent automatically, check the previous line and scan all the whitespace at the beginning of the line into a string and insert that string into the new line
-		//NSString *lastLineString = [[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]];
-		NSString *previousLineWhitespaceString;
-		NSScanner *previousLineScanner = [[NSScanner alloc] initWithString:[[self string] substringWithRange:[[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)]]];
-		[previousLineScanner setCharactersToBeSkipped:nil];		
+		NSString *previousLineWhitespaceString = nil;
+		NSRange previousLineRange = [[self string] lineRangeForRange:NSMakeRange([self selectedRange].location - 1, 0)];
+		NSScanner *previousLineScanner = [[NSScanner alloc] initWithString:[[self string] substringWithRange:previousLineRange]];
+		[previousLineScanner setCharactersToBeSkipped:nil];
+		
 		if ([previousLineScanner scanCharactersFromSet:[NSCharacterSet whitespaceCharacterSet] intoString:&previousLineWhitespaceString]) {
-			[self insertText:previousLineWhitespaceString];
+			//for propagating list-element, look for bullet-type-character + 1charWS + at-least-one-nonWSChar
+			
+			NSUInteger loc = [previousLineScanner scanLocation];
+			NSString *str = [previousLineScanner string];
+			unichar bulletChar, wsChar;
+			NSRange realBulletRange = NSMakeRange(loc + previousLineRange.location, 2), carriedBulletRange = NSMakeRange(NSNotFound, 0);
+			BOOL shouldDeleteLastBullet = NO;
+			
+			if ([prefsController autoFormatsListBullets]) {
+				if (loc + 2 < [str length] && ![previousLineScanner isAtEnd] &&
+					[[NSCharacterSet listBulletsCharacterSet] characterIsMember:(bulletChar = [str characterAtIndex:loc])] && 
+					[[NSCharacterSet whitespaceCharacterSet] characterIsMember:(wsChar = [str characterAtIndex:loc + 1])] &&
+					[[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet] characterIsMember:[str characterAtIndex:loc + 2]]) {
+					
+					carriedBulletRange = NSMakeRange(NSMaxRange(previousLineRange) + [previousLineWhitespaceString length], 2);
+					previousLineWhitespaceString = [previousLineWhitespaceString stringByAppendingFormat:@"%C%C", bulletChar, wsChar];
+					
+				} else if (NSMaxRange(realBulletRange) < [[self string] length] && [self _rangeIsAutoIdentedBullet:realBulletRange]) {
+					//should not carry a bullet; also check if one is here that we should delete
+					shouldDeleteLastBullet = YES;
+				}
+			}
+			
+			if (shouldDeleteLastBullet) {
+				//we had carried a bullet, but now it is no carried no more
+				//so instead of inserting the extra space, delete both that previously-carried-bullet and the newline added by -super up there
+				[[self textStorage] deleteCharactersInRange:NSMakeRange(realBulletRange.location, realBulletRange.length + 1)];
+			} else {
+				[self insertText:previousLineWhitespaceString];
+				if (carriedBulletRange.length) {
+					[[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName] 
+											   forCharacterRange:carriedBulletRange];
+					//[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:carriedBulletRange];
+				}
+			}
 		}
 		[previousLineScanner release];
 	}

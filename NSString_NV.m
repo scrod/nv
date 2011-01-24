@@ -192,7 +192,7 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	NSUInteger i;
 	for (i=0; i<[array count]; i++) {
 		NSString *aWord = [array objectAtIndex:i];
-		if ([aWord length] > 0 && ![aWord isEqualToString:@","]) {
+		if ([aWord length] > 0) {
 			[titles addObject:aWord];
 		}
 	}
@@ -721,6 +721,16 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	}
 
 	return charSet;
+}
+
++ (NSCharacterSet*)listBulletsCharacterSet {
+	static NSCharacterSet *charSet = nil;
+	if (!charSet) {
+		charSet = [[NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"-+*!%C%C%C", 0x2022, 0x2014, 0x2013]] retain];
+	}
+	
+	return charSet;
+	
 }
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
