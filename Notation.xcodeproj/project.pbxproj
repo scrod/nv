@@ -41,6 +41,10 @@
 		212DCB310A6AE38500F74E46 /* EncodingsManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 212DCB2F0A6AE38500F74E46 /* EncodingsManager.nib */; };
 		212DCF610A6DEECB00F74E46 /* DeletionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 212DCF600A6DEECB00F74E46 /* DeletionManager.m */; };
 		212DCFF70A6E005000F74E46 /* DeletionManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 212DCFF50A6E005000F74E46 /* DeletionManager.nib */; };
+		212EEA2812EFBD1800F89538 /* Atalhos Incrivelmente Úteis.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 212EEA2212EFBD1800F89538 /* Atalhos Incrivelmente Úteis.nvhelp */; };
+		212EEA2912EFBD1800F89538 /* Como funciona isso?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 212EEA2412EFBD1800F89538 /* Como funciona isso?.nvhelp */; };
+		212EEA2A12EFBD1800F89538 /* Este é o título de uma nota.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 212EEA2612EFBD1800F89538 /* Este é o título de uma nota.nvhelp */; };
+		212EEAC112F085DB00F89538 /* AutoHyperlinks.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 212EEAB812F085D100F89538 /* AutoHyperlinks.framework */; };
 		21317FAF1113840E00472211 /* Excruciatingly Useful Shortcuts.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21317FAD1113840E00472211 /* Excruciatingly Useful Shortcuts.nvhelp */; };
 		213621ED0B92413F008C0830 /* FindPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = 213621E70B92413F008C0830 /* FindPanel.nib */; };
 		213621F20B92414F008C0830 /* MultiTextFinder.m in Sources */ = {isa = PBXBuildFile; fileRef = 213621F00B92414F008C0830 /* MultiTextFinder.m */; };
@@ -102,7 +106,6 @@
 		219196C109D4F20100586B15 /* Remove_Pressed.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 219196BD09D4F20000586B15 /* Remove_Pressed.tiff */; };
 		219196C209D4F20100586B15 /* Remove.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 219196BE09D4F20000586B15 /* Remove.tiff */; };
 		2191982209D607C600586B15 /* PrefsWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2191982109D607C600586B15 /* PrefsWindowController.m */; };
-		2191BEA112E97BDA00972D58 /* AutoHyperlinks.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2191BE9312E97BC100972D58 /* AutoHyperlinks.framework */; };
 		219588D20961D7F200972B8C /* LinkingEditor.m in Sources */ = {isa = PBXBuildFile; fileRef = 219588D10961D7F200972B8C /* LinkingEditor.m */; };
 		219739FB0AFE42A10046683E /* PassphraseRetriever.m in Sources */ = {isa = PBXBuildFile; fileRef = 219739FA0AFE42A10046683E /* PassphraseRetriever.m */; };
 		21973A290AFE447A0046683E /* PassphraseRetriever.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21973A230AFE447A0046683E /* PassphraseRetriever.nib */; };
@@ -170,9 +173,6 @@
 		21F1CD980B3A3F77001FB5F6 /* PTHotKey.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CD970B3A3F77001FB5F6 /* PTHotKey.m */; };
 		21F1CD9F0B3A3F88001FB5F6 /* PTKeyComboPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21F1CD990B3A3F88001FB5F6 /* PTKeyComboPanel.nib */; };
 		21F1CDAD0B3A401F001FB5F6 /* PTKeyCombo.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CDAC0B3A401F001FB5F6 /* PTKeyCombo.m */; };
-		21F447F011B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447E811B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp */; };
-		21F447F111B896C4004D008B /* Como funciona isso?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447EA11B896C4004D008B /* Como funciona isso?.nvhelp */; };
-		21F447F211B896C4004D008B /* Este é o título de uma nota.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447EC11B896C4004D008B /* Este é o título de uma nota.nvhelp */; };
 		21F447F311B896C4004D008B /* Informações de Contato.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21F447EE11B896C4004D008B /* Informações de Contato.nvhelp */; };
 		21F459AD0A92E01D00FB6FFE /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21F4599B0A92E01C00FB6FFE /* Carbon.framework */; };
 		21FF94F30B5AD22800DB6A2F /* ExporterManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */; };
@@ -192,7 +192,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				2191BEA112E97BDA00972D58 /* AutoHyperlinks.framework in CopyFiles */,
+				212EEAC112F085DB00F89538 /* AutoHyperlinks.framework in CopyFiles */,
 				213623FC0B92AA6E008C0830 /* Sparkle.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -271,6 +271,10 @@
 		212DCF5F0A6DEECB00F74E46 /* DeletionManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DeletionManager.h; sourceTree = "<group>"; };
 		212DCF600A6DEECB00F74E46 /* DeletionManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = DeletionManager.m; sourceTree = "<group>"; };
 		212DCFF60A6E005000F74E46 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/DeletionManager.nib; sourceTree = "<group>"; };
+		212EEA2312EFBD1800F89538 /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Atalhos Incrivelmente Úteis.nvhelp"; sourceTree = "<group>"; };
+		212EEA2512EFBD1800F89538 /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Como funciona isso?.nvhelp"; sourceTree = "<group>"; };
+		212EEA2712EFBD1800F89538 /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Este é o título de uma nota.nvhelp"; sourceTree = "<group>"; };
+		212EEAB812F085D100F89538 /* AutoHyperlinks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = AutoHyperlinks.framework; sourceTree = "<group>"; };
 		21317FAE1113840E00472211 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = English; path = "English.lproj/Excruciatingly Useful Shortcuts.nvhelp"; sourceTree = "<group>"; };
 		213621E80B92413F008C0830 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/FindPanel.nib; sourceTree = "<group>"; };
 		213621EF0B92414F008C0830 /* MultiTextFinder.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MultiTextFinder.h; sourceTree = "<group>"; };
@@ -360,7 +364,6 @@
 		219196BE09D4F20000586B15 /* Remove.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = Remove.tiff; path = Images/Remove.tiff; sourceTree = "<group>"; };
 		2191982009D607C600586B15 /* PrefsWindowController.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PrefsWindowController.h; sourceTree = "<group>"; };
 		2191982109D607C600586B15 /* PrefsWindowController.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = PrefsWindowController.m; sourceTree = "<group>"; };
-		2191BE9312E97BC100972D58 /* AutoHyperlinks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = AutoHyperlinks.framework; sourceTree = "<group>"; };
 		219588D00961D7F200972B8C /* LinkingEditor.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = LinkingEditor.h; sourceTree = "<group>"; };
 		219588D10961D7F200972B8C /* LinkingEditor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LinkingEditor.m; sourceTree = "<group>"; };
 		219739F90AFE42A10046683E /* PassphraseRetriever.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PassphraseRetriever.h; sourceTree = "<group>"; };
@@ -490,9 +493,6 @@
 		21F1CD9A0B3A3F88001FB5F6 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/PTKeyComboPanel.nib; sourceTree = "<group>"; };
 		21F1CDAB0B3A401F001FB5F6 /* PTKeyCombo.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = PTKeyCombo.h; path = PTHotKeys/PTKeyCombo.h; sourceTree = "<group>"; };
 		21F1CDAC0B3A401F001FB5F6 /* PTKeyCombo.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; name = PTKeyCombo.m; path = PTHotKeys/PTKeyCombo.m; sourceTree = "<group>"; };
-		21F447E911B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Atalhos Incrivelmente Úteis.nvhelp"; sourceTree = "<group>"; };
-		21F447EB11B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Como funciona isso?.nvhelp"; sourceTree = "<group>"; };
-		21F447ED11B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Este é o título de uma nota.nvhelp"; sourceTree = "<group>"; };
 		21F447EF11B896C4004D008B /* Portuguese */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Portuguese; path = "Portuguese.lproj/Informações de Contato.nvhelp"; sourceTree = "<group>"; };
 		21F4481111B896FC004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/DeletionManager.nib; sourceTree = "<group>"; };
 		21F4481211B8971D004D008B /* Portuguese */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Portuguese; path = Portuguese.lproj/BlorPasswordRetriever.nib; sourceTree = "<group>"; };
@@ -638,7 +638,7 @@
 		1058C7A2FEA54F0111CA2CBB /* Other Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				2191BE9312E97BC100972D58 /* AutoHyperlinks.framework */,
+				212EEAB812F085D100F89538 /* AutoHyperlinks.framework */,
 				21B54C011134F2E800E163A1 /* IOKit.framework */,
 				213623E50B92AA4E008C0830 /* Sparkle.framework */,
 				210C07230B6BF0A1005D23A8 /* WebKit.framework */,
@@ -729,15 +729,15 @@
 		217DB1810B7CE5B9008CD564 /* Help Notes */ = {
 			isa = PBXGroup;
 			children = (
+				212EEA2212EFBD1800F89538 /* Atalhos Incrivelmente Úteis.nvhelp */,
+				212EEA2412EFBD1800F89538 /* Como funciona isso?.nvhelp */,
+				212EEA2612EFBD1800F89538 /* Este é o título de uma nota.nvhelp */,
 				2143331B12ECC4B2000F473B /* Dies ist der Titel einer Notiz.nvhelp */,
 				2143331D12ECC4B2000F473B /* Moglicherweise nutzliche Tastenkurzel.nvhelp */,
 				2143322412EC584E000F473B /* Ceci est le titre d'une note.nvhelp */,
 				2143322612EC584E000F473B /* Raccourcis incroyablement utiles.nvhelp */,
 				21286591128B14F10013820A /* Kontaktdaten.nvhelp */,
 				21286593128B14F10013820A /* Wie funktioniert dieses Programm?.nvhelp */,
-				21F447E811B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp */,
-				21F447EA11B896C4004D008B /* Como funciona isso?.nvhelp */,
-				21F447EC11B896C4004D008B /* Este é o título de uma nota.nvhelp */,
 				21F447EE11B896C4004D008B /* Informações de Contato.nvhelp */,
 				21E6EC1F111DD52B0038ECC7 /* Comment ça marche.nvhelp */,
 				21EA3697111C9AD900E2B517 /* Contact.nvhelp */,
@@ -1085,9 +1085,6 @@
 				21EA369C111C9AD900E2B517 /* Contact.nvhelp in Resources */,
 				21E6EC21111DD52B0038ECC7 /* Comment ça marche.nvhelp in Resources */,
 				57F27F7B11973A7F00C63ACF /* Notation.sdef in Resources */,
-				21F447F011B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp in Resources */,
-				21F447F111B896C4004D008B /* Como funciona isso?.nvhelp in Resources */,
-				21F447F211B896C4004D008B /* Este é o título de uma nota.nvhelp in Resources */,
 				21F447F311B896C4004D008B /* Informações de Contato.nvhelp in Resources */,
 				2128651E1278AF220013820A /* ServicesMenu.strings in Resources */,
 				21286597128B14F10013820A /* Kontaktdaten.nvhelp in Resources */,
@@ -1104,6 +1101,9 @@
 				2143322912EC584E000F473B /* Raccourcis incroyablement utiles.nvhelp in Resources */,
 				2143331F12ECC4B2000F473B /* Dies ist der Titel einer Notiz.nvhelp in Resources */,
 				2143332012ECC4B2000F473B /* Moglicherweise nutzliche Tastenkurzel.nvhelp in Resources */,
+				212EEA2812EFBD1800F89538 /* Atalhos Incrivelmente Úteis.nvhelp in Resources */,
+				212EEA2912EFBD1800F89538 /* Como funciona isso?.nvhelp in Resources */,
+				212EEA2A12EFBD1800F89538 /* Este é o título de uma nota.nvhelp in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1305,6 +1305,30 @@
 			name = DeletionManager.nib;
 			sourceTree = "<group>";
 		};
+		212EEA2212EFBD1800F89538 /* Atalhos Incrivelmente Úteis.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				212EEA2312EFBD1800F89538 /* Portuguese */,
+			);
+			name = "Atalhos Incrivelmente Úteis.nvhelp";
+			sourceTree = "<group>";
+		};
+		212EEA2412EFBD1800F89538 /* Como funciona isso?.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				212EEA2512EFBD1800F89538 /* Portuguese */,
+			);
+			name = "Como funciona isso?.nvhelp";
+			sourceTree = "<group>";
+		};
+		212EEA2612EFBD1800F89538 /* Este é o título de uma nota.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				212EEA2712EFBD1800F89538 /* Portuguese */,
+			);
+			name = "Este é o título de uma nota.nvhelp";
+			sourceTree = "<group>";
+		};
 		21317FAD1113840E00472211 /* Excruciatingly Useful Shortcuts.nvhelp */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -1504,30 +1528,6 @@
 				2128659C128B15390013820A /* German */,
 			);
 			name = PTKeyComboPanel.nib;
-			sourceTree = "<group>";
-		};
-		21F447E811B896C4004D008B /* Atalhos Incrivelmente Úteis.nvhelp */ = {
-			isa = PBXVariantGroup;
-			children = (
-				21F447E911B896C4004D008B /* Portuguese */,
-			);
-			name = "Atalhos Incrivelmente Úteis.nvhelp";
-			sourceTree = "<group>";
-		};
-		21F447EA11B896C4004D008B /* Como funciona isso?.nvhelp */ = {
-			isa = PBXVariantGroup;
-			children = (
-				21F447EB11B896C4004D008B /* Portuguese */,
-			);
-			name = "Como funciona isso?.nvhelp";
-			sourceTree = "<group>";
-		};
-		21F447EC11B896C4004D008B /* Este é o título de uma nota.nvhelp */ = {
-			isa = PBXVariantGroup;
-			children = (
-				21F447ED11B896C4004D008B /* Portuguese */,
-			);
-			name = "Este é o título de uma nota.nvhelp";
 			sourceTree = "<group>";
 		};
 		21F447EE11B896C4004D008B /* Informações de Contato.nvhelp */ = {

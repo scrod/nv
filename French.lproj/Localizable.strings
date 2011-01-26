@@ -608,6 +608,21 @@
 /* date added/created column name */
 "Date Added" = "Date d'ajout";
 
+/* tooltip string for search/title field */
+"Go back to search; press %@-D to deselect" = "Revenir à la recherche; pressez %@-D pour déselectionner"
+
+/* tooltip string for search/title field */
+"Now searching for this text" = "Recherche de ce texte";
+
+/* tooltip string for search/title field */
+"Clear the search; press ESC" = "Réinitialiser la recherche; pressez ESC";
+
+/* tooltip string for search/title field */
+"Type any text to search; press Return to create a note" = "Tapez du texte pour le chercher; Appuyez sur Entrée pour créer une note";
+
+/* tooltip string for search/title field */
+"Now editing this note; rename it with %@-R" = "Édition de cette note; Renommez-la avec %@-R";
+
 /* default files name */
 "Excruciatingly Useful Shortcuts" = "Raccourcis incroyablement utiles";
 "Contact Information" = "Contact";
@@ -629,4 +644,4 @@
 "Importing content..." = "Importation du contenu…";
 
 /* prefix for source-URLs inserted into imported notes; e.g., "From <http://www.apple.com>: ..." */
-"From" = "From";
+"From" = "De";
