@@ -404,6 +404,10 @@ terminateApp:
 		
 		return (numberSelected == 1);
 		
+	} else if (selector == @selector(revealNote:)) {
+	
+		return (numberSelected == 1) && [notationController currentNoteStorageFormat] != SingleDatabaseFormat;
+		
 	} else if (selector == @selector(fixFileEncoding:)) {
 		
 		return (currentNote != nil && storageFormatOfNote(currentNote) == PlainTextFormat && ![currentNote contentsWere7Bit]);
@@ -431,7 +435,7 @@ terminateApp:
 							  NSLocalizedString(@"Delete", nil), trailingQualifier]];
 	}
 	
-	NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTag:99] submenu];
+	NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTag:VIEW_MENU_ID] submenu];
 	
 	menuIndex = [viewMenu indexOfItemWithTarget:notesTableView andAction:@selector(toggleNoteBodyPreviews:)];
 	NSMenuItem *bodyPreviewItem = nil;
@@ -571,6 +575,17 @@ terminateApp:
 	
 	[notationController synchronizeNoteChanges:nil];
 	[[ExporterManager sharedManager] exportNotes:notes forWindow:window];
+}
+
+- (IBAction)revealNote:(id)sender {
+	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
+	NSString *path = nil;
+	
+	if ([indexes count] != 1 || !(path = [[notationController noteObjectAtFilteredIndex:[indexes lastIndex]] noteFilePath])) {
+		NSBeep();
+		return;
+	}
+	[[NSWorkspace sharedWorkspace] selectFile:path inFileViewerRootedAtPath:@""];
 }
 
 - (IBAction)printNote:(id)sender {
@@ -1126,6 +1141,14 @@ terminateApp:
 			
 			//remove snapback-button from dual field here?
 			[field setSnapbackString:nil];
+			
+			if (!numberSelected && savedSelectedNotes) {
+				//savedSelectedNotes needs to be empty after de-selecting all notes, 
+				//to ensure that any delayed list-resorting does not re-select savedSelectedNotes
+
+				[savedSelectedNotes release];
+				savedSelectedNotes = nil;
+			}
 		}
 	}
 	[self setEmptyViewState:currentNote == nil];
@@ -1555,10 +1578,6 @@ terminateApp:
 			}
 			
 			listUpdateViewCtx = [notesTableView viewingLocation];
-			
-			//NSLog(@"savedSelectedNotes: %@", savedSelectedNotes);
-			//TODO: savedSelectedNotes needs to be empty after de-selecting all notes, 
-			//to ensure that any delayed list-resorting does not re-select savedSelectedNotes
 		}
 	}
 }
