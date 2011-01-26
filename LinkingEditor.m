@@ -343,28 +343,15 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	
 	if ([type isEqualToString:NSFilenamesPboardType]) {
 		//paste as a file:// URL, so that it can be linked
-		NSArray *files = [pboard propertyListForType:NSFilenamesPboardType];
-		if ([files isKindOfClass:[NSArray class]]) {
-			NSMutableString *allURLsString = [NSMutableString string];
-			unsigned int i;
-			BOOL foundURL = NO;
-			for (i=0; i<[files count]; i++) {
-				NSURL *url = [NSURL fileURLWithPath:[files objectAtIndex:i]];
-				if (url) {
-					[allURLsString appendFormat:@"<%@>", 
-						[[url absoluteString] stringByReplacingOccurrencesOfString:@"file://localhost" withString:@"file://"]];
-					foundURL = YES;
-				}
-				if (i < [files count] - 1) [allURLsString appendString:@"\n"];
-			}
-			if (foundURL) {
-				NSRange selectedRange = [self rangeForUserTextChange];
-				if ([self shouldChangeTextInRange:selectedRange replacementString:allURLsString]) {
-					[self replaceCharactersInRange:selectedRange withString:allURLsString];
-					[self didChangeText];
-					
-					return YES;
-				}
+		NSString *allURLsString = [[NSApp delegate] stringWithNoteURLsOnPasteboard:pboard];
+		
+		if ([allURLsString length]) {
+			NSRange selectedRange = [self rangeForUserTextChange];
+			if ([self shouldChangeTextInRange:selectedRange replacementString:allURLsString]) {
+				[self replaceCharactersInRange:selectedRange withString:allURLsString];
+				[self didChangeText];
+				
+				return YES;
 			}
 		}
 	}
