@@ -28,6 +28,8 @@
 
 #define SYNTHETIC_TAGS_COLUMN_INDEX 200
 
+static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target);
+
 @implementation NotesTableView
 
 //there's something wrong with this initialization under panther, I think
@@ -650,22 +652,20 @@
 	return [self defaultNoteCommandsMenuWithTarget:[NSApp delegate]];
 }
 
+static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target) {
+	int menuIndex = [sourceMenu indexOfItemWithTarget:target andAction:aSel];
+	if (menuIndex > -1)	[destMenu addItem:[[(NSMenuItem*)[sourceMenu itemAtIndex:menuIndex] copy] autorelease]];
+}
+
 - (NSMenu *)defaultNoteCommandsMenuWithTarget:(id)target {
 	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"Contextual Note Commands Menu"] autorelease];
-    
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
-	int menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(renameNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
-	
-	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(tagNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
-	
-	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(deleteNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(renameNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(tagNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(deleteNote:), target);
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
-	
 	
 	NSMenuItem *noteLinkItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy URL",@"contextual menu item title to copy urls")
 														  action:@selector(copyNoteLink:) keyEquivalent:@"c"];
@@ -673,13 +673,12 @@
 	[noteLinkItem setTarget:target];
 	[theMenu addItem:[noteLinkItem autorelease]];
 
-	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(exportNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(exportNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(revealNote:), target);
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
-	menuIndex = [notesMenu indexOfItemWithTarget:target andAction:@selector(printNote:)];
-	if (menuIndex > -1)	[theMenu addItem:[[(NSMenuItem*)[notesMenu itemAtIndex:menuIndex] copy] autorelease]];
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(printNote:), target);
 	
 	NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:[self selectedRowIndexes]];
 	[notes addMenuItemsForURLsInNotes:theMenu];
