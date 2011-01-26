@@ -21,23 +21,24 @@
 {
     IBOutlet NSTableView *tableView;
     IBOutlet NSPanel *window;
-	NSWindow *mainWindow;
+	IBOutlet NSButton *confirmDeletionButton;
 	NSMutableArray *deletedNotes;
 	NotationController* notationController;
-	
-	BOOL needsToShowSheet;
+	BOOL hasDeletedNotes;
 }
 
 - (id)initWithNotationController:(NotationController*)aNotationController;
 - (NotationController*)notationController;
+- (IBAction)changeConfirmDeletion:(id)sender;
 - (BOOL)noteFileIsAlreadyDeleted:(NoteObject*)aNote;
 - (void)addDeletedNotes:(NSArray*)array;
 - (void)addDeletedNote:(NoteObject*)aNote;
+- (NSRect)windowSizeForNotesFromSender:(id)sender;
+void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote);
 - (void)processDeletedNotes;
 - (void)removeDeletedNotes;
-- (NSRect)windowSizeForNotes;
-- (void)_updateSheetForNotes;
-- (void)showSheetForDeletedNotes;
+- (void)_updatePanelForNotes;
+- (void)showPanelForDeletedNotes;
 - (void)cancelPanelReturningCode:(NSInteger)code;
 - (IBAction)deleteAction:(id)sender;
 - (IBAction)restoreAction:(id)sender;

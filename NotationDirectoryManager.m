@@ -233,7 +233,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			
 			if (!catEntriesCount) {
 				//there is nothing at all in the directory, so remove all the notes
-				//we probably shouldn't get here; there should be at least a database file and random .DS_Store-like crap
 				[deletionManager addDeletedNotes:allNotes];
 			}
 		}
@@ -353,6 +352,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	//should we always update the note's stored inode here regardless?
 //	NSLog(@"content mod: %d,%d,%d, attr mod: %d,%d,%d", catEntry->lastModified.highSeconds,catEntry->lastModified.lowSeconds,catEntry->lastModified.fraction,
 //		  catEntry->lastAttrModified.highSeconds,catEntry->lastAttrModified.lowSeconds,catEntry->lastAttrModified.fraction);
+	
+	updateForVerifiedExistingNote(deletionManager, aNoteObject);
 	
 	if (fileSizeOfNote(aNoteObject) != catEntry->logicalSize ||
 		*(int64_t*)&lastReadDate != *(int64_t*)&(catEntry->lastModified) ||
@@ -478,7 +479,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			}
 		}
 		
-		if (![addedEntries count]) {			
+		if (![addedEntries count]) {
 			[deletionManager addDeletedNotes:removedEntries];
 		}
 	}

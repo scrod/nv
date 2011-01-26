@@ -628,7 +628,9 @@ bail:
     if ([unwrittenNotes count] > 0) {
 		lastWriteError = noErr;
 		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
-			[unwrittenNotes makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
+			//to avoid mutation enumeration if writing this file triggers a filename change which then triggers another makeNoteDirty which then triggers another scheduleWriteForNote:
+			//loose-coupling? what?
+			[[[unwrittenNotes copy] autorelease] makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
 			
 			//this always seems to call ourselves
 			FNNotify(&noteDirectoryRef, kFNDirectoryModifiedMessage, kFNNoImplicitAllSubscription);
