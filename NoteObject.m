@@ -827,6 +827,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 - (void)_resanitizeContent {
 	[contentString santizeForeignStylesForImporting];
 	
+	//renormalize the title, in case it is still somehow derived from decomposed HFS+ filenames
+	CFMutableStringRef normalizedString = CFStringCreateMutableCopy(NULL, 0, (CFStringRef)titleString);
+	CFStringNormalize(normalizedString, kCFStringNormalizationFormC);
+	
+	[self _setTitleString:(NSString*)normalizedString];
+	CFRelease(normalizedString);
+	
 	if ([delegate currentNoteStorageFormat] == RTFTextFormat)
 		[self makeNoteDirtyUpdateTime:NO updateFile:YES];
 }

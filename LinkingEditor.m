@@ -1329,12 +1329,20 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange {
 	NSRange effectiveRange = NSMakeRange(aRange.location, 0);
-	
 	while (NSMaxRange(effectiveRange) < NSMaxRange(aRange)) {
 		
-		if ([[self layoutManager] temporaryAttribute:NVHiddenBulletIndentAttributeName 
-									atCharacterIndex:NSMaxRange(effectiveRange) 
-									  effectiveRange:&effectiveRange] && NSEqualRanges(effectiveRange, aRange)) {
+		id bulletIndicator = nil;
+		
+		//sometimes the temporary attributes are split across juxtaposing characters for some reason, so longest-effective-range is necessary
+		//unfortunately there is no such method on Tiger, and I'm not about to emulate its coalescing behavior here
+		if (IsLeopardOrLater) {
+			bulletIndicator = [[self layoutManager] temporaryAttribute:NVHiddenBulletIndentAttributeName atCharacterIndex:NSMaxRange(effectiveRange) 
+												 longestEffectiveRange:&effectiveRange inRange:aRange];
+		} else {
+			NSDictionary *dict = [[self layoutManager] temporaryAttributesAtCharacterIndex:NSMaxRange(effectiveRange) effectiveRange:&effectiveRange];
+			bulletIndicator = [dict objectForKey:NVHiddenBulletIndentAttributeName];
+		}
+		if (bulletIndicator && NSEqualRanges(effectiveRange, aRange)) {
 			return YES;
 		}
 	}

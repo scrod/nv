@@ -33,7 +33,7 @@
 static NSString *TriedToImportBlorKey = @"TriedToImportBlor";
 static NSString *DirectoryAliasKey = @"DirectoryAlias";
 static NSString *AutoCompleteSearchesKey = @"AutoCompleteSearches";
-static NSString *TableColumnsVisibleKey = @"TableColumnsVisible";
+static NSString *NoteAttributesVisibleKey = @"NoteAttributesVisible";
 static NSString *TableFontSizeKey = @"TableFontPointSize";
 static NSString *TableSortColumnKey = @"TableSortColumn";
 static NSString *TableIsReverseSortedKey = @"TableIsReverseSorted";
@@ -132,7 +132,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
 			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
-			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], TableColumnsVisibleKey,
+			[NSArray arrayWithObjects:NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, nil], NoteAttributesVisibleKey,
 			NoteDateModifiedColumnString, TableSortColumnKey,
 			[NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
 		
@@ -652,7 +652,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	[tableColumns removeObject:columnKey];
 	tableColsBitmap = 0U;
 	
-	[defaults setObject:tableColumns forKey:TableColumnsVisibleKey];
+	[defaults setObject:tableColumns forKey:NoteAttributesVisibleKey];
 	
 	SEND_CALLBACKS();
 }
@@ -661,7 +661,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		[tableColumns addObject:columnKey];
 		tableColsBitmap = 0U;
 		
-		[defaults setObject:tableColumns forKey:TableColumnsVisibleKey];
+		[defaults setObject:tableColumns forKey:NoteAttributesVisibleKey];
 		
 		SEND_CALLBACKS();
 	}
@@ -669,7 +669,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 
 - (NSArray*)visibleTableColumns {
 	if (!tableColumns) {
-		tableColumns = [[NSMutableArray arrayWithArray:[defaults arrayForKey:TableColumnsVisibleKey]] retain];
+		tableColumns = [[NSMutableArray arrayWithArray:[defaults arrayForKey:NoteAttributesVisibleKey]] retain];
 		tableColsBitmap = 0U;
 	}
 	

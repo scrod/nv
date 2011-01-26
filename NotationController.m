@@ -184,6 +184,10 @@
 				NSLog(@"found and removed spurious DB notes");
 				[self refilterNotes];
 			}
+			
+			//TableColumnsVisible was renamed NoteAttributesVisible to coincide with shifted emphasis; remove old key to declutter prefs
+			[[NSUserDefaults standardUserDefaults] removeObjectForKey:@"TableColumnsVisible"];
+			
 			//remove and re-add link attributes for all notes
 			//remove underline attribute for all notes
 			//add automatic strike-through attribute for all notes
