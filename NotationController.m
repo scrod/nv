@@ -521,7 +521,7 @@ bail:
 		}
 		
 		//purge attr-mod-times for old disk uuids here
-		[self purgeOldAttrModTimesFromNotes];
+		[self purgeOldPerDiskInfoFromNotes];
 		
 		
 		NSData *serializedData = [FrozenNotation frozenDataWithExistingNotes:allNotes deletedNotes:deletedNotes prefs:notationPrefs];

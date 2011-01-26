@@ -54,8 +54,8 @@ typedef struct _NoteFilterContext {
 	UInt32 nodeID;
 	UInt32 logicalSize;
 	UTCDateTime fileModifiedDate, *attrsModifiedDate;
-	AttrModDiskPair *attrModDiskPairs;
-	unsigned int attrModPairCount;
+	PerDiskInfo *perDiskInfoGroups;
+	unsigned int perDiskInfoGroupCount;
 	int currentFormatID;
 	NSStringEncoding fileEncoding;
 	BOOL shouldWriteToFile, didUnarchive;

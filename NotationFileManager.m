@@ -179,9 +179,9 @@ static BOOL VolumeSupportsExchangeObjects(NotationController *controller) {
 	return controller->volumeSupportsExchangeObjects;
 }
 
-- (void)purgeOldAttrModTimesFromNotes {
-	//here's where notes' AttrModDiskPair arrays would have older times removed, depending on -[DiskUUIDEntry lastAccessed]
-	//each note will use RemoveAttrModTimeWithDiskIDIndex
+- (void)purgeOldPerDiskInfoFromNotes {
+	//here's where notes' PerDiskInfo arrays would have older times removed, depending on -[DiskUUIDEntry lastAccessed]
+	//each note will use RemovePerDiskInfoWithTableIndex
 }
 
 - (void)initializeDiskUUIDIfNecessary {
@@ -238,7 +238,7 @@ static struct statfs *StatFSVolumeInfo(NotationController *controller) {
 	return controller->statfsInfo;
 }
 
-unsigned int diskUUIDIndexForNotation(NotationController *controller) {
+UInt32 diskUUIDIndexForNotation(NotationController *controller) {
 	return controller->diskUUIDIndex;
 }
 
@@ -404,7 +404,6 @@ terminate:
 //whenever a note uses this method to change its filename, we will have to re-establish all the links to it
 - (NSString*)uniqueFilenameForTitle:(NSString*)title fromNote:(NoteObject*)note {
     //generate a unique filename based on title, varying numbers
-	
     BOOL isUnique = YES;
     NSString *uniqueFilename = title;
 	

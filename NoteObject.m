@@ -51,13 +51,14 @@ typedef NSRange NSRange32;
 
 static FSRef *noteFileRefInit(NoteObject* obj);
 static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime);
+static void setCatalogNodeID(NoteObject *note, UInt32 cnid);
 
 - (id)init {
     if ([super init]) {
 	
-		attrModDiskPairs = calloc(1, sizeof(AttrModDiskPair));
-		attrModDiskPairs[0].diskIDIndex = -1;
-		attrModPairCount = 1;
+		perDiskInfoGroups = calloc(1, sizeof(PerDiskInfo));
+		perDiskInfoGroups[0].diskIDIndex = -1;
+		perDiskInfoGroupCount = 1;
 		
 		currentFormatID = SingleDatabaseFormat;
 		fileEncoding = NSUTF8StringEncoding;
@@ -84,8 +85,8 @@ static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime);
 	[dateCreatedString release];
 	[prefixParentNotes release];
 	
-	if (attrModDiskPairs)
-		free(attrModDiskPairs);
+	if (perDiskInfoGroups)
+		free(perDiskInfoGroups);
 		
 	if (cTitle)
 		free(cTitle);
@@ -121,33 +122,52 @@ static FSRef *noteFileRefInit(NoteObject* obj) {
 }
 
 static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime) {
-	assert(note->delegate != nil);
-	assert(note->attrModDiskPairs);
-	unsigned int idx = SetAttrModTimeForDiskIDIndex(dateTime, (UInt16)diskUUIDIndexForNotation(note->delegate), 
-												   &(note->attrModDiskPairs), &(note->attrModPairCount));
-	note->attrsModifiedDate = &(note->attrModDiskPairs[idx].attrTime);
+	unsigned int idx = SetPerDiskInfoWithTableIndex(dateTime, NULL, diskUUIDIndexForNotation(note->delegate), 
+													&(note->perDiskInfoGroups), &(note->perDiskInfoGroupCount));
+	note->attrsModifiedDate = &(note->perDiskInfoGroups[idx].attrTime);
+}
+static void setCatalogNodeID(NoteObject *note, UInt32 cnid) {
+	SetPerDiskInfoWithTableIndex(NULL, &cnid, diskUUIDIndexForNotation(note->delegate), 
+								 &(note->perDiskInfoGroups), &(note->perDiskInfoGroupCount));
+	note->nodeID = cnid;
 }
 
 UTCDateTime *attrsModifiedDateOfNote(NoteObject *note) {
 	//once unarchived, the disk UUID index won't change, so this pointer will always reflect the current attr mod time
 	if (!note->attrsModifiedDate) {
-		
-		assert(note->attrModDiskPairs);
-		assert(note->delegate != nil);
 		//init from delegate based on disk table index
 		unsigned int i, tableIndex = diskUUIDIndexForNotation(note->delegate);
 		
-		for (i=0; i<note->attrModPairCount; i++) {
-			if (note->attrModDiskPairs[i].diskIDIndex == tableIndex) {
-				note->attrsModifiedDate = &(note->attrModDiskPairs[i].attrTime);
+		for (i=0; i<note->perDiskInfoGroupCount; i++) {
+			//check if this date has actually been initialized; this entry could be here only because setCatalogNodeID was called
+			if (note->perDiskInfoGroups[i].diskIDIndex == tableIndex && !UTCDateTimeIsEmpty(note->perDiskInfoGroups[i].attrTime)) {
+				note->attrsModifiedDate = &(note->perDiskInfoGroups[i].attrTime);
 				goto giveDate;
 			}
 		}
-		//this note doesn't have a file-modified date, so initialize one here
+		//this note doesn't have a file-modified date, so initialize a fairly reasonable one here
 		setAttrModifiedDate(note, &(note->fileModifiedDate));
 	}
 giveDate:	
 	return note->attrsModifiedDate;
+}
+
+UInt32 fileNodeIDOfNote(NoteObject *note) {
+	if (!note->nodeID) {
+		unsigned int i, tableIndex = diskUUIDIndexForNotation(note->delegate);
+		
+		for (i=0; i<note->perDiskInfoGroupCount; i++) {
+			//check if this nodeID has actually been initialized; this entry could be here only because setAttrModifiedDate was called
+			if (note->perDiskInfoGroups[i].diskIDIndex == tableIndex && note->perDiskInfoGroups[i].nodeID != 0U) {
+				note->nodeID = note->perDiskInfoGroups[i].nodeID;
+				goto giveID;
+			}
+		}
+		//this note doesn't have a file-modified date, so initialize something that at least won't repeat this lookup
+		setCatalogNodeID(note, 1);
+	}
+giveID:	
+	return note->nodeID;
 }
 
 NSInteger compareFilename(id *one, id *two) {
@@ -212,7 +232,7 @@ NSInteger compareTitleStringReverse(id *a, id *b) {
 }
 
 NSInteger compareNodeID(id *a, id *b) {
-    return (*(NoteObject**)a)->nodeID - (*(NoteObject**)b)->nodeID;
+    return fileNodeIDOfNote(*(NoteObject**)a) - fileNodeIDOfNote(*(NoteObject**)b);
 }
 NSInteger compareFileSize(id *a, id *b) {
     return (*(NoteObject**)a)->logicalSize - (*(NoteObject**)b)->logicalSize;
@@ -224,7 +244,6 @@ NSInteger compareFileSize(id *a, id *b) {
 //syncing w/ server and from journal;
 
 DefModelAttrAccessor(filenameOfNote, filename)
-DefModelAttrAccessor(fileNodeIDOfNote, nodeID)
 DefModelAttrAccessor(fileSizeOfNote, logicalSize)
 DefModelAttrAccessor(titleOfNote, titleString)
 DefModelAttrAccessor(labelsOfNote, labelString)
@@ -315,16 +334,15 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			logSequenceNumber = [decoder decodeInt32ForKey:VAR_STR(logSequenceNumber)];
 
 			currentFormatID = [decoder decodeInt32ForKey:VAR_STR(currentFormatID)];
-			nodeID = [decoder decodeInt32ForKey:VAR_STR(nodeID)];
 			logicalSize = [decoder decodeInt32ForKey:VAR_STR(logicalSize)];
 			
 			int64_t fileModifiedDate64 = [decoder decodeInt64ForKey:VAR_STR(fileModifiedDate)];
 			memcpy(&fileModifiedDate, &fileModifiedDate64, sizeof(int64_t));
 						
-			NSUInteger decodedAttrModsByteCount = 0;
-			const uint8_t *decodedAttrModsBytes = [decoder decodeBytesForKey:VAR_STR(attrModDiskPairs) returnedLength:&decodedAttrModsByteCount];
-			if (decodedAttrModsBytes && decodedAttrModsByteCount) {
-				CopyAttrModPairsToOrder(&attrModDiskPairs, &attrModPairCount, (AttrModDiskPair *)decodedAttrModsBytes, decodedAttrModsByteCount, 1);
+			NSUInteger decodedPerDiskByteCount = 0;
+			const uint8_t *decodedPerDiskBytes = [decoder decodeBytesForKey:VAR_STR(perDiskInfoGroups) returnedLength:&decodedPerDiskByteCount];
+			if (decodedPerDiskBytes && decodedPerDiskByteCount) {
+				CopyPerDiskInfoGroupsToOrder(&perDiskInfoGroups, &perDiskInfoGroupCount, (PerDiskInfo *)decodedPerDiskBytes, decodedPerDiskByteCount, 1);
 			}
 			
 			fileEncoding = [decoder decodeInt32ForKey:VAR_STR(fileEncoding)];
@@ -424,14 +442,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[coder encodeInt32:logSequenceNumber forKey:VAR_STR(logSequenceNumber)];
 		
 		[coder encodeInt32:currentFormatID forKey:VAR_STR(currentFormatID)];
-		[coder encodeInt32:nodeID forKey:VAR_STR(nodeID)];
 		[coder encodeInt32:logicalSize forKey:VAR_STR(logicalSize)];
 
-		uint8_t *flippedModDiskPairs = calloc(attrModPairCount, sizeof(AttrModDiskPair));
-		CopyAttrModPairsToOrder((AttrModDiskPair**)&flippedModDiskPairs, &attrModPairCount, attrModDiskPairs, attrModPairCount * sizeof(AttrModDiskPair), 0);
+		uint8_t *flippedPerDiskInfoGroups = calloc(perDiskInfoGroupCount, sizeof(PerDiskInfo));
+		CopyPerDiskInfoGroupsToOrder((PerDiskInfo**)&flippedPerDiskInfoGroups, &perDiskInfoGroupCount, perDiskInfoGroups, perDiskInfoGroupCount * sizeof(PerDiskInfo), 0);
 		
-		[coder encodeBytes:flippedModDiskPairs length:attrModPairCount * sizeof(AttrModDiskPair) forKey:VAR_STR(attrModDiskPairs)];
-		free(flippedModDiskPairs);
+		[coder encodeBytes:flippedPerDiskInfoGroups length:perDiskInfoGroupCount * sizeof(PerDiskInfo) forKey:VAR_STR(perDiskInfoGroups)];
+		free(flippedPerDiskInfoGroups);
 		
 		[coder encodeInt64:*(int64_t*)&fileModifiedDate forKey:VAR_STR(fileModifiedDate)];
 		[coder encodeInt32:fileEncoding forKey:VAR_STR(fileEncoding)];
@@ -534,7 +551,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		currentFormatID = [delegate currentNoteStorageFormat];
 		fileModifiedDate = entry->lastModified;
 		setAttrModifiedDate(self, &(entry->lastAttrModified));
-		nodeID = entry->nodeID;
+		setCatalogNodeID(self, entry->nodeID);
 		logicalSize = entry->logicalSize;
 		
 		CFUUIDRef uuidRef = CFUUIDCreate(kCFAllocatorDefault);
@@ -1299,7 +1316,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	}
 	fileModifiedDate = catInfo.contentModDate;
 	setAttrModifiedDate(self, &catInfo.attributeModDate);
-	nodeID = catInfo.nodeID;
+	setCatalogNodeID(self, catInfo.nodeID);
 	logicalSize = (UInt32)(catInfo.dataLogicalSize & 0xFFFFFFFF);
 	
 	return noErr;
@@ -1401,7 +1418,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			fileModifiedDate = info.contentModDate;
 			setAttrModifiedDate(self, &info.attributeModDate);
-			nodeID = info.nodeID;
+			setCatalogNodeID(self, info.nodeID);
 			logicalSize = (UInt32)(info.dataLogicalSize & 0xFFFFFFFF);
 			
 			return YES;
@@ -1426,7 +1443,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     
     fileModifiedDate = catEntry->lastModified;
 	setAttrModifiedDate(self, &(catEntry->lastAttrModified));
-    nodeID = catEntry->nodeID;
+    setCatalogNodeID(self, catEntry->nodeID);
 	logicalSize = catEntry->logicalSize;
 	
 	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];

@@ -36,6 +36,11 @@ typedef unsigned int NSUInteger;
 
 #define NSINTEGER_DEFINED 1
 #endif
+#define DebugPath(__p) (__p = ((!(__p)) ? __FILE__ : (__p)))
+#define _COMPILE_ASSERT_SYMBOL_INNER(line, msg) __COMPILE_ASSERT_ ## line ## __ ## msg
+#define _COMPILE_ASSERT_SYMBOL(line, msg) _COMPILE_ASSERT_SYMBOL_INNER(line, msg)
+#define COMPILE_ASSERT(test, msg) \
+typedef char _COMPILE_ASSERT_SYMBOL(__LINE__, msg) [ ((test) ? 1 : -1) ]
 
 #define GCC_VERSION (__GNUC__ * 10000 \
 + __GNUC_MINOR__ * 100 \
@@ -72,3 +77,5 @@ typedef unsigned int NSUInteger;
 #define IsSnowLeopardOrLater (floor(NSFoundationVersionNumber) >= NSFoundationVersionNumber10_6)
 
 #define NOTES_MENU_ID 89
+#define VIEW_MENU_ID 99
+
