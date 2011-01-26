@@ -1289,7 +1289,7 @@ terminateApp:
 		NSAttributedString *attributedContents = [textView textStorage] ? [textView textStorage] : [[[NSAttributedString alloc] initWithString:@"" attributes:
 																									 [prefsController noteBodyAttributes]] autorelease];		
 		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedContents title:title delegate:notationController
-														 format:[notationController currentNoteStorageFormat]] autorelease];
+														  format:[notationController currentNoteStorageFormat] labels:nil] autorelease];
 		[notationController addNewNote:note];
 		
 		isCreatingANote = NO;

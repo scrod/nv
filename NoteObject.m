@@ -109,6 +109,7 @@ static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime);
 		//do things that ought to have been done during init, but were not possible due to lack of delegate information
 		if (!filename) filename = [[delegate uniqueFilenameForTitle:titleString fromNote:self] retain];
 		if (!tableTitleString && !didUnarchive) [self updateTablePreviewString];
+		if (!labelSet && !didUnarchive) [self updateLabelConnectionsAfterDecoding];
 	}
 }
 
@@ -481,7 +482,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	}
 }
 
-- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID {
+- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID labels:(NSString*)aLabelString {
 	//delegate optional here
     if ([self init]) {
 		
@@ -500,8 +501,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if (![self _setTitleString:aNoteTitle])
 		    titleString = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 		
-		labelString = @"";
-		cLabelsFoundPtr = cLabels = strdup("");
+		if (![self _setLabelString:aLabelString]) {
+			labelString = @"";
+			cLabelsFoundPtr = cLabels = strdup("");
+		}
 		
 		currentFormatID = formatID;
 		filename = [[delegate uniqueFilenameForTitle:titleString fromNote:nil] retain];
@@ -514,11 +517,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		dateCreatedString = [dateModifiedString = [[NSString relativeDateStringWithAbsoluteTime:modifiedDate] retain] retain];
 		UCConvertCFAbsoluteTimeToUTCDateTime(modifiedDate, &fileModifiedDate);
 		
-		//delegate is not set yet, so we cannot dirty ourselves here
-		//[self makeNoteDirty];
+		if (delegate)
+			[self updateTablePreviewString];
     }
-	if (delegate)
-		[self updateTablePreviewString];
     
     return self;
 }
@@ -543,7 +544,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if (![self _setTitleString:[filename stringByDeletingPathExtension]])
 			titleString = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 		
-		labelString = @""; //I'd like to get labels from getxattr
+		labelString = @""; //set by updateFromCatalogEntry if there are openmeta extended attributes 
 		cLabelsFoundPtr = cLabels = strdup("");	
 				
 		contentString = [[NSMutableAttributedString alloc] initWithString:@""];
@@ -754,7 +755,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 - (BOOL)_setTitleString:(NSString*)aNewTitle {
     if (!aNewTitle || ![aNewTitle length] || (titleString && [aNewTitle isEqualToString:titleString]))
 	return NO;
-    
+
     [titleString release];
     titleString = [aNewTitle copy];
     
@@ -889,33 +890,46 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (void)updateLabelConnections {
-	//find differences between previous labels and new ones		
-	NSMutableSet *oldLabelSet = labelSet;
-	NSMutableSet *newLabelSet = [self labelSetFromCurrentString];
-	
-	if (!oldLabelSet) {
-		oldLabelSet = labelSet = [[NSMutableSet alloc] initWithCapacity:[newLabelSet count]];
+	//find differences between previous labels and new ones	
+	if (delegate) {
+		NSMutableSet *oldLabelSet = labelSet;
+		NSMutableSet *newLabelSet = [self labelSetFromCurrentString];
+		
+		if (!oldLabelSet) {
+			oldLabelSet = labelSet = [[NSMutableSet alloc] initWithCapacity:[newLabelSet count]];
+		}
+		
+		//what's left-over
+		NSMutableSet *oldLabels = [oldLabelSet mutableCopy];
+		[oldLabels minusSet:newLabelSet];
+		
+		//what wasn't there last time
+		NSMutableSet *newLabels = newLabelSet;
+		[newLabels minusSet:oldLabelSet];
+		
+		//update the currently known labels
+		[labelSet minusSet:oldLabels];
+		[labelSet unionSet:newLabels];
+		
+		//update our status within the list of all labels, adding or removing from the list and updating the labels where appropriate
+		//these end up calling replaceMatchingLabel*
+		[delegate note:self didRemoveLabelSet:oldLabels];
+		[delegate note:self didAddLabelSet:newLabels];
 	}
-	
-	//what's left-over
-	NSMutableSet *oldLabels = [oldLabelSet mutableCopy];
-	[oldLabels minusSet:newLabelSet];
-	
-	//what wasn't there last time
-	NSMutableSet *newLabels = newLabelSet;
-	[newLabels minusSet:oldLabelSet];
-	
-	//update the currently known labels
-	[labelSet minusSet:oldLabels];
-	[labelSet unionSet:newLabels];
-	
-	//update our status within the list of all labels, adding or removing from the list and updating the labels where appropriate
-	//these end up calling replaceMatchingLabel*
-	[delegate note:self didRemoveLabelSet:oldLabels];
-	[delegate note:self didAddLabelSet:newLabels];
 }
 
-- (void)setLabelString:(NSString*)newLabelString {
+- (void)disconnectLabels {
+	//when removing this note from NotationController, other LabelObjects as well as LabelsListController should know not to list it
+	if (delegate) {
+		[delegate note:self didRemoveLabelSet:labelSet];
+		[labelSet autorelease];
+		labelSet = nil;
+	} else {
+		NSLog(@"not disconnecting labels because no delegate exists");
+	}
+}
+
+- (BOOL)_setLabelString:(NSString*)newLabelString {
 	if (newLabelString && ![newLabelString isEqualToString:labelString]) {
 		
 		[labelString release];
@@ -925,6 +939,15 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		[self updateLabelConnections];
 		[self invalidateLabelsPreviewImage];
+		return YES;
+	}
+	return NO;
+}
+
+- (void)setLabelString:(NSString*)newLabelString {
+	
+	if ([self _setLabelString:newLabelString]) {
+	
 		if ([[GlobalPrefs defaultPrefs] horizontalLayout]) {
 			[self updateTablePreviewString];
 		}
@@ -1412,7 +1435,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		NSArray *openMetaTags = [[NSFileManager defaultManager] getOpenMetaTagsAtFSPath:[pathData bytes]];
 		if (openMetaTags) {
 			//overwrite this note's labels with those from the file; merging may be the wrong thing to do here
-			[self setLabelString:[openMetaTags componentsJoinedByString:@" "]];
+			if ([self _setLabelString:[openMetaTags componentsJoinedByString:@" "]])
+				[self updateTablePreviewString];
 		} else if ([labelString length]) {
 			//this file has either never had tags or has had them cleared by accident (e.g., non-user intervention)
 			//so if this note still has tags, then restore them now.
@@ -1755,6 +1779,7 @@ BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shor
 - (NSSet*)labelSet {
     return labelSet;
 }
+
 /*
 - (CFArrayRef)rangesForWords:(NSString*)string inRange:(NSRange)rangeLimit {
 	//use cstring caches if note is all 7-bit, as we [REALLY OUGHT TO] be able to assume a 1-to-1 character mapping

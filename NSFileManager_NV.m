@@ -91,7 +91,7 @@
 	}
 	
 	if (returnVal < 0) {
-		NSLog(@"%s: couldn't set/remove attribute: %d", _cmd, errno);
+		if (errno != ENOATTR) NSLog(@"%s: couldn't set/remove attribute: %d (value '%@')", _cmd, errno, dataToSendNS);
 		return NO;
 	}
 
@@ -167,6 +167,10 @@ errorReturn:
     return nil;
 }
 
+- (NSString*)pathFromFSPath:(char*)path {
+	DebugPath(path);
+	return [self stringWithFileSystemRepresentation:path length:strlen(path)];
+}
 
 - (NSString*)pathWithFSRef:(FSRef*)fsRef {
 	NSString *path = nil;
