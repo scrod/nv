@@ -26,7 +26,7 @@ including encryption, file formats, synchronization, passwords management, and o
 
 enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, WordDocFormat, WordXMLFormat };
 
-extern NSString *SyncPrefsDidChangeNotification;
+extern NSString *NotationPrefsDidChangeNotification;
 
 @interface NotationPrefs : NSObject {
 	BOOL doesEncryption, storesPasswordInKeychain, secureTextEntry;

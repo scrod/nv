@@ -228,6 +228,7 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 
 - (IBAction)changeConfirmDeletion:(id)sender {
 	[[notationController notationPrefs] setConfirmsFileDeletion:![confirmDeletionButton state]];
+	[[NSNotificationCenter defaultCenter] postNotificationName:NotationPrefsDidChangeNotification object:nil];
 }
 
 - (IBAction)deleteAction:(id)sender {

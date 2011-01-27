@@ -91,7 +91,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 		[center addObserver:self selector:@selector(syncCredentialsDidChange:) name:NSControlTextDidChangeNotification object:syncPasswordField];
 		[center addObserver:self selector:@selector(syncEditingDidEnd:) name:NSControlTextDidEndEditingNotification object:syncPasswordField];
 	}
-	[center addObserver:self selector:@selector(initializeControls) name:SyncPrefsDidChangeNotification object:nil];
+	[center addObserver:self selector:@selector(initializeControls) name:NotationPrefsDidChangeNotification object:nil];
 
     [self initializeControls];
 }

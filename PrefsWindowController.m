@@ -29,8 +29,10 @@
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
 		
-		[prefsController registerForSettingChange:@selector(resolveNoteBodyFontFromNotationPrefsFromSender:) withTarget:self];
-		[prefsController registerForSettingChange:@selector(setCheckSpellingAsYouType:sender:) withTarget:self];
+		[prefsController registerWithTarget:self forChangesInSettings:
+		 @selector(resolveNoteBodyFontFromNotationPrefsFromSender:), 
+		 @selector(setCheckSpellingAsYouType:sender:), 
+		 @selector(setConfirmNoteDeletion:sender:), nil];
     }
     return self;
 }
@@ -222,6 +224,8 @@
 		[self previewNoteBodyFont];
 	} else if ([selectorString isEqualToString:SEL_STR(setCheckSpellingAsYouType:sender:)]) {
 		[checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
+	} else if ([selectorString isEqualToString:SEL_STR(setConfirmNoteDeletion:sender:)]) {
+		[confirmDeletionButton setState:[prefsController confirmNoteDeletion]];
 	}
 }
 

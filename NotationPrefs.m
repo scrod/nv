@@ -37,7 +37,7 @@
 
 #define INIT_DICT_ACCT() NSMutableDictionary *accountDict = ServiceAccountDictInit(self, serviceName)
 
-NSString *SyncPrefsDidChangeNotification = @"SyncPrefsDidChangeNotification";
+NSString *NotationPrefsDidChangeNotification = @"NotationPrefsDidChangeNotification";
 
 @implementation NotationPrefs
 
