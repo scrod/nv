@@ -829,7 +829,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		return idx;
 	}
 	
-	NSLog(@"saw new disk UUID: %@ (array was %@)", diskEntry, seenDiskUUIDEntries);
+	NSLog(@"saw new disk UUID: %@ (other disks are: %@)", diskEntry, seenDiskUUIDEntries);
 	[seenDiskUUIDEntries addObject:diskEntry];
 	
 	preferencesChanged = YES;

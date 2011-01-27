@@ -298,80 +298,97 @@ CFStringRef GetRelativeDateStringFromTimeAndLocaleInfo(CFAbsoluteTime time, CFSt
 }
 #endif
 
-//these two methods manipulate notes' attrmodtime-disk-pair sets, changing the buffers in place
-//on return, pairCount will be set to the number of attrmodtdiskpair structs currently in the buffer
+//these two methods manipulate notes' perdiskinfo groups, changing the buffers in place
+//on return, groupCount will be set to the number of perdiskinfo structs currently in the buffer
 
-void RemoveAttrModTimeWithDiskIDIndex(UInt16 diskIndex, AttrModDiskPair **attrModPairs, unsigned int *pairCount) {
+void RemovePerDiskInfoWithTableIndex(UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount) {
 	//used to periodically clean out attr-mod-times for disks that have not been seen in a while
 	
 	//if an entry exists, push everything below it upward and resize the buffer (or just copy to a new buffer)
 	//otherwise do nothing
 	
-	NSUInteger i = 0, count = *pairCount;
+	NSUInteger i = 0, count = *groupCount;
 	
-	AttrModDiskPair *pairs = *attrModPairs;
+	PerDiskInfo *groups = *perDiskGroups;
 	for (i=0; i<count; i++) {
-		if (pairs[i].diskIDIndex == diskIndex) {
+		if (groups[i].diskIDIndex == diskIndex) {
 			
 			if (i < count - 1) {
 				//if pair isn't the last struct, then bring everything after pair up one spot
-				memmove(&pairs[i], &pairs[i + 1], sizeof(AttrModDiskPair) * ((count - 1) - i));
+				memmove(&groups[i], &groups[i + 1], sizeof(PerDiskInfo) * ((count - 1) - i));
 			}
-			ResizeArray(attrModPairs, count - 1, pairCount);
+			ResizeArray(perDiskGroups, count - 1, groupCount);
 			return;
 		}
 	}
 }
 
-unsigned int SetAttrModTimeForDiskIDIndex(UTCDateTime *dateTime, UInt16 diskIndex, AttrModDiskPair **attrModPairs, unsigned int *pairCount) {
+unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID, UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount) {
 	//if an entry for this diskIndex already exists, then just update it in place
 	//if an entry does not exist, then resize the buffer and add one at the end
+	//if one of dateTime or nodeID is NULL, then do not set it
 	
-	NSUInteger i = 0, count = *pairCount;
+	assert(nodeID || dateTime);
 	
-	AttrModDiskPair *pairs = *attrModPairs;
+	NSUInteger i = 0, count = *groupCount;
+	
+	PerDiskInfo *groups = *perDiskGroups;
 	for (i=0; i<count; i++) {
-		//use this slot if the diskIndex matches OR it's the first one listed and its attrTime hasn't been touched
-		if (pairs[i].diskIDIndex == diskIndex || (!i && *(int64_t*)&(pairs[i].attrTime) == 0LL)) {
-			pairs[i].attrTime = *dateTime;
-			pairs[i].diskIDIndex = diskIndex;
+		//use this slot if the diskIndex matches OR it's the first one listed and its attrTime and nodeID haven't been touched
+		if (groups[i].diskIDIndex == diskIndex || (!i && groups[i].nodeID == 0U && UTCDateTimeIsEmpty(groups[i].attrTime))) {
+			if (dateTime) groups[i].attrTime = *dateTime;
+			if (nodeID) groups[i].nodeID = *nodeID;
+			groups[i].diskIDIndex = diskIndex;
 			return i;
+		} else {
+			printf("[%d] diskIDIndex of %d != %d\n", (int)i, (int)groups[i].diskIDIndex, (int)diskIndex);
 		}
 	}
-	ResizeArray(attrModPairs, count + 1, pairCount);
+//	printf("table ID %u not found; expanding to %u\n", (unsigned)diskIndex, (unsigned)(count + 1));
 	
-	pairs = *attrModPairs;
-	pairs[count].attrTime = *dateTime;
-	pairs[count].diskIDIndex = diskIndex;
+	//diskID not found in existing buffer; add a new entry one or both attributes
+	ResizeArray(perDiskGroups, count + 1, groupCount);
+	
+	//items not currently being set are initialized to a known value, so that they can be initialized later by attrsModifiedDateOfNote and fileNodeIDOfNote
+	//although those functions do not initialize these to anything particularly useful, anyway
+	groups = *perDiskGroups;
+	groups[count].attrTime = dateTime ? *dateTime : (UTCDateTime){0, 0, 0};
+	groups[count].nodeID = nodeID ? *nodeID : 0;
+	groups[count].diskIDIndex = diskIndex;
 	
 	return count;
 }
 
-void CopyAttrModPairsToOrder(AttrModDiskPair **flippedPairs, unsigned int *existingCount, AttrModDiskPair *attrModPairs, size_t bufferSize, int toHostOrder) {
-	//for decoding and encoding an array of AttrModDiskPair structs as a single buffer
+COMPILE_ASSERT(sizeof(PerDiskInfo) == 16, PER_DISK_INFO_MUST_BE_16_BYTES);
+
+void CopyPerDiskInfoGroupsToOrder(PerDiskInfo **flippedGroups, unsigned int *existingCount, PerDiskInfo *perDiskGroups, size_t bufferSize, int toHostOrder) {
+	//for decoding and encoding an array of PerDiskInfo structs as a single buffer
 	//swap between host order and big endian
 	//resizes flippedPairs if it is too small (based on *existingCount)
 	
-	NSUInteger i, count = bufferSize / sizeof(AttrModDiskPair);
+	NSUInteger i, count = bufferSize / sizeof(PerDiskInfo);
 	
-	ResizeArray(flippedPairs, count, existingCount);
-	AttrModDiskPair *newPairs = *flippedPairs;
+	ResizeArray(flippedGroups, count, existingCount);
+	PerDiskInfo *newGroups = *flippedGroups;
 		
+	//does this need to flip the entire struct, too?
 	if (toHostOrder) {
 		for (i=0; i<count; i++) {
-			AttrModDiskPair pair = attrModPairs[i];
-			newPairs[i].attrTime.highSeconds = CFSwapInt16BigToHost(pair.attrTime.highSeconds);
-			newPairs[i].attrTime.lowSeconds = CFSwapInt32BigToHost(pair.attrTime.lowSeconds);
-			newPairs[i].attrTime.fraction = CFSwapInt16BigToHost(pair.attrTime.fraction);
-			newPairs[i].diskIDIndex = CFSwapInt16BigToHost(pair.diskIDIndex);
+			PerDiskInfo group = perDiskGroups[i];
+			newGroups[i].attrTime.highSeconds = CFSwapInt16BigToHost(group.attrTime.highSeconds);
+			newGroups[i].attrTime.lowSeconds = CFSwapInt32BigToHost(group.attrTime.lowSeconds);
+			newGroups[i].attrTime.fraction = CFSwapInt16BigToHost(group.attrTime.fraction);
+			newGroups[i].nodeID = CFSwapInt32BigToHost(group.nodeID);
+			newGroups[i].diskIDIndex = CFSwapInt32BigToHost(group.diskIDIndex);
 		}
 	} else {
 		for (i=0; i<count; i++) {
-			AttrModDiskPair pair = attrModPairs[i];
-			newPairs[i].attrTime.highSeconds = CFSwapInt16HostToBig(pair.attrTime.highSeconds);
-			newPairs[i].attrTime.lowSeconds = CFSwapInt32HostToBig(pair.attrTime.lowSeconds);
-			newPairs[i].attrTime.fraction = CFSwapInt16HostToBig(pair.attrTime.fraction);
-			newPairs[i].diskIDIndex = CFSwapInt16HostToBig(pair.diskIDIndex);
+			PerDiskInfo group = perDiskGroups[i];
+			newGroups[i].attrTime.highSeconds = CFSwapInt16HostToBig(group.attrTime.highSeconds);
+			newGroups[i].attrTime.lowSeconds = CFSwapInt32HostToBig(group.attrTime.lowSeconds);
+			newGroups[i].attrTime.fraction = CFSwapInt16HostToBig(group.attrTime.fraction);
+			newGroups[i].nodeID = CFSwapInt32HostToBig(group.nodeID);
+			newGroups[i].diskIDIndex = CFSwapInt32HostToBig(group.diskIDIndex);
 		}
 	}
 }

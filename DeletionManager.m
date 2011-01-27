@@ -15,7 +15,6 @@
 #import "NoteObject.h"
 #import "NotationController.h"
 #import "NotationPrefs.h"
-#import "GlobalPrefs.h"
 #import "NSCollection_utils.h"
 
 //class for managing notifications of external deletion of note files
@@ -25,8 +24,6 @@
 - (id)init {
 	if ([super init]) {
 		deletedNotes = [[NSMutableArray alloc] init];
-		
-		needsToShowSheet = NO;
 	}
 	return self;
 }
@@ -41,11 +38,10 @@
 - (void)awakeFromNib {
 	//[window setMaxSize:NSMakeSize(371, 0)];
 	
-	NSAssert(notationController != nil, @"attempting to awake DeletionManager without a NotationController");
+	NSAssert(notationController != nil, @"attempting to awake DeletionManager without a NotationController");	
 	
-	mainWindow = [[notationController delegate] window];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(windowDidEndSheet:) 
-												 name:NSWindowDidEndSheetNotification object:mainWindow];	
+	[window setFloatingPanel:YES];
+	[window setDelegate:self];
 }
 
 - (void)dealloc {
@@ -78,6 +74,9 @@
 - (void)addDeletedNotes:(NSArray*)array {
 	if ([array count] > 0) {
 		if (![deletedNotes count]) {
+			//canceling the delayed selector would not be necessary if updateForVerifiedExistingNote 
+			//did not have the potential to clear out deletedNotes before the selector posted to the next run loop
+			[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(processDeletedNotes) object:nil];
 			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
 		}
 		
@@ -94,62 +93,89 @@
 		[array makeObjectsPerformSelector:@selector(invalidateFSRef)];
 		
 		if (didAddDeletedNote) {
-			[self _updateSheetForNotes];
+			[self _updatePanelForNotes];
 		}
 	}
+	hasDeletedNotes = [deletedNotes count] != 0;
 }
 
 - (void)addDeletedNote:(NoteObject*)aNote {
 	
 	if (aNote) {
 		if (![deletedNotes count]) {
+			[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(processDeletedNotes) object:nil];
 			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
 		}
 		//filter dups or remove these notes from allNotes before adding them here!
 		if (![self noteFileIsAlreadyDeleted:aNote]) {
 			[deletedNotes addObject:aNote];
-			[self _updateSheetForNotes];
+			[self _updatePanelForNotes];
 		}
 		
 		//clear fsref to ensure that files are re-created if they are restored
 		//if they are to be deleted, we don't care about them, anyway--they should already be gone
 		[aNote invalidateFSRef];
 	}
+	hasDeletedNotes = [deletedNotes count] != 0;
 }
 
-- (void)_updateSheetForNotes {
+- (void)_updatePanelForNotes {
 	[tableView reloadData];
-	[window setFrame:[self windowSizeForNotes] display:[window isVisible] animate:[window isVisible]];
+	[window setFrame:[self windowSizeForNotesFromSender:window] display:NO];
+}
+
+void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) {
+	//if there are deleted notes currently being shown and goodNote is among them, then update the dialog appropriately, dismissing it if necessary
+	
+	if (!self->hasDeletedNotes) return;
+	
+	NSUInteger priorNoteCount = [self->deletedNotes count];
+	[self->deletedNotes removeObjectIdenticalTo:goodNote];
+	NSUInteger latterNoteCount = [self->deletedNotes count];
+	
+	self->hasDeletedNotes = latterNoteCount != 0;
+	
+	if (latterNoteCount != priorNoteCount) {
+		[self _updatePanelForNotes];
+		if (!self->hasDeletedNotes) {
+			[self cancelPanelReturningCode:1];
+		}
+	}
 }
 
 
 - (void)processDeletedNotes {
 	
-	if ([[[GlobalPrefs defaultPrefs] notationPrefs] confirmFileDeletion]) {
-		[self showSheetForDeletedNotes];
+	if ([[notationController notationPrefs] confirmFileDeletion]) {
+		[self showPanelForDeletedNotes];
 	} else {
 		[self removeDeletedNotes];
 	}
 }
 
-- (NSRect)windowSizeForNotes {
+- (NSRect)windowSizeForNotesFromSender:(id)sender {
 	float oldHeight = 0.0;
 	float newHeight = 0.0;
-	NSRect newFrame = [window frame];
+	NSRect newFrame = [sender frame];
 	NSSize intercellSpacing = [tableView intercellSpacing];
 	
 	int numRows = MIN(20, [tableView numberOfRows]);
 	newHeight = MAX(2, numRows) * ([tableView rowHeight] + intercellSpacing.height);	
 	oldHeight = [[[tableView enclosingScrollView] contentView] frame].size.height;
-	newHeight = [window frame].size.height - oldHeight + newHeight;
+	newHeight = [sender frame].size.height - oldHeight + newHeight;
 	
 	newFrame.origin.y = newFrame.origin.y + newFrame.size.height - newHeight;
 	
 	newFrame.size.height = newHeight;
-	return newFrame;	
+	return newFrame;
 }
 
-- (void)showSheetForDeletedNotes {
+- (void)showPanelForDeletedNotes {
+	
+	if (![deletedNotes count]) {
+		NSLog(@"showPanelForDeletedNotes was asked to display without deleted notes");
+		return;
+	}
 	
 	if (!window) {
 		if (![NSBundle loadNibNamed:@"DeletionManager" owner:self])  {
@@ -157,26 +183,19 @@
 			NSBeep();
 			return;
 		}
-	}	
+	}
+	[confirmDeletionButton setState:![[notationController notationPrefs] confirmFileDeletion]];
 	
 	//sort notes by title
 	[deletedNotes sortUnstableUsingFunction:compareTitleString];
 	
-	needsToShowSheet = YES;
+	[window setFrame:[self windowSizeForNotesFromSender:window] display:NO];
 	
-	[window setFrame:[self windowSizeForNotes] display:NO];
-	
-	[NSApp beginSheet:window modalForWindow:mainWindow modalDelegate:self 
-	   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+	if (![window isVisible])
+		[window center];
+	[window makeKeyAndOrderFront:nil];
 	
 	[NSApp cancelUserAttentionRequest:0];
-	
-	if ([mainWindow attachedSheet] == window)
-		needsToShowSheet = NO;
-}
-
-- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
-	
 }
 
 - (void)removeDeletedNotes {
@@ -195,13 +214,15 @@
 	}
 	
 	[deletedNotes removeAllObjects];
+	hasDeletedNotes = [deletedNotes count] != 0;
 }
 
 - (void)cancelPanelReturningCode:(NSInteger)code {
-	if (window) {
-		[NSApp endSheet:window returnCode:code];
-		[window close];
-	}
+	[window close];
+}
+
+- (IBAction)changeConfirmDeletion:(id)sender {
+	[[notationController notationPrefs] setConfirmsFileDeletion:![confirmDeletionButton state]];
 }
 
 - (IBAction)deleteAction:(id)sender {
@@ -223,18 +244,11 @@
 	[NSObject cancelPreviousPerformRequestsWithTarget:notationController selector:@selector(synchronizeNotesFromDirectory) object:nil];
 	
 	[deletedNotes removeAllObjects];
+	hasDeletedNotes = [deletedNotes count] != 0;
 	
 	[self cancelPanelReturningCode:0];
 }
 
-- (void)windowDidEndSheet:(NSNotification *)aNotification {
-
-	if (needsToShowSheet) {
-		//we didn't show ourselves and we still need to--now's the time!
-		NSLog(@"trying to show sheet again");
-		[self showSheetForDeletedNotes];
-	}
-}
 
 - (BOOL)tableView:(NSTableView *)aTableView shouldEditTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	return NO;
@@ -251,5 +265,10 @@
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {
     return [deletedNotes count];
 }
+
+- (NSRect)windowWillUseStandardFrame:(NSWindow *)sender defaultFrame:(NSRect)defaultFrame {
+	return [self windowSizeForNotesFromSender:sender];
+}
+
 
 @end

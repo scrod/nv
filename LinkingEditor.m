@@ -343,28 +343,15 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	
 	if ([type isEqualToString:NSFilenamesPboardType]) {
 		//paste as a file:// URL, so that it can be linked
-		NSArray *files = [pboard propertyListForType:NSFilenamesPboardType];
-		if ([files isKindOfClass:[NSArray class]]) {
-			NSMutableString *allURLsString = [NSMutableString string];
-			unsigned int i;
-			BOOL foundURL = NO;
-			for (i=0; i<[files count]; i++) {
-				NSURL *url = [NSURL fileURLWithPath:[files objectAtIndex:i]];
-				if (url) {
-					[allURLsString appendFormat:@"<%@>", 
-						[[url absoluteString] stringByReplacingOccurrencesOfString:@"file://localhost" withString:@"file://"]];
-					foundURL = YES;
-				}
-				if (i < [files count] - 1) [allURLsString appendString:@"\n"];
-			}
-			if (foundURL) {
-				NSRange selectedRange = [self rangeForUserTextChange];
-				if ([self shouldChangeTextInRange:selectedRange replacementString:allURLsString]) {
-					[self replaceCharactersInRange:selectedRange withString:allURLsString];
-					[self didChangeText];
-					
-					return YES;
-				}
+		NSString *allURLsString = [[NSApp delegate] stringWithNoteURLsOnPasteboard:pboard];
+		
+		if ([allURLsString length]) {
+			NSRange selectedRange = [self rangeForUserTextChange];
+			if ([self shouldChangeTextInRange:selectedRange replacementString:allURLsString]) {
+				[self replaceCharactersInRange:selectedRange withString:allURLsString];
+				[self didChangeText];
+				
+				return YES;
 			}
 		}
 	}
@@ -1342,12 +1329,20 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange {
 	NSRange effectiveRange = NSMakeRange(aRange.location, 0);
-	
 	while (NSMaxRange(effectiveRange) < NSMaxRange(aRange)) {
 		
-		if ([[self layoutManager] temporaryAttribute:NVHiddenBulletIndentAttributeName 
-									atCharacterIndex:NSMaxRange(effectiveRange) 
-									  effectiveRange:&effectiveRange] && NSEqualRanges(effectiveRange, aRange)) {
+		id bulletIndicator = nil;
+		
+		//sometimes the temporary attributes are split across juxtaposing characters for some reason, so longest-effective-range is necessary
+		//unfortunately there is no such method on Tiger, and I'm not about to emulate its coalescing behavior here
+		if (IsLeopardOrLater) {
+			bulletIndicator = [[self layoutManager] temporaryAttribute:NVHiddenBulletIndentAttributeName atCharacterIndex:NSMaxRange(effectiveRange) 
+												 longestEffectiveRange:&effectiveRange inRange:aRange];
+		} else {
+			NSDictionary *dict = [[self layoutManager] temporaryAttributesAtCharacterIndex:NSMaxRange(effectiveRange) effectiveRange:&effectiveRange];
+			bulletIndicator = [dict objectForKey:NVHiddenBulletIndentAttributeName];
+		}
+		if (bulletIndicator && NSEqualRanges(effectiveRange, aRange)) {
 			return YES;
 		}
 	}

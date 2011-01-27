@@ -38,9 +38,9 @@ OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef);
 OSStatus CreateDirectoryIfNotPresent(FSRef *parentRef, CFStringRef subDirectoryName, FSRef *childRef);
 CFUUIDRef CopyHFSVolumeUUIDForMount(const char *mntonname);
 long BlockSizeForNotation(NotationController *controller);
-unsigned int diskUUIDIndexForNotation(NotationController *controller);
+UInt32 diskUUIDIndexForNotation(NotationController *controller);
 
-- (void)purgeOldAttrModTimesFromNotes;
+- (void)purgeOldPerDiskInfoFromNotes;
 - (void)initializeDiskUUIDIfNecessary;
 
 - (BOOL)notesDirectoryIsTrashed;

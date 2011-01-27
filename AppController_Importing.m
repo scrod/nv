@@ -23,6 +23,7 @@
 #import "DualField.h"
 #import "SyncSessionController.h"
 #import "NotationSyncServiceManager.h"
+#import "NotationDirectoryManager.h"
 #import "AlienNoteImporter.h"
 #import "NSString_NV.h"
 #import <WebKit/WebArchive.h>
@@ -31,6 +32,7 @@
 #import "AttributedPlainText.h"
 #import "NSCollection_utils.h"
 #import "NoteObject.h"
+#import "NotationPrefs.h"
 
 @implementation AppController (Importing)
 
@@ -138,7 +140,7 @@
 		[newString santizeForeignStylesForImporting];
 		
 		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:newString title:noteTitle delegate:notationController
-														  format:[notationController currentNoteStorageFormat]] autorelease];
+														  format:[notationController currentNoteStorageFormat] labels:nil] autorelease];
 		if (bodyLoc > 0 && [newString length] >= bodyLoc + prefixedSourceLength) [note setSelectedRange:NSMakeRange(prefixedSourceLength, bodyLoc)];
 		[notationController addNewNote:note];
 		
@@ -230,11 +232,8 @@
 			[attributedContents santizeForeignStylesForImporting];
 			
 			NoteObject *note = [[[NoteObject alloc] initWithNoteBody:[attributedContents autorelease] title:title delegate:notationController
-															  format:[notationController currentNoteStorageFormat]] autorelease];
+															  format:[notationController currentNoteStorageFormat] labels:tags] autorelease];
 			[notationController addNewNote:note];
-			if ([tags length]) {
-				[note setLabelString:tags];
-			}
 			return YES;
 		} else if (txtBody || htmlBody) {
 			NSPasteboard *pboard = [NSPasteboard pasteboardWithUniqueName];
@@ -255,5 +254,41 @@
 	return NO;
 }
 
+- (NSString*)stringWithNoteURLsOnPasteboard:(NSPasteboard*)pboard {
+	//paste as a file:// URL, so that it can be linked
+	
+	NSMutableString *allURLsString = [NSMutableString string];
+	
+	NSArray *files = [pboard propertyListForType:NSFilenamesPboardType];
+	if ([files isKindOfClass:[NSArray class]]) {
+		NSArray *unknownPaths = files;
+		NSUInteger i;
+		
+		if ([notationController currentNoteStorageFormat] != SingleDatabaseFormat) {
+			//notes are stored as separate files, so if these paths are in the notes folder then NV can create double-bracketed-links to them instead
+			
+			NSSet *existingNotes = [notationController notesWithFilenames:files unknownFiles:&unknownPaths];
+			if ([existingNotes count]) {
+				//create double-bracketed links using these notes' titles
+				NSArray *existingArray = [existingNotes allObjects];
+				for (i=0; i<[existingArray count]; i++) {
+					[allURLsString appendFormat:@"[[%@]]%s", titleOfNote([existingArray objectAtIndex:i]), 
+					 (i < [existingArray count] - 1) || [unknownPaths count] ? "\n" : ""];
+				}
+			}
+		}
+		//NSLog(@"paths not found in DB: %@", unknownPaths);
+		
+		for (i=0; i<[unknownPaths count]; i++) {
+			NSURL *url = [NSURL fileURLWithPath:[unknownPaths objectAtIndex:i]];
+			if (url) {
+				[allURLsString appendFormat:@"<%@>%s", 
+				 [[url absoluteString] stringByReplacingOccurrencesOfString:@"file://localhost" withString:@"file://"],
+				(i < [unknownPaths count] - 1) ? "\n" : ""];
+			}
+		}
+	}
+	return allURLsString;
+}
 
 @end

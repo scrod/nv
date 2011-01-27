@@ -184,6 +184,10 @@
 				NSLog(@"found and removed spurious DB notes");
 				[self refilterNotes];
 			}
+			
+			//TableColumnsVisible was renamed NoteAttributesVisible to coincide with shifted emphasis; remove old key to declutter prefs
+			[[NSUserDefaults standardUserDefaults] removeObjectForKey:@"TableColumnsVisible"];
+			
 			//remove and re-add link attributes for all notes
 			//remove underline attribute for all notes
 			//add automatic strike-through attribute for all notes
@@ -521,7 +525,7 @@ bail:
 		}
 		
 		//purge attr-mod-times for old disk uuids here
-		[self purgeOldAttrModTimesFromNotes];
+		[self purgeOldPerDiskInfoFromNotes];
 		
 		
 		NSData *serializedData = [FrozenNotation frozenDataWithExistingNotes:allNotes deletedNotes:deletedNotes prefs:notationPrefs];
@@ -628,7 +632,9 @@ bail:
     if ([unwrittenNotes count] > 0) {
 		lastWriteError = noErr;
 		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
-			[unwrittenNotes makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
+			//to avoid mutation enumeration if writing this file triggers a filename change which then triggers another makeNoteDirty which then triggers another scheduleWriteForNote:
+			//loose-coupling? what?
+			[[[unwrittenNotes copy] autorelease] makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
 			
 			//this always seems to call ourselves
 			FNNotify(&noteDirectoryRef, kFNDirectoryModifiedMessage, kFNNoImplicitAllSubscription);
@@ -956,32 +962,37 @@ bail:
 
 - (void)scheduleWriteForNote:(NoteObject*)note {
 
-	BOOL immediately = NO;
-	notesChanged = YES;
+	if ([allNotes containsObject:note]) {
 	
-	[unwrittenNotes addObject:note];
-	
-	//always synchronize absolutely no matter what 15 seconds after any change
-	if (!changeWritingTimer)
-	    changeWritingTimer = [[NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self 
-								 selector:@selector(synchronizeNoteChanges:)
-								 userInfo:nil repeats:NO] retain];
-	
-	//next user change always invalidates queued write from performSelector, but not queued write from timer
-	//this avoids excessive writing and any potential and unnecessary disk access while user types
-	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNoteChanges:) object:nil];
-	
-	if (walWriter) {
-		//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
-		[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
-		//fsyncing WAL to disk can cause noticeable interruption when run from main thread
-		[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
-	}
-	
-	if (!immediately) {
-		//timer is already scheduled if immediately is true
-		//queue to write 2.7 seconds after last user change; 
-		[self performSelector:@selector(synchronizeNoteChanges:) withObject:nil afterDelay:2.7];
+		BOOL immediately = NO;
+		notesChanged = YES;
+		
+		[unwrittenNotes addObject:note];
+		
+		//always synchronize absolutely no matter what 15 seconds after any change
+		if (!changeWritingTimer)
+			changeWritingTimer = [[NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self 
+									 selector:@selector(synchronizeNoteChanges:)
+									 userInfo:nil repeats:NO] retain];
+		
+		//next user change always invalidates queued write from performSelector, but not queued write from timer
+		//this avoids excessive writing and any potential and unnecessary disk access while user types
+		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNoteChanges:) object:nil];
+		
+		if (walWriter) {
+			//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
+			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
+			//fsyncing WAL to disk can cause noticeable interruption when run from main thread
+			[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
+		}
+		
+		if (!immediately) {
+			//timer is already scheduled if immediately is true
+			//queue to write 2.7 seconds after last user change; 
+			[self performSelector:@selector(synchronizeNoteChanges:) withObject:nil afterDelay:2.7];
+		}
+	} else {
+		NSLog(@"not writing note %@ because it is not controlled by NoteController", note);
 	}
 }
 
@@ -1014,6 +1025,9 @@ bail:
     //reset linking labels and their notes
     
 	[aNoteObject retain];
+	
+	[aNoteObject disconnectLabels];
+	
     [allNotes removeObjectIdenticalTo:aNoteObject];
 	DeletedNoteObject *deletedNote = [self _addDeletedNote:aNoteObject];
     

@@ -54,8 +54,8 @@ typedef struct _NoteFilterContext {
 	UInt32 nodeID;
 	UInt32 logicalSize;
 	UTCDateTime fileModifiedDate, *attrsModifiedDate;
-	AttrModDiskPair *attrModDiskPairs;
-	unsigned int attrModPairCount;
+	PerDiskInfo *perDiskInfoGroups;
+	unsigned int perDiskInfoGroupCount;
 	int currentFormatID;
 	NSStringEncoding fileEncoding;
 	BOOL shouldWriteToFile, didUnarchive;
@@ -142,7 +142,8 @@ NSInteger compareFileSize(id *a, id *b);
 
 - (id)delegate;
 - (void)setDelegate:(id)theDelegate;
-- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID;
+- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle 
+			  delegate:(id)aDelegate format:(int)formatID labels:(NSString*)aLabelString;
 - (id)initWithCatalogEntry:(NoteCatalogEntry*)entry delegate:(id)aDelegate;
 
 - (NSSet*)labelSet;
@@ -150,6 +151,8 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)replaceMatchingLabel:(LabelObject*)label;
 - (void)updateLabelConnectionsAfterDecoding;
 - (void)updateLabelConnections;
+- (void)disconnectLabels;
+- (BOOL)_setLabelString:(NSString*)newLabelString;
 - (void)setLabelString:(NSString*)newLabels;
 - (NSMutableSet*)labelSetFromCurrentString;
 - (NSArray*)orderedLabelTitles;

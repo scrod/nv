@@ -23,5 +23,6 @@
 
 - (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard;
 - (BOOL)interpretNVURL:(NSURL*)aURL;
+- (NSString*)stringWithNoteURLsOnPasteboard:(NSPasteboard*)pboard;
 
 @end
