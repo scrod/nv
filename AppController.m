@@ -297,7 +297,8 @@ terminateApp:
 	NSURL *fullURL = [NSURL URLWithString:[[event paramDescriptorForKeyword:keyDirectObject] stringValue]];
 	
 	if (notationController) {
-		[self interpretNVURL:fullURL];
+		if (![self interpretNVURL:fullURL])
+			NSBeep();
 	} else {
 		URLToInterpretOnLaunch = [fullURL retain];
 	}

@@ -249,6 +249,13 @@
 			}
 			return [self addNotesFromPasteboard:pboard];
 		}
+	} else if ([[aURL host] length]) {
+		//assume find by default
+		if (currentNote) {
+			[field pushFollowedLink:[[[NoteBookmark alloc] initWithNoteObject:currentNote searchString:[self fieldSearchString]] autorelease]];
+		}
+		[self searchForString:[aURL host]];
+		return YES;
 	}
 	
 	return NO;
