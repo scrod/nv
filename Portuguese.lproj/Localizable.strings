@@ -609,7 +609,7 @@
 "Date Added" = "Data de Criação";
 
 /* tooltip string for search/title field */
-"Go back to search; press %@-D to deselect" = "Voltar à busca; pressione %@-D para cancelar seleção"
+"Go back to search; press %@-D to deselect" = "Voltar à busca; pressione %@-D para cancelar seleção";
 
 /* tooltip string for search/title field */
 "Now searching for this text" = "Procurando por este texto";

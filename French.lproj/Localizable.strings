@@ -609,7 +609,7 @@
 "Date Added" = "Date d'ajout";
 
 /* tooltip string for search/title field */
-"Go back to search; press %@-D to deselect" = "Revenir à la recherche; pressez %@-D pour déselectionner"
+"Go back to search; press %@-D to deselect" = "Revenir à la recherche; pressez %@-D pour déselectionner";
 
 /* tooltip string for search/title field */
 "Now searching for this text" = "Recherche de ce texte";
