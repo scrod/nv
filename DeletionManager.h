@@ -34,6 +34,7 @@
 - (void)addDeletedNotes:(NSArray*)array;
 - (void)addDeletedNote:(NoteObject*)aNote;
 - (NSRect)windowSizeForNotesFromSender:(id)sender;
+void updateForVerifiedDeletedNote(DeletionManager *self, NoteObject *missingNote);
 void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote);
 - (void)processDeletedNotes;
 - (void)removeDeletedNotes;

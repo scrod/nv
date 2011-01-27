@@ -1030,6 +1030,8 @@ bail:
 	
     [allNotes removeObjectIdenticalTo:aNoteObject];
 	DeletedNoteObject *deletedNote = [self _addDeletedNote:aNoteObject];
+	
+	updateForVerifiedDeletedNote(deletionManager, aNoteObject);
     
     notesChanged = YES;
 	

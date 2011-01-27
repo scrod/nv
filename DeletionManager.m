@@ -14,6 +14,7 @@
 #import "DeletionManager.h"
 #import "NoteObject.h"
 #import "NotationController.h"
+#import "NotationDirectoryManager.h"
 #import "NotationPrefs.h"
 #import "NSCollection_utils.h"
 
@@ -124,6 +125,13 @@
 	[window setFrame:[self windowSizeForNotesFromSender:window] display:NO];
 }
 
+void updateForVerifiedDeletedNote(DeletionManager *self, NoteObject *missingNote) {
+	//called from [NotationController removeNote:]
+	
+	//just to underscore that this is really the same type of operation, call through to the other method
+	updateForVerifiedExistingNote(self, missingNote);
+}
+
 void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) {
 	//if there are deleted notes currently being shown and goodNote is among them, then update the dialog appropriately, dismissing it if necessary
 	
@@ -203,7 +211,7 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 	//for purposes of generating useful undo messages
 	if ([deletedNotes count] > 1) {
 	
-		[notationController removeNotes:deletedNotes];
+		[notationController removeNotes:[[deletedNotes copy] autorelease]];
 		
 	} else if ([deletedNotes count] == 1) {
 		
@@ -212,9 +220,6 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 	} else {
 		NSLog(@"No deleted notes?!");
 	}
-	
-	[deletedNotes removeAllObjects];
-	hasDeletedNotes = [deletedNotes count] != 0;
 }
 
 - (void)cancelPanelReturningCode:(NSInteger)code {
@@ -228,25 +233,21 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 - (IBAction)deleteAction:(id)sender {
 	
 	[self removeDeletedNotes];
-	
-	[self cancelPanelReturningCode:1];
 }
 
 - (IBAction)restoreAction:(id)sender {
 
+	//force-write the files
 	unsigned int i;
 	for (i=0; i<[deletedNotes count]; i++) {
 		[[deletedNotes objectAtIndex:i] makeNoteDirtyUpdateTime:NO updateFile:YES];
 	}
 	[notationController synchronizeNoteChanges:nil];
 	
-	//cancel any file synchronization that's about to run after the sheet to make sure that it doesn't catch files before rewriting
+	//force-synchronize directory to get notationcontroller to tell DeletionManager that the file now exists via updateForVerifiedExistingNote
+	//if restoring the file did not result in the dialog being dismissed, then it was not actually restored
 	[NSObject cancelPreviousPerformRequestsWithTarget:notationController selector:@selector(synchronizeNotesFromDirectory) object:nil];
-	
-	[deletedNotes removeAllObjects];
-	hasDeletedNotes = [deletedNotes count] != 0;
-	
-	[self cancelPanelReturningCode:0];
+	[notationController synchronizeNotesFromDirectory];
 }
 
 

@@ -340,8 +340,6 @@ unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID,
 			if (nodeID) groups[i].nodeID = *nodeID;
 			groups[i].diskIDIndex = diskIndex;
 			return i;
-		} else {
-			printf("[%d] diskIDIndex of %d != %d\n", (int)i, (int)groups[i].diskIDIndex, (int)diskIndex);
 		}
 	}
 //	printf("table ID %u not found; expanding to %u\n", (unsigned)diskIndex, (unsigned)(count + 1));
