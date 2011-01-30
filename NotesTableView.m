@@ -869,9 +869,17 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
 	
 	unsigned mods = [theEvent modifierFlags];
-	if ((mods & NSCommandKeyMask) && ((mods & NSShiftKeyMask) == 0)) {
+	
+	// Also catch Ctrl-J/-K to match the shortcuts of other apps
+	if (((mods & NSCommandKeyMask) || (mods & NSControlKeyMask)) && ((mods & NSShiftKeyMask) == 0)) {
 		
-		unichar keyChar = [theEvent firstCharacter]; /*cannot use ignoringModifiers here as it subverts the Dvorak-Qwerty-CMD keyboard layout */
+		unichar keyChar = ' '; 
+		if (mods & NSCommandKeyMask) {
+			keyChar = [theEvent firstCharacter]; /*cannot use ignoringModifiers here as it subverts the Dvorak-Qwerty-CMD keyboard layout */
+		}
+		if (mods & NSControlKeyMask) {
+			keyChar = [theEvent firstCharacterIgnoringModifiers]; /* first gets '\n' when control key is set, so fall back to ignoringModifiers */
+		}
 		
 		if (keyChar == kNext_Tag || keyChar == kPrev_Tag) {
 			
@@ -886,9 +894,10 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			return YES;
 		}
 	}
-
+	
 	return [super performKeyEquivalent:theEvent];
 }
+
 
 - (void)incrementNoteSelection:(id)sender {
 	
