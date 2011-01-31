@@ -121,7 +121,7 @@ NSDictionary *LineTruncAttributesForTitle() {
 		
 		if (ColumnIsSet(NoteDateCreatedColumn, bitmap) || ColumnIsSet(NoteDateModifiedColumn, bitmap)) {
 			//account for right-"aligned" date string, which will be relatively constant, so this can be cached
-			[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent:-55.0];
+			[[titleTruncAttrs objectForKey:NSParagraphStyleAttributeName] setTailIndent: fontSize * -4.6]; //avg of -55 for ~11-12 font size
 		}
 	}
 	return titleTruncAttrs;
