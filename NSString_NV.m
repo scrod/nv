@@ -717,7 +717,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	static NSMutableCharacterSet *charSet = nil;
 	if (!charSet) {
 		charSet = [[NSMutableCharacterSet whitespaceCharacterSet] retain];
-		[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
+		[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@",;"]];
 	}
 
 	return charSet;

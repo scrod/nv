@@ -1204,7 +1204,8 @@ cancelCompetion:
 	
 	[[self textStorage] addStrikethroughNearDoneTagsForRange:changedRange];
 	
-	if (!isAutocompleting && !wasDeleting && [prefsController linksAutoSuggested]) {		
+	if (!isAutocompleting && !wasDeleting && [prefsController linksAutoSuggested] && 
+		![[self undoManager] isUndoing] && ![[self undoManager] isRedoing]) {
 		isAutocompleting = YES;
 		[self complete:self];
 		isAutocompleting = NO;
