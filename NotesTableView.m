@@ -870,28 +870,44 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	unsigned mods = [theEvent modifierFlags];
 	
+	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0;
+	BOOL isCommandKeyPressed = (mods & NSCommandKeyMask) != 0;
+	BOOL isShiftKeyPressed = (mods & NSShiftKeyMask) != 0;
+
 	// Also catch Ctrl-J/-K to match the shortcuts of other apps
-	if (((mods & NSCommandKeyMask) || (mods & NSControlKeyMask)) && ((mods & NSShiftKeyMask) == 0)) {
+	if ((isControlKeyPressed || isCommandKeyPressed) && (!isShiftKeyPressed)) {
 		
+		// Determine the keyChar:
 		unichar keyChar = ' '; 
-		if (mods & NSCommandKeyMask) {
+		if (isCommandKeyPressed) {
 			keyChar = [theEvent firstCharacter]; /*cannot use ignoringModifiers here as it subverts the Dvorak-Qwerty-CMD keyboard layout */
 		}
-		if (mods & NSControlKeyMask) {
+		if (isControlKeyPressed) {
 			keyChar = [theEvent firstCharacterIgnoringModifiers]; /* first gets '\n' when control key is set, so fall back to ignoringModifiers */
 		}
 		
-		if (keyChar == kNext_Tag || keyChar == kPrev_Tag) {
-			
+		// Handle J and K
+		if ( keyChar == kNext_Tag || keyChar == kPrev_Tag ) {
 			if (mods & NSAlternateKeyMask) {
-				[self selectRowAndScroll:(keyChar == kNext_Tag ? [self numberOfRows] - 1 :  0)];
+				[self selectRowAndScroll:((keyChar == kNext_Tag) ? [self numberOfRows] - 1 :  0)];
 			} else {
 				if (!dummyItem) dummyItem = [[NSMenuItem alloc] init];
 				[dummyItem setTag:keyChar];
-				
 				[self incrementNoteSelection:dummyItem];
 			}
 			return YES;
+		}
+
+		// Handle N and P, but only when control is pressed
+		if ( (keyChar == 'n' || keyChar == 'p') && (!isCommandKeyPressed)) {
+			// Determine if the note editing pane is selected:
+			BOOL isEditorFirstResponder = [@"LinkingEditor" isEqualToString: NSStringFromClass([[[NSApp mainWindow] firstResponder] class])]; /* Can't use +isKindOfClass because LinkingEditor is a forwarding class and may not respond to +class */
+			if (!isEditorFirstResponder) {
+				if (!dummyItem) dummyItem = [[NSMenuItem alloc] init];
+				[dummyItem setTag:((keyChar == 'n') ? kNext_Tag : kPrev_Tag)];
+				[self incrementNoteSelection:dummyItem];
+				return YES;
+			}
 		}
 	}
 	
