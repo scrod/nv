@@ -205,6 +205,7 @@
 		210A10660B66720F005BE981 /* BookmarksTable.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = BookmarksTable.h; sourceTree = "<group>"; };
 		210A10670B66720F005BE981 /* BookmarksTable.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = BookmarksTable.m; sourceTree = "<group>"; };
 		210C07230B6BF0A1005D23A8 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = /System/Library/Frameworks/WebKit.framework; sourceTree = "<absolute>"; };
+		210D878B12FB374D00ED7730 /* English */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/ServicesMenu.strings; sourceTree = "<group>"; };
 		2110BADD0B640D2100F5C52E /* BookmarksController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BookmarksController.h; sourceTree = "<group>"; };
 		2110C0D00B65F09E00F5C52E /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/SavedSearches.nib; sourceTree = "<group>"; };
 		211344430B354E000081B064 /* idea_ossl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = idea_ossl.h; sourceTree = "<group>"; };
@@ -1263,6 +1264,7 @@
 			children = (
 				2128651D1278AF220013820A /* French */,
 				212865A4128B15390013820A /* German */,
+				210D878B12FB374D00ED7730 /* English */,
 			);
 			name = ServicesMenu.strings;
 			sourceTree = "<group>";
