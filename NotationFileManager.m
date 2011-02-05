@@ -25,7 +25,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 
-NSString *NotesDatabaseFileName = @"Notes & Settings";
+NSString *NotesDatabaseFileName = @"nvALT Notes & Settings";
 
 @implementation NotationController (NotationFileManager)
 

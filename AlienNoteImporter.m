@@ -428,7 +428,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	
 	NSMutableAttributedString *attributedStringFromData = nil;
 	if (fileType == HTML_TYPE_ID || [extension isEqualToString:@"htm"] || [extension isEqualToString:@"html"] || [extension isEqualToString:@"shtml"]) {
-		//should convert to text with markdown here
+		// convert to text with markdown here
 		if ([[GlobalPrefs defaultPrefs] useMarkdownImport]) {
 			if ([[GlobalPrefs defaultPrefs] useReadability] || [self shouldUseReadability]) {
 				attributedStringFromData = [[NSMutableAttributedString alloc] initWithString:[self contentUsingReadability:filename] 
@@ -624,7 +624,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				NSMutableAttributedString *attributedString = [[[NSMutableAttributedString alloc] initWithRTFD:[doc RTFDData] documentAttributes:NULL] autorelease];
 				[attributedString removeAttachments];
 				[attributedString santizeForeignStylesForImporting];
-				NSString *syntheticTitle = [attributedString trimLeadingSyntheticTitle];
+				NSString *syntheticTitle = [attributedString getLeadingSyntheticTitle];
 				
 				NoteObject *noteObject = [[[NoteObject alloc] initWithNoteBody:attributedString title:syntheticTitle uniqueFilename:nil format:SingleDatabaseFormat] autorelease];				
 				if (noteObject) {

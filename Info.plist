@@ -138,7 +138,7 @@
 	<key>CFBundleIconFile</key>
 	<string>Notality</string>
 	<key>CFBundleIdentifier</key>
-	<string>net.notational.velocity</string>
+	<string>net.brettterpstra.nvalt</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundlePackageType</key>

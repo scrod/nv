@@ -169,7 +169,7 @@
 			NSLog(@"trying to upgrade note encodings");
 			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
 			//move aside the old database as the new format breaks compatibility
-			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
+			(void)[self renameAndForgetNoteDatabaseFile:@"nvALT Notes & Settings (old version from 2.0b)"];
 		}
 		if (epochIteration < 3) {
 			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
