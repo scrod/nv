@@ -132,7 +132,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
 			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
-			[NSArray arrayWithObjects:NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, nil], NoteAttributesVisibleKey,
+			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], NoteAttributesVisibleKey,
 			NoteDateModifiedColumnString, TableSortColumnKey,
 			[NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
 		
