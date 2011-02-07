@@ -1792,9 +1792,10 @@ BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shor
 
 - (void)addPrefixParentNote:(NoteObject*)aNote {
 	if (!prefixParentNotes) {
-		prefixParentNotes = [[NSMutableArray alloc] init];
+		prefixParentNotes = [[NSMutableArray alloc] initWithObjects:&aNote count:1];
+	} else {
+		[prefixParentNotes addObject:aNote];
 	}
-	[prefixParentNotes addObject:aNote];
 }
 - (void)removeAllPrefixParentNotes {
 	[prefixParentNotes removeAllObjects];
