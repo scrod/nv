@@ -485,6 +485,24 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	
 	const char *utf8String = [(NSString*)str2 UTF8String];
 	
+	if (!utf8String) {
+		
+		CFStringEncoding encoding = CFStringGetFastestEncoding(str2);
+		const char *cStrPtr = CFStringGetCStringPtr(str2, encoding);
+		
+		if (cStrPtr && (kCFStringEncodingUTF8 == encoding || (encoding & 0x0100) == 0)) {
+			//-UTF8String failed, but the native cstringptr worked and was not a UTF16+ encoding
+			//so return that instead, forfeiting upper-ascii searchability for now
+			//(for whatever reason, native string encoding is almost never kCFStringEncodingUTF8, so CFStringGetFastestEncoding is called only if necessary)
+			utf8String = cStrPtr;
+			
+		} else {
+			//-UTF8String failed and CFStringGetCStringPtr was not a good fallback; try lossy MacOSRoman and pray
+			NSMutableData *nullTerminatedData = [[[(NSString*)str2 dataUsingEncoding:NSMacOSRomanStringEncoding allowLossyConversion:YES] mutableCopy] autorelease];
+			[nullTerminatedData appendBytes:"\0" length:1];
+			utf8String = [nullTerminatedData bytes];
+		}
+	}
 	CFRelease(str2);
 	return utf8String;
 }
