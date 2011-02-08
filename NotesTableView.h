@@ -39,7 +39,6 @@ typedef struct _ViewLocationContext {
 	id labelsListSource;
 	
 	GlobalPrefs *globalPrefs;
-	NSMenuItem *dummyItem;
 	HeaderViewWithMenu *headerView;
 	NSView *cornerView;
 	NSTextFieldCell *cachedCell;
@@ -88,6 +87,7 @@ typedef struct _ViewLocationContext {
 - (NoteAttributeColumn*)noteAttributeColumnForIdentifier:(NSString*)identifier;
 
 - (void)incrementNoteSelection:(id)sender;
+- (void)_incrementNoteSelectionByTag:(NSInteger)tag;
 
 - (id)labelsListSource;
 - (void)setLabelsListSource:(id)labelsSource;

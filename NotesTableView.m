@@ -29,7 +29,6 @@
 
 #define SYNTHETIC_TAGS_COLUMN_INDEX 200
 
-static NSMenuItem* _dummyItemWithTag(NotesTableView *tv, NSInteger aTag);
 static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target);
 
 @implementation NotesTableView
@@ -893,7 +892,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			if (mods & NSAlternateKeyMask) {
 				[self selectRowAndScroll:((keyChar == kNext_Tag) ? [self numberOfRows] - 1 :  0)];
 			} else {
-				[self incrementNoteSelection:_dummyItemWithTag(self, keyChar)];
+				[self _incrementNoteSelectionByTag:keyChar];
 			}
 			return YES;
 		}
@@ -902,7 +901,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		if ( (keyChar == 'n' || keyChar == 'p') && (!isCommandKeyPressed)) {
 			// Determine if the note editing pane is selected:
 			if (![[[self window] firstResponder] isKindOfClass:[LinkingEditor class]]) {
-				[self incrementNoteSelection: _dummyItemWithTag(self, (keyChar == 'n' ? kNext_Tag : kPrev_Tag))];
+				[self _incrementNoteSelectionByTag:(keyChar == 'n') ? kNext_Tag : kPrev_Tag];
 				return YES;
 			}
 		}
@@ -917,15 +916,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	return [super performKeyEquivalent:theEvent];
 }
 
-static NSMenuItem* _dummyItemWithTag(NotesTableView *tv, NSInteger aTag) {
-	if (!tv->dummyItem) tv->dummyItem = [[NSMenuItem alloc] init];
-	[tv->dummyItem setTag:aTag];
-	return tv->dummyItem;
-}
-
-- (void)incrementNoteSelection:(id)sender {
-	
-	int tag = [sender tag];
+- (void)_incrementNoteSelectionByTag:(NSInteger)tag {
 	int rowNumber = [self selectedRow];
 	int totalNotes = [self numberOfRows];
 	
@@ -938,6 +929,10 @@ static NSMenuItem* _dummyItemWithTag(NotesTableView *tv, NSInteger aTag) {
 	}
 	
 	[self selectRowAndScroll:rowNumber];
+}
+
+- (void)incrementNoteSelection:(id)sender {
+	[self _incrementNoteSelectionByTag:[sender tag]];
 }
 
 - (void)deselectAll:(id)sender {
