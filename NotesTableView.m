@@ -29,6 +29,7 @@
 
 #define SYNTHETIC_TAGS_COLUMN_INDEX 200
 
+static NSMenuItem* _dummyItemWithTag(NotesTableView *tv, NSInteger aTag);
 static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target);
 
 @implementation NotesTableView
@@ -874,10 +875,9 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0;
 	BOOL isCommandKeyPressed = (mods & NSCommandKeyMask) != 0;
-	BOOL isShiftKeyPressed = (mods & NSShiftKeyMask) != 0;
 
 	// Also catch Ctrl-J/-K to match the shortcuts of other apps
-	if ((isControlKeyPressed || isCommandKeyPressed) && (!isShiftKeyPressed)) {
+	if ((isControlKeyPressed || isCommandKeyPressed) && ((mods & NSShiftKeyMask) == 0)) {
 		
 		// Determine the keyChar:
 		unichar keyChar = ' '; 
@@ -893,7 +893,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			if (mods & NSAlternateKeyMask) {
 				[self selectRowAndScroll:((keyChar == kNext_Tag) ? [self numberOfRows] - 1 :  0)];
 			} else {
-				[self incrementNoteSelectionWithDummyItem: keyChar];
+				[self incrementNoteSelection:_dummyItemWithTag(self, keyChar)];
 			}
 			return YES;
 		}
@@ -901,17 +901,15 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		// Handle N and P, but only when Control is pressed
 		if ( (keyChar == 'n' || keyChar == 'p') && (!isCommandKeyPressed)) {
 			// Determine if the note editing pane is selected:
-			BOOL isEditorFirstResponder = [[[NSApp mainWindow] firstResponder] isKindOfClass: [LinkingEditor class]];
-			if (!isEditorFirstResponder) {
-				[self incrementNoteSelectionWithDummyItem: (keyChar == 'n') ? kNext_Tag : kPrev_Tag];
+			if (![[[self window] firstResponder] isKindOfClass:[LinkingEditor class]]) {
+				[self incrementNoteSelection: _dummyItemWithTag(self, (keyChar == 'n' ? kNext_Tag : kPrev_Tag))];
 				return YES;
 			}
 		}
 
 		// Make Control-[ equivalent to Escape
 		if ( (keyChar == '[' ) && (!isCommandKeyPressed)) {
-			AppController* appDelegate = (AppController*)[NSApp delegate];
-			[appDelegate bringFocusToControlField:nil];
+			[self cancelOperation:nil];
 			return YES;
 		}
 	}
@@ -919,6 +917,11 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	return [super performKeyEquivalent:theEvent];
 }
 
+static NSMenuItem* _dummyItemWithTag(NotesTableView *tv, NSInteger aTag) {
+	if (!tv->dummyItem) tv->dummyItem = [[NSMenuItem alloc] init];
+	[tv->dummyItem setTag:aTag];
+	return tv->dummyItem;
+}
 
 - (void)incrementNoteSelection:(id)sender {
 	
@@ -935,12 +938,6 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 	
 	[self selectRowAndScroll:rowNumber];
-}
-
-- (void)incrementNoteSelectionWithDummyItem:(unichar) keyChar {
-	if (!dummyItem) dummyItem = [[NSMenuItem alloc] init];
-	[dummyItem setTag:keyChar];
-	[self incrementNoteSelection:dummyItem];
 }
 
 - (void)deselectAll:(id)sender {
