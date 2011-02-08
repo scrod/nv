@@ -9,6 +9,10 @@
 /* Begin PBXBuildFile section */
 		210A10690B66720F005BE981 /* BookmarksTable.m in Sources */ = {isa = PBXBuildFile; fileRef = 210A10670B66720F005BE981 /* BookmarksTable.m */; };
 		210C07530B6BF0A2005D23A8 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 210C07230B6BF0A1005D23A8 /* WebKit.framework */; };
+		210D88CB12FE658B00ED7730 /* 使用概览.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 210D88C312FE658B00ED7730 /* 使用概览.nvhelp */; };
+		210D88CC12FE658B00ED7730 /* 常用快捷键.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 210D88C512FE658B00ED7730 /* 常用快捷键.nvhelp */; };
+		210D88CD12FE658B00ED7730 /* 联系信息.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 210D88C712FE658B00ED7730 /* 联系信息.nvhelp */; };
+		210D88CE12FE658B00ED7730 /* 这是一篇自动生成的笔记.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 210D88C912FE658B00ED7730 /* 这是一篇自动生成的笔记.nvhelp */; };
 		2110C0D90B65F09F00F5C52E /* SavedSearches.nib in Resources */ = {isa = PBXBuildFile; fileRef = 2110C0CF0B65F09E00F5C52E /* SavedSearches.nib */; };
 		211344450B354E000081B064 /* idea_ossl.c in Sources */ = {isa = PBXBuildFile; fileRef = 211344440B354E000081B064 /* idea_ossl.c */; };
 		211344C00B3551BD0081B064 /* BlorPasswordRetriever.nib in Resources */ = {isa = PBXBuildFile; fileRef = 211344BA0B3551BD0081B064 /* BlorPasswordRetriever.nib */; };
@@ -51,6 +55,7 @@
 		213623FC0B92AA6E008C0830 /* Sparkle.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 213623E50B92AA4E008C0830 /* Sparkle.framework */; };
 		213FAD530B3C6B52004C74BD /* FSExchangeObjectsCompat.c in Sources */ = {isa = PBXBuildFile; fileRef = 213FAD520B3C6B52004C74BD /* FSExchangeObjectsCompat.c */; };
 		213FB0240B3CB1C4004C74BD /* PTKeyboardIcon.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 213FB0230B3CB1C4004C74BD /* PTKeyboardIcon.tiff */; };
+		214141B612FC64BE0019D275 /* dsa_pub.pem in Resources */ = {isa = PBXBuildFile; fileRef = 214141B512FC64BE0019D275 /* dsa_pub.pem */; };
 		2143322812EC584E000F473B /* Ceci est le titre d'une note.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 2143322412EC584E000F473B /* Ceci est le titre d'une note.nvhelp */; };
 		2143322912EC584E000F473B /* Raccourcis incroyablement utiles.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 2143322612EC584E000F473B /* Raccourcis incroyablement utiles.nvhelp */; };
 		2143331F12ECC4B2000F473B /* Dies ist der Titel einer Notiz.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 2143331B12ECC4B2000F473B /* Dies ist der Titel einer Notiz.nvhelp */; };
@@ -205,6 +210,30 @@
 		210A10660B66720F005BE981 /* BookmarksTable.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = BookmarksTable.h; sourceTree = "<group>"; };
 		210A10670B66720F005BE981 /* BookmarksTable.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = BookmarksTable.m; sourceTree = "<group>"; };
 		210C07230B6BF0A1005D23A8 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = /System/Library/Frameworks/WebKit.framework; sourceTree = "<absolute>"; };
+		210D87C412FDF29C00ED7730 /* English */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/ServicesMenu.strings; sourceTree = "<group>"; };
+		210D88B112FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/BlorPasswordRetriever.nib; sourceTree = "<group>"; };
+		210D88B212FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = zh_CN; path = zh_CN.lproj/CarbonErrorStrings.plist; sourceTree = "<group>"; };
+		210D88B312FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/DeletionManager.nib; sourceTree = "<group>"; };
+		210D88B412FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/EncodingsManager.nib; sourceTree = "<group>"; };
+		210D88B512FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/ExporterManager.nib; sourceTree = "<group>"; };
+		210D88B612FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
+		210D88B712FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh_CN; path = zh_CN.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		210D88B812FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
+		210D88B912FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = zh_CN; path = zh_CN.lproj/Localizable.strings; sourceTree = "<group>"; };
+		210D88BA12FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/MainMenu.nib; sourceTree = "<group>"; };
+		210D88BB12FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/NotationPrefsView.nib; sourceTree = "<group>"; };
+		210D88BC12FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/PassphraseChanger.nib; sourceTree = "<group>"; };
+		210D88BD12FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/PassphrasePicker.nib; sourceTree = "<group>"; };
+		210D88BE12FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/PassphraseRetriever.nib; sourceTree = "<group>"; };
+		210D88BF12FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/Preferences.nib; sourceTree = "<group>"; };
+		210D88C012FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/PTKeyComboPanel.nib; sourceTree = "<group>"; };
+		210D88C112FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/SavedSearches.nib; sourceTree = "<group>"; };
+		210D88C212FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/URLGetter.nib; sourceTree = "<group>"; };
+		210D88C412FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = zh_CN; path = "zh_CN.lproj/使用概览.nvhelp"; sourceTree = "<group>"; };
+		210D88C612FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = zh_CN; path = "zh_CN.lproj/常用快捷键.nvhelp"; sourceTree = "<group>"; };
+		210D88C812FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = zh_CN; path = "zh_CN.lproj/联系信息.nvhelp"; sourceTree = "<group>"; };
+		210D88CA12FE658B00ED7730 /* zh_CN */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = zh_CN; path = "zh_CN.lproj/这是一篇自动生成的笔记.nvhelp"; sourceTree = "<group>"; };
+		210D88DA12FE65A500ED7730 /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh_CN; path = zh_CN.lproj/FindPanel.nib; sourceTree = "<group>"; };
 		2110BADD0B640D2100F5C52E /* BookmarksController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BookmarksController.h; sourceTree = "<group>"; };
 		2110C0D00B65F09E00F5C52E /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/SavedSearches.nib; sourceTree = "<group>"; };
 		211344430B354E000081B064 /* idea_ossl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = idea_ossl.h; sourceTree = "<group>"; };
@@ -285,6 +314,7 @@
 		213FAD510B3C6B52004C74BD /* FSExchangeObjectsCompat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FSExchangeObjectsCompat.h; sourceTree = "<group>"; };
 		213FAD520B3C6B52004C74BD /* FSExchangeObjectsCompat.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = FSExchangeObjectsCompat.c; sourceTree = "<group>"; };
 		213FB0230B3CB1C4004C74BD /* PTKeyboardIcon.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = PTKeyboardIcon.tiff; path = Images/PTKeyboardIcon.tiff; sourceTree = "<group>"; };
+		214141B512FC64BE0019D275 /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = dsa_pub.pem; sourceTree = "<group>"; };
 		2143322512EC584E000F473B /* French */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = French; path = "French.lproj/Ceci est le titre d'une note.nvhelp"; sourceTree = "<group>"; };
 		2143322712EC584E000F473B /* French */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = French; path = "French.lproj/Raccourcis incroyablement utiles.nvhelp"; sourceTree = "<group>"; };
 		2143331C12ECC4B2000F473B /* German */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = German; path = "German.lproj/Dies ist der Titel einer Notiz.nvhelp"; sourceTree = "<group>"; };
@@ -729,6 +759,10 @@
 		217DB1810B7CE5B9008CD564 /* Help Notes */ = {
 			isa = PBXGroup;
 			children = (
+				210D88C312FE658B00ED7730 /* 使用概览.nvhelp */,
+				210D88C512FE658B00ED7730 /* 常用快捷键.nvhelp */,
+				210D88C712FE658B00ED7730 /* 联系信息.nvhelp */,
+				210D88C912FE658B00ED7730 /* 这是一篇自动生成的笔记.nvhelp */,
 				212EEA2212EFBD1800F89538 /* Atalhos Incrivelmente Úteis.nvhelp */,
 				212EEA2412EFBD1800F89538 /* Como funciona isso?.nvhelp */,
 				212EEA2612EFBD1800F89538 /* Este é o título de uma nota.nvhelp */,
@@ -936,6 +970,7 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				214141B512FC64BE0019D275 /* dsa_pub.pem */,
 				21813561105AF27400A0AE18 /* Acknowledgments.txt */,
 				217DB1810B7CE5B9008CD564 /* Help Notes */,
 				219196B109D4F1DB00586B15 /* Images */,
@@ -1009,6 +1044,7 @@
 				French,
 				German,
 				Portuguese,
+				zh_CN,
 			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
@@ -1104,6 +1140,11 @@
 				212EEA2812EFBD1800F89538 /* Atalhos Incrivelmente Úteis.nvhelp in Resources */,
 				212EEA2912EFBD1800F89538 /* Como funciona isso?.nvhelp in Resources */,
 				212EEA2A12EFBD1800F89538 /* Este é o título de uma nota.nvhelp in Resources */,
+				214141B612FC64BE0019D275 /* dsa_pub.pem in Resources */,
+				210D88CB12FE658B00ED7730 /* 使用概览.nvhelp in Resources */,
+				210D88CC12FE658B00ED7730 /* 常用快捷键.nvhelp in Resources */,
+				210D88CD12FE658B00ED7730 /* 联系信息.nvhelp in Resources */,
+				210D88CE12FE658B00ED7730 /* 这是一篇自动生成的笔记.nvhelp in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1210,8 +1251,41 @@
 				21EA368D111C9ABB00E2B517 /* French */,
 				21F4482411B89818004D008B /* Portuguese */,
 				212865A7128B15390013820A /* German */,
+				210D88B712FE658B00ED7730 /* zh_CN */,
 			);
 			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		210D88C312FE658B00ED7730 /* 使用概览.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				210D88C412FE658B00ED7730 /* zh_CN */,
+			);
+			name = "使用概览.nvhelp";
+			sourceTree = "<group>";
+		};
+		210D88C512FE658B00ED7730 /* 常用快捷键.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				210D88C612FE658B00ED7730 /* zh_CN */,
+			);
+			name = "常用快捷键.nvhelp";
+			sourceTree = "<group>";
+		};
+		210D88C712FE658B00ED7730 /* 联系信息.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				210D88C812FE658B00ED7730 /* zh_CN */,
+			);
+			name = "联系信息.nvhelp";
+			sourceTree = "<group>";
+		};
+		210D88C912FE658B00ED7730 /* 这是一篇自动生成的笔记.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				210D88CA12FE658B00ED7730 /* zh_CN */,
+			);
+			name = "这是一篇自动生成的笔记.nvhelp";
 			sourceTree = "<group>";
 		};
 		2110C0CF0B65F09E00F5C52E /* SavedSearches.nib */ = {
@@ -1221,6 +1295,7 @@
 				21EA367A111C9A5C00E2B517 /* French */,
 				21F4481E11B8971D004D008B /* Portuguese */,
 				212865AB128B15390013820A /* German */,
+				210D88C112FE658B00ED7730 /* zh_CN */,
 			);
 			name = SavedSearches.nib;
 			sourceTree = "<group>";
@@ -1232,6 +1307,7 @@
 				21EA3679111C9A2600E2B517 /* French */,
 				21F4481211B8971D004D008B /* Portuguese */,
 				212865A0128B15390013820A /* German */,
+				210D88B112FE658B00ED7730 /* zh_CN */,
 			);
 			name = BlorPasswordRetriever.nib;
 			sourceTree = "<group>";
@@ -1243,6 +1319,7 @@
 				21EA3727111CBCB500E2B517 /* French */,
 				21F4482511B89818004D008B /* Portuguese */,
 				2128657F128B14E10013820A /* German */,
+				210D88B912FE658B00ED7730 /* zh_CN */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -1254,6 +1331,7 @@
 				21EA36A6111C9B8900E2B517 /* French */,
 				21F4482311B89818004D008B /* Portuguese */,
 				212865AA128B15390013820A /* German */,
+				210D88B212FE658B00ED7730 /* zh_CN */,
 			);
 			name = CarbonErrorStrings.plist;
 			sourceTree = "<group>";
@@ -1263,6 +1341,7 @@
 			children = (
 				2128651D1278AF220013820A /* French */,
 				212865A4128B15390013820A /* German */,
+				210D87C412FDF29C00ED7730 /* English */,
 			);
 			name = ServicesMenu.strings;
 			sourceTree = "<group>";
@@ -1290,6 +1369,7 @@
 				21EA368A111C9AA000E2B517 /* French */,
 				21F4481311B8971D004D008B /* Portuguese */,
 				212865A5128B15390013820A /* German */,
+				210D88B412FE658B00ED7730 /* zh_CN */,
 			);
 			name = EncodingsManager.nib;
 			sourceTree = "<group>";
@@ -1301,6 +1381,7 @@
 				21EA3689111C9AA000E2B517 /* French */,
 				21F4481111B896FC004D008B /* Portuguese */,
 				2128659D128B15390013820A /* German */,
+				210D88B312FE658B00ED7730 /* zh_CN */,
 			);
 			name = DeletionManager.nib;
 			sourceTree = "<group>";
@@ -1344,6 +1425,7 @@
 				21EA3688111C9AA000E2B517 /* French */,
 				21F4481511B8971D004D008B /* Portuguese */,
 				212865A9128B15390013820A /* German */,
+				210D88DA12FE65A500ED7730 /* zh_CN */,
 			);
 			name = FindPanel.nib;
 			sourceTree = "<group>";
@@ -1387,6 +1469,7 @@
 				21EA3683111C9A6D00E2B517 /* French */,
 				21F4481A11B8971D004D008B /* Portuguese */,
 				212865A1128B15390013820A /* German */,
+				210D88BD12FE658B00ED7730 /* zh_CN */,
 			);
 			name = PassphrasePicker.nib;
 			sourceTree = "<group>";
@@ -1398,6 +1481,7 @@
 				21EA3682111C9A6D00E2B517 /* French */,
 				21F4481911B8971D004D008B /* Portuguese */,
 				212865A8128B15390013820A /* German */,
+				210D88BC12FE658B00ED7730 /* zh_CN */,
 			);
 			name = PassphraseChanger.nib;
 			sourceTree = "<group>";
@@ -1409,6 +1493,7 @@
 				21EA3686111C9A7500E2B517 /* French */,
 				21F4481711B8971D004D008B /* Portuguese */,
 				212865A6128B15390013820A /* German */,
+				210D88B812FE658B00ED7730 /* zh_CN */,
 			);
 			name = KeyDerivationManager.nib;
 			sourceTree = "<group>";
@@ -1420,6 +1505,7 @@
 				21EA3687111C9A8200E2B517 /* French */,
 				21F4481611B8971D004D008B /* Portuguese */,
 				2128659A128B15390013820A /* German */,
+				210D88B612FE658B00ED7730 /* zh_CN */,
 			);
 			name = ImporterAccessory.nib;
 			sourceTree = "<group>";
@@ -1431,6 +1517,7 @@
 				21DD33E912D38EFD004CD4FE /* Portuguese */,
 				21DD33EA12D38F0C004CD4FE /* French */,
 				21DD33EB12D38F1B004CD4FE /* German */,
+				210D88BA12FE658B00ED7730 /* zh_CN */,
 			);
 			name = MainMenu.nib;
 			sourceTree = "<group>";
@@ -1442,6 +1529,7 @@
 				21EA36B6111C9F5400E2B517 /* French */,
 				21F4481C11B8971D004D008B /* Portuguese */,
 				212865A2128B15390013820A /* German */,
+				210D88BF12FE658B00ED7730 /* zh_CN */,
 			);
 			name = Preferences.nib;
 			sourceTree = "<group>";
@@ -1453,6 +1541,7 @@
 				21EA3684111C9A6D00E2B517 /* French */,
 				21F4481B11B8971D004D008B /* Portuguese */,
 				2128659B128B15390013820A /* German */,
+				210D88BE12FE658B00ED7730 /* zh_CN */,
 			);
 			name = PassphraseRetriever.nib;
 			sourceTree = "<group>";
@@ -1488,6 +1577,7 @@
 				21EA3681111C9A6D00E2B517 /* French */,
 				21F4481811B8971D004D008B /* Portuguese */,
 				21286599128B15390013820A /* German */,
+				210D88BB12FE658B00ED7730 /* zh_CN */,
 			);
 			name = NotationPrefsView.nib;
 			sourceTree = "<group>";
@@ -1499,6 +1589,7 @@
 				21EA367D111C9A5C00E2B517 /* French */,
 				21F4482111B8971D004D008B /* Portuguese */,
 				2128659F128B15390013820A /* German */,
+				210D88C212FE658B00ED7730 /* zh_CN */,
 			);
 			name = URLGetter.nib;
 			sourceTree = "<group>";
@@ -1526,6 +1617,7 @@
 				21EA367F111C9A6D00E2B517 /* French */,
 				21F4481D11B8971D004D008B /* Portuguese */,
 				2128659C128B15390013820A /* German */,
+				210D88C012FE658B00ED7730 /* zh_CN */,
 			);
 			name = PTKeyComboPanel.nib;
 			sourceTree = "<group>";
@@ -1545,6 +1637,7 @@
 				21EA368B111C9AA000E2B517 /* French */,
 				21F4481411B8971D004D008B /* Portuguese */,
 				212865A3128B15390013820A /* German */,
+				210D88B512FE658B00ED7730 /* zh_CN */,
 			);
 			name = ExporterManager.nib;
 			sourceTree = "<group>";
