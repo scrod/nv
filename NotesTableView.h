@@ -88,6 +88,7 @@ typedef struct _ViewLocationContext {
 - (NoteAttributeColumn*)noteAttributeColumnForIdentifier:(NSString*)identifier;
 
 - (void)incrementNoteSelection:(id)sender;
+- (void)incrementNoteSelectionWithDummyItem:(unichar) keyChar;
 
 - (id)labelsListSource;
 - (void)setLabelsListSource:(id)labelsSource;

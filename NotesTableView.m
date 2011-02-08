@@ -22,6 +22,7 @@
 #import "UnifiedCell.h"
 #import "HeaderViewWithMenu.h"
 #import "NSString_NV.h"
+#import "LinkingEditor.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
 #define SET_DUAL_HIGHLIGHTS 0
@@ -862,6 +863,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 }
 
 
+
 enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 //use this method to catch next note/prev note before View menu does
@@ -886,28 +888,31 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			keyChar = [theEvent firstCharacterIgnoringModifiers]; /* first gets '\n' when control key is set, so fall back to ignoringModifiers */
 		}
 		
-		// Handle J and K
+		// Handle J and K for both Control and Command
 		if ( keyChar == kNext_Tag || keyChar == kPrev_Tag ) {
 			if (mods & NSAlternateKeyMask) {
 				[self selectRowAndScroll:((keyChar == kNext_Tag) ? [self numberOfRows] - 1 :  0)];
 			} else {
-				if (!dummyItem) dummyItem = [[NSMenuItem alloc] init];
-				[dummyItem setTag:keyChar];
-				[self incrementNoteSelection:dummyItem];
+				[self incrementNoteSelectionWithDummyItem: keyChar];
 			}
 			return YES;
 		}
 
-		// Handle N and P, but only when control is pressed
+		// Handle N and P, but only when Control is pressed
 		if ( (keyChar == 'n' || keyChar == 'p') && (!isCommandKeyPressed)) {
 			// Determine if the note editing pane is selected:
-			BOOL isEditorFirstResponder = [@"LinkingEditor" isEqualToString: NSStringFromClass([[[NSApp mainWindow] firstResponder] class])]; /* Can't use +isKindOfClass because LinkingEditor is a forwarding class and may not respond to +class */
+			BOOL isEditorFirstResponder = [[[NSApp mainWindow] firstResponder] isKindOfClass: [LinkingEditor class]];
 			if (!isEditorFirstResponder) {
-				if (!dummyItem) dummyItem = [[NSMenuItem alloc] init];
-				[dummyItem setTag:((keyChar == 'n') ? kNext_Tag : kPrev_Tag)];
-				[self incrementNoteSelection:dummyItem];
+				[self incrementNoteSelectionWithDummyItem: (keyChar == 'n') ? kNext_Tag : kPrev_Tag];
 				return YES;
 			}
+		}
+
+		// Make Control-[ equivalent to Escape
+		if ( (keyChar == '[' ) && (!isCommandKeyPressed)) {
+			AppController* appDelegate = (AppController*)[NSApp delegate];
+			[appDelegate bringFocusToControlField:nil];
+			return YES;
 		}
 	}
 	
@@ -930,6 +935,12 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 	
 	[self selectRowAndScroll:rowNumber];
+}
+
+- (void)incrementNoteSelectionWithDummyItem:(unichar) keyChar {
+	if (!dummyItem) dummyItem = [[NSMenuItem alloc] init];
+	[dummyItem setTag:keyChar];
+	[self incrementNoteSelection:dummyItem];
 }
 
 - (void)deselectAll:(id)sender {
