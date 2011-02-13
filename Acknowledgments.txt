@@ -12,6 +12,16 @@ This icon may not be used for commercial purposes.
 
 --
 
+Notational Velocity Interface Localizations
+
+French - David Bosman
+Portuguese - Daniel R. Souza
+German - Benedikt Hopmann
+Chinese (Simplified) - Tunghsiao Liu
+Italian - Paolo Tramannoni
+
+--
+
 Sparkle Framework
 
 Copyright (c) 2006 Andy Matuschak
