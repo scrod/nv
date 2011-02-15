@@ -305,12 +305,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 						entry->lastModified = fsCatInfoArray[i].contentModDate;
 						entry->lastAttrModified = fsCatInfoArray[i].attributeModDate;
 
-						
-						if (filename->length > entry->filenameCharCount) {
-							entry->filenameCharCount = filename->length;
-							entry->filenameChars = (UniChar*)realloc(entry->filenameChars, entry->filenameCharCount * sizeof(UniChar));
-						}
-						
+						ResizeArray(&(entry->filenameChars), filename->length, &(entry->filenameCharCount));
 						memcpy(entry->filenameChars, filename->unicode, filename->length * sizeof(UniChar));
 						
 						if (!entry->filename)
