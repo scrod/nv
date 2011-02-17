@@ -31,9 +31,9 @@ typedef struct _NoteCatalogEntry {
     UInt32 logicalSize;
     OSType fileType;
     UInt32 nodeID;
-    CFMutableStringRef filename;
+    unsigned int filenameCharCount;
     UniChar *filenameChars;
-    UniCharCount filenameCharCount;
+	CFMutableStringRef filename;
 } NoteCatalogEntry;
 
 @class NoteObject;

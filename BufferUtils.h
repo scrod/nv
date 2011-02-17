@@ -26,7 +26,7 @@
 typedef struct _PerDiskInfo {
 	
 	//index in a table of disk UUIDs; should be the disk from which this time was gathered
-	//the disk UUIDs table is tracked separately in FrozenNotation; it should only ever be appended-to
+	//the disk UUIDs table is tracked separately in NotationPrefs; it should only ever be appended-to
 	UInt32 diskIDIndex;
 	
 	//catalog node ID of a file
