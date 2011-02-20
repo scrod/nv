@@ -147,6 +147,10 @@
 		21C0F8A212C7E7160068693F /* Fonts & Colors.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 21C0F8A112C7E7160068693F /* Fonts & Colors.tiff */; };
 		21C3DBF412D23C83002F707A /* Notality.icns in Resources */ = {isa = PBXBuildFile; fileRef = 21C3DBF312D23C83002F707A /* Notality.icns */; };
 		21C737950B50C73E0048C08A /* MultiplePageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 21C737940B50C73E0048C08A /* MultiplePageView.m */; };
+		21CA2A911310E05300490979 /* Come funziona questa cosa?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21CA2A891310E05300490979 /* Come funziona questa cosa?.nvhelp */; };
+		21CA2A921310E05300490979 /* Contatti.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21CA2A8B1310E05300490979 /* Contatti.nvhelp */; };
+		21CA2A931310E05300490979 /* Questo è il titolo di una nota.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21CA2A8D1310E05300490979 /* Questo è il titolo di una nota.nvhelp */; };
+		21CA2A941310E05300490979 /* Scorciatoie terribilmente utili.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21CA2A8F1310E05300490979 /* Scorciatoie terribilmente utili.nvhelp */; };
 		21D583620B78F0CC00245E29 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21D5834D0B78F0CC00245E29 /* ApplicationServices.framework */; };
 		21D60128098FDB46007440DF /* GlobalPrefs.m in Sources */ = {isa = PBXBuildFile; fileRef = 21D60127098FDB46007440DF /* GlobalPrefs.m */; };
 		21D6F7EF12E0C751005C2DA5 /* AppController_Importing.m in Sources */ = {isa = PBXBuildFile; fileRef = 21D6F7EE12E0C751005C2DA5 /* AppController_Importing.m */; };
@@ -447,6 +451,30 @@
 		21C3DBF312D23C83002F707A /* Notality.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = Notality.icns; path = Images/Notality.icns; sourceTree = "<group>"; };
 		21C737930B50C73E0048C08A /* MultiplePageView.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MultiplePageView.h; sourceTree = "<group>"; };
 		21C737940B50C73E0048C08A /* MultiplePageView.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = MultiplePageView.m; sourceTree = "<group>"; };
+		21CA2A8A1310E05300490979 /* Italian */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Italian; path = "Italian.lproj/Come funziona questa cosa?.nvhelp"; sourceTree = "<group>"; };
+		21CA2A8C1310E05300490979 /* Italian */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Italian; path = Italian.lproj/Contatti.nvhelp; sourceTree = "<group>"; };
+		21CA2A8E1310E05300490979 /* Italian */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Italian; path = "Italian.lproj/Questo è il titolo di una nota.nvhelp"; sourceTree = "<group>"; };
+		21CA2A901310E05300490979 /* Italian */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = Italian; path = "Italian.lproj/Scorciatoie terribilmente utili.nvhelp"; sourceTree = "<group>"; };
+		21CA2A951310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/BlorPasswordRetriever.nib; sourceTree = "<group>"; };
+		21CA2A961310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Italian; path = Italian.lproj/CarbonErrorStrings.plist; sourceTree = "<group>"; };
+		21CA2A971310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/DeletionManager.nib; sourceTree = "<group>"; };
+		21CA2A981310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/EncodingsManager.nib; sourceTree = "<group>"; };
+		21CA2A991310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/ExporterManager.nib; sourceTree = "<group>"; };
+		21CA2A9A1310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
+		21CA2A9B1310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Italian; path = Italian.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		21CA2A9C1310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
+		21CA2A9D1310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Italian; path = Italian.lproj/Localizable.strings; sourceTree = "<group>"; };
+		21CA2A9E1310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/MainMenu.nib; sourceTree = "<group>"; };
+		21CA2A9F1310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/NotationPrefsView.nib; sourceTree = "<group>"; };
+		21CA2AA01310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/PassphraseChanger.nib; sourceTree = "<group>"; };
+		21CA2AA11310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/PassphrasePicker.nib; sourceTree = "<group>"; };
+		21CA2AA21310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/PassphraseRetriever.nib; sourceTree = "<group>"; };
+		21CA2AA31310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/Preferences.nib; sourceTree = "<group>"; };
+		21CA2AA41310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/PTKeyComboPanel.nib; sourceTree = "<group>"; };
+		21CA2AA51310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/SavedSearches.nib; sourceTree = "<group>"; };
+		21CA2AA61310E71E00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/URLGetter.nib; sourceTree = "<group>"; };
+		21CA2AA71310E8EC00490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = Italian; path = Italian.lproj/FindPanel.nib; sourceTree = "<group>"; };
+		21CA2AE7131199F400490979 /* Italian */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Italian; path = Italian.lproj/ServicesMenu.strings; sourceTree = "<group>"; };
 		21CB29AD10EEE39400360118 /* SyncServiceSessionProtocol.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SyncServiceSessionProtocol.h; sourceTree = "<group>"; };
 		21CF80F210FD33B90094AA90 /* SynchronizedNoteMixIns.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SynchronizedNoteMixIns.h; sourceTree = "<group>"; };
 		21D5834D0B78F0CC00245E29 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = /System/Library/Frameworks/ApplicationServices.framework; sourceTree = "<absolute>"; };
@@ -759,6 +787,10 @@
 		217DB1810B7CE5B9008CD564 /* Help Notes */ = {
 			isa = PBXGroup;
 			children = (
+				21CA2A891310E05300490979 /* Come funziona questa cosa?.nvhelp */,
+				21CA2A8B1310E05300490979 /* Contatti.nvhelp */,
+				21CA2A8D1310E05300490979 /* Questo è il titolo di una nota.nvhelp */,
+				21CA2A8F1310E05300490979 /* Scorciatoie terribilmente utili.nvhelp */,
 				210D88C312FE658B00ED7730 /* 使用概览.nvhelp */,
 				210D88C512FE658B00ED7730 /* 常用快捷键.nvhelp */,
 				210D88C712FE658B00ED7730 /* 联系信息.nvhelp */,
@@ -1045,6 +1077,7 @@
 				German,
 				Portuguese,
 				zh_CN,
+				Italian,
 			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
@@ -1145,6 +1178,10 @@
 				210D88CC12FE658B00ED7730 /* 常用快捷键.nvhelp in Resources */,
 				210D88CD12FE658B00ED7730 /* 联系信息.nvhelp in Resources */,
 				210D88CE12FE658B00ED7730 /* 这是一篇自动生成的笔记.nvhelp in Resources */,
+				21CA2A911310E05300490979 /* Come funziona questa cosa?.nvhelp in Resources */,
+				21CA2A921310E05300490979 /* Contatti.nvhelp in Resources */,
+				21CA2A931310E05300490979 /* Questo è il titolo di una nota.nvhelp in Resources */,
+				21CA2A941310E05300490979 /* Scorciatoie terribilmente utili.nvhelp in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1252,6 +1289,7 @@
 				21F4482411B89818004D008B /* Portuguese */,
 				212865A7128B15390013820A /* German */,
 				210D88B712FE658B00ED7730 /* zh_CN */,
+				21CA2A9B1310E71E00490979 /* Italian */,
 			);
 			name = InfoPlist.strings;
 			sourceTree = "<group>";
@@ -1296,6 +1334,7 @@
 				21F4481E11B8971D004D008B /* Portuguese */,
 				212865AB128B15390013820A /* German */,
 				210D88C112FE658B00ED7730 /* zh_CN */,
+				21CA2AA51310E71E00490979 /* Italian */,
 			);
 			name = SavedSearches.nib;
 			sourceTree = "<group>";
@@ -1308,6 +1347,7 @@
 				21F4481211B8971D004D008B /* Portuguese */,
 				212865A0128B15390013820A /* German */,
 				210D88B112FE658B00ED7730 /* zh_CN */,
+				21CA2A951310E71E00490979 /* Italian */,
 			);
 			name = BlorPasswordRetriever.nib;
 			sourceTree = "<group>";
@@ -1320,6 +1360,7 @@
 				21F4482511B89818004D008B /* Portuguese */,
 				2128657F128B14E10013820A /* German */,
 				210D88B912FE658B00ED7730 /* zh_CN */,
+				21CA2A9D1310E71E00490979 /* Italian */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -1332,6 +1373,7 @@
 				21F4482311B89818004D008B /* Portuguese */,
 				212865AA128B15390013820A /* German */,
 				210D88B212FE658B00ED7730 /* zh_CN */,
+				21CA2A961310E71E00490979 /* Italian */,
 			);
 			name = CarbonErrorStrings.plist;
 			sourceTree = "<group>";
@@ -1342,6 +1384,7 @@
 				2128651D1278AF220013820A /* French */,
 				212865A4128B15390013820A /* German */,
 				210D87C412FDF29C00ED7730 /* English */,
+				21CA2AE7131199F400490979 /* Italian */,
 			);
 			name = ServicesMenu.strings;
 			sourceTree = "<group>";
@@ -1370,6 +1413,7 @@
 				21F4481311B8971D004D008B /* Portuguese */,
 				212865A5128B15390013820A /* German */,
 				210D88B412FE658B00ED7730 /* zh_CN */,
+				21CA2A981310E71E00490979 /* Italian */,
 			);
 			name = EncodingsManager.nib;
 			sourceTree = "<group>";
@@ -1382,6 +1426,7 @@
 				21F4481111B896FC004D008B /* Portuguese */,
 				2128659D128B15390013820A /* German */,
 				210D88B312FE658B00ED7730 /* zh_CN */,
+				21CA2A971310E71E00490979 /* Italian */,
 			);
 			name = DeletionManager.nib;
 			sourceTree = "<group>";
@@ -1426,6 +1471,7 @@
 				21F4481511B8971D004D008B /* Portuguese */,
 				212865A9128B15390013820A /* German */,
 				210D88DA12FE65A500ED7730 /* zh_CN */,
+				21CA2AA71310E8EC00490979 /* Italian */,
 			);
 			name = FindPanel.nib;
 			sourceTree = "<group>";
@@ -1470,6 +1516,7 @@
 				21F4481A11B8971D004D008B /* Portuguese */,
 				212865A1128B15390013820A /* German */,
 				210D88BD12FE658B00ED7730 /* zh_CN */,
+				21CA2AA11310E71E00490979 /* Italian */,
 			);
 			name = PassphrasePicker.nib;
 			sourceTree = "<group>";
@@ -1482,6 +1529,7 @@
 				21F4481911B8971D004D008B /* Portuguese */,
 				212865A8128B15390013820A /* German */,
 				210D88BC12FE658B00ED7730 /* zh_CN */,
+				21CA2AA01310E71E00490979 /* Italian */,
 			);
 			name = PassphraseChanger.nib;
 			sourceTree = "<group>";
@@ -1494,6 +1542,7 @@
 				21F4481711B8971D004D008B /* Portuguese */,
 				212865A6128B15390013820A /* German */,
 				210D88B812FE658B00ED7730 /* zh_CN */,
+				21CA2A9C1310E71E00490979 /* Italian */,
 			);
 			name = KeyDerivationManager.nib;
 			sourceTree = "<group>";
@@ -1506,6 +1555,7 @@
 				21F4481611B8971D004D008B /* Portuguese */,
 				2128659A128B15390013820A /* German */,
 				210D88B612FE658B00ED7730 /* zh_CN */,
+				21CA2A9A1310E71E00490979 /* Italian */,
 			);
 			name = ImporterAccessory.nib;
 			sourceTree = "<group>";
@@ -1518,6 +1568,7 @@
 				21DD33EA12D38F0C004CD4FE /* French */,
 				21DD33EB12D38F1B004CD4FE /* German */,
 				210D88BA12FE658B00ED7730 /* zh_CN */,
+				21CA2A9E1310E71E00490979 /* Italian */,
 			);
 			name = MainMenu.nib;
 			sourceTree = "<group>";
@@ -1530,6 +1581,7 @@
 				21F4481C11B8971D004D008B /* Portuguese */,
 				212865A2128B15390013820A /* German */,
 				210D88BF12FE658B00ED7730 /* zh_CN */,
+				21CA2AA31310E71E00490979 /* Italian */,
 			);
 			name = Preferences.nib;
 			sourceTree = "<group>";
@@ -1542,6 +1594,7 @@
 				21F4481B11B8971D004D008B /* Portuguese */,
 				2128659B128B15390013820A /* German */,
 				210D88BE12FE658B00ED7730 /* zh_CN */,
+				21CA2AA21310E71E00490979 /* Italian */,
 			);
 			name = PassphraseRetriever.nib;
 			sourceTree = "<group>";
@@ -1578,8 +1631,41 @@
 				21F4481811B8971D004D008B /* Portuguese */,
 				21286599128B15390013820A /* German */,
 				210D88BB12FE658B00ED7730 /* zh_CN */,
+				21CA2A9F1310E71E00490979 /* Italian */,
 			);
 			name = NotationPrefsView.nib;
+			sourceTree = "<group>";
+		};
+		21CA2A891310E05300490979 /* Come funziona questa cosa?.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21CA2A8A1310E05300490979 /* Italian */,
+			);
+			name = "Come funziona questa cosa?.nvhelp";
+			sourceTree = "<group>";
+		};
+		21CA2A8B1310E05300490979 /* Contatti.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21CA2A8C1310E05300490979 /* Italian */,
+			);
+			name = Contatti.nvhelp;
+			sourceTree = "<group>";
+		};
+		21CA2A8D1310E05300490979 /* Questo è il titolo di una nota.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21CA2A8E1310E05300490979 /* Italian */,
+			);
+			name = "Questo è il titolo di una nota.nvhelp";
+			sourceTree = "<group>";
+		};
+		21CA2A8F1310E05300490979 /* Scorciatoie terribilmente utili.nvhelp */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21CA2A901310E05300490979 /* Italian */,
+			);
+			name = "Scorciatoie terribilmente utili.nvhelp";
 			sourceTree = "<group>";
 		};
 		21E6B0950B6E6D0B001ABEDC /* URLGetter.nib */ = {
@@ -1590,6 +1676,7 @@
 				21F4482111B8971D004D008B /* Portuguese */,
 				2128659F128B15390013820A /* German */,
 				210D88C212FE658B00ED7730 /* zh_CN */,
+				21CA2AA61310E71E00490979 /* Italian */,
 			);
 			name = URLGetter.nib;
 			sourceTree = "<group>";
@@ -1618,6 +1705,7 @@
 				21F4481D11B8971D004D008B /* Portuguese */,
 				2128659C128B15390013820A /* German */,
 				210D88C012FE658B00ED7730 /* zh_CN */,
+				21CA2AA41310E71E00490979 /* Italian */,
 			);
 			name = PTKeyComboPanel.nib;
 			sourceTree = "<group>";
@@ -1638,6 +1726,7 @@
 				21F4481411B8971D004D008B /* Portuguese */,
 				212865A3128B15390013820A /* German */,
 				210D88B512FE658B00ED7730 /* zh_CN */,
+				21CA2A991310E71E00490979 /* Italian */,
 			);
 			name = ExporterManager.nib;
 			sourceTree = "<group>";

@@ -1,0 +1,22 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf350
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\paperw12240\paperh15840\margl1440\margr1440\vieww9000\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs24 \cf0 \CocoaLigature0 Benvenuto/a a Notational Velocity!\
+\
+Questo \'e8 il corpo della nota selezionata. La nota pu\'f2 avere qualsiasi lunghezza, e pu\'f2 contenere testo in 
+\b neretto
+\b0 , 
+\i corsivo
+\i0 , o \strike \strikec0 barrato\strike0\striked0 .\
+\
+\'c8 possibile creare collegamenti tra le note: [[How does this thing work?-Come funziona questa cosa??]].\
+\
+\'c8 possibile creare qualsiasi numero di note -- NV pu\'f2 gestire migliaia di note, e funziona meglio se il contenuto \'e8 distribuito tra note diverse.\
+\
+Se si attiva la cifratura (Preferenze > Note > Sicurezza) \'e8 possibile anche memorizzare parole d'ordine e altri dati sensibili senza dare preoccupazioni agli esperti di sicurezza.\
+\
+
+\i Queste note sono state incluse per consentire di iniziare a lavorare con Notational Velocity. Possono essere cancellate senza nessun problema.}
