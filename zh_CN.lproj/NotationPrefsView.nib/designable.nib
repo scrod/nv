@@ -3,16 +3,16 @@
 	<data>
 		<int key="IBDocument.SystemTarget">1030</int>
 		<string key="IBDocument.SystemVersion">10J567</string>
-		<string key="IBDocument.InterfaceBuilderVersion">823</string>
+		<string key="IBDocument.InterfaceBuilderVersion">740</string>
 		<string key="IBDocument.AppKitVersion">1038.35</string>
 		<string key="IBDocument.HIToolboxVersion">462.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin</string>
-			<string key="NS.object.0">823</string>
+			<string key="NS.object.0">740</string>
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="8"/>
+			<integer value="37"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -48,7 +48,7 @@
 							<object class="NSTabViewItem" id="70596253">
 								<string key="NSIdentifier">sync</string>
 								<object class="NSView" key="NSView" id="745068758">
-									<nil key="NSNextResponder"/>
+									<reference key="NSNextResponder" ref="654053441"/>
 									<int key="NSvFlags">256</int>
 									<object class="NSMutableArray" key="NSSubviews">
 										<bool key="EncodedWithXMLCoder">YES</bool>
@@ -437,7 +437,7 @@
 													<string>NeXT TIFF v4.0 pasteboard type</string>
 												</object>
 											</object>
-											<string key="NSFrame">{{27, 40}, {18, 18}}</string>
+											<string key="NSFrame">{{27, 17}, {18, 18}}</string>
 											<reference key="NSSuperview" ref="745068758"/>
 											<bool key="NSEnabled">YES</bool>
 											<object class="NSImageCell" key="NSCell" id="322413881">
@@ -457,7 +457,7 @@
 										<object class="NSTextField" id="545359917">
 											<reference key="NSNextResponder" ref="745068758"/>
 											<int key="NSvFlags">268</int>
-											<string key="NSFrame">{{50, 42}, {299, 14}}</string>
+											<string key="NSFrame">{{50, 19}, {299, 14}}</string>
 											<reference key="NSSuperview" ref="745068758"/>
 											<bool key="NSEnabled">YES</bool>
 											<object class="NSTextFieldCell" key="NSCell" id="91530491">
@@ -472,6 +472,7 @@
 										</object>
 									</object>
 									<string key="NSFrame">{{10, 33}, {373, 316}}</string>
+									<reference key="NSSuperview" ref="654053441"/>
 								</object>
 								<string key="NSLabel">同步</string>
 								<reference key="NSColor" ref="852890870"/>
@@ -480,7 +481,7 @@
 							<object class="NSTabViewItem" id="972593593">
 								<string key="NSIdentifier">storage</string>
 								<object class="NSView" key="NSView" id="796712077">
-									<reference key="NSNextResponder" ref="654053441"/>
+									<nil key="NSNextResponder"/>
 									<int key="NSvFlags">256</int>
 									<object class="NSMutableArray" key="NSSubviews">
 										<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1083,7 +1084,6 @@
 										</object>
 									</object>
 									<string key="NSFrame">{{10, 33}, {373, 316}}</string>
-									<reference key="NSSuperview" ref="654053441"/>
 									<reference key="NSNextKeyView" ref="138462678"/>
 								</object>
 								<string key="NSLabel">存储</string>
@@ -1470,14 +1470,14 @@ AAA</bytes>
 								<reference key="NSTabView" ref="654053441"/>
 							</object>
 						</object>
-						<reference key="NSSelectedTabViewItem" ref="972593593"/>
+						<reference key="NSSelectedTabViewItem" ref="70596253"/>
 						<reference key="NSFont" ref="3328430"/>
 						<int key="NSTvFlags">0</int>
 						<bool key="NSAllowTruncatedLabels">YES</bool>
 						<bool key="NSDrawsBackground">YES</bool>
 						<object class="NSMutableArray" key="NSSubviews">
 							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="796712077"/>
+							<reference ref="745068758"/>
 						</object>
 					</object>
 				</object>
@@ -3316,13 +3316,6 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 						<string key="NS.key.0">storageFormatPopupButton</string>
 						<string key="NS.object.0">NSPopUpButton</string>
 					</object>
-					<object class="NSMutableDictionary" key="toOneOutletInfosByName">
-						<string key="NS.key.0">storageFormatPopupButton</string>
-						<object class="IBToOneOutletInfo" key="NS.object.0">
-							<string key="name">storageFormatPopupButton</string>
-							<string key="candidateClassName">NSPopUpButton</string>
-						</object>
-					</object>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier" id="452136283">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">NotationPrefsViewController.h</string>
@@ -3406,25 +3399,6 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>RBSplitView</string>
 							<string>RBSplitView</string>
-						</object>
-					</object>
-					<object class="NSMutableDictionary" key="actionInfosByName">
-						<bool key="EncodedWithXMLCoder">YES</bool>
-						<object class="NSArray" key="dict.sortedKeys">
-							<bool key="EncodedWithXMLCoder">YES</bool>
-							<string>didAdjustSubviews:</string>
-							<string>willAdjustSubviews:</string>
-						</object>
-						<object class="NSMutableArray" key="dict.values">
-							<bool key="EncodedWithXMLCoder">YES</bool>
-							<object class="IBActionInfo">
-								<string key="name">didAdjustSubviews:</string>
-								<string key="candidateClassName">RBSplitView</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">willAdjustSubviews:</string>
-								<string key="candidateClassName">RBSplitView</string>
-							</object>
 						</object>
 					</object>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier" id="632031615">
@@ -3535,95 +3509,6 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 							<string>id</string>
 						</object>
 					</object>
-					<object class="NSMutableDictionary" key="actionInfosByName">
-						<bool key="EncodedWithXMLCoder">YES</bool>
-						<object class="NSArray" key="dict.sortedKeys">
-							<bool key="EncodedWithXMLCoder">YES</bool>
-							<string>addedExtension:</string>
-							<string>addedType:</string>
-							<string>changePassphrase:</string>
-							<string>changedFileDeletionWarningSettings:</string>
-							<string>changedFileStorageFormat:</string>
-							<string>changedKeyLength:</string>
-							<string>changedKeychainSettings:</string>
-							<string>changedSecureTextEntry:</string>
-							<string>makeDefaultExtension:</string>
-							<string>removeFromKeychain:</string>
-							<string>removedExtension:</string>
-							<string>removedType:</string>
-							<string>syncFrequencyChange:</string>
-							<string>toggledEncryption:</string>
-							<string>toggledSyncing:</string>
-							<string>visitSimplenoteSite:</string>
-						</object>
-						<object class="NSMutableArray" key="dict.values">
-							<bool key="EncodedWithXMLCoder">YES</bool>
-							<object class="IBActionInfo">
-								<string key="name">addedExtension:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">addedType:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">changePassphrase:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">changedFileDeletionWarningSettings:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">changedFileStorageFormat:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">changedKeyLength:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">changedKeychainSettings:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">changedSecureTextEntry:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">makeDefaultExtension:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">removeFromKeychain:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">removedExtension:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">removedType:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">syncFrequencyChange:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">toggledEncryption:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">toggledSyncing:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-							<object class="IBActionInfo">
-								<string key="name">visitSimplenoteSite:</string>
-								<string key="candidateClassName">id</string>
-							</object>
-						</object>
-					</object>
 					<object class="NSMutableDictionary" key="outlets">
 						<bool key="EncodedWithXMLCoder">YES</bool>
 						<object class="NSArray" key="dict.sortedKeys">
@@ -3687,150 +3572,6 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 							<string>NSWindow</string>
 						</object>
 					</object>
-					<object class="NSMutableDictionary" key="toOneOutletInfosByName">
-						<bool key="EncodedWithXMLCoder">YES</bool>
-						<object class="NSArray" key="dict.sortedKeys">
-							<bool key="EncodedWithXMLCoder">YES</bool>
-							<string>allowedExtensionsTable</string>
-							<string>allowedTypesTable</string>
-							<string>changePasswordButton</string>
-							<string>confirmFileDeletionButton</string>
-							<string>enableEncryptionButton</string>
-							<string>enabledSyncButton</string>
-							<string>fileAttributesHelpText</string>
-							<string>keyLengthField</string>
-							<string>keyLengthStepper</string>
-							<string>makeDefaultExtensionButton</string>
-							<string>newExtensionButton</string>
-							<string>newTypeButton</string>
-							<string>passwordSettingsMatrix</string>
-							<string>removeExtensionButton</string>
-							<string>removeFromKeychainButton</string>
-							<string>removeTypeButton</string>
-							<string>secureTextEntryButton</string>
-							<string>storageFormatPopupButton</string>
-							<string>syncAccountField</string>
-							<string>syncEncAlertField</string>
-							<string>syncEncAlertView</string>
-							<string>syncPasswordField</string>
-							<string>syncingFrequency</string>
-							<string>verifyStatusField</string>
-							<string>verifyStatusImageView</string>
-							<string>view</string>
-							<string>webOptionsWindow</string>
-						</object>
-						<object class="NSMutableArray" key="dict.values">
-							<bool key="EncodedWithXMLCoder">YES</bool>
-							<object class="IBToOneOutletInfo">
-								<string key="name">allowedExtensionsTable</string>
-								<string key="candidateClassName">NSTableView</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">allowedTypesTable</string>
-								<string key="candidateClassName">NSTableView</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">changePasswordButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">confirmFileDeletionButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">enableEncryptionButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">enabledSyncButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">fileAttributesHelpText</string>
-								<string key="candidateClassName">NSTextField</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">keyLengthField</string>
-								<string key="candidateClassName">NSTextField</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">keyLengthStepper</string>
-								<string key="candidateClassName">NSStepper</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">makeDefaultExtensionButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">newExtensionButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">newTypeButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">passwordSettingsMatrix</string>
-								<string key="candidateClassName">NSMatrix</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">removeExtensionButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">removeFromKeychainButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">removeTypeButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">secureTextEntryButton</string>
-								<string key="candidateClassName">NSButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">storageFormatPopupButton</string>
-								<string key="candidateClassName">NSPopUpButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">syncAccountField</string>
-								<string key="candidateClassName">NSTextField</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">syncEncAlertField</string>
-								<string key="candidateClassName">NSTextField</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">syncEncAlertView</string>
-								<string key="candidateClassName">NSImageView</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">syncPasswordField</string>
-								<string key="candidateClassName">NSTextField</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">syncingFrequency</string>
-								<string key="candidateClassName">NSPopUpButton</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">verifyStatusField</string>
-								<string key="candidateClassName">NSTextField</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">verifyStatusImageView</string>
-								<string key="candidateClassName">NSImageView</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">view</string>
-								<string key="candidateClassName">NSView</string>
-							</object>
-							<object class="IBToOneOutletInfo">
-								<string key="name">webOptionsWindow</string>
-								<string key="candidateClassName">NSWindow</string>
-							</object>
-						</object>
-					</object>
 					<reference key="sourceIdentifier" ref="452136283"/>
 				</object>
 				<object class="IBPartialClassDescription">
@@ -3870,13 +3611,6 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 					<object class="NSMutableDictionary" key="outlets">
 						<string key="NS.key.0">delegate</string>
 						<string key="NS.object.0">id</string>
-					</object>
-					<object class="NSMutableDictionary" key="toOneOutletInfosByName">
-						<string key="NS.key.0">delegate</string>
-						<object class="IBToOneOutletInfo" key="NS.object.0">
-							<string key="name">delegate</string>
-							<string key="candidateClassName">id</string>
-						</object>
 					</object>
 					<reference key="sourceIdentifier" ref="632031615"/>
 				</object>
@@ -4578,7 +4312,6 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 			</object>
 		</object>
 		<int key="IBDocument.localizationMode">0</int>
-		<string key="IBDocument.TargetRuntimeIdentifier">IBCocoaFramework</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDependencies">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.macosx</string>
 			<integer value="1030" key="NS.object.0"/>
@@ -4594,36 +4327,5 @@ ZSB0aGlzIEhUTUwgdGVtcGxhdGU6A</string>
 		<bool key="IBDocument.PluginDeclaredDependenciesTrackSystemTargetVersion">YES</bool>
 		<string key="IBDocument.LastKnownRelativeProjectPath">../Notation.xcodeproj</string>
 		<int key="IBDocument.defaultPropertyAccessControl">3</int>
-		<object class="NSMutableDictionary" key="IBDocument.LastKnownImageSizes">
-			<bool key="EncodedWithXMLCoder">YES</bool>
-			<object class="NSArray" key="dict.sortedKeys">
-				<bool key="EncodedWithXMLCoder">YES</bool>
-				<string>Add</string>
-				<string>Add_Pressed</string>
-				<string>MakeDefault</string>
-				<string>MakeDefault_Pressed</string>
-				<string>NSMenuCheckmark</string>
-				<string>NSMenuMixedState</string>
-				<string>NSSwitch</string>
-				<string>Remove</string>
-				<string>Remove_Pressed</string>
-				<string>TinyAlert</string>
-				<string>statusError</string>
-			</object>
-			<object class="NSMutableArray" key="dict.values">
-				<bool key="EncodedWithXMLCoder">YES</bool>
-				<string>{128, 128}</string>
-				<string>{128, 128}</string>
-				<string>{128, 128}</string>
-				<string>{128, 128}</string>
-				<string>{9, 8}</string>
-				<string>{7, 2}</string>
-				<string>{15, 15}</string>
-				<string>{128, 128}</string>
-				<string>{128, 128}</string>
-				<string>{128, 128}</string>
-				<string>{128, 128}</string>
-			</object>
-		</object>
 	</data>
 </archive>
