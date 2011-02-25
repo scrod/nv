@@ -748,7 +748,8 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 + (NSCharacterSet*)listBulletsCharacterSet {
 	static NSCharacterSet *charSet = nil;
 	if (!charSet) {
-		charSet = [[NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"-+*!%C%C%C", 0x2022, 0x2014, 0x2013]] retain];
+		charSet = [[NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"-+*!#%C%C%C%C%C%C%C", 
+																	   0x2022, 0x2014, 0x2013, 0x2043, 0x2713, 0x25AA, 0x25C6]] retain];
 	}
 	
 	return charSet;
