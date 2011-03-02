@@ -1,4 +1,10 @@
-Portions of Notational Velocity contain the following copyrighted materials, the use of which is hereby acknowledged.
+Notational Velocity is copyright 2009, 2010, 2011 by Zachary Schneirov 
+and is distributed under the GNU public license, found in the file COPYING.txt.
+Please email me at scrod@notational.net if you would like to use any portion of the 
+project under separate terms in a non-GPL-licensed application.
+
+
+Portions of Notational Velocity also contain the following copyrighted materials, the use of which is hereby acknowledged.
 
 --
 
