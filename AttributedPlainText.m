@@ -52,6 +52,30 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 	}
 }
 
+- (void)indentTextLists {
+	NSString *string = [self string];
+	NSUInteger paraStart, paraEnd, contentsEnd;
+	paraEnd = 0;
+	while (paraEnd < [self length]) {
+		[string getParagraphStart:&paraStart end:&paraEnd contentsEnd:&contentsEnd
+						 forRange:NSMakeRange(paraEnd, 0)];
+		NSParagraphStyle *style = [self attribute:NSParagraphStyleAttributeName
+										  atIndex:paraStart effectiveRange:NULL];
+		NSArray *textLists = [style textLists];
+		if ([textLists count] > 0) {
+			NSUInteger level = [textLists count] - 1;
+			NSString *indent = [@"" stringByPaddingToLength:level withString: @"\t" startingAtIndex:0];
+			/* Covered by restyleTextToFont
+			NSRange paraRange = NSMakeRange(paraStart, contentsEnd - paraStart);
+			[self removeAttribute:NSParagraphStyleAttributeName range:paraRange];
+			*/
+			[self replaceCharactersInRange:NSMakeRange(paraStart, 1) withString:@" "]; /* Leading tab to space */
+			[self replaceCharactersInRange:NSMakeRange(paraStart, 0) withString:indent]; /* Changes length */
+			paraEnd += level;
+		}
+	}
+}
+
 - (void)removeAttachments {
 	unsigned loc = 0;
 	unsigned end = [self length];
@@ -92,6 +116,7 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 - (void)santizeForeignStylesForImporting {
 	NSRange range = NSMakeRange(0, [self length]);
 	[self removeAttribute:NSLinkAttributeName range:range];
+	[self indentTextLists];
 	[self restyleTextToFont:[[GlobalPrefs defaultPrefs] noteBodyFont] usingBaseFont:nil];
 	[self addLinkAttributesForRange:range];
 	[self addStrikethroughNearDoneTagsForRange:range];

@@ -31,6 +31,7 @@ extern NSString *NVHiddenBulletIndentAttributeName;
 @interface NSMutableAttributedString (AttributedPlainText)
 
 - (void)trimLeadingWhitespace;
+- (void)indentTextLists;
 - (void)removeAttachments;
 - (NSString*)prefixWithSourceString:(NSString*)source;
 
