@@ -375,6 +375,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 					//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
 					//and we only want real URLs to be linked
 					[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
+					[newString indentTextLists];
 					[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
 				}
 				
