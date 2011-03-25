@@ -702,8 +702,15 @@ bail:
 	return aliasNeedsUpdating;
 }
 
-- (void)endDeletionManagerIfNecessary {
-	return [deletionManager cancelPanelReturningCode:NSRunStoppedResponse];
+- (void)closeAllResources {
+	[allNotes makeObjectsPerformSelector:@selector(abortEditingInExternalEditor)];
+	
+	[deletionManager cancelPanelReturningCode:NSRunStoppedResponse];
+	[self stopSyncServices];
+	[self stopFileNotifications];
+	if ([self flushAllNoteChanges])
+		[self closeJournal];
+	[allNotes makeObjectsPerformSelector:@selector(disconnectLabels)];
 }
 
 - (void)checkIfNotationIsTrashed {

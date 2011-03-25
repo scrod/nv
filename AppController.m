@@ -313,13 +313,9 @@ terminateApp:
 	
     if (newNotation) {
 		if (notationController) {
-			[notationController endDeletionManagerIfNecessary];
-			[notationController stopSyncServices];
+			[notationController closeAllResources];
 			[[NSNotificationCenter defaultCenter] removeObserver:self name:SyncSessionsChangedVisibleStatusNotification 
 														  object:[notationController syncSessionController]];
-			[notationController stopFileNotifications];
-			if ([notationController flushAllNoteChanges])
-				[notationController closeJournal];
 		}
 		
 		NotationController *oldNotation = notationController;
@@ -358,6 +354,8 @@ terminateApp:
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(syncSessionsChangedVisibleStatus:) 
 													 name:SyncSessionsChangedVisibleStatusNotification 
 												   object:[notationController syncSessionController]]; 
+		
+		//these should probably be triggered from within NotationController:
 		[notationController performSelector:@selector(startSyncServices) withObject:nil afterDelay:0.0];
 		
 		if ([[notationController notationPrefs] secureTextEntry]) {

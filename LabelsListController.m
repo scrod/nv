@@ -42,6 +42,13 @@
 	return self;
 }
 
+- (void)dealloc {
+	
+	[allLabels release];
+	[filteredLabels release];
+	[super dealloc];
+}
+
 - (void)unfilterLabels {
     [filteredLabels setSet:allLabels];
     
