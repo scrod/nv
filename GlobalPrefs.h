@@ -172,7 +172,6 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 - (void)setAliasDataForDefaultDirectory:(NSData*)alias sender:(id)sender;
 - (NSData*)aliasDataForDefaultDirectory;
 
-- (NSImage*)iconForDefaultDirectoryWithFSRef:(FSRef*)fsRef;
 - (NSString*)displayNameForDefaultDirectoryWithFSRef:(FSRef*)fsRef;
 - (NSString*)humanViewablePathForDefaultDirectory;
 

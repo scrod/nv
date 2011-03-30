@@ -22,6 +22,7 @@
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
 #import "NSFileManager_NV.h"
+#import "NSBezierPath_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
 
@@ -242,7 +243,9 @@
     if (!name)
 		name = NSLocalizedString(@"<Directory unknown>", nil);
 	
-    NSImage *iconImage = [prefsController iconForDefaultDirectoryWithFSRef:&targetRef];
+	NSImage *iconImage = nil;
+	if (!IsZeros(&targetRef, sizeof(FSRef)) || [[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&targetRef])
+		iconImage = [NSImage smallIconForFSRef:&targetRef];
 	
     NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:name action:nil keyEquivalent:@""] autorelease];
     
