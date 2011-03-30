@@ -648,3 +648,6 @@
 
 /* prefix for source-URLs inserted into imported notes; e.g., "From <http://www.apple.com>: ..." */
 "From" = "Von";
+
+/* menu command to clear out custom external editors*/
+"Reset" = "Zurücksetzen";
