@@ -29,6 +29,7 @@
 @class LabelObject;
 @class WALStorageController;
 @class NotesTableView;
+@class ExternalEditor;
 
 typedef struct _NoteFilterContext {
 	char* needle;
@@ -39,9 +40,7 @@ typedef struct _NoteFilterContext {
 	NSAttributedString *tableTitleString;
 	NSString *titleString, *labelString;
 	NSMutableAttributedString *contentString;
-	
-	NSImage *labelsPreviewImage, *highlightedLabelsPreviewImage;
-    
+	    
 	//caching/searching purposes only -- created at runtime
 	char *cTitle, *cContents, *cLabels, *cTitleFoundPtr, *cContentsFoundPtr, *cLabelsFoundPtr;
 	NSMutableSet *labelSet;
@@ -161,10 +160,9 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)setLabelString:(NSString*)newLabels;
 - (NSMutableSet*)labelSetFromCurrentString;
 - (NSArray*)orderedLabelTitles;
-- (void)invalidateLabelsPreviewImage;
-- (NSImage*)highlightedLabelsPreviewImage;
-- (NSImage*)labelsPreviewImage;
-- (NSImage*)_labelsPreviewImageOfColor:(NSColor*)aColor;
+- (NSSize)sizeOfLabelBlocks;
+- (void)_drawLabelBlocksInRect:(NSRect)aRect rightAlign:(BOOL)onRight highlighted:(BOOL)isHighlighted getSizeOnly:(NSSize*)reqSize;
+- (void)drawLabelBlocksInRect:(NSRect)aRect rightAlign:(BOOL)onRight highlighted:(BOOL)isHighlighted;
 
 - (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
 - (void)removeAllSyncMDForService:(NSString*)serviceName;
@@ -179,7 +177,7 @@ NSInteger compareFileSize(id *a, id *b);
 - (BOOL)upgradeEncodingToUTF8;
 - (BOOL)updateFromFile;
 - (BOOL)updateFromCatalogEntry:(NoteCatalogEntry*)catEntry;
-- (BOOL)updateFromData:(NSMutableData*)data;
+- (BOOL)updateFromData:(NSMutableData*)data inFormat:(int)fmt;
 
 - (OSStatus)writeFileDatesAndUpdateTrackingInfo;
 
@@ -200,6 +198,8 @@ NSInteger compareFileSize(id *a, id *b);
 
 - (OSStatus)exportToDirectoryRef:(FSRef*)directoryRef withFilename:(NSString*)userFilename usingFormat:(int)storageFormat overwrite:(BOOL)overwrite;
 - (NSRange)nextRangeForWords:(NSArray*)words options:(unsigned)opts range:(NSRange)inRange;
+- (void)editExternallyUsingEditor:(ExternalEditor*)ed;
+- (void)abortEditingInExternalEditor;
 
 - (void)setFilenameFromTitle;
 - (void)setFilename:(NSString*)aString withExternalTrigger:(BOOL)externalTrigger;

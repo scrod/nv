@@ -979,7 +979,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		}
 	} else if (command == @selector(insertTab:)) {
 		
-		if ([globalPrefs horizontalLayout] && !lastEventActivatedTagEdit) {
+		if ([globalPrefs horizontalLayout] && !lastEventActivatedTagEdit && ColumnIsSet(NoteLabelsColumn, [globalPrefs tableColumnsBitmap])) {
 			//if we're currently renaming a note in horizontal mode, then tab should move focus to tags area
 			
 			[self editRowAtColumnWithIdentifier:NoteLabelsColumnString];
@@ -1057,7 +1057,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		
 		//mouse is inside this column's row's cell's tags frame
 		UnifiedCell *cell = [[[self tableColumns] objectAtIndex:columnIndex] dataCellForRow:rowIndex];
-		NSRect tagCellRect = [cell nv_tagsRectForFrame:[self frameOfCellAtColumn:columnIndex row:rowIndex] andImage:nil];
+		NSRect tagCellRect = [cell nv_tagsRectForFrame:[self frameOfCellAtColumn:columnIndex row:rowIndex]];
 		
 		return [self mouse:p inRect:tagCellRect];
 		

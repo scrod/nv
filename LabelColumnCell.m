@@ -61,15 +61,16 @@
 		[super drawWithFrame:cellFrame inView:controlView];	
 	}
 	
-	if (!isEditing) {
-		NSImage *img = ([self isHighlighted] && [tv isActiveStyle]) ? [noteObject highlightedLabelsPreviewImage] : [noteObject labelsPreviewImage];
-		if (img) {
-			[[NSGraphicsContext currentContext] saveGraphicsState];
-			NSRectClip(cellFrame);
-			NSPoint imgSpot = NSMakePoint(NSMinX(cellFrame), NSMaxY(cellFrame) - ceilf(((cellFrame.size.height + 1.0) - [img size].height)/2.0));
-			[img compositeToPoint:imgSpot operation:NSCompositeSourceOver];
-			[[NSGraphicsContext currentContext] restoreGraphicsState];
-		}
+	if (!isEditing && [labelsOfNote(noteObject) length]) {
+
+		[[NSGraphicsContext currentContext] saveGraphicsState];
+		NSRectClip(cellFrame);
+		NSRect blocksRect = cellFrame;
+		blocksRect.origin = NSMakePoint(NSMinX(cellFrame), NSMaxY(cellFrame) - ceilf(((cellFrame.size.height + 1.0) - 
+																					  ([[GlobalPrefs defaultPrefs] tableFontSize] * 1.3 + 1.5))/2.0));
+		[noteObject drawLabelBlocksInRect:blocksRect rightAlign:NO highlighted:([self isHighlighted] && [tv isActiveStyle])];
+		
+		[[NSGraphicsContext currentContext] restoreGraphicsState];
 	}
 	
 }

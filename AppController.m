@@ -697,7 +697,7 @@ terminateApp:
 		
 		ResetFontRelatedTableAttributes();
 		[notesTableView updateTitleDereferencorState];
-		[notationController invalidateAllLabelPreviewImages];
+		[[notationController labelsListDataSource] invalidateCachedLabelImages];
 		[self _forceRegeneratePreviewsForTitleColumn];
 				
 		if ([selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) [self updateNoteMenus];

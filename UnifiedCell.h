@@ -27,7 +27,7 @@
 
 NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL withShadow);
 - (NSRect)nv_titleRectForFrame:(NSRect)aFrame;
-- (NSRect)nv_tagsRectForFrame:(NSRect)frame andImage:(NSImage*)img;
+- (NSRect)nv_tagsRectForFrame:(NSRect)frame;
 
 - (float)tableFontFrameHeight;
 

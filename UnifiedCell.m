@@ -65,10 +65,10 @@
 - (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj 
 			   delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
 	
-	NSRect rect = [(NotesTableView*)controlView lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:aRect andImage:nil] : [self nv_titleRectForFrame:aRect];
+	NSRect rect = [(NotesTableView*)controlView lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:aRect] : [self nv_titleRectForFrame:aRect];
 	[super selectWithFrame:rect inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
 	
-	[controlView setKeyboardFocusRingNeedsDisplayInRect:NSInsetRect([self nv_tagsRectForFrame:aRect andImage:nil], -3, -3)];
+	[controlView setKeyboardFocusRingNeedsDisplayInRect:NSInsetRect([self nv_tagsRectForFrame:aRect], -3, -3)];
 }
 
 - (NSFocusRingType)focusRingType {
@@ -86,16 +86,11 @@
 	return NSMakeRect(aFrame.origin.x, aFrame.origin.y, aFrame.size.width, [self tableFontFrameHeight]);
 }
 
-- (NSRect)nv_tagsRectForFrame:(NSRect)frame andImage:(NSImage*)img {
+- (NSRect)nv_tagsRectForFrame:(NSRect)frame {
 	//if no tags, return a default small frame to allow adding them
 	float fontHeight = [self tableFontFrameHeight];
-	NSSize size = img ? [img size] : NSMakeSize(NSWidth(frame), fontHeight);
-	
-	NSPoint pos = NSMakePoint((previewIsHidden ? NSMinX(frame) + 3.0 : NSMaxX(frame) - size.width), 
-							  (previewIsHidden ? NSMinY(frame) + fontHeight + size.height : NSMaxY(frame) - 3.0));
-	if (!img) {
-		pos.y -= fontHeight;
-	}
+	NSSize size = NSMakeSize(NSWidth(frame), fontHeight);
+	NSPoint pos = NSMakePoint(NSMinX(frame) + 3.0, (previewIsHidden ? NSMinY(frame) + fontHeight + size.height + 2.0 : NSMaxY(frame) - 2.0) - fontHeight);
 	
 	return (NSRect){pos, size};
 }
@@ -211,21 +206,16 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
 	}
 
-	if (ColumnIsSet(NoteLabelsColumn, columnsBitmap)) {
-		NSImage *img = ([self isHighlighted] && isActive) ? [noteObject highlightedLabelsPreviewImage] : [noteObject labelsPreviewImage];
+	if (ColumnIsSet(NoteLabelsColumn, columnsBitmap) && [labelsOfNote(noteObject) length]) {
+		NSRect rect = [self nv_tagsRectForFrame:cellFrame];
+		rect.origin.y += fontHeight;
+		rect = [controlView centerScanRect:rect];
 		
-		if (img) {
-			NSRect rect = [self nv_tagsRectForFrame:cellFrame andImage:img];
-			rect = [controlView centerScanRect:rect];
-			
-			//clip the tags image within the bounds of the cell so that narrow columns look nicer
-			[NSGraphicsContext saveGraphicsState];
-			NSRectClip(cellFrame);
-			
-			[img compositeToPoint:rect.origin operation:NSCompositeSourceOver];
-			
-			[NSGraphicsContext restoreGraphicsState];
-		}
+		//clip the tags image within the bounds of the cell so that narrow columns look nicer
+		[NSGraphicsContext saveGraphicsState];
+		NSRectClip(cellFrame);
+		[noteObject drawLabelBlocksInRect:rect rightAlign:!previewIsHidden highlighted:([self isHighlighted] && isActive)];
+		[NSGraphicsContext restoreGraphicsState];
 	}
 	
 	if ([tv currentEditor] && [self isHighlighted]) {
@@ -239,20 +229,18 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		[cloneStr release];
 		
 		//draw a slightly different focus ring than what would have been drawn
-		NSRect rect = [tv lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:cellFrame andImage:nil] : [self nv_titleRectForFrame:cellFrame];
-		rect = NSInsetRect(rect, -2, -1);
-		
+		NSRect rect = [tv lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:cellFrame] : [self nv_titleRectForFrame:cellFrame];
 		[NSGraphicsContext saveGraphicsState];
-		NSBezierPath *path = [NSBezierPath bezierPathWithRect:rect];
+		NSBezierPath *path = [NSBezierPath bezierPathWithRect:NSInsetRect(rect, -2, -1)];
 		
 		//megafocusring casts a shadow both outside and inside
 		if ([tv lastEventActivatedTagEdit]) {
-		NSSetFocusRingStyle(NSFocusRingBelow);
-		[path fill];
+			NSSetFocusRingStyle(NSFocusRingBelow);
+			[path fill];
 		}
 		NSSetFocusRingStyle(NSFocusRingOnly);
 		[path fill];
-
+		
 		[NSGraphicsContext restoreGraphicsState];
 		
 	}

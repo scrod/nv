@@ -29,6 +29,7 @@
 
 @interface LabelsListController : FastListDataSource {
 	NSCountedSet *allLabels, *filteredLabels;
+	NSMutableDictionary *labelImages;
 	unsigned *removeIndicies;
 }
 
@@ -37,6 +38,9 @@
 - (void)recomputeListFromFilteredSet;
 
 - (NSArray*)labelTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex minusWordSet:(NSSet*)antiSet;
+
+- (void)invalidateCachedLabelImages;
+- (NSImage*)cachedLabelImageForWord:(NSString*)aWord highlighted:(BOOL)isHighlighted;
 
 - (NSSet*)notesAtFilteredIndex:(int)labelIndex;
 - (NSSet*)notesAtFilteredIndexes:(NSIndexSet*)anIndexSet;

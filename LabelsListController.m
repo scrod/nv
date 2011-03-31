@@ -24,6 +24,8 @@
 #import "LabelsListController.h"
 #import "LabelObject.h"
 #import "NoteObject.h"
+#import "GlobalPrefs.h"
+#import "NSBezierPath_NV.h"
 #import "NSCollection_utils.h"
 
 
@@ -44,6 +46,7 @@
 
 - (void)dealloc {
 	
+	[labelImages release];
 	[allLabels release];
 	[filteredLabels release];
 	[super dealloc];
@@ -101,6 +104,56 @@
 	return titles;
 }
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+static CGRect NSRectToCGRect(NSRect nsrect) {
+    union _ {NSRect ns; CGRect cg;};
+    return ((union _ *)&nsrect)->cg;
+}
+#endif
+
+- (void)invalidateCachedLabelImages {
+	//used when the list font size changes
+	[labelImages removeAllObjects];
+}
+- (NSImage*)cachedLabelImageForWord:(NSString*)aWord highlighted:(BOOL)isHighlighted {
+	if (!labelImages) labelImages = [[NSMutableDictionary alloc] init];
+	
+	NSString *imgKey = [[aWord lowercaseString] stringByAppendingFormat:@", %d", isHighlighted];
+	NSImage *img = [labelImages objectForKey:imgKey];
+	if (!img) {
+		//generate the image and add it to labelImages under imgKey
+		float tableFontSize = [[GlobalPrefs defaultPrefs] tableFontSize] - 1.0;
+		NSDictionary *attrs = [NSDictionary dictionaryWithObject:[NSFont systemFontOfSize:tableFontSize] forKey:NSFontAttributeName];
+		NSSize wordSize = [aWord sizeWithAttributes:attrs];
+		NSRect wordRect = NSMakeRect(0, 0, roundf(wordSize.width + 4.0), roundf(tableFontSize * 1.3));
+		
+		//peter hosey's suggestion, rather than doing setWindingRule: and appendBezierPath: as before:
+		//http://stackoverflow.com/questions/4742773/why-wont-helvetica-neue-bold-glyphs-draw-as-a-normal-subpath-in-nsbezierpath
+		
+		img = [[NSImage alloc] initWithSize:wordRect.size];
+		[img lockFocus];
+
+		CGContextRef context = (CGContextRef)([[NSGraphicsContext currentContext] graphicsPort]);
+		CGContextBeginTransparencyLayer(context, NULL);
+
+		CGContextClipToRect(context, NSRectToCGRect(wordRect));
+
+		NSBezierPath *backgroundPath = [NSBezierPath bezierPathWithRoundRectInRect:wordRect radius:2.0f];
+		[(isHighlighted ? [NSColor whiteColor] : [NSColor colorWithCalibratedWhite:0.55 alpha:1.0]) setFill];
+		[backgroundPath fill];
+		
+		[[NSGraphicsContext currentContext] setCompositingOperation:NSCompositeSourceOut];
+		[aWord drawWithRect:(NSRect){{2.0, 3.0}, wordRect.size} options:NSStringDrawingUsesFontLeading attributes:attrs];
+		
+		CGContextEndTransparencyLayer(context);
+		
+		[img unlockFocus];
+		
+		[labelImages setObject:[img autorelease] forKey:imgKey];
+	}
+	return img;
+}
+
 
 //NotationController will probably want to filter these further if there is already a search in progress
 - (NSSet*)notesAtFilteredIndex:(int)labelIndex {
@@ -136,6 +189,8 @@
     //HOWEVER, don't know this for sure, assuming this API is to remain non-permeable
     
     [allLabels minusSet:labelSet];
+	
+	//could use this as an opportunity to remove counterparts in labelImages
     
     //we narrow down the set to make sure that we operate on the actual objects within it, and note the objects used as prototypes
     //these will be any labels that were shared by notes other than this one
@@ -157,6 +212,8 @@
 //useful for moving groups of notes from one label to another
 - (void)removeLabelSet:(NSSet*)labelSet fromNoteSet:(NSSet*)notes {    
     [allLabels minusSet:labelSet];
+	
+	//could use this as an opportunity to remove counterparts in labelImages
     
     NSMutableSet *existingLabels = [allLabels setIntersectedWithSet:labelSet];
     [existingLabels makeObjectsPerformSelector:@selector(removeNoteSet:) withObject:notes];
