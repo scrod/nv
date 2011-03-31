@@ -837,8 +837,7 @@ copyRTFType:
 - (void)insertTab:(id)sender {
 	//check prefs for tab behavior
 
-	BOOL wasAutomatic = NO;
-	[self selectedRangeWasAutomatic:&wasAutomatic];
+	BOOL wasAutomatic = NSEqualRanges(lastAutomaticallySelectedRange, [self selectedRange]);
 	
 	if ([prefsController tabKeyIndents] && (!wasAutomatic || ![[self string] length] || didChangeIntoAutomaticRange)) {
 		[self insertTabIgnoringFieldEditor:sender];
