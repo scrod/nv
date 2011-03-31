@@ -30,6 +30,8 @@
 		2128651E1278AF220013820A /* ServicesMenu.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2128651C1278AF220013820A /* ServicesMenu.strings */; };
 		21286597128B14F10013820A /* Kontaktdaten.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21286591128B14F10013820A /* Kontaktdaten.nvhelp */; };
 		21286598128B14F10013820A /* Wie funktioniert dieses Programm?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21286593128B14F10013820A /* Wie funktioniert dieses Programm?.nvhelp */; };
+		212897E61330030100380B64 /* ODBEditor.m in Sources */ = {isa = PBXBuildFile; fileRef = 212897E31330030100380B64 /* ODBEditor.m */; };
+		212897E71330030100380B64 /* NSAppleEventDescriptor-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = 212897E41330030100380B64 /* NSAppleEventDescriptor-Extensions.m */; };
 		212B84620978422300F3597F /* NSString_NV.m in Sources */ = {isa = PBXBuildFile; fileRef = 212B84610978422300F3597F /* NSString_NV.m */; };
 		212C6952110E1940004DD82C /* TitlebarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 212C6951110E1940004DD82C /* TitlebarButton.m */; };
 		212C6A29110E371B004DD82C /* TBAlertWhite.png in Resources */ = {isa = PBXBuildFile; fileRef = 212C6A22110E371B004DD82C /* TBAlertWhite.png */; };
@@ -63,6 +65,7 @@
 		2143D2F410E953F500127EA6 /* SnapBackPressed.tif in Resources */ = {isa = PBXBuildFile; fileRef = 2143D2F210E953F400127EA6 /* SnapBackPressed.tif */; };
 		2143D2F510E953F500127EA6 /* SnapBack.tif in Resources */ = {isa = PBXBuildFile; fileRef = 2143D2F310E953F500127EA6 /* SnapBack.tif */; };
 		2143D3D910E987B100127EA6 /* Pencil.png in Resources */ = {isa = PBXBuildFile; fileRef = 2143D3D810E987B100127EA6 /* Pencil.png */; };
+		21447B6F133BFE1E00ACC1A7 /* ExternalEditorListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21447B6E133BFE1E00ACC1A7 /* ExternalEditorListController.m */; };
 		214493F60ADB892C00E2A2B6 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 214493E70ADB892C00E2A2B6 /* CoreServices.framework */; };
 		214495030ADC7C8D00E2A2B6 /* SecurityInterface.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 214494F80ADC7C8D00E2A2B6 /* SecurityInterface.framework */; };
 		2144950F0ADC883100E2A2B6 /* PasswordAssistantButton.tif in Resources */ = {isa = PBXBuildFile; fileRef = 2144950D0ADC883000E2A2B6 /* PasswordAssistantButton.tif */; };
@@ -70,7 +73,7 @@
 		214495130ADC8A6600E2A2B6 /* PassphrasePicker.m in Sources */ = {isa = PBXBuildFile; fileRef = 214495120ADC8A6600E2A2B6 /* PassphrasePicker.m */; };
 		2144957A0ADCC06300E2A2B6 /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
 		214495870ADCC07E00E2A2B6 /* PassphraseChanger.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */; };
-		21469C8C0BEBA6A10094835F /* TemporaryFileCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */; };
+		21469C8C0BEBA6A10094835F /* TemporaryFileCachePreparer.m in Sources */ = {isa = PBXBuildFile; fileRef = 21469C8A0BEBA6A10094835F /* TemporaryFileCachePreparer.m */; };
 		2147D82C131EC86100C65006 /* COPYING.txt in Resources */ = {isa = PBXBuildFile; fileRef = 2147D82B131EC86100C65006 /* COPYING.txt */; };
 		215309F412E4E92300AF2739 /* DiskUUIDEntry.m in Sources */ = {isa = PBXBuildFile; fileRef = 215309F312E4E92300AF2739 /* DiskUUIDEntry.m */; };
 		21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
@@ -286,6 +289,11 @@
 		212865A9128B15390013820A /* German */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = German; path = German.lproj/FindPanel.nib; sourceTree = "<group>"; };
 		212865AA128B15390013820A /* German */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = German; path = German.lproj/CarbonErrorStrings.plist; sourceTree = "<group>"; };
 		212865AB128B15390013820A /* German */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = German; path = German.lproj/SavedSearches.nib; sourceTree = "<group>"; };
+		212897E11330030100380B64 /* ODBEditorSuite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ODBEditorSuite.h; path = ODBEditor/ODBEditorSuite.h; sourceTree = "<group>"; };
+		212897E21330030100380B64 /* ODBEditor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ODBEditor.h; path = ODBEditor/ODBEditor.h; sourceTree = "<group>"; };
+		212897E31330030100380B64 /* ODBEditor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ODBEditor.m; path = ODBEditor/ODBEditor.m; sourceTree = "<group>"; };
+		212897E41330030100380B64 /* NSAppleEventDescriptor-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSAppleEventDescriptor-Extensions.m"; path = "ODBEditor/NSAppleEventDescriptor-Extensions.m"; sourceTree = "<group>"; };
+		212897E51330030100380B64 /* NSAppleEventDescriptor-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSAppleEventDescriptor-Extensions.h"; path = "ODBEditor/NSAppleEventDescriptor-Extensions.h"; sourceTree = "<group>"; };
 		212B84600978422300F3597F /* NSString_NV.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSString_NV.h; sourceTree = "<group>"; };
 		212B84610978422300F3597F /* NSString_NV.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = NSString_NV.m; sourceTree = "<group>"; };
 		212C6950110E1940004DD82C /* TitlebarButton.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TitlebarButton.h; sourceTree = "<group>"; };
@@ -327,6 +335,8 @@
 		2143D2F210E953F400127EA6 /* SnapBackPressed.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = SnapBackPressed.tif; path = Images/SnapBackPressed.tif; sourceTree = "<group>"; };
 		2143D2F310E953F500127EA6 /* SnapBack.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = SnapBack.tif; path = Images/SnapBack.tif; sourceTree = "<group>"; };
 		2143D3D810E987B100127EA6 /* Pencil.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = Pencil.png; path = Images/Pencil.png; sourceTree = "<group>"; };
+		21447B6D133BFE1E00ACC1A7 /* ExternalEditorListController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ExternalEditorListController.h; sourceTree = "<group>"; };
+		21447B6E133BFE1E00ACC1A7 /* ExternalEditorListController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ExternalEditorListController.m; sourceTree = "<group>"; };
 		214493E70ADB892C00E2A2B6 /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = /System/Library/Frameworks/CoreServices.framework; sourceTree = "<absolute>"; };
 		214494F80ADC7C8D00E2A2B6 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = /System/Library/Frameworks/SecurityInterface.framework; sourceTree = "<absolute>"; };
 		214495040ADC7F4F00E2A2B6 /* SFPasswordAssistantInspectorController.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = SFPasswordAssistantInspectorController.h; sourceTree = "<group>"; };
@@ -337,8 +347,8 @@
 		214495750ADCC06300E2A2B6 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/PassphrasePicker.nib; sourceTree = "<group>"; };
 		214495820ADCC07E00E2A2B6 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/PassphraseChanger.nib; sourceTree = "<group>"; };
 		2144987D0AE192F900E2A2B6 /* PassphraseChanger.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PassphraseChanger.h; sourceTree = "<group>"; };
-		21469C890BEBA6A10094835F /* TemporaryFileCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCache.h; sourceTree = "<group>"; };
-		21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCache.m; sourceTree = "<group>"; };
+		21469C890BEBA6A10094835F /* TemporaryFileCachePreparer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCachePreparer.h; sourceTree = "<group>"; };
+		21469C8A0BEBA6A10094835F /* TemporaryFileCachePreparer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCachePreparer.m; sourceTree = "<group>"; };
 		2147D82B131EC86100C65006 /* COPYING.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING.txt; sourceTree = "<group>"; };
 		215309F212E4E92300AF2739 /* DiskUUIDEntry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DiskUUIDEntry.h; sourceTree = "<group>"; };
 		215309F312E4E92300AF2739 /* DiskUUIDEntry.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DiskUUIDEntry.m; sourceTree = "<group>"; };
@@ -627,8 +637,8 @@
 				21A2FA1609DF6174001AF0B5 /* NotationPrefsViewController.m */,
 				2110BADD0B640D2100F5C52E /* BookmarksController.h */,
 				21582DC40B73F59A00711663 /* BookmarksController.m */,
-				21469C890BEBA6A10094835F /* TemporaryFileCache.h */,
-				21469C8A0BEBA6A10094835F /* TemporaryFileCache.m */,
+				21469C890BEBA6A10094835F /* TemporaryFileCachePreparer.h */,
+				21469C8A0BEBA6A10094835F /* TemporaryFileCachePreparer.m */,
 				213621EF0B92414F008C0830 /* MultiTextFinder.h */,
 				213621F00B92414F008C0830 /* MultiTextFinder.m */,
 				2114C11409575BD400614E74 /* AppController.h */,
@@ -651,6 +661,8 @@
 				212B84610978422300F3597F /* NSString_NV.m */,
 				21DB4BE412DE4E3D0057F52B /* NSString_CustomTruncation.h */,
 				21DB4BE512DE4E3D0057F52B /* NSString_CustomTruncation.m */,
+				21447B6D133BFE1E00ACC1A7 /* ExternalEditorListController.h */,
+				21447B6E133BFE1E00ACC1A7 /* ExternalEditorListController.m */,
 				216D987D12CE68AD0004B9CE /* NSFileManager_NV.h */,
 				216D987E12CE68AD0004B9CE /* NSFileManager_NV.m */,
 				21B548F9112F307E00E163A1 /* NotationDirectoryManager.h */,
@@ -754,6 +766,18 @@
 				21E6B09D0B6E6D18001ABEDC /* URLGetter.m */,
 			);
 			name = "Note Importing";
+			sourceTree = "<group>";
+		};
+		212897BF133002C600380B64 /* ODBEditor */ = {
+			isa = PBXGroup;
+			children = (
+				212897E21330030100380B64 /* ODBEditor.h */,
+				212897E11330030100380B64 /* ODBEditorSuite.h */,
+				212897E31330030100380B64 /* ODBEditor.m */,
+				212897E41330030100380B64 /* NSAppleEventDescriptor-Extensions.m */,
+				212897E51330030100380B64 /* NSAppleEventDescriptor-Extensions.h */,
+			);
+			name = ODBEditor;
 			sourceTree = "<group>";
 		};
 		21395BA90B7FDB5E007BCFAA /* Supporting Files */ = {
@@ -982,6 +1006,7 @@
 		29B97315FDCFA39411CA2CEA /* Other Sources */ = {
 			isa = PBXGroup;
 			children = (
+				212897BF133002C600380B64 /* ODBEditor */,
 				21F07C7010EDED87004FE56F /* BSJSON */,
 				2182B38E106B2286008641E4 /* RBSplitView */,
 				21F1CD490B3A38CB001FB5F6 /* HotKeys */,
@@ -1250,7 +1275,7 @@
 				21E6B09F0B6E6D18001ABEDC /* URLGetter.m in Sources */,
 				21582DC50B73F59B00711663 /* BookmarksController.m in Sources */,
 				213621F20B92414F008C0830 /* MultiTextFinder.m in Sources */,
-				21469C8C0BEBA6A10094835F /* TemporaryFileCache.m in Sources */,
+				21469C8C0BEBA6A10094835F /* TemporaryFileCachePreparer.m in Sources */,
 				2182B39A106B2296008641E4 /* RBSplitSubview.m in Sources */,
 				2182B39B106B2296008641E4 /* RBSplitView.m in Sources */,
 				D3EECA00106F66C70023D7F8 /* NVPasswordGenerator.m in Sources */,
@@ -1279,6 +1304,9 @@
 				21B64A2612E61FA700D87EFC /* LabelColumnCell.m in Sources */,
 				21B64C4E12E62A5700D87EFC /* UnifiedCell.m in Sources */,
 				21A3913A12EB4C2F00CEB5F0 /* Spaces.c in Sources */,
+				212897E61330030100380B64 /* ODBEditor.m in Sources */,
+				212897E71330030100380B64 /* NSAppleEventDescriptor-Extensions.m in Sources */,
+				21447B6F133BFE1E00ACC1A7 /* ExternalEditorListController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

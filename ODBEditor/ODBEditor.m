@@ -20,6 +20,7 @@
 #import "NSAppleEventDescriptor-Extensions.h"
 #import "ODBEditor.h"
 #import "ODBEditorSuite.h"
+#import "NotationPrefs.h"
 #import "TemporaryFileCachePreparer.h"
 #import "ExternalEditorListController.h"
 #import "NoteObject.h"
@@ -33,10 +34,10 @@ NSString * const ODBEditorIsEditingString	= @"ODBEditorIsEditingString";
 
 @interface ODBEditor(Private)
 
-- (BOOL)_launchExternalEditor;
+- (BOOL)_launchExternalEditor:(ExternalEditor*)ed;
 - (NSString*)_nonexistingTemporaryPathForFilename:(NSString*)filename;
 - (NSString *)_tempFilePathForEditingString:(NSString *)string;
-- (BOOL)_editFile:(NSString *)path isEditingString:(BOOL)editingStringFlag options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context;
+- (BOOL)_editFile:(NSString *)path inEditor:(ExternalEditor*)ed isEditingString:(BOOL)editingStringFlag options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context;
 - (void)handleModifiedFileEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
 - (void)handleClosedFileEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent;
 
@@ -58,7 +59,6 @@ static ODBEditor	*_sharedODBEditor;
 	if (self != nil) {
 		UInt32  packageType = 0;
 		UInt32  packageCreator = 0;
-		currentNoteStorageFormat = -1;
 		
 		if (_sharedODBEditor != nil) {
 			[self autorelease];
@@ -92,23 +92,13 @@ static ODBEditor	*_sharedODBEditor;
 	[super dealloc];
 }
 
-- (void)initializeDatabaseFormat:(int)fmt {
-	if (currentNoteStorageFormat != fmt) {
-		if (editingSpacePreparer) {
-			[editingSpacePreparer setDelegate:nil];
-			[editingSpacePreparer release];
-			editingSpacePreparer = nil;
-		}
-		editingSpacePreparer = [[TemporaryFileCachePreparer alloc] init];
-		[editingSpacePreparer setDelegate:self];
-		[editingSpacePreparer prepEditingSpaceIfNecessaryForStorageFormat:fmt];
-		
-		currentNoteStorageFormat = fmt;
+- (void)initializeDatabase:(NotationPrefs*)prefs {
+	if (editingSpacePreparer) {
+		[editingSpacePreparer setDelegate:nil];
+		[editingSpacePreparer release];
 	}
-}
-
-- (BOOL)fileCacheIsValid {
-	return [editingSpacePreparer preparedCachePath] != nil;
+	[(editingSpacePreparer = [[TemporaryFileCachePreparer alloc] init]) setDelegate:self];
+	[editingSpacePreparer prepEditingSpaceIfNecessaryForNotationPrefs:prefs];
 }
 
 - (void)temporaryFileCachePreparerDidNotFinish:(TemporaryFileCachePreparer*)preparer {
@@ -120,11 +110,15 @@ static ODBEditor	*_sharedODBEditor;
 
 - (void)abortEditingFile:(NSString *)path {
 	 //#warning REVIEW if we created a temporary file for this session should we try to delete it and/or close it in the editor?
-
-	if (nil == [_filePathsBeingEdited objectForKey: path])
-		NSLog(@"ODBEditor: No active editing session for \"%@\"", path);
-
-	 [_filePathsBeingEdited removeObjectForKey: path];
+	
+	if (path) {
+		if (nil == [_filePathsBeingEdited objectForKey: path])
+			NSLog(@"ODBEditor: No active editing session for \"%@\"", path);
+		
+		[_filePathsBeingEdited removeObjectForKey: path];
+	} else {
+		NSLog(@"abortEditingFile: path is nil");
+	}
 }
 
 - (void)abortAllEditingSessionsForClient:(id)client {
@@ -153,27 +147,54 @@ static ODBEditor	*_sharedODBEditor;
 	}
 }
 
-- (BOOL)editNote:(NoteObject*)aNote context:(NSDictionary *)context {
-	if (!aNote) return NO;
+- (BOOL)editNote:(NoteObject*)aNote inEditor:(ExternalEditor*)ed context:(NSDictionary *)context {
+	if (!aNote) goto beepReturn;
 	
-	NSString *path = [self _nonexistingTemporaryPathForFilename:filenameOfNote(aNote)];
+	//see comments in -[TemporaryFileCachePreprer prepEditingSpaceIfNecessaryForNotationPrefs:]
 	
-	if (path != nil) {
-		return [self _editFile:path isEditingString:NO options:[NSDictionary dictionaryWithObject:titleOfNote(aNote) forKey:ODBEditorCustomPathKey]
-					 forClient:aNote context:context];
+	//let's first see if we can avoid this whole ODB protocol rigmarole altogether, and ideally even allow non-plain-text editors to be used		
+	if ([ed canEditNoteDirectly:aNote]) {
+		NSString *path = [aNote noteFilePath];
+		
+		[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]] withAppBundleIdentifier:[ed bundleIdentifier] options:NSWorkspaceLaunchDefault additionalEventParamDescriptor:nil launchIdentifiers:NULL];
+		return YES;
 	}
+
+	//weren't able to edit the note-file directly, so fall back to opening a copy of it using an ODB editor
+	//what if this editor is not an ODB editor? what if the path doesn't exist?
+	
+	if (![editingSpacePreparer preparedCachePath]) {
+		NSLog(@"not editing '%@' because temporary cache path was not initialized", aNote);
+		goto beepReturn;
+	}
+	if (![ed isODBEditor]) {
+		NSLog(@"not editing '%@' with '%@' because it is not an ODB editor and the note-file cannot be saved directly", aNote, ed);
+		goto beepReturn;
+	}
+	
+	//now write aNote as text to path?
+	NSString *path = [self _nonexistingTemporaryPathForFilename:filenameOfNote(aNote)];	
+	NSError *error = nil;
+	if (![[[aNote contentString] string] writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:&error]) {
+		NSLog(@"not editing '%@' because it could not be written to '%@'", aNote, path);
+		goto beepReturn;
+	}
+	
+	return [self editFile:path inEditor:ed options:[NSDictionary dictionaryWithObject:titleOfNote(aNote) forKey:ODBEditorCustomPathKey] forClient:aNote context:context];
+beepReturn:
+	NSBeep();
 	return NO;
 }
 
-- (BOOL)editFile:(NSString *)path options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context {
-	return [self _editFile:path isEditingString:NO options:options forClient:client context:context];
+- (BOOL)editFile:(NSString *)path inEditor:(ExternalEditor*)ed options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context {
+	return [self _editFile:path inEditor:ed isEditingString:NO options:options forClient:client context:context];
 }
 
-- (BOOL)editString:(NSString *)string options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context {
+- (BOOL)editString:(NSString *)string inEditor:(ExternalEditor*)ed options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context {
 	NSString *path = [self _tempFilePathForEditingString:string];
 
 	if (path != nil) {
-		return [self _editFile:path isEditingString:YES options:options forClient:client context:context];
+		return [self _editFile:path inEditor:ed isEditingString:YES options:options forClient:client context:context];
     }
     
 	return NO;
@@ -184,7 +205,7 @@ static ODBEditor	*_sharedODBEditor;
 
 @implementation ODBEditor(Private)
 
-- (BOOL)_launchExternalEditor {
+- (BOOL)_launchExternalEditor:(ExternalEditor*)ed {
 	BOOL success = NO;
 	BOOL running = NO;
 	NSWorkspace	*workspace = [NSWorkspace sharedWorkspace];
@@ -192,7 +213,7 @@ static ODBEditor	*_sharedODBEditor;
 	NSEnumerator *enumerator = [runningApplications objectEnumerator];
 	NSDictionary *applicationInfo;
 	
-	NSString *editorBundleIdentifier = [[[ExternalEditorListController sharedInstance] defaultExternalEditor] bundleIdentifier];
+	NSString *editorBundleIdentifier = [ed bundleIdentifier];
 	
 	while (nil != (applicationInfo = [enumerator nextObject])) {
 		NSString *bundleIdentifier = [applicationInfo objectForKey: @"NSApplicationBundleIdentifier"];
@@ -213,15 +234,15 @@ static ODBEditor	*_sharedODBEditor;
 }
 
 - (NSString*)_nonexistingTemporaryPathForFilename:(NSString*)filename {
-	static unsigned sTempFileSequence;
+	unsigned int sTempFileSequence = 0;
 	NSString *path = nil;
+	NSString *basename = [filename stringByDeletingPathExtension];
 	NSFileManager *fileManager = [NSFileManager defaultManager];
 	
 	NSAssert([editingSpacePreparer preparedCachePath] != nil, @"cache path does not exist!");
 	
 	do {
-		sTempFileSequence++;
-		path = [NSString stringWithFormat: @"%@ %03d.txt", filename, sTempFileSequence];
+		path = sTempFileSequence++ ? [NSString stringWithFormat: @"%@ %03d.txt", basename, sTempFileSequence] : [basename stringByAppendingPathExtension:@"txt"];
 		path = [[editingSpacePreparer preparedCachePath] stringByAppendingPathComponent: path];
 	} while ([fileManager fileExistsAtPath:path]);
 	
@@ -241,14 +262,14 @@ static ODBEditor	*_sharedODBEditor;
 	return path;
 }
 
-- (BOOL)_editFile:(NSString *)path isEditingString:(BOOL)editingStringFlag options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context {
+- (BOOL)_editFile:(NSString *)path inEditor:(ExternalEditor*)ed isEditingString:(BOOL)editingStringFlag options:(NSDictionary *)options forClient:(id)client context:(NSDictionary *)context {
     // 10.2 fix- akm Nov 30 2004
     path = [path stringByResolvingSymlinksInPath];
     
 	BOOL success = NO;
 	OSStatus status = noErr;
-	NSString *editorBundleIdentifier = [[[ExternalEditorListController sharedInstance] defaultExternalEditor] bundleIdentifier];
-	NSData *targetBundleID = [editorBundleIdentifier dataUsingEncoding: NSUTF8StringEncoding];
+	if (!ed) ed = [[ExternalEditorListController sharedInstance] defaultExternalEditor];
+	NSData *targetBundleID = [[ed bundleIdentifier] dataUsingEncoding: NSUTF8StringEncoding];
 	NSAppleEventDescriptor *targetDescriptor = [NSAppleEventDescriptor descriptorWithDescriptorType: typeApplicationBundleID data: targetBundleID];
 	NSAppleEventDescriptor *appleEvent = [NSAppleEventDescriptor appleEventWithEventClass: kCoreEventClass
 																				   eventID: kAEOpenDocuments
@@ -260,7 +281,7 @@ static ODBEditor	*_sharedODBEditor;
 	AEDesc reply = {typeNull, NULL};														
 	NSString *customPath = [options objectForKey: ODBEditorCustomPathKey];
 	
-	[self _launchExternalEditor];
+	[self _launchExternalEditor:ed];
 	
 	[appleEvent setParamDescriptor: [NSAppleEventDescriptor descriptorWithFilePath: path] forKeyword: keyDirectObject];
 	[appleEvent setParamDescriptor: [NSAppleEventDescriptor descriptorWithTypeCode: _signature] forKeyword: keyFileSender];
@@ -315,7 +336,7 @@ static ODBEditor	*_sharedODBEditor;
 		id isString		= [dictionary objectForKey: ODBEditorIsEditingString];
 		NSDictionary *context	= [dictionary objectForKey: ODBEditorClientContext];
 		
-		if(isString) {
+		if([isString boolValue]) {
 			NSString *stringContents = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:&error];
 			if (stringContents) {
 				[client odbEditor: self didModifyFileForString: stringContents context: context];
@@ -330,13 +351,13 @@ static ODBEditor	*_sharedODBEditor;
 		// This may be break compatibility with BBEdit versioner < 6.0, since these versions
 		// continue to send notifications after after doing a Save As...
 		if(newPath) {
-			[_filePathsBeingEdited removeObjectForKey: path];
+			[_filePathsBeingEdited removeObjectForKey: newPath];
 	    }
 
 	}
 	else
 	{
-		NSLog(@"Got ODB editor event for unknown file.");
+		NSLog(@"Got ODB editor event for unknown file '%@'", path);
 	}
 }
 
@@ -354,7 +375,7 @@ static ODBEditor	*_sharedODBEditor;
 		id isString		= [dictionary objectForKey: ODBEditorIsEditingString];
 		NSDictionary *context	= [dictionary objectForKey: ODBEditorClientContext];
 		
-		if(isString) {
+		if([isString boolValue]) {
 			 NSString	*stringContents = [NSString stringWithContentsOfURL:[NSURL fileURLWithPath:fileName] encoding:NSUTF8StringEncoding error:&error];
 			if (stringContents) {
 				[client odbEditor: self didCloseFileForString: stringContents context: context];
@@ -367,10 +388,10 @@ static ODBEditor	*_sharedODBEditor;
 	}
 	else
 	{
-		NSLog(@"Got ODB editor event for unknown file.");
+		NSLog(@"Got ODB editor event for unknown file '%@'", fileName);
 	}
-	
-	 [_filePathsBeingEdited removeObjectForKey: fileName];
+	if (fileName)
+		[_filePathsBeingEdited removeObjectForKey: fileName];
 }
 
 @end
