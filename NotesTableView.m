@@ -19,6 +19,7 @@
 #import "AppController_Importing.h"
 #import "FastListDataSource.h"
 #import "NoteAttributeColumn.h"
+#import "ExternalEditorListController.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
 #import "NoteObject.h"
@@ -34,7 +35,7 @@
 
 #define SYNTHETIC_TAGS_COLUMN_INDEX 200
 
-static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target);
+static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target, NSInteger tag);
 
 @implementation NotesTableView
 
@@ -658,18 +659,20 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	return [self defaultNoteCommandsMenuWithTarget:[NSApp delegate]];
 }
 
-static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target) {
-	int menuIndex = [sourceMenu indexOfItemWithTarget:target andAction:aSel];
-	if (menuIndex > -1)	[destMenu addItem:[[(NSMenuItem*)[sourceMenu itemAtIndex:menuIndex] copy] autorelease]];
+static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target, NSInteger tag) {
+	NSInteger idx = [sourceMenu indexOfItemWithTag:tag];
+	if (idx > -1 || (idx = [sourceMenu indexOfItemWithTarget:target andAction:aSel]) > -1) {
+		[destMenu addItem:[[(NSMenuItem*)[sourceMenu itemAtIndex:idx] copy] autorelease]];
+	}
 }
 
 - (NSMenu *)defaultNoteCommandsMenuWithTarget:(id)target {
 	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"Contextual Note Commands Menu"] autorelease];
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(renameNote:), target);
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(tagNote:), target);
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(deleteNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(renameNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(tagNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(deleteNote:), target, -1);
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
@@ -679,12 +682,15 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	[noteLinkItem setTarget:target];
 	[theMenu addItem:[noteLinkItem autorelease]];
 
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(exportNote:), target);
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(revealNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(exportNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(revealNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, NULL, target, 88);
+	
+	[theMenu setSubmenu:[[ExternalEditorListController sharedInstance] addEditNotesMenu] forItem:[theMenu itemAtIndex:[theMenu numberOfItems] - 1]];
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(printNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(printNote:), target, -1);
 	
 	NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:[self selectedRowIndexes]];
 	[notes addMenuItemsForURLsInNotes:theMenu];

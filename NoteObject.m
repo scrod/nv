@@ -35,12 +35,13 @@
 #import "NotationSyncServiceManager.h"
 #import "SyncServiceSessionProtocol.h"
 #import "SyncSessionController.h"
+#import "ExternalEditorListController.h"
 #import "NSData_transformations.h"
 #import "NSCollection_utils.h"
 #import "NotesTableView.h"
 #import "UnifiedCell.h"
 #import "LabelColumnCell.h"
-#import "NSBezierPath_NV.h"
+#import "ODBEditor.h"
 
 #if __LP64__
 // Needed for compatability with data created by 32bit app
@@ -1425,7 +1426,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		return NO;
     }
 	
-    if ([self updateFromData:data]) {
+    if ([self updateFromData:data inFormat:currentFormatID]) {
 		FSCatalogInfo info;
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			fileModifiedDate = info.contentModDate;
@@ -1448,7 +1449,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		return NO;
     }
 	    
-    if (![self updateFromData:data])
+    if (![self updateFromData:data inFormat:currentFormatID])
 		return NO;
 	
 	[self setFilename:(NSString*)catEntry->filename withExternalTrigger:YES];
@@ -1501,7 +1502,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     return YES;
 }
 
-- (BOOL)updateFromData:(NSMutableData*)data {
+- (BOOL)updateFromData:(NSMutableData*)data inFormat:(int)fmt {
     
     if (!data) {
 		NSLog(@"%@: Data is nil!", NSStringFromSelector(_cmd));
@@ -1511,7 +1512,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     NSMutableString *stringFromData = nil;
     NSMutableAttributedString *attributedStringFromData = nil;
     //interpret based on format; text, rtf, html, etc...
-    switch (currentFormatID) {
+    switch (fmt) {
 	case SingleDatabaseFormat:
 	    //hmmmmm
 		NSAssert(NO, @"Warning! Tried to update data from a note in single-db format!");
@@ -1539,11 +1540,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 	    break;
 	default:
-	    NSLog(@"%@: Unknown format: %d", NSStringFromSelector(_cmd), currentFormatID);
+	    NSLog(@"%@: Unknown format: %d", NSStringFromSelector(_cmd), fmt);
     }
     
     if (!attributedStringFromData) {
-		NSLog(@"Couldn't make string out of data for note %@ with format %d", titleString, currentFormatID);
+		NSLog(@"Couldn't make string out of data for note %@ with format %d", titleString, fmt);
 		return NO;
     }
     
