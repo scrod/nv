@@ -71,7 +71,7 @@ static BOOL MountPointExists(const char *expectedMountPath) {
 }
 
 static NSString *RAMDiskMountPath() {
-	return [NSTemporaryDirectory() stringByAppendingPathComponent:@".NVProtectedEditingSpace"];
+	return [NSTemporaryDirectory() stringByAppendingPathComponent:@"NVProtectedEditingSpace"];
 }
 
 static NSString *TempDirectoryPathForEditing() {
