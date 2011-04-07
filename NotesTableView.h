@@ -56,7 +56,7 @@ typedef struct _ViewLocationContext {
 
 	int affinity;
 
-    NSUserDefaults *userDefaults;
+	NSUserDefaults *userDefaults;
 }
 
 - (void)noteFirstVisibleRow;
