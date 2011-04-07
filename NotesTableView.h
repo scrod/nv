@@ -54,7 +54,9 @@ typedef struct _ViewLocationContext {
 	
 	float tableFontHeight;
 
-	int affinity;	
+	int affinity;
+
+    NSUserDefaults *userDefaults;
 }
 
 - (void)noteFirstVisibleRow;

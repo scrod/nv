@@ -44,6 +44,9 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     if ((self = [super initWithCoder:decoder])) {
 	
 	globalPrefs = [GlobalPrefs defaultPrefs];
+
+    userDefaults = [NSUserDefaults standardUserDefaults];
+    [userDefaults registerDefaults: [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool: YES], @"UseCtrlForSwitchingNotes", nil]];
 		
 	loadStatusString = NSLocalizedString(@"Loading Notes...",nil);
 	loadStatusAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
@@ -884,7 +887,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	unsigned mods = [theEvent modifierFlags];
 	
-	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0;
+	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0 && [userDefaults boolForKey: @"UseCtrlForSwitchingNotes"];
 	BOOL isCommandKeyPressed = (mods & NSCommandKeyMask) != 0;
 
 	// Also catch Ctrl-J/-K to match the shortcuts of other apps
