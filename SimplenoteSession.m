@@ -41,7 +41,7 @@
 
 NSString *SimplenoteServiceName = @"SN";
 NSString *SimplenoteSeparatorKey = @"SepStr";
-#define kSimplenoteSessionIndexBatchSize 20
+#define kSimplenoteSessionIndexBatchSize 100
 
 @implementation SimplenoteSession
 
