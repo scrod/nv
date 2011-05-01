@@ -176,6 +176,10 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 - (BOOL)entryHasLocalChanges:(NSDictionary*)entry {
 	return [[entry objectForKey:@"dirty"] boolValue];
 }
+- (BOOL)tagsShouldBeMergedForEntry:(NSDictionary*)entry {
+	// If the local note doesn't have a syncnum, then it has not been synced with sn-api2
+	return ([entry objectForKey:@"syncnum"] == nil);
+}
 
 + (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote {
 	//if this note has been synced with this service at least once, mirror the mod date
@@ -598,8 +602,16 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 			NSString *combinedContent = [info objectForKey:@"content"];
 			NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote) maxTitleLen:60];
 			
-			//TODO: add tags support
 			[aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
+			NSMutableSet *labelTitles = [NSMutableSet setWithArray:[info objectForKey:@"tags"]];
+			if ([self tagsShouldBeMergedForEntry:[[aNote syncServicesMD] objectForKey:SimplenoteServiceName]]) {
+				[labelTitles addObjectsFromArray:[aNote orderedLabelTitles]];
+			}
+			if ([labelTitles count]) {
+				[aNote setLabelString:[[labelTitles allObjects] componentsJoinedByString:@" "]];
+			} else {
+				[aNote setLabelString:nil];
+			}
 			
 			NSNumber *modNum = [info objectForKey:@"modify"];
 			//NSLog(@"updating mod time for note %@ to %@", aNote, modNum);
@@ -740,8 +752,8 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
 		[attributedBody addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBody length])];
 		
-		//TODO: add tags support
-		NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:title delegate:delegate format:SingleDatabaseFormat labels:nil];
+		NSString *labelString = [[info objectForKey:@"tags"] count] ? [[info objectForKey:@"tags"] componentsJoinedByString:@" "] : nil;
+		NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:title delegate:delegate format:SingleDatabaseFormat labels:labelString];
 		if (note) {
 			NSNumber *modNum = [info objectForKey:@"modify"];
 			[note setDateAdded:[[info objectForKey:@"create"] doubleValue]];

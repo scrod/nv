@@ -268,7 +268,13 @@
 	NSMutableDictionary *rawObject = [NSMutableDictionary dictionaryWithCapacity: 12];
 	if (modNum > 0.0) [rawObject setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSinceReferenceDate:modNum] timeIntervalSince1970]] forKey:@"modifydate"];
 	if (doesCreate) [rawObject setObject:[NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSinceReferenceDate:createdDateOfNote(aNote)] timeIntervalSince1970]] forKey:@"createdate"];
-	//TODO: add support for tags(labels)
+	
+	NSArray *tags = [aNote orderedLabelTitles];
+	// Don't send an empty tagset if this note has never been synced via sn-api2
+	if ([tags count] || ([info objectForKey:@"syncnum"] != nil)) {
+		[rawObject setObject:tags forKey:@"tags"];
+	}
+	
 	[rawObject setObject:noteBody forKey:@"content"];
 
 	NSURL *noteURL = nil;

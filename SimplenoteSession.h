@@ -81,6 +81,7 @@ extern NSString *SimplenoteSeparatorKey;
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
 - (BOOL)entryHasLocalChanges:(NSDictionary*)entry;
+- (BOOL)tagsShouldBeMergedForEntry:(NSDictionary*)entry;
 
 + (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote;
 
