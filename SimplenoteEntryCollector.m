@@ -399,6 +399,16 @@
 			NSAssert([aNote isKindOfClass:[DeletedNoteObject class]], @"received a non-deletednoteobject from a fetcherForDeletingNote: operation");
 			[aNote removeAllSyncMDForService:SimplenoteServiceName];
 		} else if (@selector(fetcherForUpdatingNote:) == fetcherOpSEL) {
+			// SN api2 can return a content key in an update response containing
+			// the merged changes from other clients....
+			if ([rawObject objectForKey:@"content"]) {
+				NSUInteger bodyLoc = 0;
+				NSString *separator = nil;
+				NSString *combinedContent = [rawObject objectForKey:@"content"];
+				NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote) maxTitleLen:60];
+				
+				[(NoteObject *)aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
+			}
 			[aNote setSyncObjectAndKeyMD:syncMD forService: SimplenoteServiceName];
 			//NSLog(@"note update:\n %@", [aNote syncServicesMD]);
 		} else {
