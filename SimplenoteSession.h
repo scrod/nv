@@ -60,6 +60,10 @@ extern NSString *SimplenoteSeparatorKey;
 	
 	NSMutableSet *collectorsInProgress;
 	
+	//used to span multiple partial index fetches (when mark is present in response)
+	NSMutableArray *indexEntryBuffer;
+	NSString *indexMark;
+	
 	id delegate;
 }
 
@@ -77,6 +81,7 @@ extern NSString *SimplenoteSeparatorKey;
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
 - (BOOL)entryHasLocalChanges:(NSDictionary*)entry;
+- (BOOL)tagsShouldBeMergedForEntry:(NSDictionary*)entry;
 
 + (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote;
 
