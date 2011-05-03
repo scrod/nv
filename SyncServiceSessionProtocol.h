@@ -37,6 +37,7 @@
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs;
 
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
+-(void)applyMetadataUpdatesToNote:(id <SynchronizedNote>)aNote localEntry:(NSDictionary *)localEntry remoteEntry: (NSDictionary *)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
 + (void)registerLocalModificationForNote:(id <SynchronizedNote>)aNote;
 

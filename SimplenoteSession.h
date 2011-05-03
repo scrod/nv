@@ -79,6 +79,7 @@ extern NSString *SimplenoteSeparatorKey;
 - (BOOL)reachabilityFailed;
 
 - (NSComparisonResult)localEntry:(NSDictionary*)localEntry compareToRemoteEntry:(NSDictionary*)remoteEntry;
+-(void)applyMetadataUpdatesToNote:(id <SynchronizedNote>)aNote localEntry:(NSDictionary *)localEntry remoteEntry: (NSDictionary *)remoteEntry;
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry;
 - (BOOL)entryHasLocalChanges:(NSDictionary*)entry;
 - (BOOL)tagsShouldBeMergedForEntry:(NSDictionary*)entry;

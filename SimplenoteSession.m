@@ -170,6 +170,35 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	return NSOrderedSame;
 }
 
+-(void)applyMetadataUpdatesToNote:(id <SynchronizedNote>)aNote localEntry:(NSDictionary *)localEntry remoteEntry: (NSDictionary *)remoteEntry {
+	//tags may have updated even if content wasn't, or we may never have synced tags
+	NSSet *localTagset = [NSSet setWithArray:[(NoteObject *)aNote orderedLabelTitles]];
+	NSSet *remoteTagset = [NSSet setWithArray:[remoteEntry objectForKey:@"tags"]];
+	if (![localTagset isEqualToSet:remoteTagset]) {
+		NSLog(@"Tagsets differ. Updating.");
+		NSString *newLabelString = nil;
+		if ([self tagsShouldBeMergedForEntry:localEntry]) {
+			NSMutableSet *mergedTags = [NSMutableSet setWithSet:localTagset];
+			[mergedTags unionSet:remoteTagset];
+			if ([mergedTags count]) {
+				newLabelString = [[mergedTags allObjects] componentsJoinedByString:@" "];
+			}
+		} else {
+			if ([remoteTagset count]) {
+				newLabelString = [[remoteTagset allObjects] componentsJoinedByString:@" "];
+			}
+		}
+		[(NoteObject *)aNote setLabelString:newLabelString];
+	}
+
+	//set the metadata from the server if this is the first time syncing with api2
+	if (![localEntry objectForKey:@"syncnum"]) {
+		NSDictionary *updatedMetadata = [NSDictionary dictionaryWithObjectsAndKeys:[remoteEntry objectForKey:@"syncnum"], @"syncnum", [remoteEntry objectForKey:@"version"], @"version", [remoteEntry objectForKey:@"modify"], @"modify", nil];
+		
+		[aNote setSyncObjectAndKeyMD: updatedMetadata forService: SimplenoteServiceName];
+	}
+}
+
 - (BOOL)remoteEntryWasMarkedDeleted:(NSDictionary*)remoteEntry {
 	return [[remoteEntry objectForKey:@"deleted"] intValue] == 1;
 }
@@ -1010,14 +1039,24 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 			NSString *noteKey = [rawEntry objectForKey:@"key"];
 			NSNumber *syncnum = [NSNumber numberWithInt:[[rawEntry objectForKey:@"syncnum"] intValue]];
 			NSNumber *modified = [NSNumber numberWithDouble:[[NSDate dateWithTimeIntervalSince1970:[[rawEntry objectForKey:@"modifydate"] doubleValue]] timeIntervalSinceReferenceDate]];
+			NSNumber *minversion = [NSNumber numberWithInt:[[rawEntry objectForKey:@"minversion"] intValue]];
+			NSNumber *version = [NSNumber numberWithInt:[[rawEntry objectForKey:@"version"] intValue]];
+			NSArray *tags = [rawEntry objectForKey:@"tags"];
+			NSArray *systemtags = [rawEntry objectForKey:@"systemtags"];
 			
 			if ([noteKey length] && [syncnum intValue] && [modified doubleValue]) {
-				//convenient intermediate format
+				//convenient intermediate format, including all metadata included
+				//in the index, so we don't need to fetch the individual note if
+				//content hasn't changed
 				[entries addObject:[NSDictionary dictionaryWithObjectsAndKeys:
 									noteKey, @"key", 
 									[NSNumber numberWithInt:[[rawEntry objectForKey:@"deleted"] intValue]], @"deleted", 
 									modified, @"modify",
 									syncnum, @"syncnum",
+									minversion, @"minversion",
+									version, @"version",
+									systemtags, @"systemtags",
+									tags, @"tags",
 									nil]];
 			}
 		}
