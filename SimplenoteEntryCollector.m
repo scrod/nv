@@ -415,6 +415,16 @@
 				
 				[(NoteObject *)aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
 			}
+			
+			// Tags may have been changed by another client...
+			NSSet *localTags = [NSSet setWithArray:[(NoteObject *)aNote orderedLabelTitles]];
+			NSSet *remoteTags = [NSSet setWithArray:[rawObject objectForKey:@"tags"]];
+			if (![localTags isEqualToSet:remoteTags]) {
+				NSLog(@"Updating tags with remote values.");
+				NSString *newLabelString = [[remoteTags allObjects] componentsJoinedByString:@" "];
+				[(NoteObject *)aNote setLabelString:newLabelString];
+			}
+
 			[aNote setSyncObjectAndKeyMD:syncMD forService: SimplenoteServiceName];
 			//NSLog(@"note update:\n %@", [aNote syncServicesMD]);
 		} else {
