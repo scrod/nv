@@ -1045,7 +1045,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 			NSArray *systemtags = [rawEntry objectForKey:@"systemtags"];
 			
 			if ([noteKey length] && [syncnum intValue] && [modified doubleValue]) {
-				//convenient intermediate format, including all metadata included
+				//convenient intermediate format, including all metadata
 				//in the index, so we don't need to fetch the individual note if
 				//content hasn't changed
 				[entries addObject:[NSDictionary dictionaryWithObjectsAndKeys:
