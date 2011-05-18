@@ -283,7 +283,7 @@
 	} else {
 		noteURL = [SimplenoteSession servletURLWithPath:[NSString stringWithFormat:@"/api2/data/%@", [info objectForKey:@"key"]] parameters:params];
 	}
-	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:[[rawObject jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding] delegate:self];
+	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:[[rawObject jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding] contentType:@"application/json" delegate:self];
 	[fetcher setRepresentedObject:aNote];
 	return [fetcher autorelease];
 }
@@ -316,7 +316,7 @@
 					  [NSDictionary dictionaryWithObjectsAndKeys: email, @"email", 
 					   authToken, @"auth", nil]];
 	NSData *postData = [[[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:1] forKey:@"deleted"] jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding];
-	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:postData delegate:self];
+	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:postData contentType:@"application/json" delegate:self];
 	[fetcher setRepresentedObject:aDeletedNote];
 	return [fetcher autorelease];
 	
