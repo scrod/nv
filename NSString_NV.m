@@ -148,6 +148,7 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
     return dateString;
 }
 
+// TODO: possibly obsolete? SN api2 formats dates as doubles from start of unix epoch
 CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	//CFStringRef dateStr = CFSTR("2010-01-02 23:23:31.876229");
 	static CFDateFormatterRef dateFormatter = NULL;
@@ -167,11 +168,13 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return lowPrecision ? lowPrecisionDateFormatter	: dateFormatter;
 }
 
+// TODO: possibly obsolete? SN api2 formats dates as doubles from start of unix epoch
 + (NSString*)simplenoteDateWithAbsoluteTime:(CFAbsoluteTime)absTime {
 	CFStringRef str = CFDateFormatterCreateStringWithAbsoluteTime(NULL, simplenoteDateFormatter(0), absTime);
 	return [(id)str autorelease];
 }
 
+// TODO: possibly obsolete? SN api2 formats dates as doubles from start of unix epoch
 - (CFAbsoluteTime)absoluteTimeFromSimplenoteDate {
 	
 	CFAbsoluteTime absTime = 0;
