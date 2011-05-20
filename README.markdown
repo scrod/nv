@@ -1,12 +1,12 @@
-### Notational Velocity  ALT
+# nvALT 2
 
-A fork based on [DivineDominion's](github.com/divineDominion/nv) which adds a few features I'd been looking for (and let me get some coding practice).
+A collaboration between Brett Terpstra (ttscoff) and David Halter (ElasticThreads) based on [DivineDominion's](github.com/divineDominion/nv) fork. nvALT adds a few features we'd been looking for (and let me get some coding practice).
 
-![Screenshot](http://img.skitch.com/20101210-3qf2t3pccfxf6yi2ng55fyy53.jpg)
+![Screenshot](http://img.skitch.com/20110520-k5y4i6i3p8ciftq2dbs7rx64e7.jpg)
 
-## About Notational Velocity ALT
+## About nvALT
 
-Notational Velocity ALT is a fork of the original [Notational Velocity][notational] with some additional features and some interface modifications. It is a work in progress. I'm not listing it as a beta, as that would imply that it was on its way to being its own product. It's an experiment, and I hope you enjoy it!
+nvALT is a fork of the original [Notational Velocity][notational] with some additional features and some interface modifications. It is a work in progress. I'm not listing it as a beta, as that would imply that it was on its way to being its own product. It's an experiment, and I hope you enjoy it!
 
 ## What it is
 
@@ -14,7 +14,7 @@ Notational Velocity is a way to take notes quickly and effortlessly using just y
 
 ## Additional Features
 
-Notational Velocity ALT adds:
+nvALT adds:
 
 * Widescreen (horizontal) layout option
 * Shortcut (&#x2318;-&#x2325;-N) to collapse the notes panel
