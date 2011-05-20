@@ -50,26 +50,6 @@
 	if (![window isVisible])
 		[window center];
 	
-  NSArray *appArray = [[NSApp delegate] getTxtAppList];
-  // NSArray *appArray = nil;
-	if (appArray) {
-		if ((![appList numberOfItems]>0)||(![[appList objectValues] isEqualToArray:appArray])) {		
-			[appList removeAllItems];
-			[appList addItemsWithObjectValues:appArray];
-			NSString *defApp = [prefsController textEditor];
-			if ((![appArray containsObject:defApp])&&(![defApp isEqualToString:@"Default"])) {	
-				defApp = @"Default";
-				[prefsController setTextEditor:@"Default"];
-			}
-			if ([defApp isEqualToString:@"Default"]) {
-				[appList selectItemAtIndex:0];
-			}else{
-				[appList selectItemWithObjectValue:defApp];
-			}
-		}
-	}
-
-	
 	[window makeKeyAndOrderFront:self];
 }
 
@@ -620,17 +600,6 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 		[[NSApp delegate] setMaxNoteBodyWidth];
 }
 
-- (void)updateAppList:(id)sender{
-	NSArray *appArr = [[NSApp delegate] getTxtAppList];
-	NSString *defApp = [appList objectValueOfSelectedItem];
-	if ((![[appList objectValues] isEqualToArray:appArr])||(![appArr containsObject:defApp])) {
-		[appList removeAllItems];
-		[appList addItemsWithObjectValues:appArr];
-		[prefsController setTextEditor:@"Default"];
-		[appList selectItemAtIndex:0];
-	}
-}
-
 - (IBAction)setMaxWidth:(id)sender{
 	double dbWidth = [maxWidthSlider doubleValue];	
 	dbWidth = dbWidth - fmod(dbWidth,2.0);
@@ -656,21 +625,6 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 - (IBAction)changedShowGrid:(id)sender {
 	[prefsController setShowGrid:[showGridButton state] sender:self];
     [[NSApp delegate] refreshNotesList];
-}
-
-//delegate methods for text editor application combobox
-- (void)comboBoxSelectionDidChange:(NSNotification *)notification{
-	NSString *defApp = [appList objectValueOfSelectedItem];
-	if (defApp) {	
-		if ([defApp hasPrefix:@"Default"]) {
-			defApp = @"Default";
-		}
-		[prefsController setTextEditor:defApp];
-	}
-}
-
-- (void)comboBoxWillPopUp:(NSNotification *)notification{
-	[self updateAppList:self];
 }
 
 @end

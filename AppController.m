@@ -343,16 +343,11 @@ void outletObjectAwoke(id sender) {
 		}
 	}
 	// add elasticthreads' menuitems
-	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:@"Open Note in TextEdit" 
-												  action:@selector(openFileInEditor:) keyEquivalent:@"O"] autorelease];
-	if ([prefsController textEditor]) {
-		[theMenuItem setTitle:[@"Open Note in " stringByAppendingString:[prefsController textEditor]]];
-	}
+	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] init] autorelease];
 	[theMenuItem setTarget:self];
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
-	[notesMenu insertItem:theMenuItem atIndex:9];
 	theMenuItem = [theMenuItem copy];
-	[statBarMenu insertItem:theMenuItem atIndex:4];
+//	[statBarMenu insertItem:theMenuItem atIndex:4];
 	[theMenuItem release];
     //theMenuItem = [[viewMenu itemWithTag:801] copy];
 	//[statBarMenu insertItem:theMenuItem atIndex:11];
@@ -2966,75 +2961,75 @@ terminateApp:
 }
 
 - (void)flagsChanged:(NSEvent *)theEvent{
-	if (ModFlagger>=0) {				
-		if (([theEvent keyCode]==58)||([theEvent keyCode]==61)) {
-			if (([theEvent modifierFlags]==524576)||([theEvent modifierFlags]==524608)) { //option down
-				modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:0.65
-																  target:self
-																selector:@selector(updateModifier:)
-																userInfo:@"option"
-																 repeats:NO] retain];
-			}else if ([theEvent modifierFlags]==256) { //option up	
-				
-				if (modifierTimer) {
-					if ([modifierTimer isValid]) {	
-						[modifierTimer invalidate];
-					}else {					
-						[self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.35];
-					}
-					modifierTimer = nil;
-					[modifierTimer release];
-				}		
-				ModFlagger = 0;
-				
-			}
-		}else if (([theEvent keyCode]==59)||([theEvent keyCode]==62)) {
-			if (([theEvent modifierFlags]==262401)||([theEvent modifierFlags]==270592))  { //control down
-				modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:0.70
-																  target:self
-																selector:@selector(updateModifier:)
-																userInfo:@"control"
-																 repeats:NO] retain];
-				
-			}else if ([theEvent modifierFlags]==256) { //control up		
-				
-				if (modifierTimer) {
-					if ([modifierTimer isValid]) {	
-						[modifierTimer invalidate];				
-					}else {					
-						[self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.46];
-					}		
-					modifierTimer = nil;	
-					[modifierTimer release];
-				}		
-				ModFlagger = 0;
-			}
-		}else if ([theEvent modifierFlags]==256) {	
-			ModFlagger = 0;
-			if (modifierTimer) {
-				if ([modifierTimer isValid]) {	
-					[modifierTimer invalidate];				
-				}		
-				modifierTimer = nil;	
-				[modifierTimer release];
-			}
-			
-		}else {
-			ModFlagger = -1;
-			if (modifierTimer) {
-				if ([modifierTimer isValid]) {	
-					[modifierTimer invalidate];				
-				}		
-				modifierTimer = nil;	
-				[modifierTimer release];
-			}
-			NSTimer *disTimer = [NSTimer scheduledTimerWithTimeInterval:0.2f
-																 target:self
-															   selector:@selector(disableKeyMasks:)
-															   userInfo:@"commandorshift"
-																repeats:NO];
-		}
-	}	
+//	if (ModFlagger>=0) {				
+//		if (([theEvent keyCode]==58)||([theEvent keyCode]==61)) {
+//			if (([theEvent modifierFlags]==524576)||([theEvent modifierFlags]==524608)) { //option down
+//				modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:0.65
+//																  target:self
+//																selector:@selector(updateModifier:)
+//																userInfo:@"option"
+//																 repeats:NO] retain];
+//			}else if ([theEvent modifierFlags]==256) { //option up	
+//				
+//				if (modifierTimer) {
+//					if ([modifierTimer isValid]) {	
+//						[modifierTimer invalidate];
+//					}else {					
+//						[self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.35];
+//					}
+//					modifierTimer = nil;
+//					[modifierTimer release];
+//				}		
+//				ModFlagger = 0;
+//				
+//			}
+//		}else if (([theEvent keyCode]==59)||([theEvent keyCode]==62)) {
+//			if (([theEvent modifierFlags]==262401)||([theEvent modifierFlags]==270592))  { //control down
+//				modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:0.70
+//																  target:self
+//																selector:@selector(updateModifier:)
+//																userInfo:@"control"
+//																 repeats:NO] retain];
+//				
+//			}else if ([theEvent modifierFlags]==256) { //control up		
+//				
+//				if (modifierTimer) {
+//					if ([modifierTimer isValid]) {	
+//						[modifierTimer invalidate];				
+//					}else {					
+//						[self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.46];
+//					}		
+//					modifierTimer = nil;	
+//					[modifierTimer release];
+//				}		
+//				ModFlagger = 0;
+//			}
+//		}else if ([theEvent modifierFlags]==256) {	
+//			ModFlagger = 0;
+//			if (modifierTimer) {
+//				if ([modifierTimer isValid]) {	
+//					[modifierTimer invalidate];				
+//				}		
+//				modifierTimer = nil;	
+//				[modifierTimer release];
+//			}
+//			
+//		}else {
+//			ModFlagger = -1;
+//			if (modifierTimer) {
+//				if ([modifierTimer isValid]) {	
+//					[modifierTimer invalidate];				
+//				}		
+//				modifierTimer = nil;	
+//				[modifierTimer release];
+//			}
+//			NSTimer *disTimer = [NSTimer scheduledTimerWithTimeInterval:0.2f
+//																 target:self
+//															   selector:@selector(disableKeyMasks:)
+//															   userInfo:@"commandorshift"
+//																repeats:NO];
+//		}
+//	}	
 }
 
 - (void)updateModifier:(NSTimer*)theTimer{

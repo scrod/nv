@@ -32,6 +32,7 @@
 #import "PTKeyCombo.h"
 #import "PTHotKeyCenter.h"
 #import "NSString_NV.h"
+#import "AppController.h"
 
 #define SEND_CALLBACKS() sendCallbacksForGlobalPrefs(self, _cmd, sender)
 
@@ -955,25 +956,36 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
     [defaults synchronize];
 }
 
+- (NSImage*)iconForDefaultDirectoryWithFSRef:(FSRef*)fsRef {
+  OSStatus err = noErr;
+  
+  if (!fsRef)
+    return nil;
+  
+  if (IsZeros(fsRef, sizeof(FSRef))) {
+    if (![[self aliasDataForDefaultDirectory] fsRefAsAlias:fsRef])
+	    return nil;
+  }
+  IconRef iconRef;
+  if ((err = GetIconRefFromFileInfo(fsRef, 0, NULL, 0, NULL, kIconServicesNormalUsageFlag, &iconRef, NULL)) == noErr) {
+    
+    NSImage *image = [[[NSImage alloc] initWithSize:NSMakeSize(16.0f, 16.0f)] autorelease];
+    NSRect frame = NSMakeRect(0.0f,0.0f,16.0f,16.0f);
+    
+    [image lockFocus];
+    err = PlotIconRefInContext([[NSGraphicsContext currentContext] graphicsPort], (CGRect *)&frame, 0, 0, nil, 0, iconRef);
+    [image unlockFocus];
+    
+    if (err == noErr)
+	    return image;
+  }
+  
+  NSLog(@"iconForDefaultDirectory error: %d", err);
+  
+  return nil;
+}
+
 //elasticthreads' work
-
-- (NSString *)textEditor{
-	NSString *theData = [defaults stringForKey:TextEditor];
-	if (theData){
-		return theData;
-	} else {
-		//[self setTextEditor:@"Default"];
-		//return @"Default";
-		return nil;
-	}
-}
-
-- (void)setTextEditor:(NSString *)inApp{
-	//if (inApp) {
-		[defaults setObject:inApp forKey:TextEditor];
-		[defaults synchronize];
-	//}
-}
 
 - (BOOL)managesTextWidthInWindow{
 	return [defaults boolForKey:KeepsMaxTextWidth];

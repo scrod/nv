@@ -400,6 +400,7 @@
 {
   self.isPreviewSticky = YES;
   [[preview window] setTitle:@"Locked"];
+  [stickyPreviewButton setState:YES];
   [stickyPreviewButton setToolTip:@"Return the preview to normal functionality."];
   [stickyPreviewButton setAction:@selector(makePreviewNotSticky:)];
   [shareButton setEnabled:NO];
@@ -411,6 +412,7 @@
 {
   self.isPreviewSticky = NO;
   [[preview window] setTitle:@"Preview"];
+  [stickyPreviewButton setState:NO];
   [stickyPreviewButton setToolTip:@"Maintain current note in Preview, even if you switch to other notes."];
   [stickyPreviewButton setAction:@selector(makePreviewSticky:)];
   [shareButton setEnabled:YES];

@@ -102,6 +102,5 @@
 - (IBAction)setMaxWidth:(id)sender;
 - (void)relaunchNV:(id)sender;
 - (void)reActivate:(id)sender;
-- (void)updateAppList:(id)sender;
 
 @end

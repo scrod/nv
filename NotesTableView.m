@@ -48,7 +48,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		globalPrefs = [GlobalPrefs defaultPrefs];
       
     userDefaults = [NSUserDefaults standardUserDefaults];
-    [userDefaults registerDefaults: [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool: YES], @"UseCtrlForSwitchingNotes", nil]];
+    [userDefaults registerDefaults: [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool: NO], @"UseCtrlForSwitchingNotes", nil]];
       
 		loadStatusString = NSLocalizedString(@"Loading Notes...",nil);
 		loadStatusAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:

@@ -179,7 +179,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 - (BOOL)triedToImportBlor;
 
 - (void)synchronize;
-
+- (NSImage*)iconForDefaultDirectoryWithFSRef:(FSRef*)fsRef;
 //
 - (NSString *)textEditor;
 - (void)setTextEditor:(NSString *)inApp;
