@@ -266,6 +266,11 @@
 		93B348291371547800658F98 /* HUDIconPrint.png in Resources */ = {isa = PBXBuildFile; fileRef = 93B348251371547800658F98 /* HUDIconPrint.png */; };
 		93B3482A1371547800658F98 /* HUDIconSave.png in Resources */ = {isa = PBXBuildFile; fileRef = 93B348261371547800658F98 /* HUDIconSave.png */; };
 		93B3482B1371547800658F98 /* HUDIconShare.png in Resources */ = {isa = PBXBuildFile; fileRef = 93B348271371547800658F98 /* HUDIconShare.png */; };
+		93B90E7A1386018200BEC5FB /* ExternalEditorListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 93B90E781386018200BEC5FB /* ExternalEditorListController.m */; };
+		93B90E84138601C100BEC5FB /* LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 93B90E7E138601C100BEC5FB /* LICENSE.txt */; };
+		93B90E85138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = 93B90E80138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m */; };
+		93B90E86138601C100BEC5FB /* ODBEditor.m in Sources */ = {isa = PBXBuildFile; fileRef = 93B90E82138601C100BEC5FB /* ODBEditor.m */; };
+		93B90E921386072E00BEC5FB /* TemporaryFileCachePreparer.m in Sources */ = {isa = PBXBuildFile; fileRef = 93B90E911386072E00BEC5FB /* TemporaryFileCachePreparer.m */; };
 		D3EECA00106F66C70023D7F8 /* NVPasswordGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */; };
 /* End PBXBuildFile section */
 
@@ -717,6 +722,16 @@
 		93B348251371547800658F98 /* HUDIconPrint.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = HUDIconPrint.png; path = Images/HUDIconPrint.png; sourceTree = "<group>"; };
 		93B348261371547800658F98 /* HUDIconSave.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = HUDIconSave.png; path = Images/HUDIconSave.png; sourceTree = "<group>"; };
 		93B348271371547800658F98 /* HUDIconShare.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = HUDIconShare.png; path = Images/HUDIconShare.png; sourceTree = "<group>"; };
+		93B90E771386018200BEC5FB /* ExternalEditorListController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ExternalEditorListController.h; sourceTree = "<group>"; };
+		93B90E781386018200BEC5FB /* ExternalEditorListController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ExternalEditorListController.m; sourceTree = "<group>"; };
+		93B90E7E138601C100BEC5FB /* LICENSE.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE.txt; sourceTree = "<group>"; };
+		93B90E7F138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSAppleEventDescriptor-Extensions.h"; sourceTree = "<group>"; };
+		93B90E80138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSAppleEventDescriptor-Extensions.m"; sourceTree = "<group>"; };
+		93B90E81138601C100BEC5FB /* ODBEditor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ODBEditor.h; sourceTree = "<group>"; };
+		93B90E82138601C100BEC5FB /* ODBEditor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ODBEditor.m; sourceTree = "<group>"; };
+		93B90E83138601C100BEC5FB /* ODBEditorSuite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ODBEditorSuite.h; sourceTree = "<group>"; };
+		93B90E901386072E00BEC5FB /* TemporaryFileCachePreparer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCachePreparer.h; sourceTree = "<group>"; };
+		93B90E911386072E00BEC5FB /* TemporaryFileCachePreparer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCachePreparer.m; sourceTree = "<group>"; };
 		D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NVPasswordGenerator.m; sourceTree = "<group>"; };
 		D3EEC9FF106F66C70023D7F8 /* NVPasswordGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVPasswordGenerator.h; sourceTree = "<group>"; };
 		F0E01EE812DB95F40000B192 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/Preferences.xib; sourceTree = "<group>"; };
@@ -747,6 +762,8 @@
 		080E96DDFE201D6D7F000001 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
+				93B90E901386072E00BEC5FB /* TemporaryFileCachePreparer.h */,
+				93B90E911386072E00BEC5FB /* TemporaryFileCachePreparer.m */,
 				5C96F713131C4A1B00A2E4AC /* UIElement Subclasses */,
 				5CA10F30131C29E900DE1F91 /* AppController_Preview.h */,
 				5CA10F31131C29E900DE1F91 /* AppController_Preview.m */,
@@ -759,6 +776,8 @@
 				21D60126098FDB46007440DF /* GlobalPrefs.h */,
 				21D60127098FDB46007440DF /* GlobalPrefs.m */,
 				2114C11409575BD400614E74 /* AppController.h */,
+				93B90E771386018200BEC5FB /* ExternalEditorListController.h */,
+				93B90E781386018200BEC5FB /* ExternalEditorListController.m */,
 				2114C11509575BD400614E74 /* AppController.m */,
 				2191982009D607C600586B15 /* PrefsWindowController.h */,
 				2191982109D607C600586B15 /* PrefsWindowController.m */,
@@ -1144,6 +1163,7 @@
 		29B97315FDCFA39411CA2CEA /* Other Sources */ = {
 			isa = PBXGroup;
 			children = (
+				93B90E7D138601C100BEC5FB /* ODBEditor */,
 				5C96F5A8131C379200A2E4AC /* Markup */,
 				5CA10FFA131C2A7600DE1F91 /* readability */,
 				21F07C7010EDED87004FE56F /* BSJSON */,
@@ -1271,6 +1291,19 @@
 				5CA11003131C2A7600DE1F91 /* url_helpers.pyc */,
 			);
 			path = readability;
+			sourceTree = "<group>";
+		};
+		93B90E7D138601C100BEC5FB /* ODBEditor */ = {
+			isa = PBXGroup;
+			children = (
+				93B90E7E138601C100BEC5FB /* LICENSE.txt */,
+				93B90E7F138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.h */,
+				93B90E80138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m */,
+				93B90E81138601C100BEC5FB /* ODBEditor.h */,
+				93B90E82138601C100BEC5FB /* ODBEditor.m */,
+				93B90E83138601C100BEC5FB /* ODBEditorSuite.h */,
+			);
+			path = ODBEditor;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1467,6 +1500,7 @@
 				93B348291371547800658F98 /* HUDIconPrint.png in Resources */,
 				93B3482A1371547800658F98 /* HUDIconSave.png in Resources */,
 				93B3482B1371547800658F98 /* HUDIconShare.png in Resources */,
+				93B90E84138601C100BEC5FB /* LICENSE.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1577,6 +1611,10 @@
 				5C9C7734131DA04300FB2652 /* WordCountToken.m in Sources */,
 				5CA08C2013301D5E004E3250 /* ETContentView.m in Sources */,
 				5C2FAD2B1333970200FBFD34 /* ETScrollView.m in Sources */,
+				93B90E7A1386018200BEC5FB /* ExternalEditorListController.m in Sources */,
+				93B90E85138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m in Sources */,
+				93B90E86138601C100BEC5FB /* ODBEditor.m in Sources */,
+				93B90E921386072E00BEC5FB /* TemporaryFileCachePreparer.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

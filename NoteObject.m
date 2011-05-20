@@ -5,15 +5,20 @@
 //  Created by Zachary Schneirov on 12/19/05.
 
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
-  Redistribution and use in source and binary forms, with or without modification, are permitted 
-  provided that the following conditions are met:
-   - Redistributions of source code must retain the above copyright notice, this list of conditions 
-     and the following disclaimer.
-   - Redistributions in binary form must reproduce the above copyright notice, this list of 
-	 conditions and the following disclaimer in the documentation and/or other materials provided with
-     the distribution.
-   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
-     or promote products derived from this software without specific prior written permission. */
+    This file is part of Notational Velocity.
+
+    Notational Velocity is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Notational Velocity is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
 
 #import "NoteObject.h"
@@ -30,12 +35,13 @@
 #import "NotationSyncServiceManager.h"
 #import "SyncServiceSessionProtocol.h"
 #import "SyncSessionController.h"
+#import "ExternalEditorListController.h"
 #import "NSData_transformations.h"
 #import "NSCollection_utils.h"
 #import "NotesTableView.h"
 #import "UnifiedCell.h"
 #import "LabelColumnCell.h"
-#import "NSBezierPath_NV.h"
+#import "ODBEditor.h"
 
 #if __LP64__
 // Needed for compatability with data created by 32bit app
@@ -187,6 +193,7 @@ NSInteger compareLabelString(id *a, id *b) {
 								(CFStringRef)(labelsOfNote(*(NoteObject **)b)), kCFCompareCaseInsensitive);
 }
 NSInteger compareTitleString(id *a, id *b) {
+	//add kCFCompareNumerically to options for natural order sort
     CFComparisonResult stringResult = CFStringCompare((CFStringRef)(titleOfNote(*(NoteObject**)a)), 
 													  (CFStringRef)(titleOfNote(*(NoteObject**)b)), 
 													  kCFCompareCaseInsensitive);
@@ -709,12 +716,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 	if ([prefs tableColumnsShowPreview]) {
 		if ([prefs horizontalLayout]) {
-			//labelsPreviewImage does work only when the image is explicitly invalidated, and because updateTablePreviewString 
 			//is called for visible notes at launch and resize only, generation of images for invisible notes is delayed until after launch
 			
-			NSImage *img = ColumnIsSet(NoteLabelsColumn, [prefs tableColumnsBitmap]) ? [self labelsPreviewImage] : nil;
+			NSSize labelBlockSize = ColumnIsSet(NoteLabelsColumn, [prefs tableColumnsBitmap]) ? [self sizeOfLabelBlocks] : NSZeroSize;
 			tableTitleString = [[titleString attributedMultiLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth] 
-																	 intrusionWidth:img ? [img size].width : 0.0] retain];
+																	 intrusionWidth:labelBlockSize.width] retain];
 		} else {
 			tableTitleString = [[titleString attributedSingleLinePreviewFromBodyText:contentString upToWidth:[delegate titleColumnWidth]] retain];
 		}
@@ -962,7 +968,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		cLabelsFoundPtr = cLabels = replaceString(cLabels, [labelString lowercaseUTF8String]);
 		
 		[self updateLabelConnections];
-		[self invalidateLabelsPreviewImage];
 		return YES;
 	}
 	return NO;
@@ -1009,99 +1014,64 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return [labelString labelCompatibleWords];
 }
 
-- (void)invalidateLabelsPreviewImage {
-	[highlightedLabelsPreviewImage release];
-	highlightedLabelsPreviewImage = nil;
-	[labelsPreviewImage release];
-	labelsPreviewImage = nil;
+- (NSSize)sizeOfLabelBlocks {
+	NSSize size = NSZeroSize;
+	[self _drawLabelBlocksInRect:NSZeroRect rightAlign:NO highlighted:NO getSizeOnly:&size];
+	return size;
 }
 
-- (NSImage*)highlightedLabelsPreviewImage {
-	if (!highlightedLabelsPreviewImage && [labelString length]) {
-		highlightedLabelsPreviewImage = [[self _labelsPreviewImageOfColor:[NSColor whiteColor]] retain];
-	}
-	return highlightedLabelsPreviewImage;	
+- (void)drawLabelBlocksInRect:(NSRect)aRect rightAlign:(BOOL)onRight highlighted:(BOOL)isHighlighted {
+	return [self _drawLabelBlocksInRect:aRect rightAlign:onRight highlighted:isHighlighted getSizeOnly:NULL];
 }
 
-- (NSImage*)labelsPreviewImage {
-	if (!labelsPreviewImage && [labelString length]) {
-		labelsPreviewImage = [[self _labelsPreviewImageOfColor:[NSColor colorWithCalibratedWhite:0.55 alpha:1.0]] retain];
-	}
-	return labelsPreviewImage;
-}
-
-- (NSImage*)_labelsPreviewImageOfColor:(NSColor*)aColor {
-	if ([labelString length]) {
-		float tableFontSize = [[GlobalPrefs defaultPrefs] tableFontSize] - 1.0;
-		NSFont *font = [NSFont systemFontOfSize:tableFontSize];
-		NSDictionary *attrs = [NSDictionary dictionaryWithObject:font forKey:NSFontNameAttribute];
-		
-		//compute dimensions of each word first using nslayoutmanager; -sizeWithAttributes: likes to ignore the font and size here for some reason
-
-		static NSTextStorage *textStorage = nil;
-		static NSTextContainer *textContainer = nil; 
-		static NSLayoutManager *layoutManager = nil; 
-		
-		if (!layoutManager) {
-			textStorage = [[NSTextStorage alloc] initWithString:@"" attributes:attrs];
-			textContainer = [[NSTextContainer alloc] initWithContainerSize:NSMakeSize(1e7, 1e7)];
-			layoutManager = [[NSLayoutManager alloc] init];
+- (void)_drawLabelBlocksInRect:(NSRect)aRect rightAlign:(BOOL)onRight highlighted:(BOOL)isHighlighted getSizeOnly:(NSSize*)reqSize {
+	//used primarily by UnifiedCell, but also by LabelColumnCell, as well as to determine the width of all label-block-images for this note
+	//iterate over words in orderedLabelTitles, retrieving images via -[LabelsListController cachedLabelImageForWord:highlighted:]
+	//if right-align is enabled, then the label-images are queued on the first pass and drawn in reverse on the second
+	
+	float totalWidth = 0.0, height = 0.0;
+	
+	if (![labelString length]) goto returnSizeIfNecessary;
+	
+	NSArray *words = [self orderedLabelTitles];
+	if (![words count]) goto returnSizeIfNecessary;
+	
+	NSPoint nextBoxPoint = onRight ? NSMakePoint(NSMaxX(aRect), aRect.origin.y) : aRect.origin;
+	NSMutableArray *images = reqSize || !onRight ? nil : [NSMutableArray arrayWithCapacity:[words count]];
+	NSInteger i;
+	
+	for (i=0; i<(NSInteger)[words count]; i++) {
+		NSString *word = [words objectAtIndex:i];
+		if ([word length]) {
+			NSImage *img = [[delegate labelsListDataSource] cachedLabelImageForWord:word highlighted:isHighlighted];
 			
-			[textContainer setLineFragmentPadding:0.0];
-			[layoutManager addTextContainer:textContainer];
-			[textStorage addLayoutManager:layoutManager];
-		}
-				
-		NSArray *words = [self orderedLabelTitles];
-		if (![words count])
-			return nil;
-		
-		NSBezierPath *blocksPath = [NSBezierPath bezierPath];
-		NSPoint nextBoxPoint = NSZeroPoint;
-		NSUInteger i;
-		float imageWidth = 0.0;
-		
-		for (i=0; i<[words count]; i++) {
-			NSString *word = [words objectAtIndex:i];
-			if ([word length]) {
-				
-				//Force the layout manager to layout its text
-				[[textStorage mutableString] setString:word];
-				[textStorage setFont:font]; //will infuriatingly revert to measuring Lucida Grande 11 otherwise, despite what it actually says
-				
-				(void)[layoutManager glyphRangeForTextContainer:textContainer];
-				NSSize wordSize = [layoutManager usedRectForTextContainer:textContainer].size;
-				
-				NSRect wordRect = NSMakeRect(nextBoxPoint.x, nextBoxPoint.y, roundf(wordSize.width + 4.0), roundf(tableFontSize * 1.3));
-				imageWidth += wordRect.size.width + 4.0;
-				
-				NSBezierPath *stringPath = [NSBezierPath bezierPathWithLayoutManager:layoutManager characterRange:NSMakeRange(0,[word length]) 
-																			 atPoint:NSMakePoint(nextBoxPoint.x + 2.0, 3.0)];
-				wordRect.origin = nextBoxPoint;
-				
-				NSBezierPath *backgroundPath = [NSBezierPath bezierPathWithRoundRectInRect:wordRect radius:2.0f];
-				
-				[backgroundPath setWindingRule:NSEvenOddWindingRule];
-				[backgroundPath appendBezierPath:stringPath];
-				
-				[blocksPath appendBezierPath:backgroundPath];
-				
-				nextBoxPoint = NSMakePoint(roundf(nextBoxPoint.x + wordRect.size.width + 4.0), 0.0);
+			if (!reqSize) {
+				if (onRight) {
+					[images addObject:img];
+				} else {
+					[img compositeToPoint:nextBoxPoint operation:NSCompositeSourceOver];
+					nextBoxPoint.x += [img size].width + 4.0;
+				}
+			} else {
+				totalWidth += [img size].width + 4.0;
+				height = MAX(height, [img size].height);
 			}
 		}
-		
-				
-		NSImage *img = [[NSImage alloc] initWithSize:NSMakeSize(imageWidth - 4.0, tableFontSize * 1.3 + 1.5)];
-		[img lockFocus];
-		
-		[aColor setFill];
-		[blocksPath fill];
-		
-		[img unlockFocus];
-				
-		return [img autorelease];
 	}
-	return nil;
+	
+	if (!reqSize) {
+		if (onRight) {
+			//draw images in reverse instead
+			for (i = [images count] - 1; i>=0; i--) {
+				NSImage *img = [images objectAtIndex:i];
+				nextBoxPoint.x -= [img size].width + 4.0;
+				[img compositeToPoint:nextBoxPoint operation:NSCompositeSourceOver];
+			}
+		}
+	} else {
+	returnSizeIfNecessary:
+		if (reqSize) *reqSize = NSMakeSize(totalWidth, height);
+	}
 }
 
 
@@ -1420,7 +1390,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		return NO;
     }
 	
-    if ([self updateFromData:data]) {
+    if ([self updateFromData:data inFormat:currentFormatID]) {
 		FSCatalogInfo info;
 		if ([delegate fileInNotesDirectory:noteFileRefInit(self) isOwnedByUs:NULL hasCatalogInfo:&info] == noErr) {
 			fileModifiedDate = info.contentModDate;
@@ -1443,7 +1413,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		return NO;
     }
 	    
-    if (![self updateFromData:data])
+    if (![self updateFromData:data inFormat:currentFormatID])
 		return NO;
 	
 	[self setFilename:(NSString*)catEntry->filename withExternalTrigger:YES];
@@ -1496,7 +1466,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     return YES;
 }
 
-- (BOOL)updateFromData:(NSMutableData*)data {
+- (BOOL)updateFromData:(NSMutableData*)data inFormat:(int)fmt {
     
     if (!data) {
 		NSLog(@"%@: Data is nil!", NSStringFromSelector(_cmd));
@@ -1506,7 +1476,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     NSMutableString *stringFromData = nil;
     NSMutableAttributedString *attributedStringFromData = nil;
     //interpret based on format; text, rtf, html, etc...
-    switch (currentFormatID) {
+    switch (fmt) {
 	case SingleDatabaseFormat:
 	    //hmmmmm
 		NSAssert(NO, @"Warning! Tried to update data from a note in single-db format!");
@@ -1534,11 +1504,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 	    break;
 	default:
-	    NSLog(@"%@: Unknown format: %d", NSStringFromSelector(_cmd), currentFormatID);
+	    NSLog(@"%@: Unknown format: %d", NSStringFromSelector(_cmd), fmt);
     }
     
     if (!attributedStringFromData) {
-		NSLog(@"Couldn't make string out of data for note %@ with format %d", titleString, currentFormatID);
+		NSLog(@"Couldn't make string out of data for note %@ with format %d", titleString, fmt);
 		return NO;
     }
     
@@ -1734,6 +1704,40 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return noErr;
 }
 
+- (void)editExternallyUsingEditor:(ExternalEditor*)ed {
+	[[ODBEditor sharedODBEditor] editNote:self inEditor:ed context:nil];
+}
+
+- (void)abortEditingInExternalEditor {
+	[[ODBEditor sharedODBEditor] abortAllEditingSessionsForClient:self];
+}
+
+-(void)odbEditor:(ODBEditor *)editor didModifyFile:(NSString *)path newFileLocation:(NSString *)newPath  context:(NSDictionary *)context {
+
+	//read path/newPath into NSData and update note contents
+	
+	//can't use updateFromCatalogEntry because it would assign ownership via various metadata
+	
+	if ([self updateFromData:[NSMutableData dataWithContentsOfFile:path options:NSUncachedRead error:NULL] inFormat:PlainTextFormat]) {
+		//reflect the temp file's changes directly back to the backing-store-file, database, and sync services
+		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
+		
+		[delegate note:self attributeChanged:NotePreviewString];
+		[[delegate delegate] contentsUpdatedForNote:self];
+	} else {
+		NSBeep();
+		NSLog(@"odbEditor:didModifyFile: unable to get data from %@", path);
+	}	
+}
+-(void)odbEditor:(ODBEditor *)editor didClosefile:(NSString *)path context:(NSDictionary *)context {
+	//remove the temp file	
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+	[[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
+#else
+	[[NSFileManager defaultManager] removeFileAtPath:path handler:nil];
+#endif
+}
+
 - (NSRange)nextRangeForWords:(NSArray*)words options:(unsigned)opts range:(NSRange)inRange {
 	//opts indicate forwards or backwards, inRange allows us to continue from where we left off
 	//return location of NSNotFound and length 0 if none of the words could be found inRange
@@ -1792,9 +1796,10 @@ BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shor
 
 - (void)addPrefixParentNote:(NoteObject*)aNote {
 	if (!prefixParentNotes) {
-		prefixParentNotes = [[NSMutableArray alloc] init];
+		prefixParentNotes = [[NSMutableArray alloc] initWithObjects:&aNote count:1];
+	} else {
+		[prefixParentNotes addObject:aNote];
 	}
-	[prefixParentNotes addObject:aNote];
 }
 - (void)removeAllPrefixParentNotes {
 	[prefixParentNotes removeAllObjects];

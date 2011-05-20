@@ -5,15 +5,20 @@
 //  Created by Zachary Schneirov on 12/19/05.
 
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
-  Redistribution and use in source and binary forms, with or without modification, are permitted 
-  provided that the following conditions are met:
-   - Redistributions of source code must retain the above copyright notice, this list of conditions 
-     and the following disclaimer.
-   - Redistributions in binary form must reproduce the above copyright notice, this list of 
-	 conditions and the following disclaimer in the documentation and/or other materials provided with
-     the distribution.
-   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
-     or promote products derived from this software without specific prior written permission. */
+    This file is part of Notational Velocity.
+
+    Notational Velocity is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Notational Velocity is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
 
 #import <Cocoa/Cocoa.h>
@@ -24,6 +29,7 @@
 @class LabelObject;
 @class WALStorageController;
 @class NotesTableView;
+@class ExternalEditor;
 
 typedef struct _NoteFilterContext {
 	char* needle;
@@ -35,8 +41,6 @@ typedef struct _NoteFilterContext {
 	NSString *titleString, *labelString;
 	NSMutableAttributedString *contentString;
 	
-	NSImage *labelsPreviewImage, *highlightedLabelsPreviewImage;
-    
 	//caching/searching purposes only -- created at runtime
 	char *cTitle, *cContents, *cLabels, *cTitleFoundPtr, *cContentsFoundPtr, *cLabelsFoundPtr;
 	NSMutableSet *labelSet;
@@ -156,10 +160,9 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)setLabelString:(NSString*)newLabels;
 - (NSMutableSet*)labelSetFromCurrentString;
 - (NSArray*)orderedLabelTitles;
-- (void)invalidateLabelsPreviewImage;
-- (NSImage*)highlightedLabelsPreviewImage;
-- (NSImage*)labelsPreviewImage;
-- (NSImage*)_labelsPreviewImageOfColor:(NSColor*)aColor;
+- (NSSize)sizeOfLabelBlocks;
+- (void)_drawLabelBlocksInRect:(NSRect)aRect rightAlign:(BOOL)onRight highlighted:(BOOL)isHighlighted getSizeOnly:(NSSize*)reqSize;
+- (void)drawLabelBlocksInRect:(NSRect)aRect rightAlign:(BOOL)onRight highlighted:(BOOL)isHighlighted;
 
 - (void)setSyncObjectAndKeyMD:(NSDictionary*)aDict forService:(NSString*)serviceName;
 - (void)removeAllSyncMDForService:(NSString*)serviceName;
@@ -174,7 +177,7 @@ NSInteger compareFileSize(id *a, id *b);
 - (BOOL)upgradeEncodingToUTF8;
 - (BOOL)updateFromFile;
 - (BOOL)updateFromCatalogEntry:(NoteCatalogEntry*)catEntry;
-- (BOOL)updateFromData:(NSMutableData*)data;
+- (BOOL)updateFromData:(NSMutableData*)data inFormat:(int)fmt;
 
 - (OSStatus)writeFileDatesAndUpdateTrackingInfo;
 
@@ -195,6 +198,8 @@ NSInteger compareFileSize(id *a, id *b);
 
 - (OSStatus)exportToDirectoryRef:(FSRef*)directoryRef withFilename:(NSString*)userFilename usingFormat:(int)storageFormat overwrite:(BOOL)overwrite;
 - (NSRange)nextRangeForWords:(NSArray*)words options:(unsigned)opts range:(NSRange)inRange;
+- (void)editExternallyUsingEditor:(ExternalEditor*)ed;
+- (void)abortEditingInExternalEditor;
 
 - (void)setFilenameFromTitle;
 - (void)setFilename:(NSString*)aString withExternalTrigger:(BOOL)externalTrigger;

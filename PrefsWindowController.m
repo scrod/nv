@@ -14,6 +14,7 @@
 #import "PTKeyComboPanel.h"
 #import "PTKeyCombo.h"
 #import "NotationPrefsViewController.h"
+#import "ExternalEditorListController.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
 #import "NSFileManager_NV.h"
@@ -48,26 +49,6 @@
 	
 	if (![window isVisible])
 		[window center];
-	
-  NSArray *appArray = [[NSApp delegate] getTxtAppList];
-  // NSArray *appArray = nil;
-	if (appArray) {
-		if ((![appList numberOfItems]>0)||(![[appList objectValues] isEqualToArray:appArray])) {		
-			[appList removeAllItems];
-			[appList addItemsWithObjectValues:appArray];
-			NSString *defApp = [prefsController textEditor];
-			if ((![appArray containsObject:defApp])&&(![defApp isEqualToString:@"Default"])) {	
-				defApp = @"Default";
-				[prefsController setTextEditor:@"Default"];
-			}
-			if ([defApp isEqualToString:@"Default"]) {
-				[appList selectItemAtIndex:0];
-			}else{
-				[appList selectItemWithObjectValue:defApp];
-			}
-		}
-	}
-
 	
 	[window makeKeyAndOrderFront:self];
 }
@@ -205,6 +186,19 @@
 	[self performSelector:@selector(changedTabBehavior:) withObject:self afterDelay:0.0];
     else
 	[prefsController setTabIndenting:[[tabKeyRadioMatrix cellAtRow:0 column:0] state] sender:self];
+}
+
+- (IBAction)changedExternalEditorsMenu:(id)sender {
+  //not currently called as an action in practice
+  [self _selectDefaultExternalEditor];
+}
+
+- (void)_selectDefaultExternalEditor {
+  ExternalEditor *ed = [[ExternalEditorListController sharedInstance] defaultExternalEditor];
+  NSInteger idx = ed ? [externalEditorMenuButton indexOfItemWithRepresentedObject:ed] : 0;
+  if (idx > -1) {
+    [externalEditorMenuButton selectItemAtIndex:idx];
+  }
 }
 
 - (IBAction)changedTableText:(id)sender {
@@ -405,6 +399,11 @@
     [tableTextSizeField setFloatValue:fontSize];
     [tableTextSizeField setHidden:(fontButtonIndex != 3)];
     
+    [externalEditorMenuButton setMenu:[[ExternalEditorListController sharedInstance] addEditorPrefsMenu]];
+    [self _selectDefaultExternalEditor];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changedExternalEditorsMenu:) 
+                           name:ExternalEditorsChangedNotification object:nil];
+    
     [completeNoteTitlesButton setState:[prefsController autoCompleteSearches]];
     [checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
     [confirmDeletionButton setState:[prefsController confirmNoteDeletion]];
@@ -601,17 +600,6 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 		[[NSApp delegate] setMaxNoteBodyWidth];
 }
 
-- (void)updateAppList:(id)sender{
-	NSArray *appArr = [[NSApp delegate] getTxtAppList];
-	NSString *defApp = [appList objectValueOfSelectedItem];
-	if ((![[appList objectValues] isEqualToArray:appArr])||(![appArr containsObject:defApp])) {
-		[appList removeAllItems];
-		[appList addItemsWithObjectValues:appArr];
-		[prefsController setTextEditor:@"Default"];
-		[appList selectItemAtIndex:0];
-	}
-}
-
 - (IBAction)setMaxWidth:(id)sender{
 	double dbWidth = [maxWidthSlider doubleValue];	
 	dbWidth = dbWidth - fmod(dbWidth,2.0);
@@ -637,21 +625,6 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 - (IBAction)changedShowGrid:(id)sender {
 	[prefsController setShowGrid:[showGridButton state] sender:self];
     [[NSApp delegate] refreshNotesList];
-}
-
-//delegate methods for text editor application combobox
-- (void)comboBoxSelectionDidChange:(NSNotification *)notification{
-	NSString *defApp = [appList objectValueOfSelectedItem];
-	if (defApp) {	
-		if ([defApp hasPrefix:@"Default"]) {
-			defApp = @"Default";
-		}
-		[prefsController setTextEditor:defApp];
-	}
-}
-
-- (void)comboBoxWillPopUp:(NSNotification *)notification{
-	[self updateAppList:self];
 }
 
 @end
