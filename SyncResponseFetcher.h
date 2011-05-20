@@ -25,6 +25,7 @@
 
 	NSMutableData *receivedData;
 	NSData *dataToSend;
+	NSString *dataToSendContentType;
 	NSURLConnection *urlConnection;
 	NSURL *requestURL;
 	NSDictionary *headers;
@@ -40,6 +41,7 @@
 
 - (id)initWithURL:(NSURL*)aURL bodyStringAsUTF8B64:(NSString*)stringToEncode delegate:(id)aDelegate;
 - (id)initWithURL:(NSURL*)aURL POSTData:(NSData*)POSTData delegate:(id)aDelegate;
+- (id)initWithURL:(NSURL*)aURL POSTData:(NSData*)POSTData contentType:(NSString*)contentType delegate:(id)aDelegate;
 - (void)setRepresentedObject:(id)anObject;
 - (id)representedObject;
 - (NSInvocation*)successInvocation;
