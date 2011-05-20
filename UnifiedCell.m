@@ -1,13 +1,18 @@
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
-  Redistribution and use in source and binary forms, with or without modification, are permitted 
-  provided that the following conditions are met:
-   - Redistributions of source code must retain the above copyright notice, this list of conditions 
-     and the following disclaimer.
-   - Redistributions in binary form must reproduce the above copyright notice, this list of 
-	 conditions and the following disclaimer in the documentation and/or other materials provided with
-     the distribution.
-   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
-     or promote products derived from this software without specific prior written permission. */
+    This file is part of Notational Velocity.
+
+    Notational Velocity is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Notational Velocity is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
 
 #import "UnifiedCell.h"
@@ -40,8 +45,8 @@
 //changes will hereafter affect all field editors for the window; do not want
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *tv = (NSTextView *)[super setUpFieldEditorAttributes:textObj];
-	//NSLog(@"okfield1s");
-	[tv setTextContainerInset:NSMakeSize(-9,-9)];
+	
+	[tv setTextContainerInset:NSMakeSize(-2,-2)];
 	
 	NSTextContainer *tc = [tv textContainer];
 	[tc setContainerSize:NSMakeSize(1.0e7, 1.0e7)];
@@ -60,10 +65,10 @@
 - (void)selectWithFrame:(NSRect)aRect inView:(NSView *)controlView editor:(NSText *)textObj 
 			   delegate:(id)anObject start:(NSInteger)selStart length:(NSInteger)selLength {
 	
-	NSRect rect = [(NotesTableView*)controlView lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:aRect andImage:nil] : [self nv_titleRectForFrame:aRect];
+	NSRect rect = [(NotesTableView*)controlView lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:aRect] : [self nv_titleRectForFrame:aRect];
 	[super selectWithFrame:rect inView:controlView editor:textObj delegate:anObject start:selStart length:selLength];
 	
-	[controlView setKeyboardFocusRingNeedsDisplayInRect:NSInsetRect([self nv_tagsRectForFrame:aRect andImage:nil], -3, -3)];
+	[controlView setKeyboardFocusRingNeedsDisplayInRect:NSInsetRect([self nv_tagsRectForFrame:aRect], -3, -3)];
 }
 
 - (NSFocusRingType)focusRingType {
@@ -81,16 +86,11 @@
 	return NSMakeRect(aFrame.origin.x, aFrame.origin.y, aFrame.size.width, [self tableFontFrameHeight]);
 }
 
-- (NSRect)nv_tagsRectForFrame:(NSRect)frame andImage:(NSImage*)img {
+- (NSRect)nv_tagsRectForFrame:(NSRect)frame {
 	//if no tags, return a default small frame to allow adding them
 	float fontHeight = [self tableFontFrameHeight];
-	NSSize size = img ? [img size] : NSMakeSize(NSWidth(frame), fontHeight);
-	
-	NSPoint pos = NSMakePoint((previewIsHidden ? NSMinX(frame) + 3.0 : NSMaxX(frame) - size.width), 
-							  (previewIsHidden ? NSMinY(frame) + fontHeight + size.height : NSMaxY(frame) - 3.0));
-	if (!img) {
-		pos.y -= fontHeight;
-	}
+	NSSize size = NSMakeSize(NSWidth(frame), fontHeight);
+	NSPoint pos = NSMakePoint(NSMinX(frame) + 3.0, (previewIsHidden ? NSMinY(frame) + fontHeight + size.height + 2.0 : NSMaxY(frame) - 2.0) - fontHeight);
 	
 	return (NSRect){pos, size};
 }
@@ -171,12 +171,9 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 }
 
 - (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView {	
+	
 	NotesTableView *tv = (NotesTableView *)controlView;
-    if ([[[tv enclosingScrollView] verticalScroller] isHidden]) {
-        cellFrame.size.width +=1.5f;
-    }else{
-        cellFrame.size.width-=8.25f;    
-    }
+	
 	[super drawWithFrame:cellFrame inView:controlView];	
 	
 	//draw note date and tags
@@ -187,7 +184,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 	NSColor *textColor = ([self isHighlighted] && isActive) ? [NSColor whiteColor] : (![self isHighlighted] ? [[self class] dateColorForTint]/*[NSColor grayColor]*/ : nil);
 	if (textColor)
 		[baseAttrs setObject:textColor forKey:NSForegroundColorAttributeName];
-	if (IsSnowLeopardOrLater && [self isHighlighted]) {
+	if (IsSnowLeopardOrLater && [self isHighlighted] && ([tv selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList)) {
 		[baseAttrs setObject:ShadowForSnowLeopard() forKey:NSShadowAttributeName];
 	}
 	
@@ -209,21 +206,16 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
 	}
 
-	if (ColumnIsSet(NoteLabelsColumn, columnsBitmap)) {
-		NSImage *img = ([self isHighlighted] && isActive) ? [noteObject highlightedLabelsPreviewImage] : [noteObject labelsPreviewImage];
+	if (ColumnIsSet(NoteLabelsColumn, columnsBitmap) && [labelsOfNote(noteObject) length]) {
+		NSRect rect = [self nv_tagsRectForFrame:cellFrame];
+		rect.origin.y += fontHeight;
+		rect = [controlView centerScanRect:rect];
 		
-		if (img) {
-			NSRect rect = [self nv_tagsRectForFrame:cellFrame andImage:img];
-			rect = [controlView centerScanRect:rect];
-			
-			//clip the tags image within the bounds of the cell so that narrow columns look nicer
-			[NSGraphicsContext saveGraphicsState];
-			NSRectClip(cellFrame);
-			
-			[img compositeToPoint:rect.origin operation:NSCompositeSourceOver];
-			
-			[NSGraphicsContext restoreGraphicsState];
-		}
+		//clip the tags image within the bounds of the cell so that narrow columns look nicer
+		[NSGraphicsContext saveGraphicsState];
+		NSRectClip(cellFrame);
+		[noteObject drawLabelBlocksInRect:rect rightAlign:!previewIsHidden highlighted:([self isHighlighted] && isActive)];
+		[NSGraphicsContext restoreGraphicsState];
 	}
 	
 	if ([tv currentEditor] && [self isHighlighted]) {
@@ -237,16 +229,14 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		[cloneStr release];
 		
 		//draw a slightly different focus ring than what would have been drawn
-		NSRect rect = [tv lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:cellFrame andImage:nil] : [self nv_titleRectForFrame:cellFrame];
-		rect = NSInsetRect(rect, -2, -1);
-		
+		NSRect rect = [tv lastEventActivatedTagEdit] ? [self nv_tagsRectForFrame:cellFrame] : [self nv_titleRectForFrame:cellFrame];
 		[NSGraphicsContext saveGraphicsState];
-		NSBezierPath *path = [NSBezierPath bezierPathWithRect:rect];
+		NSBezierPath *path = [NSBezierPath bezierPathWithRect:NSInsetRect(rect, -2, -1)];
 		
 		//megafocusring casts a shadow both outside and inside
 		if ([tv lastEventActivatedTagEdit]) {
-		NSSetFocusRingStyle(NSFocusRingBelow);
-		[path fill];
+			NSSetFocusRingStyle(NSFocusRingBelow);
+			[path fill];
 		}
 		NSSetFocusRingStyle(NSFocusRingOnly);
 		[path fill];

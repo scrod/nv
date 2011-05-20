@@ -5,20 +5,22 @@
 //  Created by Zachary Schneirov on 1/31/06.
 
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
-  Redistribution and use in source and binary forms, with or without modification, are permitted 
-  provided that the following conditions are met:
-   - Redistributions of source code must retain the above copyright notice, this list of conditions 
-     and the following disclaimer.
-   - Redistributions in binary form must reproduce the above copyright notice, this list of 
-	 conditions and the following disclaimer in the documentation and/or other materials provided with
-     the distribution.
-   - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
-     or promote products derived from this software without specific prior written permission. */
+    This file is part of Notational Velocity.
 
-/*[NSArchiver archivedDataWithRootObject:[NSColor colorWithCalibratedRed:0.74f green:0.74f blue:0.74f alpha:1.0f]], ForegroundTextColorKey,
- [NSArchiver archivedDataWithRootObject:[NSColor colorWithCalibratedRed:0.082f green:0.082f blue:0.082f alpha:1.0f]], BackgroundTextColorKey,*/
+    Notational Velocity is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-#import "AppController.h"
+    Notational Velocity is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
+
+
 #import "GlobalPrefs.h"
 #import "NSData_transformations.h"
 #import "NotationPrefs.h"
@@ -161,7 +163,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
 			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
-			[NSArray arrayWithObjects:NoteTitleColumnString, NoteLabelsColumnString, NoteDateModifiedColumnString, nil], NoteAttributesVisibleKey,
+			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], NoteAttributesVisibleKey,
 			NoteDateModifiedColumnString, TableSortColumnKey,
 			[NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
 		
@@ -888,35 +890,6 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 
 - (NSData*)aliasDataForDefaultDirectory {
     return [defaults dataForKey:DirectoryAliasKey];
-}
-
-- (NSImage*)iconForDefaultDirectoryWithFSRef:(FSRef*)fsRef {
-    OSStatus err = noErr;
-    
-    if (!fsRef)
-	return nil;
-    
-    if (IsZeros(fsRef, sizeof(FSRef))) {
-	if (![[self aliasDataForDefaultDirectory] fsRefAsAlias:fsRef])
-	    return nil;
-    }
-    IconRef iconRef;
-    if ((err = GetIconRefFromFileInfo(fsRef, 0, NULL, 0, NULL, kIconServicesNormalUsageFlag, &iconRef, NULL)) == noErr) {
-	
-	NSImage *image = [[[NSImage alloc] initWithSize:NSMakeSize(16.0f, 16.0f)] autorelease];
-	NSRect frame = NSMakeRect(0.0f,0.0f,16.0f,16.0f);
-	
-	[image lockFocus];
-	err = PlotIconRefInContext([[NSGraphicsContext currentContext] graphicsPort], (CGRect *)&frame, 0, 0, nil, 0, iconRef);
-	[image unlockFocus];
-	
-	if (err == noErr)
-	    return image;
-    }
-    
-    NSLog(@"iconForDefaultDirectory error: %d", err);
-    
-    return nil;
 }
 
 - (NSString*)displayNameForDefaultDirectoryWithFSRef:(FSRef*)fsRef {

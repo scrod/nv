@@ -1,19 +1,25 @@
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
- Redistribution and use in source and binary forms, with or without modification, are permitted 
- provided that the following conditions are met:
- - Redistributions of source code must retain the above copyright notice, this list of conditions 
- and the following disclaimer.
- - Redistributions in binary form must reproduce the above copyright notice, this list of 
- conditions and the following disclaimer in the documentation and/or other materials provided with
- the distribution.
- - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
- or promote products derived from this software without specific prior written permission. */
+    This file is part of Notational Velocity.
+
+    Notational Velocity is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Notational Velocity is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
 
 #import "NotesTableView.h"
 #import "AppController_Importing.h"
 #import "FastListDataSource.h"
 #import "NoteAttributeColumn.h"
+#import "ExternalEditorListController.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
 #import "NoteObject.h"
@@ -23,6 +29,7 @@
 #import "HeaderViewWithMenu.h"
 #import "NSString_NV.h"
 #import "NotesTableHeaderCell.h"
+#import "LinkingEditor.h"
 //#import "NotesTableCornerView.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
@@ -30,7 +37,7 @@
 
 #define SYNTHETIC_TAGS_COLUMN_INDEX 200
 
-static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target);
+static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target, NSInteger tag);
 
 @implementation NotesTableView
 
@@ -39,7 +46,10 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     if ((self = [super initWithCoder:decoder])) {
 		
 		globalPrefs = [GlobalPrefs defaultPrefs];
-		
+      
+    userDefaults = [NSUserDefaults standardUserDefaults];
+    [userDefaults registerDefaults: [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool: YES], @"UseCtrlForSwitchingNotes", nil]];
+      
 		loadStatusString = NSLocalizedString(@"Loading Notes...",nil);
 		loadStatusAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
 								 [NSFont fontWithName:@"Helvetica" size:STATUS_STRING_FONT_SIZE], NSFontAttributeName,
@@ -306,13 +316,15 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	for (i=0; i<[allColumns count]; i++) {
 		[[[allColumns objectAtIndex:i] dataCell] setFont:font];
 	}	
+	BOOL isOneRow = !horiz || (![globalPrefs tableColumnsShowPreview] && !ColumnIsSet(NoteLabelsColumn, [globalPrefs tableColumnsBitmap]));
 	
 	if (IsLeopardOrLater)
-		[self setSelectionHighlightStyle:horiz ? NSTableViewSelectionHighlightStyleSourceList : NSTableViewSelectionHighlightStyleRegular];
+		[self setSelectionHighlightStyle:isOneRow ? NSTableViewSelectionHighlightStyleRegular : NSTableViewSelectionHighlightStyleSourceList];
+	[self setBackgroundColor: horiz ? [NSColor colorWithCalibratedWhite:0.98 alpha:1.0] : [NSColor whiteColor]];
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
 	tableFontHeight = [lm defaultLineHeightForFont:font];
-	float h[4] = {(tableFontHeight * 3.0 + 5.0f), (tableFontHeight * 2.0 + 6.0f), (tableFontHeight + 4.0f), tableFontHeight + 2.0f};
+	float h[4] = {(tableFontHeight * 3.0 + 5.0f), (tableFontHeight * 2.0 + 6.0f), (tableFontHeight + 2.0f), tableFontHeight + 2.0f};
 	[self setRowHeight: horiz ? ([globalPrefs tableColumnsShowPreview] ? h[0] : 
 								 (ColumnIsSet(NoteLabelsColumn,[globalPrefs tableColumnsBitmap]) ? h[1] : h[2])) : h[3]];
 	[lm release];
@@ -443,10 +455,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	}
 	
 	if (colIndex > -1) {
-        
 		[self editColumn:colIndex row:selected withEvent:[[self window] currentEvent] select:YES];
 	} else {
-        
 		NSBeep();
 	}
 }
@@ -658,18 +668,20 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	return [self defaultNoteCommandsMenuWithTarget:[NSApp delegate]];
 }
 
-static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target) {
-	int menuIndex = [sourceMenu indexOfItemWithTarget:target andAction:aSel];
-	if (menuIndex > -1)	[destMenu addItem:[[(NSMenuItem*)[sourceMenu itemAtIndex:menuIndex] copy] autorelease]];
+static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target, NSInteger tag) {
+	NSInteger idx = [sourceMenu indexOfItemWithTag:tag];
+	if (idx > -1 || (idx = [sourceMenu indexOfItemWithTarget:target andAction:aSel]) > -1) {
+		[destMenu addItem:[[(NSMenuItem*)[sourceMenu itemAtIndex:idx] copy] autorelease]];
+	}
 }
 
 - (NSMenu *)defaultNoteCommandsMenuWithTarget:(id)target {
 	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"Contextual Note Commands Menu"] autorelease];
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(renameNote:), target);
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(tagNote:), target);
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(deleteNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(renameNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(tagNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(deleteNote:), target, -1);
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
@@ -679,13 +691,15 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	[noteLinkItem setTarget:target];
 	[theMenu addItem:[noteLinkItem autorelease]];
 	
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(exportNote:), target);
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(revealNote:), target);
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(openFileInEditor:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(exportNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(revealNote:), target, -1);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, NULL, target, 88);
+	
+	[theMenu setSubmenu:[[ExternalEditorListController sharedInstance] addEditNotesMenu] forItem:[theMenu itemAtIndex:[theMenu numberOfItems] - 1]];
 	
 	[theMenu addItem:[NSMenuItem separatorItem]];
 	
-	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(printNote:), target);
+	_CopyItemWithSelectorFromMenu(theMenu, notesMenu, @selector(printNote:), target, -1);
 	
 	NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:[self selectedRowIndexes]];
 	[notes addMenuItemsForURLsInNotes:theMenu];
@@ -730,7 +744,6 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 }
 
 - (void)mouseDown:(NSEvent*)event {
-    [[NSApp delegate] setIsEditing:NO];
     
 	//this seems like it should happen automatically, but it does not.
 	if (![NSApp isActive]) {
@@ -788,7 +801,9 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 #define UPCHAR(x) ((x) == NSUpArrowFunctionKey || (x) == NSUpTextMovement)
 
 - (void)keyDown:(NSEvent*)theEvent {
+
 	unichar keyChar = [theEvent firstCharacter];
+
     if (keyChar == NSNewlineCharacter || keyChar == NSCarriageReturnCharacter || keyChar == NSEnterCharacter) {
 		unsigned int sel = [self selectedRow];
 		if (sel < (unsigned)[self numberOfRows] && [self numberOfSelectedRows] == 1) {
@@ -868,6 +883,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 }
 
 
+
 enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 //use this method to catch next note/prev note before View menu does
@@ -876,27 +892,42 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	
 	unsigned mods = [theEvent modifierFlags];
 	
+	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0 && [userDefaults boolForKey: @"UseCtrlForSwitchingNotes"];
+	BOOL isCommandKeyPressed = (mods & NSCommandKeyMask) != 0;
+
 	// Also catch Ctrl-J/-K to match the shortcuts of other apps
-	if (((mods & NSCommandKeyMask) || (mods & NSControlKeyMask)) && ((mods & NSShiftKeyMask) == 0)) {
+	if ((isControlKeyPressed || isCommandKeyPressed) && ((mods & NSShiftKeyMask) == 0)) {
 		
 		unichar keyChar = ' '; 
-		if (mods & NSCommandKeyMask) {
+		if (isCommandKeyPressed) {
 			keyChar = [theEvent firstCharacter]; /*cannot use ignoringModifiers here as it subverts the Dvorak-Qwerty-CMD keyboard layout */
 		}
-		if (mods & NSControlKeyMask) {
+		if (isControlKeyPressed) {
 			keyChar = [theEvent firstCharacterIgnoringModifiers]; /* first gets '\n' when control key is set, so fall back to ignoringModifiers */
 		}
 		
-		if (keyChar == kNext_Tag || keyChar == kPrev_Tag) {
-			
+		// Handle J and K for both Control and Command
+		if ( keyChar == kNext_Tag || keyChar == kPrev_Tag ) {
 			if (mods & NSAlternateKeyMask) {
-				[self selectRowAndScroll:(keyChar == kNext_Tag ? [self numberOfRows] - 1 :  0)];
+				[self selectRowAndScroll:((keyChar == kNext_Tag) ? [self numberOfRows] - 1 :  0)];
 			} else {
-				if (!dummyItem) dummyItem = [[NSMenuItem alloc] init];
-				[dummyItem setTag:keyChar];
-				
-				[self incrementNoteSelection:dummyItem];
+				[self _incrementNoteSelectionByTag:keyChar];
 			}
+			return YES;
+		}
+
+		// Handle N and P, but only when Control is pressed
+		if ( (keyChar == 'n' || keyChar == 'p') && (!isCommandKeyPressed)) {
+			// Determine if the note editing pane is selected:
+			if (![[[self window] firstResponder] isKindOfClass:[LinkingEditor class]]) {
+				[self _incrementNoteSelectionByTag:(keyChar == 'n') ? kNext_Tag : kPrev_Tag];
+				return YES;
+			}
+		}
+
+		// Make Control-[ equivalent to Escape
+		if ( (keyChar == '[' ) && (!isCommandKeyPressed)) {
+			[self cancelOperation:nil];
 			return YES;
 		}
 	}
@@ -904,10 +935,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	return [super performKeyEquivalent:theEvent];
 }
 
-
-- (void)incrementNoteSelection:(id)sender {
-	
-	int tag = [sender tag];
+- (void)_incrementNoteSelectionByTag:(NSInteger)tag {
 	int rowNumber = [self selectedRow];
 	int totalNotes = [self numberOfRows];
 	
@@ -920,6 +948,10 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 	
 	[self selectRowAndScroll:rowNumber];
+}
+
+- (void)incrementNoteSelection:(id)sender {
+	[self _incrementNoteSelectionByTag:[sender tag]];
 }
 
 - (void)deselectAll:(id)sender {
@@ -938,11 +970,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (BOOL)textView:(NSTextView *)aTextView doCommandBySelector:(SEL)command {
-    if ((command == @selector(insertTab:))||(command == @selector(insertNewline:))||(command == @selector(insertBacktab:))||(command == @selector(cancelOperation:))) {
-        [[NSApp delegate] setIsEditing:NO];
-    }//else {
-      //  NSLog(@"ntv got %@",NSStringFromSelector(command));
-    //}
+	
 	if (command == @selector(moveToEndOfLine:) || command == @selector(moveToRightEndOfLine:)) {
 		
 		NSEvent *event = [[self window] currentEvent];
@@ -959,7 +987,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		}
 	} else if (command == @selector(insertTab:)) {
 		
-		if ([globalPrefs horizontalLayout] && !lastEventActivatedTagEdit) {
+		if ([globalPrefs horizontalLayout] && !lastEventActivatedTagEdit && ColumnIsSet(NoteLabelsColumn, [globalPrefs tableColumnsBitmap])) {
 			//if we're currently renaming a note in horizontal mode, then tab should move focus to tags area
 			
 			[self editRowAtColumnWithIdentifier:NoteLabelsColumnString];
@@ -992,6 +1020,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (NSArray *)textView:(NSTextView *)aTextView completions:(NSArray *)words  forPartialWordRange:(NSRange)charRange indexOfSelectedItem:(NSInteger *)anIndex {
+
 	if (charRange.location != NSNotFound) {
 		if (!IsLeopardOrLater)
 			goto getCompletions;
@@ -1011,10 +1040,10 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			
 		getCompletions:
 			{
-				NSSet *existingWordSet = [NSSet setWithArray:[[aTextView string] labelCompatibleWords]];
-				NSArray *tags = [labelsListSource labelTitlesPrefixedByString:[[aTextView string] substringWithRange:charRange] 
-														  indexOfSelectedItem:anIndex minusWordSet:existingWordSet];
-				return tags;
+			NSSet *existingWordSet = [NSSet setWithArray:[[aTextView string] labelCompatibleWords]];
+			NSArray *tags = [labelsListSource labelTitlesPrefixedByString:[[aTextView string] substringWithRange:charRange] 
+													  indexOfSelectedItem:anIndex minusWordSet:existingWordSet];
+			return tags;
 			}
 		}
 	}
@@ -1036,7 +1065,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		
 		//mouse is inside this column's row's cell's tags frame
 		UnifiedCell *cell = [[[self tableColumns] objectAtIndex:columnIndex] dataCellForRow:rowIndex];
-		NSRect tagCellRect = [cell nv_tagsRectForFrame:[self frameOfCellAtColumn:columnIndex row:rowIndex] andImage:nil];
+		NSRect tagCellRect = [cell nv_tagsRectForFrame:[self frameOfCellAtColumn:columnIndex row:rowIndex]];
 		
 		return [self mouse:p inRect:tagCellRect];
 		
@@ -1064,7 +1093,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)event select:(BOOL)flag {	 
-    [[NSApp delegate] setIsEditing:YES];
+
 	BOOL isTitleCol = [self columnWithIdentifier:NoteTitleColumnString] == columnIndex;
 	
 	//if event's mouselocation is inside rowIndex cell's tag rect and this edit is in horizontal mode in the title column
@@ -1128,12 +1157,12 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (void)textDidChange:(NSNotification *)aNotification {
-    
 	NSInteger col = [self editedColumn];
 	if (col > -1 && [self attributeSetterForColumn:[[self tableColumns] objectAtIndex:col]] == @selector(setLabelString:)) {
 		//text changed while editing tags; autocomplete!
 		
 		NSTextView *editor = [aNotification object];
+		
 		//NSLog(@"isAutocompleting: %d, wasDeleting: %d", isAutocompleting, wasDeleting);
 		if (!isAutocompleting && !wasDeleting) {
 			isAutocompleting = YES;

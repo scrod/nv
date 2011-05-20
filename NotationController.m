@@ -28,6 +28,7 @@
 #import "NoteAttributeColumn.h"
 #import "FrozenNotation.h"
 #import "AlienNoteImporter.h"
+#import "ODBEditor.h"
 #import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
 #import "NotationDirectoryManager.h"
@@ -572,6 +573,9 @@ bail:
 - (void)databaseEncryptionSettingsChanged {
 	//we _must_ re-init the journal (if fmt is single-db and jrnl exists) in addition to flushing DB
 	[self flushEverything];
+	
+	//called whenever note-storage format or encryption-activation changes
+	[[ODBEditor sharedODBEditor] initializeDatabase:notationPrefs];
 }
 
 //notation prefs delegate method
@@ -609,6 +613,8 @@ bail:
 		
 		[self synchronizeNotesFromDirectory];
     }
+	//perform after delay because this could trigger the mounting of a RAM disk in a background  NSTask
+	[[ODBEditor sharedODBEditor] performSelector:@selector(initializeDatabase:) withObject:notationPrefs afterDelay:0.0];
 }
 
 - (int)currentNoteStorageFormat {
@@ -697,8 +703,15 @@ bail:
 	return aliasNeedsUpdating;
 }
 
-- (void)endDeletionManagerIfNecessary {
-	return [deletionManager cancelPanelReturningCode:NSRunStoppedResponse];
+- (void)closeAllResources {
+	[allNotes makeObjectsPerformSelector:@selector(abortEditingInExternalEditor)];
+	
+	[deletionManager cancelPanelReturningCode:NSRunStoppedResponse];
+	[self stopSyncServices];
+	[self stopFileNotifications];
+	if ([self flushAllNoteChanges])
+		[self closeJournal];
+	[allNotes makeObjectsPerformSelector:@selector(disconnectLabels)];
 }
 
 - (void)checkIfNotationIsTrashed {
@@ -1027,6 +1040,7 @@ bail:
 	[aNoteObject retain];
 	
 	[aNoteObject disconnectLabels];
+	[aNoteObject abortEditingInExternalEditor];
 	
     [allNotes removeObjectIdenticalTo:aNoteObject];
 	DeletedNoteObject *deletedNote = [self _addDeletedNote:aNoteObject];
@@ -1499,10 +1513,6 @@ bail:
 		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(regenerateAllPreviews) object:nil];
 		[self performSelector:@selector(regenerateAllPreviews) withObject:nil afterDelay:0.0];
 	}
-}
-
-- (void)invalidateAllLabelPreviewImages {
-	[allNotes makeObjectsPerformSelector:@selector(invalidateLabelsPreviewImage)];
 }
 
 - (void)regenerateAllPreviews {

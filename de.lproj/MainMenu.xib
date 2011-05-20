@@ -340,6 +340,15 @@
 									<reference key="NSOnImage" ref="259802817"/>
 									<reference key="NSMixedImage" ref="853026812"/>
 								</object>
+								<object class="NSMenuItem" id="825593411">
+									<reference key="NSMenu" ref="386735725"/>
+									<string key="NSTitle">Edit With</string>
+									<string key="NSKeyEquiv"/>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="259802817"/>
+									<reference key="NSMixedImage" ref="853026812"/>
+									<int key="NSTag">88</int>
+								</object>
 								<object class="NSMenuItem" id="1014196628">
 									<reference key="NSMenu" ref="386735725"/>
 									<bool key="NSIsDisabled">YES</bool>
@@ -1130,6 +1139,24 @@
 									<string key="NSTitle">Toggle Source View</string>
 									<string key="NSKeyEquiv">u</string>
 									<int key="NSKeyEquivModMask">1048576</int>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="259802817"/>
+									<reference key="NSMixedImage" ref="853026812"/>
+								</object>
+								<object class="NSMenuItem" id="369177489">
+									<reference key="NSMenu" ref="618325934"/>
+									<string key="NSTitle">Lock Note to Preview</string>
+									<string key="NSKeyEquiv">L</string>
+									<int key="NSKeyEquivModMask">1572864</int>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="259802817"/>
+									<reference key="NSMixedImage" ref="853026812"/>
+								</object>
+								<object class="NSMenuItem" id="511617810">
+									<reference key="NSMenu" ref="618325934"/>
+									<string key="NSTitle">Print Preview / PDF</string>
+									<string key="NSKeyEquiv">P</string>
+									<int key="NSKeyEquivModMask">1572864</int>
 									<int key="NSMnemonicLoc">2147483647</int>
 									<reference key="NSOnImage" ref="259802817"/>
 									<reference key="NSMixedImage" ref="853026812"/>
@@ -3118,6 +3145,46 @@
 					</object>
 					<int key="connectionID">1297</int>
 				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">lockPreview:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="369177489"/>
+					</object>
+					<int key="connectionID">1301</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">printPreview:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="511617810"/>
+					</object>
+					<int key="connectionID">1302</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">printPreviewItem</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="511617810"/>
+					</object>
+					<int key="connectionID">1303</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">lockNoteItem</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="369177489"/>
+					</object>
+					<int key="connectionID">1304</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">savePreviewItem</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="854335324"/>
+					</object>
+					<int key="connectionID">1305</int>
+				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
 				<object class="NSArray" key="orderedObjects">
@@ -3337,6 +3404,7 @@
 							<reference ref="344416416"/>
 							<reference ref="916492233"/>
 							<reference ref="481486031"/>
+							<reference ref="825593411"/>
 						</object>
 						<reference key="parent" ref="192916872"/>
 					</object>
@@ -4357,6 +4425,8 @@
 							<reference ref="131099994"/>
 							<reference ref="92389048"/>
 							<reference ref="854335324"/>
+							<reference ref="369177489"/>
+							<reference ref="511617810"/>
 						</object>
 						<reference key="parent" ref="978647151"/>
 					</object>
@@ -4429,6 +4499,21 @@
 						<int key="objectID">1294</int>
 						<reference key="object" ref="257642049"/>
 						<reference key="parent" ref="562662757"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1298</int>
+						<reference key="object" ref="825593411"/>
+						<reference key="parent" ref="386735725"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1299</int>
+						<reference key="object" ref="369177489"/>
+						<reference key="parent" ref="618325934"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1300</int>
+						<reference key="object" ref="511617810"/>
+						<reference key="parent" ref="618325934"/>
 					</object>
 				</object>
 			</object>
@@ -4619,9 +4704,12 @@
 					<string>1292.IBPluginDependency</string>
 					<string>1293.IBPluginDependency</string>
 					<string>1294.IBPluginDependency</string>
+					<string>1298.IBPluginDependency</string>
+					<string>1299.IBPluginDependency</string>
 					<string>130.IBEditorWindowLastContentRect</string>
 					<string>130.IBPluginDependency</string>
 					<string>130.ImportedFromIB2</string>
+					<string>1300.IBPluginDependency</string>
 					<string>131.IBPluginDependency</string>
 					<string>131.ImportedFromIB2</string>
 					<string>134.IBPluginDependency</string>
@@ -5003,9 +5091,12 @@
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>{{366, 565}, {64, 6}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -5209,7 +5300,7 @@
 				<reference key="dict.values" ref="0"/>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">1297</int>
+			<int key="maxID">1305</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -5224,12 +5315,15 @@
 							<string>bringFocusToControlField:</string>
 							<string>copyNoteLink:</string>
 							<string>deleteNote:</string>
+							<string>editNoteExternally:</string>
 							<string>exportNote:</string>
 							<string>fieldAction:</string>
 							<string>importNotes:</string>
+							<string>lockPreview:</string>
 							<string>multiTag:</string>
 							<string>openFileInEditor:</string>
 							<string>printNote:</string>
+							<string>printPreview:</string>
 							<string>renameNote:</string>
 							<string>revealNote:</string>
 							<string>savePreview:</string>
@@ -5252,6 +5346,9 @@
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
+							<string>id</string>
+							<string>id</string>
+							<string>id</string>
 							<string>id</string>
 							<string>id</string>
 							<string>id</string>
@@ -5289,12 +5386,15 @@
 							<string>bringFocusToControlField:</string>
 							<string>copyNoteLink:</string>
 							<string>deleteNote:</string>
+							<string>editNoteExternally:</string>
 							<string>exportNote:</string>
 							<string>fieldAction:</string>
 							<string>importNotes:</string>
+							<string>lockPreview:</string>
 							<string>multiTag:</string>
 							<string>openFileInEditor:</string>
 							<string>printNote:</string>
+							<string>printPreview:</string>
 							<string>renameNote:</string>
 							<string>revealNote:</string>
 							<string>savePreview:</string>
@@ -5330,6 +5430,10 @@
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
+								<string key="name">editNoteExternally:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
 								<string key="name">exportNote:</string>
 								<string key="candidateClassName">id</string>
 							</object>
@@ -5342,6 +5446,10 @@
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
+								<string key="name">lockPreview:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
 								<string key="name">multiTag:</string>
 								<string key="candidateClassName">id</string>
 							</object>
@@ -5351,6 +5459,10 @@
 							</object>
 							<object class="IBActionInfo">
 								<string key="name">printNote:</string>
+								<string key="candidateClassName">id</string>
+							</object>
+							<object class="IBActionInfo">
+								<string key="name">printPreview:</string>
 								<string key="candidateClassName">id</string>
 							</object>
 							<object class="IBActionInfo">
@@ -5437,11 +5549,14 @@
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>editorStatusView</string>
 							<string>field</string>
+							<string>lockNoteItem</string>
 							<string>mainView</string>
 							<string>multiMarkdownPreview</string>
 							<string>notesScrollView</string>
 							<string>notesTableView</string>
 							<string>previewToggler</string>
+							<string>printPreviewItem</string>
+							<string>savePreviewItem</string>
 							<string>sparkleUpdateItem</string>
 							<string>statBarMenu</string>
 							<string>syncWaitPanel</string>
@@ -5456,10 +5571,13 @@
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>EmptyView</string>
 							<string>DualField</string>
+							<string>NSMenuItem</string>
 							<string>ETContentView</string>
 							<string>NSMenuItem</string>
 							<string>AugmentedScrollView</string>
 							<string>NotesTableView</string>
+							<string>NSMenuItem</string>
+							<string>NSMenuItem</string>
 							<string>NSMenuItem</string>
 							<string>NSMenuItem</string>
 							<string>NSMenu</string>
@@ -5478,11 +5596,14 @@
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<string>editorStatusView</string>
 							<string>field</string>
+							<string>lockNoteItem</string>
 							<string>mainView</string>
 							<string>multiMarkdownPreview</string>
 							<string>notesScrollView</string>
 							<string>notesTableView</string>
 							<string>previewToggler</string>
+							<string>printPreviewItem</string>
+							<string>savePreviewItem</string>
 							<string>sparkleUpdateItem</string>
 							<string>statBarMenu</string>
 							<string>syncWaitPanel</string>
@@ -5504,6 +5625,10 @@
 								<string key="candidateClassName">DualField</string>
 							</object>
 							<object class="IBToOneOutletInfo">
+								<string key="name">lockNoteItem</string>
+								<string key="candidateClassName">NSMenuItem</string>
+							</object>
+							<object class="IBToOneOutletInfo">
 								<string key="name">mainView</string>
 								<string key="candidateClassName">ETContentView</string>
 							</object>
@@ -5521,6 +5646,14 @@
 							</object>
 							<object class="IBToOneOutletInfo">
 								<string key="name">previewToggler</string>
+								<string key="candidateClassName">NSMenuItem</string>
+							</object>
+							<object class="IBToOneOutletInfo">
+								<string key="name">printPreviewItem</string>
+								<string key="candidateClassName">NSMenuItem</string>
+							</object>
+							<object class="IBToOneOutletInfo">
+								<string key="name">savePreviewItem</string>
 								<string key="candidateClassName">NSMenuItem</string>
 							</object>
 							<object class="IBToOneOutletInfo">

@@ -14,6 +14,7 @@
 #import "PTKeyComboPanel.h"
 #import "PTKeyCombo.h"
 #import "NotationPrefsViewController.h"
+#import "ExternalEditorListController.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
 #import "NSFileManager_NV.h"
@@ -205,6 +206,19 @@
 	[self performSelector:@selector(changedTabBehavior:) withObject:self afterDelay:0.0];
     else
 	[prefsController setTabIndenting:[[tabKeyRadioMatrix cellAtRow:0 column:0] state] sender:self];
+}
+
+- (IBAction)changedExternalEditorsMenu:(id)sender {
+  //not currently called as an action in practice
+  [self _selectDefaultExternalEditor];
+}
+
+- (void)_selectDefaultExternalEditor {
+  ExternalEditor *ed = [[ExternalEditorListController sharedInstance] defaultExternalEditor];
+  NSInteger idx = ed ? [externalEditorMenuButton indexOfItemWithRepresentedObject:ed] : 0;
+  if (idx > -1) {
+    [externalEditorMenuButton selectItemAtIndex:idx];
+  }
 }
 
 - (IBAction)changedTableText:(id)sender {
@@ -404,6 +418,11 @@
     [tableTextMenuButton selectItemAtIndex:fontButtonIndex];
     [tableTextSizeField setFloatValue:fontSize];
     [tableTextSizeField setHidden:(fontButtonIndex != 3)];
+    
+    [externalEditorMenuButton setMenu:[[ExternalEditorListController sharedInstance] addEditorPrefsMenu]];
+    [self _selectDefaultExternalEditor];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changedExternalEditorsMenu:) 
+                           name:ExternalEditorsChangedNotification object:nil];
     
     [completeNoteTitlesButton setState:[prefsController autoCompleteSearches]];
     [checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
