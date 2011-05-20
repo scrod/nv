@@ -61,7 +61,7 @@
         break;
         */
 			default:
-				[jsonString appendFormat:@"%c", nextChar];
+				[jsonString appendFormat:@"%C", nextChar];
 				break;
 		}
 	}
