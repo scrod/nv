@@ -117,9 +117,7 @@
 	[helpStringField setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Please enter the passphrase to import old notes at %@.",nil), 
 		[path stringByAbbreviatingWithTildeInPath]]];
 	
-	EnableSecureEventInput();
 	int result = [NSApp runModalForWindow:window];
-	DisableSecureEventInput();
 	
 	NSString *passwordString = [passphraseField stringValue];
 	passwordData = [passwordString dataUsingEncoding:[NSString defaultCStringEncoding] allowLossyConversion:NO];
@@ -270,7 +268,8 @@
 	NSMutableAttributedString *attributedBody = [[NSMutableAttributedString alloc] initWithString:bodyString
 																					   attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 	[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
-	NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:titleString uniqueFilename:nil format:SingleDatabaseFormat];
+	[attributedBody addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBody length])];
+	NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:titleString delegate:nil format:SingleDatabaseFormat labels:nil];
 
 	[bodyString release];
 	[attributedBody release];

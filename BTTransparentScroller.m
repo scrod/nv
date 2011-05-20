@@ -1,28 +1,33 @@
 //
 //  BTTransparentScroller.m
-//  BWToolkit
 //
 //  Created by Brandon Walkin (www.brandonwalkin.com)
 //  All code is provided under the New BSD license.
 //
+//  Modified by Brett Terpstra on 12/8/10.
+//  Copyright 2010 Circle Six Design. All rights reserved.
+//
+// Modified again by ElasticThreads on 03/10/11
+
 
 #import "BTTransparentScroller.h"
 
+
 // Vertical scroller
 static NSImage *knobTop, *knobVerticalFill, *knobBottom, *slotTop, *slotVerticalFill, *slotBottom;
-static float verticalPaddingLeft = 6.0;
-static float verticalPaddingRight = 2.0;
-static float verticalPaddingTop = 4.0;
-static float verticalPaddingBottom = 4.0;
+static float verticalPaddingLeft = 4.0f;
+static float verticalPaddingRight = 5.0f;
+static float verticalPaddingTop = 8.0f;
+static float verticalPaddingBottom = 8.0f;
 static float minKnobHeight;
 
 // Horizontal scroller
-static NSImage *knobLeft, *knobHorizontalFill, *knobRight, *slotLeft, *slotHorizontalFill, *slotRight;
+/*static NSImage *knobLeft, *knobHorizontalFill, *knobRight, *slotLeft, *slotHorizontalFill, *slotRight;
 static float horizontalPaddingLeft = 2.0;
 static float horizontalPaddingRight = 2.0;
 static float horizontalPaddingTop = 0.0;
 static float horizontalPaddingBottom = 1.0;
-static float minKnobWidth;
+static float minKnobWidth;*/
 
 static NSColor *backgroundColor;
 
@@ -41,24 +46,22 @@ static NSColor *backgroundColor;
 	NSBundle *bundle = [NSBundle mainBundle];
 	
 	// Vertical scroller
-	knobTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobTop.tif"]];
-	knobVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobVerticalFill.tif"]];
-	knobBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobBottom.tif"]];
+	knobTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"greyscrollerverttop3.tif"]];
+	knobVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"greyscrollervertfill3.tif"]];
+	knobBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"greyscrollervertbottom3.tif"]];
 	slotTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotTop.tif"]];
-	slotVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotVerticalFill.tif"]];
+	slotVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"scrollbarblue.tif"]];
 	slotBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotBottom.tif"]];
 
-	// Horizontal scroller
-	knobLeft			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobLeft.tif"]];
-	knobHorizontalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobHorizontalFill.tif"]];
-	knobRight			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerKnobRight.tif"]];
-	slotLeft			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotLeft.tif"]];
-	slotHorizontalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotHorizontalFill.tif"]];
-	slotRight			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"BTransparentScrollerSlotRight.tif"]];
-	
-	backgroundColor		= [[NSColor colorWithCalibratedRed:0.931 green:0.909 blue:0.884 alpha:1.000] retain];
+	backgroundColor		= [[NSColor whiteColor] retain];
 	minKnobHeight = knobTop.size.height + knobVerticalFill.size.height + knobBottom.size.height + 40;
-	minKnobWidth = knobLeft.size.width + knobHorizontalFill.size.width + knobRight.size.width + 10;
+	//minKnobWidth = knobLeft.size.width + knobHorizontalFill.size.width + knobRight.size.width + 10;
+}
+
+- (void)setBackgroundColor:(NSColor*)bgcolor;
+{
+	[backgroundColor release];
+	backgroundColor = [bgcolor retain];
 }
 
 - (id)initWithFrame:(NSRect)frameRect;
@@ -71,8 +74,10 @@ static NSColor *backgroundColor;
 			isVertical = YES;
 		else
 			isVertical = NO;
+        
+       // NSLog(@"isVertical1 is :%d",isVertical);
 	}
-
+	
 	return self;
 }
 
@@ -86,6 +91,8 @@ static NSColor *backgroundColor;
 			isVertical = YES;
 		else
 			isVertical = NO;
+        
+      //  NSLog(@"isVertical2 is :%d",isVertical);
 	}
 	
 	return self;
@@ -114,33 +121,36 @@ static NSColor *backgroundColor;
 		if ([self knobProportion] > 0.0)	
 			[self drawKnob];
 	}
-	else if (!isVertical && ([self bounds].size.width - horizontalPaddingLeft - horizontalPaddingRight + 1) > minKnobWidth)
+	/*else if (!isVertical && ([self bounds].size.width - horizontalPaddingLeft - horizontalPaddingRight + 1) > minKnobWidth)
 	{
 		[self drawKnobSlot];
-
+		
 		if ([self knobProportion] > 0.0)	
 			[self drawKnob];
-	}
+	}*/
 }
 
 - (void)drawKnobSlot;
 {
-//	NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
-	
-//	if (isVertical)
-//		NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, 1, NO);
-//	else
-//		NSDrawThreePartImage(slotRect, slotLeft, slotHorizontalFill, slotRight, NO, NSCompositeSourceOver, 1, NO);
+	NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
+	if (isVertical){
+		NSDrawThreePartImage(slotRect, slotVerticalFill, slotVerticalFill, slotVerticalFill, YES, NSCompositeSourceOver, 1.0f, NO);
+    }
+    
+	/*else
+		NSDrawThreePartImage(slotRect, slotLeft, slotHorizontalFill, slotRight, NO, NSCompositeSourceOver, 1, NO);*/
 }
 
 - (void)drawKnob;
 {
 	NSRect knobRect = [self rectForPart:NSScrollerKnob];
 	
-	if (isVertical)
-		NSDrawThreePartImage(knobRect, knobTop, knobVerticalFill, knobBottom, YES, NSCompositeSourceOver, 1, NO);
-	else
-		NSDrawThreePartImage(knobRect, knobLeft, knobHorizontalFill, knobRight, NO, NSCompositeSourceOver, 1, NO);
+	if (isVertical){
+		NSDrawThreePartImage(knobRect, knobTop, knobVerticalFill, knobBottom, YES, NSCompositeSourceOver, 1.0f, NO);
+    }
+	//else
+		/*NSDrawThreePartImage(knobRect, knobLeft, knobHorizontalFill, knobRight, NO, NSCompositeSourceOver, 1, NO);*/
+    
 }
 
 - (NSRect)_drawingRectForPart:(NSScrollerPart)aPart;
@@ -174,7 +184,7 @@ static NSColor *backgroundColor;
 				float knobY = slotRect.origin.y + roundf((slotRect.size.height - knobHeight) * [self floatValue]);
 				knobRect = NSMakeRect(verticalPaddingLeft, knobY, slotRect.size.width, knobHeight);
 			}
-			else
+			/*else
 			{
 				float knobWidth = roundf(slotRect.size.width * [self knobProportion]);
 				
@@ -183,7 +193,7 @@ static NSColor *backgroundColor;
 				
 				float knobX = slotRect.origin.x + roundf((slotRect.size.width - knobWidth) * [self floatValue]);
 				knobRect = NSMakeRect(knobX, horizontalPaddingTop, knobWidth, slotRect.size.height);
-			}
+			}*/
 			
 			return knobRect;
 		}
@@ -194,8 +204,9 @@ static NSColor *backgroundColor;
 			
 			if (isVertical)
 				slotRect = NSMakeRect(verticalPaddingLeft, verticalPaddingTop, [self bounds].size.width - verticalPaddingLeft - verticalPaddingRight, [self bounds].size.height - verticalPaddingTop - verticalPaddingBottom);
-			else
-				slotRect = NSMakeRect(horizontalPaddingLeft, horizontalPaddingTop, [self bounds].size.width - horizontalPaddingLeft - horizontalPaddingRight, [self bounds].size.height - horizontalPaddingTop - horizontalPaddingBottom);
+            
+			/*else
+				slotRect = NSMakeRect(horizontalPaddingLeft, horizontalPaddingTop, [self bounds].size.width - horizontalPaddingLeft - horizontalPaddingRight, [self bounds].size.height - horizontalPaddingTop - horizontalPaddingBottom);*/
 			
 			return slotRect;
 		}
@@ -218,11 +229,11 @@ static NSColor *backgroundColor;
 				float knobY = knobRect.origin.y + knobRect.size.height;	
 				incrementPageRect = NSMakeRect(verticalPaddingLeft, knobY, knobRect.size.width, slotRect.size.height - knobRect.size.height - decPageRect.size.height);
 			}
-			else
+			/*else
 			{
 				float knobX = knobRect.origin.x + knobRect.size.width;
 				incrementPageRect = NSMakeRect(knobX, horizontalPaddingTop, (slotRect.size.width + horizontalPaddingLeft) - knobX, knobRect.size.height);
-			}
+			}*/
 			
 			return incrementPageRect;
 		}
@@ -232,11 +243,12 @@ static NSColor *backgroundColor;
 			NSRect decrementPageRect;
 			NSRect knobRect = [self rectForPart:NSScrollerKnob];
 			
-			if (isVertical)
+			if (isVertical){
 				decrementPageRect = NSMakeRect(verticalPaddingLeft, verticalPaddingTop, knobRect.size.width, knobRect.origin.y - verticalPaddingTop);
-			else
-				decrementPageRect = NSMakeRect(horizontalPaddingLeft, horizontalPaddingTop, knobRect.origin.x - horizontalPaddingLeft, knobRect.size.height);
-				
+            }
+			//else
+				//decrementPageRect = NSMakeRect(horizontalPaddingLeft, horizontalPaddingTop, knobRect.origin.x - horizontalPaddingLeft, knobRect.size.height);
+			
 			return decrementPageRect;
 		}
 			break;
@@ -246,5 +258,7 @@ static NSColor *backgroundColor;
 	
 	return NSZeroRect;
 }
+
+
 
 @end

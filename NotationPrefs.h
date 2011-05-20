@@ -22,11 +22,11 @@
 /* this class is responsible for managing all preferences specific to a notational database,
 including encryption, file formats, synchronization, passwords management, and others */
 
-#define EPOC_ITERATION 3
+#define EPOC_ITERATION 4
 
-enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, WordDocFormat, WordXMLFormat, MarkupTextFormat };
+enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, WordDocFormat, WordXMLFormat };
 
-extern NSString *SyncPrefsDidChangeNotification;
+extern NSString *NotationPrefsDidChangeNotification;
 
 @interface NotationPrefs : NSObject {
 	BOOL doesEncryption, storesPasswordInKeychain, secureTextEntry;
@@ -37,14 +37,18 @@ extern NSString *SyncPrefsDidChangeNotification;
 	
 	unsigned int hashIterationCount, keyLengthInBits;
 	
+	NSColor *foregroundColor;
 	NSFont *baseBodyFont;
 	int notesStorageFormat;
 	BOOL confirmFileDeletion;
 	
-    NSMutableArray *typeStrings[7], *pathExtensions[7];
+	unsigned int chosenExtIndices[4];
+    NSMutableArray *typeStrings[4], *pathExtensions[4];
     OSType *allowedTypes;
 	
 	NSData *masterSalt, *dataSessionSalt, *verifierKey;
+	
+	NSMutableArray *seenDiskUUIDEntries;
 	
 	UInt32 epochIteration;
 	BOOL firstTimeUsed;
@@ -62,6 +66,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 + (NSMutableArray*)defaultTypeStringsForFormat:(int)formatID;
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID;
 - (BOOL)preferencesChanged;
+- (void)setForegroundTextColor:(NSColor*)aColor;
+- (NSColor*)foregroundColor;
 - (void)setBaseBodyFont:(NSFont*)aFont;
 - (NSFont*)baseBodyFont;
 
@@ -114,6 +120,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 
+- (NSUInteger)tableIndexOfDiskUUID:(CFUUIDRef)UUIDRef;
 - (void)checkForKnownRedundantSyncConduitsAtPath:(NSString*)dbPath;
 
 + (NSString*)pathExtensionForFormat:(int)format;
@@ -121,16 +128,21 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 //used to view tableviews
 - (NSString*)typeStringAtIndex:(int)typeIndex;
 - (NSString*)pathExtensionAtIndex:(int)pathIndex;
+- (unsigned int)indexOfChosenPathExtension;
+- (NSString*)chosenPathExtensionForFormat:(int)format;
 - (int)typeStringsCount;
 - (int)pathExtensionsCount;
 
 //used to edit tableviews
 - (void)addAllowedPathExtension:(NSString*)extension;
-- (void)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex;
-- (void)addAllowedType:(NSString*)type;
+- (BOOL)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex;
+- (BOOL)setChosenPathExtensionAtIndex:(unsigned int)extensionIndex;
+- (BOOL)addAllowedType:(NSString*)type;
 - (void)removeAllowedTypeAtIndex:(unsigned int)index;
 - (BOOL)setExtension:(NSString*)newExtension atIndex:(unsigned int)oldIndex;
 - (BOOL)setType:(NSString*)newType atIndex:(unsigned int)oldIndex;
+
+- (BOOL)pathExtensionAllowed:(NSString*)anExtension forFormat:(int)formatID;
 
 //actually used while searching for files
 - (void)updateOSTypesArray;

@@ -48,7 +48,15 @@ static const unsigned char gsToLowerMap[256] = {
 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9,
 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff };
 
-#define MIN(a, b)  (((a)<(b))?(a):(b))
+#if !defined(MIN)
+#define MIN(A,B)	({ __typeof__(A) __a = (A); __typeof__(B) __b = (B); __a < __b ? __a : __b; })
+#endif
+
+#if !defined(MAX)
+#define MAX(A,B)	({ __typeof__(A) __a = (A); __typeof__(B) __b = (B); __a < __b ? __b : __a; })
+#endif
+
+static u_int32_t u8_nextchar(const char *s, size_t *i);
 
 char *replaceString(char *oldString, const char *newString) {
     size_t newLen = strlen(newString) + 1;
@@ -60,12 +68,13 @@ char *replaceString(char *oldString, const char *newString) {
     return resizedString;
 }
 
-void ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize) {
-	assert(buffer && bufSize);
+
+void _ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufObjCount, unsigned int elemSize) {
+	assert(buffer && bufObjCount);
 	
-	if (*bufSize < objCount || !*buffer) {
-		*buffer = (void **)realloc(*buffer, sizeof(void*) * objCount);
-		*bufSize = objCount;
+	if (*bufObjCount < objCount || !*buffer) {
+		*buffer = (void **)realloc(*buffer, elemSize * objCount);
+		*bufObjCount = objCount;
 	}
 	
 }
@@ -124,8 +133,55 @@ void modp_tolower_copy(char* dest, const char* str, int len) {
 	}
 }
 
-void replace_breaks(char *str, size_t up_to_len) {
+static const u_int32_t offsetsFromUTF8[6] = {
+	0x00000000UL, 0x00003080UL, 0x000E2080UL,
+	0x03C82080UL, 0xFA082080UL, 0x82082080UL
+};
+
+#define isutf(c) (((c)&0xC0)!=0x80)
+
+/* reads the next utf-8 sequence out of a string, updating an index */
+static force_inline u_int32_t u8_nextchar(const char *s, size_t *i) {
+	u_int32_t ch = 0;
+	size_t sz = 0;
 	
+	do {
+		ch <<= 6;
+		ch += (unsigned char)s[(*i)];
+		sz++;
+	} while (s[*i] && (++(*i)) && !isutf(s[*i]));
+	ch -= offsetsFromUTF8[sz-1];
+	
+	return ch;
+}
+
+
+void replace_breaks_utf8(char *s, size_t up_to_len) {
+	//needed to detect NSLineSeparatorCharacter and NSParagraphSeparatorCharacter
+	
+	if (!s) return;
+	
+	size_t i = 0, lasti = 0;
+	u_int32_t c;
+	
+	while (i < up_to_len && s[i]) {
+		c = u8_nextchar(s, &i);
+		
+		//get rid of any kind of funky whitespace-esq character
+		if (c == 0x0009 || c == 0x000a || c == 0x000d || c == 0x0003 || c == 0x2029 || c == 0x2028 || c == 0x000c) {
+			//fill in the entire UTF sequence with spaces
+			char *cur_s = (char*)&s[lasti];
+//			printf("\n");
+			do {
+//				printf("%X ", (u_int32_t)*cur_s);
+				*cur_s = ' ';
+			} while (++cur_s < &s[i]);
+		}
+		lasti = i;
+	}
+}
+
+void replace_breaks(char *str, size_t up_to_len) {	
 	//traverses string to up_to_len chars or NULL, whichever comes first
 	//replaces any occurance of \n, \r, or \t with a space
 	
@@ -136,7 +192,7 @@ void replace_breaks(char *str, size_t up_to_len) {
 	char *s = str;
 	do {
 		c = *s;
-		if ('\n' == c || '\t' == c || '\r' == c) {
+		if (c == 0x0009 || c == 0x000a || c == 0x000d || c == 0x0003 || c == 0x000c) {
 			*s = ' ';
 		}
 	} while (++i < up_to_len && *(s++) != 0);
@@ -217,27 +273,6 @@ void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const v
 	qsort_r((void *)buffer, (size_t)objCount, sizeof(void*), compar, (int (*)(void *, const void *, const void *))genericSortContextFirst);
 }
 
-/*
-CFStringRef CopyReasonFromFSErr(OSStatus err) {
-    
-    size_t codeCount = sizeof(errorCodes) / sizeof(OSStatus);
-    size_t stringCount = sizeof(errorStrings) / sizeof(char*);
-    assert(stringCount == codeCount);
-    
-    unsigned int i;
-    
-    if (err < 0) {
-	
-	for (i=0; i<codeCount; i++) {
-	    if (errorCodes[i] == err)
-		return CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, errorStrings[i], kCFStringEncodingUTF8, kCFAllocatorNull);
-	}
-	return CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR("an error of type %d occurred"), err);
-    }
-    
-    return CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, strerror((int)err), kCFStringEncodingUTF8, kCFAllocatorNull);
-}*/
-
 #if 0
 //this does not use the user's defined date styles
 const double dayInSeconds = 86400.0;
@@ -262,6 +297,99 @@ CFStringRef GetRelativeDateStringFromTimeAndLocaleInfo(CFAbsoluteTime time, CFSt
 				    months[unitsDate.month], unitsDate.day, unitsDate.year, unitsDate.hour, unitsDate.minute, amppmStr);
 }
 #endif
+
+//these two methods manipulate notes' perdiskinfo groups, changing the buffers in place
+//on return, groupCount will be set to the number of perdiskinfo structs currently in the buffer
+
+void RemovePerDiskInfoWithTableIndex(UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount) {
+	//used to periodically clean out attr-mod-times for disks that have not been seen in a while
+	
+	//if an entry exists, push everything below it upward and resize the buffer (or just copy to a new buffer)
+	//otherwise do nothing
+	
+	NSUInteger i = 0, count = *groupCount;
+	
+	PerDiskInfo *groups = *perDiskGroups;
+	for (i=0; i<count; i++) {
+		if (groups[i].diskIDIndex == diskIndex) {
+			
+			if (i < count - 1) {
+				//if pair isn't the last struct, then bring everything after pair up one spot
+				memmove(&groups[i], &groups[i + 1], sizeof(PerDiskInfo) * ((count - 1) - i));
+			}
+			ResizeArray(perDiskGroups, count - 1, groupCount);
+			return;
+		}
+	}
+}
+
+unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID, UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount) {
+	//if an entry for this diskIndex already exists, then just update it in place
+	//if an entry does not exist, then resize the buffer and add one at the end
+	//if one of dateTime or nodeID is NULL, then do not set it
+	
+	assert(nodeID || dateTime);
+	
+	NSUInteger i = 0, count = *groupCount;
+	
+	PerDiskInfo *groups = *perDiskGroups;
+	for (i=0; i<count; i++) {
+		//use this slot if the diskIndex matches OR it's the first one listed and its attrTime and nodeID haven't been touched
+		if (groups[i].diskIDIndex == diskIndex || (!i && groups[i].nodeID == 0U && UTCDateTimeIsEmpty(groups[i].attrTime))) {
+			if (dateTime) groups[i].attrTime = *dateTime;
+			if (nodeID) groups[i].nodeID = *nodeID;
+			groups[i].diskIDIndex = diskIndex;
+			return i;
+		}
+	}
+//	printf("table ID %u not found; expanding to %u\n", (unsigned)diskIndex, (unsigned)(count + 1));
+	
+	//diskID not found in existing buffer; add a new entry one or both attributes
+	ResizeArray(perDiskGroups, count + 1, groupCount);
+	
+	//items not currently being set are initialized to a known value, so that they can be initialized later by attrsModifiedDateOfNote and fileNodeIDOfNote
+	//although those functions do not initialize these to anything particularly useful, anyway
+	groups = *perDiskGroups;
+	groups[count].attrTime = dateTime ? *dateTime : (UTCDateTime){0, 0, 0};
+	groups[count].nodeID = nodeID ? *nodeID : 0;
+	groups[count].diskIDIndex = diskIndex;
+	
+	return count;
+}
+
+COMPILE_ASSERT(sizeof(PerDiskInfo) == 16, PER_DISK_INFO_MUST_BE_16_BYTES);
+
+void CopyPerDiskInfoGroupsToOrder(PerDiskInfo **flippedGroups, unsigned int *existingCount, PerDiskInfo *perDiskGroups, size_t bufferSize, int toHostOrder) {
+	//for decoding and encoding an array of PerDiskInfo structs as a single buffer
+	//swap between host order and big endian
+	//resizes flippedPairs if it is too small (based on *existingCount)
+	
+	NSUInteger i, count = bufferSize / sizeof(PerDiskInfo);
+	
+	ResizeArray(flippedGroups, count, existingCount);
+	PerDiskInfo *newGroups = *flippedGroups;
+		
+	//does this need to flip the entire struct, too?
+	if (toHostOrder) {
+		for (i=0; i<count; i++) {
+			PerDiskInfo group = perDiskGroups[i];
+			newGroups[i].attrTime.highSeconds = CFSwapInt16BigToHost(group.attrTime.highSeconds);
+			newGroups[i].attrTime.lowSeconds = CFSwapInt32BigToHost(group.attrTime.lowSeconds);
+			newGroups[i].attrTime.fraction = CFSwapInt16BigToHost(group.attrTime.fraction);
+			newGroups[i].nodeID = CFSwapInt32BigToHost(group.nodeID);
+			newGroups[i].diskIDIndex = CFSwapInt32BigToHost(group.diskIDIndex);
+		}
+	} else {
+		for (i=0; i<count; i++) {
+			PerDiskInfo group = perDiskGroups[i];
+			newGroups[i].attrTime.highSeconds = CFSwapInt16HostToBig(group.attrTime.highSeconds);
+			newGroups[i].attrTime.lowSeconds = CFSwapInt32HostToBig(group.attrTime.lowSeconds);
+			newGroups[i].attrTime.fraction = CFSwapInt16HostToBig(group.attrTime.fraction);
+			newGroups[i].nodeID = CFSwapInt32HostToBig(group.nodeID);
+			newGroups[i].diskIDIndex = CFSwapInt32HostToBig(group.diskIDIndex);
+		}
+	}
+}
 
 CFStringRef CreateRandomizedFileName() {
     static int sequence = 0;

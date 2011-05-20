@@ -1,0 +1,650 @@
+﻿/* title/description delimiter */
+" option-shift-dash " = " — ";
+
+/* No comment provided by engineer. */
+"%.0lf KB of %.0lf KB" = "%.0lf KB von %.0lf KB";
+
+/* No comment provided by engineer. */
+"%.0lf KB received" = "%.0lf KB erhalten";
+
+/* No comment provided by engineer. */
+"A file named quotemark%@quotemark already exists." = "Eine Datei mit dem Namen “%@” existiert bereits.";
+
+/* name of cancel button */
+"Cancel" = "Abbrechen";
+
+/* No comment provided by engineer. */
+"Choose a folder into which %d notes will be exported" = "Wähle ein Verzeichnis, in das %d Notizen exportiert werden sollen";
+
+/* no comment */
+"Continue" = "Weiter";
+
+/* alert title for exporter interruption */
+"Continue exporting?" = "Exportieren fortführen?";
+
+/* No comment provided by engineer. */
+"Could not find the application TextEdit." = "Konnte das Programm TextEdit nicht finden.";
+
+/* No comment provided by engineer. */
+"Could not locate the note file." = "Konnte die Notizdatei nicht finden.";
+
+/* name of delete button */
+"Delete" = "Löschen";
+
+/* alert title when asked to delete multiple notes */
+"Delete %d notes?" = "%d Notizen löschen?";
+
+/* alert title when asked to delete a note */
+"Delete the note titled quotemark%@quotemark?" = "Notiz mit dem Titel “%@” löschen?";
+
+/* name of undo-creating-a-note button */
+"Undo Note" = "Notiz wiederherstellen";
+
+/* alert title when asked to undo creating multiple notes */
+"Undo adding %d notes?" = "Hinzufügen von %d Notizen widerrufen?";
+
+/* alert title when asked to undo the creation of a note */
+"Undo adding the note quotemark%@quotemark?" = "Hinzufügen der Notiz “%@” widerrufen?";
+
+/* informational undo-this-note? text */
+"Undoing a note has the effect of deleting it. Use quotemarkRedoquotemark to re-add it." = "Das Widerrufen einer Notiz hat den gleichen Effekt wie diese zu löschen. Wähle “Wiederholen” um sie wieder hinzuzufügen.";
+
+/* No comment provided by engineer. */
+"Does it still exist?" = "Existiert es noch?";
+
+/* No comment provided by engineer. */
+"Don't Replace" = "Nicht ersetzen";
+
+/* don't update the note from its file on disk */
+"Don't Update" = "Nicht aktualisieren";
+
+/* download dialog status message */
+"Download: waiting to begin." = "Herunterladen: Warte auf Beginn.";
+
+/* ellipsis character */
+"..." = "...";
+
+/* No comment provided by engineer. */
+"Error: the modification date of the file quotemark%@quotemark could not be compared because %@" = "Fehler: Das Änderungsdatum der Datei “%@” konnte nicht verglichen werden weil %@";
+
+/* No comment provided by engineer. */
+"Error: the modification date of the file quotemark%@quotemark could not be determined because %@" = "Fehler: Das Änderungsdatum der Datei “%@” konnte nicht ermittelt werden weil %@";
+
+/* No comment provided by engineer. */
+"Error: unable to read the contents of the file quotemark%@.quotemark" = "Fehler: Die Inhalte der Datei “%@.” konnten nicht gelesen werden";
+
+/* title of button to export notes from folder selection dialog */
+"Export" = "Exportieren";
+
+/* title of export notes dialog */
+"Export Notes" = "Notizen exportieren";
+
+/* ... if it exists */
+"I'll Go See" = "Ich werde nachsehen";
+
+/* No comment provided by engineer. */
+"If you update this note with re-interpreted data from the file, you may overwrite your changes." = "Falls du diese Notiz mit den neu gelesenen Daten aus der Datei aktualisierst, werden dabei vielleicht deine gemachten Änderungen überschrieben.";
+
+/* alert description when converting from unicode */
+"If you wish to convert it, you must open and re-save the file in an external editor." = "Wenn du die Datei konvertieren möchtest, musst du sie öffnen und erneut in einem externen Editor abspeichern.";
+
+/* No comment provided by engineer. */
+"No notes were selected for exporting." = "Es wurden keine Notizen zum Exportieren ausgewählt.";
+
+/* No comment provided by engineer. */
+"Notational Velocity should assume the file quotemark%@quotemark was saved with the encoding:" = "Notational Velocity soll voraussetzen, dass die Datei “%@” mit folgender Kodierung gespeichert wurde:";
+
+/* No comment provided by engineer. */
+"Note Importing Cancelled" = "Importieren der Notizen abgebrochen";
+
+/* Error string returned to indicate that the user cancelled a syncing service operation */
+"Operation cancelled" = "Vorgang abgebrochen";
+
+/* the ubiquitous OK button */
+"OK" = "OK";
+
+/* title of button for opening the current note in text edit */
+"Open in TextEdit" = "In TextEdit öffnen";
+
+/* title of menu item for selecting a different notes folder */
+"Other..." = "Anderes wählen...";
+
+/* ...from file on disk */
+"Overwrite Note" = "Notiz überschreiben";
+
+/* No comment provided by engineer. */
+"Please try again." = "Bitte versuche es erneut.";
+
+/* prompt for choosing an incompatible text encoding */
+"Please try another encoding." = "Please try another encoding.";
+
+/* alert title when converting from unicode */
+"quotemark%@quotemark is a Unicode file and not directly interpretable using plain text encodings." = "“%@” ist eine Unicode Datei und nicht direkt mit normaler Textkodierung interpretierbar.";
+
+/* No comment provided by engineer. */
+"Replace" = "Ersetzen";
+
+/* No comment provided by engineer. */
+"Replace All" = "Alles Ersetzen";
+
+/* replace the file's contents? */
+"Replace its current contents with that of the note?" = "Den Inhalt der Datei mit dem der Notiz ersetzen?";
+
+/* No comment provided by engineer. */
+"Sorry, you entered an incorrect passphrase." = "Entschuldigung, aber du hast ein falsches Passwort eingegeben.";
+
+/* (notes?) */
+"Stop Exporting" = "Exportieren stoppen";
+
+/* No comment provided by engineer. */
+"The file may no longer exist or has incorrect permissions." = "Die Datei existiert nicht mehr oder hat falsch gesetzte Berechtigungen.";
+
+/* No comment provided by engineer. */
+"The note quotemark%@quotemark couldn't be exported because %@." = "Die Notiz “%@” konnte nicht exportiert werden, weil %@.";
+
+/* No comment provided by engineer. */
+"The note quotemark%@quotemark is newer than its file on disk." = "Die Notiz “%@” ist aktueller als deren Datei auf der Festplatte.";
+
+/* No comment provided by engineer. */
+"The notes couldn't be exported because the directory quotemark%@quotemark couldn't be accessed." = "Die Notizen konnten nicht exportiert werden, weil auf das Verzeichnis “%@” nicht zugegriffen werden konnte.";
+
+/* No comment provided by engineer. */
+"The URL quotemark%@quotemark could not be accessed: %@." = "Die URL “%@” konnte nicht aufgerufen werden: %@.";
+
+/* No comment provided by engineer. */
+"This may be due to an error in the program or operating system." = "Dies kann durch einen Fehler im Programm oder Betriebssystem verursacht worden sein.";
+
+/* error description of last resort for why a URL couldn't be accessed */
+"unknown error." = "Unbekannter Fehler.";
+
+/* string of last resort for errors not found in CarbonErrorStrings */
+"an error of type %d occurred" = "Ein Fehler des Typs %d trat auf";
+
+/* Title of a nameless note */
+"Untitled Note" = "Notiz ohne Titel";
+
+/* placeholder text in search/create field */
+"Search or Create" = "Suchen oder Erstellen";
+
+/* No comment provided by engineer. */
+"You can import your old notes at any time by choosing quotemarkImport...quotemark from the quotemarkNotequotemark menu and selecting your NotationalDatabase.blor file." = "Du kannst deine alten Notizen jederzeit durch wählen des Menüeintrages “Importieren…” hinzufügen und indem du dann die NotationalDatabase.blor Datei auswählst.";
+
+/* No comment provided by engineer. */
+"You may need to re-run the Mac OS X installer." = "Vielleicht muss das Mac OS X Installationsprogramm erneut ausgeführt werden.";
+
+/* No comment provided by engineer. */
+"You must select at least one note to export." = "Wenigstens eine Notiz muss zum Exportieren ausgewählt werden.";
+
+/* title of Editing preference pane */
+"Editing" = "Bearbeiten";
+
+/* title of General preference pane */
+"General" = "Allgemeines";
+
+/* title of Notes preference pane */
+"Notes" = "Notizen";
+
+/* title of Fonts & Colors preference pane */
+"Fonts & Colors" = "Schrift & Farbe";
+
+/* No comment */
+"<Directory unknown>" = "<Verzeichnis unbekannt>";
+
+/* title of open panel for selecting a notes folder */
+"Select a folder" = "Verzeichnis wählen";
+
+/* title of open panel button to select a folder */
+"Select" = "Wählen";
+
+/* No Comment */
+"Select the folder that Notational Velocity should use for reading and storing notes." = "Wähle das Verzeichnis welches Notational Velocity zum Lesen und Speichern der Notizen verwenden soll.";
+
+/* description for no key combination */
+"(None)" = "(Nichts)";
+
+/* no comment */
+"PBKDF2 iterations: %d" = "PBKDF2 Iterationen: %d";
+
+/* no comment */
+"Please choose a different folder in which to store your notes." = "Wähle bitte zum Speichern der Notizen ein anderes Verzeichnis.";
+
+/* no comment */
+"Please choose a folder in which your notes will be stored." = "Bitte wähle ein Verzeichnis zum Speichern der Notizen.";
+
+/* no comment */
+"your Application Support directory" = "dein Programm Verzeichnis";
+
+/* no comment */
+"its current location" = "derzeitiger Ort";
+
+/* no comment */
+"Unable to initialize notes database in \n%@ because %@." = "Konnte Datenbank der Notizen in \n%@ nicht initialisieren weil %@.";
+
+/* no comment */
+"Choose another folder" = "Wähle ein anderes Verzeichnis";
+
+/* no comment */
+"Quit" = "Beenden";
+
+/* no comment */
+"Reverting to current location of %@." = "Zurückkehren zum momentanen Ort von %@.";
+
+/* no comment */
+"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?" = "Warnung: Diese Datenbank wurde von einer aktuelleren Version von Notational Velocity angelegt. Trotzdem fortfahren?";
+
+/* no comment */
+"If you make changes, some settings and metadata could be lost." = "Wenn du Änderungen vornimmst, könnten Einstellungen und Metadaten verloren gehen.";
+
+/* menu item title in dock menu */
+"Add New Note from Clipboard" = "Neue Notiz aus Zwischenablage erstellen";
+
+/* error message to set during a Service call when adding a note failed */
+"Error: Couldn't create a note from the selection." = "Fehler: Konnte keine Notiz aus der Auswahl anlegen.";
+
+/* title of button in import dialog */
+"Import" = "Importieren";
+
+/* title of import dialog */
+"Import Notes" = "Notizen importieren";
+
+/* No comment provided by engineer. */
+"None of the selected files could be imported." = "Keine der gewählten Dateien konnte importiert werden.";
+
+/* No comment provided by engineer. */
+"Please choose other files." = "Bitte andere Dateien auswählen.";
+
+/* import dialog message */
+"Select files and folders from which to import notes." = "Dateien und Verzeichnisse auswählen, aus denen Notizen importiert werden sollen";
+
+/* No comment provided by engineer. */
+"More Security Options" = "Weitere Sicherheitsoptionen";
+
+/* No comment provided by engineer. */
+"Your entered passphrase does not match your verify passphrase." = "Das eingegebene Passwort stimmt nicht mit dem wiederholten Passwort überein.";
+
+/* No comment provided by engineer. */
+"Your entered current passphrase is incorrect." = "Das angegebene aktuelle Passwort ist nicht korrekt.";
+
+/* No comment provided by engineer. */
+"Your entered new passphrase does not match your verification passphrase." = "Das eingegebene neue Passwort stimmt nicht mit dem wiederholten Passwort überein.";
+
+/* No comment provided by engineer. */
+"Please enter the passphrase to access notes in %@." = "Bitte gib das Passwort ein, um auf die Notizen in %@ zuzugreifen.";
+
+/* No comment provided by engineer. */
+"the current notes directory" = "das aktuelle Notizenverzeichnis";
+
+/* No comment provided by engineer. */
+"Today" = "Heute";
+
+/* No comment provided by engineer. */
+"Tomorrow" = "Morgen";
+
+/* No comment provided by engineer. */
+"Yesterday" = "Gestern";
+
+
+/* No comment provided by engineer. */
+"%d Notes Selected" = "%d Notizen ausgewählt";
+
+/* No comment provided by engineer. */
+"(Unknown Note) [%@]" = "(Unbekannte Notiz) [%@]";
+
+/* user shouldn't see this */
+"(WHAT??)" = "(Bitte??)";
+
+/* undo action name for creating multiple notes */
+"Add %d Notes" = "%d Notizen hinzufügen";
+
+/* menu item title for bookmarking a note */
+"Add to Bookmarks" = "Zu Lesezeichen hinzufügen";
+
+/* menu item title */
+"Show Bookmarks" = "Lesezeichen zeigen";
+
+/* menu item title */
+"Hide Bookmarks" = "Lesezeichen ausblenden";
+
+/* No comment provided by engineer. */
+"Bold" = "Fett";
+
+/* alert title appearing when notes couldn't be written */
+"Changed notes could not be saved because %@." = "Die bearbeiteten Notizen konnten nicht gespeichert werden, weil %@.";
+
+/* copy menu item title */
+"Copy" = "Kopieren";
+
+/* menu item prefix to copy a URL */
+"Copy " = "Kopieren ";
+
+/* contextual menu item title to copy urls */
+"Copy URL" = "URL Kopieren";
+
+/* No comment provided by engineer. */
+"Couldn't move notes into the chosen folder because %@" = "Konnte Notizen nicht in das gewählte Verzeichnis verschieben, weil %@";
+
+/* undo action name for creating a single note */
+"Create Note quotemark%@quotemark" = "Notiz “%@” anlegen";
+
+/* cut menu item title */
+"Cut" = "Auschschneiden";
+
+/* informational delete-this-note? text */
+"Press Command-Z to undo this action later." = "⌘-Z drücken um diesen Vorgang später zu widerrufen.";
+
+/* undo action name for deleting notes */
+"Delete %d Notes" = "%d Notizen löschen";
+
+/* undo action name for deleting a single note */
+"Delete quotemark%@quotemark" = "“%@” Notiz löschen";
+
+/* button title for disabling note encryption */
+"Disable Encryption" = "Verschlüsselung deaktivieren";
+
+/* No comment provided by engineer. */
+"Disable note encryption now?" = "Verschlüsselung der Notizen jetzt deaktivieren?";
+
+/* No comment provided by engineer. */
+"Encryption is currently on, but storing notes individually requires it to be off. Disable encryption?" = "Die Verschlüsselung ist derzeit aktiviert, das Speichern in einzelne Dateien erfordert jedoch eine Deaktivierung dieser. Jetzt deaktivieren?";
+
+/* format submenu title */
+"Format" = "Format";
+
+/* No comment provided by engineer. */
+"HTML" = "HTML";
+
+/* No comment provided by engineer. */
+"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?" = "Wenn du den Papierkorb jetzt leerst, wirst du sehr wahrscheinlich deine Notizen verlieren. Sollen die Notizen in ein sicheres anderes Verzeichnis verschoben werden?";
+
+/* No comment provided by engineer. */
+"Individual files remain in the notes directory. Leave them alone or move them to the Trash?" = "Die einzelnen Dateien befinden sich noch im Notizenverzeichnis. Sollen sie dort zurückbleiben oder in den Papierkorb verschoben werden?";
+
+/* no comment */
+"<Feedback loop warning title>" = "Warnung: Dieses Notizenverzeichnis wird mit beidem synchronisiert, %@ und %@. Falls mehrere Instanzen von Notational Velocity dieses Verzeichnis nutzen, wird eine Rückkopplungsschleife produziert.";
+
+/* no comment */
+"<Feedback loop warning message>" = "Wähle bitte einen anderen Ort für deine Notizen oder deaktiviere die Synchronisation mit %@ um dieses Problem zu vermeiden";
+
+/* No comment provided by engineer. */
+"The %@ server holds a different set of notes. Replace all %u notes in Notational Velocity with the %u notes on the server, or merge both sets together?" = "Auf dem %@ Server ist ein abweichender Satz an Notizen gespeichert. Alle %u Notizen in Notational Velocity mit den %u Notizen vom Server ersetzen oder alle Notizen zusammenfügen?";
+
+/* No comment provided by engineer. */
+"The %@ server reports that no notes exist. Delete all %u notes in Notational Velocity to match it, or re-upload them now?" = "Der %@ Server teilt mit, dass dort keine Notizen existieren. Sollen alle %u Notizen in Notational Velocity ebenfalls gelöscht oder jetzt neu hochgeladen werden?";
+
+/* No comment provided by engineer. */
+"Replacing will remove all %u notes from Notational Velocity. Merging will upload all notes to %@, omitting duplicates." = "Das Ersetzen wird alle %u Notizen aus Notational Velocity löschen. Das Hinzufügen wird alle Notizen zu %@ hochladen, während Duplikate ausgelassen werden.";
+
+/* No comment provided by engineer. */
+"If your %@ account is different, you may prefer to create a new database in Notational Velocity instead." = "Falls du einen unterschiedlichen %@ Account verwendest, möchtest du anstatt dessen vielleicht lieber eine neue Datenbank in Notational Velocity anlegen.";
+
+/* default button in the dialog above */
+"Turn Off Syncing" = "Synchronisierung deaktivieren";
+
+/* dialog button for deleting all notes */
+"Replace All Notes" = "Alle Notizen ersetzen";
+
+/* dialog button for deleting all notes when none exist remotely */
+"Remove All Notes" = "Alle Notizen entfernen";
+
+/* dialog button for uploading local notes */
+"Merge Notes" = "Notizen hinzufügen";
+
+/* dialog button for uploading local notes when none exist remotely */
+"Re-upload Notes" = "Notizen erneut hochladen";
+
+/* No comment provided by engineer. */
+"Add %u existing notes in the database to %@?" = "%u in der lokalen Datenbank existierende Notizen zu %@ hinzufügen?";
+
+/* No comment provided by engineer. */
+"Notes will be merged, omitting entries duplicated on the server." = "Die Notizen werden hinzugefügt, auf dem Server doppelt vorhandene Einträge werden ausgelassen.";
+
+/* No comment provided by engineer. */
+"Add Notes" = "Notizen hinzufügen";
+
+/* No comment provided by engineer. */
+"Upload Notes" = "Notizen hochladen";
+
+/* human-readable name for the Simplenote service */
+"Simplenote" = "Simplenote";
+
+/* human-readable name for the SimpleText service */
+"SimpleText" = "SimpleText";
+
+/* human-readable name for Dropbox */
+"Dropbox" = "Dropbox";
+
+/* status text when downloading a note from the remote sync server */
+"Downloading %u of %u notes" = "Lade %u von %u Notiz(en) herunter";
+
+/* no comment */
+"Logging in..." = "Anmelden...";
+
+/* no comment */
+"Getting the list of notes..." = "Erhalte Liste der Notizen...";
+
+/* No comment provided by engineer. */
+"Downloading" = "Herunterladen";
+
+/* No comment provided by engineer. */
+"Creating" = "Anlegen";
+
+/* No comment provided by engineer. */
+"Updating" = "Aktualisieren";
+
+/* No comment provided by engineer. */
+"Deleting" = "Löschen";
+
+/* No comment provided by engineer. */
+"Processing" = "Bearbeiten";
+
+/* e.g., 'Deleting a note...' */
+"%@ a note..." = "%@ einer Notiz …";
+
+/* example: Updating 'joe shmoe note' */
+"%@ quot%@quot..." = "“%@” %@…";
+
+/* Downloading/Creating/Updating/Deleting 5 of 10 notes */
+"%@ %u of %u notes" = "%@ %u von %u Notizen";
+
+/* e.g., Downloading 2 note(s) failed */
+"%@ %u note(s) failed" = "%@ von %u Notiz(en) schlug fehl";
+
+/* <Sync Service Name>: Disabled */
+"%@: Disabled" = "%@: Deaktiviert";
+
+/* label to prefix last sync time in the status menu */
+"Last sync: " = "Letzte Synchronisierung: ";
+
+/* no comment */
+"Synchronize Now" = "Jetzt Synchronisieren";
+
+/* no comment */
+"Stop Synchronizing" = "Synchronisieren stoppen";
+
+/* no comment */
+"%u update(s) in progress" = "%u Aktualisierung(en) in Bearbeitung";
+
+/* no comment */
+"Not synchronized yet" = "Noch nicht synchronisiert";
+
+/* sync status menu msg */
+"Incorrect login and password" = "Login und Passwort falsch";
+
+/* message to report when sync service is not reachable over internet */
+"Internet unavailable." = "Internet nicht verfügbar.";
+
+/* no comment */
+"Session could not be created" = "Session konnte nicht erstellt werden";
+
+/* Simplenote-specific error */
+"No authorization token" = "Kein Authorisierungs-Token";
+
+/* Simplenote-specific error */
+"The index of notes could not be parsed." = "Der Index der Notizen konnte nicht gelesen werden.";
+
+/* string to prefix a sync service error */
+"Error: " = "Fehler: ";
+
+/* no comment */
+"Changes could not be uploaded." = "Die Änderungen konnten nicht hochgeladen werden.";
+
+/* No comment provided by engineer. */
+"Italic" = "Kursiv";
+
+/* button title for not discarding note files */
+"Keep Files" = "Dateien behalten";
+
+/* No comment provided by engineer. */
+"Loading Notes..." = "Lade Notizen...";
+
+/* button title for trashing notes */
+"Move to Trash" = "In den Papierkorb bewegen";
+
+/* No comment provided by engineer. */
+"No Note Selected" = "Keine Notiz ausgewählt";
+
+/* alert title when bookmarking no note. */
+"No note selected." = "Keine Notiz ausgewählt.";
+
+/* No comment provided by engineer. */
+"Notational Velocity supports encryption only for notes stored in a database file." = "Notational Velocity unterstützt die Verschlüsselung nur für Notizen, welche in einer einzelnen Datenbankdatei gespeichert werden.";
+
+/* No comment provided by engineer. */
+"Open Console in /Applications/Utilities/ for more information." = "Konsole in /Applications/Utilities/ öffnen für weitere Informationen.";
+
+/* paste menu item title */
+"Paste" = "Einfügen";
+
+/* No comment provided by engineer. */
+"plain text" = "einfache Text";
+
+/* No comment provided by engineer. */
+"Plain Text Style" = "Einfacher Text";
+
+/* use-text-replacement command in the edit menu */
+"Use Automatic Text Replacement" = "Automatische Textersetzung verwenden";
+
+/* new-password command in the edit menu (shows generated passwords window) */
+"New Password..." = "Neues Passwort...";
+
+/* insert new password command in the edit menu */
+"Insert New Password" = "Neues Passwort einsetzen";
+
+/* menu item in the View menu to turn off note-body previews in the Title column */
+"Hide Note Previews in Title" = "Notizvorschau in Titel nicht anzeigen";
+
+/* menu item in the View menu to turn on note-body previews in the Title column */
+"Show Note Previews in Title" = "Notizvorschau in Titel anzeigen";
+
+/* No comment provided by engineer. */
+"Relocate Notes" = "Notizen verschieben";
+
+/* No comment provided by engineer. */
+"Remove All Bookmarks" = "Alle Lesezeichen löschen";
+
+/* alert title when clearing bookmarks */
+"Remove all bookmarks?" = "Alle Lesezeichen löschen?";
+
+/* No comment provided by engineer. */
+"rich text" = "formatierte Text";
+
+/* No comment provided by engineer. */
+"Select a new location for your Notational Velocity notes." = "Neuen Ort für die Notational Velocity Notizen wählen.";
+
+/* menu item title for showing bookmarks */
+"Show Bookmarks" = "Lesezeichen anzeigen";
+
+/* No comment provided by engineer. */
+"Too many bookmarks." = "Zu viele Lesezeichen.";
+
+/* No comment provided by engineer. */
+"Turn Off Note Encryption..." = "Verschlüsselung deaktivieren…";
+
+/* No comment provided by engineer. */
+"Turn On Note Encryption..." = "Verschlüsselung aktivieren…";
+
+/* No comment provided by engineer. */
+"Unable to create an FSRef from the chosen directory." = "FSRef konnte vom gewählten Verzeichnis nicht angelegt werden.";
+
+/* No comment provided by engineer. */
+"Unable to create or access the Interim Note-Changes file. Is another copy of Notational Velocity currently running?" = "Auf die “Interim Note-Changes“ Datei konnte nicht zugegriffen werden. Läuft gerade vielleicht eine weitere Instanz von Notational Velocity?";
+
+/* No comment provided by engineer. */
+"Strikethrough" = "Durchgestrichen";
+
+/* No comment provided by engineer. */
+"Use a single database file" = "Einzelne Datenbankdatei verwenden";
+
+/* No comment provided by engineer. */
+"Warning: Your notes will be written to disk in clear text." = "Warnung: Alle Notizen werden im Klartext abgespeichert.";
+
+/* No comment provided by engineer. */
+"When notes are stored in a single database individual files become redundant." = "Wenn alle Notizen in einer einzelnen Datenbank gespeichert werden, werden die einzelnen Dateien überflüssig.";
+
+/* No comment provided by engineer. */
+"You cannot create more than 26 bookmarks. Try removing some first." = "Es können nicht mehr als 26 Lesezeichen angelegt werden. Versuche zunächst einige zu löschen.";
+
+/* No comment provided by engineer. */
+"You cannot undo this action." = "Diese Aktion kann nicht widerrufen werden.";
+
+/* No comment provided by engineer. */
+"You must select a note before it can be added as a bookmark." = "Du musst eine Notiz auswählen bevor diese zu den Lesezeichen hinzugefügt werden kann";
+
+/* No comment provided by engineer. */
+"Your notes are currently stored as %@ files on disk, but encryption requires a single database. Switch to a database format?" = "Deine Notizen werden momentan als %@ Dateien gespeichert. Zur Verschlüsselung ist jedoch die Sicherung in einer einzelnen Datenbank Voraussetzung. Zum Datenbankformat wechseln?";
+
+/* No comment provided by engineer. */
+"Your notes directory (%@) appears to be in the Trash." = "Das Notizenverzeichnis (%@) scheint im Papierkorb zu liegen.";
+
+/* No comment provided by engineer. */
+"Your notes were not moved." = "Die Notizen wurden nicht verschoben.";
+
+/* title column name */
+"Title" = "Titel";
+
+/* tags/labels column name */
+"Tags" = "Etikett";
+
+/* date modified column name */
+"Date Modified" = "geändert am";
+
+/* date added/created column name */
+"Date Added" = "zugefügt am";
+
+/* date added/created column name */
+"Go back to search; press %@-D to deselect" = "Zurück zur Suche, Auswahl verwerfen mit %@-D";
+
+/* date added/created column name */
+"Now searching for this text" = "Suche nach diesem Text";
+
+/* date added/created column name */
+"Clear the search; press ESC" = "Suche leeren; ESC drücken";
+
+/* date added/created column name */
+"Type any text to search; press Return to create a note" = "Text eingeben zum Suchen; Eingabetaste zum Anlegen einer Notiz";
+
+/* date added/created column name */
+"Now editing this note; rename it with %@-R" = "Bearbeitung dieser Notiz; Umbenennen mit %@-R";
+
+/* default files name */
+"Excruciatingly Useful Shortcuts" = "Moglicherweise nutzliche Tastenkurzel";
+"Contact Information" = "Kontaktdaten";
+"This is the title of a note" = "Dies ist der Titel einer Notiz";
+"How does this thing work?" = "Wie funktioniert dieses Programm?";
+
+"SiteURL" = "http://notational.net/";
+
+/* title of alternate view layout menu item */
+"Switch to Vertical Layout" = "Zu vertikaler Darstellung wechseln";
+
+/* title of view layout menu item */
+"Switch to Horizontal Layout" = "Zu horizontaler Darstellung wechseln";
+
+/* for warning about incompatibility with TextExpander, Typinator, etc. */
+"Secure Text Entry will prevent %@, which is currently installed on this computer, from working in Notational Velocity." = "Die Sichere Texteingabe wird %@, das momentan auf diesem Computer installiert ist, daran hindern, in Notational Velocity zu funktionieren.";
+
+/* Status message after downloading a URL */
+"Importing content..." = "Importiere Inhalt…";
+
+/* prefix for source-URLs inserted into imported notes; e.g., "From <http://www.apple.com>: ..." */
+"From" = "Von";

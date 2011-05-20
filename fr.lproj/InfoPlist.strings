@@ -1,0 +1,4 @@
+﻿/* Localized versions of Info.plist keys */
+
+CFBundleName = "nvALT";
+NSHumanReadableCopyright = "Traduction française par David Bosman";

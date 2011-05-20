@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>-33</key>
+	<string>la directory è piena</string>
+	<key>-34</key>
+	<string>il disco è pieno</string>
+	<key>-35</key>
+	<string>il volume non esiste</string>
+	<key>-36</key>
+	<string>si è verificato un errore durante il tentativo di accedere al disco</string>
+	<key>-37</key>
+	<string>il nome non è corretto</string>
+	<key>-38</key>
+	<string>il documento non è aperto</string>
+	<key>-39</key>
+	<string>è stata raggiunta la fine del file</string>
+	<key>-40</key>
+	<string>la posizione del file è stata indicata come offset negativo</string>
+	<key>-41</key>
+	<string>il documento non entrerebbe in memoria</string>
+	<key>-42</key>
+	<string>ci sono troppi documenti aperti</string>
+	<key>-43</key>
+	<string>non ho trovato il documento</string>
+	<key>-44</key>
+	<string>il disco è protetto da scrittura</string>
+	<key>-45</key>
+	<string>il documento è protetto</string>
+	<key>-46</key>
+	<string>il volume è protetto</string>
+	<key>-47</key>
+	<string>il documento è ancora in uso</string>
+	<key>-48</key>
+	<string>esiste già un documento con lo stesso nome</string>
+	<key>-49</key>
+	<string>il documento è già aperto e disponibile per la scrittura</string>
+	<key>-50</key>
+	<string>c'è un parametro non valido</string>
+	<key>-51</key>
+	<string>il numero di riferimento del documento non è corretto</string>
+	<key>-52</key>
+	<string>non è stato possibile ottenere l'offset della posizione del file</string>
+	<key>-53</key>
+	<string>il volume non è più disponibile</string>
+	<key>-54</key>
+	<string>il documento è protetto</string>
+	<key>-55</key>
+	<string>il disco è già montato</string>
+	<key>-56</key>
+	<string>si è fatto riferimento ad un disco non esistente</string>
+	<key>-57</key>
+	<string>il disco non è in formato Mac</string>
+	<key>-58</key>
+	<string>il tipo di file system del volume non è supportato</string>
+	<key>-59</key>
+	<string>si è verificato un problema durante la modifica del nome</string>
+	<key>-60</key>
+	<string>il master directory block è danneggiato</string>
+	<key>-61</key>
+	<string>i permessi del documento non consentono la scrittura</string>
+	<key>-64</key>
+	<string>il disco non è installato</string>
+	<key>-120</key>
+	<string>non ho trovato la directory</string>
+	<key>-121</key>
+	<string>ci sono troppe cartelle di lavoro aperte</string>
+	<key>-122</key>
+	<string>non è possibile spostare le cartelle in cartelle in esse contenute</string>
+	<key>-123</key>
+	<string>il volume è di tipo non corretto</string>
+	<key>-124</key>
+	<string>il server del volume è scollegato</string>
+	<key>-127</key>
+	<string>si è verificato un problema con il driver del file system</string>
+	<key>-128</key>
+	<string>l'operazione è stata annullata</string>
+	<key>-818</key>
+	<string>non è stato possibile deserializzare i dati</string>
+	<key>-819</key>
+	<string>non è stato possibile inizializzare il file Interim Note-Changes</string>
+	<key>-820</key>
+	<string>non è stato possibile appendere il file Interim Note-Changes</string>
+	<key>-821</key>
+	<string>autenticazione non riuscita</string>
+	<key>-822</key>
+	<string>non è stato possibile decomprimere i dati</string>
+	<key>-823</key>
+	<string>non hai inserito la parola d'ordine</string>
+	<key>-824</key>
+	<string>non è stato possibile formattare correttamente i dati</string>
+	<key>-825</key>
+	<string>le note presentano dei valori non coincidenti dopo la decodifica</string>
+	<key>-1300</key>
+	<string>non ho trovato l'ID del documento specificato nel file system</string>
+	<key>-1301</key>
+	<string>l'ID del documento esiste già nel file system</string>
+	<key>-1302</key>
+	<string>uno dei documenti era in realtà una cartella</string>
+	<key>-1303</key>
+	<string>i documenti sono su volumi diversi</string>
+	<key>-1304</key>
+	<string>il catalogo è cambiato inaspettatamente</string>
+	<key>-1306</key>
+	<string>si è verificato un tentativo di scambiare il contenuto del documento con se stesso</string>
+	<key>-1307</key>
+	<string>il documento non coincide con il numero di ID del documento</string>
+	<key>-1308</key>
+	<string>il volume è stato rimontato in modo non corretto</string>
+	<key>-1309</key>
+	<string>l'accesso al file è avvenuto "out of bounds"</string>
+	<key>-1310</key>
+	<string>il documento o il volume è troppo grande</string>
+	<key>-1311</key>
+	<string>il volume è in uso da parte del sottosistema della memoria virtuale</string>
+	<key>-1327</key>
+	<string>si è verificato un accesso non corretto alla control block table del file</string>
+	<key>-1400</key>
+	<string>la chiamata al file system è sconosciuta</string>
+	<key>-1401</key>
+	<string>il riferimento al file system non è più valido</string>
+	<key>-1402</key>
+	<string>è stato specificato un fork name non valido</string>
+	<key>-1403</key>
+	<string>un buffer è rimasto non inizializzato</string>
+	<key>-1404</key>
+	<string>è stato specificato un fork number non valido</string>
+	<key>-1405</key>
+	<string>è stata richiesta un'informazione di file catalog non valida</string>
+	<key>-1406</key>
+	<string>il catalog information buffer è rimasto non inizializzato</string>
+	<key>-1407</key>
+	<string>una cartella era in realtà un file</string>
+	<key>-1409</key>
+	<string>la fork del file richiesta non essite</string>
+	<key>-1410</key>
+	<string>il nome richiesto è troppo lungo per essere valido</string>
+	<key>-1411</key>
+	<string>il file non ha un nome</string>
+	<key>-1412</key>
+	<string>è stato specificato un modo di posizionamento non valido per l'accesso al file</string>
+	<key>-1413</key>
+	<string>il file è stato allocato in maniera impropria</string>
+	<key>-1417</key>
+	<string>non c'erano altri elementi da trovare</string>
+	<key>-1418</key>
+	<string>non sono stati richiesti elementi da leggere nella directory</string>
+	<key>-1419</key>
+	<string>i parametri di ricerca non sono validi</string>
+	<key>-1420</key>
+	<string>i riferimenti al file system sono diversi</string>
+	<key>-1421</key>
+	<string>il file ha già una fork</string>
+	<key>-1422</key>
+	<string>sono stato passati parametri non validi durante l'iterazione sulla directory</string>
+	<key>-1423</key>
+	<string>il directory iterator specificato non è valido</string>
+	<key>-1424</key>
+	<string>il directory iterator è stato usato in modo improprio</string>
+	<key>-1425</key>
+	<string>hai oltrepassato la quota disco che ti è riservata</string>
+	<key>-5000</key>
+	<string>il tuo account non ha i permessi necessari per accedere alla directory</string>
+</dict>
+</plist>

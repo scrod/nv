@@ -18,8 +18,10 @@
 {
     IBOutlet NSTextField *labelText;
 	int lastNotesNumber;
+	NSColor *bgCol;
 }
 
 - (void)setLabelStatus:(int)notesNumber;
+- (void)setBackgroundColor:(NSColor *)inColor;
 
 @end

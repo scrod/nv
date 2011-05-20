@@ -28,7 +28,7 @@
     unsigned int lowercaseHash;
 }
 
-force_inline NSString* titleOfLabel(LabelObject *label);
+NSString* titleOfLabel(LabelObject *label);
 int compareLabel(const void *one, const void *two);
 
 - (id)initWithTitle:(NSString*)name;

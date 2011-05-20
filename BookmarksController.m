@@ -227,20 +227,36 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	while ([bookmarksMenu numberOfItems]) {
 		[bookmarksMenu removeItemAtIndex:0];
 	}
+	
+	
+	NSMenu *menu2 = [appController statBarMenu];
+	NSMenu *bkSubMenu = [[menu2  itemWithTag:901] submenu];
+	while ([bkSubMenu numberOfItems]) {
+		[bkSubMenu removeItemAtIndex:0];
+	}
 		
 	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Show Bookmarks",@"menu item title for showing bookmarks") 
 														  action:@selector(showBookmarks:) keyEquivalent:@"0"] autorelease];
 	[theMenuItem setTarget:self];
 	[bookmarksMenu addItem:theMenuItem];
-	
+	theMenuItem = [theMenuItem copy];
+	[bkSubMenu addItem:theMenuItem];
+	[theMenuItem release];
 	[bookmarksMenu addItem:[NSMenuItem separatorItem]];
+	[bkSubMenu addItem:[NSMenuItem separatorItem]];
 		
 	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Add to Bookmarks",@"menu item title for bookmarking a note") 
 											  action:@selector(addBookmark:) keyEquivalent:@"D"] autorelease];
 	[theMenuItem setTarget:self];
 	[bookmarksMenu addItem:theMenuItem];
+	theMenuItem = [theMenuItem copy];
+	[bkSubMenu addItem:theMenuItem];
+	[theMenuItem release];
 	
-	if ([bookmarks count] > 0) [bookmarksMenu addItem:[NSMenuItem separatorItem]];
+	if ([bookmarks count] > 0) {
+		[bookmarksMenu addItem:[NSMenuItem separatorItem]];
+		[bkSubMenu addItem:[NSMenuItem separatorItem]];
+	}
 	
 	unsigned int i;
 	for (i=0; i<[bookmarks count]; i++) {
@@ -255,6 +271,9 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 			[theMenuItem setRepresentedObject:bookmark];
 			[theMenuItem setTarget:self];
 			[bookmarksMenu addItem:theMenuItem];
+			theMenuItem = [theMenuItem copy];
+			[bkSubMenu addItem:theMenuItem];
+			[theMenuItem release];
 		}
 	}
 }
@@ -418,6 +437,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 			
 			return YES;
 		}
+		[object release];
 		return NO;
     }
 	

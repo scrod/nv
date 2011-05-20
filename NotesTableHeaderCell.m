@@ -21,7 +21,9 @@ NSGradient *gradient;
 			//NSLog(@"headerCELL initing");
 			if (!bColor) {
 				bColor = [[NSColor whiteColor] retain];
-				hColor = [[NSColor whiteColor] retain];
+			}
+			if (!hColor) {
+				hColor = [[NSColor grayColor] retain];
 			}
 			if (!tColor) {
 				tColor = [[NSColor blackColor] retain];
@@ -49,6 +51,9 @@ NSGradient *gradient;
 }
 
 + (void)setBackgroundColor:(NSColor *)inColor{
+    if (bColor) {
+        [bColor release];
+    }
 	bColor = [inColor retain];
 	CGFloat fWhite;
 	CGFloat endWhite;
@@ -60,34 +65,45 @@ NSGradient *gradient;
 	}else {		
 		endWhite = fWhite - .27f;
 	}
-
+	[hColor release];
 	hColor = [[inColor blendedColorWithFraction:0.60f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.98f]] retain];
 }
 
 + (void)setForegroundColor:(NSColor *)inColor{
+    if (tColor) {
+        [tColor release];
+    }
 	tColor = [inColor retain];
+}
+
+- (NSRect)drawingRectForBounds:(NSRect)theRect {
+	return NSInsetRect(theRect, 6.0f, 0.0);
 }
 
 - (void)drawWithFrame:(NSRect)inFrame inView:(NSView*)inView
 {
 	@try {
-		//NSLog(@"draw frame");
 		[[bColor copy]setFill];
 		NSRectFill(inFrame);
 		[gradient drawInRect:inFrame angle:90];
 		@try {
 			[tColor set];
 			 NSBezierPath* thePath = [NSBezierPath bezierPath];
-			 [thePath removeAllPoints];
-			 [thePath moveToPoint:inFrame.origin];				
-			 [thePath lineToPoint:NSMakePoint(inFrame.origin.x,(inFrame.origin.y +  inFrame.size.height))];	
-			 [thePath lineToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),(inFrame.origin.y +  inFrame.size.height))];
-			// [thePath setLineWidth:2.0];
-			[thePath setLineWidth:1.4];
+			 [thePath removeAllPoints];	
+			[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),(inFrame.origin.y +  inFrame.size.height))];
+			[thePath lineToPoint:NSMakePoint(inFrame.origin.x,(inFrame.origin.y +  inFrame.size.height))];	
+			if (inFrame.origin.x>5) {
+				[thePath lineToPoint:inFrame.origin];
+			}
+			
+			[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
+			[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];	
+			
+			[thePath setLineWidth:1.0];
 			 [thePath stroke];
 		}
 		@catch (NSException * e) {
-		NSLog(@"draw sides EXCEPT name: %@  description : %@",[e name],[e description]);
+			NSLog(@"draw sides EXCEPT name: %@  description : %@",[e name],[e description]);
 		}
 		float offset = 5;  
 		NSRect centeredRect = inFrame;
@@ -113,21 +129,22 @@ NSGradient *gradient;
 - (void)highlight:(BOOL)hBool withFrame:(NSRect)inFrame inView:(NSView *)controlView{
 	@try {
 		if (hBool) {
-			//NSLog(@"draw highlight");
 			[hColor setFill];
 			
-		//	[NSBezierPath fillRect:inFrame];
 			NSRectFill(inFrame);
 			
 			[gradient drawInRect:inFrame angle:90];
 			@try {
 				[tColor setStroke];
-			//	NSLog(@"inFrame origin x is :%f  and y is : %f",inFrame.origin.x,inFrame.origin.y);
 				NSBezierPath* thePath = [NSBezierPath bezierPath];
 				[thePath removeAllPoints];
-				[thePath moveToPoint:inFrame.origin];				
+				[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),(inFrame.origin.y +  inFrame.size.height))];
 				[thePath lineToPoint:NSMakePoint(inFrame.origin.x,(inFrame.origin.y +  inFrame.size.height))];	
-				[thePath lineToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),(inFrame.origin.y +  inFrame.size.height))];
+				if (inFrame.origin.x>5) {
+					[thePath lineToPoint:inFrame.origin];
+				}
+				[thePath moveToPoint:NSMakePoint((inFrame.origin.x + inFrame.size.width),inFrame.origin.y)];
+				[thePath lineToPoint:NSMakePoint(inFrame.origin.x,inFrame.origin.y)];	
 				//[thePath setLineWidth:2.0]; // Has no effect.
 				[thePath setLineWidth:1.4];
 				[thePath stroke];
@@ -141,7 +158,6 @@ NSGradient *gradient;
 			NSRect centeredRect = inFrame;
 			centeredRect.size = [[self stringValue] sizeWithAttributes:attrs]; 
 			centeredRect.origin.x += offset;
-			//centeredRect.origin.x += ((inFrame.size.width - centeredRect.size.width) / 2.0); 
 			centeredRect.origin.y = ((inFrame.size.height - centeredRect.size.height) / 2.0); 			
 			[attrs setValue:tColor forKey:@"NSColor"];
 			[[self stringValue] drawInRect:centeredRect withAttributes:attrs];				
@@ -151,10 +167,7 @@ NSGradient *gradient;
 		NSLog(@"draw highlight EXCEPT: %@",[e description]);
 	}		
 }
-/*
-- (void)drawInteriorWithFrame:(NSRect)inFrame inView:(NSView *)controlView{
 
-}*/
 
 - (id)copyWithZone:(NSZone *)zone
 {

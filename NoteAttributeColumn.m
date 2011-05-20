@@ -13,7 +13,7 @@
 #import "NoteAttributeColumn.h"
 #import "NotesTableView.h"
 
-
+/*
 @implementation NoteTableHeaderCell
 
 - (NSRect)drawingRectForBounds:(NSRect)theRect {
@@ -21,7 +21,7 @@
 }
 
 @end
-
+*/
 @implementation NoteAttributeColumn
 
 - (id)initWithIdentifier:(id)anObject {
@@ -46,6 +46,7 @@
 
 - (void)updateWidthForHighlight {
 	[self setMinWidth:absoluteMinimumWidth + ([[self tableView] highlightedTableColumn] == self ? 10 : 0)];
+  
 }
 
 SEL columnAttributeMutator(NoteAttributeColumn *col) {
@@ -56,11 +57,11 @@ SEL columnAttributeMutator(NoteAttributeColumn *col) {
 	mutateObjectSelector = selector;
 }
 
-id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object) {
-	return col->objectAttribute(tv, object);
+id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object, NSInteger row) {
+	return col->objectAttribute(tv, object, row);
 }
 
-- (void)setDereferencingFunction:(id (*)(id, id))attributeFunction {
+- (void)setDereferencingFunction:(id (*)(id, id, NSInteger))attributeFunction {
     objectAttribute = attributeFunction;
 }
 
@@ -79,7 +80,7 @@ id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id obj
 - (NSInteger (*)(id*, id*))reverseSortFunction {
     return reverseSortFunction;
 }
-id (*dereferencingFunction(NoteAttributeColumn *col))(id, id) {
+id (*dereferencingFunction(NoteAttributeColumn *col))(id, id, NSInteger) {
 	return col->objectAttribute;
 }
 

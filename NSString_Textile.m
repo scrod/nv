@@ -6,6 +6,7 @@
 #import "NSString_Textile.h"
 #import "PreviewController.h"
 #import "AppController.h"
+#import "NoteObject.h"
 
 @implementation NSString (Textile)
 

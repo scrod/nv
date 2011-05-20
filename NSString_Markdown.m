@@ -4,6 +4,7 @@
 //
 
 #import "NSString_Markdown.h"
+#import "NoteObject.h"
 
 @implementation NSString (Markdown)
 

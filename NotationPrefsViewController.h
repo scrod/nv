@@ -28,7 +28,11 @@
 }
 @end
 
-@interface NotationPrefsViewController : NSObject {
+@interface NotationPrefsViewController : NSObject 
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+<NSTableViewDelegate, NSTableViewDataSource>
+#endif
+{
     IBOutlet NSTableView *allowedExtensionsTable;
     IBOutlet NSTableView *allowedTypesTable;
 	IBOutlet NSButton *enableEncryptionButton;
@@ -39,6 +43,7 @@
     IBOutlet NSButton *newTypeButton;
     IBOutlet NSTextField *syncAccountField;
     IBOutlet NSTextField *syncPasswordField;
+	IBOutlet NSButton *makeDefaultExtensionButton;
     IBOutlet NSButton *removeExtensionButton;
     IBOutlet NSButton *removeTypeButton;
     IBOutlet NSButton *confirmFileDeletionButton;
@@ -91,6 +96,7 @@
 - (int)notesStorageFormatInProgress;
 - (void)runQueuedStorageFormatChangeInvocation;
 - (IBAction)visitSimplenoteSite:(id)sender;
+- (IBAction)makeDefaultExtension:(id)sender;
 - (IBAction)removedExtension:(id)sender;
 - (IBAction)removedType:(id)sender;
 

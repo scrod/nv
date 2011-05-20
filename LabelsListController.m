@@ -61,6 +61,34 @@
 	mergesort((void *)objects, (size_t)count, sizeof(id), (int (*)(const void *, const void *))compareLabel);
 }
 
+- (NSArray*)labelTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex minusWordSet:(NSSet*)antiSet {
+	
+	NSMutableArray *objs = [[[allLabels allObjects] mutableCopy] autorelease];
+	NSMutableArray *titles = [NSMutableArray arrayWithCapacity:[allLabels count]];
+
+	[objs sortUnstableUsingFunction:(NSInteger (*)(id *, id *))compareLabel];
+	
+	CFStringRef prefix = (CFStringRef)prefixString;
+	NSUInteger i, titleLen, j = 0, shortestTitleLen = UINT_MAX;
+	
+	for (i=0; i<[objs count]; i++) {
+		CFStringRef title = (CFStringRef)titleOfLabel((LabelObject*)[objs objectAtIndex:i]);
+		
+		if (CFStringFindWithOptions(title, prefix, CFRangeMake(0, CFStringGetLength(prefix)), kCFCompareAnchored | kCFCompareCaseInsensitive, NULL)) {
+			
+			if (![antiSet containsObject:(id)title]) {
+				[titles addObject:(id)title];
+				if (anIndex && (titleLen = CFStringGetLength(title)) < shortestTitleLen) {
+					*anIndex = j;
+					shortestTitleLen = titleLen;
+				}
+				j++;
+			}
+		}
+	}
+	return titles;
+}
+
 
 //NotationController will probably want to filter these further if there is already a search in progress
 - (NSSet*)notesAtFilteredIndex:(int)labelIndex {

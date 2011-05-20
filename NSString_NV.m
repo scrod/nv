@@ -17,6 +17,7 @@
 
 #import "NSString_NV.h"
 #import "NSData_transformations.h"
+#import "NSFileManager_NV.h"
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "LabelObject.h"
@@ -25,33 +26,13 @@
 
 static int dayFromAbsoluteTime(CFAbsoluteTime absTime);
 
-- (NSMutableSet*)labelSetFromWordsAndContainingNote:(NoteObject*)note {
-	
-	NSArray *words = [self componentsSeparatedByString:@","];
-	NSMutableSet *labelSet = [NSMutableSet setWithCapacity:[words count]];
-	
-	unsigned int i;
-	for (i=0; i<[words count]; i++) {
-		NSString *aWord = [words objectAtIndex:i];
-		
-		if ([aWord length] > 0) {
-			LabelObject *aLabel = [[LabelObject alloc] initWithTitle:aWord];
-			[aLabel addNote:note];
-			
-			[labelSet addObject:aLabel];
-			[aLabel autorelease];
-		}
-	}
-	
-	return labelSet; 
-}
-
 enum {NoSpecialDay = -1, ThisDay = 0, NextDay = 1, PriorDay = 2};
 
 static const double dayInSeconds = 86400.0;
 static CFTimeInterval secondsAfterGMT = 0.0;
 static int currentDay = 0;
 static CFMutableDictionaryRef dateStringsCache = NULL;
+static CFDateFormatterRef dateAndTimeFormatter = NULL;
 
 unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime) {
 	return (unsigned int)floor(absTime / 3600.0);
@@ -68,6 +49,11 @@ void resetCurrentDayTime() {
 	
 	if (dateStringsCache)
 		CFDictionaryRemoveAllValues(dateStringsCache);
+	
+	if (dateAndTimeFormatter) {
+		CFRelease(dateAndTimeFormatter);
+		dateAndTimeFormatter = NULL;
+	}
 		
 	CFRelease(timeZone);
 }
@@ -94,7 +80,7 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
     static NSString *days[3] = { NULL };
     
     if (!timeOnlyFormatter) {
-	timeOnlyFormatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), kCFDateFormatterNoStyle, kCFDateFormatterShortStyle);
+		timeOnlyFormatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), kCFDateFormatterNoStyle, kCFDateFormatterShortStyle);
     }
     
     if (!days[ThisDay]) {
@@ -104,14 +90,19 @@ static int dayFromAbsoluteTime(CFAbsoluteTime absTime) {
     }
 
     CFStringRef dateString = CFDateFormatterCreateStringWithDate(kCFAllocatorDefault, timeOnlyFormatter, date);
+	
+	if ([[GlobalPrefs defaultPrefs] horizontalLayout]) {
+		//if today, return the time only; otherwise say "Yesterday", etc.; and this method shouldn't be called unless day != NoSpecialDay
+		if (day == PriorDay || day == NextDay)
+			return days[day];
+		return [(id)dateString autorelease];
+	}
     
     NSString *relativeTimeString = [days[day] stringByAppendingFormat:@"  %@", dateString];
 	CFRelease(dateString);
 	
 	return relativeTimeString;
 }
-
-int uncachedDateCount = 0;
 
 //take into account yesterday/today thing
 //this method _will_ affect application launch time
@@ -126,24 +117,24 @@ int uncachedDateCount = 0;
 	NSString *dateString = (NSString*)CFDictionaryGetValue(dateStringsCache, (const void *)minutesCount);
 	
 	if (!dateString) {
-		static CFDateFormatterRef formatter = nil;
-		if (!formatter) {
-			formatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), kCFDateFormatterMediumStyle, kCFDateFormatterShortStyle);
+		int day = dayFromAbsoluteTime(absTime);
+		
+		if (!dateAndTimeFormatter) {
+			BOOL horiz = [[GlobalPrefs defaultPrefs] horizontalLayout];
+			dateAndTimeFormatter = CFDateFormatterCreate(kCFAllocatorDefault, CFLocaleCopyCurrent(), 
+														 horiz ? kCFDateFormatterShortStyle : kCFDateFormatterMediumStyle, 
+														 horiz ? kCFDateFormatterNoStyle : kCFDateFormatterShortStyle);
 		}
 		
 		CFDateRef date = CFDateCreate(kCFAllocatorDefault, absTime);
 		
-		
-		int day = dayFromAbsoluteTime(absTime);
 		if (day == NoSpecialDay) {
-			dateString = [(NSString*)CFDateFormatterCreateStringWithDate(kCFAllocatorDefault, formatter, date) autorelease];
+			dateString = [(NSString*)CFDateFormatterCreateStringWithDate(kCFAllocatorDefault, dateAndTimeFormatter, date) autorelease];
 		} else {
 			dateString = [NSString relativeTimeStringWithDate:date relativeDay:day];
 		}
 		
 		CFRelease(date);
-
-		uncachedDateCount++;
 		
 		//ints as pointers ints as pointers ints as pointers
 		CFDictionarySetValue(dateStringsCache, (const void *)minutesCount, (const void *)dateString);
@@ -188,18 +179,24 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return absTime;
 }
 
-+ (NSString*)pathCopiedFromAliasData:(NSData*)aliasData {
-    AliasHandle inAlias;
-    CFStringRef path = NULL;
-	FSAliasInfoBitmap whichInfo = kFSAliasInfoNone;
-	FSAliasInfo info;
-    if (aliasData && PtrToHand([aliasData bytes], (Handle*)&inAlias, [aliasData length]) == noErr && 
-	FSCopyAliasInfo(inAlias, NULL, NULL, &path, &whichInfo, &info) == noErr) {
-		//this method doesn't always seem to work	
-	return [(NSString*)path autorelease];
-    }
-    
-    return nil;
+- (NSArray*)labelCompatibleWords {
+	NSArray *array = nil;
+	if (IsLeopardOrLater) {
+		array = [self componentsSeparatedByCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
+	} else {
+		BOOL lacksSpace = [self rangeOfString:@" " options:NSLiteralSearch].location == NSNotFound;
+		array = [self componentsSeparatedByString: lacksSpace ? @"," : @" "];
+	}
+	NSMutableArray *titles = [NSMutableArray arrayWithCapacity:[array count]];
+	
+	NSUInteger i;
+	for (i=0; i<[array count]; i++) {
+		NSString *aWord = [array objectAtIndex:i];
+		if ([aWord length] > 0) {
+			[titles addObject:aWord];
+		}
+	}
+	return titles;
 }
 
 - (CFArrayRef)copyRangesOfWordsInString:(NSString*)findString inRange:(NSRange)limitRange {
@@ -253,6 +250,13 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return newfilename;
 }
 
+- (BOOL)isAMachineDirective {
+	return [self hasPrefix:@"#!"] || [self hasPrefix:@"#import "] || [self hasPrefix:@"#include "] || 
+	[self hasPrefix:@"<!DOCTYPE "] || [self hasPrefix:@"<?xml "] || [self hasPrefix:@"<html "] || 
+	[self hasPrefix:@"@import "] || [self hasPrefix:@"<?php"] || [self hasPrefix:@"bplist0"]; 
+	
+}
+
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString {
 	//NSLog(@"NSString_NV: %s", _cmd);
@@ -261,7 +265,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 
 	return sanitizedName;
 }
-
 #endif
 
 - (NSString*)fourCharTypeString {
@@ -273,69 +276,43 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	return self;
 }
 
+- (BOOL)superficiallyResemblesAnHTTPURL {
+	//has the right protocol and contains no whitespace or line breaks
+	
+	return ([self rangeOfString:@"http" options:NSCaseInsensitiveSearch | NSAnchoredSearch].location != NSNotFound ||
+			[self rangeOfString:@"https" options:NSCaseInsensitiveSearch | NSAnchoredSearch].location != NSNotFound) &&
+	[self rangeOfCharacterFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] options:NSLiteralSearch].location == NSNotFound;
+}
+
 - (void)copyItemToPasteboard:(id)sender {
 	
-	if ([sender isKindOfClass:[NSMenuItem class]]) {
-		NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-		[pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-		[pasteboard setString:[sender representedObject] forType:NSStringPboardType];
-	}
+	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+	[pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
+	[pasteboard setString:[sender isKindOfClass:[NSMenuItem class]] ? [sender representedObject] : self
+				  forType:NSStringPboardType];
 }
 
 
-- (NSURL*)linkForWord {
-	//full of annoying little hacks to catch (hopefully) the most common non-links
-	NSUInteger length = [self length];
-	
-	NSUInteger protocolSpecLoc = [self rangeOfString:@"://" options:NSLiteralSearch].location;
-	if (length >= 5 && protocolSpecLoc != NSNotFound && protocolSpecLoc > 0) {
-		NSURL *anurl = [NSURL URLWithString:self];
-		//File Reference URLs cannot be safely archived!
-		if ([anurl isFileURL] && [self rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound) return nil;
-		return anurl;
-	}
-	
-	if (length >= 12 && [self rangeOfString:@"mailto:" options:NSAnchoredSearch | NSLiteralSearch].location != NSNotFound)
-		return [NSURL URLWithString:self];
-	
-	if (length >= 5 && [self rangeOfString:@"www." options:NSAnchoredSearch | NSCaseInsensitiveSearch range:NSMakeRange(0, length)].location != NSNotFound) {
-		//if string starts with www., and is long enough to contain one other character, prefix URL with http://
-		return [NSURL URLWithString:[@"http://" stringByAppendingString:self]];
-	}
-	
-	if (length >= 5) {
-		NSUInteger atSignLoc = [self rangeOfString:@"@" options:NSLiteralSearch].location;
-		if (atSignLoc != NSNotFound && atSignLoc > 0) {
-			//if we contain an @, but do not start with one, and have a period somewhere after the @ but not at the end, then make it an email address
-			
-			NSUInteger periodLoc = [self rangeOfString:@"." options:NSLiteralSearch range:NSMakeRange(atSignLoc, length - atSignLoc)].location;
-			if (periodLoc != NSNotFound && periodLoc > atSignLoc + 1 && periodLoc != length - 1) {
-				
-				//make sure it's not some kind of SCP or CVS path
-				if ([self rangeOfString:@":/" options:NSLiteralSearch].location == NSNotFound)
-					return [NSURL URLWithString:[@"mailto:" stringByAppendingString:self]];	
-			}
-		}
-	}
-	
-	return nil;
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc maxTitleLen:(NSUInteger)maxTitleLen {
+	return [self syntheticTitleAndSeparatorWithContext:sepStr bodyLoc:bodyLoc oldTitle:nil maxTitleLen:maxTitleLen];
 }
 
-#define MAX_TITLE_LEN 60
-
-- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle {
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc 
+										  oldTitle:(NSString*)oldTitle maxTitleLen:(NSUInteger)maxTitleLen {
 	
 	//break string into pieces for turning into a note
 	//find the first line, whitespace or no whitespace
 	
-	NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:@"\n\r\t"];
+	NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:
+											  [NSString stringWithFormat:@"\n\r\t%C%C", NSLineSeparatorCharacter, NSParagraphSeparatorCharacter]];
+	
 	NSScanner *scanner = [NSScanner scannerWithString:self];
 	[scanner setCharactersToBeSkipped:[[[NSMutableCharacterSet alloc] init] autorelease]];
 	
 	//skip any blank space before the title; this will not be preserved for round-tripped syncing
 	BOOL didSkipInitialWS = [scanner scanCharactersFromSet:[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:NULL];
 	
-	if ([oldTitle length] > MAX_TITLE_LEN) {
+	if ([oldTitle length] > maxTitleLen) {
 		//break apart the string based on an existing title (if it still matches) that would have been longer than our default truncation limit
 		
 		NSString *contentStartStr = didSkipInitialWS && [scanner scanLocation] < [self length] ? [self substringFromIndex:[scanner scanLocation]] : self;
@@ -352,12 +329,12 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	NSString *firstLine = nil;
 	[scanner scanUpToCharactersFromSet:titleDelimiters intoString:&firstLine];
 	
-	if ([firstLine length] > MAX_TITLE_LEN) {
+	if ([firstLine length] > maxTitleLen) {
 		//what if this title is too long? then we need to break it up and start the body after that
 		NSRange lastSpaceInFirstLine = [firstLine rangeOfString:@" " options: NSBackwardsSearch | NSLiteralSearch
-														  range:NSMakeRange(MAX_TITLE_LEN - 10, 10)];
+														  range:NSMakeRange(maxTitleLen - 10, 10)];
 		if (lastSpaceInFirstLine.location == NSNotFound) {
-			lastSpaceInFirstLine.location = MAX_TITLE_LEN;
+			lastSpaceInFirstLine.location = maxTitleLen;
 		}
 		[scanner setScanLocation:[scanner scanLocation] - ([firstLine length] - lastSpaceInFirstLine.location)];
 		firstLine = [firstLine substringToIndex:lastSpaceInFirstLine.location];
@@ -376,106 +353,9 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 
 - (NSString*)syntheticTitleAndTrimmedBody:(NSString**)newBody {
 	NSUInteger bodyLoc = 0;
-	NSString *title = [self syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc oldTitle:nil];
+	NSString *title = [self syntheticTitleAndSeparatorWithContext:NULL bodyLoc:&bodyLoc maxTitleLen:60];
 	if (newBody) *newBody = [self substringFromIndex:bodyLoc];
 	return title;
-}
-
-- (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)upToWidth {
-	//NSLog(@"gen prev for %@", [[bodyText string] substringToIndex:MIN([bodyText length], 10U)]);
-	
-	NSColor *backgroundColor = [[GlobalPrefs defaultPrefs] notesListBackgroundColor];
-	NSColor *fontColor = [backgroundColor blendedColorWithFraction:0.5f ofColor:[NSColor colorWithCalibratedWhite:0.75 alpha:1.00f]];
-	
-	CGFloat fWhite;
-	CGFloat fAlpha;
-	CGFloat endWhite;
-	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
-	[gBack getWhite:&fWhite alpha:&fAlpha];
-	if (fWhite < 0.5) {
-		endWhite = fWhite + 0.5f;
-		fontColor = [backgroundColor blendedColorWithFraction:0.5f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.70f]];
-	} else {
-		endWhite = fWhite - 0.75f;
-		fontColor = [backgroundColor blendedColorWithFraction:0.5f ofColor:[NSColor colorWithCalibratedWhite:endWhite alpha:0.75f]];
-	}
-
-	static NSMutableParagraphStyle *lineBreaksStyle = nil;
-	static NSDictionary *grayTextAttributes = nil;
-	static NSDictionary *lineTruncAttributes = nil;
-	if (!grayTextAttributes) {
-		lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
-		[lineBreaksStyle setLineBreakMode:NSLineBreakByTruncatingTail];
-
-		grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
-			fontColor, NSForegroundColorAttributeName, nil] retain];
-		lineTruncAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
-								lineBreaksStyle, NSParagraphStyleAttributeName, nil] retain];
-	}
-	
-	NSString *bodyString = [bodyText string];
-	
-	//compute the char count for this note based on the width of the title column and the length of the receiver
-	size_t expectedCharCountToFitInWidth = (size_t)(upToWidth / ([[GlobalPrefs defaultPrefs] tableFontSize] / 2.5f));
-	size_t bodyCharCount = expectedCharCountToFitInWidth - [self length];
-	
-	bodyCharCount = MIN(bodyCharCount, [bodyString length]);
-	
-	
-	//try to get the underlying C-string buffer by copying only part of it
-	//this won't be exact because chars != bytes, but that's alright because it is expected to be further truncated by an NSTextFieldCell
-	CFStringEncoding bodyPreviewEncoding = CFStringGetFastestEncoding((CFStringRef)bodyString);
-	const char * cStrPtr = CFStringGetCStringPtr((CFStringRef)bodyString, bodyPreviewEncoding);
-	char *bodyPreviewBuffer = calloc(bodyCharCount + 1, sizeof(char));
-	CFIndex usedBufLen = bodyCharCount;
-	
-	if (bodyCharCount > 1) {
-		if (cStrPtr && kCFStringEncodingUTF8 != bodyPreviewEncoding && kCFStringEncodingUnicode != bodyPreviewEncoding) {
-			//only attempt to copy the buffer directly if the fastest encoding is not a unicode variant
-			memcpy(bodyPreviewBuffer, cStrPtr, bodyCharCount);
-		} else {
-			bodyPreviewEncoding = kCFStringEncodingUTF8;
-			if ([bodyString length] == bodyCharCount) {
-				//if this is supposed to be the entire string, don't waffle around
-				const char *fullUTF8String = [bodyString UTF8String];
-				if (fullUTF8String) {
-					usedBufLen = bodyCharCount = strlen(fullUTF8String);
-					bodyPreviewBuffer = realloc(bodyPreviewBuffer, bodyCharCount + 1);
-					memcpy(bodyPreviewBuffer, fullUTF8String, bodyCharCount + 1);
-					goto replace;
-				}
-			}
-			if (!CFStringGetBytes((CFStringRef)bodyString, CFRangeMake(0, bodyCharCount), bodyPreviewEncoding, ' ', FALSE, 
-								  (UInt8 *)bodyPreviewBuffer, bodyCharCount + 1, &usedBufLen)) {
-				NSLog(@"can't get utf8 string from note %@ (charcount: %u)", self, bodyCharCount);
-				free(bodyPreviewBuffer);
-				return nil;
-			}
-		}
-	}
-replace:
-	replace_breaks(bodyPreviewBuffer, bodyCharCount);
-	NSString* truncatedBodyString = [[NSString alloc] initWithBytesNoCopy:bodyPreviewBuffer length:usedBufLen 
-																 encoding:CFStringConvertEncodingToNSStringEncoding(bodyPreviewEncoding) freeWhenDone:YES];
-	if (!truncatedBodyString) {
-		free(bodyPreviewBuffer);
-		NSLog(@"can't create cfstring from %@ (cstr: %s/%u/%d) with encoding %u (fastest = %u)", self, bodyPreviewBuffer, bodyCharCount, usedBufLen, bodyPreviewEncoding, CFStringGetFastestEncoding((CFStringRef)bodyString)); 
-		return nil;
-	}
-
-	NSMutableString *unattributedPreview = [self mutableCopy];
-	NSString *delimiter = NSLocalizedString(@" option-shift-dash ", @"title/description delimiter");
-	[unattributedPreview appendString:delimiter];
-	[unattributedPreview appendString:truncatedBodyString];
-	
-	[truncatedBodyString release];
-	
-	NSMutableAttributedString *attributedStringPreview = [[NSMutableAttributedString alloc] initWithString:unattributedPreview attributes:lineTruncAttributes];
-	[attributedStringPreview addAttributes:grayTextAttributes range:NSMakeRange([self length], [unattributedPreview length] - [self length])];
-	
-	[unattributedPreview release];
-	
-	return [attributedStringPreview autorelease];
 }
 
 //the following three methods + function come courtesy of Mike Ferris' TextExtras
@@ -630,20 +510,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return reason;
 }
 
-+ (NSString*)pathWithFSRef:(FSRef*)fsRef {
-	NSString *path = nil;
-	
-	const UInt32 maxPathSize = 8 * 1024;
-	UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
-	if (FSRefMakePath(fsRef, convertedPath, maxPathSize) == noErr) {
-		path = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:(char*)convertedPath length:strlen((char*)convertedPath)];
-	}
-	free(convertedPath);
-	
-	return path;
-}
-
-
 - (BOOL)UTIOfFileConformsToType:(NSString*)type {
 	
 	CFStringRef fileUTI = NULL;
@@ -659,62 +525,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	}
 	return NO;
 }
-
-//TODO: use volumeCapabilities in FSExchangeObjectsCompat.c to skip some work on volumes for which we know we would receive ENOTSUP
-//for +setTextEncodingAttribute:atFSPath: and +textEncodingAttributeOfFSPath: (test against VOL_CAP_INT_EXTENDED_ATTR)
-
-+ (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path {
-	if (!path) return NO;
-	
-	CFStringEncoding cfStringEncoding = CFStringConvertNSStringEncodingToEncoding(encoding);
-	if (cfStringEncoding == kCFStringEncodingInvalidId) {
-		NSLog(@"%s: encoding %lu is invalid!", _cmd, encoding);
-		return NO;
-	}
-	NSString *textEncStr = [(NSString *)CFStringConvertEncodingToIANACharSetName(cfStringEncoding) stringByAppendingFormat:@";%@", 
-							[[NSNumber numberWithInt:cfStringEncoding] stringValue]];
-	const char *textEncUTF8Str = [textEncStr UTF8String];
-	
-	if (setxattr(path, "com.apple.TextEncoding", textEncUTF8Str, strlen(textEncUTF8Str), 0, 0) < 0) {
-		NSLog(@"couldn't set text encoding attribute of %s to '%s': %d", path, textEncUTF8Str, errno);
-		return NO;
-	}
-	return YES;
-}
-
-+ (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path {
-	if (!path) goto errorReturn;
-	
-	//We could query the size of the attribute, but that would require a second system call
-	//and the value for this key shouldn't need to be anywhere near this large, anyway.
-	//It could be, but it probably won't. If it is, then we won't get the encoding. Too bad.
-	char xattrValueBytes[128] = { 0 };
-	if (getxattr(path, "com.apple.TextEncoding", xattrValueBytes, sizeof(xattrValueBytes), 0, 0) < 0) {
-		if (ENOATTR != errno) NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
-		goto errorReturn;
-	}
-	NSString *encodingStr = [NSString stringWithUTF8String:xattrValueBytes];
-	if (!encodingStr) {
-		NSLog(@"couldn't make attribute data from %s into a string", path);
-		goto errorReturn;
-	}
-	NSArray *segs = [encodingStr componentsSeparatedByString:@";"];
-	
-	if ([segs count] >= 2 && [(NSString*)[segs objectAtIndex:1] length] > 1) {
-		return CFStringConvertEncodingToNSStringEncoding([[segs objectAtIndex:1] intValue]);
-	} else if ([(NSString*)[segs objectAtIndex:0] length] > 1) {
-		CFStringEncoding theCFEncoding = CFStringConvertIANACharSetNameToEncoding((CFStringRef)[segs objectAtIndex:0]);
-		if (theCFEncoding == kCFStringEncodingInvalidId) {
-			NSLog(@"couldn't convert IANA charset");
-			goto errorReturn;
-		}
-		return CFStringConvertEncodingToNSStringEncoding(theCFEncoding);
-	}
-	
-errorReturn:
-	return 0;
-}
-
 
 - (CFUUIDBytes)uuidBytes {
 	CFUUIDBytes bytes = {0};
@@ -737,6 +547,33 @@ errorReturn:
 	}
 	
 	return [(NSString*)uuidString autorelease];	
+}
+
+
+- (NSData *)decodeBase64 {
+    return [self decodeBase64WithNewlines:YES];
+}
+
+- (NSData *)decodeBase64WithNewlines:(BOOL)encodedWithNewlines {
+    // Create a memory buffer containing Base64 encoded string data
+    BIO * mem = BIO_new_mem_buf((void *) [self UTF8String], strlen([self UTF8String]));
+    
+    // Push a Base64 filter so that reading from the buffer decodes it
+    BIO * b64 = BIO_new(BIO_f_base64());
+    if (!encodedWithNewlines)
+        BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    mem = BIO_push(b64, mem);
+    
+    // Decode into an NSMutableData
+    NSMutableData * data = [NSMutableData data];
+    char inbuf[512];
+    int inlen;
+    while ((inlen = BIO_read(mem, inbuf, sizeof(inbuf))) > 0)
+        [data appendBytes: inbuf length: inlen];
+    
+    // Clean up and go home
+    BIO_free_all(mem);
+    return data;
 }
 
 @end
@@ -809,9 +646,9 @@ errorReturn:
 		if (!aPath && fsRef && !IsZeros(fsRef, sizeof(FSRef))) {
 			NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
 			if (FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length]) == noErr)
-				extendedAttrsEncoding = [NSString textEncodingAttributeOfFSPath:[pathData bytes]];
+				extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:[pathData bytes]];
 		} else if (aPath) {
-			extendedAttrsEncoding = [NSString textEncodingAttributeOfFSPath:aPath];
+			extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:aPath];
 		}
 		if (extendedAttrsEncoding) AddIfUnique(extendedAttrsEncoding);
 	}
@@ -871,6 +708,36 @@ errorReturn:
 	//location of _following_ string (usually the body of a note) will now be [self scanLocation]
 }
 
+
+@end
+
+@implementation NSCharacterSet (NV)
+
++ (NSCharacterSet*)labelSeparatorCharacterSet {
+	static NSMutableCharacterSet *charSet = nil;
+	if (!charSet) {
+		charSet = [[NSMutableCharacterSet whitespaceCharacterSet] retain];
+		[charSet formUnionWithCharacterSet:[NSCharacterSet characterSetWithCharactersInString:@",;"]];
+	}
+
+	return charSet;
+}
+
++ (NSCharacterSet*)listBulletsCharacterSet {
+	static NSCharacterSet *charSet = nil;
+	if (!charSet) {
+		charSet = [[NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"-+*!%C%C%C", 0x2022, 0x2014, 0x2013]] retain];
+	}
+	
+	return charSet;
+	
+}
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
++ (id)newlineCharacterSet {
+	return [NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"%C%C%C",0x000A,0x000D,0x0085]];
+}
+#endif
 
 @end
 

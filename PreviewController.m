@@ -11,6 +11,10 @@
 #import "NSString_MultiMarkdown.h"
 #import "NSString_Markdown.h"
 #import "NSString_Textile.h"
+#import "NoteObject.h"
+#import "ETTransparentButtonCell.h"
+#import "ETTransparentButton.h"
+#import "BTTransparentScroller.h"
 
 #define kDefaultMarkupPreviewVisible @"markupPreviewVisible"
 
@@ -45,6 +49,7 @@
 
 @synthesize preview;
 @synthesize isPreviewOutdated;
+@synthesize isPreviewSticky;
 
 +(void)initialize
 {
@@ -58,14 +63,87 @@
 {
     if ((self = [super initWithWindowNibName:@"MarkupPreview" owner:self])) {
         self.isPreviewOutdated = YES;
+        self.isPreviewSticky = NO;
         [[self class] createCustomFiles];
         BOOL showPreviewWindow = [[NSUserDefaults standardUserDefaults] boolForKey:kDefaultMarkupPreviewVisible];
         if (showPreviewWindow) {
             [[self window] orderFront:self];
         }
-		[sourceView setTextContainerInset:NSMakeSize(20,20)];
-		[tabView selectTabViewItem:[tabView tabViewItemAtIndex:0]];
-		[tabSwitcher setTitle:@"View Source"];
+        
+        NSRect shCon = [[[self window] contentView]visibleRect];
+        shCon.origin.x +=20;
+        shCon.origin.y -= 2;
+        shCon.size.width = 99;
+        shCon.size.height = 28;        
+//        tabSwitcher = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+//        shCon.origin.x = [[[self window] contentView]visibleRect].origin.x + [[[self window] contentView]visibleRect].size.width - 80;
+//        shCon.size.width = 56;
+//        saveButton = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+//        shCon.origin.x -= 65;
+//        shareButton = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+//        shCon.origin.x -= 65;
+//        stickyPreviewButton = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+//        shCon.origin.x -= 65;
+//        printPreviewButton = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+//        [tabSwitcher setTitle:@"View Source"];        
+//        [tabSwitcher setTarget:self];
+//        [tabSwitcher setAction:@selector(switchTabs:)];
+//        [tabSwitcher setAutoresizingMask:NSViewMaxXMargin];
+//        [shareButton setTitle:@"Share"];
+//        [shareButton setToolTip:@"Make this note available to the public on Peg.gd"];
+//        [shareButton setTarget:self];
+//        [shareButton setAction:@selector(shareAsk:)];
+//        [shareButton setAutoresizingMask:NSViewMinXMargin];
+//        [saveButton setTitle:@"Save"];
+//        [saveButton setToolTip:@"Save the current preview as an HTML file"];
+//        [saveButton setTarget:self];
+//        [saveButton setAction:@selector(saveHTML:)];
+//        [saveButton setAutoresizingMask:NSViewMinXMargin];        
+//        [stickyPreviewButton setTitle:@"Stick"];
+//        [stickyPreviewButton setToolTip:@"Maintain current note in Preview, even if you switch to other notes."];
+//        [stickyPreviewButton setTarget:self];
+//        [stickyPreviewButton setAction:@selector(makePreviewSticky:)];
+//        [stickyPreviewButton setAutoresizingMask:NSViewMinXMargin];
+//        [printPreviewButton setTitle:@"Print"];
+//        [printPreviewButton setToolTip:@"Print to Printer or PDF."];
+//        [printPreviewButton setTarget:self];
+//        [printPreviewButton setAction:@selector(printPreview:)];
+//        [printPreviewButton setAutoresizingMask:NSViewMinXMargin];
+//        [[[self window] contentView] addSubview:tabSwitcher];
+//        [[[self window] contentView] addSubview:shareButton];
+//        [[[self window] contentView] addSubview:saveButton];       
+//        [[[self window] contentView] addSubview:stickyPreviewButton];
+//        [[[self window] contentView] addSubview:printPreviewButton];
+        [tabView selectTabViewItem:[tabView tabViewItemAtIndex:0]];   
+        
+        shCon = [shareConfirmation visibleRect];
+        shCon.origin.x = shCon.size.width - 106;
+        shCon.origin.y = 1;
+        shCon.size.width = 81;
+        shCon.size.height = 28;        
+        shareConfirm = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+        shCon.origin.x = [shareConfirmation visibleRect].origin.x + 25;
+        shareCancel = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+        [shareConfirm setTitle:@"Yes"];
+        [shareConfirm setTarget:self];
+        [shareConfirm setAction:@selector(shareNote:)];
+        [shareCancel setTitle:@"No, thanks"];
+        [shareCancel setTarget:self];
+        [shareCancel setAction:@selector(cancelShare:)];        
+        [shareConfirmation addSubview:shareCancel];
+        [shareConfirmation addSubview:shareConfirm];
+        
+        shCon = [shareNotification visibleRect];
+        shCon.size.width = 116;
+        shCon.size.height = 28;
+        shCon.origin.x = 70;
+        viewOnWebButton = [[[ETTransparentButton alloc]initWithFrame:shCon] retain];
+        [viewOnWebButton setTitle:@"View in Browser"];
+        [viewOnWebButton setTarget:self];
+        [viewOnWebButton setAction:@selector(openShareURL:)];
+        [shareNotification addSubview:viewOnWebButton];      
+       // [[[self window] contentView] setNeedsDisplay:YES];  
+        
 //		[preview setPolicyDelegate:self];
 //		[preview setUIDelegate:self];
     }
@@ -73,11 +151,16 @@
 }
 
 -(void)awakeFromNib
-{
-	AppController *app = [[NSApplication sharedApplication] delegate];;
+{    
 	cssString = [[[self class] css] retain];
     htmlString = [[[self class] html] retain];
-	lastNote = [app selectedNoteObject];
+	lastNote = [[NSApp delegate] selectedNoteObject];
+    [sourceView setTextContainerInset:NSMakeSize(10.0,12.0)];
+    if (!IsLionOrLater) {
+        //  ETTransparentScroller *tScroll = [[[ETTransparentScroller alloc]init] retain];
+        [[sourceView enclosingScrollView] setVerticalScroller:[[BTTransparentScroller alloc]init]];
+        //  [tScroll release];
+    }
 }
 
 //this returns a nice name for the method in the JavaScript environment
@@ -135,36 +218,46 @@
         self.isPreviewOutdated = YES;
         return;
     }
+  
+    if (self.isPreviewSticky) {
+      return;
+    }
     
     AppController *app = [notification object];
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(preview:) object:app];
     
-    [self performSelector:@selector(preview:) withObject:app afterDelay:0.5];
+    [self performSelector:@selector(preview:) withObject:app afterDelay:0.3];
+}
+
+- (BOOL)previewIsVisible{
+	return [[self window] isVisible];
 }
 
 -(void)togglePreview:(id)sender
 {
+	
     NSWindow *wnd = [self window];
-    
     if ([wnd isVisible]) {
-		if (attachedWindow) {
-			[[shareButton window] removeChildWindow:attachedWindow];
-			[attachedWindow orderOut:self];
-			[attachedWindow release];
-			attachedWindow = nil;
-			[shareURL release];
-		}
-        [wnd orderOut:self];
+      if (attachedWindow) {
+        [[shareButton window] removeChildWindow:attachedWindow];
+        [attachedWindow orderOut:self];
+        [attachedWindow release];
+        attachedWindow = nil;
+        [shareURL release];
+      }
+//      // TODO: should the "stuck" note remain stuck when preview is closed?
+//      if (self.isPreviewSticky)
+//        [self makePreviewNotSticky:self];
+      [wnd orderOut:self];
     } else {
-        if (self.isPreviewOutdated) {
-            // TODO high coupling; too many assumptions on architecture:
-            [self performSelector:@selector(preview:) withObject:[[NSApplication sharedApplication] delegate] afterDelay:0.0];
-        }
-		[tabView selectTabViewItem:[tabView tabViewItemAtIndex:0]];
-		[tabSwitcher setTitle:@"View Source"];
+      if (self.isPreviewOutdated) {
+          // TODO high coupling; too many assumptions on architecture:
+          [self performSelector:@selector(preview:) withObject:[[NSApplication sharedApplication] delegate] afterDelay:0.0];
+      }
+      [tabView selectTabViewItem:[tabView tabViewItemAtIndex:0]];
+      [tabSwitcher setTitle:@"View Source"];
 
-        [wnd orderFront:self];
-		[wnd setLevel:NSScreenSaverWindowLevel];
+      [wnd orderFront:self];
     }
     
     // save visibility to defaults
@@ -176,6 +269,8 @@
 {
 	[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithBool:NO]
                                               forKey:kDefaultMarkupPreviewVisible];
+	NSMenu *previewMenu = [[[NSApp mainMenu] itemWithTitle:@"Preview"] submenu];
+	[[previewMenu itemWithTitle:@"Toggle Preview Window"]setState:0];
 }
 
 +(NSString*)css {
@@ -213,12 +308,15 @@
 
 -(void)preview:(id)object
 {
+	if (self.isPreviewSticky) {
+    return;
+  }
 	NSString *lastScrollPosition = [[preview windowScriptObject] evaluateWebScript:@"document.getElementById('contentdiv').scrollTop"];
 	AppController *app = object;
 	NSString *rawString = [app noteContent];
 	SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
 	NSString *processedString = [NSString performSelector:mode withObject:rawString];
-	NSString *previewString = processedString;
+  NSString *previewString = processedString;
 	NSMutableString *outputString = [NSMutableString stringWithString:(NSString *)htmlString];
 	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
 	
@@ -273,7 +371,7 @@
 	}
 	if ([fileManager fileExistsAtPath:cssFile] == NO)
 	{
-		NSString *cssString = @"body,p,td,div { font-family:Helvetica,Arial,sans-serif;line-height:1.4em;font-size:14px;color:#111; }\np { margin:0 0 1.7em 0; }\na { color:rgb(13,110,161);text-decoration:none;-webkit-transition:color .2s ease-in-out; }\na:hover { color:#3593d9; }\nh1.doctitle { background:#eee;font-size:14px;font-weight:bold;color:#333;line-height:25px;margin:0;padding:0 10px;border-bottom:solid 1px #aaa; }\nh1 { font-size:24px;color:#000;margin:12px 0 15px 0; }\nh2 { font-size:20px;color:#111;width:auto;margin:15px 0 10px 2px; }\nh2 em { line-height:1.6em;font-size:12px;color:#111;text-shadow:0 1px 0 #FFF;padding-left:10px; }\nh3 { font-size:20px;color:#111; }\nh4 { font-size:14px;color:#111;margin-bottom:1.3em; }\n.footnote { font-size:.8em;vertical-align:super;color:rgb(13,110,161); }\n#wrapper { background:#fff;position:fixed;top:0;left:0;right:0;bottom:0;-webkit-box-shadow:inset 0px 0px 4px #8F8D87; }\n#contentdiv { position:fixed;top:27px;left:5px;right:5px;bottom:5px;background:transparent;color:#303030;overflow:auto;text-indent:0px;padding:10px; }\n#contentdiv::-webkit-scrollbar { width:6px; }\n#contentdiv::-webkit-scrollbar:horizontal { height:6px;display:none; }\n#contentdiv::-webkit-scrollbar-track { background:transparent;-webkit-border-radius:0;right:10px; }\n#contentdiv::-webkit-scrollbar-track:disabled { display:none; }\n#contentdiv::-webkit-scrollbar-thumb { border-width:0;min-height:20px;background:#777;opacity:0.4;-webkit-border-radius:5px; }";
+		NSString *cssString = @"body,p,td,div { font-family:Helvetica,Arial,sans-serif;line-height:1.4em;font-size:14px;color:#111; }\np { margin:0 0 1.7em 0; }\na { color:rgb(13,110,161);text-decoration:none;-webkit-transition:color .2s ease-in-out; }\na:hover { color:#3593d9; }\nh1.doctitle { background:#eee;font-size:14px;font-weight:bold;color:#333;line-height:28px;margin:0;padding:0 10px;border-bottom:solid 1px #aaa;white-space:nowrap; }\nh1,h2,h3,h4,h5 {line-height:1.1em;}\nh1 { font-size:24px;color:#000;margin:12px 0 15px 0; }\nh2 { font-size:20px;color:#111;width:auto;margin:15px 0 10px 2px; }\nh2 em { line-height:1.6em;font-size:12px;color:#111;text-shadow:0 1px 0 #FFF;padding-left:10px; }\nh3 { font-size:20px;color:#111; }\nh4 { font-size:14px;color:#111;margin-bottom:1.3em; }\n.footnote { font-size:.8em;vertical-align:super;color:rgb(13,110,161); }\n#contentdiv img {max-width:100%;}\n@media print {\nbody {overflow: auto;}\n#wrapper { background:#fff;position:relative; }\n#contentdiv { position:relative;background:transparent;color:#303030;text-indent:0px;padding:10px; }\n}\n@media screen {\nbody {overflow: hidden;}  \n#wrapper { background:#fff;position:fixed;top:0;left:0;right:0;bottom:0;-webkit-box-shadow:inset 0px 0px 4px #8F8D87; }\n#contentdiv { position:fixed;top:27px;left:5px;right:5px;bottom:5px;background:transparent;color:#303030;overflow:auto;text-indent:0px;padding:10px; }\n#contentdiv::-webkit-scrollbar { width:6px; }\n#contentdiv::-webkit-scrollbar:horizontal { height:6px;display:none; }\n#contentdiv::-webkit-scrollbar-track { background:transparent;-webkit-border-radius:0;right:10px; }\n#contentdiv::-webkit-scrollbar-track:disabled { display:none; }\n#contentdiv::-webkit-scrollbar-thumb { border-width:0;min-height:20px;background:#777;opacity:0.4;-webkit-border-radius:5px; }\n}\nli>p {margin:0 0 1em;}\nul ul,ul ol {margin-bottom:1em;}\npre {white-space:pre-wrap;white-space:pre-line;}";
 		
 		NSData *cssData = [NSData dataWithBytes:[cssString UTF8String] length:[cssString length]];
 		[fileManager createFileAtPath:cssFile contents:cssData attributes:nil];
@@ -298,28 +396,60 @@
 	return [result autorelease];
 }
 
+-(IBAction)makePreviewSticky:(id)sender
+{
+  self.isPreviewSticky = YES;
+  [[preview window] setTitle:@"Locked"];
+  [stickyPreviewButton setToolTip:@"Return the preview to normal functionality."];
+  [stickyPreviewButton setAction:@selector(makePreviewNotSticky:)];
+  [shareButton setEnabled:NO];
+  [saveButton setEnabled:NO];
+  [[self window] setHidesOnDeactivate:NO];
+}
+
+-(IBAction)makePreviewNotSticky:(id)sender
+{
+  self.isPreviewSticky = NO;
+  [[preview window] setTitle:@"Preview"];
+  [stickyPreviewButton setToolTip:@"Maintain current note in Preview, even if you switch to other notes."];
+  [stickyPreviewButton setAction:@selector(makePreviewSticky:)];
+  [shareButton setEnabled:YES];
+  [saveButton setEnabled:YES];
+  self.isPreviewOutdated = YES;
+  [self performSelector:@selector(preview:) withObject:[[NSApplication sharedApplication] delegate] afterDelay:0.0];
+  [[self window] setHidesOnDeactivate:YES];
+}
+
+-(IBAction)printPreview:(id)sender
+{
+  NSPrintInfo* printInfo = [NSPrintInfo sharedPrintInfo];
+    
+  [printInfo setHorizontallyCentered:YES];
+  [printInfo setVerticallyCentered:NO];
+  [[[[preview mainFrame] frameView] documentView] print:nil];
+}
 
 -(IBAction)shareNote:(id)sender
 {
-    AppController *app = [[NSApplication sharedApplication] delegate];
+  AppController *app = [NSApp delegate];
 	NSString *noteTitle = [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])];
-    NSString *rawString = [app noteContent];
-    SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
-    NSString *processedString = [NSString performSelector:mode withObject:rawString];
+  NSString *rawString = [app noteContent];
+  SEL mode = [self markupProcessorSelector:[app currentPreviewMode]];
+  NSString *processedString = [NSString performSelector:mode withObject:rawString];
 	
 	
 	NSMutableURLRequest *request = [[NSMutableURLRequest alloc] 
-                                    initWithURL:
-                                    [NSURL URLWithString:@"http://peg.gd/nvapi.php"]];
-    [request setHTTPMethod:@"POST"];
-    [request addValue:@"8bit" forHTTPHeaderField:@"Content-Transfer-Encoding"];
-    [request addValue: [NSString stringWithFormat:@"multipart/form-data; boundary=%@",[NSString MIMEBoundary]] forHTTPHeaderField: @"Content-Type"];
-    NSDictionary* postData = [NSDictionary dictionaryWithObjectsAndKeys:
-							  @"8c4205ec33d8f6caeaaaa0c10a14138c", @"key",
-							  noteTitle, @"title",
-							  processedString, @"body",
-							  nil];
-    [request setHTTPBody: [[NSString multipartMIMEStringWithDictionary: postData] dataUsingEncoding: NSUTF8StringEncoding]];
+                                  initWithURL:
+                                  [NSURL URLWithString:@"http://peg.gd/nvapi.php"]];
+  [request setHTTPMethod:@"POST"];
+  [request addValue:@"8bit" forHTTPHeaderField:@"Content-Transfer-Encoding"];
+  [request addValue: [NSString stringWithFormat:@"multipart/form-data; boundary=%@",[NSString MIMEBoundary]] forHTTPHeaderField: @"Content-Type"];
+  NSDictionary* postData = [NSDictionary dictionaryWithObjectsAndKeys:
+                            @"8c4205ec33d8f6caeaaaa0c10a14138c", @"key",
+                            noteTitle, @"title",
+                            processedString, @"body",
+                            nil];
+  [request setHTTPBody: [[NSString multipartMIMEStringWithDictionary: postData] dataUsingEncoding: NSUTF8StringEncoding]];
 	NSHTTPURLResponse * response = nil;
 	NSError * error = nil;
 	NSData * responseData = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:&error];
@@ -332,7 +462,7 @@
 	} else {
 		[self showShareURL:@"Error connecting" isError:YES];
 	}
-
+  
 	[request release];
 	
 }
@@ -363,7 +493,7 @@
 		AppController *app = [[NSApplication sharedApplication] delegate];
 		NSString *rawString = [app noteContent];
 		NSString *processedString = [[NSString alloc] init];
-
+		
 		if ([app currentPreviewMode] == MarkdownPreview) {
 			processedString = [NSString stringWithProcessedMarkdown:rawString];
 		} else if ([app currentPreviewMode] == MultiMarkdownPreview) {
@@ -371,11 +501,10 @@
 		} else if ([app currentPreviewMode] == TextilePreview) {
 			processedString = ( [includeTemplate state] == NSOnState ) ? [NSString documentWithProcessedTextile:rawString] : [NSString xhtmlWithProcessedTextile:rawString];
 		}
-
-        NSURL *file = [sheet URL];
-        NSError *error;
-        [processedString writeToURL:file atomically:YES encoding:NSUTF8StringEncoding error:&error];
-    }
+    NSURL *file = [sheet URL];
+    NSError *error;
+    [processedString writeToURL:file atomically:YES encoding:NSUTF8StringEncoding error:&error];
+  }
 }
 
 -(IBAction)saveHTML:(id)sender
@@ -386,23 +515,38 @@
 			NSBeep();
 			return;
 		}
+
 	}
-    // TODO high coupling; too many assumptions on architecture:
-    AppController *app = [[NSApplication sharedApplication] delegate];
+	// TODO high coupling; too many assumptions on architecture:
+	AppController *app = [NSApp delegate];
 	
-    NSSavePanel *savePanel = [NSSavePanel savePanel];
+	NSSavePanel *savePanel = [NSSavePanel savePanel];
 	[savePanel setAccessoryView:accessoryView];
 	[savePanel setCanCreateDirectories:YES];
 	[savePanel setCanSelectHiddenExtension:YES];
 	
-    NSArray *fileTypes = [[NSArray alloc] initWithObjects:@"html",@"xhtml",@"htm",nil];
-    [savePanel setAllowedFileTypes:fileTypes];
+	NSArray *fileTypes = [[NSArray alloc] initWithObjects:@"html",@"xhtml",@"htm",nil];
+	[savePanel setAllowedFileTypes:fileTypes];
 
+  
+  NSString *rawString = [app noteContent];
+  NSString *xhtmlOutput = [NSString xhtmlWithProcessedMultiMarkdown:rawString];
+  if ([xhtmlOutput hasPrefix:@"<?xml version="]) {
+    [includeTemplate setState:0];
+    [includeTemplate setEnabled:NO];
+    [templateNote setStringValue:@"Template embed unavailable because your note will render as a full XHTML document"];
+  } else {
+    [includeTemplate setEnabled:YES];
+    [templateNote setStringValue:@"Select this to embed the ouput within your current preview HTML and CSS"];
+  }
+  
 	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
-    [savePanel beginSheetForDirectory:nil file:noteTitle modalForWindow:[self window] modalDelegate:self 
+	[savePanel beginSheetForDirectory:nil file:noteTitle modalForWindow:[self window] modalDelegate:self 
 					   didEndSelector:@selector(savePanelDidEnd:returnCode:contextInfo:) contextInfo:nil];
-    
-    [fileTypes release];
+
+  
+	[fileTypes release];
+	
 }
 
 -(IBAction)switchTabs:(id)sender
@@ -413,7 +557,7 @@
 		[tabSwitcher setTitle:@"View Preview"];
 		[tabView selectTabViewItem:[tabView tabViewItemAtIndex:1]];
 	} else {
-		[tabSwitcher setTitle:@"View Source"];
+		[tabSwitcher setTitle:@"View Source"];        
 		[tabView selectTabViewItem:[tabView tabViewItemAtIndex:0]];
 	}
 }
@@ -490,7 +634,8 @@
 		[pb declareTypes:types owner:self];
 		[pb setString:shareURL forType:NSStringPboardType];
 		[urlTextField setHidden:NO];
-		[viewOnWebButton setTitle:url];		
+        [urlTextField setStringValue:[@"Copied " stringByAppendingString:[shareURL stringByAppendingString:@" to clipboard"]]];
+		//[viewOnWebButton setTitle:url];		
 	}
 
 
@@ -529,10 +674,16 @@
 }
 
 - (void)dealloc {
-    [htmlString release];
-	[cssString release];
-	[lastNote release];
-	[super dealloc];
+  [htmlString release];
+  [cssString release];
+  [lastNote release];
+  [shareButton release];
+  [saveButton release];
+  [tabSwitcher release];
+  [viewOnWebButton release];
+  [shareCancel release];
+  [shareConfirm release];
+  [super dealloc];
 }
 
 @end

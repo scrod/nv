@@ -1,0 +1,97 @@
+{\rtf1\ansi\ansicpg1252\cocoartf949\cocoasubrtf540
+\readonlydoc1{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww6880\viewh9280\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f0\fs24 \cf0 \CocoaLigature0 In the order of most to least useful:\
+\
+
+\f1 \uc0\u8984 
+\f0  L		Place insertion point in search/title area\
+Escape	Clear current search\
+Return	Begin editing note, creating it if necessary\
+Tab		Move insertion point between text areas\
+
+\f1 \uc0\u8984 
+\f0  K		Select previous note in list\
+
+\f1 \uc0\u8984 
+\f0  J		Select next note in list\
+
+\f1 \uc0\u8984 
+\f0  D		De-select current note, restoring the search text\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  V	Paste clipboard as a new note\
+
+\f1 \uc0\u8984 
+\f0  R		Rename the selected note\
+\pard\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f1 \cf0 \uc0\u8984 
+\f0  
+\f1 \uc0\u9003 	
+\f0 Delete the selected note(s)\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f1 \cf0 \uc0\u8984 
+\f0  G		Find next occurrence of search text\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  G	Find previous occurrence of search text\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8617 
+\f0 		Open any URL under the insertion point\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8592 
+\f0 		Move to title-editing when at start of the note-body\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8594 
+\f0 		Move to the note-body when at the end of a title\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  D	Bookmark the selected note\
+
+\f1 \uc0\u8984 
+\f0  P		Print the selected note(s)\
+
+\f1 \uc0\u8984 
+\f0  E		Export the selected note(s) to other formats\
+\
+Text formatting shortcuts:\
+\
+
+\f1 \uc0\u8984 
+\f0  [		(left square bracket) Outdent one or more lines\
+
+\f1 \uc0\u8984 
+\f0  ]		(right square bracket) Indent one or more lines\
+
+\f1 \uc0\u8997 
+\f0  Tab	Indent\
+
+\f1 \uc0\u8984 
+\f0  T		Make text plain; remove styles\
+
+\f1 \uc0\u8984 
+\f0  B		Embolden\
+
+\f1 \uc0\u8984 
+\f0  I		Italicize\
+
+\f1 \uc0\u8984 
+\f0  U		Underline\
+}

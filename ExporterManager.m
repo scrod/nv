@@ -28,10 +28,7 @@
 - (void)awakeFromNib {
 	
 	int storageFormat = [[[GlobalPrefs defaultPrefs] notationPrefs] notesStorageFormat];
-	int itemIndex = [formatSelectorPopup indexOfItemWithTag:storageFormat];
-	
-	if (itemIndex > -1)
-		[formatSelectorPopup selectItemAtIndex:itemIndex];
+	[formatSelectorPopup selectItemWithTag:storageFormat];
 }
 
 - (IBAction)formatSelectorChanged:(id)sender {

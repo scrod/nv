@@ -15,33 +15,31 @@
 #import <Cocoa/Cocoa.h>
 
 @class NotesTableView;
-
+/*
 @interface NoteTableHeaderCell : NSTableHeaderCell {
-	NSImage *metalBg;
-	NSMutableDictionary *attrs;
+	
 }
 
 @end
-
+*/
 @interface NoteAttributeColumn : NSTableColumn {
 	
     NSInteger (*sortFunction) (id*, id*);
     NSInteger (*reverseSortFunction) (id*, id*);
-    id (*objectAttribute) (id, id);
-    SEL mutateObjectSelector;
-	
+    id (*objectAttribute) (id, id, NSInteger);
+	SEL mutateObjectSelector;
 	float absoluteMinimumWidth;
 }
 
 + (NSDictionary*)standardDictionary;
 SEL columnAttributeMutator(NoteAttributeColumn *col);
 - (void)setMutatingSelector:(SEL)selector;
-id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object);
+id columnAttributeForObject(NotesTableView *tv, NoteAttributeColumn *col, id object, NSInteger row);
 - (void)updateWidthForHighlight;
 
-id (*dereferencingFunction(NoteAttributeColumn *col))(id, id);
-- (void)setDereferencingFunction:(id (*)(id, id))attributeFunction;
 
+id (*dereferencingFunction(NoteAttributeColumn *col))(id, id, NSInteger);
+- (void)setDereferencingFunction:(id (*)(id, id, NSInteger))attributeFunction;
 - (void)setSortingFunction:(NSInteger (*)(id*, id*))sortFunction;
 - (NSInteger (*)(id*, id*))sortFunction;
 - (void)setReverseSortingFunction:(NSInteger (*)(id*, id*))aFunction;

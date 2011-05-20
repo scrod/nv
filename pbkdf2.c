@@ -21,8 +21,8 @@ int pbkdf2_sha1(const char *password, size_t Plen, const char *salt, size_t Slen
 	if (!c || !dkLen || dkLen > 4294967295U)
 		return 0;
 	
-	l = ((dkLen - 1) / hLen) + 1;
-	r = dkLen - (l - 1) * hLen;
+	l = (((int)dkLen - 1) / hLen) + 1;
+	r = (int)dkLen - (l - 1) * hLen;
 	
 	if (!(tmp = (char*)malloc(tmplen)))
 		return 0;

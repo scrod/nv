@@ -19,6 +19,7 @@
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "NoteObject.h"
 #import "BufferUtils.h"
 
@@ -42,19 +43,22 @@
 @implementation NSMutableDictionary (FontTraits)
 
 - (void)addDesiredAttributesFromDictionary:(NSDictionary*)dict {
-	id underlineStyle = [dict objectForKey:NSUnderlineStyleAttributeName];
+	id strikethroughStyle = [dict objectForKey:NSStrikethroughStyleAttributeName];
+	id hiddenDoneTagStyle = [dict objectForKey:NVHiddenDoneTagAttributeName];
 	id strokeWidthStyle = [dict objectForKey:NSStrokeWidthAttributeName];
 	id obliquenessStyle = [dict objectForKey:NSObliquenessAttributeName];
 	id linkStyle = [dict objectForKey:NSLinkAttributeName];
 	
 	if (linkStyle)
 		[self setObject:linkStyle forKey:NSLinkAttributeName];
-	if (underlineStyle)
-		[self setObject:underlineStyle forKey:NSUnderlineStyleAttributeName];
+	if (strikethroughStyle)
+		[self setObject:[NSNumber numberWithInt:NSUnderlineStyleSingle] forKey:NSStrikethroughStyleAttributeName];
 	if (strokeWidthStyle)
 		[self setObject:strokeWidthStyle forKey:NSStrokeWidthAttributeName];
 	if (obliquenessStyle)
 		[self setObject:obliquenessStyle forKey:NSObliquenessAttributeName];
+	if (hiddenDoneTagStyle)
+		[self setObject:hiddenDoneTagStyle forKey:NVHiddenDoneTagAttributeName];
 }
 
 - (void)applyStyleInverted:(BOOL)opposite trait:(NSFontTraitMask)trait forFont:(NSFont*)font 
@@ -80,7 +84,11 @@
 
 @end
 
-@implementation NSDictionary (URLEncoding)
+@implementation NSDictionary (HTTP)
+
++ (NSDictionary*)optionsDictionaryWithTimeout:(float)timeout {
+	return [NSDictionary dictionaryWithObject:[NSNumber numberWithFloat:timeout] forKey:NSTimeoutDocumentOption];
+}
 
 - (NSString*)URLEncodedString {
 	
@@ -135,6 +143,7 @@
     
     return NSNotFound;
 }
+
 
 #if 0
 - (NSRange)nextRangeForString:(NSString*)string activeNote:(NoteObject*)startNote options:(unsigned)opts range:(NSRange)inRange {
@@ -224,7 +233,7 @@
 - (void)sortStableUsingFunction:(NSInteger (*)(id *, id *))compare usingBuffer:(id **)buffer ofSize:(unsigned int*)bufSize {
 	CFIndex count = CFArrayGetCount((CFArrayRef)self);
 	
-	ResizeBuffer((void***)buffer, count, bufSize);
+	ResizeArray(buffer, count, bufSize);
 	
 	CFArrayGetValues((CFArrayRef)self, CFRangeMake(0, [self count]), (const void **)*buffer);
 	

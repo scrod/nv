@@ -124,13 +124,16 @@
 - (void)tableView:(NSTableView *)aTableView setObjectValue:(id)anObject 
    forTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	
-	[objects[rowIndex] performSelector:columnAttributeMutator((NoteAttributeColumn*)aTableColumn) withObject:anObject];
+	//allow the tableview to override the selector destination for this object value
+	SEL colAttributeMutator = [(NotesTableView*)aTableView attributeSetterForColumn:(NoteAttributeColumn*)aTableColumn];
+	
+	[objects[rowIndex] performSelector:colAttributeMutator ? colAttributeMutator : columnAttributeMutator((NoteAttributeColumn*)aTableColumn) withObject:anObject];
 }
 
 
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 	
-	return columnAttributeForObject((NotesTableView*)aTableView, (NoteAttributeColumn*)aTableColumn, objects[rowIndex]);
+	return columnAttributeForObject((NotesTableView*)aTableView, (NoteAttributeColumn*)aTableColumn, objects[rowIndex], rowIndex);
 }
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {

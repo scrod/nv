@@ -22,7 +22,6 @@
 
 unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime);
 void resetCurrentDayTime();
-- (NSMutableSet*)labelSetFromWordsAndContainingNote:(NoteObject*)note;
 + (NSString*)relativeTimeStringWithDate:(CFDateRef)date relativeDay:(int)day;
 + (NSString*)relativeDateStringWithAbsoluteTime:(CFAbsoluteTime)absTime;
 CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
@@ -35,13 +34,13 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString;
 #endif
-+ (NSString*)pathCopiedFromAliasData:(NSData*)aliasData;
 - (NSString*)fourCharTypeString;
+- (BOOL)isAMachineDirective;
 - (void)copyItemToPasteboard:(id)sender;
-- (NSURL*)linkForWord;
-- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc oldTitle:(NSString*)oldTitle;
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc maxTitleLen:(NSUInteger)maxTitleLen;
+- (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc 
+										  oldTitle:(NSString*)oldTitle maxTitleLen:(NSUInteger)maxTitleLen;
 - (NSString*)syntheticTitleAndTrimmedBody:(NSString**)newBody;
-- (NSAttributedString*)attributedPreviewFromBodyText:(NSAttributedString*)bodyText upToWidth:(float)width;
 + (NSString *)tabbifiedStringWithNumberOfSpaces:(unsigned)origNumSpaces tabWidth:(unsigned)tabWidth usesTabs:(BOOL)usesTabs;
 - (unsigned)numberOfLeadingSpacesFromRange:(NSRange*)range tabWidth:(unsigned)tabWidth;
 
@@ -51,16 +50,18 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 - (const char*)lowercaseUTF8String;
 - (NSString*)stringWithPercentEscapes;
 - (NSString *)stringByReplacingPercentEscapes;
+- (BOOL)superficiallyResemblesAnHTTPURL;
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err;
-+ (NSString*)pathWithFSRef:(FSRef*)fsRef;
+
+- (NSArray*)labelCompatibleWords;
 
 - (BOOL)UTIOfFileConformsToType:(NSString*)type;
 
-+ (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path;
-+ (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path;
-
 - (CFUUIDBytes)uuidBytes;
 + (NSString*)uuidStringWithBytes:(CFUUIDBytes)bytes;
+
+- (NSData *)decodeBase64;
+- (NSData *)decodeBase64WithNewlines:(BOOL)encodedWithNewlines;
 
 //- (NSTextView*)textViewWithFrame:(NSRect*)theFrame;
 
@@ -76,6 +77,18 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 @interface NSScanner (NV)
 - (void)scanContextualSeparator:(NSString**)sepStr withPrecedingString:(NSString*)firstLine;
 @end
+
+@interface NSCharacterSet (NV)
+
++ (NSCharacterSet*)labelSeparatorCharacterSet;
++ (NSCharacterSet*)listBulletsCharacterSet;
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
++ (id)newlineCharacterSet;
+#endif
+
+@end
+
 
 @interface NSEvent (NV)
 - (unichar)firstCharacter;

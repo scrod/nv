@@ -1,0 +1,20 @@
+{\rtf1\ansi\ansicpg1252\cocoartf949\cocoasubrtf540
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww9000\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs24 \cf0 \CocoaLigature0 Welcome to Notational Velocity!\
+\
+This is the body of a note. Your notes can be as long or as short as you want, and you can 
+\b embolden
+\b0 , 
+\i italicize
+\i0 , or \ul underline\ulnone  them. \
+\
+You can create as many notes as you want--NV can hold thousands of them and works best when information is distributed.\
+\
+If you enable encryption (Preferences > Notes > Security) you can even store passwords and other sensitive information without giving a second thought to computer forensics laboratories.\
+\
+
+\i These notes were included to get you started with Notational Velocity. You may delete them at any time.}

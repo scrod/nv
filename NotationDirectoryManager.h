@@ -25,7 +25,9 @@
 NSInteger compareCatalogEntryName(const void *one, const void *two);
 NSInteger compareCatalogValueNodeID(id *a, id *b);
 NSInteger compareCatalogValueFileSize(id *a, id *b);
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription);
+#endif
 
 - (NSSet*)notesWithFilenames:(NSArray*)filenames unknownFiles:(NSArray**)unknownFiles;
 
@@ -35,6 +37,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (void)processNotesAddedByCNID:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries;
 - (void)processNotesAddedByContent:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries;
 - (BOOL)synchronizeNotesFromDirectory;
+- (void)_destroyDirEventStream;
+- (void)_configureDirEventStream;
+- (void)startFileNotifications;
 - (void)stopFileNotifications;
 
 @end

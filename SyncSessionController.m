@@ -210,7 +210,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	[notationPrefs removeSyncPasswordForService:serviceName];
 	//remove password to prevent instant reactivation of whatever alert ultimately prompted this action, if the user re-enables the service
 	//should not need this; this class should control sync prefs directly, or at least syncprefs objs
-	[[NSNotificationCenter defaultCenter] postNotificationName:SyncPrefsDidChangeNotification object:nil];
+	[[NSNotificationCenter defaultCenter] postNotificationName:NotationPrefsDidChangeNotification object:nil];
 }
 
 - (void)invalidateAllServices {

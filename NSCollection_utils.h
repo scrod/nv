@@ -29,8 +29,9 @@
   alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value;
 @end
 
-@interface NSDictionary (URLEncoding)
+@interface NSDictionary (HTTP)
 
++ (NSDictionary*)optionsDictionaryWithTimeout:(float)timeout;
 - (NSString*)URLEncodedString;
 @end
 
@@ -51,6 +52,7 @@
 - (void)addMenuItemsForURLsInNotes:(NSMenu*)urlsMenu;
 - (NSUInteger)indexOfNoteWithUUIDBytes:(CFUUIDBytes*)bytes;
 - (NSArray*)objectsFromDictionariesForKey:(id)aKey;
+
 @end
 
 @interface NSMutableArray (Sorting)
@@ -58,3 +60,4 @@
 - (void)sortUnstableUsingFunction:(NSInteger (*)(id *, id *))compare;
 - (void)sortStableUsingFunction:(NSInteger (*)(id *, id *))compare usingBuffer:(id **)buffer ofSize:(unsigned int*)bufSize;
 @end
+

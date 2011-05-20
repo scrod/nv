@@ -13,7 +13,6 @@
 #import "PassphraseChanger.h"
 #import "NotationPrefs.h"
 #import "KeyDerivationManager.h"
-#import <Carbon/Carbon.h>
 
 @implementation PassphraseChanger
 
@@ -124,9 +123,7 @@
 	[currentPasswordField selectText:nil];
 	
 	[okChangeButton setEnabled:NO];
-	
-	EnableSecureEventInput();
-	
+		
 	[NSApp beginSheet:changePassphraseWindow modalForWindow:window modalDelegate:self 
 	   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
 }
@@ -135,8 +132,6 @@
 	[newPasswordField setStringValue:@""];
 	[verifyChangedPasswordField setStringValue:@""];
 	[currentPasswordField setStringValue:@""];
-	
-	DisableSecureEventInput();
 }
 
 - (void)textDidChange:(NSNotification *)aNotification {

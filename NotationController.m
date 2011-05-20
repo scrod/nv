@@ -15,12 +15,13 @@
    - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
      or promote products derived from this software without specific prior written permission. */
 
-
+#import "AppController.h"
 #import "NotationController.h"
 #import "NSCollection_utils.h"
 #import "NoteObject.h"
 #import "DeletedNoteObject.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "BufferUtils.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
@@ -53,19 +54,21 @@
 		lastWordInFilterStr = 0;
 		selectedNoteIndex = NSNotFound;
 		
-		subscriptionCallback = NewFNSubscriptionUPP(NotesDirFNSubscriptionProc);
-		
 		fsCatInfoArray = NULL;
 		HFSUniNameArray = NULL;
 		catalogEntries = NULL;
 		sortedCatalogEntries = NULL;
 		catEntriesCount = totalCatEntriesCount = 0;
-		
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+		subscriptionCallback = NewFNSubscriptionUPP(NotesDirFNSubscriptionProc);
 		bzero(&noteDirSubscription, sizeof(FNSubscriptionRef));
+#endif
 		bzero(&noteDatabaseRef, sizeof(FSRef));
 		bzero(&noteDirectoryRef, sizeof(FSRef));
 		volumeSupportsExchangeObjects = -1;
 		
+		lastLayoutStyleGenerated = -1;
 		lastCheckedDateInHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
 		blockSize = 0;
 		
@@ -143,6 +146,8 @@
 		}
 		
 		[self upgradeDatabaseIfNecessary];
+		
+		[self updateTitlePrefixConnections];
     }
     
     return self;
@@ -169,7 +174,7 @@
 			NSLog(@"trying to upgrade note encodings");
 			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
 			//move aside the old database as the new format breaks compatibility
-			(void)[self renameAndForgetNoteDatabaseFile:@"nvALT Notes & Settings (old version from 2.0b)"];
+			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
 		}
 		if (epochIteration < 3) {
 			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
@@ -179,6 +184,14 @@
 				NSLog(@"found and removed spurious DB notes");
 				[self refilterNotes];
 			}
+			
+			//TableColumnsVisible was renamed NoteAttributesVisible to coincide with shifted emphasis; remove old key to declutter prefs
+			[[NSUserDefaults standardUserDefaults] removeObjectForKey:@"TableColumnsVisible"];
+			
+			//remove and re-add link attributes for all notes
+			//remove underline attribute for all notes
+			//add automatic strike-through attribute for all notes
+			[allNotes makeObjectsPerformSelector:@selector(_resanitizeContent)];
 		}
 		
 		if (epochIteration < EPOC_ITERATION) {
@@ -188,7 +201,7 @@
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
 			if (NSRunCriticalAlertPanel(NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil), 
 										NSLocalizedString(@"If you make changes, some settings and metadata will be lost.", nil), 
-										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn);
+										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn)
 			exit(0);
 		}
 	}	
@@ -286,6 +299,10 @@ returnResult:
 	if (!(notationPrefs = [[frozenNotation notationPrefs] retain]))
 		notationPrefs = [[NotationPrefs alloc] init];
 	[notationPrefs setDelegate:self];
+
+	//notationPrefs will have the index of the current disk UUID (or we will add it otherwise) 
+	//which will be used to determine which attr-mod-time to use for each note after decoding
+	[self initializeDiskUUIDIfNecessary];
 	
 	[allNotes release];
 	
@@ -301,15 +318,15 @@ returnResult:
 		allNotes = [[NSMutableArray alloc] init];
 	} else {
 		[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:self];
-		//[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)]; //not until we get an actual tag browser
 	}
 	
 	[deletedNotes release];
-	
 	if (!(deletedNotes = [[frozenNotation deletedNotes] retain]))
 	    deletedNotes = [[NSMutableSet alloc] init];
-		
+			
 	[prefsController setNotationPrefs:notationPrefs sender:self];
+	
+	[self makeForegroundTextColorMatchGlobalPrefs];
 	
 	if(notesData)
 	    free(notesData);
@@ -507,6 +524,10 @@ bail:
 			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
 		}
 		
+		//purge attr-mod-times for old disk uuids here
+		[self purgeOldPerDiskInfoFromNotes];
+		
+		
 		NSData *serializedData = [FrozenNotation frozenDataWithExistingNotes:allNotes deletedNotes:deletedNotes prefs:notationPrefs];
 		if (!serializedData) {
 			
@@ -555,7 +576,6 @@ bail:
 
 //notation prefs delegate method
 - (void)databaseSettingsChangedFromOldFormat:(int)oldFormat {
-    OSStatus err = noErr;
 	int currentStorageFormat = [notationPrefs notesStorageFormat];
     
 	if (!walWriter && ![self initializeJournaling]) {
@@ -584,15 +604,8 @@ bail:
 				[self closeJournal];
 		}*/
 		//notationPrefs should call flushAllNoteChanges after this method, anyway
-				
-		if (IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
-			
-			err = FNSubscribe(&noteDirectoryRef, subscriptionCallback, self, kFNNoImplicitAllSubscription | kFNNotifyInBackground, &noteDirSubscription);
-			if (err != noErr) {
-				NSLog(@"Could not subscribe to changes in notes directory!");
-				//just check modification time of directory?
-			}
-		}
+		
+		[self startFileNotifications];
 		
 		[self synchronizeNotesFromDirectory];
     }
@@ -619,7 +632,9 @@ bail:
     if ([unwrittenNotes count] > 0) {
 		lastWriteError = noErr;
 		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
-			[unwrittenNotes makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
+			//to avoid mutation enumeration if writing this file triggers a filename change which then triggers another makeNoteDirty which then triggers another scheduleWriteForNote:
+			//loose-coupling? what?
+			[[[unwrittenNotes copy] autorelease] makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
 			
 			//this always seems to call ourselves
 			FNNotify(&noteDirectoryRef, kFNDirectoryModifiedMessage, kFNNoImplicitAllSubscription);
@@ -689,7 +704,7 @@ bail:
 - (void)checkIfNotationIsTrashed {
 	if ([self notesDirectoryIsTrashed]) {
 		
-		NSString *trashLocation = [[NSString pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
+		NSString *trashLocation = [[[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
 		if (!trashLocation) trashLocation = @"unknown";
 		int result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
 											 NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?",nil),
@@ -710,24 +725,39 @@ bail:
     //O(n)
 }
 
-//for making notes that we don't already own
-- (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title {
-    if (!title || ![title length])
-		title = NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
-    
-    if (!attributedContents)
-		attributedContents = [[[NSAttributedString alloc] initWithString:@"" attributes:[prefsController noteBodyAttributes]] autorelease];
-    
-    NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedContents title:title
-											 uniqueFilename:[self uniqueFilenameForTitle:title fromNote:nil]
-													 format:[self currentNoteStorageFormat]];
-    
-    [self addNewNote:note];
-    
-    //we are the the owner of this note
-    [note release];
-    
-    return note;
+- (void)updateTitlePrefixConnections {
+	//used to auto-complete titles to the first, shortest title of the same prefix--
+	//to prevent auto-completing "Chicago Brauhaus" before "Chicago" when search string is "Chi", for example.
+	//builds a tree-overlay in the list of notes, to find, for any given note, 
+	//all other notes whose complete titles are a prefix of it
+	
+	//***
+	//*** this method must run after any note is added, deleted, or retitled **
+	//***
+	
+	if (![prefsController autoCompleteSearches] || ![allNotes count])
+		return;
+	
+	//sort alphabetically to find shorter prefixes first
+	NSMutableArray *allNotesAlpha = [allNotes mutableCopy];
+	[allNotesAlpha sortStableUsingFunction:compareTitleString usingBuffer:&allNotesBuffer ofSize:&allNotesBufferSize];
+	[allNotes makeObjectsPerformSelector:@selector(removeAllPrefixParentNotes)];
+
+	NSUInteger j, i = 0, count = [allNotesAlpha count];
+	for (i=0; i<count - 1; i++) {
+		NoteObject *shorterNote = [allNotesAlpha objectAtIndex:i];
+		BOOL isAPrefix = NO;
+		//scan all notes sorted beneath this one for matching prefixes
+		j = i + 1;
+		do {
+			NoteObject *longerNote = [allNotesAlpha objectAtIndex:j];
+			if ((isAPrefix = noteTitleIsAPrefixOfOtherNoteTitle(longerNote, shorterNote))) {
+				[longerNote addPrefixParentNote:shorterNote];
+			}
+		} while (isAPrefix && ++j<count);
+	}
+
+	[allNotesAlpha release];
 }
 
 - (void)addNewNote:(NoteObject*)note {
@@ -740,6 +770,9 @@ bail:
 	//[note removeAllSyncServiceMD];
     
 	[note makeNoteDirtyUpdateTime:YES updateFile:YES];
+	
+	[self updateTitlePrefixConnections];
+	
 	//force immediate update
 	[self synchronizeNoteChanges:nil];
 	
@@ -754,7 +787,7 @@ bail:
 	[self resortAllNotes];
     [self refilterNotes];
     
-    [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];
+    [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];	
 }
 
 //do not update the view here (why not?)
@@ -791,10 +824,12 @@ bail:
 	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
 	//don't need to reverse-register undo because removeNote/s: will never use this method
 	
+	[self updateTitlePrefixConnections];
+	
 	[self synchronizeNoteChanges:nil];
 		
 	[self resortAllNotes];
-	[self refilterNotes];	
+	[self refilterNotes];
 }
 
 - (void)addNotes:(NSArray*)noteArray {
@@ -812,6 +847,8 @@ bail:
 		[note makeNoteDirtyUpdateTime:YES updateFile:YES];
 	}
 	if ([[self undoManager] isUndoing]) [undoManager endUndoGrouping];
+	
+	[self updateTitlePrefixConnections];
 	
 	[self synchronizeNoteChanges:nil];
 	
@@ -848,8 +885,13 @@ bail:
 	[self performSelector:@selector(scheduleUpdateListForAttribute:) withObject:attribute afterDelay:0.0];
 
 	//special case for title requires this method, as app controller needs to know a few note-specific things
-	if ([attribute isEqualToString:NoteTitleColumnString])
+	if ([attribute isEqualToString:NoteTitleColumnString]) {
 		[delegate titleUpdatedForNote:note];
+		
+		//also update notationcontroller's psuedo-prefix tree for autocompletion
+		[self updateTitlePrefixConnections];
+		//should perhaps instead trigger a coalesced notification that also updates wiki-link-titles
+	}
 }
 
 - (BOOL)openFiles:(NSArray*)filenames {
@@ -920,32 +962,37 @@ bail:
 
 - (void)scheduleWriteForNote:(NoteObject*)note {
 
-	BOOL immediately = NO;
-	notesChanged = YES;
+	if ([allNotes containsObject:note]) {
 	
-	[unwrittenNotes addObject:note];
-	
-	//always synchronize absolutely no matter what 15 seconds after any change
-	if (!changeWritingTimer)
-	    changeWritingTimer = [[NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self 
-								 selector:@selector(synchronizeNoteChanges:)
-								 userInfo:nil repeats:NO] retain];
-	
-	//next user change always invalidates queued write from performSelector, but not queued write from timer
-	//this avoids excessive writing and any potential and unnecessary disk access while user types
-	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNoteChanges:) object:nil];
-	
-	if (walWriter) {
-		//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
-		[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
-		//fsyncing WAL to disk can cause noticeable interruption when run from main thread
-		[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
-	}
-	
-	if (!immediately) {
-		//timer is already scheduled if immediately is true
-		//queue to write 2.7 seconds after last user change; 
-		[self performSelector:@selector(synchronizeNoteChanges:) withObject:nil afterDelay:2.7];
+		BOOL immediately = NO;
+		notesChanged = YES;
+		
+		[unwrittenNotes addObject:note];
+		
+		//always synchronize absolutely no matter what 15 seconds after any change
+		if (!changeWritingTimer)
+			changeWritingTimer = [[NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self 
+									 selector:@selector(synchronizeNoteChanges:)
+									 userInfo:nil repeats:NO] retain];
+		
+		//next user change always invalidates queued write from performSelector, but not queued write from timer
+		//this avoids excessive writing and any potential and unnecessary disk access while user types
+		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNoteChanges:) object:nil];
+		
+		if (walWriter) {
+			//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
+			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
+			//fsyncing WAL to disk can cause noticeable interruption when run from main thread
+			[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
+		}
+		
+		if (!immediately) {
+			//timer is already scheduled if immediately is true
+			//queue to write 2.7 seconds after last user change; 
+			[self performSelector:@selector(synchronizeNoteChanges:) withObject:nil afterDelay:2.7];
+		}
+	} else {
+		NSLog(@"not writing note %@ because it is not controlled by NoteController", note);
 	}
 }
 
@@ -978,8 +1025,13 @@ bail:
     //reset linking labels and their notes
     
 	[aNoteObject retain];
+	
+	[aNoteObject disconnectLabels];
+	
     [allNotes removeObjectIdenticalTo:aNoteObject];
 	DeletedNoteObject *deletedNote = [self _addDeletedNote:aNoteObject];
+	
+	updateForVerifiedDeletedNote(deletionManager, aNoteObject);
     
     notesChanged = YES;
 	
@@ -1005,6 +1057,9 @@ bail:
 		
 	//delete note from bookmarks, too
 	[[prefsController bookmarksController] removeBookmarkForNote:aNoteObject];
+	
+	//rebuild the prefix tree, as this note may have been a prefix of another, or vise versa
+	[self updateTitlePrefixConnections];
     
     [aNoteObject release];
     
@@ -1070,15 +1125,40 @@ bail:
 - (void)updateDateStringsIfNecessary {
 	
 	unsigned int currentHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
+	BOOL isHorizontalLayout = [prefsController horizontalLayout];
 	
-	if (currentHours != lastCheckedDateInHours) {
+	if (currentHours != lastCheckedDateInHours || isHorizontalLayout != lastLayoutStyleGenerated) {
 		lastCheckedDateInHours = currentHours;
+		lastLayoutStyleGenerated = (int)isHorizontalLayout;
 		
 		[delegate notationListMightChange:self];
 		resetCurrentDayTime();
 		[allNotes makeObjectsPerformSelector:@selector(updateDateStrings)];
 		[delegate notationListDidChange:self];
 	}
+}
+
+- (void)makeForegroundTextColorMatchGlobalPrefs {
+	NSColor *prefsFGColor = [notationPrefs foregroundColor];
+	if (prefsFGColor) {
+		NSColor *fgColor = [[NSApp delegate] foregrndColor];
+		[self setForegroundTextColor:fgColor];
+		//NSColor *fgColor = [prefsController foregroundTextColor];
+		
+		//if (!ColorsEqualWith8BitChannels(prefsFGColor, fgColor)) {			
+		//	[self setForegroundTextColor:fgColor];
+		//}
+	}
+}
+
+- (void)setForegroundTextColor:(NSColor*)fgColor {
+	//do not update the notes in any other way, nor the database, other than also setting this color in notationPrefs
+	//foreground color is archived only for practicality, and should be for display only
+	NSAssert(fgColor != nil, @"foreground color cannot be nil");
+
+	[allNotes makeObjectsPerformSelector:@selector(setForegroundTextColorOnly:) withObject:fgColor];
+	
+	[notationPrefs setForegroundTextColor:fgColor];
 }
 
 - (void)restyleAllNotes {
@@ -1098,6 +1178,9 @@ bail:
 	return nil;	
 }
 
+- (void)updateLabelConnectionsAfterDecoding {
+	[allNotes makeObjectsPerformSelector:@selector(updateLabelConnectionsAfterDecoding)];
+}
 
 //re-searching for all notes each time a label is added or removed is unnecessary, I think
 - (void)note:(NoteObject*)note didAddLabelSet:(NSSet*)labelSet {
@@ -1218,7 +1301,7 @@ bail:
 		
 		if (!touchedNotes) {
 			//I can't think of any situation where notes were filtered and not touched--EXCEPT WHEN REMOVING A NOTE (>= vs. ==)
-			assert(filteredNoteCount >= [allNotes count]);
+			NSAssert(filteredNoteCount >= [allNotes count], @"filtered notes were claimed to be filtered but were not");
 			
 			//reset found-ptr values; the search string was effectively blank and so no notes were examined
 			for (i=0; i<filteredNoteCount; i++)
@@ -1235,11 +1318,28 @@ bail:
 	selectedNoteIndex = NSNotFound;
 	
     if (newLen && [prefsController autoCompleteSearches]) {
-		//TODO: this should match the note with the shortest title first
+
 		for (i=0; i<filteredNoteCount; i++) {			
 			//because we already searched word-by-word up there, this is just way simpler
 			if (noteTitleHasPrefixOfUTF8String(notesBuffer[i], searchString, newLen)) {
 				selectedNoteIndex = i;
+				//this note matches, but what if there are other note-titles that are prefixes of both this one and the search string?
+				//find the first prefix-parent of which searchString is also a prefix
+				NSUInteger j = 0, prefixParentIndex = NSNotFound;
+				NSArray *prefixParents = prefixParentsOfNote(notesBuffer[i]);
+				
+				for (j=0; j<[prefixParents count]; j++) {
+					NoteObject *obj = [prefixParents objectAtIndex:j];
+					
+					if (noteTitleHasPrefixOfUTF8String(obj, searchString, newLen) &&
+						(prefixParentIndex = [notesListDataSource indexOfObjectIdenticalTo:obj]) != NSNotFound) {
+						//figure out where this prefix parent actually is in the list--if it actually is in the list, that is
+						//otherwise look at the next prefix parent, etc.
+						//the prefix parents array should always be alpha-sorted, so the shorter prefixes will always be first
+						selectedNoteIndex = prefixParentIndex;
+						break;
+					}
+				}
 				break;
 			}
 		}
@@ -1256,10 +1356,24 @@ bail:
 - (NSUInteger)preferredSelectedNoteIndex {
     return selectedNoteIndex;
 }
-- (BOOL)preferredSelectedNoteMatchesSearchString {
-	NoteObject *obj = [self noteObjectAtFilteredIndex:selectedNoteIndex];
-	if (obj) return noteTitleMatchesUTF8String(obj, currentFilterStr);
-	return NO;
+
+- (NSArray*)noteTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex {
+	NSMutableArray *objs = [NSMutableArray arrayWithCapacity:[allNotes count]];
+	const char *searchString = [prefixString lowercaseUTF8String];
+	NSUInteger i, titleLen, strLen = strlen(searchString), j = 0, shortestTitleLen = UINT_MAX;
+
+	for (i=0; i<[allNotes count]; i++) {
+		NoteObject *thisNote = [allNotes objectAtIndex:i];
+		if (noteTitleHasPrefixOfUTF8String(thisNote, searchString, strLen)) {
+			[objs addObject:titleOfNote(thisNote)];
+			if (anIndex && (titleLen = CFStringGetLength((CFStringRef)titleOfNote(thisNote))) < shortestTitleLen) {
+				*anIndex = j;
+				shortestTitleLen = titleLen;
+			}
+			j++;
+		}
+	}
+	return objs;
 }
 
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex {
@@ -1387,8 +1501,16 @@ bail:
 	}
 }
 
+- (void)invalidateAllLabelPreviewImages {
+	[allNotes makeObjectsPerformSelector:@selector(invalidateLabelsPreviewImage)];
+}
+
 - (void)regenerateAllPreviews {
 	[allNotes makeObjectsPerformSelector:@selector(updateTablePreviewString)];
+}
+
+- (NotationPrefs*)notationPrefs {
+	return notationPrefs;
 }
 
 - (id)labelsListDataSource {
@@ -1408,8 +1530,10 @@ bail:
 	[walWriter setDelegate:nil];
 	[notationPrefs setDelegate:nil];
 	[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
-	
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
     DisposeFNSubscriptionUPP(subscriptionCallback);
+#endif
 	if (fsCatInfoArray)
 		free(fsCatInfoArray);
 	if (HFSUniNameArray)

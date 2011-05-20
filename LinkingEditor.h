@@ -13,70 +13,75 @@
 
 
 #import <Cocoa/Cocoa.h>
+#import <objc/runtime.h>
 
 @class NotesTableView;
 @class NoteObject;
 @class GlobalPrefs;
-
-#define DELAYED_LAYOUT 0
+//@class ETTransparentScroller;
 
 @interface LinkingEditor : NSTextView
-{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+<NSLayoutManagerDelegate>
+#endif
+{	
     IBOutlet NSTextField *controlField;
     IBOutlet NotesTableView *notesTableView;
-
+	
+	//ETTransparentScroller *nvTextScroller;
 	GlobalPrefs *prefsController;
-#if DELAYED_LAYOUT
-	NSTimer *timer;
-	BOOL inhibitingUpdates;
-	BOOL didSetFutureRange, didInvalidateLayout, didRenderFully;
-	NSRange futureRange;
-	NSString *futureWordsToHighlight;
-	unsigned int lastHighlightedIndex;
-	NSRect rectForSuppressedUpdate;
-#else
 	BOOL didRenderFully;
-#endif
 	
 	BOOL didChangeIntoAutomaticRange;
 	NSRange lastAutomaticallySelectedRange;
 	NSRange changedRange;
+	BOOL isAutocompleting, wasDeleting;
+	
+	BOOL backgroundIsDark, mouseInside;
 	
 	//ludicrous ivars used to hack NSTextFinder. just write your own, damnit!
 	NSRange selectedRangeDuringFind;
 	NSString *lastImportedFindString;
 	NSString *stringDuringFind;
 	NoteObject *noteDuringFind;
+	
+	IMP defaultIBeamCursorIMP, whiteIBeamCursorIMP;
 }
-
+//- (IBAction)performNVFindPanelAction:(id)sender;
+- (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
+- (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
+- (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSDictionary*)preferredLinkAttributes;
+- (void)updateTextColors;
 - (NSRange)selectedRangeWasAutomatic:(BOOL*)automatic;
 - (void)setAutomaticallySelectedRange:(NSRange)newRange;
 - (void)removeHighlightedTerms;
 - (void)highlightRangesTemporarily:(CFArrayRef)ranges;
-- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString;
+- (NSRange)highlightTermsTemporarilyReturningFirstRange:(NSString*)typedString avoidHighlight:(BOOL)noHighlight;
 - (void)defaultStyle:(id)sender;
-- (void)underlineNV:(id)sender;
+- (void)strikethroughNV:(id)sender;
 - (void)bold:(id)sender;
 - (void)italic:(id)sender;
 - (void)applyStyleOfTrait:(NSFontTraitMask)trait alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value;
-//- (void)suggestComplete:(id)sender;
 - (id)highlightLinkAtIndex:(unsigned)givenIndex;
 
 - (BOOL)jumpToRenaming;
 - (void)indicateRange:(NSValue*)rangeValue;
 
 - (void)fixTypingAttributesForSubstitutedFonts;
+- (void)fixCursorForBackgroundUpdatingMouseInside:(BOOL)setMouseInside;
 
-#if DELAYED_LAYOUT
-- (void)_updateHighlightedRangesToIndex:(unsigned)loc;
-- (void)_setFutureSelectionRangeWithinIndex:(unsigned)loc;
-- (void)setFutureSelectionRange:(NSRange)aRange highlightingWords:(NSString*)words;
-- (BOOL)readyToDraw;
-- (void)beginInhibitingUpdates;
-#else
+- (BOOL)_selectionAbutsBulletIndentRange;
+- (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange;
+
+- (void)setupFontMenu;
+
 - (BOOL)didRenderFully;
-#endif
+
+//elasticwork
+- (void)switchFindPanelDelegate;
+- (IBAction)findInFullscreen;
+//
 @end
 
 @interface NSTextView (Private)
@@ -87,7 +92,5 @@
 
 - (void)moveToLeftEndOfLine:(id)sender;
 #endif
-
-- (void)_checkSpellingForRange:(struct _NSRange)fp8 excludingRange:(struct _NSRange)fp16;
 
 @end

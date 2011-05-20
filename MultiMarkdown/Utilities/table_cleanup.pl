@@ -168,7 +168,7 @@ $text =~ s{
 				$goal_length--;
 				$result = ":";
 			}
-			if ($cell =~ /\:$/) {
+			if ($cell =~ /[\:\+]$/) {
 				$goal_length--;
 			}
 			for (my $i=0;$i < $goal_length;$i++){
@@ -177,7 +177,9 @@ $text =~ s{
 			if ($cell =~ /\:$/) {
 				$result .=":";
 			}
-			
+			if ($cell =~ /\+$/) {
+				$result .="+";
+			}
 			$count++;
 			$opening . "$result" . $ending;
 		}xsge;

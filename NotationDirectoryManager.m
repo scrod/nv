@@ -16,7 +16,9 @@
      or promote products derived from this software without specific prior written permission. */
 
 #import "NotationDirectoryManager.h"
+#import "NSFileManager_NV.h"
 #import "NotationPrefs.h"
+#import "BufferUtils.h"
 #import "GlobalPrefs.h"
 #import "NotationSyncServiceManager.h"
 #import "NoteObject.h"
@@ -61,7 +63,8 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		NSString *path = [filenames objectAtIndex:i];
 		//assume that paths are of NSFileManager origin, not Carbon File Manager
 		//(note filenames are derived with the expectation of matching against Carbon File Manager)
-		[lcNamesDict setObject:path forKey:[[[path lastPathComponent] lowercaseString] stringByReplacingOccurrencesOfString:@":" withString:@"/"]];
+		[lcNamesDict setObject:path forKey:[[[[path lastPathComponent] precomposedStringWithCanonicalMapping] 
+											 lowercaseString] stringByReplacingOccurrencesOfString:@":" withString:@"/"]];
 	}
 	
 	NSMutableSet *foundNotes = [NSMutableSet setWithCapacity:[filenames	count]];
@@ -80,7 +83,94 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 }
 
 
+void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_events, void* event_paths, 
+					  const FSEventStreamEventFlags flags[],
+                      const FSEventStreamEventId event_ids[]) {
+	NotationController* self = (NotationController*)info;
+	
+	BOOL rootChanged = NO;
+	size_t i = 0;
+	for (i = 0; i < num_events; i++) {
+		//on 10.5, could also check whether all the events are bookended by eventIDs that were contemporaneous with a change by NotationFileManager
+		//as it lacks kFSEventStreamCreateFlagIgnoreSelf
+		if ((flags[i] & kFSEventStreamEventFlagRootChanged) && !event_ids[i]) {
+			rootChanged = YES;
+			break;
+		}
+	}
+	
+	//the directory was moved; re-initialize the event stream for the new path
+	//but do so after this callback ends to avoid confusing FSEvents
+	if (rootChanged) {
+		NSLog(@"FSEventsCallback detected directory dislocation; reconfiguring stream");
+		[self performSelector:@selector(_configureDirEventStream) withObject:nil afterDelay:0];
+	}
+	
+	//NSLog(@"FSEventsCallback got a path change");
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNotesFromDirectory) object:nil];
+	[self performSelector:@selector(synchronizeNotesFromDirectory) withObject:nil afterDelay:0.0];
+}
+
+
+- (void)_configureDirEventStream {
+	//"updates" the event stream to point to the current notation directory path
+	//or if the stream doesn't exist, creates it
+	
+	if (!eventStreamStarted) return;
+	
+	if (noteDirEventStreamRef) {
+		//remove the event stream if it already exists, so that a new one can be created
+		[self _destroyDirEventStream];
+	}
+	
+	NSString *path = [[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef];
+	
+	FSEventStreamContext context = { 0, self, CFRetain, CFRelease, CFCopyDescription };
+	
+	noteDirEventStreamRef = FSEventStreamCreate(NULL, &FSEventsCallback, &context, (CFArrayRef)[NSArray arrayWithObject:path], kFSEventStreamEventIdSinceNow, 
+												1.0, kFSEventStreamCreateFlagWatchRoot | 0x00000008 /*kFSEventStreamCreateFlagIgnoreSelf*/);
+	
+	FSEventStreamScheduleWithRunLoop(noteDirEventStreamRef, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+	if (!FSEventStreamStart(noteDirEventStreamRef)) {
+		NSLog(@"could not start the FSEvents stream!");
+	}
+	
+}
+
+- (void)_destroyDirEventStream {
+	if (eventStreamStarted) {
+		NSAssert(noteDirEventStreamRef != NULL, @"can't destroy a NULL event stream");
+		
+		FSEventStreamStop(noteDirEventStreamRef);
+		FSEventStreamInvalidate(noteDirEventStreamRef);
+		FSEventStreamRelease(noteDirEventStreamRef);
+		noteDirEventStreamRef = NULL;
+	}
+}
+
+- (void)startFileNotifications {
+	eventStreamStarted = YES;
+	
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5				
+	if (IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
+		
+		OSStatus err = FNSubscribe(&noteDirectoryRef, subscriptionCallback, self, kFNNoImplicitAllSubscription | kFNNotifyInBackground, &noteDirSubscription);
+		if (err != noErr) {
+			NSLog(@"Could not subscribe to changes in notes directory!");
+			//just check modification time of directory?
+		}
+	}
+#endif
+	if (IsLeopardOrLater) {
+		[self _configureDirEventStream];
+	}
+}
+
 - (void)stopFileNotifications {
+	
+	if (!eventStreamStarted) return;
+	
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 	OSStatus err = noErr;
     if (!IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
 		
@@ -92,12 +182,19 @@ NSInteger compareCatalogValueFileSize(id *a, id *b) {
 		
 		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNotesFromDirectory) object:nil];
     }
+#endif
     
+	if (IsLeopardOrLater) {
+		[self _destroyDirEventStream];
+	}
+	
+	eventStreamStarted = NO;
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription) {
     //this only works for the Finder and perhaps the navigation manager right now
-    if (kFNDirectoryModifiedMessage == message) {
+	if (kFNDirectoryModifiedMessage == message) {
 		//NSLog(@"note directory changed");
 		if (refcon) {
 			[NSObject cancelPreviousPerformRequestsWithTarget:(id)refcon selector:@selector(synchronizeNotesFromDirectory) object:nil];
@@ -108,7 +205,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		NSLog(@"we received an FNSubscr. callback and the directory didn't actually change?");
     }
 }
-
+#endif
 
 - (BOOL)synchronizeNotesFromDirectory {
     if ([self currentNoteStorageFormat] == SingleDatabaseFormat) {
@@ -136,7 +233,6 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			
 			if (!catEntriesCount) {
 				//there is nothing at all in the directory, so remove all the notes
-				//we probably shouldn't get here; there should be at least a database file and random .DS_Store-like crap
 				[deletionManager addDeletedNotes:allNotes];
 			}
 		}
@@ -144,6 +240,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		if (directoryChangesFound) {
 			[self resortAllNotes];
 		    [self refilterNotes];
+			
+			[self updateTitlePrefixConnections];
 		}
 		
 		//NSLog(@"file sync time: %g, ",[[NSDate date] timeIntervalSinceDate:date]);
@@ -171,7 +269,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
         do {
             // Grab a batch of source files to process from the source directory
             status = FSGetCatalogInfoBulk(dirIterator, kMaxFileIteratorCount, &dirObjectCount, NULL,
-										  kFSCatInfoNodeFlags | kFSCatInfoFinderInfo | kFSCatInfoContentMod | kFSCatInfoDataSizes | kFSCatInfoNodeID,
+										  kFSCatInfoNodeFlags | kFSCatInfoFinderInfo | kFSCatInfoContentMod | 
+										  kFSCatInfoAttrMod | kFSCatInfoDataSizes | kFSCatInfoNodeID,
 										  fsCatInfoArray, NULL, NULL, HFSUniNameArray);
 			
             if ((status == errFSNoMoreItems || status == noErr) && dirObjectCount) {
@@ -204,6 +303,8 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 						entry->logicalSize = (UInt32)(fsCatInfoArray[i].dataLogicalSize & 0xFFFFFFFF);
 						entry->nodeID = (UInt32)fsCatInfoArray[i].nodeID;
 						entry->lastModified = fsCatInfoArray[i].contentModDate;
+						entry->lastAttrModified = fsCatInfoArray[i].attributeModDate;
+
 						
 						if (filename->length > entry->filenameCharCount) {
 							entry->filenameCharCount = filename->length;
@@ -246,19 +347,20 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 - (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry {
 	//check dates
 	UTCDateTime lastReadDate = fileModifiedDateOfNote(aNoteObject);
-	UTCDateTime fileModDate = catEntry->lastModified;
+	UTCDateTime *lastAttrModDate = attrsModifiedDateOfNote(aNoteObject);
 	
 	//should we always update the note's stored inode here regardless?
+//	NSLog(@"content mod: %d,%d,%d, attr mod: %d,%d,%d", catEntry->lastModified.highSeconds,catEntry->lastModified.lowSeconds,catEntry->lastModified.fraction,
+//		  catEntry->lastAttrModified.highSeconds,catEntry->lastAttrModified.lowSeconds,catEntry->lastAttrModified.fraction);
+	
+	updateForVerifiedExistingNote(deletionManager, aNoteObject);
 	
 	if (fileSizeOfNote(aNoteObject) != catEntry->logicalSize ||
-		lastReadDate.lowSeconds != fileModDate.lowSeconds ||
-		lastReadDate.highSeconds != fileModDate.highSeconds ||
-		lastReadDate.fraction != fileModDate.fraction) {
+		*(int64_t*)&lastReadDate != *(int64_t*)&(catEntry->lastModified) ||
+		*(int64_t*)lastAttrModDate != *(int64_t*)&(catEntry->lastAttrModified)) {
+
 		//assume the file on disk was modified by someone other than us
-		
-		//figure out whether there is a conflict; is this file on disk older than the one that we have in memory? do we merge?
-		//if ((UInt64*)&fileModDate > (UInt64*)&lastReadDate)
-		
+				
 		//check if this note has changes in memory that still need to be committed -- that we _know_ the other writer never had a chance to see
 		if (![unwrittenNotes containsObject:aNoteObject]) {
 			
@@ -297,9 +399,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     unsigned int aSize = [allNotes count];
     unsigned int bSize = catCount;
     
-	ResizeBuffer((void***)&allNotesBuffer, aSize, &allNotesBufferSize);
+	ResizeArray(&allNotesBuffer, aSize, &allNotesBufferSize);
 	
-	assert(allNotesBuffer != NULL);
+	NSAssert(allNotesBuffer != NULL, @"sorting buffer not initialized");
 	
     NoteObject **currentNotes = allNotesBuffer;
     [allNotes getObjects:(id*)currentNotes];
@@ -377,7 +479,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			}
 		}
 		
-		if (![addedEntries count]) {			
+		if (![addedEntries count]) {
 			[deletionManager addDeletedNotes:removedEntries];
 		}
 	}
@@ -526,7 +628,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			NSValue *val = [sameSizeObj isKindOfClass:[NSArray class]] ? [sameSizeObj objectAtIndex:addedObjCount] : sameSizeObj;
 			NoteObject *addedObjToCompare = [[NoteObject alloc] initWithCatalogEntry:[val pointerValue] delegate:self];
 			
-			if ([[addedObjToCompare contentString] isEqual:[removedObj contentString]]) {
+			if ([[[addedObjToCompare contentString] string] isEqualToString:[[removedObj contentString] string]]) {
 				//process this pair as a modification
 				
 				NSLog(@"File %@ renamed as per content to %@", filenameOfNote(removedObj), filenameOfNote(addedObjToCompare));
@@ -550,7 +652,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		}
 		
 		if (!foundMatchingContent) {
-			NSLog(@"File %@ _actually_ removed", filenameOfNote(removedObj));
+			NSLog(@"File %@ _actually_ removed (size: %u)", filenameOfNote(removedObj), fileSizeOfNote(removedObj));
 			[deletionManager addDeletedNote:removedObj];
 		}
 	}

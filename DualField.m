@@ -14,8 +14,10 @@
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
+#import "NSBezierPath_NV.h"
 #import "LinearDividerShader.h"
 #import "AppController.h"
+#import "BookmarksController.h"
 
 #define BORDER_TOP_OFFSET 3.0
 #define BORDER_LEFT_OFFSET 3.0
@@ -56,7 +58,7 @@
 - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj {
 	NSTextView *textView = (NSTextView*)[super setUpFieldEditorAttributes:textObj];
 	[textView setDrawsBackground:NO];
-		
+
 	return textView;
 }
 
@@ -141,7 +143,7 @@
 		NSEventType type = [theEvent type];
 		if (type == NSLeftMouseUp || type == NSRightMouseUp) {
 			if (BUTTON_PRESSED == snapbackButtonState) {
-				[controlView deselectAll:nil];
+				[controlView snapback:nil];
 			} else if (BUTTON_PRESSED == clearButtonState) {
 				[NSApp tryToPerform:@selector(cancelOperation:) with:nil];
 			}
@@ -164,7 +166,9 @@
 	if (BUTTON_HIDDEN != snapbackButtonState) {
 		NSRect snRect = [self snapbackButtonRectForBounds:cellFrame];
 		NSEraseRect(centeredRectInRect(snRect, NSMakeSize(MAX_STATE_IMG_DIM, MAX_STATE_IMG_DIM)));
-		NSImage *snapImg = [NSImage imageNamed:(snapbackButtonState == BUTTON_NORMAL ? @"SnapBack" : @"SnapBackPressed") ];
+		NSImage *snapImg = [NSImage imageNamed:
+							[(DualField *)controlView hasFollowedLinks] ? (snapbackButtonState == BUTTON_NORMAL ? @"LinkBack" : @"LinkBackPressed") :
+							(snapbackButtonState == BUTTON_NORMAL ? @"SnapBack" : @"SnapBackPressed") ];
 		[snapImg drawCenteredInRect:snRect];
 	}
 }
@@ -200,6 +204,11 @@
 			
 	[myCell setAllowsUndo:NO];
 	[myCell setLineBreakMode:NSLineBreakByCharWrapping];
+	
+	//remember this now to make sure we always use the same one, in case +IBeamCursor just happens to return a different object later (hint hint)
+	IBeamCursor = [[NSCursor IBeamCursor] retain];
+	
+	followedLinks = [[NSMutableArray alloc] init];
 }
 
 - (void)setTrackingRect {
@@ -211,6 +220,7 @@
 - (void)dealloc {
 	[snapbackString release];
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	[followedLinks release];
 	
 	[super dealloc];
 }
@@ -221,21 +231,23 @@
 	if (tag == docIconTag) {
 		//should be conditional on whether snapback exists, and include the snapback string
 		if ([[self cell] snapbackButtonIsVisible]) {
-			return [NSString stringWithFormat:NSLocalizedString(@"Go back to search; press %@-D to deselect", nil), [NSString stringWithCharacters:&ch length:1]];
+			return [NSString stringWithFormat:NSLocalizedString(@"Go back to search; press %@-D to deselect", @"tooltip string for search/title field"), 
+					[NSString stringWithCharacters:&ch length:1]];
 		} else {
-			return @"Now searching for this text";
+			return NSLocalizedString(@"Now searching for this text", @"tooltip string for search/title field");
 		}
 	} else if (tag == clearButtonTag) {
 		if ([[self cell] clearButtonIsVisible]) {
-			return @"Clear the search; press ESC";
+			return NSLocalizedString(@"Clear the search; press ESC", @"tooltip string for search/title field");
 		} else {
-			return @"Type any text to search; press Return to create a note";
+			return NSLocalizedString(@"Type any text to search; press Return to create a note", @"tooltip string for search/title field");
 		}
 	} else if (tag == textAreaTag) {
 		if ([self showsDocumentIcon]) {
-			return [NSString stringWithFormat:@"Now editing this note; rename it with %@-R", [NSString stringWithCharacters:&ch length:1]];
+			return [NSString stringWithFormat:NSLocalizedString(@"Now editing this note; rename it with %@-R", @"tooltip string for search/title field"),
+					[NSString stringWithCharacters:&ch length:1]];
 		} else {
-			return @"Type any text to search; press Return to create a note";
+			return NSLocalizedString(@"Type any text to search; press Return to create a note", @"tooltip string for search/title field");
 		}
 	}
 	return nil;
@@ -270,7 +282,7 @@
 	} else {
 		textArea = NSUnionRect(textArea, clearButtonArea);
 	}
-	[self addCursorRect: textArea cursor: [NSCursor IBeamCursor]];
+	[self addCursorRect: textArea cursor: IBeamCursor];
 	
 	[self removeAllToolTips];
 	textAreaTag = [self addToolTipRect:textArea owner:self userData:NULL];
@@ -284,11 +296,37 @@
 }
 
 - (void)mouseDown:(NSEvent*)anEvent {
+    [[NSApp delegate] setIsEditing:NO];
 	
 	if ([[self cell] handleMouseDown:anEvent])
 		return;
 	
 	[super mouseDown:anEvent];
+    
+}
+
+- (BOOL)hasFollowedLinks {
+	return [followedLinks count] != 0;
+}
+- (void)pushFollowedLink:(NoteBookmark*)aBM {
+
+	[followedLinks addObject:aBM];
+}
+
+- (NoteBookmark*)popLastFollowedLink {
+	
+	NoteBookmark *aBookmark = [[followedLinks lastObject] retain];
+	[followedLinks removeLastObject];
+	 
+	[[NSApp delegate] searchForString:[aBookmark searchString]];
+	[[NSApp delegate] revealNote:[aBookmark noteObject] options:0];
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(clearFollowedLinks) object:nil];
+
+	return [aBookmark autorelease];
+}
+
+- (void)clearFollowedLinks {
+	[followedLinks removeAllObjects];
 }
 
 - (void)setSnapbackString:(NSString*)string {
@@ -302,6 +340,7 @@
 	if (![proposedString length]) {
 		[[self cell] setShowsSnapbackButton:NO];
 	}
+	[self performSelector:@selector(clearFollowedLinks) withObject:nil afterDelay:0];
 }
 - (NSString*)snapbackString {
 	return snapbackString;
@@ -339,8 +378,12 @@
 	return lastLengthReplaced;
 }
 
-- (void)deselectAll:(id)sender {
-	[notesTable deselectAll:sender];
+- (void)snapback:(id)sender {
+	if ([self hasFollowedLinks]) {
+		[self popLastFollowedLink];
+	} else {
+		[notesTable deselectAll:sender];
+	}
 }
 
 + (NSImage*)snapbackImageWithString:(NSString*)string {
@@ -365,18 +408,18 @@
 	NSImage *image = [[NSImage alloc] initWithSize:wordRect.size];
 	[image lockFocus];
 	
-	NSBezierPath *backgroundPath = [DualField bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 1.5, 1.5) radius:1.5f];
+	NSBezierPath *backgroundPath = [NSBezierPath bezierPathWithRoundRectInRect:NSInsetRect(wordRect, 1.5, 1.5) radius:1.5f];
 	
 	static LinearDividerShader *snapbackShader = nil;
 	if (!snapbackShader) {
-		snapbackShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithCalibratedWhite:1.000 alpha:1.000] 
-																endColor:[NSColor colorWithCalibratedWhite:1.000 alpha:1.000]];
+		snapbackShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithDeviceRed:0.8 green:0.386 blue:0.019 alpha:1.0] 
+																endColor:[NSColor colorWithDeviceRed:1.0 green:0.486 blue:0.039 alpha:1.0]];
 	}
 	
 	
 	[[NSGraphicsContext currentContext] saveGraphicsState];
 	[backgroundPath addClip];
-	[snapbackShader drawDividerInRect:wordRect withDimpleRect:NSZeroRect];	
+	[snapbackShader drawDividerInRect:wordRect withDimpleRect:NSZeroRect blendVertically:YES];	
 	[[NSGraphicsContext currentContext] restoreGraphicsState];
 	
 	[[NSColor colorWithDeviceRed:0.63 green:0.20 blue:0.0 alpha:1.0] set];
@@ -389,22 +432,8 @@
 	return [image autorelease];
 }
 
-
-+ (NSBezierPath*)bezierPathWithRoundRectInRect:(NSRect)aRect radius:(float)radius  {
-	NSBezierPath* path = [NSBezierPath bezierPath];
-	float smallestEdge = MIN(NSWidth(aRect), NSHeight(aRect));
-	radius = MIN(radius, 0.5f * smallestEdge);
-	NSRect rect = NSInsetRect(aRect, radius, radius);
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMinX(rect), NSMinY(rect)) radius:radius startAngle:180.0 endAngle:270.0];
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMaxX(rect), NSMinY(rect)) radius:radius startAngle:270.0 endAngle:360.0];
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMaxX(rect), NSMaxY(rect)) radius:radius startAngle:  0.0 endAngle: 90.0];
-	[path appendBezierPathWithArcWithCenter:NSMakePoint(NSMinX(rect), NSMaxY(rect)) radius:radius startAngle: 90.0 endAngle:180.0];
-	[path closePath];
-	return path;
-}
-
 - (void)drawRect:(NSRect)rect {
-	//[super drawRect:rect];
+//	[super drawRect:rect];
 	
 	NSWindow *window = [self window];
 	BOOL isActiveWin = [window isMainWindow];
@@ -461,11 +490,17 @@
 			NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
 			focusRect.origin.y -= 0.5f;
 			//drawing could be sped up by a measurable amount if this were cached in a (partially transparent) image
-			[[DualField bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
+			[[NSBezierPath bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
 			[NSGraphicsContext restoreGraphicsState];
 		}
-	}
+	}	
 	
+	
+}
+
+//elasticwork
+- (void)flagsChanged:(NSEvent *)theEvent{
+	[[NSApp delegate] flagsChanged:theEvent];
 }
 
 @end

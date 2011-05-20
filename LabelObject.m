@@ -91,6 +91,10 @@ int compareLabel(const void *one, const void *two) {
     return notes;
 }
 
+- (NSString*)description {
+	return [labelName stringByAppendingFormat:@" (used by %@)", notes];
+}
+
 /*- (NSArray*)notesSharedWithSet:(NSSet*)filteredSet {
     NSMutableSet *intersectedSet = [NSMutableSet setWithSet:notes]; 
 

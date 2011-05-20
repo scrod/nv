@@ -21,10 +21,13 @@
 #import "LabelsListController.h"
 #import "WALController.h"
 
+#import <CoreServices/CoreServices.h>
+
 //enum { kUISearch, kUINewNote, kUIDeleteNote, kUIRenameNote, kUILabelOperation };
 
 typedef struct _NoteCatalogEntry {
     UTCDateTime lastModified;
+	UTCDateTime lastAttrModified;
     UInt32 logicalSize;
     OSType fileType;
     UInt32 nodeID;
@@ -68,16 +71,25 @@ typedef struct _NoteCatalogEntry {
 	NSMutableSet *deletedNotes;
     
 	int volumeSupportsExchangeObjects;
-    FNSubscriptionUPP subscriptionCallback;
-    FNSubscriptionRef noteDirSubscription;
     FSCatalogInfo *fsCatInfoArray;
     HFSUniStr255 *HFSUniNameArray;
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+	FNSubscriptionUPP subscriptionCallback;
+    FNSubscriptionRef noteDirSubscription;	
+#endif
+	FSEventStreamRef noteDirEventStreamRef;
+	BOOL eventStreamStarted;
 	    
     size_t catEntriesCount, totalCatEntriesCount;
     NoteCatalogEntry *catalogEntries, **sortedCatalogEntries;
     
 	unsigned int lastCheckedDateInHours;
+	int lastLayoutStyleGenerated;
     long blockSize;
+	struct statfs *statfsInfo;
+	unsigned int diskUUIDIndex;
+	CFUUIDRef diskUUID;
     FSRef noteDirectoryRef, noteDatabaseRef;
     AliasHandle aliasHandle;
     BOOL aliasNeedsUpdating;
@@ -118,6 +130,8 @@ typedef struct _NoteCatalogEntry {
 - (void)synchronizeNoteChanges:(NSTimer*)timer;
 
 - (void)updateDateStringsIfNecessary;
+- (void)makeForegroundTextColorMatchGlobalPrefs;
+- (void)setForegroundTextColor:(NSColor*)aColor;
 - (void)restyleAllNotes;
 - (void)setUndoManager:(NSUndoManager*)anUndoManager;
 - (NSUndoManager*)undoManager;
@@ -127,6 +141,7 @@ typedef struct _NoteCatalogEntry {
 - (void)trashRemainingNoteFilesInDirectory;
 - (void)checkIfNotationIsTrashed;
 - (void)updateLinksToNote:(NoteObject*)aNoteObject fromOldName:(NSString*)oldname;
+- (void)updateTitlePrefixConnections;
 - (void)addNotes:(NSArray*)noteArray;
 - (void)addNotesFromSync:(NSArray*)noteArray;
 - (void)addNewNote:(NoteObject*)aNoteObject;
@@ -137,7 +152,6 @@ typedef struct _NoteCatalogEntry {
 - (void)removeSyncMDFromDeletedNotesInSet:(NSSet*)notesToOrphan forService:(NSString*)serviceName;
 - (DeletedNoteObject*)_addDeletedNote:(id<SynchronizedNote>)aNote;
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote;
-- (NoteObject*)addNote:(NSAttributedString*)attributedContents withTitle:(NSString*)title;
 - (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry;
 
 - (BOOL)openFiles:(NSArray*)filenames;
@@ -147,12 +161,13 @@ typedef struct _NoteCatalogEntry {
 
 - (void)filterNotesFromLabelAtIndex:(int)labelIndex;
 - (void)filterNotesFromLabelIndexSet:(NSIndexSet*)indexSet;
+- (void)updateLabelConnectionsAfterDecoding;
 
 - (void)refilterNotes;
 - (BOOL)filterNotesFromString:(NSString*)string;
 - (BOOL)filterNotesFromUTF8String:(const char*)searchString forceUncached:(BOOL)forceUncached;
 - (NSUInteger)preferredSelectedNoteIndex;
-- (BOOL)preferredSelectedNoteMatchesSearchString;
+- (NSArray*)noteTitlesPrefixedByString:(NSString*)prefixString indexOfSelectedItem:(NSInteger *)anIndex;
 - (NoteObject*)noteObjectAtFilteredIndex:(int)noteIndex;
 - (NSArray*)notesAtIndexes:(NSIndexSet*)indexSet;
 - (NSIndexSet*)indexesOfNotes:(NSArray*)noteSet;
@@ -168,11 +183,13 @@ typedef struct _NoteCatalogEntry {
 - (float)titleColumnWidth;
 - (void)regeneratePreviewsForColumn:(NSTableColumn*)col visibleFilteredRows:(NSRange)rows forceUpdate:(BOOL)force;
 - (void)regenerateAllPreviews;
+- (void)invalidateAllLabelPreviewImages;
 
 //for setting up the nstableviews
 - (id)labelsListDataSource;
 - (id)notesListDataSource;
 
+- (NotationPrefs*)notationPrefs;
 - (SyncSessionController*)syncSessionController;
 
 - (void)dealloc;

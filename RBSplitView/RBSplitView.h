@@ -1,9 +1,9 @@
 //
-//  RBSplitView.h version 1.1.4
+//  RBSplitView.h version 1.2
 //  RBSplitView
 //
 //  Created by Rainer Brockerhoff on 24/09/2004.
-//  Copyright 2004-2006 Rainer Brockerhoff.
+//  Copyright 2004-2009 Rainer Brockerhoff.
 //	Some Rights Reserved under the Creative Commons Attribution License, version 2.5, and/or the MIT License.
 //
 
@@ -19,15 +19,15 @@ typedef enum {
 } RBSVCursorType;
 
 @interface RBSplitView : RBSplitSubview {
-// Subclasses normally should use setter methods instead of changing instance variables by assignment.
-// Most getter methods simply return the corresponding instance variable, so with some care, subclasses
-// could reference them directly.
+    // Subclasses normally should use setter methods instead of changing instance variables by assignment.
+    // Most getter methods simply return the corresponding instance variable, so with some care, subclasses
+    // could reference them directly.
 	IBOutlet id delegate;		// The delegate (may be nil).
 	NSString* autosaveName;		// This name is used for storing subview proportions in user defaults.
 	NSColor* background;		// The color used to paint the view's background (may be nil).
 	NSImage* divider;			// The image used for the divider "dimple".
 	NSRect* dividers;			// A C array of NSRects, one for each divider.
-	CGFloat dividerThickness;		// Actual divider width; should be an integer and at least 1.0.
+	CGFloat dividerThickness;	// Actual divider width; should be an integer and at least 1.0.
 	BOOL mustAdjust;			// Set internally if the subviews need to be adjusted.
 	BOOL mustClearFractions;	// Set internally if fractions should be cleared before adjusting.
 	BOOL isHorizontal;			// The divider's orientation; default is vertical.
@@ -123,6 +123,7 @@ typedef enum {
 // dividers are vertical, but the subviews are in a horizontal row. Sort of counter-intuitive, yes.
 - (void)setVertical:(BOOL)flag;
 - (BOOL)isVertical;
+- (void)setHorizontal:(BOOL)flag;
 - (BOOL)isHorizontal;
 
 // Call this to force adjusting the subviews before display. Called automatically if anything
@@ -131,6 +132,7 @@ typedef enum {
 
 // Returns YES if there's a pending adjustment.
 - (BOOL)mustAdjust;
+- (BOOL)isAdjusting;
 
 // Returns YES if we're in a dragging loop.
 - (BOOL)isDragging;
@@ -154,7 +156,8 @@ typedef enum {
 
 // The following methods are optionally implemented by the delegate.
 
-@interface NSObject(RBSplitViewDelegate)
+@protocol RBSplitViewDelegate<NSObject>
+@optional
 
 // The delegate can override a subview's ability to collapse by implementing this method.
 // Return YES to allow collapsing. If this is implemented, the subviews' built-in

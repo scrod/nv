@@ -243,10 +243,10 @@ sub SmartyPants {
                     elsif ($t eq q/"/) {
                         # Special case: single-character " token
                         if ($prev_token_last_char =~ m/\S/) {
-                            $t = "&#171;";
+                            $t = "&#8220;";
                         }
                         else {
-                            $t = "&#187;";
+                            $t = "&#8222;";
                         }
                     }
                     else {
@@ -334,10 +334,10 @@ sub SmartQuotes {
                 elsif ($t eq q/"/) {
                     # Special case: single-character " token
                     if ($prev_token_last_char =~ m/\S/) {
-                        $t = "&#171;";
+                        $t = "&#8220;";
                     }
                     else {
-                        $t = "&#187;";
+                        $t = "&#8222;";
                     }
                 }
                 else {
@@ -448,7 +448,7 @@ sub EducateQuotes {
 #   Returns:    The string, with "educated" curly quote HTML entities.
 #
 #   Example input:  "Isn't this fun?"
-#   Example output: &#187;Isn&#8216;t this fun?&#171;
+#   Example output: &#8222;Isn&#8216;t this fun?&#8220;
 #
 
     local $_ = shift;
@@ -466,13 +466,13 @@ sub EducateQuotes {
     # Special case if the very first character is a quote
     # followed by punctuation at a non-word-break. Close the quotes by brute force:
     s/^'(?=$punct_class\B)/&#8216;/;
-    s/^"(?=$punct_class\B)/&#171;/;
+    s/^"(?=$punct_class\B)/&#8220;/;
 
 
     # Special case for double sets of quotes, e.g.:
     #   <p>He said, "'Quoted' words in a larger quote."</p>
-    s/"'(?=\w)/&#187;&#8218;/g;
-    s/'"(?=\w)/&#8218;&#187;/g;
+    s/"'(?=\w)/&#8222;&#8218;/g;
+    s/'"(?=\w)/&#8218;&#8222;/g;
 
     # Special case for decade abbreviations (the '80s):
     s/'(?=\d{2}s)/&#8217;/g;
@@ -520,7 +520,7 @@ sub EducateQuotes {
         )
         "                   # the quote
         (?=\w)              # followed by a word character
-    } {$1&#187;}xg;
+    } {$1&#8222;}xg;
 
     # Double closing quotes:
     s {
@@ -528,10 +528,10 @@ sub EducateQuotes {
         "
         (?(1)|(?=\s))   # If $1 captured, then do nothing;
                            # if not, then make sure the next char is whitespace.
-    } {$1&#171;}xg;
+    } {$1&#8220;}xg;
 
     # Any remaining quotes should be opening ones.
-    s/"/&#187;/g;
+    s/"/&#8222;/g;
 
     return $_;
 }
@@ -544,12 +544,12 @@ sub EducateBackticks {
 #               translated into HTML curly quote entities.
 #
 #   Example input:  ``Isn't this fun?''
-#   Example output: &#187;Isn't this fun?&#171;
+#   Example output: &#8222;Isn't this fun?&#8220;
 #
 
     local $_ = shift;
-    s/``/&#187;/g;
-    s/''/&#171;/g;
+    s/``/&#8222;/g;
+    s/''/&#8220;/g;
     return $_;
 }
 
@@ -648,7 +648,7 @@ sub StupefyEntities {
 #   Returns:    The string, with each SmartyPants HTML entity translated to
 #               its ASCII counterpart.
 #
-#   Example input:  &#187;Hello &#8212; world.&#171;
+#   Example input:  &#8222;Hello &#8212; world.&#8220;
 #   Example output: "Hello -- world."
 #
 
@@ -660,8 +660,8 @@ sub StupefyEntities {
     s/&#8218;/'/g;      # open single quote
     s/&#8216;/'/g;      # close single quote
 
-    s/&#187;/"/g;      # open double quote
-    s/&#171;/"/g;      # close double quote
+    s/&#8222;/"/g;      # open double quote
+    s/&#8220;/"/g;      # close double quote
 
     s/&#8230;/.../g;    # ellipsis
 
@@ -1017,7 +1017,7 @@ proper HTML entity for closing single-quotes (C<&#8216;>) by hand.
             smarty_pants="-1"
 
         SmartyPants will perform reverse transformations, turning HTML
-        entities into plain ASCII equivalents. E.g. "&#187;" is turned
+        entities into plain ASCII equivalents. E.g. "&#8222;" is turned
         into a simple double-quote ("), "&#8212;" is turned into two
         dashes, etc. This is useful if you are using SmartyPants from Brad
         Choate's MT-Textile text filter, but wish to suppress smart

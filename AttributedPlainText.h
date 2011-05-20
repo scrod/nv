@@ -20,20 +20,24 @@
 
 #define SEPARATE_ATTRS 0
 
+extern NSString *NVHiddenDoneTagAttributeName;
+extern NSString *NVHiddenBulletIndentAttributeName;
+
 @interface NSMutableAttributedString (AttributedPlainText)
 
 - (void)trimLeadingWhitespace;
 - (void)removeAttachments;
-- (void)prefixWithSourceString:(NSString*)source;
+- (NSString*)prefixWithSourceString:(NSString*)source;
 
 - (NSString*)trimLeadingSyntheticTitle;
-- (NSString*)getLeadingSyntheticTitle;
 
 #if SEPARATE_ATTRS
 + (NSMutableAttributedString*)attributedStringWithString:(NSString*)text attributesByRange:(NSDictionary*)attributes font:(NSFont*)font;
 #endif
 - (void)santizeForeignStylesForImporting;
 - (void)addLinkAttributesForRange:(NSRange)changedRange;
+- (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange;
+- (void)addStrikethroughNearDoneTagsForRange:(NSRange)changedRange;
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont;
 
 @end
@@ -41,7 +45,8 @@
 
 @interface NSAttributedString (AttributedPlainText)
 
-+ (NSCharacterSet*)antiURLCharacterSet;
+- (BOOL)attribute:(NSString*)anAttribute existsInRange:(NSRange)aRange;
+
 - (NSArray*)allLinks;
 - (id)findNextLinkAtIndex:(unsigned int)startIndex effectiveRange:(NSRange *)range;
 #if SEPARATE_ATTRS

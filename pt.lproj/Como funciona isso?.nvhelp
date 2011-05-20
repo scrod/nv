@@ -1,0 +1,24 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf350
+\readonlydoc1{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww9000\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f0\fs24 \cf0 Sempre comece escrevendo o texto no campo de busca acima. Pressione 'return' para criar uma nova nota com o t\'edtulo digitado. Enquanto voc\'ea digita no campo de busca, o NV procura por notas que contenham o texto digitado, no t\'edtulo ou no corpo das notas. Observe que nomear uma nova nota ou procurar por notas existentes s\'e3o a\'e7\'f5es que ocorrem simultaneamente.\
+\
+Quando voc\'ea seleciona uma das notas encontradas (por exemplo, utilizando as teclas de setas para cima/para baixo), NV mostra o corpo destas notas no campo de textos (nesta \'e1rea que voc\'ea est\'e1 lendo agora).\
+\
+Se o texto digitado no campo de busca coincidir com o in\'edcio do t\'edtulo de uma nota, o NV automaticamente selecionar\'e1 esta nota.\
+\
+Para criar outra nota, basta iniciar uma nova digita\'e7\'e3o na \'e1rea de busca (pressiona 
+\f1 \uc0\u8984 
+\f0 -L para ir para esta \'e1rea utilizando o teclado). N\'e3o se preocupe, voc\'ea n\'e3o ir\'e1 renomear a sua nota -- para isto voc\'ea teria que dar um clique-duplo no t\'edtulo da nota na lista de notas, ou pressionar 
+\f1 \uc0\u8984 
+\f0 -R.\
+\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\i \cf0 Mas o NV n\'e3o me permite salvar minhas altera\'e7\'f5es!
+\i0 \
+O NV constantemente salva suas altera\'e7\'f5es para o disco conforme voc\'ea cria ou edita notas, ent\'e3o n\'e3o h\'e1 a necessidade de "Salvar" nada manualmente.\
+}

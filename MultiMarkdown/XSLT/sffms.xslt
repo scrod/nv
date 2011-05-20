@@ -278,7 +278,7 @@
 
 	<!-- emphasis -->
 	<xsl:template match="html:em">
-		<xsl:text>\underline{</xsl:text>
+		<xsl:text>\emph{</xsl:text>
 			<xsl:apply-templates select="node()"/>
 		<xsl:text>}</xsl:text>
 	</xsl:template>

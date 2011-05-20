@@ -9,16 +9,16 @@
    - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
      or promote products derived from this software without specific prior written permission. */
 
-
+#import "AppController.h"
 #import "PrefsWindowController.h"
 #import "PTKeyComboPanel.h"
 #import "PTKeyCombo.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
-#import "AppController.h"
 
 #define SYSTEM_LIST_FONT_SIZE 12.0f
 
@@ -29,13 +29,16 @@
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
 		
-		[prefsController registerForSettingChange:@selector(resolveNoteBodyFontFromNotationPrefsFromSender:) withTarget:self];
-		[prefsController registerForSettingChange:@selector(setCheckSpellingAsYouType:sender:) withTarget:self];
+		[prefsController registerWithTarget:self forChangesInSettings:
+		 @selector(resolveNoteBodyFontFromNotationPrefsFromSender:), 
+		 @selector(setCheckSpellingAsYouType:sender:), 
+		 @selector(setConfirmNoteDeletion:sender:), nil];
     }
     return self;
 }
 
 - (void)showWindow:(id)sender {
+	//NSLog(@"showwin");
 	if (!window) {
 		if (![NSBundle loadNibNamed:@"Preferences" owner:self])  {
 			NSLog(@"Failed to load Preferences.nib");
@@ -45,6 +48,26 @@
 	
 	if (![window isVisible])
 		[window center];
+	
+  NSArray *appArray = [[NSApp delegate] getTxtAppList];
+  // NSArray *appArray = nil;
+	if (appArray) {
+		if ((![appList numberOfItems]>0)||(![[appList objectValues] isEqualToArray:appArray])) {		
+			[appList removeAllItems];
+			[appList addItemsWithObjectValues:appArray];
+			NSString *defApp = [prefsController textEditor];
+			if ((![appArray containsObject:defApp])&&(![defApp isEqualToString:@"Default"])) {	
+				defApp = @"Default";
+				[prefsController setTextEditor:@"Default"];
+			}
+			if ([defApp isEqualToString:@"Default"]) {
+				[appList selectItemAtIndex:0];
+			}else{
+				[appList selectItemWithObjectValue:defApp];
+			}
+		}
+	}
+
 	
 	[window makeKeyAndOrderFront:self];
 }
@@ -137,16 +160,17 @@
 	
 }
 
+- (IBAction)changedBackgroundTextColorWell:(id)sender {
+	[prefsController setBackgroundTextColor:[backgroundColorWell color] sender:self];
+}
+- (IBAction)changedForegroundTextColorWell:(id)sender {
+	[prefsController setForegroundTextColor:[foregroundColorWell color] sender:self];
+}
 - (IBAction)changedSearchHighlightColorWell:(id)sender {
 	[prefsController setSearchTermHighlightColor:[searchHighlightColorWell color] sender:self];
 }
-- (IBAction)changedNotesListBackgroundColorWell:(id)sender {	
-	[prefsController setNotesListBackgroundColor:[notesListBackgroundColorWell color] sender:self];
-	[[NSApp delegate] updateScheme];
-}
-- (IBAction)changedAlternatingRows:(id)sender {
-	[prefsController setAlternatingRows:[alternatingRowsButton state] sender:self];
-	[[NSApp delegate] updateScheme];
+- (IBAction)changedHighlightSearchTerms:(id)sender {
+	[prefsController setShouldHighlightSearchTerms:[highlightSearchTermsButton state] sender:self];
 }
 - (IBAction)changedStyledTextBehavior:(id)sender {
     [prefsController setPastePreservesStyle:[styledTextButton state] sender:self];
@@ -157,20 +181,6 @@
 
 - (IBAction)changedMakeURLsClickable:(id)sender {
 	[prefsController setMakeURLsClickable:[makeURLsClickable state] sender:self];
-}
-
-- (IBAction)changedRTL:(id)sender {
-	[prefsController setRTL:[rtlButton state] sender:self];
-	[[NSApp delegate] updateRTL];
-}
-
-- (IBAction)changedUseMarkdownImport:(id)sender {
-	[prefsController setUseMarkdownImport:[useMarkdownImportButton state] sender:self];
-	[useReadabilityButton setEnabled:[useMarkdownImportButton state]];
-}
-
-- (IBAction)changedUseReadability:(id)sender {
-	[prefsController setUseReadability:[useReadabilityButton state] sender:self];
 }
 
 - (IBAction)changedNoteDeletion:(id)sender {
@@ -235,6 +245,8 @@
 		[self previewNoteBodyFont];
 	} else if ([selectorString isEqualToString:SEL_STR(setCheckSpellingAsYouType:sender:)]) {
 		[checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
+	} else if ([selectorString isEqualToString:SEL_STR(setConfirmNoteDeletion:sender:)]) {
+		[confirmDeletionButton setState:[prefsController confirmNoteDeletion]];
 	}
 }
 
@@ -296,6 +308,11 @@
 		[folderLocationsMenuButton selectItemAtIndex:0];
 }
 
+- (IBAction)changedRTL:(id)sender {
+	[prefsController setRTL:[rtlButton state] sender:self];
+	[[NSApp delegate] updateRTL];
+}
+
 - (BOOL)getNewNotesRefFromOpenPanel:(FSRef*)notesDirectoryRef returnedPath:(NSString**)path {
     NSString *startingDirectory = nil;
 	
@@ -307,7 +324,7 @@
     FSRef currentNotesDirectoryRef;
     //resolve alias to fsref; get path from fsref
     if ([[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&currentNotesDirectoryRef]) {
-		NSString *resolvedPath = [NSString pathWithFSRef:&currentNotesDirectoryRef];
+		NSString *resolvedPath = [[NSFileManager defaultManager] pathWithFSRef:&currentNotesDirectoryRef];
 		if (resolvedPath) startingDirectory = resolvedPath;
     }
     
@@ -392,25 +409,46 @@
     [checkSpellingButton setState:[prefsController checkSpellingAsYouType]];
     [confirmDeletionButton setState:[prefsController confirmNoteDeletion]];
     [quitWhenClosingButton setState:[prefsController quitWhenClosingWindow]];
-	[alternatingRowsButton setState:[prefsController alternatingRows]];
     [styledTextButton setState:[prefsController pastePreservesStyle]];
     [autoSuggestLinksButton setState:[prefsController linksAutoSuggested]];
 	[softTabsButton setState:[prefsController softTabs]];
 	[makeURLsClickable setState:[prefsController URLsAreClickable]];
-	[rtlButton setState:[prefsController rtl]];
+    [rtlButton setState:[prefsController rtl]];
+    [self previewNoteBodyFont];
+	[appShortcutField setStringValue:[[prefsController appActivationKeyCombo] description]];
+	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColorRaw:YES]];
+	[highlightSearchTermsButton setState:[prefsController highlightSearchTerms]];
+	[foregroundColorWell setColor:[prefsController foregroundTextColor]];
+	[backgroundColorWell setColor:[prefsController backgroundTextColor]];
+    [maxWidthSlider setDoubleValue:[[NSUserDefaults standardUserDefaults] doubleForKey:@"NoteBodyMaxWidth"]];
+	//for elasticthreads' hide dock icon option, check if OS compatible
+	if (IsSnowLeopardOrLater) {
+		[togDockButton setEnabled:YES];
+		
+		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Hide Dock Icon"]) {
+			[togDockLabel setStringValue:@"This will immediately restart NV"];		
+		}else {			
+			[togDockLabel setStringValue:@""];
+		}
+
+	}else {	
+		[togDockButton setEnabled:NO];
+		[togDockLabel setStringValue:@"Sorry, requires Snow Leopard"];
+	}
+    //for Brett's Markdownify/Readability import
 	[useMarkdownImportButton setState:[prefsController useMarkdownImport]];
 	[useReadabilityButton setState:[prefsController useReadability]];
 	[useReadabilityButton setEnabled:[useMarkdownImportButton state]];
-	[searchHighlightColorWell setColor:[prefsController searchTermHighlightColor]];
-	[notesListBackgroundColorWell setColor:[prefsController notesListBackgroundColor]];
-    [self previewNoteBodyFont];
-	[appShortcutField setStringValue:[[prefsController appActivationKeyCombo] description]];
+	
+    [altRowsButton setState:[prefsController alternatingRows]];
+    [showGridButton setState:[prefsController showGrid]];
     
     items = [[NSMutableDictionary alloc] init];
     
     [self addToolbarItemWithName:@"General"];
     [self addToolbarItemWithName:@"Notes"];	
     [self addToolbarItemWithName:@"Editing"];
+	[self addToolbarItemWithName:@"Fonts & Colors"];
 		
     toolbar = [[NSToolbar alloc] initWithIdentifier:@"preferencePanes"];
     [toolbar setDelegate:self];
@@ -435,7 +473,7 @@
 }
 
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
-    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", nil];
+    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", @"Fonts & Colors", nil];
 }
 
 - (NSArray *)toolbarSelectableItemIdentifiers: (NSToolbar *)toolbar {
@@ -464,7 +502,9 @@
         prefsView = [self databaseView];
     } else if([sender isEqualToString:@"Editing"]) {
         prefsView = editingView;
-    } else {
+    } else if([sender isEqualToString:@"Fonts & Colors"]) {
+        prefsView = fontsColorsView;
+	} else {
 		NSLog(@"unknown sender: %@", sender);
 	}
     
@@ -508,6 +548,110 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 	//these may still need to be rounded up
 	
 	return newRect;
+}
+
+//elasticwork
+
+- (IBAction)toggleHideDockIcon:(id)sender{
+	@try {		
+		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Show Dock Icon"]) {		
+			// Write new plist to file using dictionary
+			[NSApp hide:self];
+			if((IsSnowLeopardOrLater)&&([[NSApplication sharedApplication] respondsToSelector: @selector(setActivationPolicy:)] )) {
+				enum {NSApplicationActivationPolicyRegular};	
+				[[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyRegular];
+			}else {
+				ProcessSerialNumber psn = { 0, kCurrentProcess }; 
+				OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+				if( returnCode != 0) {
+					NSLog(@"Could not bring the application to front. Error %d", returnCode);
+				}
+			}
+
+			[[NSUserDefaults standardUserDefaults] setValue:@"Hide Dock Icon" forKey:@"HideDockIcon"];
+			[togDockLabel setStringValue:@"This will immediately restart NV"];
+			[[NSUserDefaults standardUserDefaults] synchronize];		
+			[self performSelector:@selector(reActivate:) withObject:self afterDelay:.16];
+		}else {
+			[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"StatusBarItem"];
+			[[NSUserDefaults standardUserDefaults] setValue:@"Show Dock Icon" forKey:@"HideDockIcon"];
+			[[NSUserDefaults standardUserDefaults] synchronize];		
+			[self performSelector:@selector(relaunchNV:) withObject:self afterDelay:.22];
+			
+		}
+	}
+	@catch (NSException * e) {
+		NSLog(@"oops1 >%@<",[e name]);
+	}
+}
+
+- (void)reActivate:(id)sender{
+	[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
+
+}
+
+- (void)relaunchNV:(id)sender{
+	id fullPath = [[NSBundle mainBundle] executablePath];
+	NSArray *arg = [NSArray arrayWithObjects:nil];    
+	[NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
+	[NSApp terminate:self];
+}
+
+- (IBAction)toggleKeepsTextWidthInWindow:(id)sender{
+		[[NSApp delegate] setMaxNoteBodyWidth];
+}
+
+- (void)updateAppList:(id)sender{
+	NSArray *appArr = [[NSApp delegate] getTxtAppList];
+	NSString *defApp = [appList objectValueOfSelectedItem];
+	if ((![[appList objectValues] isEqualToArray:appArr])||(![appArr containsObject:defApp])) {
+		[appList removeAllItems];
+		[appList addItemsWithObjectValues:appArr];
+		[prefsController setTextEditor:@"Default"];
+		[appList selectItemAtIndex:0];
+	}
+}
+
+- (IBAction)setMaxWidth:(id)sender{
+	double dbWidth = [maxWidthSlider doubleValue];	
+	dbWidth = dbWidth - fmod(dbWidth,2.0);
+	int theWidth = (int) dbWidth;
+	[prefsController setMaxNoteBodyWidth:theWidth];
+	[[NSApp delegate] setMaxNoteBodyWidth];
+}
+
+- (IBAction)changedUseMarkdownImport:(id)sender {
+	[prefsController setUseMarkdownImport:[useMarkdownImportButton state] sender:self];
+	[useReadabilityButton setEnabled:[useMarkdownImportButton state]];
+}
+
+- (IBAction)changedUseReadability:(id)sender {
+	[prefsController setUseReadability:[useReadabilityButton state] sender:self];
+}
+
+- (IBAction)changedAltRows:(id)sender {
+	[prefsController setAlternatingRows:[altRowsButton state] sender:self];
+    [[NSApp delegate] refreshNotesList];
+}
+
+- (IBAction)changedShowGrid:(id)sender {
+	[prefsController setShowGrid:[showGridButton state] sender:self];
+    [[NSApp delegate] refreshNotesList];
+}
+
+//delegate methods for text editor application combobox
+- (void)comboBoxSelectionDidChange:(NSNotification *)notification{
+	NSString *defApp = [appList objectValueOfSelectedItem];
+	if (defApp) {	
+		if ([defApp hasPrefix:@"Default"]) {
+			defApp = @"Default";
+		}
+		[prefsController setTextEditor:defApp];
+	}
+}
+
+- (void)comboBoxWillPopUp:(NSNotification *)notification{
+	[self updateAppList:self];
 }
 
 @end

@@ -90,6 +90,7 @@
 	<!-- footnote li -->
 	<!-- print contents of the matching footnote -->
 	<xsl:template match="xhtml:li" mode="footnote">
+		<xsl:param name="footnoteID"/>
 		<xsl:if test="parent::xhtml:ol/parent::xhtml:div/@class = 'footnotes'">
 			<xsl:if test="concat('#',@id) = $footnoteId">
 				<xsl:apply-templates select="node()" mode="footnote"/>

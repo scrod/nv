@@ -1,9 +1,9 @@
 //
-//  RBSplitViewPrivateDefines.h version 1.1.4
+//  RBSplitViewPrivateDefines.h version 1.2
 //  RBSplitView
 //
 //  Created by Rainer Brockerhoff on 19/11/2004.
-//  Copyright 2004-2006 Rainer Brockerhoff.
+//  Copyright 2004-2009 Rainer Brockerhoff.
 //	Some Rights Reserved under the Creative Commons Attribution License, version 2.5, and/or the MIT License.
 //
 
@@ -15,10 +15,10 @@
 
 // This selects the main horizontal or vertical coordinate according to the split view's orientation.
 // It can be used as an lvalue, too. You need to have BOOL ishor declared to use it.
-#define DIM(x) (((CGFloat *)&(x))[ishor])
+#define DIM(x) (((CGFloat*)&(x))[ishor])
 
-// This selects the other coordinate.
-#define OTHER(x) (((CGFloat *)&(x))[!ishor])
+// This selects the other coordinate. You need to have BOOL ishor declared to use it.
+#define OTHER(x) (((CGFloat*)&(x))[!ishor])
 
 // This value for the view offsets is guaranteed to be out of view for quite some time and is used
 // to mark the view as collapsed.
@@ -32,7 +32,7 @@ typedef struct subviewCache {
 	NSRect rect;					// the subview's frame
 	double fraction;				// fractional extra
 	RBSplitSubview* sub;			// points at the subview
-	CGFloat size;						// current dimension (integer)
+	CGFloat size;					// current dimension
 	BOOL constrain;					// set if constrained
 } subviewCache;
 
@@ -40,7 +40,7 @@ typedef struct subviewCache {
 typedef struct animationData {
 	RBSplitSubview* owner;			// the subview being animated
 	CGFloat dimension;				// the subview's starting or ending dimension
-	NSInteger stepsDone;					// counts already done animation steps
+	int stepsDone;					// counts already done animation steps
 	NSTimeInterval elapsedTime;		// time already spent in resizing and adjusting subviews
 	NSTimeInterval finishTime;		// the animation should be finished at this time
 	NSTimeInterval totalTime;		// total time the animation should take
@@ -76,7 +76,7 @@ typedef struct animationData {
 
 - (void)RB___adjustOutermostIfNeeded;
 - (void)RB___setDragging:(BOOL)flag;
-- (CGFloat)RB___dividerOrigin:(NSInteger)indx;
+- (CGFloat)RB___dividerOrigin:(NSUInteger)indx;
 - (NSArray*)RB___subviews;
 - (NSUInteger)RB___numberOfSubviews;
 - (void)RB___adjustSubviewsExcepting:(RBSplitSubview*)excepting;

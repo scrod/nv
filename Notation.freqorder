@@ -231,7 +231,7 @@ _BlockSizeForNotation
 -[WALController logFileStillExists]
 -[RBSplitView restoreState]
 -[WALController setDelegate]
-_getOptimalBlockSize
+_GetVolumeInfo
 -[AppController windowWillReturnUndoManager]
 -[AppController runDelayedUIActionsAfterLaunch]
 -[PTHotKeyCenter unregisterHotKeyForName]

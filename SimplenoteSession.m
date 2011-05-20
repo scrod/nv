@@ -114,7 +114,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	if (reachable) {
 		[self startFetchingListForFullSyncManual];
 	}
-	NSLog(@"self->reachabilityFailed: %d, flags: %u", self->reachabilityFailed, flags);
+	//NSLog(@"self->reachabilityFailed: %d, flags: %u", self->reachabilityFailed, flags);
 }
 
 - (BOOL)reachabilityFailed {
@@ -555,7 +555,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 			NSUInteger bodyLoc = 0;
 			NSString *separator = nil;
 			NSString *combinedContent = [info objectForKey:@"content"];
-			NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote)];
+			NSString *newTitle = [combinedContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:titleOfNote(aNote) maxTitleLen:60];
 			
 			[aNote updateWithSyncBody:[combinedContent substringFromIndex:bodyLoc] andTitle:newTitle];
 			
@@ -692,13 +692,14 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		NSString *fullContent = [info objectForKey:@"content"];
 		NSUInteger bodyLoc = 0;
 		NSString *separator = nil;
-		NSString *title = [fullContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:nil];
+		NSString *title = [fullContent syntheticTitleAndSeparatorWithContext:&separator bodyLoc:&bodyLoc oldTitle:nil maxTitleLen:60];
 		NSString *body = [fullContent substringFromIndex:bodyLoc];
 		//get title and body, incl. separator
 		NSMutableAttributedString *attributedBody = [[[NSMutableAttributedString alloc] initWithString:body attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
 		[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
+		[attributedBody addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBody length])];
 		
-		NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:title uniqueFilename:nil format:SingleDatabaseFormat];
+		NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:title delegate:delegate format:SingleDatabaseFormat labels:nil];
 		if (note) {
 			NSNumber *modNum = [info objectForKey:@"modify"];
 			[note setDateAdded:[[info objectForKey:@"create"] doubleValue]];

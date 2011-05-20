@@ -12,12 +12,12 @@
 
 
 #import <Cocoa/Cocoa.h>
-#import "NotesTableCornerView.h"
 
 @class HeaderViewWithMenu;
 @class NoteAttributeColumn;
 @class GlobalPrefs;
-@class NotesTableCornerView;
+//@class NotesTableCornerView;
+//@class NVTransparentScroller;
 
 typedef struct _ViewLocationContext {
 	BOOL pivotRowWasEdge;
@@ -27,23 +27,33 @@ typedef struct _ViewLocationContext {
 
 
 @interface NotesTableView : NSTableView {
+	NSTimer *modifierTimer;
 	IBOutlet NSTextField *controlField;
 	NSMutableArray *allColumns;
+	NSMutableDictionary *allColsDict;
 	
 	NSInteger firstRowIndexBeforeSplitResize;
 	
 	BOOL viewMenusValid;
 	BOOL hadHighlightInForeground, hadHighlightInBackground;
-	BOOL shouldUseSecondaryHighlightColor;
-		
+	BOOL shouldUseSecondaryHighlightColor, isActiveStyle;
+	BOOL lastEventActivatedTagEdit, wasDeleting, isAutocompleting;
+	
+	id labelsListSource;
+	
 	GlobalPrefs *globalPrefs;
 	NSMenuItem *dummyItem;
 	HeaderViewWithMenu *headerView;
-	NotesTableCornerView *cornerView;
+	//NotesTableCornerView *cornerView;
+	NSView *cornerView;
+	NSTextFieldCell *cachedCell;
 	
+	//NVTransparentScroller *nvNotesScroller;
 	NSDictionary *loadStatusAttributes;
 	float loadStatusStringWidth;
 	NSString *loadStatusString;
+	
+	float tableFontHeight;
 
 	int affinity;	
 }
@@ -56,19 +66,23 @@ typedef struct _ViewLocationContext {
 - (double)distanceFromRow:(int)aRow forVisibleArea:(NSRect)visibleRect;
 - (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset;
 - (void)selectRowAndScroll:(NSInteger)row;
-- (BOOL)objectIsSelected:(id)obj;
 
+- (float)tableFontHeight;
+
+- (BOOL)isActiveStyle;
 - (void)setShouldUseSecondaryHighlightColor:(BOOL)value;
-- (void)_setTitleDereferencorState:(BOOL)activeStyle;
+- (void)_setActiveStyleState:(BOOL)activeStyle;
 - (void)updateTitleDereferencorState;
 
 - (void)reloadDataIfNotEditing;
 
 - (void)restoreColumns;
-
+- (void)_configureAttributesForCurrentLayout;
 - (void)updateHeaderViewForColumns;
+- (BOOL)eventIsTagEdit:(NSEvent*)event forColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex;
+- (BOOL)lastEventActivatedTagEdit;
 - (void)editRowAtColumnWithIdentifier:(id)identifier;
-- (void)addPermanentTableColumn:(NSTableColumn*)column;
+- (BOOL)addPermanentTableColumn:(NSTableColumn*)column;
 - (IBAction)actionHideShowColumn:(id)sender;
 - (IBAction)toggleNoteBodyPreviews:(id)sender;
 - (void)setStatusForSortedColumn:(id)item;
@@ -80,6 +94,10 @@ typedef struct _ViewLocationContext {
 
 - (void)incrementNoteSelection:(id)sender;
 
+- (id)labelsListSource;
+- (void)setLabelsListSource:(id)labelsSource;
+- (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(int)index;
+
 @end
 
 @interface NSTableView (Private)
@@ -89,3 +107,4 @@ typedef struct _ViewLocationContext {
 //10.3 only
 - (void)_sizeToFitIfNecessary;
 @end
+

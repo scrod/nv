@@ -16,8 +16,7 @@
 
 #import "NotationController.h"
 #import "NotesTableView.h"
-#import "WhiteTransparentScroller.h"
-#import "BlueTransparentScroller.h"
+#import "Spaces.h"
 
 @class LinkingEditor;
 @class EmptyView;
@@ -29,9 +28,13 @@
 @class RBSplitSubview;
 @class TitlebarButton;
 @class LinearDividerShader;
+@class TagEditingManager;
+@class StatusItemView;
+@class DFView;
 @class PreviewController;
-@class WhiteTransparentScroller;
-@class BlueTransparentScroller;
+@class WordCountToken;
+@class AugmentedScrollView;
+@class ETContentView;
 
 #ifndef MarkdownPreview
 #define MarkdownPreview 13371
@@ -45,56 +48,78 @@
 #define TextilePreview 13373
 #endif
 
-@interface AppController : NSObject {
-    IBOutlet DualField *field;
-	IBOutlet RBSplitSubview *splitSubview;
-	IBOutlet RBSplitView *splitView;
-	IBOutlet RBSplitSubview *notesList;
-    IBOutlet NotesTableView *notesTableView;
-	IBOutlet NSBox *horizontalRule;
-	IBOutlet NSBox *verticalRule;
-    IBOutlet LinkingEditor *textView;
+@interface AppController : NSObject 
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+<NSToolbarDelegate, NSTableViewDelegate, NSWindowDelegate, NSTextFieldDelegate, NSTextViewDelegate>
+#endif
+{
+	//NSMenuItem *fsMenuItem;
+	BOOL wasVert;
+  BOOL isAutocompleting;
+  BOOL wasDeleting;
+  IBOutlet ETContentView *mainView;
+	DFView *dualFieldView;
+	StatusItemView *cView;
+  NSStatusItem *statusItem;
+	IBOutlet NSMenu *statBarMenu;
+	TagEditingManager *TagEditer;
+	NSColor *backgrndColor;
+	NSColor *foregrndColor;
+	int userScheme;
+	NSString *noteFormat;
+	NSTextView *theFieldEditor;
+  NSDictionary *fieldAttributes;
+	NSTimer *modifierTimer;
+	IBOutlet WordCountToken *wordCounter;
+  IBOutlet DualField *field;
+	RBSplitSubview *splitSubview;
+	RBSplitSubview *notesSubview;
+	RBSplitView *splitView;
+  IBOutlet AugmentedScrollView *notesScrollView;
+  IBOutlet NSScrollView *textScrollView;
+  IBOutlet NotesTableView *notesTableView;
+  IBOutlet LinkingEditor *textView;
 	IBOutlet EmptyView *editorStatusView;
 	IBOutlet NSMenuItem *sparkleUpdateItem;
-    IBOutlet NSWindow *window;
+  IBOutlet NSWindow *window;
 	IBOutlet NSPanel *syncWaitPanel;
 	IBOutlet NSProgressIndicator *syncWaitSpinner;
-	IBOutlet NSMenuItem *widescreenToggle;
-	IBOutlet NSMenuItem *collapseToggle;
-	IBOutlet WhiteTransparentScroller *otherScroller;
-	IBOutlet BlueTransparentScroller *noteScroller;
 	NSToolbar *toolbar;
 	NSToolbarItem *dualFieldItem;
 	TitlebarButton *titleBarButton;
 	
 	BOOL waitedForUncommittedChanges;
 	
+	NSImage *verticalDividerImg;
 	LinearDividerShader *dividerShader;
 	
-	NSString *URLToSearchOnLaunch;
+	NSString *URLToInterpretOnLaunch;
 	NSMutableArray *pathsToOpenOnLaunch;
 	
-    NSUndoManager *windowUndoManager;
-    PrefsWindowController *prefsWindowController;
-    GlobalPrefs *prefsController;
-    NotationController *notationController;
+  NSUndoManager *windowUndoManager;
+  PrefsWindowController *prefsWindowController;
+  GlobalPrefs *prefsController;
+  NotationController *notationController;
 	
+	SpaceSwitchingContext spaceSwitchCtx;
 	ViewLocationContext listUpdateViewCtx;
 	BOOL isFilteringFromTyping, typedStringIsCached;
 	BOOL isCreatingANote;
 	NSString *typedString;
+	NSArray *cTags;
 	
 	NoteObject *currentNote;
 	NSArray *savedSelectedNotes;
-    
-    PreviewController *previewController;
-    IBOutlet NSMenuItem *markdownPreview;
-    IBOutlet NSMenuItem *multiMarkdownPreview;
-    IBOutlet NSMenuItem *textilePreview;
-    NSInteger currentPreviewMode;
-
-	IBOutlet NSWindow *mainWindow;
-	NSWindow *fullscreenWindow;
+	
+  PreviewController *previewController;
+  // IBOutlet NSMenuItem *markdownPreview;
+  IBOutlet NSMenuItem *multiMarkdownPreview;
+  IBOutlet NSMenuItem *textilePreview;
+  IBOutlet NSMenuItem *previewToggler;
+  IBOutlet NSMenuItem *lockNoteItem;
+  IBOutlet NSMenuItem *printPreviewItem;
+  IBOutlet NSMenuItem *savePreviewItem;
+  NSInteger currentPreviewMode;
 }
 
 void outletObjectAwoke(id sender);
@@ -106,25 +131,29 @@ void outletObjectAwoke(id sender);
 - (void)runDelayedUIActionsAfterLaunch;
 - (void)updateNoteMenus;
 
-- (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard;
 - (IBAction)renameNote:(id)sender;
 - (IBAction)deleteNote:(id)sender;
+- (IBAction)copyNoteLink:(id)sender;
 - (IBAction)exportNote:(id)sender;
+- (IBAction)revealNote:(id)sender;
 - (IBAction)printNote:(id)sender;
 - (IBAction)tagNote:(id)sender;
 - (IBAction)importNotes:(id)sender;
+- (IBAction)switchViewLayout:(id)sender;
 
 - (IBAction)fieldAction:(id)sender;
 - (NoteObject*)createNoteIfNecessary;
 - (void)searchForString:(NSString*)string;
-- (NSUInteger)_revealNote:(NoteObject*)note options:(NSUInteger)opts;
+- (NSUInteger)revealNote:(NoteObject*)note options:(NSUInteger)opts;
 - (BOOL)displayContentsForNoteAtIndex:(int)noteIndex;
 - (void)processChangedSelectionForTable:(NSTableView*)table;
 - (void)setEmptyViewState:(BOOL)state;
 - (void)cancelOperation:(id)sender;
 - (void)_setCurrentNote:(NoteObject*)aNote;
-- (void)_expandToolbar;
-- (void)_collapseToolbar;
+//- (void)_expandToolbar;
+//- (void)_collapseToolbar;
+- (void)_forceRegeneratePreviewsForTitleColumn;
+- (void)_configureDividerForCurrentLayout;
 - (NoteObject*)selectedNoteObject;
 
 - (void)restoreListStateUsingPreferences;
@@ -144,19 +173,51 @@ void outletObjectAwoke(id sender);
 - (IBAction)bringFocusToControlField:(id)sender;
 - (NSWindow*)window;
 
--(IBAction)togglePreview:(id)sender;
--(void)postTextUpdate;
--(IBAction)selectPreviewMode:(id)sender;
--(IBAction)toggleSourceView:(id)sender;
+//elasticwork
+- (void)setIsEditing:(BOOL)inBool inCell:(NSCell *)theCell;
+- (void)setIsEditing:(BOOL)inBool;
+//- (void)focusOnCtrlFld:(id)sender;
+- (void)drawNotesTable;
+- (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex;
+- (NSMenu *)statBarMenu;
+- (BOOL)toggleAttachedWindow:(id)sender;
+- (BOOL)toggleAttachedMenu:(id)sender;
+- (NSArray *)commonLabels;
+- (IBAction)multiTag:(id)sender;
+- (void)setDualFieldInToolbar;
+- (void)setDualFieldInView;
+- (void)setDualFieldIsVisible:(BOOL)isVis;
+//- (void)hideDualFieldView;
+//- (void)showDualFieldView;
+- (BOOL)dualFieldIsVisible;
+- (IBAction)toggleCollapse:(id)sender;
+- (void)setMaxNoteBodyWidth;
+- (IBAction)toggleFullscreen:(id)sender;
+- (IBAction)openFileInEditor:(id)sender;
+- (NSArray *)getTxtAppList;
+- (void)updateTextApp:(id)sender;
+- (IBAction)setBWColorScheme:(id)sender;
+- (IBAction)setLCColorScheme:(id)sender;
+- (IBAction)setUserColorScheme:(id)sender;
+- (void)updateFieldAttributes;
+- (void)updateColorScheme;
+- (NSColor*)_selectionColor;
+- (void)setBackgrndColor:(NSColor *)inColor;
+- (void)setForegrndColor:(NSColor *)inColor;
+- (NSColor *)backgrndColor;
+- (NSColor *)foregrndColor;
+- (void)updateWordCount:(BOOL)doIt;
+- (void)ensurePreviewIsVisible;
+- (IBAction)toggleWordCount:(id)sender;
+- (IBAction)togglePreview:(id)sender;
+- (IBAction)toggleSourceView:(id)sender;
 - (IBAction)savePreview:(id)sender;
 - (IBAction)sharePreview:(id)sender;
+- (IBAction)lockPreview:(id)sender;
+- (IBAction)printPreview:(id)sender;
+- (void)postTextUpdate;
+- (IBAction)selectPreviewMode:(id)sender;
 
--(void)setMenuItemStates;
--(IBAction)toggleLayout:(id)sender;
--(IBAction)collapseNotes:(id)sender;
-
--(void)updateScheme;
--(void)updateRTL;
-
-- (IBAction)toggleFullscreen:(id)sender;
+- (void)updateRTL;
+- (void)refreshNotesList;
 @end

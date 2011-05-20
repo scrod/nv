@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>-33</key>
+	<string>le dossier est plein</string>
+	<key>-34</key>
+	<string>le disque est plein</string>
+	<key>-35</key>
+	<string>le volume n&apos;existe pas</string>
+	<key>-36</key>
+	<string>il y a eu un problème pour accéder au disque</string>
+	<key>-37</key>
+	<string>le nom était incorrect</string>
+	<key>-38</key>
+	<string>le fichier n&apos;est pas ouvert</string>
+	<key>-39</key>
+	<string>fin du fichier atteinte</string>
+	<key>-40</key>
+	<string>a negative file position offset was specified</string>
+	<key>-41</key>
+	<string>le fichier ne tiendra pas en mémoire</string>
+	<key>-42</key>
+	<string>il y a trop de fichiers ouverts</string>
+	<key>-43</key>
+	<string>le fichier n&apos;a pas été trouvé</string>
+	<key>-44</key>
+	<string>le support est protégé en écriture</string>
+	<key>-45</key>
+	<string>le fichier est verouillé</string>
+	<key>-46</key>
+	<string>le volume est verouillé</string>
+	<key>-47</key>
+	<string>le fichier est toujours en cours d&apos;utilisation</string>
+	<key>-48</key>
+	<string>un fichier du même nom existe déjà</string>
+	<key>-49</key>
+	<string>le fichier est déjà ouvert en écriture</string>
+	<key>-50</key>
+	<string>un paramètre était incorrect</string>
+	<key>-51</key>
+	<string>le numéro de référence du fichier n&apos;est pas correct</string>
+	<key>-52</key>
+	<string>the file position offset couldn&apos;t be obtained</string>
+	<key>-53</key>
+	<string>le volume n&apos;est plus disponible</string>
+	<key>-54</key>
+	<string>le fichier est verouillé</string>
+	<key>-55</key>
+	<string>le disque est déjà monté</string>
+	<key>-56</key>
+	<string>un lecteur non-disponible était référencé</string>
+	<key>-57</key>
+	<string>le disque n&apos;est pas formaté pour Mac</string>
+	<key>-58</key>
+	<string>le type de système de fichiers du volume n&apos;est pas supporté</string>
+	<key>-59</key>
+	<string>il y a eu un problème durant le renommage</string>
+	<key>-60</key>
+	<string>le master directory block (MDB) est corrompu</string>
+	<key>-61</key>
+	<string>les autorisations du fichier ne vous permettent pas de le modifier</string>
+	<key>-64</key>
+	<string>le lecteur n&apos;est pas installé</string>
+	<key>-120</key>
+	<string>le dossier n&apos;a pas été trouvé</string>
+	<key>-121</key>
+	<string>il y a trop de dossiers de travail ouverts</string>
+	<key>-122</key>
+	<string>des dossiers ne peuvent être déplacés dans des dossiers qu&apos;ils contiennent</string>
+	<key>-123</key>
+	<string>Le volume n&apos;est pas du type correct</string>
+	<key>-124</key>
+	<string>Le serveur de fichier a été déconnecté</string>
+	<key>-127</key>
+	<string>there was a problem with the file system driver software</string>
+	<key>-128</key>
+	<string>l&apos;opération a été annulée</string>
+	<key>-818</key>
+	<string>les données n&apos;ont pu être désérialisées</string>
+	<key>-819</key>
+	<string>le fichier Interim Note-Changes n&apos;a pu être initialisé</string>
+	<key>-820</key>
+	<string>le fichier Interim Note-Changes n&apos;a pu être ajouté à</string>
+	<key>-821</key>
+	<string>échec de l&apos;authentification</string>
+	<key>-822</key>
+	<string>les données n&apos;ont pu être décompressées</string>
+	<key>-823</key>
+	<string>vous n&apos;avez pas entré de mot de passe</string>
+	<key>-824</key>
+	<string>les données n&apos;ont pu être formatées de façon adéquate</string>
+	<key>-825</key>
+	<string>après décodage, les notes ont des valeurs discordantes</string>
+	<key>-1300</key>
+	<string>l&apos;ID de fichier spécifiée n&apos;a  pu être trouvée sur le système de fichiers</string>
+	<key>-1301</key>
+	<string>l&apos;ID du fichier existe déjà dans le système de fichiers</string>
+	<key>-1302</key>
+	<string>un fichier était en fait un dossier</string>
+	<key>-1303</key>
+	<string>les fichiers sont sur différents volumes</string>
+	<key>-1304</key>
+	<string>le catalogue a changé de façon inattendue</string>
+	<key>-1306</key>
+	<string>Tentative d&apos;échanger le contenu du fichier avec lui-même</string>
+	<key>-1307</key>
+	<string>the file doesn&apos;t match the file ID number</string>
+	<key>-1308</key>
+	<string>le volume a été remonté de façon incorrecte</string>
+	<key>-1309</key>
+	<string>the file was accessed outside of its bounds</string>
+	<key>-1310</key>
+	<string>le fichier ou le volume est trop large</string>
+	<key>-1311</key>
+	<string>the volume is in use by the virtual memory subsystem</string>
+	<key>-1327</key>
+	<string>the file control block table was improperly accessed</string>
+	<key>-1400</key>
+	<string>the file system call is unknown</string>
+	<key>-1401</key>
+	<string>la référence au fichier n&apos;est plus valide (FSRef parameter is bad)</string>
+	<key>-1402</key>
+	<string>un nom de branche invalide a été spécifié</string>
+	<key>-1403</key>
+	<string>Un fragment de la mémoire n&apos;a pas été inialisé (a buffer parameter was bad)</string>
+	<key>-1404</key>
+	<string>un numéro de branche invalide a été spécifié</string>
+	<key>-1405</key>
+	<string>invalid file catalog information was requested</string>
+	<key>-1406</key>
+	<string>the catalog information buffer was uninitialized</string>
+	<key>-1407</key>
+	<string>un dossier était en fait un fichier</string>
+	<key>-1409</key>
+	<string>la branche demandée de ce fichier n&apos;existe pas</string>
+	<key>-1410</key>
+	<string>le nom demandé est trop long pour être valide</string>
+	<key>-1411</key>
+	<string>le fichier n&apos;a pas de nom</string>
+	<key>-1412</key>
+	<string>an invalid positioning mode was specified for accessing the file</string>
+	<key>-1413</key>
+	<string>the file was improperly allocated</string>
+	<key>-1417</key>
+	<string>il n&apos;y a plus d&apos;éléments à trouver</string>
+	<key>-1418</key>
+	<string>no items were requested to be read from the directory</string>
+	<key>-1419</key>
+	<string>les paramètres de recherche sont incorrects</string>
+	<key>-1420</key>
+	<string>les références au fichier sont différentes (file system references are different)</string>
+	<key>-1421</key>
+	<string>le fichier est déjà une branche</string>
+	<key>-1422</key>
+	<string>des paramètres incorrects ont été passés pour scanner le dossier</string>
+	<key>-1423</key>
+	<string>the specified directory iterator is invalid</string>
+	<key>-1424</key>
+	<string>le scan du dossier a été utilisé de façon inappropriée</string>
+	<key>-1425</key>
+	<string>vous avez dépassé votre quota</string>
+	<key>-5000</key>
+	<string>votre compte ne dispose pas des permissions pour accéder à ce dossier</string>
+</dict>
+</plist>

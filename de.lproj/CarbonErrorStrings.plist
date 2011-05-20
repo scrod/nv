@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>-33</key>
+	<string>das Verzeichnis ist voll</string>
+	<key>-34</key>
+	<string>die Festplatte ist voll</string>
+	<key>-35</key>
+	<string>das Volumen existiert nicht</string>
+	<key>-36</key>
+	<string>es gab ein Problem beim Zugriff auf das Medienlaufwerk</string>
+	<key>-37</key>
+	<string>der Name war falsch</string>
+	<key>-38</key>
+	<string>die Datei ist nicht geöffnet</string>
+	<key>-39</key>
+	<string>das Ende der Datei wurde erreicht</string>
+	<key>-40</key>
+	<string>Eine negative Dateiabsatzposition wurde erkannt</string>
+	<key>-41</key>
+	<string>Die Datei passt nicht in den Speicher</string>
+	<key>-42</key>
+	<string>Es existieren gerade zu viele geöffnete Dateien</string>
+	<key>-43</key>
+	<string>Die Datei wurde nicht gefunden</string>
+	<key>-44</key>
+	<string>Das Medium ist schreibgeschützt</string>
+	<key>-45</key>
+	<string>Die Datei ist blockiert</string>
+	<key>-46</key>
+	<string>Der Datenträger ist blockiert</string>
+	<key>-47</key>
+	<string>Die Datei wird gerade verwendet</string>
+	<key>-48</key>
+	<string>Eine Datei mit diesem Namen existiert bereits</string>
+	<key>-49</key>
+	<string>Die Datei ist bereits zum Schreiben geöffnet</string>
+	<key>-50</key>
+	<string>der Parameter war falsch</string>
+	<key>-51</key>
+	<string>Die Referenznummer der Datei war falsch</string>
+	<key>-52</key>
+	<string>Die Absatzposition der Datei konnte nicht erreicht werden</string>
+	<key>-53</key>
+	<string>Der Datenträger ist nicht länger vorhanden</string>
+	<key>-54</key>
+	<string>Die Datei ist blockiert</string>
+	<key>-55</key>
+	<string>Die Festplatte ist bereits eingehängt</string>
+	<key>-56</key>
+	<string>Eine nicht existierende Festplatte wurde angegeben</string>
+	<key>-57</key>
+	<string>Die Festplatte ist nicht Mac kompatibel formatiert</string>
+	<key>-58</key>
+	<string>Der Dateisystemtyp des Datenträgers wird nicht unterstützt</string>
+	<key>-59</key>
+	<string>Es gab ein Problem im Verlauf der Umbenennung</string>
+	<key>-60</key>
+	<string>Der Master Directory Block (MDB) ist fehlerhaft</string>
+	<key>-61</key>
+	<string>die Dateirechte lassen dich nicht schreiben</string>
+	<key>-64</key>
+	<string>Das Laufwerk ist nicht installiert</string>
+	<key>-120</key>
+	<string>Das Verzeichnis wurde nicht gefunden</string>
+	<key>-121</key>
+	<string>es gibt zu viele geöffnete Arbeitsverzeichnisse</string>
+	<key>-122</key>
+	<string>Verzeichnisse können nicht in Verzeichnisse verschoben werden, die sie enthalten</string>
+	<key>-123</key>
+	<string>Der Datenträger besitzt den falschen Typ</string>
+	<key>-124</key>
+	<string>Der Server Datenträger wurde getrennt</string>
+	<key>-127</key>
+	<string>Es gab ein Problem mit der Dateisystem Treibersoftware</string>
+	<key>-128</key>
+	<string>Die Operation wurde abgebrochen</string>
+	<key>-818</key>
+	<string>die Daten konnten nicht auseinander genommen werden</string>
+	<key>-819</key>
+	<string>Die Interim Note-Changes Datei konnte nicht initialisiert werden</string>
+	<key>-820</key>
+	<string>Die Interim Note-Changes Datei konnte nicht hinzugefügt werden</string>
+	<key>-821</key>
+	<string>Authenifizierung fehlgeschlagen</string>
+	<key>-822</key>
+	<string>Die Daten konnten nicht dekompressiert werden</string>
+	<key>-823</key>
+	<string>Du hast kein Passwort angegeben</string>
+	<key>-824</key>
+	<string>Die Daten konnten nicht entsprechend formatiert werden</string>
+	<key>-825</key>
+	<string>Notizen haben nach der Kodierung Fehlanpassungen</string>
+	<key>-1300</key>
+	<string>Die angegebene Datei ID konnte nicht auf dem Dateisystem gefunden werden</string>
+	<key>-1301</key>
+	<string>Die Datei ID existiert bereits</string>
+	<key>-1302</key>
+	<string>eine Datei war eigentlich ein Verzeichnis</string>
+	<key>-1303</key>
+	<string>Die Dateien befinden sich auf unterschiedlichen Datenträgern</string>
+	<key>-1304</key>
+	<string>Der Katalog änderte sich unerwartet</string>
+	<key>-1306</key>
+	<string>es wurde versucht, die Dateiinhalte mit sich selber auszutauschen</string>
+	<key>-1307</key>
+	<string>Die Datei stimmt nicht mit der Datei ID Nummer überein</string>
+	<key>-1308</key>
+	<string>Der Datenräger wurde unsachgemäß neu eingehangen</string>
+	<key>-1309</key>
+	<string>Auf die Datei wurde außerhalb ihrer Grenzen zugegriffen</string>
+	<key>-1310</key>
+	<string>Die Datei oder der Datenträger ist zu groß</string>
+	<key>-1311</key>
+	<string>Der Datenträger wird gerade vom virtuellen Speichersystem genutzt</string>
+	<key>-1327</key>
+	<string>Auf die Kontrollblock Tabelle der Datei wurde unsachgemäß zugegriffen</string>
+	<key>-1400</key>
+	<string>Zugriffsart auf das Dateisystem ist unbekannt</string>
+	<key>-1401</key>
+	<string>Der Dateisystemverweis ist nicht mehr gültig</string>
+	<key>-1402</key>
+	<string>ein falscher Verweisname wurde angegeben</string>
+	<key>-1403</key>
+	<string>ein Buffer ist nicht initialisiert</string>
+	<key>-1404</key>
+	<string>eine falsche Verweisnummer wurde angegeben</string>
+	<key>-1405</key>
+	<string>Eine falsche Dateikatalog Information wurde angefordert</string>
+	<key>-1406</key>
+	<string>Der Katalog Informationsbuffer war nicht initialisiert</string>
+	<key>-1407</key>
+	<string>ein Verzeichnis war eigentlich eine Datei</string>
+	<key>-1409</key>
+	<string>der Dateiverweis existiert nicht</string>
+	<key>-1410</key>
+	<string>Der angeforderte Dateiname ist zu lang um korrekt zu sein</string>
+	<key>-1411</key>
+	<string>Die Datei hat keinen Namen</string>
+	<key>-1412</key>
+	<string>Ein falscher Positionierungsmodus wurde angegeben, um auf die Datei zuzugreifen</string>
+	<key>-1413</key>
+	<string>die Datei wurde unsachgemäß zugewiesen</string>
+	<key>-1417</key>
+	<string>Es konnten keine weiteren Elemente gefunden werden</string>
+	<key>-1418</key>
+	<string>Es wurden keine Elemente zum Lesen aus dem Verzeichnis angefordert</string>
+	<key>-1419</key>
+	<string>Die Suchparameter sind ungültig</string>
+	<key>-1420</key>
+	<string>die Dateisystemreferenzen sind unterschiedlich</string>
+	<key>-1421</key>
+	<string>Die Datei hat bereits einen Verweis</string>
+	<key>-1422</key>
+	<string>Falsche Parameter wurden abgefragt bei der Verzeichnis Iteration</string>
+	<key>-1423</key>
+	<string>Der angegebene Verzeichnis Iterator ist nicht korrekt</string>
+	<key>-1424</key>
+	<string>Der Verzeichnis Iterator wurde unsachgemäß genutzt</string>
+	<key>-1425</key>
+	<string>Deine Festplatte ist voll</string>
+	<key>-5000</key>
+	<string>Dein Account hat keine Bereichtigung um auf das Verzeichnis zuzugreifen</string>
+</dict>
+</plist>

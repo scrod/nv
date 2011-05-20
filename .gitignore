@@ -1,15 +1,53 @@
-# Xcode user-settings files
-build/*
-*.pbxuser
-*.mode1v3
-*.mode1
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
 
-# Mac OS X specific
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+*.pbxproj
+*.xcworkspace
+*.xcuserdatad
+*.xcuserstate
+
+# OS generated files #
+######################
+.DS_Store?
+thumbs.db
+Icon?
+Thumbs.db
+Notation.xcodeproj/xcuserdata/*
+Notation.xcodeproj/project.xcworkspace/*
+Loren.*
+ttscoff.*
+UserInterfaceState.xcuserstate
 .DS_Store
-profile
-English.lproj/MainMenu~.nib/classes.nib
-English.lproj/MainMenu~.nib/data.dependency
-English.lproj/MainMenu~.nib/info.nib
-English.lproj/MainMenu~.nib/keyedobjects.nib
-scrollbar.acorn
-scrollbar2.acorn
+<<<<<<< HEAD
+
+/.DS_Store
+=======
+<<<<<<< HEAD
+/.DS_Store
+=======
+>>>>>>> 1d5018bacb5c01a694493aca06192b4a5096d9ef
+>>>>>>> mmd3

@@ -30,7 +30,7 @@
 	
 	id delegate;
 	
-	BOOL isIndicating;
+	BOOL isIndicating, isImporting;
 	
 	long long totalReceivedByteCount, maxExpectedByteCount;
 }

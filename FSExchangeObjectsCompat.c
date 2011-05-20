@@ -29,12 +29,6 @@ __private_extern__ u_int32_t volumeCapabilities(const char *path)
     return (0);
 }
 
-Boolean  VolSupportsFSExchangeObjects(u_int32_t volCapabilities)
-{
-	return ( 0 != (volCapabilities & VOL_CAP_INT_EXCHANGEDATA));
-}
-
-
 static OSErr GenerateUniqueHFSUniStr(long *startSeed, const FSRef *dir1, const FSRef *dir2,	HFSUniStr255 *uniqueName) {
 	OSErr result;
 	long i;
@@ -91,22 +85,6 @@ Dir2PBMakeFSRefUnicodeSyncFailed:
 Dir1PBMakeFSRefUnicodeSyncFailed:
 		
 		return ( result );
-}
-
-Boolean VolumeOfFSRefSupportsExchangeObjects(const FSRef *fsRef) {
-	/* get source volume's path */
-    char path[PATH_MAX+1];
-    (void)FSRefMakePath(fsRef, (UInt8*)path, PATH_MAX);
-    
-    char root[PATH_MAX+1];
-    root[0] = root[PATH_MAX] = 0;
-    struct statfs sb;
-    if (0 == statfs(path, &sb)) {
-        bcopy(sb.f_mntonname, root, MIN(PATH_MAX, sizeof(sb.f_mntonname)));
-    }
-	
-	/* see if that volume supports FSExchangeObjects */
-    return (VolSupportsFSExchangeObjects(volumeCapabilities(root)));
 }
 
 OSErr FSExchangeObjectsEmulate(const FSRef *sourceRef, const FSRef *destRef, FSRef *newSourceRef, FSRef *newDestRef) {

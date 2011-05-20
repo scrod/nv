@@ -1,0 +1,24 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf250
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww7880\viewh10300\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f0\fs24 \cf0 Beginne die Eingabe eines Textes immer im oberen Suchfeld. Drücke die Eingabgetaste um eine neue Notiz mit dem jeweiligen Titel anzulegen. Während der Eingabe sucht Notational Velocity nach bereits vorhandenen Notizen, deren Titel oder Inhalt deinen gerade eingegebenen Text enthalten. Beachte also, dass die Vergabe eines Notiztitels sowie die Suche immer zeitgleich verlaufen.\
+\
+Wenn du eine der gefundenen Notizen auswählst (z.B. durch Nutzen der Hoch/Runter Pfeiltasten), zeigt Notational Velocity den Inhalt dieser im unteren Feld an (das was du hier gerade liest).\
+\
+Falls du den Beginn einer Notiz eingegeben hast, hat Notational Velocity diese Notiz bereits automatisch ausgewählt.\
+\
+Um eine weitere Notiz anzulegen, musst du einfach erneut im oberen Suchfeld die Texteingabe starten (drücke 
+\f1 \uc0\u8984 
+\f0 -L um mit Hilfe der Tastatur dorthin zu gelangen). Keine Angst, deine Notiz wird nicht umbenannt--dazu ist ein Doppelklick auf den Notiztitel in der Liste nötig oder die Tastenkombination 
+\f1 \uc0\u8984 
+\f0 -R.\
+\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f2\i \cf0 Aber Notational Velocity lässt mich meine Änderungen gar nicht speichern!
+\f0\i0 \
+Notational Velocity speichert deine Änderungen beim Anlegen oder Editieren der Notizen ständig selbständig, so dass ein manuelles "Speichern" entfällt. Toll, oder?\
+}

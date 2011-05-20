@@ -58,6 +58,17 @@
 	return dict;
 }
 
+- (NoteObject*)noteForKey:(NSString*)key ofServiceClass:(Class<SyncServiceSession>)serviceClass {
+	NSUInteger i = 0;
+	for (i=0; i<[allNotes count]; i++) {
+		NoteObject *note = [allNotes objectAtIndex:i];
+		if ([[[[note syncServicesMD] objectForKey:[serviceClass serviceName]] 
+			  objectForKey:[serviceClass nameOfKeyElement]] isEqualToString:key])
+			return note;
+	}
+	return nil;
+}
+
 - (void)startSyncServices {
 	[syncSessionController setSyncDelegate:self];
 	[syncSessionController initializeAllServices];

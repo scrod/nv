@@ -15,7 +15,7 @@
 #import "NotationPrefs.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
-#import <Carbon/Carbon.h>
+#import "NSFileManager_NV.h"
 
 @implementation PassphraseRetriever
 
@@ -56,7 +56,7 @@
 	FSRef notesDirectoryRef;
 	
 	if ([[[notationPrefs delegate] aliasDataForNoteDirectory] fsRefAsAlias:&notesDirectoryRef]) {
-		NSString *resolvedPath = [NSString pathWithFSRef:&notesDirectoryRef];
+		NSString *resolvedPath = [[NSFileManager defaultManager] pathWithFSRef:&notesDirectoryRef];
 		if (resolvedPath) startingDirectory = resolvedPath;
     }
 	[helpStringField setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Please enter the passphrase to access notes in %@.",nil), 
@@ -74,9 +74,7 @@
 
 	[rememberKeychainButton setState:[notationPrefs storesPasswordInKeychain]];
 	
-	EnableSecureEventInput();
 	int result = [NSApp runModalForWindow:window];
-	DisableSecureEventInput();
 	
 	[passphraseField setStringValue:@""];
 	[self textDidChange:nil];

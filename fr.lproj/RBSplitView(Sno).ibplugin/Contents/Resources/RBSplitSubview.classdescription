@@ -1,0 +1,8 @@
+{
+	ClassName = RBSplitSubview;
+	SuperClass = NSView;
+	Actions = {
+	};
+	Outlets = {
+	};
+}

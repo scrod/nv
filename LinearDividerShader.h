@@ -31,14 +31,17 @@ NSRect centeredRectInRect(NSRect rect, NSSize size);
 @interface LinearDividerShader : NSObject  {
 	CGColorSpaceRef	colorSpaceRef;
 	CGFunctionRef axialShadingFunction;
-	
+	NSColor *borderCol;
+	NSColor *backCol;
 	ColorSet colors;
 	NSImage *dimpleImage;
 }
 
 - (id)initWithStartColor:(NSColor*)start endColor:(NSColor*)end;
-
-- (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect;
+- (id)initWithBaseColors:(id)sender;
+- (void)updateColors:(NSColor *)startColor;
+- (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect blendVertically:(BOOL)v;
+- (void)setBackColor:(NSColor *)inColor;
 
 @end
 

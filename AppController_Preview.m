@@ -15,7 +15,7 @@
 }
 
 -(NSInteger)currentPreviewMode
-{
+{	
     return currentPreviewMode;
 }
 

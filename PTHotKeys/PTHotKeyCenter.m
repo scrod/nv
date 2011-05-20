@@ -104,7 +104,6 @@ static id _sharedHotKeyCenter = nil;
 - (void)unregisterHotKey: (PTHotKey*)hotKey
 {
     //NSLog(@"unregisterHotKey: %@", hotKey);
-	OSStatus err;
 	EventHotKeyRef carbonHotKey;
 
 	if(![mHotKeys objectForKey:[hotKey name]])
@@ -113,7 +112,7 @@ static id _sharedHotKeyCenter = nil;
 	carbonHotKey = [hotKey carbonHotKey];
 	NSAssert( carbonHotKey != nil, @"" );
 
-	err = UnregisterEventHotKey( carbonHotKey );
+	(void)UnregisterEventHotKey( carbonHotKey );
 	//Watch as we ignore 'err':
 
 	[mHotKeys removeObjectForKey: [hotKey name]];

@@ -91,7 +91,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 		[center addObserver:self selector:@selector(syncCredentialsDidChange:) name:NSControlTextDidChangeNotification object:syncPasswordField];
 		[center addObserver:self selector:@selector(syncEditingDidEnd:) name:NSControlTextDidEndEditingNotification object:syncPasswordField];
 	}
-	[center addObserver:self selector:@selector(initializeControls) name:SyncPrefsDidChangeNotification object:nil];
+	[center addObserver:self selector:@selector(initializeControls) name:NotationPrefsDidChangeNotification object:nil];
 
     [self initializeControls];
 }
@@ -101,6 +101,17 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 - (BOOL)tableView:(NSTableView *)aTableView shouldSelectRow:(NSInteger)rowIndex {
     return (notationPrefs && [notationPrefs notesStorageFormat]);
+}
+- (void)tableViewSelectionDidChange:(NSNotification *)aNotification {
+	NSTableView *tv = [aNotification object];
+	BOOL isRowSelected = [tv selectedRow] > -1;
+	
+	if (tv == allowedExtensionsTable) {
+		[removeExtensionButton setEnabled:isRowSelected];
+		[makeDefaultExtensionButton setEnabled:isRowSelected];
+	} else if (tv == allowedTypesTable) {
+		[removeTypeButton setEnabled:isRowSelected];
+	}
 }
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
@@ -181,18 +192,17 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (void)setSeparateFileControlsState:(BOOL)separateFileControlsState {
 	[newExtensionButton setEnabled:separateFileControlsState];
-	[removeExtensionButton setEnabled:separateFileControlsState];
+	[removeExtensionButton setEnabled:separateFileControlsState && [allowedExtensionsTable selectedRow] > -1];
+	[makeDefaultExtensionButton setEnabled:separateFileControlsState && [allowedExtensionsTable selectedRow] > -1];
 	[newTypeButton setEnabled:separateFileControlsState];
-	[removeTypeButton setEnabled:separateFileControlsState];
+	[removeTypeButton setEnabled:separateFileControlsState && [allowedTypesTable selectedRow] > -1];
 	
 	[allowedTypesTable setEnabled:separateFileControlsState];
 	[allowedExtensionsTable setEnabled:separateFileControlsState];
 	
 	[confirmFileDeletionButton setEnabled:separateFileControlsState];
 	
-	int targetItem = [storageFormatPopupButton indexOfItemWithTag:[notationPrefs notesStorageFormat]];
-	if (targetItem > -1)
-		[storageFormatPopupButton selectItemAtIndex:targetItem];
+	[storageFormatPopupButton selectItemWithTag:[notationPrefs notesStorageFormat]];
 	
 	[fileAttributesHelpText setTextColor: separateFileControlsState ? [NSColor controlTextColor] : [NSColor grayColor]];	
 }
@@ -224,11 +234,20 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 
-	if (aTableView == allowedExtensionsTable)
-		return [notationPrefs pathExtensionAtIndex:rowIndex];
-	else if (aTableView == allowedTypesTable)
+	if (aTableView == allowedExtensionsTable) {
+		NSString *extension = [notationPrefs pathExtensionAtIndex:rowIndex];
+		
+		if ([notationPrefs indexOfChosenPathExtension] == (unsigned int)rowIndex) {
+			return [[[NSAttributedString alloc] initWithString:extension attributes:
+					[NSDictionary dictionaryWithObjectsAndKeys:
+					 [NSFont boldSystemFontOfSize:[NSFont smallSystemFontSize]], NSFontAttributeName, nil]] autorelease];
+		}
+		return extension;
+			
+	} else if (aTableView == allowedTypesTable) {
+		
 		return [notationPrefs typeStringAtIndex:rowIndex];
-	
+	}
 	return 0;
 }
 
@@ -245,7 +264,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
     [notationPrefs addAllowedPathExtension:@""];
 	[allowedExtensionsTable reloadData];
 	
-	[allowedExtensionsTable selectRow:[notationPrefs pathExtensionsCount]-1 byExtendingSelection:NO];
+	[allowedExtensionsTable selectRowIndexes:[NSIndexSet indexSetWithIndex:[notationPrefs pathExtensionsCount]-1] byExtendingSelection:NO];
 	[allowedExtensionsTable editColumn:0 row:[notationPrefs pathExtensionsCount]-1 withEvent:nil select:YES];
 }
 
@@ -253,7 +272,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
     [notationPrefs addAllowedType:@""];
 	[allowedTypesTable reloadData];
 	
-	[allowedTypesTable selectRow:[notationPrefs typeStringsCount]-1 byExtendingSelection:NO];
+	[allowedTypesTable selectRowIndexes:[NSIndexSet indexSetWithIndex:[notationPrefs typeStringsCount]-1] byExtendingSelection:NO];
 	[allowedTypesTable editColumn:0 row:[notationPrefs typeStringsCount]-1 withEvent:nil select:YES];
 
 }
@@ -304,7 +323,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (IBAction)changedFileStorageFormat:(id)sender {
     int storageTag = [storageFormatPopupButton selectedTag];
-	
 	if (storageTag != SingleDatabaseFormat && [notationPrefs doesEncryption]) {
 		if (NSRunAlertPanel(NSLocalizedString(@"Encryption is currently on, but storing notes individually requires it to be off. Disable encryption?",nil),
 							NSLocalizedString(@"Warning: Your notes will be written to disk in clear text.",nil), NSLocalizedString(@"Disable Encryption",nil), 
@@ -340,6 +358,20 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 		//sheet ending will not do this for us--there is no sheet
 		[self runQueuedStorageFormatChangeInvocation];
 	}
+	
+	
+	if ([[storageFormatPopupButton objectValue] intValue]==0) {
+		[[NSUserDefaults standardUserDefaults] setObject:nil forKey:@"TextEditor"];
+		[[NSUserDefaults standardUserDefaults] synchronize];
+	}else {
+		[[NSUserDefaults standardUserDefaults] setObject:@"Default" forKey:@"TextEditor"];
+		[[NSUserDefaults standardUserDefaults] synchronize];
+		if ( [[NSApp delegate] respondsToSelector: @selector(updateTextApp:)] ) {
+			[[NSApp delegate] updateTextApp:self];
+		}
+	}
+
+	
 }
 
 - (IBAction)toggledSyncing:(id)sender {
@@ -453,15 +485,29 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
     [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://simplenoteapp.com/"]];
 }
 
-- (IBAction)removedExtension:(id)sender {
+- (IBAction)makeDefaultExtension:(id)sender {
+	[[allowedExtensionsTable window] makeFirstResponder:allowedExtensionsTable];
+	
 	int selectedRow = [allowedExtensionsTable selectedRow];
 	if (selectedRow > -1)
-		[notationPrefs removeAllowedPathExtensionAtIndex:selectedRow];
+		[notationPrefs setChosenPathExtensionAtIndex:selectedRow];
+	
+	[allowedExtensionsTable reloadData];	
+}
+
+- (IBAction)removedExtension:(id)sender {
+	[allowedExtensionsTable abortEditing];
+	
+	int selectedRow = [allowedExtensionsTable selectedRow];
+	if (selectedRow > -1)
+		if (![notationPrefs removeAllowedPathExtensionAtIndex:selectedRow]) NSBeep();
 	
 	[allowedExtensionsTable reloadData];
 }
 
 - (IBAction)removedType:(id)sender {
+	[allowedTypesTable abortEditing];
+	
 	int selectedRow = [allowedTypesTable selectedRow];
 	if (selectedRow > -1)
 		[notationPrefs removeAllowedTypeAtIndex:selectedRow];
@@ -479,9 +525,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (void)encryptionFormatMismatchSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
 	if (returnCode == NSAlertDefaultReturn) {
 		//switching to single DB
-		int targetItem = [storageFormatPopupButton indexOfItemWithTag:SingleDatabaseFormat];
-		if (targetItem > -1)
-			[storageFormatPopupButton selectItemAtIndex:targetItem];
+		[storageFormatPopupButton selectItemWithTag:SingleDatabaseFormat];
 		
 		[self performSelector:@selector(changedFileStorageFormat:) withObject:storageFormatPopupButton afterDelay:0.0];
 		
