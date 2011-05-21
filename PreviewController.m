@@ -53,10 +53,14 @@
 
 +(void)initialize
 {
-    NSDictionary *appDefaults = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:NO]
-                                                            forKey:kDefaultMarkupPreviewVisible];
-    
-    [[NSUserDefaults standardUserDefaults] registerDefaults:appDefaults];
+  NSDictionary *appDefaults = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:NO]
+                                                          forKey:kDefaultMarkupPreviewVisible];
+  
+  [[NSUserDefaults standardUserDefaults] registerDefaults:appDefaults];
+  /* Initialize webInspector. */
+  [[NSUserDefaults standardUserDefaults] setBool:TRUE forKey:@"WebKitDeveloperExtras"];
+  [[NSUserDefaults standardUserDefaults] synchronize];
+
 }
 
 -(id)init
