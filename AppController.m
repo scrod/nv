@@ -62,6 +62,7 @@
 
 NSWindow *normalWindow;
 int ModFlagger;
+int popped;
 BOOL splitViewAwoke;
 BOOL isEd;
 
@@ -193,9 +194,6 @@ BOOL isEd;
 	
 	
 	*/
-	if (IsLeopardOrLater){
-		[window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces];
-    }
 	
     
 	[notesTableView setDelegate:self];
@@ -273,6 +271,7 @@ BOOL isEd;
 		
 		[self setEmptyViewState:YES];	
 		ModFlagger = 0;
+        popped = 0;
 		userScheme = [[NSUserDefaults standardUserDefaults] integerForKey:@"ColorScheme"];
 		if (userScheme==0) {
 			[self setBWColorScheme:self];
@@ -2930,133 +2929,119 @@ terminateApp:
 		if (([wordCounter isHidden])&&([prefsController showWordCount])) {
 			[self updateWordCount:YES];
 			[wordCounter setHidden:NO];
+            popped=1;
 		}
 	}else {		
 		if ((![wordCounter isHidden])&&([prefsController showWordCount])) {
 			[wordCounter setHidden:YES];
 			[wordCounter setStringValue:@""];
+            popped=0;
 		}
 	}
 }
 
 - (IBAction)toggleWordCount:(id)sender{
-	if (ModFlagger==1) {
-		if ((![wordCounter isHidden])&&([prefsController showWordCount])) {
-			[wordCounter setHidden:YES];
-			[wordCounter setStringValue:@""];
-		}
-	}else {
-		if ([prefsController showWordCount]) {
-			[self updateWordCount:YES];
-			[wordCounter setHidden:NO];
-		}else {				
-			[wordCounter setHidden:YES];
-			[wordCounter setStringValue:@""];
-		}
-		if (![[sender className] isEqualToString:@"NSMenuItem"]) {
-			[prefsController setShowWordCount:![prefsController showWordCount]];
-			[prefsController synchronize];
-		}
-	}
+
+    
+    [prefsController synchronize];
+    if ([prefsController showWordCount]) {
+        [self updateWordCount:YES];
+        [wordCounter setHidden:NO];
+        
+        popped=1;
+    }else {				
+        [wordCounter setHidden:YES];
+        [wordCounter setStringValue:@""];
+        popped=0;
+    }
+    
+    if (![[sender className] isEqualToString:@"NSMenuItem"]) {
+        [prefsController setShowWordCount:![prefsController showWordCount]];
+    }
+	
 }
 
+
 - (void)flagsChanged:(NSEvent *)theEvent{
-//	if (ModFlagger>=0) {				
-//		if (([theEvent keyCode]==58)||([theEvent keyCode]==61)) {
-//			if (([theEvent modifierFlags]==524576)||([theEvent modifierFlags]==524608)) { //option down
-//				modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:0.65
-//																  target:self
-//																selector:@selector(updateModifier:)
-//																userInfo:@"option"
-//																 repeats:NO] retain];
-//			}else if ([theEvent modifierFlags]==256) { //option up	
-//				
-//				if (modifierTimer) {
-//					if ([modifierTimer isValid]) {	
-//						[modifierTimer invalidate];
-//					}else {					
-//						[self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.35];
-//					}
-//					modifierTimer = nil;
-//					[modifierTimer release];
-//				}		
-//				ModFlagger = 0;
-//				
-//			}
-//		}else if (([theEvent keyCode]==59)||([theEvent keyCode]==62)) {
-//			if (([theEvent modifierFlags]==262401)||([theEvent modifierFlags]==270592))  { //control down
-//				modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:0.70
-//																  target:self
-//																selector:@selector(updateModifier:)
-//																userInfo:@"control"
-//																 repeats:NO] retain];
-//				
-//			}else if ([theEvent modifierFlags]==256) { //control up		
-//				
-//				if (modifierTimer) {
-//					if ([modifierTimer isValid]) {	
-//						[modifierTimer invalidate];				
-//					}else {					
-//						[self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.46];
-//					}		
-//					modifierTimer = nil;	
-//					[modifierTimer release];
-//				}		
-//				ModFlagger = 0;
-//			}
-//		}else if ([theEvent modifierFlags]==256) {	
-//			ModFlagger = 0;
-//			if (modifierTimer) {
-//				if ([modifierTimer isValid]) {	
-//					[modifierTimer invalidate];				
-//				}		
-//				modifierTimer = nil;	
-//				[modifierTimer release];
-//			}
-//			
-//		}else {
-//			ModFlagger = -1;
-//			if (modifierTimer) {
-//				if ([modifierTimer isValid]) {	
-//					[modifierTimer invalidate];				
-//				}		
-//				modifierTimer = nil;	
-//				[modifierTimer release];
-//			}
-//			NSTimer *disTimer = [NSTimer scheduledTimerWithTimeInterval:0.2f
-//																 target:self
-//															   selector:@selector(disableKeyMasks:)
-//															   userInfo:@"commandorshift"
-//																repeats:NO];
-//		}
-//	}	
+    //	if (ModFlagger>=0) {
+    if (([theEvent modifierFlags]&NSAlternateKeyMask)&&(([theEvent keyCode]==58)||([theEvent keyCode]==61))) { //option down&NSKeyDownMask
+        if((ModFlagger==0)&&(popped==0)){
+            ModFlagger = 1;
+            modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:1.2
+                                                              target:self
+                                                            selector:@selector(updateModifier:)
+                                                            userInfo:@"option"
+                                                             repeats:NO] retain];
+        }else{
+            ModFlagger=0;
+        }
+    }else if (([theEvent modifierFlags]&NSControlKeyMask)&&(([theEvent keyCode]==59)||([theEvent keyCode]==62))) { //control down
+        if((ModFlagger==0)&&(popped==0)){
+        ModFlagger = 2;
+        modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:1.2
+                                                          target:self
+                                                        selector:@selector(updateModifier:)
+                                                        userInfo:@"control"
+                                                         repeats:NO] retain];
+        }else{
+            ModFlagger=0;
+       }
+    }else if ([theEvent modifierFlags]==256){
+        
+        ModFlagger = 0;
+        if (modifierTimer){
+            if ([modifierTimer isValid]) {	
+                [modifierTimer invalidate];			
+            }
+            modifierTimer = nil;	
+            [modifierTimer release];	
+        }
+        if (popped>0) {
+            
+            if ((popped==1)&&(([theEvent keyCode]==58)||([theEvent keyCode]==61))) {//option up	
+               [self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.3];
+                
+            }else if ((popped==2)&&(([theEvent keyCode]==59)||([theEvent keyCode]==62))) { //control up	
+                [self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.3];
+            }
+            popped=0;
+                
+        }
+    }else {
+        ModFlagger = -1;
+        if (modifierTimer) {
+            if ([modifierTimer isValid]) {	
+                [modifierTimer invalidate];				
+            }		
+            modifierTimer = nil;	
+            [modifierTimer release];
+        }
+    }
 }
 
 - (void)updateModifier:(NSTimer*)theTimer{
 	if ([theTimer isValid]) {
-		if ([[theTimer userInfo] isEqualToString:@"option"]) {
-			[self popWordCount:YES];
-			ModFlagger = 1;
-		}else if ([[theTimer userInfo] isEqualToString:@"control"]) {
-			[self popPreview:YES];
-			ModFlagger = 2;
-		}		
+        // NSLog(@"updatemod modflag :>%d< popped:%d",ModFlagger,popped);
+        if((ModFlagger>0)&&(popped==0)){
+            if ([[theTimer userInfo] isEqualToString:@"option"]) {
+                [self popWordCount:YES];
+                popped=1;
+            }else if ([[theTimer userInfo] isEqualToString:@"control"]) {
+                [self popPreview:YES];
+                popped=2;
+            }		
+        }
 		[theTimer invalidate];
 	}
 }
 
-- (void)disableKeyMasks:(NSTimer *)aTimer{
-	ModFlagger = 0;
-	[aTimer invalidate];
-	
-}
-
 - (void)resetModTimers{
-	if (ModFlagger==1) {
-		[self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.35];
-	}else if (ModFlagger==2) {
-		[self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.46];
+	if (popped==1) {
+		[self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.1];
+	}else if (popped==2) {
+		[self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.1];
 	}
+    popped=0;
 	ModFlagger = 0;	
 }
 
@@ -3068,10 +3053,12 @@ terminateApp:
 			if (![previewController previewIsVisible]) {
 				[self togglePreview:self];
 			}
+            popped=2;
 		}else {		
 			if ([previewController previewIsVisible]) {
 				[self togglePreview:self];
 			}
+            popped=0;
 		}
 	}
 }

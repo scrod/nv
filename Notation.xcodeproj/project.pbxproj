@@ -30,7 +30,6 @@
 		212C6EA3110E493C004DD82C /* Clear.tif in Resources */ = {isa = PBXBuildFile; fileRef = 212C6EA1110E493C004DD82C /* Clear.tif */; };
 		212DCA470A6AD28700F74E46 /* EncodingsManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 212DCA460A6AD28700F74E46 /* EncodingsManager.m */; };
 		212DCF610A6DEECB00F74E46 /* DeletionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 212DCF600A6DEECB00F74E46 /* DeletionManager.m */; };
-		212EEAC112F085DB00F89538 /* AutoHyperlinks.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 212EEAB812F085D100F89538 /* AutoHyperlinks.framework */; };
 		21317FAF1113840E00472211 /* Excruciatingly Useful Shortcuts.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21317FAD1113840E00472211 /* Excruciatingly Useful Shortcuts.nvhelp */; };
 		213621ED0B92413F008C0830 /* FindPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = 213621E70B92413F008C0830 /* FindPanel.nib */; };
 		213621F20B92414F008C0830 /* MultiTextFinder.m in Sources */ = {isa = PBXBuildFile; fileRef = 213621F00B92414F008C0830 /* MultiTextFinder.m */; };
@@ -190,6 +189,8 @@
 		5CC2DF0B13083BCF006772D9 /* StatusItemView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CC2DF0A13083BCF006772D9 /* StatusItemView.m */; };
 		5CCEEF1D130B599B00E15B77 /* DFView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CCEEF1C130B599B00E15B77 /* DFView.m */; };
 		5CE6624B13185202002039D0 /* NSTextFinder_LastFind.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CE6624A13185202002039D0 /* NSTextFinder_LastFind.m */; };
+		5CE7AF16138C020C005D6399 /* AutoHyperlinks.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5CE7AF15138C020C005D6399 /* AutoHyperlinks.framework */; };
+		5CE7AF17138C0210005D6399 /* AutoHyperlinks.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 5CE7AF15138C020C005D6399 /* AutoHyperlinks.framework */; };
 		5CF01B08132975910083D66E /* greyscrollervertbottom.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 5CF01B02132975910083D66E /* greyscrollervertbottom.tiff */; };
 		5CF01B0C132975910083D66E /* greyscrollerverttop.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 5CF01B06132975910083D66E /* greyscrollerverttop.tiff */; };
 		5CF01B22132975DB0083D66E /* BTransparentScrollerSlotBottom.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5CF01B16132975DA0083D66E /* BTransparentScrollerSlotBottom.tif */; };
@@ -282,7 +283,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				212EEAC112F085DB00F89538 /* AutoHyperlinks.framework in CopyFiles */,
+				5CE7AF17138C0210005D6399 /* AutoHyperlinks.framework in CopyFiles */,
 				213623FC0B92AA6E008C0830 /* Sparkle.framework in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -357,7 +358,6 @@
 		212DCF5F0A6DEECB00F74E46 /* DeletionManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DeletionManager.h; sourceTree = "<group>"; };
 		212DCF600A6DEECB00F74E46 /* DeletionManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = DeletionManager.m; sourceTree = "<group>"; };
 		212DCFF60A6E005000F74E46 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/DeletionManager.nib; sourceTree = "<group>"; };
-		212EEAB812F085D100F89538 /* AutoHyperlinks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = AutoHyperlinks.framework; sourceTree = "<group>"; };
 		21317FAE1113840E00472211 /* English */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = English; path = "English.lproj/Excruciatingly Useful Shortcuts.nvhelp"; sourceTree = "<group>"; };
 		213621E80B92413F008C0830 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/FindPanel.nib; sourceTree = "<group>"; };
 		213621EF0B92414F008C0830 /* MultiTextFinder.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = MultiTextFinder.h; sourceTree = "<group>"; };
@@ -632,6 +632,7 @@
 		5CCEEF1C130B599B00E15B77 /* DFView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DFView.m; sourceTree = "<group>"; };
 		5CE6624913185202002039D0 /* NSTextFinder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSTextFinder.h; sourceTree = "<group>"; };
 		5CE6624A13185202002039D0 /* NSTextFinder_LastFind.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSTextFinder_LastFind.m; sourceTree = "<group>"; };
+		5CE7AF15138C020C005D6399 /* AutoHyperlinks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AutoHyperlinks.framework; path = Library/Frameworks/AutoHyperlinks.framework; sourceTree = DEVELOPER_DIR; };
 		5CF01B02132975910083D66E /* greyscrollervertbottom.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertbottom.tiff; sourceTree = "<group>"; };
 		5CF01B04132975910083D66E /* greyscrollervertfill.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertfill.tiff; sourceTree = "<group>"; };
 		5CF01B06132975910083D66E /* greyscrollerverttop.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollerverttop.tiff; sourceTree = "<group>"; };
@@ -744,6 +745,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5CE7AF16138C020C005D6399 /* AutoHyperlinks.framework in Frameworks */,
 				8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */,
 				2191926409C52A9200586B15 /* libcrypto.dylib in Frameworks */,
 				2191926709C52AA600586B15 /* libz.dylib in Frameworks */,
@@ -858,7 +860,7 @@
 		1058C7A2FEA54F0111CA2CBB /* Other Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				212EEAB812F085D100F89538 /* AutoHyperlinks.framework */,
+				5CE7AF15138C020C005D6399 /* AutoHyperlinks.framework */,
 				21B54C011134F2E800E163A1 /* IOKit.framework */,
 				213623E50B92AA4E008C0830 /* Sparkle.framework */,
 				210C07230B6BF0A1005D23A8 /* WebKit.framework */,
@@ -2019,6 +2021,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
 					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
+					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
@@ -2096,6 +2099,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
 					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
+					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
@@ -2164,6 +2168,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
 					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
+					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
@@ -2368,6 +2373,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
 					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
+					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
@@ -2471,6 +2477,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
 					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
+					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
@@ -2589,6 +2596,7 @@
 					"\"$(SRCROOT)\"",
 					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
 					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
+					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
