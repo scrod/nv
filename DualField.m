@@ -179,6 +179,7 @@
 	return YES;
 }
 
+
 @end
 
 @implementation DualField
@@ -499,6 +500,8 @@
 }
 
 //elasticwork
+
+
 - (void)flagsChanged:(NSEvent *)theEvent{
 	[[NSApp delegate] flagsChanged:theEvent];
 }

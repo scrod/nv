@@ -209,6 +209,7 @@ void outletObjectAwoke(id sender);
 - (NSColor *)foregrndColor;
 - (void)updateWordCount:(BOOL)doIt;
 - (void)ensurePreviewIsVisible;
+- (void)resetModTimers;
 - (IBAction)toggleWordCount:(id)sender;
 - (IBAction)togglePreview:(id)sender;
 - (IBAction)toggleSourceView:(id)sender;
