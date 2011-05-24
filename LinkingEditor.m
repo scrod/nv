@@ -788,6 +788,7 @@ copyRTFType:
 }
 
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
+    [[NSApp delegate] resetModTimers];
 	if ([anEvent modifierFlags] & NSCommandKeyMask) {
 		
 		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
@@ -817,7 +818,6 @@ copyRTFType:
 
 
 - (void)keyDown:(NSEvent*)anEvent {	
-	
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 
 	if (keyChar == NSBackTabCharacter) {
@@ -826,7 +826,11 @@ copyRTFType:
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
 	}
+    
+    [[NSApp delegate] resetModTimers];
+    //[super interpretKeyEvents:[NSArray arrayWithObject:anEvent]];
 	[super keyDown:anEvent];
+    
 }
 
 - (BOOL)jumpToRenaming {

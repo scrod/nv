@@ -801,7 +801,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 #define UPCHAR(x) ((x) == NSUpArrowFunctionKey || (x) == NSUpTextMovement)
 
 - (void)keyDown:(NSEvent*)theEvent {
-
+    
+    [[NSApp delegate] resetModTimers];
 	unichar keyChar = [theEvent firstCharacter];
 
     if (keyChar == NSNewlineCharacter || keyChar == NSCarriageReturnCharacter || keyChar == NSEnterCharacter) {
@@ -878,8 +879,11 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		[win makeFirstResponder:controlField];
 		NSTextView *fieldEditor = (NSTextView*)[controlField currentEditor];		
 		[fieldEditor keyDown:theEvent];
-	} else
+	} else{
 		[super keyDown:theEvent];
+    }
+        
+    
 }
 
 
@@ -889,7 +893,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 //use this method to catch next note/prev note before View menu does
 //thus avoiding annoying flicker and slow-down
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
-	
+   [[NSApp delegate] resetModTimers];
 	unsigned mods = [theEvent modifierFlags];
 	
 	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0 && [userDefaults boolForKey: @"UseCtrlForSwitchingNotes"];

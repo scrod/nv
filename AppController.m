@@ -1087,6 +1087,7 @@ terminateApp:
 	[notationController synchronizeNoteChanges:nil];
 	[cView setInactiveIcon:self];
 	[self resetModTimers];
+    
 }
 
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender {
@@ -1303,8 +1304,9 @@ terminateApp:
 
 //from fieldeditor
 - (void)controlTextDidChange:(NSNotification *)aNotification {
-	
+    
 	if ([aNotification object] == field) {
+        [self resetModTimers];
 		typedStringIsCached = NO;
 		isFilteringFromTyping = YES;
 		
@@ -1364,6 +1366,7 @@ terminateApp:
 		}
 		
 		isFilteringFromTyping = NO;
+        
 	} else if ([TagEditer isMultitagging]) { //<--for elasticthreads multitagging
         if (!isAutocompleting&&!wasDeleting) {
             isAutocompleting = YES;                
@@ -1404,6 +1407,7 @@ terminateApp:
 	BOOL allowMultipleSelection = NO;
 	NSEvent *event = [window currentEvent];
     
+    [self resetModTimers];
 	NSEventType type = [event type];
 	//do not allow drag-selections unless a modifier is pressed
 	if (type == NSLeftMouseDragged || type == NSLeftMouseDown) {
@@ -1624,6 +1628,7 @@ terminateApp:
 - (void)textDidChange:(NSNotification *)aNotification {
 	id textObject = [aNotification object];
 	
+    //[self resetModTimers];
 	if (textObject == textView) {
 		[currentNote setContentString:[textView textStorage]];
 		[self postTextUpdate];
@@ -2048,6 +2053,8 @@ terminateApp:
 }
 
 - (void)windowDidResignKey:(NSNotification *)notification{
+    
+	[self resetModTimers];
     if ([notification object] == [TagEditer tagPanel]) {  //<--this is for ElasticThreads' multitagging window
         
         if ([TagEditer isMultitagging]) {
@@ -2063,6 +2070,8 @@ terminateApp:
 }
 
 - (void)windowWillClose:(NSNotification *)aNotification {
+    
+	[self resetModTimers];
     if ([prefsController quitWhenClosingWindow]){
 		[NSApp terminate:nil];
     }
@@ -2961,61 +2970,30 @@ terminateApp:
 	
 }
 
-
 - (void)flagsChanged:(NSEvent *)theEvent{
     //	if (ModFlagger>=0) {
-    if (([theEvent modifierFlags]&NSAlternateKeyMask)&&(([theEvent keyCode]==58)||([theEvent keyCode]==61))) { //option down&NSKeyDownMask
-        if((ModFlagger==0)&&(popped==0)){
+    // NSLog(@"flagschanged :>%@<",theEvent);
+    if ((ModFlagger==0)&&(popped==0)&&([theEvent modifierFlags]&NSAlternateKeyMask)&&(([theEvent keyCode]==58)||([theEvent keyCode]==61))) { //option down&NSKeyDownMask
             ModFlagger = 1;
             modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:1.2
                                                               target:self
                                                             selector:@selector(updateModifier:)
                                                             userInfo:@"option"
                                                              repeats:NO] retain];
-        }else{
-            ModFlagger=0;
-        }
-    }else if (([theEvent modifierFlags]&NSControlKeyMask)&&(([theEvent keyCode]==59)||([theEvent keyCode]==62))) { //control down
-        if((ModFlagger==0)&&(popped==0)){
+        
+    }else if ((ModFlagger==0)&&(popped==0)&&([theEvent modifierFlags]&NSControlKeyMask)&&(([theEvent keyCode]==59)||([theEvent keyCode]==62))) { //control down
         ModFlagger = 2;
         modifierTimer = [[NSTimer scheduledTimerWithTimeInterval:1.2
                                                           target:self
                                                         selector:@selector(updateModifier:)
                                                         userInfo:@"control"
                                                          repeats:NO] retain];
-        }else{
-            ModFlagger=0;
-       }
-    }else if ([theEvent modifierFlags]==256){
         
-        ModFlagger = 0;
-        if (modifierTimer){
-            if ([modifierTimer isValid]) {	
-                [modifierTimer invalidate];			
-            }
-            modifierTimer = nil;	
-            [modifierTimer release];	
-        }
-        if (popped>0) {
-            
-            if ((popped==1)&&(([theEvent keyCode]==58)||([theEvent keyCode]==61))) {//option up	
-               [self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.3];
-                
-            }else if ((popped==2)&&(([theEvent keyCode]==59)||([theEvent keyCode]==62))) { //control up	
-                [self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.3];
-            }
-            popped=0;
-                
-        }
     }else {
-        ModFlagger = -1;
-        if (modifierTimer) {
-            if ([modifierTimer isValid]) {	
-                [modifierTimer invalidate];				
-            }		
-            modifierTimer = nil;	
-            [modifierTimer release];
-        }
+        [self resetModTimers];
+       /* if ([theEvent modifierFlags]==256){            
+            ModFlagger = 0;
+        }*/
     }
 }
 
@@ -3036,13 +3014,23 @@ terminateApp:
 }
 
 - (void)resetModTimers{
-	if (popped==1) {
-		[self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.1];
-	}else if (popped==2) {
-		[self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.1];
-	}
-    popped=0;
-	ModFlagger = 0;	
+    // NSLog(@"resetmods");
+	if ((ModFlagger>0)||(popped>0)) {
+        ModFlagger = 0;	
+        if (modifierTimer){
+            if ([modifierTimer isValid]) {	
+                [modifierTimer invalidate];			
+            }
+            modifierTimer = nil;	
+            [modifierTimer release];	
+        }
+        if (popped==1) {
+            [self performSelector:@selector(popWordCount:) withObject:NO afterDelay:0.1];
+        }else if (popped==2) {
+            [self performSelector:@selector(popPreview:) withObject:NO afterDelay:0.1];
+        }
+        popped=0;
+    }
 }
 
 
@@ -3185,6 +3173,12 @@ terminateApp:
 {
     [notesTableView setBackgroundColor:[prefsController backgroundTextColor]];
     [notesTableView setNeedsDisplay:YES];
+}
+
+- (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
+     NSLog(@"perform key AC");
+    [[NSApp delegate] resetModTimers];
+    return [super performKeyEquivalent:theEvent];
 }
 
 @end

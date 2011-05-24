@@ -25,6 +25,13 @@
     [super dealloc];
 }
 
+- (void)keyDown:(NSEvent *)theEvent{
+  // NSLog(@"keydownCV");
+    [[NSApp delegate] resetModTimers];
+    [super keyDown:theEvent];
+   // [super interpretKeyEvents:[NSArray arrayWithObject:theEvent]];
+}
+
 - (void)drawRect:(NSRect)dirtyRect
 {
     [super drawRect:dirtyRect];

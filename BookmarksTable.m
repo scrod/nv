@@ -27,7 +27,6 @@
 }
 
 - (void)keyDown:(NSEvent*)theEvent {
-	
 	unichar keyChar = [theEvent firstCharacter];
 	
     if (keyChar == NSDeleteCharacter || keyChar == NSDeleteFunctionKey) {
