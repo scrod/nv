@@ -154,7 +154,7 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>nv</string>
+				<string>nvalt</string>
 			</array>
 		</dict>
 	</array>
@@ -216,6 +216,10 @@
 	</array>
 	<key>OSAScriptingDefinition</key>
 	<string>Notation.sdef</string>
+	<key>SmartCrashReports_CompanyName</key>
+	<string>Notational.net</string>
+	<key>SmartCrashReports_EmailTicket</key>
+	<string>SCR-51ED0F7B2A</string>
 	<key>SUCheckAtStartup</key>
 	<false/>
 	<key>SUFeedURL</key>
@@ -224,10 +228,6 @@
 	<string>dsa_pub.pem</string>
 	<key>SUScheduledCheckInterval</key>
 	<real>345600</real>
-	<key>SmartCrashReports_CompanyName</key>
-	<string>Notational.net</string>
-	<key>SmartCrashReports_EmailTicket</key>
-	<string>SCR-51ED0F7B2A</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array/>
 	<key>UTImportedTypeDeclarations</key>

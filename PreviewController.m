@@ -202,7 +202,7 @@
 - (void)webView:(WebView *)sender decidePolicyForNavigationAction:(NSDictionary *)actionInformation request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id<WebPolicyDecisionListener>)listener {
 	NSString *targetURL = [[request URL] scheme];
 
-    if ([targetURL isEqual:@"http"]) {
+    if ([targetURL isEqual:@"http"] || [targetURL isEqual:@"nvalt"]) {
 		[[NSWorkspace sharedWorkspace] openURL:[request URL]];
         [listener ignore];	
     } else {

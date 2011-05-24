@@ -35,10 +35,56 @@
     return bundlePath;
 } // mmdDirectory
 
++(NSString*)tp2mdDirectory {
+  // fallback path in this program's directiory
+  NSString *bundlePath = [[[NSBundle mainBundle] resourcePath]
+                          stringByAppendingPathComponent:@"tp2md.rb"];
+  return bundlePath;
+}
+
++(NSString*)processTaskPaper:(NSString*)inputString
+{
+	NSString* mdScriptPath = [[self class] tp2mdDirectory];
+
+	NSTask* task = [[[NSTask alloc] init] autorelease];
+	NSMutableArray* args = [NSMutableArray array];
+	
+	[task setArguments:args];
+	
+	NSPipe* stdinPipe = [NSPipe pipe];
+	NSPipe* stdoutPipe = [NSPipe pipe];
+	NSFileHandle* stdinFileHandle = [stdinPipe fileHandleForWriting];
+	NSFileHandle* stdoutFileHandle = [stdoutPipe fileHandleForReading];
+	
+	[task setStandardInput:stdinPipe];
+	[task setStandardOutput:stdoutPipe];
+	
+	[task setLaunchPath: [mdScriptPath stringByExpandingTildeInPath]];
+	[task launch];
+	
+	[stdinFileHandle writeData:[inputString dataUsingEncoding:NSUTF8StringEncoding]];
+	[stdinFileHandle closeFile];
+	
+	NSData* outputData = [stdoutFileHandle readDataToEndOfFile];
+	NSString* outputString = [[[NSString alloc] initWithData:outputData encoding:NSUTF8StringEncoding] autorelease];
+	[stdoutFileHandle closeFile];
+	
+	[task waitUntilExit];
+	
+	return outputString;
+	
+}
+
+
 +(NSString*)processMultiMarkdown:(NSString*)inputString
 {
+  NSRange archiveFoundRange = [inputString rangeOfString:@"Archive:"];
+  NSRange tagFoundRange = [inputString rangeOfString:@"@taskpaper"];
+  if (archiveFoundRange.location != NSNotFound || tagFoundRange.location != NSNotFound) {
+    inputString = [self processTaskPaper:inputString];
+  }
 	NSString* mdScriptPath = [[self class] mmdDirectory];
-    
+  NSString* tpScriptPath = [[self class] tp2mdDirectory];
 	NSTask* task = [[[NSTask alloc] init] autorelease];
 	NSMutableArray* args = [NSMutableArray array];
 	

@@ -17,5 +17,6 @@
 + (NSString*)documentWithProcessedMultiMarkdown:(NSString*)inputString;
 + (NSString*)xhtmlWithProcessedMultiMarkdown:(NSString*)inputString;
 + (NSString*)processMultiMarkdown:(NSString*)inputString;
++ (NSString*)processTaskPaper:(NSString*)inputString;
 
 @end
