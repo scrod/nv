@@ -368,16 +368,16 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 												 @selector(initWithHTML:documentAttributes:) : @selector(initWithRTF:documentAttributes:) 
 																						withObject:[pboard dataForType:type] withObject:nil] autorelease];
 		if ([newString length]) {
+			if (![type isEqualToString:NVPTFPboardType]) {
+				//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
+				//and we only want real URLs to be linked
+				[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
+				[newString indentTextLists];
+				[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
+			}
+
 			NSRange selectedRange = [self rangeForUserTextChange];
 			if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
-				
-				if (![type isEqualToString:NVPTFPboardType]) {
-					//remove the link attribute, because it will be re-added after we paste, and restyleText would preserve it otherwise
-					//and we only want real URLs to be linked
-					[newString removeAttribute:NSLinkAttributeName range:NSMakeRange(0, [newString length])];
-					[newString indentTextLists];
-					[newString restyleTextToFont:[prefsController noteBodyFont] usingBaseFont:nil];
-				}
 				
 				[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
 																	  NSMakeRange(0, [newString length]) documentAttributes:nil]];
