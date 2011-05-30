@@ -36,7 +36,6 @@
 } // mmdDirectory
 
 +(NSString*)tp2mdDirectory {
-  // fallback path in this program's directiory
   NSString *bundlePath = [[[NSBundle mainBundle] resourcePath]
                           stringByAppendingPathComponent:@"tp2md.rb"];
   return bundlePath;
@@ -84,7 +83,7 @@
     inputString = [self processTaskPaper:inputString];
   }
 	NSString* mdScriptPath = [[self class] mmdDirectory];
-  NSString* tpScriptPath = [[self class] tp2mdDirectory];
+    NSString* tpScriptPath = [[self class] tp2mdDirectory];
 	NSTask* task = [[[NSTask alloc] init] autorelease];
 	NSMutableArray* args = [NSMutableArray array];
 	
