@@ -29,7 +29,8 @@
     if ([super init]) {
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
-		
+      // remove opacity slider from color pickers -bt
+    [[NSColorPanel sharedColorPanel] setShowsAlpha:NO];
 		[prefsController registerWithTarget:self forChangesInSettings:
 		 @selector(resolveNoteBodyFontFromNotationPrefsFromSender:), 
 		 @selector(setCheckSpellingAsYouType:sender:), 
