@@ -42,12 +42,4 @@ Loren.*
 ttscoff.*
 UserInterfaceState.xcuserstate
 .DS_Store
-<<<<<<< HEAD
-
-/.DS_Store
-=======
-<<<<<<< HEAD
-/.DS_Store
-=======
->>>>>>> 1d5018bacb5c01a694493aca06192b4a5096d9ef
->>>>>>> mmd3
+build/*
