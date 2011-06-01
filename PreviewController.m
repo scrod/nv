@@ -341,6 +341,7 @@
 	[outputString replaceOccurrencesOfString:@"{%style%}" withString:cssString options:0 range:NSMakeRange(0, [outputString length])];
 	
 	[[preview mainFrame] loadHTMLString:outputString baseURL:nil];
+  [[preview window] setTitle:noteTitle];
 	[sourceView replaceCharactersInRange:NSMakeRange(0, [[sourceView string] length]) withString:processedString];
     self.isPreviewOutdated = NO;
 }
@@ -403,7 +404,7 @@
 -(IBAction)makePreviewSticky:(id)sender
 {
   self.isPreviewSticky = YES;
-  [[preview window] setTitle:@"Locked"];
+//  [[preview window] setTitle:@"Locked"];
   [stickyPreviewButton setState:YES];
   [stickyPreviewButton setToolTip:@"Return the preview to normal functionality."];
   [stickyPreviewButton setAction:@selector(makePreviewNotSticky:)];
