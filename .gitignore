@@ -43,3 +43,9 @@ ttscoff.*
 UserInterfaceState.xcuserstate
 .DS_Store
 build/*
+zh.lproj/*.nvhelp
+it.lproj/*.nvhelp
+zh_CN.lproj/*.nvhelp
+Portuguese.lproj/*.nvhelp
+Italian.lproj/*.nvhelp
+French.lproj/*.nvhelp
