@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 45;
+	objectVersion = 46;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -126,25 +126,35 @@
 		21FF94F70B5AD23B00DB6A2F /* ExporterManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21FF94F50B5AD23B00DB6A2F /* ExporterManager.m */; };
 		57F27F7B11973A7F00C63ACF /* Notation.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 57F27F7A11973A7F00C63ACF /* Notation.sdef */; };
 		57F27FB91197407400C63ACF /* SearchCommand.m in Sources */ = {isa = PBXBuildFile; fileRef = 57F27FB81197407400C63ACF /* SearchCommand.m */; };
+		5C0C545F13A54E920008BC90 /* Preferences.xib in Resources */ = {isa = PBXBuildFile; fileRef = 219195E409D3A20F00586B15 /* Preferences.xib */; };
+		5C0C546113A54ED90008BC90 /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
 		5C1830CA132EA675005E2210 /* MarkupPreview.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CC132EA675005E2210 /* MarkupPreview.xib */; };
 		5C1830CD132EA687005E2210 /* SaveHTMLPreview.nib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CF132EA687005E2210 /* SaveHTMLPreview.nib */; };
 		5C2CC185134989A8006FFE56 /* nvMenu.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC182134989A8006FFE56 /* nvMenu.png */; };
 		5C2CC186134989A8006FFE56 /* nvMenuC.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC183134989A8006FFE56 /* nvMenuC.png */; };
 		5C2CC18A134989D7006FFE56 /* nvMenuDark.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC189134989D7006FFE56 /* nvMenuDark.png */; };
 		5C2FAD2B1333970200FBFD34 /* ETScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C2CD036132ED47900CA0D7C /* ETScrollView.m */; };
+		5C48A28213A54FBD006B73DD /* PassphraseChanger.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */; };
+		5C48A28513A54FCA006B73DD /* PassphraseRetriever.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21973A230AFE447A0046683E /* PassphraseRetriever.nib */; };
+		5C48A28713A54FD6006B73DD /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
+		5C48A28913A54FE1006B73DD /* BlorPasswordRetriever.nib in Resources */ = {isa = PBXBuildFile; fileRef = 211344BA0B3551BD0081B064 /* BlorPasswordRetriever.nib */; };
+		5C48A28B13A54FEB006B73DD /* PTKeyComboPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21F1CD990B3A3F88001FB5F6 /* PTKeyComboPanel.nib */; };
+		5C48A28D13A54FF4006B73DD /* ExporterManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21FF94ED0B5AD22800DB6A2F /* ExporterManager.nib */; };
+		5C48A28F13A54FFC006B73DD /* ImporterAccessory.nib in Resources */ = {isa = PBXBuildFile; fileRef = 216BA24110746E3900F62D93 /* ImporterAccessory.nib */; };
+		5C48A29113A55006006B73DD /* SavedSearches.nib in Resources */ = {isa = PBXBuildFile; fileRef = 2110C0CF0B65F09E00F5C52E /* SavedSearches.nib */; };
+		5C48A29313A5500F006B73DD /* URLGetter.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21E6B0950B6E6D0B001ABEDC /* URLGetter.nib */; };
+		5C48A29513A55016006B73DD /* FindPanel.nib in Resources */ = {isa = PBXBuildFile; fileRef = 213621E70B92413F008C0830 /* FindPanel.nib */; };
+		5C48A29813A55057006B73DD /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
+		5C48A29A13A55061006B73DD /* PassphraseChanger.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */; };
+		5C48A29C13A55078006B73DD /* PassphraseRetriever.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21973A230AFE447A0046683E /* PassphraseRetriever.nib */; };
+		5C48A29D13A55078006B73DD /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
+		5C48A2A013A5508C006B73DD /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
+		5C48A2A113A5508C006B73DD /* BlorPasswordRetriever.nib in Resources */ = {isa = PBXBuildFile; fileRef = 211344BA0B3551BD0081B064 /* BlorPasswordRetriever.nib */; };
 		5C49E365131C5CC500696B68 /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = 5C49E364131C5CC500696B68 /* Credits.html */; };
 		5C4B353E1307220E00014119 /* TransparentScrollerKnobTop.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C4B35361307220E00014119 /* TransparentScrollerKnobTop.tif */; };
 		5C4B35401307220E00014119 /* TransparentScrollerSlotBottom.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C4B35381307220E00014119 /* TransparentScrollerSlotBottom.tif */; };
 		5C4B35421307220E00014119 /* TransparentScrollerSlotVerticalFill.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C4B353A1307220E00014119 /* TransparentScrollerSlotVerticalFill.tif */; };
 		5C4B356A1307225000014119 /* ETTransparentScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C4B35691307225000014119 /* ETTransparentScroller.m */; };
-		5C671531133294F30020CCBC /* Atalhos Incrivelmente Úteis.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D56132EA29D0079B3FD /* Atalhos Incrivelmente Úteis.nvhelp */; };
-		5C671532133294F30020CCBC /* Como funciona isso?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D5C132EA29D0079B3FD /* Como funciona isso?.nvhelp */; };
-		5C671533133294F30020CCBC /* Este é o título de uma nota.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D64132EA29D0079B3FD /* Este é o título de uma nota.nvhelp */; };
-		5C671534133294F30020CCBC /* Informações de Contato.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D6F132EA29D0079B3FD /* Informações de Contato.nvhelp */; };
-		5C671539133295280020CCBC /* Atalhos Incrivelmente Úteis.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D56132EA29D0079B3FD /* Atalhos Incrivelmente Úteis.nvhelp */; };
-		5C67153A133295280020CCBC /* Como funciona isso?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D5C132EA29D0079B3FD /* Como funciona isso?.nvhelp */; };
-		5C67153B133295280020CCBC /* Este é o título de uma nota.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D64132EA29D0079B3FD /* Este é o título de uma nota.nvhelp */; };
-		5C67153C133295280020CCBC /* Informações de Contato.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D6F132EA29D0079B3FD /* Informações de Contato.nvhelp */; };
 		5C94376F132A0C9E00B08B80 /* greyscrollervertbottom3.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C94376C132A0C9D00B08B80 /* greyscrollervertbottom3.tif */; };
 		5C943771132A0C9E00B08B80 /* greyscrollerverttop3.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C94376E132A0C9D00B08B80 /* greyscrollerverttop3.tif */; };
 		5C96F4FF131C2F9500A2E4AC /* TabClose_Front_Pressed.tif in Resources */ = {isa = PBXBuildFile; fileRef = 5C96F4FC131C2F9500A2E4AC /* TabClose_Front_Pressed.tif */; };
@@ -195,7 +205,6 @@
 		5CF33C721308B478002B5499 /* NotesTableHeaderCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CF33C711308B478002B5499 /* NotesTableHeaderCell.m */; };
 		5CF96C43132EA1890079B3FD /* Ceci est le titre d'une note.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96C0B132EA1880079B3FD /* Ceci est le titre d'une note.nvhelp */; };
 		5CF96C45132EA1890079B3FD /* Contact.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96C0F132EA1880079B3FD /* Contact.nvhelp */; };
-		5CF96CB0132EA1890079B3FD /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8D1107310486CEB800E47090 /* Info.plist */; };
 		5CF96CBD132EA1890079B3FD /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
 		5CF96CDD132EA1980079B3FD /* Kontaktdaten.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96CCA132EA1970079B3FD /* Kontaktdaten.nvhelp */; };
 		5CF96D93132EA29D0079B3FD /* Atalhos Incrivelmente Úteis.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 5CF96D56132EA29D0079B3FD /* Atalhos Incrivelmente Úteis.nvhelp */; };
@@ -237,7 +246,6 @@
 		5CF96DE7132EA29D0079B3FD /* Notes.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 215DEA4609EF6446009A710B /* Notes.tiff */; };
 		5CF96DE8132EA29D0079B3FD /* General.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 215DEA3D09EF5323009A710B /* General.tiff */; };
 		5CF96DEA132EA29D0079B3FD /* Add_Pressed.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 219196BB09D4F20000586B15 /* Add_Pressed.tiff */; };
-		5CF96DEB132EA29D0079B3FD /* Add.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 219196BC09D4F20000586B15 /* Add.tiff */; };
 		5CF96DEC132EA29D0079B3FD /* Remove_Pressed.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 219196BD09D4F20000586B15 /* Remove_Pressed.tiff */; };
 		5CF96DED132EA29D0079B3FD /* Remove.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 219196BE09D4F20000586B15 /* Remove.tiff */; };
 		5CF96DEF132EA29D0079B3FD /* MakeDefault.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 21A38EE312EA864400CEB5F0 /* MakeDefault.tiff */; };
@@ -260,7 +268,6 @@
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		93099628138BD61000368C45 /* tp2md.rb in Resources */ = {isa = PBXBuildFile; fileRef = 93099627138BD61000368C45 /* tp2md.rb */; };
-		937E6782138C24980099DF47 /* AutoHyperlinks.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 937E6781138C24980099DF47 /* AutoHyperlinks.framework */; };
 		937E6783138C250E0099DF47 /* AutoHyperlinks.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 937E6781138C24980099DF47 /* AutoHyperlinks.framework */; };
 		93A158BC133C304D00E1E7DA /* Markdownify.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 93A158BB133C304D00E1E7DA /* Markdownify.nvhelp */; };
 		93A158BE133C497400E1E7DA /* Notality.icns in Resources */ = {isa = PBXBuildFile; fileRef = 93A158BD133C497400E1E7DA /* Notality.icns */; };
@@ -556,6 +563,11 @@
 		57F27F7A11973A7F00C63ACF /* Notation.sdef */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = Notation.sdef; sourceTree = "<group>"; };
 		57F27FB71197407400C63ACF /* SearchCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SearchCommand.h; sourceTree = "<group>"; };
 		57F27FB81197407400C63ACF /* SearchCommand.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SearchCommand.m; sourceTree = "<group>"; };
+		5C0C545A13A54E560008BC90 /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/DeletionManager.nib; sourceTree = "<group>"; };
+		5C0C545C13A54E5A0008BC90 /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/DeletionManager.nib; sourceTree = "<group>"; };
+		5C0C545D13A54E670008BC90 /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/EncodingsManager.nib; sourceTree = "<group>"; };
+		5C0C545E13A54E920008BC90 /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/EncodingsManager.nib; sourceTree = "<group>"; };
+		5C0C546013A54ED90008BC90 /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/NotationPrefsView.nib; sourceTree = "<group>"; };
 		5C1830CB132EA675005E2210 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
 		5C1830CE132EA687005E2210 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
 		5C1830D3132EA6A4005E2210 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
@@ -566,6 +578,29 @@
 		5C2CC189134989D7006FFE56 /* nvMenuDark.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = nvMenuDark.png; path = Images/nvMenuDark.png; sourceTree = "<group>"; };
 		5C2CD035132ED47900CA0D7C /* ETScrollView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ETScrollView.h; sourceTree = "<group>"; };
 		5C2CD036132ED47900CA0D7C /* ETScrollView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ETScrollView.m; sourceTree = "<group>"; };
+		5C48A28113A54FBD006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/PassphrasePicker.nib; sourceTree = "<group>"; };
+		5C48A28413A54FCA006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/PassphraseChanger.nib; sourceTree = "<group>"; };
+		5C48A28613A54FD6006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/PassphraseRetriever.nib; sourceTree = "<group>"; };
+		5C48A28813A54FE1006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
+		5C48A28A13A54FEB006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/BlorPasswordRetriever.nib; sourceTree = "<group>"; };
+		5C48A28C13A54FF4006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/PTKeyComboPanel.nib; sourceTree = "<group>"; };
+		5C48A28E13A54FFC006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/ExporterManager.nib; sourceTree = "<group>"; };
+		5C48A29013A55006006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
+		5C48A29213A5500F006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/SavedSearches.nib; sourceTree = "<group>"; };
+		5C48A29413A55016006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/URLGetter.nib; sourceTree = "<group>"; };
+		5C48A29613A5501F006B73DD /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/FindPanel.nib; sourceTree = "<group>"; };
+		5C48A29713A55057006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/NotationPrefsView.nib; sourceTree = "<group>"; };
+		5C48A29913A55061006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/PassphrasePicker.nib; sourceTree = "<group>"; };
+		5C48A29B13A55078006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/PassphraseChanger.nib; sourceTree = "<group>"; };
+		5C48A29E13A5508C006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/KeyDerivationManager.nib; sourceTree = "<group>"; };
+		5C48A29F13A5508C006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/PassphraseRetriever.nib; sourceTree = "<group>"; };
+		5C48A2A213A550B0006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/BlorPasswordRetriever.nib; sourceTree = "<group>"; };
+		5C48A2A313A550B0006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/ExporterManager.nib; sourceTree = "<group>"; };
+		5C48A2A413A550B0006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/FindPanel.nib; sourceTree = "<group>"; };
+		5C48A2A513A550B0006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
+		5C48A2A613A550B0006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/PTKeyComboPanel.nib; sourceTree = "<group>"; };
+		5C48A2A713A550B0006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/SavedSearches.nib; sourceTree = "<group>"; };
+		5C48A2A813A550B0006B73DD /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/URLGetter.nib; sourceTree = "<group>"; };
 		5C49E364131C5CC500696B68 /* Credits.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = Credits.html; sourceTree = "<group>"; };
 		5C49E553131C72FD00696B68 /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = dsa_pub.pem; sourceTree = "<group>"; };
 		5C4B35351307220E00014119 /* TransparentScrollerKnobBottom.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = TransparentScrollerKnobBottom.tif; sourceTree = "<group>"; };
@@ -630,6 +665,16 @@
 		5CC2DF0A13083BCF006772D9 /* StatusItemView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StatusItemView.m; sourceTree = "<group>"; };
 		5CCEEF1B130B599B00E15B77 /* DFView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DFView.h; sourceTree = "<group>"; };
 		5CCEEF1C130B599B00E15B77 /* DFView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DFView.m; sourceTree = "<group>"; };
+		5CDBA8E413A5449900E7494E /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
+		5CDBA8E513A5449900E7494E /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
+		5CDBA8E613A5449900E7494E /* fr */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = fr; path = fr.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
+		5CDBA8E713A5449900E7494E /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
+		5CDBA8EA13A5450200E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		5CDBA8EB13A547B700E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/Preferences.xib; sourceTree = "<group>"; };
+		5CDBA8F413A5492700E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
+		5CDBA8F613A5493100E7494E /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
+		5CDBA8F713A5493100E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
+		5CDBA8F813A5493900E7494E /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		5CE6624913185202002039D0 /* NSTextFinder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSTextFinder.h; sourceTree = "<group>"; };
 		5CE6624A13185202002039D0 /* NSTextFinder_LastFind.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSTextFinder_LastFind.m; sourceTree = "<group>"; };
 		5CF01B02132975910083D66E /* greyscrollervertbottom.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = greyscrollervertbottom.tiff; sourceTree = "<group>"; };
@@ -715,6 +760,9 @@
 		5CFC3A4E13327EF9000B4792 /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		5CFC3A4F13327EF9000B4792 /* fr */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = fr; path = fr.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		5CFC3A5013327EF9000B4792 /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		5CFF810713A52EE2008A93A3 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		5CFF810813A53625008A93A3 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		5CFF810913A536F7008A93A3 /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/Preferences.xib; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* nvALT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = nvALT.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		93099627138BD61000368C45 /* tp2md.rb */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.ruby; path = tp2md.rb; sourceTree = "<group>"; };
@@ -756,7 +804,6 @@
 				21D583620B78F0CC00245E29 /* ApplicationServices.framework in Frameworks */,
 				219D254A1113FE34005E7DF5 /* SystemConfiguration.framework in Frameworks */,
 				21B54C021134F2E800E163A1 /* IOKit.framework in Frameworks */,
-				937E6782138C24980099DF47 /* AutoHyperlinks.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -780,9 +827,9 @@
 				21D60126098FDB46007440DF /* GlobalPrefs.h */,
 				21D60127098FDB46007440DF /* GlobalPrefs.m */,
 				2114C11409575BD400614E74 /* AppController.h */,
+				2114C11509575BD400614E74 /* AppController.m */,
 				93B90E771386018200BEC5FB /* ExternalEditorListController.h */,
 				93B90E781386018200BEC5FB /* ExternalEditorListController.m */,
-				2114C11509575BD400614E74 /* AppController.m */,
 				2191982009D607C600586B15 /* PrefsWindowController.h */,
 				2191982109D607C600586B15 /* PrefsWindowController.m */,
 				21A2F95C09DF3FDC001AF0B5 /* NotationPrefs.h */,
@@ -1339,9 +1386,12 @@
 /* Begin PBXProject section */
 		29B97313FDCFA39411CA2CEA /* Project object */ = {
 			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0420;
+				ORGANIZATIONNAME = elasticthreads;
+			};
 			buildConfigurationList = 212B842709780B5000F3597F /* Build configuration list for PBXProject "Notation" */;
-			compatibilityVersion = "Xcode 3.1";
-			developmentRegion = English;
+			compatibilityVersion = "Xcode 3.2";
 			hasScannedForEncodings = 1;
 			knownRegions = (
 				English,
@@ -1352,6 +1402,9 @@
 				fr,
 				pt,
 				de,
+				it,
+				"zh-Hans-CN",
+				zh,
 			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
@@ -1425,7 +1478,6 @@
 				5C943771132A0C9E00B08B80 /* greyscrollerverttop3.tif in Resources */,
 				5CF96C43132EA1890079B3FD /* Ceci est le titre d'une note.nvhelp in Resources */,
 				5CF96C45132EA1890079B3FD /* Contact.nvhelp in Resources */,
-				5CF96CB0132EA1890079B3FD /* Info.plist in Resources */,
 				5CF96CBD132EA1890079B3FD /* PassphrasePicker.nib in Resources */,
 				5CF96CDD132EA1980079B3FD /* Kontaktdaten.nvhelp in Resources */,
 				5CF96D93132EA29D0079B3FD /* Atalhos Incrivelmente Úteis.nvhelp in Resources */,
@@ -1467,7 +1519,6 @@
 				5CF96DE7132EA29D0079B3FD /* Notes.tiff in Resources */,
 				5CF96DE8132EA29D0079B3FD /* General.tiff in Resources */,
 				5CF96DEA132EA29D0079B3FD /* Add_Pressed.tiff in Resources */,
-				5CF96DEB132EA29D0079B3FD /* Add.tiff in Resources */,
 				5CF96DEC132EA29D0079B3FD /* Remove_Pressed.tiff in Resources */,
 				5CF96DED132EA29D0079B3FD /* Remove.tiff in Resources */,
 				5CF96DEF132EA29D0079B3FD /* MakeDefault.tiff in Resources */,
@@ -1488,14 +1539,6 @@
 				5CF96E0A132EA29D0079B3FD /* EncodingsManager.nib in Resources */,
 				5CF96E0B132EA29D0079B3FD /* Preferences.xib in Resources */,
 				5CF96E0C132EA29D0079B3FD /* NotationPrefsView.nib in Resources */,
-				5C671531133294F30020CCBC /* Atalhos Incrivelmente Úteis.nvhelp in Resources */,
-				5C671532133294F30020CCBC /* Como funciona isso?.nvhelp in Resources */,
-				5C671533133294F30020CCBC /* Este é o título de uma nota.nvhelp in Resources */,
-				5C671534133294F30020CCBC /* Informações de Contato.nvhelp in Resources */,
-				5C671539133295280020CCBC /* Atalhos Incrivelmente Úteis.nvhelp in Resources */,
-				5C67153A133295280020CCBC /* Como funciona isso?.nvhelp in Resources */,
-				5C67153B133295280020CCBC /* Este é o título de uma nota.nvhelp in Resources */,
-				5C67153C133295280020CCBC /* Informações de Contato.nvhelp in Resources */,
 				93A158BC133C304D00E1E7DA /* Markdownify.nvhelp in Resources */,
 				93A158BE133C497400E1E7DA /* Notality.icns in Resources */,
 				5C2CC185134989A8006FFE56 /* nvMenu.png in Resources */,
@@ -1507,6 +1550,24 @@
 				93B3482B1371547800658F98 /* HUDIconShare.png in Resources */,
 				93B90E84138601C100BEC5FB /* LICENSE.txt in Resources */,
 				93099628138BD61000368C45 /* tp2md.rb in Resources */,
+				5C0C545F13A54E920008BC90 /* Preferences.xib in Resources */,
+				5C0C546113A54ED90008BC90 /* PassphrasePicker.nib in Resources */,
+				5C48A28213A54FBD006B73DD /* PassphraseChanger.nib in Resources */,
+				5C48A28513A54FCA006B73DD /* PassphraseRetriever.nib in Resources */,
+				5C48A28713A54FD6006B73DD /* KeyDerivationManager.nib in Resources */,
+				5C48A28913A54FE1006B73DD /* BlorPasswordRetriever.nib in Resources */,
+				5C48A28B13A54FEB006B73DD /* PTKeyComboPanel.nib in Resources */,
+				5C48A28D13A54FF4006B73DD /* ExporterManager.nib in Resources */,
+				5C48A28F13A54FFC006B73DD /* ImporterAccessory.nib in Resources */,
+				5C48A29113A55006006B73DD /* SavedSearches.nib in Resources */,
+				5C48A29313A5500F006B73DD /* URLGetter.nib in Resources */,
+				5C48A29513A55016006B73DD /* FindPanel.nib in Resources */,
+				5C48A29813A55057006B73DD /* PassphrasePicker.nib in Resources */,
+				5C48A29A13A55061006B73DD /* PassphraseChanger.nib in Resources */,
+				5C48A29C13A55078006B73DD /* PassphraseRetriever.nib in Resources */,
+				5C48A29D13A55078006B73DD /* KeyDerivationManager.nib in Resources */,
+				5C48A2A013A5508C006B73DD /* KeyDerivationManager.nib in Resources */,
+				5C48A2A113A5508C006B73DD /* BlorPasswordRetriever.nib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1645,6 +1706,8 @@
 				5CF96C3F132EA1890079B3FD /* fr */,
 				5CF96CD6132EA1970079B3FD /* de */,
 				5CF96D8A132EA29D0079B3FD /* pt */,
+				5C48A29213A5500F006B73DD /* zh */,
+				5C48A2A713A550B0006B73DD /* it */,
 			);
 			name = SavedSearches.nib;
 			sourceTree = "<group>";
@@ -1656,6 +1719,8 @@
 				5CF96C09132EA1880079B3FD /* fr */,
 				5CF96CBE132EA1970079B3FD /* de */,
 				5CF96D58132EA29D0079B3FD /* pt */,
+				5C48A28A13A54FEB006B73DD /* zh */,
+				5C48A2A213A550B0006B73DD /* it */,
 			);
 			name = BlorPasswordRetriever.nib;
 			sourceTree = "<group>";
@@ -1698,6 +1763,8 @@
 				5CF96C12132EA1880079B3FD /* fr */,
 				5CF96CC3132EA1970079B3FD /* de */,
 				5CF96D61132EA29D0079B3FD /* pt */,
+				5C0C545D13A54E670008BC90 /* it */,
+				5C0C545E13A54E920008BC90 /* zh */,
 			);
 			name = EncodingsManager.nib;
 			sourceTree = "<group>";
@@ -1709,6 +1776,8 @@
 				5CF96C11132EA1880079B3FD /* fr */,
 				5CF96CC0132EA1970079B3FD /* de */,
 				5CF96D5E132EA29D0079B3FD /* pt */,
+				5C0C545A13A54E560008BC90 /* it */,
+				5C0C545C13A54E5A0008BC90 /* zh */,
 			);
 			name = DeletionManager.nib;
 			sourceTree = "<group>";
@@ -1728,6 +1797,8 @@
 				5CF96C14132EA1880079B3FD /* fr */,
 				5CF96CC5132EA1970079B3FD /* de */,
 				5CF96D69132EA29D0079B3FD /* pt */,
+				5C48A29613A5501F006B73DD /* zh */,
+				5C48A2A413A550B0006B73DD /* it */,
 			);
 			name = FindPanel.nib;
 			sourceTree = "<group>";
@@ -1739,6 +1810,8 @@
 				5CF96C1F132EA1880079B3FD /* fr */,
 				5CF96CD2132EA1970079B3FD /* de */,
 				5CF96D7E132EA29D0079B3FD /* pt */,
+				5C48A28113A54FBD006B73DD /* zh */,
+				5C48A29913A55061006B73DD /* it */,
 			);
 			name = PassphrasePicker.nib;
 			sourceTree = "<group>";
@@ -1750,6 +1823,8 @@
 				5CF96C1E132EA1880079B3FD /* fr */,
 				5CF96CD1132EA1970079B3FD /* de */,
 				5CF96D7B132EA29D0079B3FD /* pt */,
+				5C48A28413A54FCA006B73DD /* zh */,
+				5C48A29B13A55078006B73DD /* it */,
 			);
 			name = PassphraseChanger.nib;
 			sourceTree = "<group>";
@@ -1761,6 +1836,8 @@
 				5CF96C19132EA1880079B3FD /* fr */,
 				5CF96CC9132EA1970079B3FD /* de */,
 				5CF96D71132EA29D0079B3FD /* pt */,
+				5C48A28813A54FE1006B73DD /* zh */,
+				5C48A29E13A5508C006B73DD /* it */,
 			);
 			name = KeyDerivationManager.nib;
 			sourceTree = "<group>";
@@ -1772,6 +1849,8 @@
 				5CF96C17132EA1880079B3FD /* fr */,
 				5CF96CC7132EA1970079B3FD /* de */,
 				5CF96D6B132EA29D0079B3FD /* pt */,
+				5C48A29013A55006006B73DD /* zh */,
+				5C48A2A513A550B0006B73DD /* it */,
 			);
 			name = ImporterAccessory.nib;
 			sourceTree = "<group>";
@@ -1783,6 +1862,8 @@
 				5CF96C23132EA1880079B3FD /* fr */,
 				5CF96CD4132EA1970079B3FD /* de */,
 				5CF96D84132EA29D0079B3FD /* pt */,
+				5CFF810913A536F7008A93A3 /* it */,
+				5CDBA8EB13A547B700E7494E /* zh */,
 			);
 			name = Preferences.xib;
 			sourceTree = "<group>";
@@ -1794,6 +1875,8 @@
 				5CF96C20132EA1880079B3FD /* fr */,
 				5CF96CD3132EA1970079B3FD /* de */,
 				5CF96D81132EA29D0079B3FD /* pt */,
+				5C48A28613A54FD6006B73DD /* zh */,
+				5C48A29F13A5508C006B73DD /* it */,
 			);
 			name = PassphraseRetriever.nib;
 			sourceTree = "<group>";
@@ -1829,6 +1912,8 @@
 				5CF96C1D132EA1880079B3FD /* fr */,
 				5CF96CD0132EA1970079B3FD /* de */,
 				5CF96D78132EA29D0079B3FD /* pt */,
+				5C0C546013A54ED90008BC90 /* zh */,
+				5C48A29713A55057006B73DD /* it */,
 			);
 			name = NotationPrefsView.nib;
 			sourceTree = "<group>";
@@ -1840,6 +1925,8 @@
 				5CF96C42132EA1890079B3FD /* fr */,
 				5CF96CD9132EA1970079B3FD /* de */,
 				5CF96D90132EA29D0079B3FD /* pt */,
+				5C48A29413A55016006B73DD /* zh */,
+				5C48A2A813A550B0006B73DD /* it */,
 			);
 			name = URLGetter.nib;
 			sourceTree = "<group>";
@@ -1851,6 +1938,8 @@
 				5CF96C24132EA1880079B3FD /* fr */,
 				5CF96CD5132EA1970079B3FD /* de */,
 				5CF96D87132EA29D0079B3FD /* pt */,
+				5C48A28C13A54FF4006B73DD /* zh */,
+				5C48A2A613A550B0006B73DD /* it */,
 			);
 			name = PTKeyComboPanel.nib;
 			sourceTree = "<group>";
@@ -1862,6 +1951,8 @@
 				5CF96C13132EA1880079B3FD /* fr */,
 				5CF96CC4132EA1970079B3FD /* de */,
 				5CF96D66132EA29D0079B3FD /* pt */,
+				5C48A28E13A54FFC006B73DD /* zh */,
+				5C48A2A313A550B0006B73DD /* it */,
 			);
 			name = ExporterManager.nib;
 			sourceTree = "<group>";
@@ -1870,6 +1961,11 @@
 			isa = PBXVariantGroup;
 			children = (
 				5C1830CB132EA675005E2210 /* English */,
+				5CDBA8E413A5449900E7494E /* it */,
+				5CDBA8E513A5449900E7494E /* pt */,
+				5CDBA8E613A5449900E7494E /* fr */,
+				5CDBA8E713A5449900E7494E /* de */,
+				5CDBA8F413A5492700E7494E /* zh */,
 			);
 			name = MarkupPreview.xib;
 			sourceTree = "<group>";
@@ -1881,6 +1977,8 @@
 				5C1830D3132EA6A4005E2210 /* fr */,
 				5C1830D4132EA6A4005E2210 /* de */,
 				5C1830D5132EA6A4005E2210 /* pt */,
+				5CDBA8F613A5493100E7494E /* it */,
+				5CDBA8F713A5493100E7494E /* zh */,
 			);
 			name = SaveHTMLPreview.nib;
 			sourceTree = "<group>";
@@ -1892,6 +1990,8 @@
 				5CFC3A4E13327EF9000B4792 /* de */,
 				5CFC3A4F13327EF9000B4792 /* fr */,
 				5CFC3A5013327EF9000B4792 /* pt */,
+				5CFF810813A53625008A93A3 /* it */,
+				5CDBA8F813A5493900E7494E /* zh */,
 			);
 			name = TagEditingManager.xib;
 			sourceTree = "<group>";
@@ -1903,6 +2003,8 @@
 				5CF96BFE132EA03E0079B3FD /* fr */,
 				5CF96BFF132EA03E0079B3FD /* de */,
 				5CF96C00132EA03E0079B3FD /* pt */,
+				5CFF810713A52EE2008A93A3 /* it */,
+				5CDBA8EA13A5450200E7494E /* zh */,
 			);
 			name = MainMenu.xib;
 			sourceTree = "<group>";
@@ -2017,10 +2119,7 @@
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
-					"\"$(SRCROOT)/French.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(SRCROOT)\"",
-					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
-					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
@@ -2030,7 +2129,6 @@
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = YES;
 				GCC_FEEDBACK_DIRECTED_OPTIMIZATION = Off;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_INSTRUMENT_PROGRAM_FLOW_ARCS = NO;
@@ -2071,10 +2169,10 @@
 					"-weak_framework",
 					PDFKit,
 				);
-				PREBINDING = NO;
 				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				SDKROOT = macosx;
+				"SDKROOT[arch=x86_64]" = macosx;
+				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = "non-global";
 				WARNING_CFLAGS = "-pg";
 				WARNING_LDFLAGS = "-pg";
@@ -2086,7 +2184,7 @@
 		212B842509780B5000F3597F /* Deployment */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				COPY_PHASE_STRIP = YES;
+				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -2095,10 +2193,7 @@
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
-					"\"$(SRCROOT)/French.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(SRCROOT)\"",
-					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
-					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
@@ -2106,7 +2201,6 @@
 				GCC_DEBUGGING_SYMBOLS = full;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = NO;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = s;
 				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
@@ -2136,10 +2230,9 @@
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = "";
-				PREBINDING = NO;
 				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				SDKROOT = macosx;
+				"SDKROOT[arch=x86_64]" = macosx;
 				SECTORDER_FLAGS = (
 					"-sectorder",
 					__TEXT,
@@ -2148,7 +2241,7 @@
 					"-e",
 					start,
 				);
-				STRIP_INSTALLED_PRODUCT = YES;
+				STRIP_INSTALLED_PRODUCT = NO;
 				STRIP_STYLE = all;
 				WRAPPER_EXTENSION = app;
 				ZERO_LINK = NO;
@@ -2158,16 +2251,14 @@
 		212B842609780B5000F3597F /* Default */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				COPY_PHASE_STRIP = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
-					"\"$(SRCROOT)/French.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(SRCROOT)\"",
-					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
-					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
@@ -2204,8 +2295,9 @@
 					PDFKit,
 				);
 				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				SDKROOT = macosx;
+				"SDKROOT[arch=x86_64]" = macosx;
+				STRIP_INSTALLED_PRODUCT = NO;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Default;
@@ -2214,37 +2306,51 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				DEAD_CODE_STRIPPING = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = NO;
 				GCC_DEBUGGING_SYMBOLS = full;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_MODEL_TUNING = "";
-				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_OPTIMIZATION_LEVEL = 1;
 				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GCC_TREAT_NONCONFORMANT_CODE_ERRORS_AS_WARNINGS = NO;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_VERSION = "";
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_POINTER_SIGNEDNESS = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL = NO;
+				GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
+				GCC_WARN_EFFECTIVE_CPLUSPLUS_VIOLATIONS = YES;
+				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
+				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
 				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
 				GCC_WARN_MISSING_PARENTHESES = YES;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = NO;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
+				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.5;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				RUN_CLANG_STATIC_ANALYZER = YES;
+				SDKROOT = macosx10.6;
+				"SDKROOT[arch=x86_64]" = macosx;
+				STRIP_INSTALLED_PRODUCT = NO;
 			};
 			name = Development;
 		};
@@ -2253,41 +2359,51 @@
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 				DEAD_CODE_STRIPPING = YES;
+				DEPLOYMENT_POSTPROCESSING = YES;
 				GCC_DEBUGGING_SYMBOLS = full;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GCC_TREAT_NONCONFORMANT_CODE_ERRORS_AS_WARNINGS = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_VERSION = "";
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS = YES;
 				GCC_WARN_ABOUT_GLOBAL_CONSTRUCTORS = NO;
 				GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO = YES;
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				GCC_WARN_ABOUT_POINTER_SIGNEDNESS = NO;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_POINTER_SIGNEDNESS = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL = NO;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
 				GCC_WARN_EFFECTIVE_CPLUSPLUS_VIOLATIONS = NO;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = NO;
+				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
 				GCC_WARN_MISSING_PARENTHESES = YES;
-				GCC_WARN_SHADOW = YES;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
+				GCC_WARN_SHADOW = NO;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = NO;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
+				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.5;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = YES;
-				RUN_CLANG_STATIC_ANALYZER = YES;
+				RUN_CLANG_STATIC_ANALYZER = NO;
 				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = NO;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				SDKROOT = macosx10.6;
+				"SDKROOT[arch=x86_64]" = macosx;
 			};
 			name = Deployment;
 		};
@@ -2300,316 +2416,104 @@
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
 				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
-				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_MISSING_PARENTHESES = YES;
-				GCC_WARN_SHADOW = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_VALUE = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.5;
-				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
-			};
-			name = Default;
-		};
-		5C8DD68E130F2BC2000AF682 /* Deployment temp */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				GCC_DEBUGGING_SYMBOLS = full;
-				GCC_ENABLE_CPP_EXCEPTIONS = NO;
-				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_VERSION = "";
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
-				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				GCC_WARN_ABOUT_POINTER_SIGNEDNESS = NO;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_MISSING_PARENTHESES = YES;
-				GCC_WARN_SHADOW = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_VALUE = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.5;
-				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
-			};
-			name = "Deployment temp";
-		};
-		5C8DD68F130F2BC2000AF682 /* Deployment temp */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				COPY_PHASE_STRIP = YES;
-				DEAD_CODE_STRIPPING = YES;
-				DEPLOYMENT_POSTPROCESSING = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
-					"\"$(SRCROOT)/French.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
-					"\"$(SRCROOT)\"",
-					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
-					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
-					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
-				);
-				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
-				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
-				GCC_DEBUGGING_SYMBOLS = full;
-				GCC_ENABLE_CPP_EXCEPTIONS = NO;
-				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = NO;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
-				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = Notation_Prefix.pch;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_VERSION = com.apple.compilers.llvmgcc42;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
-				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_MISSING_PARENTHESES = YES;
-				GCC_WARN_SHADOW = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES;
-				GCC_WARN_UNUSED_FUNCTION = NO;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = NO;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = ICU/icu;
-				INFOPLIST_FILE = Info.plist;
-				INSTALL_PATH = "$(HOME)/Applications";
-				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
-				MACOSX_DEPLOYMENT_TARGET = 10.5;
-				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
-				ONLY_ACTIVE_ARCH = NO;
-				OTHER_LDFLAGS = "";
-				PREBINDING = NO;
-				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
-				SECTORDER_FLAGS = (
-					"-sectorder",
-					__TEXT,
-					__text,
-					Notation.launchorder,
-					"-e",
-					start,
-				);
-				STRIP_INSTALLED_PRODUCT = YES;
-				STRIP_STYLE = all;
-				WRAPPER_EXTENSION = app;
-				ZERO_LINK = NO;
-			};
-			name = "Deployment temp";
-		};
-		5C9CB58B134A7F0400073277 /* ForBuildingIn3 */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				GCC_DEBUGGING_SYMBOLS = full;
-				GCC_ENABLE_CPP_EXCEPTIONS = NO;
-				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_VERSION = "";
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
-				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				GCC_WARN_ABOUT_POINTER_SIGNEDNESS = NO;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_MISSING_PARENTHESES = YES;
-				GCC_WARN_SHADOW = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_VALUE = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.5;
-				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
-			};
-			name = ForBuildingIn3;
-		};
-		5C9CB58C134A7F0400073277 /* ForBuildingIn3 */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				COPY_PHASE_STRIP = YES;
-				DEAD_CODE_STRIPPING = YES;
-				DEPLOYMENT_POSTPROCESSING = YES;
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
-					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
-					"\"$(SRCROOT)/French.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
-					"\"$(SRCROOT)\"",
-					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
-					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
-					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
-				);
-				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
-				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
-				GCC_DEBUGGING_SYMBOLS = full;
-				GCC_ENABLE_CPP_EXCEPTIONS = NO;
-				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = NO;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
-				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = Notation_Prefix.pch;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_VERSION = com.apple.compilers.llvmgcc42;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
-				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
-				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
-				GCC_WARN_MISSING_PARENTHESES = YES;
-				GCC_WARN_SHADOW = YES;
-				GCC_WARN_SIGN_COMPARE = YES;
-				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES;
-				GCC_WARN_UNUSED_FUNCTION = NO;
-				GCC_WARN_UNUSED_LABEL = YES;
-				GCC_WARN_UNUSED_PARAMETER = NO;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = ICU/icu;
-				INFOPLIST_FILE = Info.plist;
-				INSTALL_PATH = "$(HOME)/Applications";
-				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
-				MACOSX_DEPLOYMENT_TARGET = 10.5;
-				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
-				ONLY_ACTIVE_ARCH = NO;
-				OTHER_LDFLAGS = "";
-				PREBINDING = NO;
-				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx10.5;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
-				SECTORDER_FLAGS = (
-					"-sectorder",
-					__TEXT,
-					__text,
-					Notation.launchorder,
-					"-e",
-					start,
-				);
-				STRIP_INSTALLED_PRODUCT = YES;
-				STRIP_STYLE = all;
-				WRAPPER_EXTENSION = app;
-				ZERO_LINK = NO;
-			};
-			name = ForBuildingIn3;
-		};
-		5CA10DB1131C1AE900DE1F91 /* Development3 */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
-				DEAD_CODE_STRIPPING = YES;
-				GCC_DEBUGGING_SYMBOLS = full;
-				GCC_ENABLE_CPP_EXCEPTIONS = NO;
-				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_MODEL_TUNING = "";
-				GCC_OPTIMIZATION_LEVEL = 3;
-				GCC_THREADSAFE_STATICS = NO;
-				GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS = NO;
 				GCC_TREAT_NONCONFORMANT_CODE_ERRORS_AS_WARNINGS = YES;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
-				GCC_VERSION = "";
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_GLOBAL_CONSTRUCTORS = YES;
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
 				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
-				GCC_WARN_ABOUT_MISSING_PROTOTYPES = NO;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_POINTER_SIGNEDNESS = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
-				GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
 				GCC_WARN_EFFECTIVE_CPLUSPLUS_VIOLATIONS = YES;
-				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
 				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
-				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
 				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
 				GCC_WARN_MISSING_PARENTHESES = YES;
-				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
 				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
-				GCC_WARN_PEDANTIC = NO;
-				GCC_WARN_PROTOTYPE_CONVERSION = NO;
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
-				GCC_WARN_UNKNOWN_PRAGMAS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = NO;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
 				GCC_WARN_UNUSED_PARAMETER = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.5;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx10.5;
+				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
+				SDKROOT = macosx10.6;
+				"SDKROOT[arch=x86_64]" = macosx;
 			};
-			name = Development3;
+			name = Default;
 		};
-		5CA10DB2131C1AE900DE1F91 /* Development3 */ = {
+		5C9CB58B134A7F0400073277 /* ForBuilding */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				DEAD_CODE_STRIPPING = YES;
+				DEPLOYMENT_POSTPROCESSING = YES;
+				GCC_DEBUGGING_SYMBOLS = full;
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_THREADSAFE_STATICS = NO;
+				GCC_TREAT_NONCONFORMANT_CODE_ERRORS_AS_WARNINGS = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
+				GCC_VERSION = "";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_POINTER_SIGNEDNESS = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
+				GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = YES;
+				GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED = YES;
+				GCC_WARN_MISSING_PARENTHESES = YES;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES;
+				GCC_WARN_SHADOW = YES;
+				GCC_WARN_SIGN_COMPARE = YES;
+				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = NO;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				GCC_WARN_UNUSED_PARAMETER = YES;
+				GCC_WARN_UNUSED_VALUE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.5;
+				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.6;
+				SDKROOT = macosx10.6;
+				"SDKROOT[arch=x86_64]" = macosx10.6;
+			};
+			name = ForBuilding;
+		};
+		5C9CB58C134A7F0400073277 /* ForBuilding */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEPLOYMENT_POSTPROCESSING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_1)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_2)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_3)",
 					"$(FRAMEWORK_SEARCH_PATHS_QUOTED_4)",
-					"\"$(SRCROOT)/French.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(SRCROOT)\"",
-					"\"$(DEVELOPER_DIR)/Library/IBPlugins/BWToolkit\"",
-					"\"$(SRCROOT)/fr.lproj/RBSplitView(Sno).ibplugin/Contents/Frameworks\"",
 					"\"$(DEVELOPER_FRAMEWORKS_DIR)\"",
 				);
 				FRAMEWORK_SEARCH_PATHS_QUOTED_1 = "\"$(SYSTEM_LIBRARY_DIR)/Frameworks/Quartz.framework/Versions/A/Frameworks\"";
 				FRAMEWORK_SEARCH_PATHS_QUOTED_2 = "\"$(SRCROOT)\"";
-				FRAMEWORK_SEARCH_PATHS_QUOTED_3 = "\"$(SRCROOT)\"";
-				FRAMEWORK_SEARCH_PATHS_QUOTED_4 = "\"$(SRCROOT)\"";
-				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_DEBUGGING_SYMBOLS = full;
 				GCC_ENABLE_CPP_EXCEPTIONS = NO;
 				GCC_ENABLE_CPP_RTTI = NO;
-				GCC_ENABLE_FIX_AND_CONTINUE = YES;
-				GCC_FEEDBACK_DIRECTED_OPTIMIZATION = Off;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
-				GCC_INSTRUMENT_PROGRAM_FLOW_ARCS = NO;
-				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Notation_Prefix.pch;
@@ -2623,38 +2527,36 @@
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_SIGN_COMPARE = YES;
 				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = NO;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = NO;
 				GCC_WARN_UNUSED_LABEL = YES;
 				GCC_WARN_UNUSED_PARAMETER = NO;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				GENERATE_PROFILING_CODE = YES;
 				HEADER_SEARCH_PATHS = ICU/icu;
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
-				LD_GENERATE_MAP_FILE = YES;
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
 				MACOSX_DEPLOYMENT_TARGET = 10.5;
-				OTHER_CFLAGS = (
-					"-pg",
-					"-whatsloaded",
-				);
-				OTHER_LDFLAGS = (
-					"-pg",
-					"-whatsloaded",
-					"-weak_framework",
-					PDFKit,
-				);
-				PREBINDING = NO;
+				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx10.5;
-				STRIP_STYLE = "non-global";
-				WARNING_CFLAGS = "-pg";
-				WARNING_LDFLAGS = "-pg";
+				SDKROOT = macosx10.6;
+				"SDKROOT[arch=x86_64]" = macosx10.6;
+				SECTORDER_FLAGS = (
+					"-sectorder",
+					__TEXT,
+					__text,
+					Notation.launchorder,
+					"-e",
+					start,
+				);
+				STRIP_INSTALLED_PRODUCT = NO;
+				STRIP_STYLE = all;
 				WRAPPER_EXTENSION = app;
 				ZERO_LINK = NO;
 			};
-			name = Development3;
+			name = ForBuilding;
 		};
 /* End XCBuildConfiguration section */
 
@@ -2663,27 +2565,23 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				212B842509780B5000F3597F /* Deployment */,
-				5C8DD68F130F2BC2000AF682 /* Deployment temp */,
-				5C9CB58C134A7F0400073277 /* ForBuildingIn3 */,
+				5C9CB58C134A7F0400073277 /* ForBuilding */,
 				212B842409780B5000F3597F /* Development */,
-				5CA10DB2131C1AE900DE1F91 /* Development3 */,
 				212B842609780B5000F3597F /* Default */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Deployment;
+			defaultConfigurationName = Development;
 		};
 		212B842709780B5000F3597F /* Build configuration list for PBXProject "Notation" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				212B842909780B5000F3597F /* Deployment */,
-				5C8DD68E130F2BC2000AF682 /* Deployment temp */,
-				5C9CB58B134A7F0400073277 /* ForBuildingIn3 */,
+				5C9CB58B134A7F0400073277 /* ForBuilding */,
 				212B842809780B5000F3597F /* Development */,
-				5CA10DB1131C1AE900DE1F91 /* Development3 */,
 				212B842A09780B5000F3597F /* Default */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Deployment;
+			defaultConfigurationName = Development;
 		};
 /* End XCConfigurationList section */
 	};

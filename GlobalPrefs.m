@@ -84,6 +84,7 @@ static NSString *AlternatingRowsKey = @"AlternatingRows";
 static NSString *RTLKey = @"rtl";
 static NSString *ShowWordCount = @"ShowWordCount";
 static NSString *markupPreviewMode = @"markupPreviewMode";
+static NSString *UseAutoPairing = @"UseAutoPairing";
 //static NSString *PasteClipboardOnNewNoteKey = @"PasteClipboardOnNewNote";
 
 //these 4 strings manually localized
@@ -153,6 +154,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], UseReadabilityKey,
             [NSNumber numberWithBool:YES], ShowGridKey,
             [NSNumber numberWithBool:NO], AlternatingRowsKey,
+            [NSNumber numberWithBool:NO], UseAutoPairing,
 			
 			[NSArchiver archivedDataWithRootObject:
 			 [NSFont fontWithName:@"Helvetica" size:12.0f]], NoteBodyFontKey,
@@ -466,6 +468,13 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	return [defaults boolForKey:AlternatingRowsKey];
 }
 
+- (void)setUseAutoPairing:(BOOL)value{
+    [defaults setBool:value forKey:UseAutoPairing];
+}
+
+- (BOOL)useAutoPairing{
+	return [defaults boolForKey:UseAutoPairing];
+}
 
 - (void)setShouldHighlightSearchTerms:(BOOL)shouldHighlight sender:(id)sender {
 	[defaults setBool:shouldHighlight forKey:HighlightSearchTermsKey];

@@ -1,0 +1,24 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf350
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+\paperw12240\paperh15840\margl1440\margr1440\vieww9000\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\f0\fs24 \cf0 Si deve sempre iniziare a digitare nel campo di ricerca che appare in alto. Se si preme Invio si aggiunge una nuova nota che ha come titolo il testo inserito. Durante la digitazione, NV cerca le note che contengono (nel corpo o nel titolo) le parole digitate. Come si vede, assegnare un nome ad una nuova nota e cercare una nota gi\'e0 esistente sono operazioni che avvengono sempre allo stesso tempo.\
+\
+Quando si seleziona una delle note trovate (per esempio, usando i tasti cursore Su/Gi\'f9) NV ne mostra il contenuto nell'area in basso (o a destra) dedicata al testo (cio\'e8 l'area in cui ora stai leggendo questa nota).\
+\
+Se si inizia a digitare il titolo di una nota, NV seleziona automaticamente quella nota.\
+\
+Per creare una nuova nota, basta iniziare a digitare nuovamente nel campo di ricerca (usa la combinazione di tasti 
+\f1 \uc0\u8984 
+\f0 -L per portare il cursore in quel campo). Non c'\'e8 da preoccuparsi: la nota non verr\'e0 rinominata -- per rinominare una nota occorre fare doppio clic sul suo titolo nell'elenco delle note, oppure occorre digitare la combinazione di tasti 
+\f1 \uc0\u8984 
+\f0 -R.\
+\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+
+\i \cf0 NV non mi permette di salvare le modifiche!
+\i0 \
+NV salva continuamente su disco le modifiche durante la creazione di una nuova nota o la modifica di una nota gi\'e0 esistente, quindi non c'\'e8 bisogno di eseguire manualmente il salvataggio.\
+}

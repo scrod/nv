@@ -117,6 +117,7 @@ BOOL isEd;
     }
     theFieldEditor = [[[NSTextView alloc]initWithFrame:[window frame]] retain];
 	[theFieldEditor setFieldEditor:YES];
+    // [theFieldEditor setDelegate:self];
     [self updateFieldAttributes];
 
 	[NSApp setDelegate:self];
@@ -351,17 +352,30 @@ void outletObjectAwoke(id sender) {
     //theMenuItem = [[viewMenu itemWithTag:801] copy];
 	//[statBarMenu insertItem:theMenuItem atIndex:11];
     //[theMenuItem release];
-	if(IsLeopardOrLater){
-        NSMenu *viewMenu = [[[NSApp mainMenu] itemWithTag:VIEW_MENU_ID] submenu];
-		theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Toggle Fullscreen Mode",@"menu item title for toggling fs") 
-												  action:@selector(toggleFullscreen:) keyEquivalent:@"F"] autorelease];
+    if(IsLeopardOrLater){
+        //theMenuItem =[viewMenu itemWithTag:314];
+        [fsMenuItem setEnabled:YES];
+        [fsMenuItem setHidden:NO];
 		
-		[theMenuItem setTarget:self];
-		[viewMenu insertItem:theMenuItem atIndex:1];
-		theMenuItem = [theMenuItem copy];
-		[statBarMenu insertItem:theMenuItem atIndex:11];
-		[theMenuItem release];
-	}
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+        if (IsLionOrLater) {
+            //  [window setCollectionBehavior:NSWindowCollectionBehaviorTransient|NSWindowCollectionBehaviorMoveToActiveSpace];
+            [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+            [NSApp setPresentationOptions:NSApplicationPresentationFullScreen];
+
+       
+        }else{
+#endif   
+            [fsMenuItem setTarget:self];
+            [fsMenuItem setAction:@selector(switchFullScreen:)];
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+        }
+#endif
+        theMenuItem = [fsMenuItem copy];
+        [statBarMenu insertItem:theMenuItem atIndex:11];
+        [theMenuItem release];
+    }
 
 	if (![prefsController showWordCount]) {
 		[wordCounter setHidden:NO];
@@ -629,6 +643,21 @@ terminateApp:
                 return NO;
             }
         }
+	} else if ((selector == @selector(toggleFullScreen:))||(selector == @selector(switchFullScreen:))) {
+
+        if (IsLeopardOrLater) {
+          
+            if([NSApp presentationOptions]>0){
+                [menuItem setTitle:NSLocalizedString(@"Exit Full Screen",@"menu item title for exiting fullscreen")];
+            }else{
+                
+                [menuItem setTitle:NSLocalizedString(@"Enter Full Screen",@"menu item title for entering fullscreen")]; 
+                
+            } 
+            
+        }
+
+
 	} else if (selector == @selector(fixFileEncoding:)) {
 		
 		return (currentNote != nil && storageFormatOfNote(currentNote) == PlainTextFormat && ![currentNote contentsWere7Bit]);
@@ -679,6 +708,7 @@ terminateApp:
 - (void)_forceRegeneratePreviewsForTitleColumn {
 	[notationController regeneratePreviewsForColumn:[notesTableView noteAttributeColumnForIdentifier:NoteTitleColumnString]	
 								visibleFilteredRows:[notesTableView rowsInRect:[notesTableView visibleRect]] forceUpdate:YES];
+  
 }
 
 - (void)_configureDividerForCurrentLayout {
@@ -754,18 +784,7 @@ terminateApp:
     }
     //edit the first selected note	
     isEd = YES;
- /*   NSTextView *fieldEditor = (NSTextView *)[window fieldEditor:YES forObject:notesTableView];
-    NSColor *selCol = [NSColor colorWithCalibratedHue: 0.6
-								  saturation: 0.25
-								  brightness: 0.9
-									   alpha: 0.27];
-	NSDictionary  *colDict = [NSDictionary dictionaryWithObjectsAndKeys:[NSColor redColor], NSForegroundColorAttributeName, [NSColor blueColor], NSBackgroundColorAttributeName, nil];
-    [fieldEditor setSelectedTextAttributes:colDict];
-    [fieldEditor setTextColor:[NSColor greenColor]];
-    [fieldEditor setDrawsBackground:YES];
-    [fieldEditor setBackgroundColor:[NSColor blackColor]];
-    [fieldEditor setNeedsDisplay:YES];
-    */
+
 	[notesTableView editRowAtColumnWithIdentifier:NoteTitleColumnString];
 }
 
@@ -980,7 +999,7 @@ terminateApp:
 		
 		ResetFontRelatedTableAttributes();
 		[notesTableView updateTitleDereferencorState];
-		[notationController invalidateAllLabelPreviewImages];
+		//[notationController invalidateAllLabelPreviewImages];
 		[self _forceRegeneratePreviewsForTitleColumn];
 				
 		if ([selectorString isEqualToString:SEL_STR(setTableColumnsShowPreview:sender:)]) [self updateNoteMenus];
@@ -1006,6 +1025,7 @@ terminateApp:
 }
 
 - (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn {
+    NSLog(@"dickclicktablecol");
     if (tableView == notesTableView) {
 		//this sets global prefs options, which ultimately calls back to us
 		[notesTableView setStatusForSortedColumn:tableColumn];
@@ -1129,6 +1149,7 @@ terminateApp:
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)aTextView doCommandBySelector:(SEL)command {
 	if (control == (NSControl*)field) {
 		
+        isEd=NO;
 		//backwards-searching is slow enough as it is, so why not just check this first?
 		if (command == @selector(deleteBackward:))
 			return NO;
@@ -1222,10 +1243,13 @@ terminateApp:
 		
 		if (command == @selector(insertNewline:)) {
 			//hit return in cell
+            //NSLog(@"herehere");
+            isEd=NO;
 			[window makeFirstResponder:textView];
 			return YES;
 		}
 	} else if (control == [TagEditer tagField]) {
+        
 		if (command == @selector(insertNewline:)) {
             if ([aTextView selectedRange].length>0) {
                 NSString *theLabels = [TagEditer newMultinoteLabels];
@@ -1252,8 +1276,11 @@ terminateApp:
             }
             return NO;
 		}
-	} else
+	} else{
+        
 		NSLog(@"%@/%@ got %@", [control description], [aTextView description], NSStringFromSelector(command));
+        isEd=NO;
+    }
 	
 	return NO;
 }
@@ -1640,8 +1667,21 @@ terminateApp:
 	if ([aNotification object] == textView) {
 		[textView removeHighlightedTerms];
 	    [self createNoteIfNecessary];
-	}
+	}/*else if ([aNotification object] == notesTableView) {
+         NSLog(@"ntv tdbe2");
+    }*/
 }
+
+/*
+ - (void)controlTextDidBeginEditing:(NSNotification *)aNotification{
+ NSLog(@"controltextdidbegin");
+ }
+
+- (void)textShouldBeginEditing:(NSNotification *)aNotification {
+	
+    NSLog(@"ntv textshould2");
+    
+} */
 
 - (void)textDidEndEditing:(NSNotification *)aNotification {
 	if ([aNotification object] == textView) {
@@ -2142,6 +2182,7 @@ terminateApp:
 }
 
 - (void)dealloc {
+    [fsMenuItem release];
     [mainView release];
     [dualFieldView release];
     [wordCounter release];
@@ -2544,84 +2585,157 @@ terminateApp:
 }
 
 
-- (IBAction)toggleFullscreen:(id)sender
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+
+/*
+ - (NSApplicationPresentationOptions)window:(NSWindow *)window 
+ willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)rect{
+ return NSApplicationPresentationFullScreen | NSApplicationPresentationAutoHideMenuBar |NSApplicationPresentationAutoHideToolbar | NSApplicationPresentationHideDock;
+ #endif
+ }
+ */
+
+- (void)windowWillEnterFullScreen:(NSNotification *)aNotification{
+    //   / [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+    if (![splitView isVertical]) {
+        [self switchViewLayout:self];
+        wasVert = NO;
+    }else {
+        wasVert = YES;
+        //[splitView adjustSubviews];
+        //  [self setMaxNoteBodyWidth];
+    }
+    
+}
+/*
+ - (void)windowDidEnterFullScreen:(NSNotification *)aNotification{
+ NSLog(@"windowDidEnterfs and is vert:%d",[splitView isVertical]);
+ if (![splitView isVertical]) {
+ [self switchViewLayout:self];
+ wasVert = NO;
+ }else {
+ wasVert = YES;
+ //[splitView adjustSubviews];
+ //  [self setMaxNoteBodyWidth];
+ }
+ 
+ }
+ 
+ - (void)windowWillExitFullScreen:(NSNotification *)aNotification{
+ NSLog(@"windowwillEXITfs");
+ if ((!wasVert)&&([splitView isVertical])) {
+ [self switchViewLayout:self];
+ }//else{
+ // [splitView adjustSubviews];
+ //[self setMaxNoteBodyWidth];
+ //}
+ }
+- (void)windowDidExitFullScreen:(NSNotification *)notification{
+    //  [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorMoveToActiveSpace];
+}*/
+- (void)windowWillExitFullScreen:(NSNotification *)aNotification{
+    if ((!wasVert)&&([splitView isVertical])) {
+        [self switchViewLayout:self];
+    }//else{
+    // [splitView adjustSubviews];
+    //[self setMaxNoteBodyWidth];
+    //}
+}
+#endif
+
+- (IBAction)switchFullScreen:(id)sender
 {		
-	if(IsLeopardOrLater){
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if (IsLionOrLater) {
+        [window toggleFullScreen:nil];
+	}else if(IsLeopardOrLater){
+#else
+	 if(IsLeopardOrLater){
+#endif
+		
 		//@try {			
         
+        isEd = NO;
+        NSResponder *currentResponder = [window firstResponder];
+        NSDictionary* options;
+        if (([[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Hide Dock Icon"])&&(IsSnowLeopardOrLater)) {
+            options = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:(NSApplicationPresentationAutoHideMenuBar | NSApplicationPresentationHideDock)],@"NSFullScreenModeApplicationPresentationOptions", nil];
+        }else {
+            options = [NSDictionary dictionaryWithObjectsAndKeys:nil];
+        }
+        CGFloat colW = [notesSubview dimension];
         
-            isEd = NO;
-			NSResponder *currentResponder = [window firstResponder];
-			NSDictionary* options;
-			if (([[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Hide Dock Icon"])&&(IsSnowLeopardOrLater)) {
-				options = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:(NSApplicationPresentationAutoHideMenuBar | NSApplicationPresentationHideDock)],@"NSFullScreenModeApplicationPresentationOptions", nil];
-			}else {
-				options = [NSDictionary dictionaryWithObjectsAndKeys:nil];
-			}
-			CGFloat colW = [notesSubview dimension];
-			if ([mainView isInFullScreenMode]) {
-				window = normalWindow;
-                [mainView exitFullScreenModeWithOptions:options];
-                [notesSubview setDimension:colW];   
-				[self setDualFieldInToolbar];
-				[splitView setFrameSize:[mainView frame].size];
-				if ((!wasVert)&&([splitView isVertical])) {
-					[self switchViewLayout:self];
-				}
-				[window makeKeyAndOrderFront:self];
-				
-			}else {
-				[mainView enterFullScreenMode:[window screen]  withOptions:options];
-                [notesSubview setDimension:colW];
-				[self setDualFieldInView];
-				if (![splitView isVertical]) {
-					[self switchViewLayout:self];
-					wasVert = NO;
-				}else {
-					wasVert = YES;
-				}
-				normalWindow = window;
-				[normalWindow orderOut:self];
-				window = [mainView window];
-				//[NSApp setDelegate:self];
-				[notesTableView setDelegate:self];
-				[window setDelegate:self];
-               // [window setInitialFirstResponder:field];
-				[field setDelegate:self];
-				[textView setDelegate:self];
-				[splitView setDelegate:self];
-                NSSize wSize = [mainView frame].size;
-				wSize.height = [splitView frame].size.height;
-				[splitView setFrameSize:wSize];
-			}	
-            [window setBackgroundColor:backgrndColor];  	
+        if ([mainView isInFullScreenMode]) {
+            window = normalWindow;
+            [mainView exitFullScreenModeWithOptions:options];
             
-			if ([[currentResponder description] rangeOfString:@"_NSFullScreenWindow"].length>0){
-				currentResponder = textView;
-			}
-			if (([currentResponder isKindOfClass:[NSTextView class]])&&(![currentResponder isKindOfClass:[LinkingEditor class]])) {
-				currentResponder = field;
-			}
+            [notesSubview setDimension:colW];   
+            [self setDualFieldInToolbar];
+            [splitView setFrameSize:[mainView frame].size];
+            if ((!wasVert)&&([splitView isVertical])) {
+                [self switchViewLayout:self];
+            }else{
+                [splitView adjustSubviews];
+                [self setMaxNoteBodyWidth];
+            }
+            [window makeKeyAndOrderFront:self];
+        }else {
+            [mainView enterFullScreenMode:[window screen]  withOptions:options];
+            [notesSubview setDimension:colW];
+            [self setDualFieldInView];
+            if (![splitView isVertical]) {
+                [self switchViewLayout:self];
+                wasVert = NO;
+            }else {
+                wasVert = YES;
+                [splitView adjustSubviews];
+                [self setMaxNoteBodyWidth];
+            }
+            normalWindow = window;
+            [normalWindow orderOut:self];
+            window = [mainView window];
+            //[NSApp setDelegate:self];
+            [notesTableView setDelegate:self];
+            [window setDelegate:self];
+            // [window setInitialFirstResponder:field];
+            [field setDelegate:self];
+            [textView setDelegate:self];
+            [splitView setDelegate:self];
+            NSSize wSize = [mainView frame].size;
+            wSize.height = [splitView frame].size.height;
+            [splitView setFrameSize:wSize];
+        }	
+        [window setBackgroundColor:backgrndColor];  	
         
-            [splitView setNextKeyView:notesTableView];
-            [field setNextKeyView:textView];
-            [textView setNextKeyView:field];
-            [window setAutorecalculatesKeyViewLoop:NO];
-			[window makeFirstResponder:currentResponder];
-            
-            [textView switchFindPanelDelegate];
-			[textView setUsesFindPanel:YES];
-            
-            [self setMaxNoteBodyWidth];
-			[splitView adjustSubviews];	
-            
-            [mainView setNeedsDisplay:YES];
+        if ([[currentResponder description] rangeOfString:@"_NSFullScreenWindow"].length>0){
+            currentResponder = textView;
+        }
+        if (([currentResponder isKindOfClass:[NSTextView class]])&&(![currentResponder isKindOfClass:[LinkingEditor class]])) {
+            currentResponder = field;
+        }
+        
+        [splitView setNextKeyView:notesTableView];
+        [field setNextKeyView:textView];
+        [textView setNextKeyView:field];
+        [window setAutorecalculatesKeyViewLoop:NO];
+        [window makeFirstResponder:currentResponder];
+        
+        [textView switchFindPanelDelegate];
+        [textView setUsesFindPanel:YES];
+        
+        
+        [mainView setNeedsDisplay:YES];
+        if (![NSApp isActive]) {
+            [NSApp activateIgnoringOtherApps:YES];
+        }
 		/*}
-		@catch (NSException * e) {
-			NSLog(@"fullscreen issues >%@<",[e name]);
-		}*/
+         @catch (NSException * e) {
+         NSLog(@"fullscreen issues >%@<",[e name]);
+         }*/
 	}
 }
+
 
 - (IBAction)openFileInEditor:(id)sender { 
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
@@ -2782,14 +2896,17 @@ terminateApp:
 
 - (void)updateColorScheme{
 	@try {		
+        if (!IsLionOrLater) {
+            
+            [window setBackgroundColor:backgrndColor];//[NSColor blueColor]
+            [dualFieldView setBackgroundColor:backgrndColor];
+        }
         [mainView setBackgroundColor:backgrndColor];
-        [window setBackgroundColor:backgrndColor];//[NSColor blueColor]
 		[notesTableView setBackgroundColor:backgrndColor];
 		[dividerShader updateColors:backgrndColor];
 		
         [self updateFieldAttributes];
 		[NotesTableHeaderCell setForegroundColor:foregrndColor];
-		[dualFieldView setBackgroundColor:backgrndColor];
 		//[editorStatusView setBackgroundColor:backgrndColor];
         //		[editorStatusView setNeedsDisplay:YES];
 		//	[field setTextColor:foregrndColor];
@@ -3127,6 +3244,7 @@ terminateApp:
 }
 
 - (id)windowWillReturnFieldEditor:(NSWindow *)sender toObject:(id)client{
+    
     if (isEd) {
            // NSLog(@"window will return client is :%@",client);
 
@@ -3158,7 +3276,7 @@ terminateApp:
   
     return theFieldEditor;
 	//[super windowWillReturnFieldEditor:sender toObject:client];
-}
+}   
 
 - (void)updateRTL
 {
@@ -3171,7 +3289,6 @@ terminateApp:
 
 - (void)refreshNotesList
 {
-    [notesTableView setBackgroundColor:[prefsController backgroundTextColor]];
     [notesTableView setNeedsDisplay:YES];
 }
 

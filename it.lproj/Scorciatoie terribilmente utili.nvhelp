@@ -1,0 +1,104 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1038\cocoasubrtf350
+\readonlydoc1{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+{\info
+{\author Paolo Tramannoni}}\margl1440\margr1440\vieww10200\viewh10800\viewkind0
+\deftab720
+\pard\pardeftab720\ql\qnatural
+
+\f0\fs24 \cf0 In ordine di utilit\'e0\'a0 decrescente:\
+\
+
+\f1 \uc0\u8984 
+\f0  L		Porta il cursore nel campo di ricerca/inserimento titolo\
+Escape	Cancella la ricerca corrente\
+Return	Attiva la modifica di una nota, o se necessario la crea\
+Tab		Porta il cursore in un\'92area di testo diversa\
+
+\f1 \uc0\u8984 
+\f0  K		Seleziona la nota precedente nell\'92elenco\
+
+\f1 \uc0\u8984 
+\f0  J		Seleziona la nota successiva nell\'92elenco\
+
+\f1 \uc0\u8984 
+\f0  D		Deseleziona la nota corrente, ripristinando il testo della ricerca\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  V	Incolla il contenuto degli appunti come nuova nota\
+
+\f1 \uc0\u8984 
+\f0  R		Rinomina la nota selezionata\
+\pard\tx1440\pardeftab720\ql\qnatural
+
+\f1 \cf0 \uc0\u8984 
+\f0  
+\f1 \uc0\u9003 	
+\f0 Deseleziona la nota o le note selezionate\
+\pard\pardeftab720\ql\qnatural
+
+\f1 \cf0 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679  T
+\f0 	Etichetta la nota selezionata\
+
+\f1 \uc0\u8984 
+\f0  G		Trova la prossima ricorrenza del testo cercato\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  G	Trova la precedente ricorrenza del testo cercato\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8617 
+\f0 		Apre la URL su cui si trova il cursore di inserimento\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8592 
+\f0 		Porta il cursore nel campo del titolo quando si trova all\'92inizio del corpo della nota\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8594 
+\f0 		Porta il cursore nel corpo della nota quando si trova alla fine del titolo\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  D	Aggiunge un segnalibro alla nota selezionata\
+
+\f1 \uc0\u8984 
+\f0  P		Stampa la nota o le note selezionate\
+
+\f1 \uc0\u8984 
+\f0  E		Esporta la nota o le note selezionate in altri formati\
+\
+Combinazioni di tasti per la formattazione del testo:\
+\
+
+\f1 \uc0\u8984 
+\f0  [		(parentesi quadra aperta) Riduce il rientro di una o pi\'f9 righe\
+
+\f1 \uc0\u8984 
+\f0  ]		(parentesi quadra chiusa) Aumenta il rientro di una o pi\'f9 righe\
+
+\f1 \uc0\u8997 
+\f0  Tab	Rientro\
+
+\f1 \uc0\u8984 
+\f0  T		Rimuove gli stili dal testo (trasformandolo in testo piano)\
+
+\f1 \uc0\u8984 
+\f0  B		Neretto\
+
+\f1 \uc0\u8984 
+\f0  I		Corsivo\
+
+\f1 \uc0\u8984 
+\f0  Y		Barrato\
+}

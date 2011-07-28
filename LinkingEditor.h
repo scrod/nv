@@ -81,6 +81,7 @@
 //elasticwork
 - (void)switchFindPanelDelegate;
 - (IBAction)findInFullscreen;
+- (IBAction)insertLink:(id)sender;
 //
 @end
 

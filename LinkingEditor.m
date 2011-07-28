@@ -912,6 +912,62 @@ copyRTFType:
 	}
 }
 
+- (void)insertText:(id)string {
+    BOOL interpretEvent = YES;
+    if (([prefsController useAutoPairing])&&([[NSArray arrayWithObjects:@"\"",@"[",@"{",@"(",@"]",@"}",@")", nil] containsObject:string])){
+        NSString *appendString = string;
+        NSRange selRange = [self selectedRange];
+        NSString *postString =@"";
+        postString = [[self string] substringFromIndex:selRange.location+selRange.length];
+        if (!postString) {
+            postString=@"";
+        }
+        if (([[NSArray arrayWithObjects:@"]",@"}",@")", nil] containsObject:appendString])&&([postString hasPrefix:appendString])&&(selRange.length==0)) {
+            interpretEvent=NO;
+            selRange.length=1;
+            [self setSelectedRange:selRange];
+            [super insertText:appendString];
+        }else  if ([[NSArray arrayWithObjects:@"\"",@"[",@"{",@"(", nil] containsObject:appendString]){     
+             NSString *oppositeAppend = appendString;
+            
+             if ([appendString isEqualToString:@"["]) {
+                 oppositeAppend = @"]";
+             }else if ([appendString isEqualToString:@"{"]) {
+                 oppositeAppend = @"}";
+             }else if ([appendString isEqualToString:@"("]) {
+                 oppositeAppend = @")";
+             }
+            
+            interpretEvent=NO; 
+            if (([postString hasPrefix:oppositeAppend])&&(![[[self string]substringToIndex:selRange.location] hasSuffix:appendString])) {
+                    //NSLog(@"gotchas2");
+                    interpretEvent=YES;                 
+            }
+            if (!interpretEvent) {
+                int extra = appendString.length;
+                if (selRange.length>0) {
+                    NSString *selString = [[self string] substringWithRange:selRange];                 
+                    appendString = [NSString stringWithFormat:@"%@%@%@",appendString,selString,oppositeAppend];
+                    extra = extra+selString.length+oppositeAppend.length;
+                }else {                 
+                    if (([appendString isEqualToString:@"\""])&&([postString hasPrefix:@"\""])) {                     
+                        appendString = @"";
+                        oppositeAppend = @"";
+                    }
+                    appendString = [appendString stringByAppendingString:oppositeAppend];
+                }
+                [super insertText:appendString];
+                [self setSelectedRange:NSMakeRange(selRange.location+extra, 0)];  
+            }
+             
+        }
+    }
+    if (interpretEvent){
+        [super insertText:string]; 
+    }
+}
+
+
 - (void)deleteBackward:(id)sender {
 	
 	NSRange charRange = [self rangeForUserTextChange];
@@ -1440,11 +1496,16 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"NVFontMenu"] autorelease];
 	NSMenuItem *theMenuItem;
 	if(IsLeopardOrLater){
-        theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Toggle Fullscreen Mode",@"toggle fs menu item title") action:@selector(toggleFullscreen:) keyEquivalent:@""] autorelease];
+        
+        theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Enter Full Screen",@"toggle fs menu item title") action:@selector(switchFullScreen:) keyEquivalent:@""] autorelease];
         [theMenuItem setTarget:[NSApp delegate]];
         [theMenu addItem:theMenuItem];         
-        [theMenu addItem:[NSMenuItem separatorItem]];
 	}
+    theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert Link",@"insert link menu item title") action:@selector(insertLink:) keyEquivalent:@""] autorelease];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
+    [theMenu addItem:[NSMenuItem separatorItem]];
+    
 	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Cut",@"cut menu item title") action:@selector(cut:) keyEquivalent:@""] autorelease];
 	[theMenuItem setTarget:self];
 	[theMenu addItem:theMenuItem];
@@ -1494,13 +1555,17 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         NSMenu *editMenu = [[NSApp mainMenu] numberOfItems] > 2 ? [[[NSApp mainMenu] itemAtIndex:2] submenu] : nil;
 		
 		if (IsSnowLeopardOrLater) {
+            
 			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
 													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
 			[theMenuItem setTarget:self];
 			[editMenu addItem:theMenuItem];
 			[theMenuItem release];
 		}
-		
+		theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert Link",@"insert link menu item title") action:@selector(insertLink:) keyEquivalent:@"L"] autorelease];
+        [theMenuItem setTarget:self];
+        [editMenu addItem:theMenuItem];
+        
 		[editMenu addItem:[NSMenuItem separatorItem]];
         
 #if PASSWORD_SUGGESTIONS
@@ -1565,6 +1630,24 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 
 //elasticwork
+
+- (IBAction)insertLink:(id)sender{
+     if ([[self window] firstResponder]!=self) {
+         [[self window] makeFirstResponder:self];
+    }
+    NSRange selRange = [self selectedRange];
+    if (selRange.length>0) {
+        NSString *selString = [[self string] substringWithRange:selRange];
+        selString = [NSString stringWithFormat:@"%@%@%@",@"[[",selString,@"]]"];
+        [super insertText:selString];
+        
+    }else{
+        [super insertText:@"[[]]"];
+        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
+    }
+    
+} 
+
 - (void)switchFindPanelDelegate{
 	NSTextFinder *textFinder = [NSTextFinder sharedTextFinder];
     if ([[[self window] contentView] isInFullScreenMode]) {

@@ -176,6 +176,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 				   name:NSWindowDidResignMainNotification object:[self window]];	
 	//[self setb]
     [[self enclosingScrollView] setDrawsBackground:NO];
+    
    // [self setBackgroundColor:[NSColor clearColor]];
 	outletObjectAwoke(self);
 }
@@ -229,6 +230,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 - (void)updateTitleDereferencorState {
 	NSWindow *win = [self window];
 	[self _setActiveStyleState: [win isMainWindow] && ([win firstResponder] == self || [self currentEditor]) ];
+   
 }
 
 - (BOOL)becomeFirstResponder {
@@ -265,6 +267,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 }
 
 - (void)drawGridInClipRect:(NSRect)clipRect {
+    
 	//draw lines manually to avoid interfering with title-focusrings and selection highlighting on leopard+
 	if (![self dataSource]) {
 		return;
@@ -320,7 +323,6 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	
 	if (IsLeopardOrLater)
 		[self setSelectionHighlightStyle:isOneRow ? NSTableViewSelectionHighlightStyleRegular : NSTableViewSelectionHighlightStyleSourceList];
-	[self setBackgroundColor: horiz ? [NSColor colorWithCalibratedWhite:0.98 alpha:1.0] : [NSColor whiteColor]];
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
 	tableFontHeight = [lm defaultLineHeightForFont:font];
@@ -331,8 +333,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	
 	[self setIntercellSpacing:NSMakeSize(12, 2)];
 	
-	[self setGridStyleMask:horiz ? NSTableViewSolidHorizontalGridLineMask : NSTableViewGridNone];
-	//[self setGridColor:[NSColor colorWithCalibratedWhite:0.882 alpha:1.0]];
+	//[self setGridStyleMask:horiz ? NSTableViewSolidHorizontalGridLineMask : NSTableViewGridNone];
 }
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
@@ -566,6 +567,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 - (IBAction)toggleNoteBodyPreviews:(id)sender {
 	[globalPrefs setTableColumnsShowPreview: ![globalPrefs tableColumnsShowPreview] sender:self];
 	[self _configureAttributesForCurrentLayout];
+    [self setNeedsDisplay:YES];
 }
 
 - (NSMenu *)menuForColumnSorting {
@@ -744,7 +746,9 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 }
 
 - (void)mouseDown:(NSEvent*)event {
-    
+    if ([event clickCount]==1) {
+        [[self delegate] setIsEditing:NO];
+    }
 	//this seems like it should happen automatically, but it does not.
 	if (![NSApp isActive]) {
 		[NSApp activateIgnoringOtherApps:YES];
@@ -996,7 +1000,9 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			
 			[self editRowAtColumnWithIdentifier:NoteLabelsColumnString];
 			return YES;
-		}
+		}else{
+            [[self delegate] setIsEditing:NO];
+        }
 	} else if (command == @selector(insertBacktab:)) {
 		
 		if ([globalPrefs horizontalLayout] && lastEventActivatedTagEdit) {
@@ -1004,8 +1010,12 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			
 			[self editRowAtColumnWithIdentifier:NoteTitleColumnString];
 			return YES;
-		}
-	}
+		}else{
+            [[self delegate] setIsEditing:NO];
+        }
+	}else if (command == @selector(insertNewline:)) {
+        [[self delegate] setIsEditing:NO];
+    }
 	
 	return NO;
 }
@@ -1096,8 +1106,9 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	return lastEventActivatedTagEdit;
 }
 
-- (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)event select:(BOOL)flag {	 
-
+- (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)event select:(BOOL)flag {
+    
+    [[self delegate] setIsEditing:YES];
 	BOOL isTitleCol = [self columnWithIdentifier:NoteTitleColumnString] == columnIndex;
 	
 	//if event's mouselocation is inside rowIndex cell's tag rect and this edit is in horizontal mode in the title column
@@ -1149,7 +1160,9 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	[self updateTitleDereferencorState];
 }
 
+
 - (BOOL)abortEditing {
+    [[self delegate] setIsEditing:NO];
 	BOOL result = [super abortEditing];
 	[self updateTitleDereferencorState];
 	return result;
@@ -1241,7 +1254,11 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (void)drawRect:(NSRect)rect {
-	
+	if(([globalPrefs showGrid])||(([globalPrefs horizontalLayout])&&(![globalPrefs alternatingRows]))){
+        [self setGridStyleMask:NSTableViewSolidHorizontalGridLineMask];
+    }else{
+        [self setGridStyleMask:NSTableViewGridNone];
+    }
     //force fully live resizing of columns while resizing window
     [super drawRect:rect];
 	
@@ -1286,11 +1303,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
     }else {
         fWhite -= 0.20f;
     }
-	if ([globalPrefs showGrid]) {
-        [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:1.0f]];
-    } else {
-        [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:0.0f]];
-    }
+    [self setGridColor:[NSColor colorWithCalibratedWhite:fWhite alpha:1.0f]];
+   
 }
 
 # pragma mark alternating rows (Brett)

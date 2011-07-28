@@ -442,7 +442,7 @@
 	
     [altRowsButton setState:[prefsController alternatingRows]];
     [showGridButton setState:[prefsController showGrid]];
-    
+    [autoPairButton setState:[prefsController useAutoPairing]];
     items = [[NSMutableDictionary alloc] init];
     
     [self addToolbarItemWithName:@"General"];
@@ -621,6 +621,11 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 - (IBAction)changedAltRows:(id)sender {
 	[prefsController setAlternatingRows:[altRowsButton state] sender:self];
     [[NSApp delegate] refreshNotesList];
+}
+
+- (IBAction)changedAutoPairing:(id)sender{
+	[prefsController setUseAutoPairing:[autoPairButton state]];
+    //  [[NSApp delegate] refreshNotesList];
 }
 
 - (IBAction)changedShowGrid:(id)sender {

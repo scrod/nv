@@ -66,6 +66,7 @@
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
     
+    if (!IsLionOrLater) {
     if ([selectorString isEqualToString:SEL_STR(setHorizontalLayout:sender:)]) {
 		
 		/*if ((showDragSquare = [[GlobalPrefs defaultPrefs] horizontalLayout])) {
@@ -77,6 +78,7 @@
 		}*/
 		[self tile];
 	}
+    }
 }
 
 - (void)dealloc {
@@ -106,15 +108,18 @@
 
 - (void)tile {
 	[super tile];
-    if (![[self verticalScroller] isHidden]) {
-        NSRect vsRect = [[self verticalScroller] frame];
-        NSRect conRect = [[self contentView] frame];
-        NSView *wdContent = [[self contentView] retain];
-        conRect.size.width = conRect.size.width + vsRect.size.width;
-        [wdContent setFrame:conRect];
-        [wdContent release];
-        [[self verticalScroller] setFrame:vsRect];
+    if (!IsLionOrLater) {
         
+        if (![[self verticalScroller] isHidden]) {
+            NSRect vsRect = [[self verticalScroller] frame];
+            NSRect conRect = [[self contentView] frame];
+            NSView *wdContent = [[self contentView] retain];
+            conRect.size.width = conRect.size.width + vsRect.size.width;
+            [wdContent setFrame:conRect];
+            [wdContent release];
+            [[self verticalScroller] setFrame:vsRect];
+            
+        }
     }
 	/*if (showDragSquare) {
 		[self _positionDragSquare];

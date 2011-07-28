@@ -198,6 +198,8 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 - (BOOL)showGrid;
 - (void)setAlternatingRows:(BOOL)value sender:(id)sender;
 - (BOOL)alternatingRows;
+- (void)setUseAutoPairing:(BOOL)value;
+- (BOOL)useAutoPairing;
 @end
 
 @interface NSObject (GlobalPrefsDelegate)

@@ -56,6 +56,7 @@
 	IBOutlet NSWindow *window;
 	IBOutlet NSView *editingView, *generalView, *fontsColorsView, *databaseView, *notationPrefsView;
 	IBOutlet NSButton *rtlButton;
+	IBOutlet NSButton *autoPairButton;
     
 	GlobalPrefs *prefsController;
 }
@@ -85,6 +86,7 @@
 - (IBAction)changedUseReadability:(id)sender;
 - (IBAction)changedShowGrid:(id)sender;
 - (IBAction)changedAltRows:(id)sender;
+- (IBAction)changedAutoPairing:(id)sender;
 
 - (void)_selectDefaultExternalEditor;
 

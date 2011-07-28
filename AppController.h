@@ -53,7 +53,8 @@
 <NSToolbarDelegate, NSTableViewDelegate, NSWindowDelegate, NSTextFieldDelegate, NSTextViewDelegate>
 #endif
 {
-	//NSMenuItem *fsMenuItem;
+    
+	IBOutlet NSMenuItem *fsMenuItem;
 	BOOL wasVert;
   BOOL isAutocompleting;
   BOOL wasDeleting;
@@ -193,7 +194,7 @@ void outletObjectAwoke(id sender);
 - (BOOL)dualFieldIsVisible;
 - (IBAction)toggleCollapse:(id)sender;
 - (void)setMaxNoteBodyWidth;
-- (IBAction)toggleFullscreen:(id)sender;
+- (IBAction)switchFullScreen:(id)sender;
 - (IBAction)openFileInEditor:(id)sender;
 - (NSArray *)getTxtAppList;
 - (void)updateTextApp:(id)sender;

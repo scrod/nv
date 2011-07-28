@@ -9,7 +9,7 @@
 #import "StatusItemView.h"
 #import "AppController.h"
 
-NSString *imageName = @"nvMenu";
+NSString *imageName = @"nvMenuDark";
 
 @implementation StatusItemView
 
@@ -31,9 +31,15 @@ NSString *imageName = @"nvMenu";
 
 - (void)drawRect:(NSRect)rect {
 	if (clicked) {
+        imageName=@"nvMenuC";
         [[NSColor selectedMenuItemColor] set];
 		NSRectFill(rect);
     }else {
+        if ([NSApp isActive]) {
+            imageName = @"nvMenuDark";
+        }else{
+        imageName = @"nvMenuDark";
+        }
 		[[NSColor clearColor] set];
         NSRectFill(rect);
 	}
@@ -81,7 +87,7 @@ NSString *imageName = @"nvMenu";
 }
 
 - (void)setActiveIcon:(id)sender{
-	imageName = @"nvMenu";
+    imageName=@"nvMenuDark";;
 	[self setNeedsDisplay:YES];
 }
 

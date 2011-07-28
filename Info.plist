@@ -159,7 +159,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>60</string>
+	<string>73</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSArchitecturePriority</key>
@@ -169,7 +169,7 @@
 		<string>ppc</string>
 	</array>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.4.4</string>
+	<string>10.4.11</string>
 	<key>LSMinimumSystemVersionByArchitecture</key>
 	<dict>
 		<key>i386</key>
@@ -216,6 +216,10 @@
 	</array>
 	<key>OSAScriptingDefinition</key>
 	<string>Notation.sdef</string>
+	<key>SmartCrashReports_CompanyName</key>
+	<string>Notational.net</string>
+	<key>SmartCrashReports_EmailTicket</key>
+	<string>SCR-51ED0F7B2A</string>
 	<key>SUCheckAtStartup</key>
 	<false/>
 	<key>SUFeedURL</key>
@@ -224,10 +228,6 @@
 	<string>dsa_pub.pem</string>
 	<key>SUScheduledCheckInterval</key>
 	<real>345600</real>
-	<key>SmartCrashReports_CompanyName</key>
-	<string>Notational.net</string>
-	<key>SmartCrashReports_EmailTicket</key>
-	<string>SCR-51ED0F7B2A</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array/>
 	<key>UTImportedTypeDeclarations</key>

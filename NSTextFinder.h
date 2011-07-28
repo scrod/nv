@@ -6,13 +6,16 @@
  *
  */
 
+enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
+//#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_7
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
+//#if NSFoundationVersionNumber < NSFoundationVersionNumber10_7
 #import <Cocoa/Cocoa.h>
 
-enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 
 @interface NSTextFinder : NSObject
 {
-    #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
     //10.6
     NSComboBox *findComboBox;
     NSComboBox *replaceComboBox;
@@ -37,7 +40,7 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
     NSMutableArray *recentFindOptions;
     NSMutableArray *recentReplaceStrings;
     NSInteger numberOfRecentStrings;
-    #else
+#else
     // 10.4
     NSTextField *findTextField;
     NSTextField *replaceTextField;
@@ -52,11 +55,11 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
     NSPopUpButton *matchPopUp;
     NSTextView *fieldEditor;
     NSString *findString;
-	@public
+@public
     BOOL lastFindWasSuccessful;
     BOOL findStringChangedInUI;
     BOOL findStringNeedsToBeRefreshedFromPB;
-    #endif
+#endif
 }
 
 + (id)sharedTextFinder;
@@ -161,4 +164,6 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 - (void)windowDidUpdate:(id)arg1;
 
 @end
+#endif
+
 #endif
