@@ -1392,6 +1392,7 @@
 			};
 			buildConfigurationList = 212B842709780B5000F3597F /* Build configuration list for PBXProject "Notation" */;
 			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
 			knownRegions = (
 				English,
@@ -2348,7 +2349,7 @@
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
 				ONLY_ACTIVE_ARCH = YES;
 				RUN_CLANG_STATIC_ANALYZER = YES;
-				SDKROOT = macosx10.6;
+				SDKROOT = macosx;
 				"SDKROOT[arch=x86_64]" = macosx;
 				STRIP_INSTALLED_PRODUCT = NO;
 			};
@@ -2402,7 +2403,7 @@
 				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = YES;
 				RUN_CLANG_STATIC_ANALYZER = NO;
 				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = NO;
-				SDKROOT = macosx10.6;
+				SDKROOT = macosx;
 				"SDKROOT[arch=x86_64]" = macosx;
 			};
 			name = Deployment;
@@ -2444,7 +2445,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.5;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.5;
-				SDKROOT = macosx10.6;
+				SDKROOT = macosx10.7;
 				"SDKROOT[arch=x86_64]" = macosx;
 			};
 			name = Default;
@@ -2488,8 +2489,8 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.5;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx10.6][arch=x86_64]" = 10.6;
-				SDKROOT = macosx10.6;
-				"SDKROOT[arch=x86_64]" = macosx10.6;
+				SDKROOT = macosx;
+				"SDKROOT[arch=x86_64]" = macosx;
 			};
 			name = ForBuilding;
 		};
@@ -2541,8 +2542,8 @@
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = nvALT;
-				SDKROOT = macosx10.6;
-				"SDKROOT[arch=x86_64]" = macosx10.6;
+				SDKROOT = macosx;
+				"SDKROOT[arch=x86_64]" = macosx10.7;
 				SECTORDER_FLAGS = (
 					"-sectorder",
 					__TEXT,
