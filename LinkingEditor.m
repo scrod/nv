@@ -631,13 +631,13 @@ copyRTFType:
 		return [super selectionRangeForProposedRange:proposedSelRange granularity:granularity];
 	}
 	
-	unsigned int location = [super selectionRangeForProposedRange:proposedSelRange granularity:NSSelectByCharacter].location;
+	unsigned int location = (unsigned int)[super selectionRangeForProposedRange:proposedSelRange granularity:NSSelectByCharacter].location;
 	int originalLocation = location;
 	
 	NSString *completeString = [self string];
 	unichar characterToCheck = [completeString characterAtIndex:location];
 	unsigned short skipMatchingBrace = 0;
-	unsigned int lengthOfString = [completeString length];
+	unsigned int lengthOfString = (unsigned int)[completeString length];
 	if (lengthOfString == proposedSelRange.location) { // To avoid crash if a double-click occurs after any text
 		return [super selectionRangeForProposedRange:proposedSelRange granularity:granularity];
 	}
@@ -650,7 +650,7 @@ copyRTFType:
 	
 	char *rightChar = strchr(rightGroupings, (char)characterToCheck);
 	if (rightChar) {
-		groupingIndex = rightChar - rightGroupings;
+		groupingIndex = (int)(rightChar - rightGroupings);
 		
 		triedToMatchBrace = YES;
 		while (location--) {
@@ -670,7 +670,7 @@ copyRTFType:
 	
 	char *leftChar = strchr(leftGroupings, (char)characterToCheck);
 	if (leftChar) {
-		groupingIndex = leftChar - leftGroupings;
+		groupingIndex = (int)(leftChar - leftGroupings);
 		
 		triedToMatchBrace = YES;
 		while (++location < lengthOfString) {
@@ -816,8 +816,8 @@ copyRTFType:
 	[[NSApp delegate] flagsChanged:theEvent];
 }
 
-
 - (void)keyDown:(NSEvent*)anEvent {	
+    [[NSApp delegate] resetModTimers];
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 
 	if (keyChar == NSBackTabCharacter) {
@@ -825,9 +825,11 @@ copyRTFType:
 		//maybe it works on someone else's 10.3 Mac
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
-	}
+	}else if (([anEvent keyCode]==36)&&([anEvent modifierFlags]&NSCommandKeyMask)&&(!(([anEvent modifierFlags]&NSControlKeyMask)||([anEvent modifierFlags]&NSAlternateKeyMask)||([anEvent modifierFlags]&NSShiftKeyMask)))) {
+        [self cmdReturn];
+		return;
+    }
     
-    [[NSApp delegate] resetModTimers];
     //[super interpretKeyEvents:[NSArray arrayWithObject:anEvent]];
 	[super keyDown:anEvent];
     
@@ -1630,6 +1632,22 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 
 //elasticwork
+
+- (void)cmdReturn{
+    NSRange selRange = [self selectedRange];
+    NSString *postStr=[[self string] substringFromIndex:selRange.location];
+    const unichar newL = NSNewlineCharacter;
+    NSString *nwLn=[NSString stringWithCharacters:&newL length:1];
+    NSRange pRange = [postStr rangeOfString:nwLn];
+    pRange.length=0;
+    if (pRange.location==NSNotFound) {
+        pRange.location=[self string].length;
+    }else{
+        pRange.location+=selRange.location;
+    }
+    [self setSelectedRange:pRange];
+    [super insertNewlineIgnoringFieldEditor:self];   
+}
 
 - (IBAction)insertLink:(id)sender{
      if ([[self window] firstResponder]!=self) {

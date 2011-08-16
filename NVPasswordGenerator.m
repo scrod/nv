@@ -93,10 +93,10 @@ static const char nvSymbolSet[] = "!@#$%^&*()-+=?/<>";
     #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     dispatch_apply(numSuggestions, dispatch_get_global_queue(0, 0), ^(size_t i) {
     #else
-    size_t i;
+    __block size_t i;
     for (i = 0; i < numSuggestions; ++i) {
     #endif
-        suggest[i] = [self performSelector:methods[i]];
+        //   suggest[i] = [self performSelector:methods[i]];  //BUILD ISSUE
     }
     #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     );

@@ -82,6 +82,7 @@
 - (void)switchFindPanelDelegate;
 - (IBAction)findInFullscreen;
 - (IBAction)insertLink:(id)sender;
+- (void)cmdReturn;
 //
 @end
 
@@ -90,7 +91,6 @@
 - (void)toggleAutomaticTextReplacement:(id)sender;
 - (BOOL)isAutomaticTextReplacementEnabled;
 - (void)setAutomaticTextReplacementEnabled:(BOOL)flag;
-
 - (void)moveToLeftEndOfLine:(id)sender;
 #endif
 
