@@ -825,8 +825,9 @@ copyRTFType:
 		//maybe it works on someone else's 10.3 Mac
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
-	}else if (([anEvent keyCode]==36)&&([anEvent modifierFlags]&NSCommandKeyMask)&&(!(([anEvent modifierFlags]&NSControlKeyMask)||([anEvent modifierFlags]&NSAlternateKeyMask)||([anEvent modifierFlags]&NSShiftKeyMask)))) {
-        [self cmdReturn];
+	}else if (([anEvent keyCode]==36)&&([anEvent modifierFlags]&NSCommandKeyMask)&&(!(([anEvent modifierFlags]&NSControlKeyMask)||([anEvent modifierFlags]&NSAlternateKeyMask)||([anEvent modifierFlags]&NSShiftKeyMask)))) {        
+        [self moveToEndOfParagraph:self];
+        [self insertNewlineIgnoringFieldEditor:self]; 
 		return;
     }
     
@@ -1633,21 +1634,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 //elasticwork
 
-- (void)cmdReturn{
-    NSRange selRange = [self selectedRange];
-    NSString *postStr=[[self string] substringFromIndex:selRange.location];
-    const unichar newL = NSNewlineCharacter;
-    NSString *nwLn=[NSString stringWithCharacters:&newL length:1];
-    NSRange pRange = [postStr rangeOfString:nwLn];
-    pRange.length=0;
-    if (pRange.location==NSNotFound) {
-        pRange.location=[self string].length;
-    }else{
-        pRange.location+=selRange.location;
-    }
-    [self setSelectedRange:pRange];
-    [super insertNewlineIgnoringFieldEditor:self];   
-}
 
 - (IBAction)insertLink:(id)sender{
      if ([[self window] firstResponder]!=self) {

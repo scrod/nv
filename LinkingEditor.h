@@ -82,7 +82,6 @@
 - (void)switchFindPanelDelegate;
 - (IBAction)findInFullscreen;
 - (IBAction)insertLink:(id)sender;
-- (void)cmdReturn;
 //
 @end
 
