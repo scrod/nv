@@ -144,7 +144,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			@"General", LastSelectedPreferencesPaneKey, 
 			[NSNumber numberWithBool:NO], StatusBarItem, 
 			[NSNumber numberWithBool:NO], KeepsMaxTextWidth,
-			[NSNumber numberWithInt:600], NoteBodyMaxWidth,
+			[NSNumber numberWithFloat:660.0], NoteBodyMaxWidth,
 			[NSNumber numberWithInt:2], ColorScheme,
 			@"Hide Dock Icon",HideDockIcon,
 			[NSNumber numberWithBool:NO], RTLKey,
@@ -1000,12 +1000,13 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	return [defaults boolForKey:KeepsMaxTextWidth];
 }
 
-- (int)maxNoteBodyWidth{	
-	return [defaults integerForKey:NoteBodyMaxWidth];
+- (CGFloat)maxNoteBodyWidth{	
+    
+	return [[defaults objectForKey:NoteBodyMaxWidth]floatValue];
 }
 
-- (void)setMaxNoteBodyWidth:(int)maxWidth{
-	[defaults setInteger:maxWidth forKey:NoteBodyMaxWidth];
+- (void)setMaxNoteBodyWidth:(CGFloat)maxWidth{
+	[defaults setObject:[NSNumber numberWithFloat:maxWidth] forKey:NoteBodyMaxWidth];
 	[defaults synchronize];
 }
 

@@ -49,6 +49,7 @@
 #import "StatusItemView.h"
 #import "ETContentView.h"
 #import "PreviewController.h"
+#import "ETClipView.h"
 
 #define NSApplicationPresentationAutoHideMenuBar (1 <<  2)
 #define NSApplicationPresentationHideMenuBar (1 <<  3)
@@ -137,6 +138,7 @@ BOOL isEd;
     [splitView setDivider:image];
     
     [splitView setDividerThickness:8.75f];
+    [splitView setAutoresizesSubviews:YES];
     [splitView setAutoresizingMask:(NSViewWidthSizable | NSViewHeightSizable)];
     [mainView addSubview:splitView];
     //[mainView setNextResponder:field];//<<--
@@ -154,6 +156,16 @@ BOOL isEd;
     [splitSubview setCanCollapse:NO];
     [splitSubview setAutoresizesSubviews:YES];
     [splitSubview addSubview:textScrollView];
+    
+    id docView = [[textScrollView documentView] retain];
+    ETClipView *newClipView = [[ETClipView alloc] initWithFrame:[[textScrollView contentView] frame]];
+    [newClipView setDrawsBackground:NO];
+    //    [newClipView setBackgroundColor:[self backgrndColor]];
+    [textScrollView setContentView:(ETClipView *)newClipView];
+    [newClipView release];
+    [textScrollView setDocumentView:textView];
+    [docView release];
+    
     [textScrollView setFrame:[splitSubview frame]];
     [textScrollView setAutoresizingMask:(NSViewWidthSizable | NSViewHeightSizable)];
     
@@ -167,39 +179,12 @@ BOOL isEd;
 	prefsController = [GlobalPrefs defaultPrefs];
 	[NSColor setIgnoresAlpha:NO];
 	
-	//For ElasticThreads' fullscreen implementation. delete the next line of code and uncomment the following the block to undo
-	[self setDualFieldInToolbar];
-	/*
-	NSView *dualSV = [field superview];
-	dualFieldItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"DualField"];
-	//[[dualSV superview] setFrameSize:NSMakeSize([[dualSV superview] frame].size.width, [[dualSV superview] frame].size.height -1)];
-	[dualFieldItem setView:dualSV];
-	[dualFieldItem setMaxSize:NSMakeSize(FLT_MAX, [dualSV frame].size.height)];
-	[dualFieldItem setMinSize:NSMakeSize(50.0f, [dualSV frame].size.height)];
-    [dualFieldItem setLabel:NSLocalizedString(@"Search or Create", @"placeholder text in search/create field")];
-	
-	toolbar = [[NSToolbar alloc] initWithIdentifier:@"NVToolbar"];
-	[toolbar setAllowsUserCustomization:NO];
-	[toolbar setAutosavesConfiguration:NO];
-	[toolbar setDisplayMode:NSToolbarDisplayModeIconOnly];
-//	[toolbar setSizeMode:NSToolbarSizeModeRegular];
-	[toolbar setShowsBaselineSeparator:YES];
-	[toolbar setVisible:![[NSUserDefaults standardUserDefaults] boolForKey:@"ToolbarHidden"]];
-	[toolbar setDelegate:self];
-	[window setToolbar:toolbar];
-	
-	[window setShowsToolbarButton:NO];
-	titleBarButton = [[TitlebarButton alloc] initWithFrame:NSMakeRect(0, 0, 17.0, 17.0) pullsDown:YES];
-	[titleBarButton addToWindow:window];
-	
-	
-	
-	*/
-	
-    
+	//For ElasticThreads' fullscreen implementation.
+	[self setDualFieldInToolbar];    
 	[notesTableView setDelegate:self];
 	[field setDelegate:self];
 	[textView setDelegate:self];
+
     
 	//set up temporary FastListDataSource containing false visible notes
 		
@@ -268,7 +253,6 @@ BOOL isEd;
 		
         [self updateRTL];
         
-		[self setMaxNoteBodyWidth];
 		
 		[self setEmptyViewState:YES];	
 		ModFlagger = 0;
@@ -764,7 +748,6 @@ terminateApp:
 	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
 	
 	[self updateNoteMenus];
-	[self setMaxNoteBodyWidth];
     
 	[notesTableView setBackgroundColor:backgrndColor];
 	[notesTableView setNeedsDisplay];
@@ -1018,6 +1001,8 @@ terminateApp:
 			[notationController updateTitlePrefixConnections];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setMaxNoteBodyWidth:sender:)]) {
+//        [textScrollView setNeedsDisplay:YES];
+     
 		[self setMaxNoteBodyWidth];
 	
 	}
@@ -1868,7 +1853,6 @@ terminateApp:
 
 - (void)splitView:(RBSplitView*)sender wasResizedFrom:(CGFloat)oldDimension to:(CGFloat)newDimension {
 	if (sender == splitView) {
-		[self setMaxNoteBodyWidth];
 		[sender adjustSubviewsExcepting:notesSubview];
 	}
 }
@@ -1949,7 +1933,6 @@ terminateApp:
 				[field selectText:sender];
 			}
 		}		
-		[self setMaxNoteBodyWidth];
 	}
 
 	return NO;
@@ -2545,43 +2528,12 @@ terminateApp:
 	}	
     [splitView adjustSubviews];	
     [mainView setNeedsDisplay:YES];
-	[self setMaxNoteBodyWidth];
 }
 
 
 - (void)setMaxNoteBodyWidth{
-	if ((![mainView isInFullScreenMode])&&(![prefsController managesTextWidthInWindow])) {
-		[textView setTextContainerInset:NSMakeSize(3.0f,8.0f)];
-	}else{
-		NSRect winRect = [window frame];
-		float winHRatio = 0.93f;
-		int kMargWidth = 3;
-		if ([mainView isInFullScreenMode]){
-			winRect = [[window screen] frame];
-			winHRatio = 0.85f;
-			kMargWidth = [textView textContainerInset].width;	
-		}
-		int maxWidth = [prefsController maxNoteBodyWidth];	
-		int kMargHt = 8;
-		
-		if ([splitView isVertical]) {
-			if ((winRect.size.width - [notesSubview frame].size.width)>maxWidth) {
-				kMargWidth = (winRect.size.width - [notesSubview frame].size.width - maxWidth)/2;
-				kMargHt = (winRect.size.height-(winRect.size.height*winHRatio))/2;
-			}		
-		}else if (winRect.size.width>maxWidth) {
-			kMargWidth = (winRect.size.width - maxWidth)/2;
-			kMargHt = (winRect.size.height-(winRect.size.height*winHRatio))/2;
-		}			
-		if (kMargHt<8) {
-			kMargHt = 8;
-		}
-		if (kMargWidth<3) {
-			kMargWidth=3;
-		}
-		NSSize fullInset = NSMakeSize(kMargWidth,kMargHt);
-		[textView setTextContainerInset:fullInset];
-	}	
+    [(ETClipView *)[textScrollView contentView] clipWidthSettingChanged:[textScrollView frame]];
+   	
 }
 
 
@@ -2604,7 +2556,6 @@ terminateApp:
     }else {
         wasVert = YES;
         //[splitView adjustSubviews];
-        //  [self setMaxNoteBodyWidth];
     }
     
 }
@@ -2617,7 +2568,6 @@ terminateApp:
  }else {
  wasVert = YES;
  //[splitView adjustSubviews];
- //  [self setMaxNoteBodyWidth];
  }
  
  }
@@ -2628,7 +2578,6 @@ terminateApp:
  [self switchViewLayout:self];
  }//else{
  // [splitView adjustSubviews];
- //[self setMaxNoteBodyWidth];
  //}
  }
 - (void)windowDidExitFullScreen:(NSNotification *)notification{
@@ -2639,10 +2588,15 @@ terminateApp:
         [self switchViewLayout:self];
     }//else{
     // [splitView adjustSubviews];
-    //[self setMaxNoteBodyWidth];
     //}
 }
 #endif
+
+- (BOOL)isInFullScreen{
+//    NSLog(@"in fs:%d",[mainView isInFullScreenMode]);
+    return [mainView isInFullScreenMode];
+
+}
 
 - (IBAction)switchFullScreen:(id)sender
 {		
@@ -2677,7 +2631,6 @@ terminateApp:
                 [self switchViewLayout:self];
             }else{
                 [splitView adjustSubviews];
-                [self setMaxNoteBodyWidth];
             }
             [window makeKeyAndOrderFront:self];
         }else {
@@ -2690,7 +2643,6 @@ terminateApp:
             }else {
                 wasVert = YES;
                 [splitView adjustSubviews];
-                [self setMaxNoteBodyWidth];
             }
             normalWindow = window;
             [normalWindow orderOut:self];

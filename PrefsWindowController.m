@@ -602,10 +602,9 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 }
 
 - (IBAction)setMaxWidth:(id)sender{
-	double dbWidth = [maxWidthSlider doubleValue];	
+	CGFloat dbWidth = [maxWidthSlider floatValue];	
 	dbWidth = dbWidth - fmod(dbWidth,2.0);
-	int theWidth = (int) dbWidth;
-	[prefsController setMaxNoteBodyWidth:theWidth];
+	[prefsController setMaxNoteBodyWidth:dbWidth];
 	[[NSApp delegate] setMaxNoteBodyWidth];
 }
 

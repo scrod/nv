@@ -35,6 +35,7 @@
 @class WordCountToken;
 @class AugmentedScrollView;
 @class ETContentView;
+@class ETScrollView;
 
 #ifndef MarkdownPreview
 #define MarkdownPreview 13371
@@ -77,7 +78,7 @@
 	RBSplitSubview *notesSubview;
 	RBSplitView *splitView;
   IBOutlet AugmentedScrollView *notesScrollView;
-  IBOutlet NSScrollView *textScrollView;
+  IBOutlet ETScrollView *textScrollView;
   IBOutlet NotesTableView *notesTableView;
   IBOutlet LinkingEditor *textView;
 	IBOutlet EmptyView *editorStatusView;
@@ -195,6 +196,7 @@ void outletObjectAwoke(id sender);
 - (IBAction)toggleCollapse:(id)sender;
 - (void)setMaxNoteBodyWidth;
 - (IBAction)switchFullScreen:(id)sender;
+- (BOOL)isInFullScreen;
 - (IBAction)openFileInEditor:(id)sender;
 - (NSArray *)getTxtAppList;
 - (void)updateTextApp:(id)sender;

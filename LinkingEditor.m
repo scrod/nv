@@ -21,6 +21,8 @@
 #import "AttributedPlainText.h"
 #import "NSString_NV.h"
 #import "NVPasswordGenerator.h"
+#import "ETClipView.h"
+
 
 #include <CoreServices/CoreServices.h>
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
@@ -79,6 +81,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:NO];
+//    [self setBackgroundColor:[NSColor darkGrayColor]];
     
 	[self updateTextColors];
 	[[self window] setAcceptsMouseMovedEvents:YES];
@@ -140,6 +143,42 @@ CGFloat _perceptualDarkness(NSColor*a);
 	}
 }
 
+- (void)drawRect:(NSRect)dirtyRect{
+    NSRect aRect=[self frame];
+    //
+//	[self setTextContainerInset:NSMakeSize(3, 8)];
+    
+    CGFloat insX=3.0;
+    CGFloat insY=8.0;
+    if (([[NSApp delegate]isInFullScreen])||([prefsController managesTextWidthInWindow])) {
+        if (aRect.size.width>[prefsController maxNoteBodyWidth]) {
+            insX=kTextMargins;
+            insY=40.0;
+            CGFloat theMin=[prefsController maxNoteBodyWidth]+(insX*1.9);
+            if (aRect.size.width<theMin) {
+                CGFloat diff=theMin-aRect.size.width;
+                diff=round(diff/2);
+                
+                insX=insX-diff;
+                if (insX<3.0) {
+                    insX=3.0;
+                }
+                //             NSLog(@"insX :>%f<",diff);
+                insY=(insX/kTextMargins)*insY;
+                if (insY<8.0) {
+                    insY=8.0;
+                }
+            }
+        }
+        
+    }
+    if ([self textContainerInset].width!=insX) {
+        [self setTextContainerInset:NSMakeSize(insX, insY)];
+    }
+    [super drawRect:aRect];
+    
+}
+
 - (BOOL)becomeFirstResponder {
 	[notesTableView setShouldUseSecondaryHighlightColor:YES];
 
@@ -178,10 +217,10 @@ CGFloat _perceptualDarkness(NSColor*a);
 	return;
 }
 
-- (void)setBackgroundColor:(NSColor*)aColor {
-//	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
-//	[super setBackgroundColor:aColor];
-}
+//- (void)setBackgroundColor:(NSColor*)aColor {
+////	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
+////	[super setBackgroundColor:aColor];
+//}
 
 - (void)updateTextColors {
 	NSColor *fgColor = [[NSApp delegate] foregrndColor];

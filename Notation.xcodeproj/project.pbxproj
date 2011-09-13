@@ -128,6 +128,7 @@
 		57F27FB91197407400C63ACF /* SearchCommand.m in Sources */ = {isa = PBXBuildFile; fileRef = 57F27FB81197407400C63ACF /* SearchCommand.m */; };
 		5C0C545F13A54E920008BC90 /* Preferences.xib in Resources */ = {isa = PBXBuildFile; fileRef = 219195E409D3A20F00586B15 /* Preferences.xib */; };
 		5C0C546113A54ED90008BC90 /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
+		5C177AE7141EF95200BC0C0A /* ETClipView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5C177AE6141EF95200BC0C0A /* ETClipView.m */; };
 		5C1830CA132EA675005E2210 /* MarkupPreview.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CC132EA675005E2210 /* MarkupPreview.xib */; };
 		5C1830CD132EA687005E2210 /* SaveHTMLPreview.nib in Resources */ = {isa = PBXBuildFile; fileRef = 5C1830CF132EA687005E2210 /* SaveHTMLPreview.nib */; };
 		5C2CC185134989A8006FFE56 /* nvMenu.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CC182134989A8006FFE56 /* nvMenu.png */; };
@@ -568,6 +569,8 @@
 		5C0C545D13A54E670008BC90 /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/EncodingsManager.nib; sourceTree = "<group>"; };
 		5C0C545E13A54E920008BC90 /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/EncodingsManager.nib; sourceTree = "<group>"; };
 		5C0C546013A54ED90008BC90 /* zh */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = zh; path = zh.lproj/NotationPrefsView.nib; sourceTree = "<group>"; };
+		5C177AE5141EF95200BC0C0A /* ETClipView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ETClipView.h; sourceTree = "<group>"; };
+		5C177AE6141EF95200BC0C0A /* ETClipView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ETClipView.m; sourceTree = "<group>"; };
 		5C1830CB132EA675005E2210 /* English */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = English; path = English.lproj/MarkupPreview.xib; sourceTree = "<group>"; };
 		5C1830CE132EA687005E2210 /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
 		5C1830D3132EA6A4005E2210 /* fr */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = fr; path = fr.lproj/SaveHTMLPreview.nib; sourceTree = "<group>"; };
@@ -1301,6 +1304,8 @@
 		5C96F713131C4A1B00A2E4AC /* UIElement Subclasses */ = {
 			isa = PBXGroup;
 			children = (
+				5C177AE5141EF95200BC0C0A /* ETClipView.h */,
+				5C177AE6141EF95200BC0C0A /* ETClipView.m */,
 				5C96F502131C2FA800A2E4AC /* BTTransparentScroller.m */,
 				5C96F503131C2FA800A2E4AC /* BTTransparentScroller.h */,
 				5C96F6E7131C48FE00A2E4AC /* ETTransparentButton.h */,
@@ -1683,6 +1688,7 @@
 				93B90E85138601C100BEC5FB /* NSAppleEventDescriptor-Extensions.m in Sources */,
 				93B90E86138601C100BEC5FB /* ODBEditor.m in Sources */,
 				93B90E921386072E00BEC5FB /* TemporaryFileCachePreparer.m in Sources */,
+				5C177AE7141EF95200BC0C0A /* ETClipView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
