@@ -2384,6 +2384,7 @@ terminateApp:
     NSArray *selNotes = [notationController notesAtIndexes:[notesTableView selectedRowIndexes]];
     for (aNote in selNotes) {
         existTagString = labelsOfNote(aNote);
+        
 		NSMutableArray *finalTags = [[[NSMutableArray alloc] init] autorelease];
 		[finalTags addObjectsFromArray:theTags];
         NSArray *existingTags = [existTagString  componentsSeparatedByCharactersInSet:tagSeparators];		
@@ -2406,6 +2407,56 @@ terminateApp:
 	[TagEditer closeTP:self];
 	[cTags release];
 	[TagEditer release];
+}
+
+#pragma mark NSPREDICATE TO FIND MARKDOWN REFERENCE LINKS
+- (IBAction)testThing:(id)sender{
+    NSString *testString=@"not []http://sdfas as\n\not [][]\nnot [](http://)\nn     a   [a ref]: http://nytimes.com\n squirels [another ref]: http://google.com    \n http://squarshit\nhow's tthat http his lorem ipsum";
+    NSArray *foundLinks=[self referenceLinksInString:testString];
+    if (foundLinks&&([foundLinks count]>0)) {
+        NSLog(@"found'em:%@",[foundLinks description]);
+    }else{
+        NSLog(@"didn't find shit");
+    }
+}
+
+- (NSArray *)referenceLinksInString:(NSString *)contentString{    
+    NSString *wildString = @"*[*]:*http*"; //This is where you define your match string.    
+    NSPredicate *matchPred = [NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@", wildString]; 
+    /*
+     Breaking it down:
+     SELF is the string your testing
+     [cd] makes the test case insensitive
+     LIKE is one of the predicate search possiblities. It's NOT regex, but lets you use wildcards '?' for one character and '*' for any number of characters
+     MATCH (not used) is what you would use for Regex. And you'd set it up similiar to LIKE. I don't really know regex, and I can't quite get it to work. But that might be because I don't know regex. 
+     %@ you need to pass in the search string like this, rather than just embedding it in the format string. so DON'T USE something like [NSPredicate predicateWithFormat:@"SELF LIKE[cd] *[*]:*http*"]
+     */
+    
+    NSMutableArray *referenceLinks=[NSMutableArray new];
+    
+    //enumerateLinesUsing block seems like a good way to go line by line thru the note and test each line for the regex match of a reference link. Downside is that it uses blocks so requires 10.6+. Let's get it to work and then we can figure out a Leopard friendly way of doing this; which I don't think will be a problem (famous last words).
+    [contentString enumerateLinesUsingBlock:^(NSString *line, BOOL *stop) { 
+        if([matchPred evaluateWithObject:line]){
+//            NSLog(@"%@ matched",line);
+            NSString *theRef=line;
+            //theRef=[line substring...]  here you want to parse out and get just the name of the reference link we'd want to offer up to the user in the autocomplete
+            //and maybe trim out whitespace
+            theRef = [theRef stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            //check to make sure its not empty
+            if(![theRef isEqualToString:@""]){
+                [referenceLinks addObject:theRef];
+            } 		
+        }	
+    }];
+    //create an immutable array safe for returning
+    NSArray *returnArray=[NSArray array];
+    //see if we found anything
+    if(referenceLinks&&([referenceLinks count]>0))
+    {
+        returnArray=[NSArray arrayWithArray:referenceLinks];
+    }
+    [referenceLinks release];
+    return returnArray;
 }
 
 - (void)setDualFieldInToolbar {

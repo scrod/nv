@@ -229,5 +229,7 @@ void outletObjectAwoke(id sender);
 - (void)relaunchNV:(id)sender;
 - (void)reactivateAfterDelay;
 - (void)reActivate:(id)sender;
+- (NSArray *)referenceLinksInString:(NSString *)contentString;
+- (IBAction)testThing:(id)sender;
 
 @end
