@@ -7,6 +7,7 @@
  */
 #import "NSTextFinder.h"
 
+//#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
 @implementation NSTextFinder (LastFind)
 
 - (int)nv_lastFindWasSuccessful {
@@ -21,4 +22,4 @@
 }
 
 @end
-
+//#endif

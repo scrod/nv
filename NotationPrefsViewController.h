@@ -64,7 +64,7 @@
 	BOOL didAwakeFromNib;
     
 	NSInvocation *postStorageFormatInvocation;
-	int notesStorageFormatInProgress;
+	NSInteger notesStorageFormatInProgress;
     NotationPrefs *notationPrefs;
 	
 	PassphrasePicker *picker;
@@ -93,7 +93,7 @@
 - (IBAction)removeFromKeychain:(id)sender;
 - (void)updateRemoveKeychainItemStatus;
 - (void)notesStorageFormatDidChange;
-- (int)notesStorageFormatInProgress;
+- (NSInteger)notesStorageFormatInProgress;
 - (void)runQueuedStorageFormatChangeInvocation;
 - (IBAction)visitSimplenoteSite:(id)sender;
 - (IBAction)makeDefaultExtension:(id)sender;

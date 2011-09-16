@@ -12,7 +12,16 @@
 
 @implementation ETClipView
 
+- (id)initWithFrame:(NSRect)frameRect{
+    self = [super initWithFrame:frameRect];
+    if (self) {
+        [[GlobalPrefs defaultPrefs] registerForSettingChange:@selector(setMaxNoteBodyWidth:sender:) withTarget:self];
+        [[GlobalPrefs defaultPrefs] registerForSettingChange:@selector(setManagesTextWidthInWindow:sender:) withTarget:self];
+    }
+    return self;
+}
 
+//  
 -(void)setFrame:(NSRect)frameRect
 {
     NSRect docRect = [[self documentView] frame];
@@ -31,6 +40,13 @@
     docRect.size.width=frameRect.size.width;
     [[self documentView] setFrame:docRect];
     [super setFrame:frameRect]; 
+}
+
+- (void)settingChangedForSelectorString:(NSString*)selectorString{ 
+    if (([selectorString isEqualToString:SEL_STR(setMaxNoteBodyWidth:sender:)])||([selectorString isEqualToString:SEL_STR(setManagesTextWidthInWindow:sender:)])){
+        NSRect aRect=[[[self documentView]enclosingScrollView] frame];
+        [self clipWidthSettingChanged:aRect];
+    }
 }
 
 - (void)clipWidthSettingChanged:(NSRect)frameRect{

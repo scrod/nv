@@ -203,7 +203,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		}
 		
 		NSString *dateStr = (showDateCreated ? dateCreatedStringOfNote : dateModifiedStringOfNote)(tv, noteObject, NSNotFound);
-		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 70.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
+		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 67.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
 	}
 
 	if (ColumnIsSet(NoteLabelsColumn, columnsBitmap) && [labelsOfNote(noteObject) length]) {

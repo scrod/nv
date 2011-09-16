@@ -142,6 +142,10 @@
 	
 }
 
+- (IBAction)changedUseETScrollbarsOnLion:(id)sender{
+    [prefsController setUseETScrollbarsOnLion:[useETScrollbarsOnLionButton state] sender:self];
+}
+
 - (IBAction)changedBackgroundTextColorWell:(id)sender {
 	[prefsController setBackgroundTextColor:[backgroundColorWell color] sender:self];
 }
@@ -425,15 +429,18 @@
 	if (IsSnowLeopardOrLater) {
 		[togDockButton setEnabled:YES];
 		
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Hide Dock Icon"]) {
+		if ([[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"]) {
+            [togDockButton setTitle:@"Hide Dock Icon"];
 			[togDockLabel setStringValue:@"This will immediately restart NV"];		
 		}else {			
+            [togDockButton setTitle:@"Show Dock Icon"];
 			[togDockLabel setStringValue:@""];
 		}
 
 	}else {	
 		[togDockButton setEnabled:NO];
-		[togDockLabel setStringValue:@"Sorry, requires Snow Leopard"];
+		[togDockButton setHidden:YES];
+		[togDockLabel setHidden:YES];
 	}
     //for Brett's Markdownify/Readability import
 	[useMarkdownImportButton setState:[prefsController useMarkdownImport]];
@@ -458,7 +465,8 @@
     [toolbar release];  //setToolbar retains the toolbar we pass, so release the one we used.
 	
 	[window setShowsToolbarButton:NO];
-
+    [useETScrollbarsOnLionButton setState:[prefsController useETScrollbarsOnLion]];
+    [useETScrollbarsOnLionButton setHidden:!IsLionOrLater];
     [self switchViews:nil];  //select last selected pane by default
     
 }
@@ -553,59 +561,33 @@ NSRect ScaleRectWithFactor(NSRect rect, float factor) {
 //elasticwork
 
 - (IBAction)toggleHideDockIcon:(id)sender{
-	@try {		
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Show Dock Icon"]) {		
-			// Write new plist to file using dictionary
-			[NSApp hide:self];
-			if((IsSnowLeopardOrLater)&&([[NSApplication sharedApplication] respondsToSelector: @selector(setActivationPolicy:)] )) {
-				enum {NSApplicationActivationPolicyRegular};	
-				[[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyRegular];
-			}else {
-				ProcessSerialNumber psn = { 0, kCurrentProcess }; 
-				OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
-				if( returnCode != 0) {
-					NSLog(@"Could not bring the application to front. Error %d", returnCode);
-				}
-			}
-
-			[[NSUserDefaults standardUserDefaults] setValue:@"Hide Dock Icon" forKey:@"HideDockIcon"];
-			[togDockLabel setStringValue:@"This will immediately restart NV"];
-			[[NSUserDefaults standardUserDefaults] synchronize];		
-			[self performSelector:@selector(reActivate:) withObject:self afterDelay:.16];
-		}else {
-			[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"StatusBarItem"];
-			[[NSUserDefaults standardUserDefaults] setValue:@"Show Dock Icon" forKey:@"HideDockIcon"];
-			[[NSUserDefaults standardUserDefaults] synchronize];		
-			[self performSelector:@selector(relaunchNV:) withObject:self afterDelay:.22];
-			
-		}
-	}
-	@catch (NSException * e) {
-		NSLog(@"oops1 >%@<",[e name]);
-	}
+    NSUserDefaults *stdDefaults=[NSUserDefaults standardUserDefaults];
+    BOOL showIt=![stdDefaults boolForKey:@"ShowDockIcon"];
+    if (showIt) {
+        [stdDefaults setBool:YES forKey:@"ShowDockIcon"];
+        [togDockButton setTitle:@"Hide Dock Icon"];        
+        [togDockLabel setStringValue:@"This will immediately restart NV"];	
+    }else{
+        [stdDefaults setBool:YES forKey:@"StatusBarItem"];
+        [stdDefaults setBool:NO forKey:@"ShowDockIcon"];
+    }
+    [stdDefaults synchronize];
+	[[NSNotificationCenter defaultCenter]postNotificationName:@"AppShouldToggleDockIcon" object:[NSNumber numberWithBool:showIt]];
 }
 
-- (void)reActivate:(id)sender{
-	[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
 
-}
-
-- (void)relaunchNV:(id)sender{
-	id fullPath = [[NSBundle mainBundle] executablePath];
-	NSArray *arg = [NSArray arrayWithObjects:nil];    
-	[NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
-	[NSApp terminate:self];
-}
 
 - (IBAction)toggleKeepsTextWidthInWindow:(id)sender{
-		[[NSApp delegate] setMaxNoteBodyWidth];
+   
+    [prefsController setManagesTextWidthInWindow:[sender state] sender:self];
+//		[[NSApp delegate] setMaxNoteBodyWidth];
 }
 
 - (IBAction)setMaxWidth:(id)sender{
 	CGFloat dbWidth = [maxWidthSlider floatValue];	
 	dbWidth = dbWidth - fmod(dbWidth,2.0);
-	[prefsController setMaxNoteBodyWidth:dbWidth];
-	[[NSApp delegate] setMaxNoteBodyWidth];
+	[prefsController setMaxNoteBodyWidth:dbWidth sender:self];
+//	[[NSApp delegate] setMaxNoteBodyWidth];
 }
 
 - (IBAction)changedUseMarkdownImport:(id)sender {

@@ -183,13 +183,12 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 //
 - (NSString *)textEditor;
 - (void)setTextEditor:(NSString *)inApp;
-- (BOOL)managesTextWidthInWindow;
-- (CGFloat)maxNoteBodyWidth;
-- (void)setMaxNoteBodyWidth:(CGFloat)maxWidth;
 - (void)setRTL:(BOOL)value sender:(id)sender;
 - (BOOL)rtl;
 - (BOOL)showWordCount;
 - (void)setShowWordCount:(BOOL)value;
+- (void)setUseETScrollbarsOnLion:(BOOL)value sender:(id)sender;
+- (BOOL)useETScrollbarsOnLion;
 - (void)setUseMarkdownImport:(BOOL)value sender:(id)sender;
 - (BOOL)useMarkdownImport;
 - (void)setUseReadability:(BOOL)value sender:(id)sender;
@@ -200,6 +199,10 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 - (BOOL)alternatingRows;
 - (void)setUseAutoPairing:(BOOL)value;
 - (BOOL)useAutoPairing;
+- (void)setMaxNoteBodyWidth:(CGFloat)maxWidth sender:(id)sender;
+- (void)setManagesTextWidthInWindow:(BOOL)manageIt sender:(id)sender;
+- (BOOL)managesTextWidthInWindow;
+- (CGFloat)maxNoteBodyWidth;
 @end
 
 @interface NSObject (GlobalPrefsDelegate)

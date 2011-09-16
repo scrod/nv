@@ -8,20 +8,6 @@
 //
 
 #import "ETTransparentScroller.h"
-#import "ETContentView.h"
-
-static NSImage *knobTop, *knobVerticalFill, *knobBottom, *slotTop, *slotVerticalFill, *slotBottom;
-static float verticalPaddingLeft = 3.1f;
-static float verticalPaddingRight = 3.1f;
-static float verticalPaddingTop = 2.5f;
-static float verticalPaddingBottom = 2.5f;
-static float minKnobHeight;
-
-//static NSColor *scrollBackgroundColor;
-
-@interface ETTransparentScroller (NVTSPrivate)
-- (void)drawKnobSlot;
-@end
 
 @interface NSScroller (NVTSPrivate)
 - (NSRect)_drawingRectForPart:(NSScrollerPart)aPart;
@@ -29,92 +15,114 @@ static float minKnobHeight;
 
 @implementation ETTransparentScroller
 
-+ (void)initialize
-{
-	NSBundle *bundle = [NSBundle bundleForClass:[ETTransparentScroller class]];
-	
-	knobTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerKnobTop.tif"]];
-	knobVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerKnobVerticalFill.tif"]];
-	knobBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerKnobBottom.tif"]];
-	slotTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotTop.tif"]];
-	slotVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotVerticalFill.tif"]];
-	slotBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotBottom.tif"]];
-	
-	//bwBackgroundColor	= [[NSColor colorWithCalibratedWhite:0.13 alpha:0.855] retain];
-	//scrollBackgroundColor = [[NSColor colorWithCalibratedRed:0.948f green:0.948f blue:0.948f alpha:1.0f]retain];
-	minKnobHeight = knobTop.size.height + knobVerticalFill.size.height + knobBottom.size.height + 10;
-}
+//+ (void)initialize
+//{
+//}
 
-- (id)init{
-	if ([super init]) {		
-		[self setArrowsPosition:NSScrollerArrowsNone];	
+- (id)initWithFrame:(NSRect)frameRect{
+	if ((self=[super initWithFrame:frameRect])) {	
+        fillBackground=NO;
+        NSBundle *bundle = [NSBundle mainBundle];
+        
+        knobTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerKnobTop.tif"]];
+        knobVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerKnobVerticalFill.tif"]];
+        knobBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerKnobBottom.tif"]];
+        slotTop				= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotTop.tif"]];
+        slotVerticalFill	= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotVerticalFill.tif"]];
+        slotBottom			= [[NSImage alloc] initWithContentsOfFile:[bundle pathForImageResource:@"TransparentScrollerSlotBottom.tif"]];
+       verticalPaddingLeft = 3.0f;
+       verticalPaddingRight = 3.75f;
+       verticalPaddingTop =3.75f;
+       verticalPaddingBottom = 4.25f;
+       minKnobHeight = knobTop.size.height + knobVerticalFill.size.height + knobBottom.size.height + 25.0;
+        slotAlpha=0.45f;
+        knobAlpha=0.45f;
+		[self setArrowsPosition:NSScrollerArrowsNone];
+        
+        isOverlay=NO;        
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+        if (IsLionOrLater) {
+            isOverlay=[[self class]isCompatibleWithOverlayScrollers];
+        }
+#endif
 	}
 	return self;
 }
-/*
-- (void)awakeFromNib{
-	//lionStyle = YES;	
-	//scrollBackgroundColor = [[NSColor colorWithCalibratedRed:0.948f green:0.948f blue:0.948f alpha:1.0f]retain];
-}*/
 
+- (void)dealloc{
+    [knobTop release];
+    [knobVerticalFill release];
+    [knobBottom release];
+    [slotTop release];
+    [slotBottom release];
+    [slotVerticalFill release];
+    [super dealloc];
+}
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
++ (CGFloat)scrollerWidthForControlSize:(NSControlSize)controlSize scrollerStyle:(NSScrollerStyle)scrollerStyle{
+    return 15.0;
+}
+//
++ (NSScrollerStyle)preferredScrollerStyle{
+    return NSScrollerStyleOverlay;
+}
+
+
+//+ (BOOL)isCompatibleWithOverlayScrollers {
+//    return self == [ETTransparentScroller class];
+//}
+#else
 + (CGFloat)scrollerWidth
 {
-	return slotVerticalFill.size.width + verticalPaddingLeft + verticalPaddingRight;
+	return 15.0;//slotVerticalFill.size.width + verticalPaddingLeft + verticalPaddingRight;
 }
-
 + (CGFloat)scrollerWidthForControlSize:(NSControlSize)controlSize 
 {
-	return slotVerticalFill.size.width + verticalPaddingLeft + verticalPaddingRight;
+	return 15.0;//slotVerticalFill.size.width + verticalPaddingLeft + verticalPaddingRight;
 }
-/*
-- (void)setBackgroundColor:(NSColor *)inColor {	
-    NSLog(@"unnecessary");
-    if (scrollBackgroundColor) {
-        [scrollBackgroundColor release];
-    }
-	scrollBackgroundColor = inColor;
-	[scrollBackgroundColor retain];
-	//[[self enclosingScrollView] setNeedsDisplay:YES];
-}
+#endif
 
-- (void)setLionStyle:(BOOL)isLion{
-    NSLog(@"setting lionstyle: %d",isLion);
-	lionStyle = isLion;
-}*/
+- (void)setFillBackground:(BOOL)fillIt{
+    fillBackground=fillIt;
+}
 
 - (void)drawRect:(NSRect)aRect;
-{
-    
-    if ([[[self superview] className] isEqualToString:@"ETScrollView"]) {
-       // NSLog(@"notlion");
-        NSDrawWindowBackground([self bounds]);
-   //     [[[[self window] contentView] backgroundColor] setFill];
-     //   NSRectFill([self bounds]);
-	}
-	//NSRectFillUsingOperation(aRect,NSCompositeSourceOut);//([self bounds]);
-	// Only draw if the slot is larger than the knob
-	if (([self bounds].size.height - verticalPaddingTop - verticalPaddingBottom + 1) > minKnobHeight)
-	{
-		[self drawKnobSlot];
-		
-		if ([self knobProportion] > 0.0)	
-			[self drawKnob];
-	}
-    
+{       
+        // Only draw if the slot is larger than the knob
+    if (IsLionOrLater) {
+        [super drawRect:aRect];
+    }else{
+        if (fillBackground) {
+            [[[[self window] contentView] backgroundColor] setFill];
+            NSRectFill([self bounds]);
+        }
+        if (([self bounds].size.height - verticalPaddingTop - verticalPaddingBottom + 1) > minKnobHeight)
+        {
+            [self drawKnobSlotInRect:[self rectForPart:NSScrollerKnobSlot] highlight:NO];
+            
+            if ([self knobProportion] > 0.0)	
+                [self drawKnob];
+        }
+    }
 }
 
-- (void)drawKnobSlot;
-{	
-	NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];
-	NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, 0.25f, NO);
+- (void)drawKnobSlotInRect:(NSRect)slotRect highlight:(BOOL)flag{
+    if (isOverlay) {
+        [super drawKnobSlotInRect:slotRect highlight:flag];
+    }else{
+        NSDrawThreePartImage(slotRect, slotTop, slotVerticalFill, slotBottom, YES, NSCompositeSourceOver, slotAlpha, NO);
+    }
 }
 
 - (void)drawKnob;
 {
 	NSRect knobRect = [self rectForPart:NSScrollerKnob];
-	NSDrawThreePartImage(knobRect, knobTop, knobVerticalFill, knobBottom, YES, NSCompositeSourceOver, 0.5, NO);
+    
+	NSDrawThreePartImage(knobRect, knobTop, knobVerticalFill, knobBottom, YES, NSCompositeSourceOver, knobAlpha, NO);
+   
 }
-
+//
 - (NSRect)_drawingRectForPart:(NSScrollerPart)aPart;
 {
 	// Call super even though we're not using its value (has some side effects we need)
@@ -124,22 +132,50 @@ static float minKnobHeight;
 	return [self rectForPart:aPart];
 }
 
+//- (NSScrollerPart)testPart:(NSPoint)aPoint{
+//    NSScrollerPart aPart=[super testPart:aPoint];
+//    if (aPart==NSScrollerKnobSlot) {
+//        NSLog(@"super found knobslot");
+//    }else if (aPart==NSScrollerKnob) {
+//        NSLog(@"super found knob");
+//    }else{
+//        NSLog(@"suer found else:%lu",aPart);
+//    }
+//    if (NSPointInRect(aPoint, [self rectForPart:NSScrollerKnob])) {
+//        NSLog(@"knob");
+//    }else if (NSPointInRect(aPoint, [self rectForPart:NSScrollerKnobSlot])) {
+//        NSLog(@"knobsliot");
+//        return NSScrollerKnobSlot;
+//    }
+//    NSLog(@"aqui");
+//    return NSScrollerNoPart;
+//}
+
+//- (void)trackKnob:(NSEvent *)theEvent{
+//    NSPoint aPoint=[theEvent locationInWindow];
+//    NSScrollerPart aPart=[super testPart:aPoint];
+//     NSLog(@"trackThis :>%lu<",aPart);
+//    [super trackKnob:theEvent];
+//}
+
 - (NSRect)rectForPart:(NSScrollerPart)aPart;
 {
     
 	switch (aPart)
 	{
 		case NSScrollerNoPart:
+        {
+            NSLog(@"aquie");
 			return [self bounds];
 			break;
-		case NSScrollerKnob:
+		}
+        case NSScrollerKnob:
 		{		
 			NSRect knobRect;
 			NSRect slotRect = [self rectForPart:NSScrollerKnobSlot];	
-			//NSLog(@"knobproportion is : %f",[self knobProportion]);
 			
-			float knobHeight = roundf(slotRect.size.height * [self knobProportion]*.993);
-			
+			float knobHeight = roundf(slotRect.size.height * [self knobProportion]);
+            
 			if (knobHeight < minKnobHeight)
 				knobHeight = minKnobHeight;
 			
@@ -155,10 +191,7 @@ static float minKnobHeight;
 			NSRect slotRect;
 			
             
-			slotRect = NSMakeRect(verticalPaddingLeft, verticalPaddingTop, [self bounds].size.width - verticalPaddingLeft - verticalPaddingRight, [self bounds].size.height - verticalPaddingTop - verticalPaddingBottom);
-			
-			slotRect.origin.y = (slotRect.origin.y + (slotRect.size.height * .0035));
-			slotRect.size.height = (slotRect.size.height * .993);
+			slotRect = NSMakeRect(verticalPaddingLeft,verticalPaddingTop,roundf([self bounds].size.width - verticalPaddingLeft - verticalPaddingRight), roundf([self bounds].size.height - verticalPaddingTop - verticalPaddingBottom));
 			return slotRect;
 		}
 			break;
@@ -198,49 +231,5 @@ static float minKnobHeight;
 	
 	return NSZeroRect;
 }
-
-#if DELAYED_LAYOUT
-- (void)mouseDown:(NSEvent*)event {
-	if (![contentViewDelegate readyToDraw]) {
-		[contentViewDelegate _setFutureSelectionRangeWithinIndex:[[contentViewDelegate string] length]];
-	}
-	
-	[super mouseDown:event];
-}
-
-- (void)displayIfNeededInRect:(NSRect)aRect {
-	if (![contentViewDelegate readyToDraw]) {
-		rectForSuppressedUpdate = NSUnionRect(rectForSuppressedUpdate, aRect);
-	} else {
-		[super displayIfNeededInRect:aRect];
-	}	
-}
-
-- (void)setNeedsDisplayInRect:(NSRect)invalidRect {
-	if (![contentViewDelegate readyToDraw]) {
-		rectForSuppressedUpdate = NSUnionRect(rectForSuppressedUpdate, invalidRect);
-	} else {
-		[super setNeedsDisplayInRect:invalidRect];
-	}
-}
-
-- (void)clearSuppressedRects {
-	rectForSuppressedUpdate = NSZeroRect;
-}
-
-- (void)restoreSuppressedRects {
-	[super setNeedsDisplayInRect:rectForSuppressedUpdate];
-}
-
-- (void)setDisableUpdating:(BOOL)disable {
-	disableUpdating = disable;
-}
-- (void)setContentViewDelegate:(id)aDelegate {
-	contentViewDelegate = aDelegate;
-}
-- (id)contentViewDelegate {
-	return contentViewDelegate;
-}
-#endif
 
 @end

@@ -7,88 +7,122 @@
 
 #import "ETScrollView.h"
 #import "ETTransparentScroller.h"
+#import "ETOverlayScroller.h"
+#import "GlobalPrefs.h"
 
 @implementation ETScrollView
 
-- (id)init
-{
-    self = [super init];
-    if (self) {
-        // Initialization code here.
-    }
-    
-    return self;
-}
-
-- (void)dealloc
-{
-    [super dealloc];
-}
+//+ (void)initialize{
+//    
+////    NSLog(@"etscroll initialize");
+//}
 
 - (NSView *)hitTest:(NSPoint)aPoint{
-    if (NSPointInRect (aPoint,[[self verticalScroller] frame])) {
+    if([[[self documentView]className] isEqualToString:@"LinkingEditor"]){
+    NSRect vsRect=[[self verticalScroller] frame];
+    vsRect.origin.x-=6.0;
+    vsRect.size.width+=8.0;
+   
+    if (NSPointInRect (aPoint,vsRect)) {
         return [self verticalScroller];
+    }else if (IsLionOrLater){
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+        if([[self subviews]containsObject:[self findBarView]]) {
+            NSView *tView=[super hitTest:aPoint];
+            if ([tView superview]==[self findBarView]) {
+                return tView;
+            }
+        }
+#endif
+    }
+    return [self documentView];
+    }
+    return [super hitTest:aPoint];
+}
+
+//- (void)setScrollerClassWithString:(NSString *)scrollerClassName{
+//    scrollerClass=NSClassFromString(scrollerClassName);
+//}
+//
+//- (void)setNeedsOverlayTiling:(BOOL)overlay{
+//    needsOverlayTiling=overlay;
+//}
+
+- (void)awakeFromNib{ 
+    needsOverlayTiling=NO;
+    BOOL fillIt=NO;
+    if([[[self documentView]className] isEqualToString:@"NotesTableView"]){
+        scrollerClass=NSClassFromString(@"ETOverlayScroller"); 
+        if (!IsLionOrLater) {
+            needsOverlayTiling=YES;            
+        }
     }else{
-        return [self documentView];
+        scrollerClass=NSClassFromString(@"ETTransparentScroller");   
+        if (!IsLionOrLater) {
+            fillIt=YES;            
+        }
+    }
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if (IsLionOrLater) {
+        [[GlobalPrefs defaultPrefs] registerForSettingChange:@selector(setUseETScrollbarsOnLion:sender:) withTarget:self];
+        [self setHorizontalScrollElasticity:NSScrollElasticityNone];
+        [self setVerticalScrollElasticity:NSScrollElasticityAllowed];
+        [self setScrollerStyle:NSScrollerStyleOverlay];   
+    }
+#endif    
+    if (!IsLionOrLater||([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion])) {
+        NSRect vsRect=[[self verticalScroller]frame];
+        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
+        [theScroller setFillBackground:fillIt];
+        [self setVerticalScroller:theScroller];
+        [theScroller release];
     }
 }
 
 
-
-
-- (void)awakeFromNib{
-    if (!IsLionOrLater) {
-      //  ETTransparentScroller *tScroll = [[[ETTransparentScroller alloc]init] retain];
-        [self setVerticalScroller:[[ETTransparentScroller alloc]init]];
-      //  [tScroll release];
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)settingChangedForSelectorString:(NSString*)selectorString{  
+    if (IsLionOrLater&&([selectorString isEqualToString:SEL_STR(setUseETScrollbarsOnLion:sender:)])){
+        [self changeUseETScrollbarsOnLion];
     }
 }
-/*
-- (void)drawRect:(NSRect)rect{
-    [super drawRect:rect];
-   // rect = [self frame];
-    NSRect cornerRect = [[self verticalScroller] frame];
-    cornerRect.size.height = cornerRect.size.width;
-    cornerRect.origin.x = rect.origin.x + rect.size.width - cornerRect.size.width;
-    cornerRect.origin.y += [[self verticalScroller] frame].size.height;
-    cornerRect.origin.y -= 5;//cornerRect.size.height;
-    
-    [[NSColor redColor] setFill];
-     NSRectFill(cornerRect);
-    
 
+- (void)changeUseETScrollbarsOnLion{
+    if ([[GlobalPrefs defaultPrefs]useETScrollbarsOnLion]) {       
+        NSRect vsRect=[[self verticalScroller]frame];
+        id theScroller=[[scrollerClass alloc]initWithFrame:vsRect];
+        [self setVerticalScroller:theScroller];
+        [theScroller release];
+        
+    }else{
+//        id oldScrollers=[self verticalScroller];
+        NSScroller *theScroller=[[NSScroller alloc]init];
+        [self setVerticalScroller:theScroller];
+        [theScroller release];
+//        [oldScrollers release];
+        
+    }
+    [self setScrollerStyle:NSScrollerStyleOverlay];
+    [self tile];
+    [self reflectScrolledClipView:[self contentView]];
 }
+#endif
 
- - (void)tile{
-   [super tile];
-    if ([self hasVerticalScroller]) {
-        // NSLog(@"subviwes are: %@",[[self subviews] description]);
-        //NSRect docRect = [self frame];
-      //  docRect.size.width -=40;
-        //[self setFrame:docRect];
-       // NSRect docRect = [self frame];
-       // NSRect clipRect = [[self contentView] frame];
-        // NSRect scrollRect = [[self verticalScroller] frame];
-        //NSRect bRect = [self frame];
-        //bRect.size.width +=28;
-      //  [self setFrame:bRect];
-     //   cornerRect.size.height = cornerRect.size.width;
-       // cornerRect.origin.x -=200;
-       // cornerRect.origin.y +=200;
-        //   clipRect.size.width -=280;
-       // docRect.size.width +=15;
-       // [self setFrame:docRect];
-       // clipRect.size.width -=55;
-        //[[self contentView] setFrame:clipRect];
-        //scrollRect.origin.x +=15;
-       // [[self verticalScroller]setFrame:scrollRect];
-      //  [[self horizontalScroller]setFrame:cornerRect];
-         //[[NSColor redColor] setFill];
-        // NSRectFill(cornerRect);
-    //[self setNeedsDisplay:YES];
-     }
-    //}
-}*/
+- (void)tile {
+	[super tile];
+    if (needsOverlayTiling) {
+        if (![[self verticalScroller] isHidden]) {
+            //            NSRect vsRect=[[self verticalScroller] frame];
+            NSRect conRect = [[self contentView] frame];
+            //            NSView *wdContent = [[self contentView] retain];
+            conRect.size.width = conRect.size.width + [[self verticalScroller] frame].size.width;
+            [[self contentView] setFrameSize:conRect.size];
+            //            [wdContent setFrame:conRect];
+            //            [wdContent release];
+            //            [[self verticalScroller] setFrame:vsRect];            
+        }
+    }
+}
 
 
 @end

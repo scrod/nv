@@ -171,7 +171,7 @@ static CGRect NSRectToCGRect(NSRect nsrect) {
     NSMutableSet *notesOfLabels = [[NSMutableSet alloc] init];
 
     for (i=0; i<numLabels; i++) {
-	int labelIndex = labelsBuffer[i];
+	NSUInteger labelIndex = labelsBuffer[i];
 	[notesOfLabels unionSet:[objects[labelIndex] noteSet]];
     }
     

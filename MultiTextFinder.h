@@ -13,6 +13,8 @@
 
 
 #import <Cocoa/Cocoa.h>
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
 #define Backward NO
 #define Forward YES
 
@@ -36,3 +38,4 @@
 - (IBAction)findNext:(id)sender;
 - (IBAction)findPrevious:(id)sender;
 @end
+#endif

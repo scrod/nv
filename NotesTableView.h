@@ -66,7 +66,7 @@ typedef struct _ViewLocationContext {
 
 - (ViewLocationContext)viewingLocation;
 - (void)setViewingLocation:(ViewLocationContext)ctx;
-- (double)distanceFromRow:(int)aRow forVisibleArea:(NSRect)visibleRect;
+- (double)distanceFromRow:(NSUInteger)aRow forVisibleArea:(NSRect)visibleRect;
 - (void)scrollRowToVisible:(NSInteger)rowIndex withVerticalOffset:(float)offset;
 - (void)selectRowAndScroll:(NSInteger)row;
 
@@ -100,6 +100,7 @@ typedef struct _ViewLocationContext {
 
 - (id)labelsListSource;
 - (void)setLabelsListSource:(id)labelsSource;
+- (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(NSInteger)index;
 
 @end
 

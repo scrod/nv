@@ -25,7 +25,7 @@
     NSString *labelName, *lowercaseName;
     NSMutableSet *notes;
     
-    unsigned int lowercaseHash;
+    NSUInteger lowercaseHash;
 }
 
 NSString* titleOfLabel(LabelObject *label);
@@ -42,6 +42,6 @@ int compareLabel(const void *one, const void *two);
 - (NSSet*)noteSet;
 
 - (BOOL)isEqual:(id)anObject;
-- (unsigned)hash;
+- (NSUInteger)hash;
 
 @end

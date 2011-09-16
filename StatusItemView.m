@@ -58,11 +58,8 @@ NSString *imageName = @"nvMenuDark";
 {
 	clicked = YES;
 	[self setNeedsDisplay:YES];
-	BOOL doesit = [controller toggleAttachedWindow:self];
-	if (doesit) {
-		clicked = NO;
-		[self setNeedsDisplay:YES];
-	}	
+    [[NSNotificationCenter defaultCenter]postNotificationName:@"NVShouldActivate" object:self];
+//	[controller toggleAttachedWindow:self];
 }
 
 - (void)mouseUp:(NSEvent *)event {
@@ -74,11 +71,10 @@ NSString *imageName = @"nvMenuDark";
 - (void)rightMouseDown:(NSEvent *)event {
 	clicked = YES;
 	[self setNeedsDisplay:YES];
-	BOOL doesit = [controller toggleAttachedMenu:self];
-	if (doesit) {		
-		clicked = NO;
-		[self setNeedsDisplay:YES];
-	}
+     [[NSNotificationCenter defaultCenter]postNotificationName:@"StatusItemMenuShouldDrop" object:nil];
+//	[controller toggleAttachedMenu:self];	
+    clicked = NO;
+    [self setNeedsDisplay:YES];
 }
 
 - (void)setInactiveIcon:(id)sender{

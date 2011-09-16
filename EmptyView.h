@@ -17,11 +17,11 @@
 @interface EmptyView : NSView
 {
     IBOutlet NSTextField *labelText;
-	int lastNotesNumber;
+	NSInteger lastNotesNumber;
 	NSColor *bgCol;
 }
 
-- (void)setLabelStatus:(int)notesNumber;
+- (void)setLabelStatus:(NSInteger)notesNumber;
 - (void)setBackgroundColor:(NSColor *)inColor;
 
 @end

@@ -160,11 +160,19 @@
     htmlString = [[[self class] html] retain];
 	lastNote = [[NSApp delegate] selectedNoteObject];
     [sourceView setTextContainerInset:NSMakeSize(10.0,12.0)];
-    if (!IsLionOrLater) {
-        //  ETTransparentScroller *tScroll = [[[ETTransparentScroller alloc]init] retain];
-        [[sourceView enclosingScrollView] setVerticalScroller:[[BTTransparentScroller alloc]init]];
-        //  [tScroll release];
+    NSScrollView *scrlView=[sourceView enclosingScrollView];   
+    NSRect vsRect=[[scrlView verticalScroller]frame];
+    BTTransparentScroller *theScroller=[[BTTransparentScroller alloc]initWithFrame:vsRect];
+    [scrlView setVerticalScroller:theScroller];
+    [theScroller release];
+    [scrlView setScrollsDynamically:YES];
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if (IsLionOrLater) {
+        [scrlView setHorizontalScrollElasticity:NSScrollElasticityNone];
+        [scrlView setVerticalScrollElasticity:NSScrollElasticityAutomatic];
+        [scrlView setScrollerStyle:NSScrollerStyleOverlay];  
     }
+#endif
 }
 
 //this returns a nice name for the method in the JavaScript environment
@@ -499,7 +507,7 @@
 		
 		AppController *app = [[NSApplication sharedApplication] delegate];
 		NSString *rawString = [app noteContent];
-		NSString *processedString = [[NSString alloc] init];
+		NSString *processedString = [[[NSString alloc] init] autorelease];
 		
 		if ([app currentPreviewMode] == MarkdownPreview) {
 			processedString = [NSString stringWithProcessedMarkdown:rawString];

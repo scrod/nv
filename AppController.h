@@ -33,7 +33,7 @@
 @class DFView;
 @class PreviewController;
 @class WordCountToken;
-@class AugmentedScrollView;
+//@class AugmentedScrollView;
 @class ETContentView;
 @class ETScrollView;
 
@@ -54,7 +54,6 @@
 <NSToolbarDelegate, NSTableViewDelegate, NSWindowDelegate, NSTextFieldDelegate, NSTextViewDelegate>
 #endif
 {
-    
 	IBOutlet NSMenuItem *fsMenuItem;
 	BOOL wasVert;
   BOOL isAutocompleting;
@@ -67,7 +66,7 @@
 	TagEditingManager *TagEditer;
 	NSColor *backgrndColor;
 	NSColor *foregrndColor;
-	int userScheme;
+	NSInteger userScheme;
 	NSString *noteFormat;
 	NSTextView *theFieldEditor;
   NSDictionary *fieldAttributes;
@@ -77,7 +76,7 @@
 	RBSplitSubview *splitSubview;
 	RBSplitSubview *notesSubview;
 	RBSplitView *splitView;
-  IBOutlet AugmentedScrollView *notesScrollView;
+  IBOutlet ETScrollView *notesScrollView;
   IBOutlet ETScrollView *textScrollView;
   IBOutlet NotesTableView *notesTableView;
   IBOutlet LinkingEditor *textView;
@@ -177,14 +176,13 @@ void outletObjectAwoke(id sender);
 - (NSWindow*)window;
 
 //elasticwork
-- (void)setIsEditing:(BOOL)inBool inCell:(NSCell *)theCell;
+//- (void)setIsEditing:(BOOL)inBool inCell:(NSCell *)theCell;
 - (void)setIsEditing:(BOOL)inBool;
 //- (void)focusOnCtrlFld:(id)sender;
-- (void)drawNotesTable;
 - (void)tableView:(NSTableView *)aTableView willDisplayCell:(id)aCell forTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex;
 - (NSMenu *)statBarMenu;
-- (BOOL)toggleAttachedWindow:(id)sender;
-- (BOOL)toggleAttachedMenu:(id)sender;
+- (BOOL)toggleAttachedWindow:(NSNotification *)aNotification;
+- (BOOL)toggleAttachedMenu:(NSNotification *)aNotification;
 - (NSArray *)commonLabels;
 - (IBAction)multiTag:(id)sender;
 - (void)setDualFieldInToolbar;
@@ -194,18 +192,16 @@ void outletObjectAwoke(id sender);
 //- (void)showDualFieldView;
 - (BOOL)dualFieldIsVisible;
 - (IBAction)toggleCollapse:(id)sender;
-- (void)setMaxNoteBodyWidth;
 - (IBAction)switchFullScreen:(id)sender;
 - (BOOL)isInFullScreen;
 - (IBAction)openFileInEditor:(id)sender;
 - (NSArray *)getTxtAppList;
-- (void)updateTextApp:(id)sender;
+//- (void)updateTextApp:(id)sender;
 - (IBAction)setBWColorScheme:(id)sender;
 - (IBAction)setLCColorScheme:(id)sender;
 - (IBAction)setUserColorScheme:(id)sender;
 - (void)updateFieldAttributes;
 - (void)updateColorScheme;
-- (NSColor*)_selectionColor;
 - (void)setBackgrndColor:(NSColor *)inColor;
 - (void)setForegrndColor:(NSColor *)inColor;
 - (NSColor *)backgrndColor;
@@ -214,6 +210,8 @@ void outletObjectAwoke(id sender);
 - (void)ensurePreviewIsVisible;
 - (void)resetModTimers;
 - (IBAction)toggleWordCount:(id)sender;
+- (void)popWordCount:(BOOL)showIt;
+- (void)popPreview:(BOOL)showIt;
 - (IBAction)togglePreview:(id)sender;
 - (IBAction)toggleSourceView:(id)sender;
 - (IBAction)savePreview:(id)sender;
@@ -222,7 +220,14 @@ void outletObjectAwoke(id sender);
 - (IBAction)printPreview:(id)sender;
 - (void)postTextUpdate;
 - (IBAction)selectPreviewMode:(id)sender;
-
+- (BOOL)setNoteIfNecessary;
 - (void)updateRTL;
 - (void)refreshNotesList;
+#pragma mark toggling dock icon
+- (void)togDockIcon:(NSNotification *)notification;
+- (void)relaunchAfterDelay;
+- (void)relaunchNV:(id)sender;
+- (void)reactivateAfterDelay;
+- (void)reActivate:(id)sender;
+
 @end

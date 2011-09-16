@@ -37,7 +37,7 @@
 	[[NSApp delegate] performSelector:@selector(bringFocusToControlField:) withObject:nil];
 }
 
-- (void)setLabelStatus:(int)notesNumber {
+- (void)setLabelStatus:(NSInteger)notesNumber {
 	if (notesNumber != lastNotesNumber) {
 		
 		NSString *statusString = nil;

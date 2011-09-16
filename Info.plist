@@ -142,7 +142,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.1b</string>
+	<string>2.2b</string>
 	<key>CFBundleSignature</key>
 	<string>N†l√</string>
 	<key>CFBundleURLTypes</key>
@@ -159,21 +159,20 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>73</string>
+	<string>86</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSArchitecturePriority</key>
 	<array>
 		<string>x86_64</string>
 		<string>i386</string>
-		<string>ppc</string>
 	</array>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.4.11</string>
+	<string>10.5.8</string>
 	<key>LSMinimumSystemVersionByArchitecture</key>
 	<dict>
 		<key>i386</key>
-		<string>10.4.4</string>
+		<string>10.5.8</string>
 		<key>x86_64</key>
 		<string>10.6.0</string>
 	</dict>

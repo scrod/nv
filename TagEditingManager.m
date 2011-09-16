@@ -42,7 +42,7 @@
 }
 
 - (NSString *)newMultinoteLabels{
-	return [[tagField stringValue] retain];
+	return [[NSString stringWithString:[tagField stringValue]]retain];
 }
 
 - (void)setTF:(NSString *)inString{

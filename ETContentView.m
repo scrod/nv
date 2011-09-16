@@ -10,20 +10,21 @@
 
 @implementation ETContentView
 
-- (id)initWithFrame:(NSRect)frame
-{
-    self = [super initWithFrame:frame];
-    if (self) {
-        // Initialization code here.
-    }
-    
-    return self;
-}
+//- (id)initWithFrame:(NSRect)frame
+//{
+//    self = [super initWithFrame:frame];
+//    if (self) {
+//        // Initialization code here.
+//    }
+//    
+//    return self;
+//}
+//
+//- (void)dealloc
+//{
+//    [super dealloc];
+//}
 
-- (void)dealloc
-{
-    [super dealloc];
-}
 
 - (void)keyDown:(NSEvent *)theEvent{
   // NSLog(@"keydownCV");

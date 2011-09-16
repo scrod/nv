@@ -9,7 +9,7 @@
    - Neither the name of Notational Velocity nor the names of its contributors may be used to endorse 
      or promote products derived from this software without specific prior written permission. */
 
-//#import "ETTransparentScroller.h"
+
 #import "LinkingEditor.h"
 #import "GlobalPrefs.h"
 #import "AppController.h"
@@ -22,6 +22,7 @@
 #import "NSString_NV.h"
 #import "NVPasswordGenerator.h"
 #import "ETClipView.h"
+//#import "NVTextFinderAdditions.h"
 
 
 #include <CoreServices/CoreServices.h>
@@ -55,6 +56,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 
 @implementation LinkingEditor
 
+@synthesize beforeString;
+@synthesize afterString;
+
 CGFloat _perceptualDarkness(NSColor*a);
 
 - (void)awakeFromNib {
@@ -83,6 +87,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 	[self setDrawsBackground:NO];
 //    [self setBackgroundColor:[NSColor darkGrayColor]];
     
+    [self prepareTextFinder];
+    
 	[self updateTextColors];
 	[[self window] setAcceptsMouseMovedEvents:YES];
 	if (IsLeopardOrLater) {
@@ -96,6 +102,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
 	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidBecomeMainNotification object:[self window]];
 	[center addObserver:self selector:@selector(windowBecameOrResignedMain:) name:NSWindowDidResignMainNotification object:[self window]];
+    
 	//[center addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
 //	NoMods = YES;
 	outletObjectAwoke(self);
@@ -233,6 +240,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 	[self setSelectedTextAttributes:[NSDictionary dictionaryWithObject:[self _selectionColorForForegroundColor:fgColor backgroundColor:bgColor] 
 																forKey:NSBackgroundColorAttributeName]];
 	[self setTypingAttributes:[prefsController noteBodyAttributes]];
+    [[self enclosingScrollView]setNeedsDisplay:YES];
+    [[[self enclosingScrollView]contentView]setNeedsDisplay:YES];
 }
 
 #define _CM(__ch) ((__ch) * 255.0)
@@ -426,7 +435,6 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 				//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
 				//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
 				[self didChangeText];
-				
 				return YES;
 			}
 		}
@@ -749,83 +757,8 @@ copyRTFType:
 	didChangeIntoAutomaticRange = NO;
 	[self setSelectedRange:newRange];
 }
-/*
-- (IBAction)performNVFindPanelAction:(id)sender {
-	//NSLog(@"finding sender is :%@",[sender description]);
-	[[self window] endEditingFor:nil]; 
-	[self setUsesFindPanel:YES];
-	[super performFindPanelAction:sender];
-}*/
 
-- (IBAction)performFindPanelAction:(id)sender {
-	id controller = [NSApp delegate];
-    NSString *typedString = [controller typedString];
-	NSString *currentFindString = nil;
-	
-    if (!typedString) typedString = [controlField stringValue];
-	typedString = [typedString stringByReplacingOccurrencesOfString:@"\"" withString:@""];
     
-    NSTextFinder *textFinder = [NSTextFinder sharedTextFinder];
-	
-	[self switchFindPanelDelegate];
-    if ([typedString length] > 0 && ![lastImportedFindString isEqualToString:typedString]) {
-		
-		NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:NSFindPboard];
-		[pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-		[pasteboard setString:typedString forType:NSStringPboardType];
-		
-		if ([textFinder respondsToSelector:@selector(loadFindStringFromPasteboard)])
-			[textFinder loadFindStringFromPasteboard];
-		else
-			NSLog(@"Apple changed NSTextFinder (loadFindStringFromPasteboard)");
-		
-		[lastImportedFindString release];
-		lastImportedFindString = [typedString retain];
-    }
-	
-	[currentFindString release];
-	if ([textFinder respondsToSelector:@selector(findString)])
-		currentFindString = [[textFinder findString] retain];
-    else
-		NSLog(@"Apple changed NSTextFinder (findString)");
-    
-    int rowNumber = -1;
-    int totalNotes = [notesTableView numberOfRows];
-    int tag = [sender tag];
-    if (![controller selectedNoteObject]) {
-		
-		rowNumber = (tag == NSFindPanelActionPrevious ? totalNotes - 1 : 0);
-		
-    } else if (textFinder && [textFinder nv_lastFindWasSuccessful] == LAST_FIND_NO &&	//if the last find op. didn't work
-			   selectedRangeDuringFind.location == [self selectedRange].location &&	//and user didn't change the selection
-			   noteDuringFind == [controller selectedNoteObject] &&					//or select a different note
-			   [stringDuringFind isEqualToString:currentFindString]) {				//or type a new search string
-			   
-		//then go to next/previous note in the list
-		int selectedRow = [notesTableView selectedRow];
-		rowNumber = (tag == NSFindPanelActionPrevious ? (selectedRow < 1 ? totalNotes - 1 : selectedRow - 1) : 
-					 (selectedRow >= totalNotes - 1 ? 0 : selectedRow + 1));
-    }
-    
-    if (rowNumber > -1 && tag != NSFindPanelActionShowFindPanel) {
-		//when skipping notes, also set the selection depending on find direction
-		[notesTableView selectRowAndScroll:rowNumber];
-		[self setSelectedRange:NSMakeRange((tag == NSFindPanelActionPrevious ? [[self string] length] : 0),0)];
-    }
-    
-	if ([controller selectedNoteObject])
-		[[self window] makeFirstResponder:self];
-	
-	//[textFinder setTextObjectToSearchIn:self];
-	[super performFindPanelAction:sender];
-	//NSLog(@"textfienders win resp: %@",[[[textFinder findPanel:YES] firstResponder]description]);NSFindPanelTextView
-	[stringDuringFind release];
-	stringDuringFind = [currentFindString retain];
-	noteDuringFind = [controller selectedNoteObject];
-	selectedRangeDuringFind = [self selectedRange];
-	lastAutomaticallySelectedRange = selectedRangeDuringFind;
-}
-
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
     [[NSApp delegate] resetModTimers];
 	if ([anEvent modifierFlags] & NSCommandKeyMask) {
@@ -869,7 +802,6 @@ copyRTFType:
         [self insertNewlineIgnoringFieldEditor:self]; 
 		return;
     }
-    
     //[super interpretKeyEvents:[NSArray arrayWithObject:anEvent]];
 	[super keyDown:anEvent];
     
@@ -953,6 +885,20 @@ copyRTFType:
 		[self insertText:@"\t"];
 	}
 }
+
+
+
+//- (NSArray *)visibleCharacterRanges{
+//     NSLog(@"visCharRanges :>%@< leFrame:%@  scrlFrame:%@",[[super visibleCharacterRanges] description],NSStringFromRect([self frame]),NSStringFromRect([[self enclosingScrollView]frame]));
+//    return [super visibleCharacterRanges];
+//}
+
+//- (void)drawCharactersInRange:(NSRange)range forContentView:(NSView *)view{
+//    NSLog(@"drawCharacters in Range:%@ ",NSStringFromRange(range));
+//    NSAttributedString *attStr;
+////    [attStr drawWithRect:<#(NSRect)#> options:<#(NSStringDrawingOptions)#>]
+////    [super drawCharactersInRange:range forContentView:view];
+//}
 
 - (void)insertText:(id)string {
     BOOL interpretEvent = YES;
@@ -1201,7 +1147,16 @@ copyRTFType:
 		[menuItem setState:menuItemState];
 
 		return YES;
-	}
+	}else if (action==@selector(performFindPanelAction:)) {
+        //for ElasticThreads Find... fix. Also make sure all Find menuItems point their targets to LinkingEditor instead of firstResponder
+        
+        //hide Find and Replace... on Pre-Lion machines
+        if (!IsLionOrLater&&([menuItem tag]==12)) {
+            [menuItem setHidden:YES];
+            return NO;
+        }
+        return YES;
+    }
 	
 	return [super validateMenuItem:menuItem];
 }
@@ -1442,6 +1397,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 								alternateAttributeValue:[NSNumber numberWithFloat:OBLIQUENESS_FOR_ITALIC]];	
 			}
 			[self setTypingAttributes:newTypingAttributes];
+            [newTypingAttributes release];
 		}
 	}
 }
@@ -1546,6 +1502,10 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert Link",@"insert link menu item title") action:@selector(insertLink:) keyEquivalent:@""] autorelease];
 	[theMenuItem setTarget:self];
 	[theMenu addItem:theMenuItem];
+    theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Selection for Find",@"find using selection menu item title") action:@selector(performFindPanelAction:) keyEquivalent:@""] autorelease];
+    [theMenuItem setTag:7];
+	[theMenuItem setTarget:self];
+	[theMenu addItem:theMenuItem];
     [theMenu addItem:[NSMenuItem separatorItem]];
     
 	theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Cut",@"cut menu item title") action:@selector(cut:) keyEquivalent:@""] autorelease];
@@ -1596,14 +1556,14 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 		
         NSMenu *editMenu = [[NSApp mainMenu] numberOfItems] > 2 ? [[[NSApp mainMenu] itemAtIndex:2] submenu] : nil;
 		
-		if (IsSnowLeopardOrLater) {
-            
-			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
-													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
-			[theMenuItem setTarget:self];
-			[editMenu addItem:theMenuItem];
-			[theMenuItem release];
-		}
+//		if (IsSnowLeopardOrLater) {
+//            
+//			theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Use Automatic Text Replacement", "use-text-replacement command in the edit menu")
+//													 action:@selector(toggleAutomaticTextReplacement:) keyEquivalent:@""];
+//			[theMenuItem setTarget:self];
+//			[editMenu addItem:theMenuItem];
+//			[theMenuItem release];
+//		}
 		theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert Link",@"insert link menu item title") action:@selector(insertLink:) keyEquivalent:@"L"] autorelease];
         [theMenuItem setTarget:self];
         [editMenu addItem:theMenuItem];
@@ -1667,11 +1627,219 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver: self];
+    if (IsLionOrLater) {
+        [textFinder release];
+    }
+    [beforeString release];
+    [afterString release];
+    [controlField release];
+    [notesTableView release];
+    [prefsController release];
+    [lastImportedFindString release];
+    [stringDuringFind release];
+    [noteDuringFind release];
+    
 	[super dealloc];
 }
 
 
-//elasticwork
+#pragma mark ElasticThreads additions
+
+- (void)doCommandBySelector:(SEL)aSelector{
+    if (aSelector==@selector(insertTab:)) {
+        NSUInteger closer=[self cursorIsInsidePair:@"]"];
+        if (closer!=NSNotFound) {
+            closer+=[self.beforeString length];
+            if ([self pairIsOnOwnParagraph:@"]"]) {
+                [self insertText:@": http://" replacementRange:NSMakeRange((closer+1), 0)];
+                [self setSelectedRange:NSMakeRange((closer+3), 7)];
+                
+            }else{
+                if ([[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]] hasPrefix:@"http://"]) {
+                    NSString *testString=[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
+                    NSString *appender=@":";
+                    if (![self.afterString hasPrefix:@" "]) {
+                        appender=[appender stringByAppendingString:@" "];
+                    }
+                    
+                    NSUInteger spaceDex=[testString rangeOfString:@" "].location;
+                    NSUInteger nlDex=[testString rangeOfString:@"\n"].location;
+                   
+                    if (nlDex!=NSNotFound) {
+                        if (spaceDex!=NSNotFound&&(spaceDex<nlDex)) {
+                            nlDex=spaceDex;
+                        }
+                    }else if (spaceDex!=NSNotFound){
+                        nlDex=spaceDex;
+                    }
+                    NSUInteger selDex;
+                    if (nlDex!=NSNotFound) {
+                        selDex=nlDex+3;
+                    }else{
+                        selDex=self.afterString.length;
+                    }
+                    selDex+=self.beforeString.length;
+                   
+                    [self insertText:@": " replacementRange:NSMakeRange(closer+1, 0)];
+                    [self setSelectedRange:NSMakeRange(selDex, 0)];
+                }else{
+                    [self insertText:@"[]" replacementRange:NSMakeRange((closer+1), 0)];
+                    [self setSelectedRange:NSMakeRange((closer+2), 0)];
+                }
+            }
+            return;
+        }else if ([self cursorIsImmediatelyPastPair:@"]"]){
+            closer=[self.beforeString length];
+            if ([self pairIsOnOwnParagraph:@"]"]) {
+                [self insertText:@": http://" replacementRange:NSMakeRange(closer, 0)];
+                [self setSelectedRange:NSMakeRange((closer+2), 7)];
+                
+            }else{
+                if ([[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]] hasPrefix:@"http://"]) {
+                    NSString *testString=[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
+                    NSString *appender=@":";
+                    if (![self.afterString hasPrefix:@" "]) {
+                        appender=[appender stringByAppendingString:@" "];
+                    }
+                    
+                    NSUInteger spaceDex=[testString rangeOfString:@" "].location;
+                    NSUInteger nlDex=[testString rangeOfString:@"\n"].location;
+                    
+                    if (nlDex!=NSNotFound) {
+                        if (spaceDex!=NSNotFound&&(spaceDex<nlDex)) {
+                            nlDex=spaceDex;
+                        }
+                    }else if (spaceDex!=NSNotFound){
+                        nlDex=spaceDex;
+                    }
+                    NSUInteger selDex;
+                    if (nlDex!=NSNotFound) {
+                        selDex=nlDex+2;
+                    }else{
+                        selDex=self.afterString.length;
+                    }
+                    selDex+=self.beforeString.length;
+                    
+                    [self insertText:@": " replacementRange:NSMakeRange(closer, 0)];
+                    [self setSelectedRange:NSMakeRange(selDex, 0)];
+                }else{
+                [self insertText:@"[]" replacementRange:NSMakeRange(closer, 0)];
+                [self setSelectedRange:NSMakeRange((closer+1), 0)];
+                }
+            }
+            return;
+        }
+    }
+    [super doCommandBySelector:aSelector];
+}
+
+- (BOOL)pairIsOnOwnParagraph:(NSString *)closingChar{
+   // NSUInteger closer=[self cursorIsInsidePair:closingChar];
+    //if (closer!=NSNotFound) {
+        NSString *openingChar=closingChar;
+        if ([closingChar isEqualToString:@"]"]) {
+            openingChar=@"[";
+        }else if ([closingChar isEqualToString:@")"]){
+            openingChar=@"(";
+        }else{
+            return NO;
+        }
+        //closer+=[self.beforeString length];
+        const unichar nLChar = NSNewlineCharacter;
+        NSString *nL=[NSString stringWithCharacters:&nLChar length:1];
+        NSUInteger startDex;
+//        NSUInteger lineEndDex;
+        NSUInteger contentsEndDex;
+        [[self string] getLineStart:&startDex end:NULL contentsEnd:&contentsEndDex forRange:[self selectedRange]];
+//         NSLog(@"startDex:%lu  contentsEnd:%lu",startDex,contentsEndDex);
+        NSString *thisPar=[[[self string]substringWithRange:NSMakeRange(startDex, (contentsEndDex-startDex))] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+//         NSLog(@"thisPar :>%@<",thisPar);
+        if (([thisPar hasSuffix:closingChar])&&([thisPar hasPrefix:openingChar])) {
+            return YES;
+        }
+        
+        
+        
+//    }
+    return NO;
+}
+
+- (BOOL)cursorIsImmediatelyPastPair:(NSString *)closingCharacter{
+    NSString *testString=[self.beforeString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    if ([testString hasSuffix:closingCharacter]) {
+        testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:closingCharacter]];
+        NSString *openingCharacter=closingCharacter;
+        if ([closingCharacter isEqualToString:@"]"]) {
+            openingCharacter=@"[";
+        }else{
+            return NO;
+        }
+        NSUInteger openingDex=[testString rangeOfString:openingCharacter options:NSBackwardsSearch].location;
+        NSUInteger closingDex=[testString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
+        if ((openingDex!=NSNotFound)&&((closingDex==NSNotFound)||(openingDex>closingDex))) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+- (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter{
+    
+    if(([[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""])||([[self.beforeString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""]))
+        return NSNotFound;
+        
+    NSString *openingChar=closingCharacter;
+    if ([closingCharacter isEqualToString:@"]"]) {
+        openingChar=@"[";
+    }else if ([closingCharacter isEqualToString:@")"]) {
+        openingChar=@"(";
+    }else{
+        return NSNotFound;
+    }
+    
+    NSUInteger openingIndex=[self.beforeString rangeOfString:openingChar options:NSBackwardsSearch].location;
+    NSUInteger closingIndex=[self.beforeString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
+    if ((openingIndex!=NSNotFound)&&((closingIndex==NSNotFound)||(openingIndex>closingIndex))) {
+        closingIndex=[self.afterString rangeOfString:closingCharacter].location;
+        openingIndex=[self.afterString rangeOfString:openingChar].location;
+        if ((closingIndex!=NSNotFound)&&((openingIndex==NSNotFound)||(closingIndex<openingIndex))) {            
+            return closingIndex;
+        }
+    }
+    return NSNotFound;
+    
+}
+
+- (NSString *)afterString{
+    
+    NSRange selRange=[self selectedRange];
+    if (selRange.location==0) {
+        return [self string];
+    }else if ((selRange.location+selRange.length)==[self string].length){
+        return @"";
+    }
+    afterString=[[self string] substringFromIndex:[self selectedRange].location];
+    if (!afterString) {
+//        NSLog(@"afterstring is null");
+        afterString=@"";
+    }
+    return afterString;
+}
+
+- (NSString *)beforeString{
+    NSRange selRange=[self selectedRange];
+    if (selRange.location==[self string].length) {
+        return [self string];
+    }else if (selRange.location==0){
+        return @"";
+    }
+    beforeString=[[self string] substringToIndex:selRange.location];
+    if (!beforeString) {
+//        NSLog(@"beforeString is null");
+        return @"";
+    }
+    return beforeString;
+}
 
 
 - (IBAction)insertLink:(id)sender{
@@ -1691,58 +1859,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     
 } 
 
-- (void)switchFindPanelDelegate{
-	NSTextFinder *textFinder = [NSTextFinder sharedTextFinder];
-    if ([[[self window] contentView] isInFullScreenMode]) {
-		[[textFinder findPanel:YES] setDelegate:self];
-		NSArray *sViews = [[[textFinder findPanel:YES] contentView] subviews];
-		for (id thing in sViews){
-			if ([[thing className] isEqualToString:@"NSButton"]) {
-				NSButton *aBut = thing;
-				if (![aBut target]==nil) {
-					[aBut setTarget:self];
-					[aBut setAction:@selector(findInFullscreen:)];
-				}
-			}
-		}
-	}else {
-		[[textFinder findPanel:YES] setDelegate:textFinder];
-		NSArray *sViews = [[[textFinder findPanel:YES] contentView] subviews];
-		for (id thing in sViews){
-			if ([[thing className] isEqualToString:@"NSButton"]) {
-				NSButton *aBut = thing;
-				if (![aBut target]==nil) {
-					[aBut setTarget:textFinder];
-					[aBut setAction:@selector(performFindPanelAction:)];
-				}
-			}
-		}
-		
-	}
-	[[textFinder findPanel:YES] update];
-}
-
-- (IBAction)findInFullscreen:(id)sender{
-	int findTag = 1;
-	if ([[sender className] isEqualToString:@"NSButton"]) {
-		//NSLog(@"findinfull sender is :%@",[sender title]);
-		if ([[sender title] isEqualToString:@"Replace All"]) {
-			findTag = 4;
-		}else if ([[sender title] isEqualToString:@"Replace"]) {
-			findTag = 5;
-		}else if ([[sender title] isEqualToString:@"Replace & Find"]) {
-			findTag = 6;
-		}else if ([[sender title] isEqualToString:@"Replace"]) {
-			findTag = 5;
-		}else if ([[sender title] isEqualToString:@"Previous"]) {
-			findTag = 3;
-		}else if ([[sender title] isEqualToString:@"Next"]) {
-			findTag = 2;
-		}
-	}
-//	[[NSTextFinder sharedTextFinder] setFindString:[[NSTextFinder sharedTextFinder] findString] writeToPasteboard:NO updateUI:YES];
-	[[NSTextFinder sharedTextFinder] performFindPanelAction:findTag forClient:self];
-}
 
 - (void)mouseDown:(NSEvent *)theEvent{
     [[NSApp delegate] setIsEditing:NO];
@@ -1750,5 +1866,142 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     [super mouseDown:theEvent];
 }
 
+#pragma mark ElasticThreads Lion Find... implementation
+- (void)prepareTextFinder{        
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if (IsLionOrLater) {
+        textFinder=[[[NSTextFinder alloc]init]retain];
+        [textFinder setClient:self];
+        [self setUsesFindBar:YES];
+        [self setIncrementalSearchingEnabled:YES];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hideTextFinderIfNecessary:) name:@"TextFindContextDidChange" object:nil];
+        return;       
+    }
+#endif
+    [self prepareTextFinderPreLion];
+}
+
+- (void)prepareTextFinderPreLion{
+    [self setUsesFindPanel:YES];
+    textFinder=[NSClassFromString(@"NSTextFinder")sharedTextFinder];
+    [[textFinder findPanel:YES] setDelegate:self];
+    NSArray *sViews = [[[textFinder findPanel:YES] contentView] subviews];
+    for (id thing in sViews){
+        if ([[thing className] isEqualToString:@"NSButton"]) {
+            NSButton *aBut = thing;
+            //            if (![aBut target]==nil) {
+            [aBut setTarget:self];
+            [aBut setAction:@selector(performFindPanelAction:)];
+            //            }
+        }
+    }    
+    [[textFinder findPanel:YES] update];
+}
+
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)hideTextFinderIfNecessary:(NSNotification *)aNotification{
+    if ((IsLionOrLater)&&([self textFinderIsVisible])){
+        [textFinder cancelFindIndicator];
+        [textFinder performAction:NSTextFinderActionHideFindInterface];
+        //        [[NSNotificationCenter defaultCenter] removeObserver:self name:@"TextFindContextDidChange" object:nil];
+    }
+}
+#endif
+
+- (BOOL)textFinderIsVisible{
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if ((IsLionOrLater)&&([[self enclosingScrollView]findBarView]!=nil)) {
+        return [[[self enclosingScrollView] subviews]containsObject:[[self enclosingScrollView]findBarView]];
+    }
+#endif
+    return NO;
+}
+
+- (IBAction)performFindPanelAction:(id)sender {
+    id controller = [NSApp delegate];
+    if(![controller setNoteIfNecessary])
+        return;
+    
+    NSInteger findTag=[sender tag];
+    [sender setTarget:self];
+    if(!IsLionOrLater||([sender tag]!=7)){
+        
+        NSString *pbType;
+        if (IsSnowLeopardOrLater) {
+            pbType=NSPasteboardTypeString;
+        }else{
+            pbType=NSStringPboardType;
+        }
+        NSString *typedString = [controller typedString];
+        if (!typedString) typedString = [controlField stringValue];
+        if (!typedString||([typedString length]==0)) {
+            typedString =[[NSPasteboard generalPasteboard]stringForType:pbType];
+        }
+        typedString = [typedString stringByReplacingOccurrencesOfString:@"\"" withString:@""];
+        typedString=[typedString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if ([typedString length] > 0 && ![lastImportedFindString isEqualToString:typedString]) {
+            
+            NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+            [pasteboard declareTypes:[NSArray arrayWithObject:pbType] owner:nil];
+            [pasteboard setString:typedString forType:pbType];
+            [lastImportedFindString release];
+            lastImportedFindString = [typedString retain];
+        }
+    }
+    if ([[self window] firstResponder]!=self) {
+        [[self window]makeFirstResponder:self];
+    }
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+    if (IsLionOrLater) {
+        if((findTag!=1)&&(findTag!=12)&&(findTag!=7)&&(![self textFinderIsVisible])){            
+            [sender setTag:NSTextFinderActionShowFindInterface];
+            [super performTextFinderAction:sender];
+        } 
+        if (findTag==1) {
+            findTag=NSTextFinderActionShowFindInterface;
+        }else if (findTag==2) {            
+            findTag=NSTextFinderActionNextMatch;
+        }else if (findTag==3) {
+            findTag=NSTextFinderActionPreviousMatch;
+        }else if (findTag==4) {
+            findTag=NSTextFinderActionReplaceAll;
+        }else if (findTag==5) {
+            findTag=NSTextFinderActionReplace;
+        }else if (findTag==6) {
+            findTag=NSTextFinderActionReplaceAndFind;
+        }else if (findTag==7) {
+            findTag=(NSTextFinderActionSetSearchString);
+        }else if (findTag==9) {
+            findTag=NSTextFinderActionSelectAll;
+        }else if (findTag==12) {
+            findTag=NSTextFinderActionShowReplaceInterface;
+        }//NSTextFinderActionSelectAll = 9,
+        [sender setTag:findTag];
+        
+        if ([textFinder validateAction:findTag]) {
+            [super performTextFinderAction:sender]; 
+            if ((findTag==NSTextFinderActionSetSearchString)&&(![self textFinderIsVisible])) {
+                [sender setTag:NSTextFinderActionShowFindInterface];
+                [super performTextFinderAction:sender];
+            }            
+        }else{
+            NSLog(@"find action was invalid");
+        }
+        return;
+    }
+#endif
+    //not lion do it the old, hacky way
+    if([sender tag]==1){
+        if([textFinder respondsToSelector:@selector(loadFindStringFromPasteboard)]){                
+            if(![textFinder loadFindStringFromPasteboard]){
+                [textFinder setFindString:lastImportedFindString writeToPasteboard:YES updateUI:YES];
+            }
+        }else{
+            NSLog(@"Apple changed NSTextFinder (loadFindStringFromPasteboard)");
+        }	
+    }
+    [super performFindPanelAction:sender];    
+}
 
 @end

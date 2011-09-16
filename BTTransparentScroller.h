@@ -10,11 +10,10 @@
 // Modified again by ElasticThreads on 03/10/11
 
 #import <Cocoa/Cocoa.h>
+#import "ETTransparentScroller.h"
 
-@interface BTTransparentScroller : NSScroller {
-	BOOL isVertical;
+@interface BTTransparentScroller : ETTransparentScroller {
 
 }
--(void)setBackgroundColor:(NSColor*)bgcolor;
 
 @end

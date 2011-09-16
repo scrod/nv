@@ -8,33 +8,23 @@
 //
 
 #import <Cocoa/Cocoa.h>
-//#import "LinkingEditor.h"
 
 
-
-@interface ETTransparentScroller : NSScroller 
-{
-	#if DELAYED_LAYOUT
-	float actualProportion, actualPosition;
-	id contentViewDelegate;
-	NSRect rectForSuppressedUpdate;
-	BOOL disableUpdating;
-	#endif
-	//NSColor *scrollBackgroundColor;
-	//BOOL lionStyle;
+@interface ETTransparentScroller : NSScroller {
+    NSImage *knobTop, *knobVerticalFill, *knobBottom, *slotTop, *slotVerticalFill, *slotBottom;
+    float verticalPaddingLeft;
+    float verticalPaddingRight;
+    float verticalPaddingTop;
+    float verticalPaddingBottom;
+    float minKnobHeight;
+    float slotAlpha;
+    float knobAlpha;
+    BOOL isOverlay;
+    BOOL fillBackground;
 }
-#if DELAYED_LAYOUT
-- (void)setDisableUpdating:(BOOL)disable;
 
-- (void)clearSuppressedRects;
-- (void)restoreSuppressedRects;
+- (void)setFillBackground:(BOOL)fillIt;
 
-- (void)setContentViewDelegate:(id)aDelegate;
-- (id)contentViewDelegate;
-
-#endif
-//- (void)setLionStyle:(BOOL)isLion;
-//- (void)setBackgroundColor:(NSColor *)inColor;
 
 @end
 

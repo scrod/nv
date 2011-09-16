@@ -30,6 +30,7 @@
 #import "NSString_NV.h"
 #import "NotesTableHeaderCell.h"
 #import "LinkingEditor.h"
+#import "AppController.h"
 //#import "NotesTableCornerView.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
@@ -359,16 +360,16 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	}
 }
 
-- (double)distanceFromRow:(int)aRow forVisibleArea:(NSRect)visibleRect {
+- (double)distanceFromRow:(NSUInteger)aRow forVisibleArea:(NSRect)visibleRect {
 	return [self rectOfRow:aRow].origin.y - visibleRect.origin.y;
 }
 
 - (ViewLocationContext)viewingLocation {
 	ViewLocationContext ctx;
 	
-	int pivotRow = [[self selectedRowIndexes] firstIndex];
+	NSUInteger pivotRow = [[self selectedRowIndexes] firstIndex];
 	
-	int nRows = [self numberOfRows];
+	NSUInteger nRows = (NSUInteger)[self numberOfRows];
 	
 	NSRect visibleRect = [self visibleRect];
 	NSRange range = [self rowsInRect:visibleRect];
@@ -386,7 +387,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	ctx.nonRetainedPivotObject = nil;
 	ctx.verticalDistanceToPivotRow = 0;
 	
-	if ((unsigned int)pivotRow < (unsigned int)nRows) {
+	if (pivotRow < nRows) {
 		if ((ctx.nonRetainedPivotObject = [(FastListDataSource*)[self dataSource] immutableObjects][pivotRow])) {
 			ctx.verticalDistanceToPivotRow = [self distanceFromRow:pivotRow forVisibleArea:visibleRect];
 		}
@@ -747,7 +748,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 
 - (void)mouseDown:(NSEvent*)event {
     if ([event clickCount]==1) {
-        [[self delegate] setIsEditing:NO];
+        [(AppController *)[self delegate] setIsEditing:NO];
     }
 	//this seems like it should happen automatically, but it does not.
 	if (![NSApp isActive]) {
@@ -1001,7 +1002,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			[self editRowAtColumnWithIdentifier:NoteLabelsColumnString];
 			return YES;
 		}else{
-            [[self delegate] setIsEditing:NO];
+            [(AppController *)[self delegate] setIsEditing:NO];
         }
 	} else if (command == @selector(insertBacktab:)) {
 		
@@ -1011,10 +1012,10 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			[self editRowAtColumnWithIdentifier:NoteTitleColumnString];
 			return YES;
 		}else{
-            [[self delegate] setIsEditing:NO];
+            [(AppController *)[self delegate] setIsEditing:NO];
         }
 	}else if (command == @selector(insertNewline:)) {
-        [[self delegate] setIsEditing:NO];
+        [(AppController *)[self delegate] setIsEditing:NO];
     }
 	
 	return NO;
@@ -1108,7 +1109,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 - (void)editColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex withEvent:(NSEvent *)event select:(BOOL)flag {
     
-    [[self delegate] setIsEditing:YES];
+    [(AppController *)[self delegate] setIsEditing:YES];
 	BOOL isTitleCol = [self columnWithIdentifier:NoteTitleColumnString] == columnIndex;
 	
 	//if event's mouselocation is inside rowIndex cell's tag rect and this edit is in horizontal mode in the title column
@@ -1162,7 +1163,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 
 - (BOOL)abortEditing {
-    [[self delegate] setIsEditing:NO];
+    [(AppController *)[self delegate] setIsEditing:NO];
 	BOOL result = [super abortEditing];
 	[self updateTitleDereferencorState];
 	return result;
@@ -1189,7 +1190,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}
 }
 
-- (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(int)index{
+- (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(NSInteger)index{
     NSRange charRange = [fieldString rangeOfString:fieldString];
     NSArray *tags = [NSArray arrayWithObject:@""];
     if (charRange.location != NSNotFound) {
@@ -1213,7 +1214,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 			{
 				NSSet *existingWordSet = [NSSet setWithArray:[fieldString labelCompatibleWords]];
 				tags = [labelsListSource labelTitlesPrefixedByString:[fieldString substringWithRange:charRange] 
-														  indexOfSelectedItem:index minusWordSet:existingWordSet];
+														  indexOfSelectedItem:&index minusWordSet:existingWordSet];
 				
                 //NSLog(@"tags is :%@",[tags description]);
 			}
@@ -1311,9 +1312,9 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 - (void)highlightSelectionInClipRect:(NSRect)clipRect
 {
 	CGFloat fWhite;
-	CGFloat endWhite;
+//	CGFloat endWhite;
 	CGFloat fAlpha;
-	NSColor *backgroundColor = [[self delegate] backgrndColor];
+	NSColor *backgroundColor = [(AppController *)[self delegate] backgrndColor];
     
 	NSColor	*gBack = [backgroundColor colorUsingColorSpaceName:NSCalibratedWhiteColorSpace];
 	NSColor *evenColor = backgroundColor;
@@ -1321,10 +1322,10 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	[gBack getWhite:&fWhite alpha:&fAlpha];
 	if ([globalPrefs alternatingRows]) {
 		if (fWhite < 0.5f) {
-			endWhite = fWhite + 0.25f;
+//			endWhite = fWhite + 0.25f;
 			oddColor = [backgroundColor blendedColorWithFraction:0.05f ofColor:[NSColor whiteColor]];
 		} else {
-			endWhite = fWhite-0.28f;
+//			endWhite = fWhite-0.28f;
 			oddColor = [backgroundColor blendedColorWithFraction:0.05f ofColor:[NSColor blackColor]];
 		}
 	}

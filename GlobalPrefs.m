@@ -72,7 +72,7 @@ static NSString *LastSelectedNoteUUIDBytesKey = @"LastSelectedNoteUUIDBytes";
 static NSString *LastSelectedPreferencesPaneKey = @"LastSelectedPrefsPane";
 //elasticthreads prefs
 static NSString *StatusBarItem = @"StatusBarItem";
-static NSString	*HideDockIcon = @"HideDockIcon";
+static NSString	*ShowDockIcon = @"ShowDockIcon";
 static NSString	*KeepsMaxTextWidth = @"KeepsMaxTextWidth";
 static NSString	*NoteBodyMaxWidth = @"NoteBodyMaxWidth";
 static NSString	*ColorScheme = @"ColorScheme";
@@ -85,6 +85,7 @@ static NSString *RTLKey = @"rtl";
 static NSString *ShowWordCount = @"ShowWordCount";
 static NSString *markupPreviewMode = @"markupPreviewMode";
 static NSString *UseAutoPairing = @"UseAutoPairing";
+static NSString *UseETScrollbarsOnLion = @"UseETScrollbarsOnLion";
 //static NSString *PasteClipboardOnNewNoteKey = @"PasteClipboardOnNewNote";
 
 //these 4 strings manually localized
@@ -146,7 +147,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:NO], KeepsMaxTextWidth,
 			[NSNumber numberWithFloat:660.0], NoteBodyMaxWidth,
 			[NSNumber numberWithInt:2], ColorScheme,
-			@"Hide Dock Icon",HideDockIcon,
+            [NSNumber numberWithBool:YES],ShowDockIcon,
 			[NSNumber numberWithBool:NO], RTLKey,
             [NSNumber numberWithBool:YES], ShowWordCount,
             [NSNumber numberWithInt:MultiMarkdownPreview], markupPreviewMode,
@@ -155,6 +156,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
             [NSNumber numberWithBool:YES], ShowGridKey,
             [NSNumber numberWithBool:NO], AlternatingRowsKey,
             [NSNumber numberWithBool:NO], UseAutoPairing,
+            [NSNumber numberWithBool:NO], UseETScrollbarsOnLion,
 			
 			[NSArchiver archivedDataWithRootObject:
 			 [NSFont fontWithName:@"Helvetica" size:12.0f]], NoteBodyFontKey,
@@ -201,10 +203,11 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			
 			NSMutableArray *senders = [selectorObservers objectForKey:selectorKey];
 			if (!senders) {
-				senders = [[NSMutableArray alloc] initWithCapacity:1];
+				senders = [[[NSMutableArray alloc] initWithCapacity:1] autorelease];
 				[selectorObservers setObject:senders forKey:selectorKey];
 			}
 			[senders addObject:sender];
+//            [senders release];
 		} while (( aSEL = va_arg( argList, SEL) ) != nil);
 		va_end(argList);
 		
@@ -433,6 +436,16 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (void)setShowWordCount:(BOOL)value{
 	[defaults setBool:value forKey:ShowWordCount];
 }
+
+- (void)setUseETScrollbarsOnLion:(BOOL)value sender:(id)sender{
+	[defaults setBool:value forKey:UseETScrollbarsOnLion];
+	SEND_CALLBACKS();
+}
+
+- (BOOL)useETScrollbarsOnLion{
+	return [defaults boolForKey:UseETScrollbarsOnLion];
+}
+
 
 - (void)setUseMarkdownImport:(BOOL)value sender:(id)sender {
 	[defaults setBool:value forKey:UseMarkdownImportKey];
@@ -996,6 +1009,11 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 
 //elasticthreads' work
 
+- (void)setManagesTextWidthInWindow:(BOOL)manageIt sender:(id)sender{
+    [defaults setBool:manageIt forKey:KeepsMaxTextWidth];
+	SEND_CALLBACKS();
+}
+
 - (BOOL)managesTextWidthInWindow{
 	return [defaults boolForKey:KeepsMaxTextWidth];
 }
@@ -1005,9 +1023,12 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	return [[defaults objectForKey:NoteBodyMaxWidth]floatValue];
 }
 
-- (void)setMaxNoteBodyWidth:(CGFloat)maxWidth{
+- (void)setMaxNoteBodyWidth:(CGFloat)maxWidth sender:(id)sender{
 	[defaults setObject:[NSNumber numberWithFloat:maxWidth] forKey:NoteBodyMaxWidth];
-	[defaults synchronize];
+//	[defaults synchronize];
+	SEND_CALLBACKS();
 }
+
+
 
 @end

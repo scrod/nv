@@ -263,7 +263,7 @@
 		}
 	}
 	
-	NSLog(@"verified %u notes in %g s", [notesToVerify count], (float)[[NSDate date] timeIntervalSinceDate:date]);
+	NSLog(@"verified %lu notes in %g s", [notesToVerify count], (float)[[NSDate date] timeIntervalSinceDate:date]);
 returnResult:
 	if (notesData) free(notesData);
 	return [NSNumber numberWithInt:result];
@@ -420,7 +420,7 @@ bail:
 - (void)processRecoveredNotes:(NSDictionary*)dict {
     const unsigned int vListBufCount = 16;
     void* keysBuffer[vListBufCount], *valuesBuffer[vListBufCount];
-    unsigned int i, count = [dict count];
+    NSUInteger i, count = [dict count];
     
     void **keys = (count <= vListBufCount) ? keysBuffer : (void **)malloc(sizeof(void*) * count);
     void **values = (count <= vListBufCount) ? valuesBuffer : (void **)malloc(sizeof(void*) * count);
@@ -585,8 +585,8 @@ bail:
 }
 
 //notation prefs delegate method
-- (void)databaseSettingsChangedFromOldFormat:(int)oldFormat {
-	int currentStorageFormat = [notationPrefs notesStorageFormat];
+- (void)databaseSettingsChangedFromOldFormat:(NSInteger)oldFormat {
+	NSInteger currentStorageFormat = [notationPrefs notesStorageFormat];
     
 	if (!walWriter && ![self initializeJournaling]) {
 		[self performSelector:@selector(handleJournalError) withObject:nil afterDelay:0.0];
@@ -725,7 +725,7 @@ bail:
 		
 		NSString *trashLocation = [[[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
 		if (!trashLocation) trashLocation = @"unknown";
-		int result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
+		NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
 											 NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?",nil),
 											 NSLocalizedString(@"Relocate Notes",nil), NSLocalizedString(@"Quit",nil), NULL);
 		if (result == NSAlertDefaultReturn)

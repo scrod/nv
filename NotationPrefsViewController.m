@@ -26,6 +26,7 @@
 #import "SimplenoteSession.h"
 #import "PassphrasePicker.h"
 #import "PassphraseChanger.h"
+//#import "AppController.h"
 
 @implementation FileKindListView 
 
@@ -104,7 +105,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 - (void)tableViewSelectionDidChange:(NSNotification *)aNotification {
 	NSTableView *tv = [aNotification object];
-	BOOL isRowSelected = [tv selectedRow] > -1;
+	BOOL isRowSelected = (([tv selectedRow] > -1)&&([tv selectedRow]!=NSNotFound));
 	
 	if (tv == allowedExtensionsTable) {
 		[removeExtensionButton setEnabled:isRowSelected];
@@ -303,7 +304,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	[self updateRemoveKeychainItemStatus];
 }
 
-- (int)notesStorageFormatInProgress {
+- (NSInteger)notesStorageFormatInProgress {
 	return notesStorageFormatInProgress;
 }
 
@@ -322,7 +323,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (IBAction)changedFileStorageFormat:(id)sender {
-    int storageTag = [storageFormatPopupButton selectedTag];
+    NSInteger storageTag = [storageFormatPopupButton selectedTag];
 	if (storageTag != SingleDatabaseFormat && [notationPrefs doesEncryption]) {
 		if (NSRunAlertPanel(NSLocalizedString(@"Encryption is currently on, but storing notes individually requires it to be off. Disable encryption?",nil),
 							NSLocalizedString(@"Warning: Your notes will be written to disk in clear text.",nil), NSLocalizedString(@"Disable Encryption",nil), 
@@ -366,9 +367,9 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	}else {
 		[[NSUserDefaults standardUserDefaults] setObject:@"Default" forKey:@"TextEditor"];
 		[[NSUserDefaults standardUserDefaults] synchronize];
-		if ( [[NSApp delegate] respondsToSelector: @selector(updateTextApp:)] ) {
-			[[NSApp delegate] updateTextApp:self];
-		}
+//		if ( [[NSApp delegate] respondsToSelector: @selector(updateTextApp:)] ) {
+//			[[NSApp delegate] updateTextApp:self];
+//		}
 	}
 
 	
@@ -488,8 +489,8 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (IBAction)makeDefaultExtension:(id)sender {
 	[[allowedExtensionsTable window] makeFirstResponder:allowedExtensionsTable];
 	
-	int selectedRow = [allowedExtensionsTable selectedRow];
-	if (selectedRow > -1)
+	NSUInteger selectedRow = (NSUInteger)[allowedExtensionsTable selectedRow];
+	if (selectedRow != NSNotFound)
 		[notationPrefs setChosenPathExtensionAtIndex:selectedRow];
 	
 	[allowedExtensionsTable reloadData];	
@@ -498,8 +499,8 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (IBAction)removedExtension:(id)sender {
 	[allowedExtensionsTable abortEditing];
 	
-	int selectedRow = [allowedExtensionsTable selectedRow];
-	if (selectedRow > -1)
+	NSUInteger selectedRow = (NSUInteger)[allowedExtensionsTable selectedRow];
+	if (selectedRow != NSNotFound)
 		if (![notationPrefs removeAllowedPathExtensionAtIndex:selectedRow]) NSBeep();
 	
 	[allowedExtensionsTable reloadData];
@@ -508,8 +509,8 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (IBAction)removedType:(id)sender {
 	[allowedTypesTable abortEditing];
 	
-	int selectedRow = [allowedTypesTable selectedRow];
-	if (selectedRow > -1)
+	NSUInteger selectedRow =(NSUInteger)[allowedTypesTable selectedRow];
+	if (selectedRow !=NSNotFound)
 		[notationPrefs removeAllowedTypeAtIndex:selectedRow];
 	
 	[allowedTypesTable reloadData];
@@ -545,7 +546,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (void)enableEncryption {
 	if (!picker) picker = [[PassphrasePicker alloc] initWithNotationPrefs:notationPrefs];
 	
-	int format = [notationPrefs notesStorageFormat];
+	NSInteger format = [notationPrefs notesStorageFormat];
 	if (format == SingleDatabaseFormat) {
 		
 		[picker showAroundWindow:[view window] resultDelegate:self];

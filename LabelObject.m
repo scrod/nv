@@ -106,7 +106,7 @@ int compareLabel(const void *one, const void *two) {
 - (BOOL)isEqual:(id)anObject {
     return [lowercaseName isEqualToString:[anObject associativeIdentifier]];
 }
-- (unsigned)hash {
+- (NSUInteger)hash {
     return lowercaseHash;
 }
 

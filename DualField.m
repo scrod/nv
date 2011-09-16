@@ -258,7 +258,7 @@
 	if ([theEvent trackingNumber] == docIconRectTag) {
 		[[self cell] setShowsSnapbackButton:[self showsDocumentIcon]];
 	} else {
-		NSLog(@"got mouse entered on a different tracking number: %d", [theEvent trackingNumber]);
+		NSLog(@"got mouse entered on a different tracking number: %ld", [theEvent trackingNumber]);
 	}
 }
 - (void)mouseExited:(NSEvent *)theEvent {

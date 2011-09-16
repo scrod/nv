@@ -10,8 +10,6 @@
      or promote products derived from this software without specific prior written permission. */
 //ET NV4
 
-//#import "NVTransparentScroller.h"
-
 #import "NSTextFinder.h"
 #import "AppController.h"
 #import "NoteObject.h"
@@ -36,7 +34,7 @@
 #import "DualField.h"
 #import "TitlebarButton.h"
 #import "RBSplitView/RBSplitView.h"
-#import "AugmentedScrollView.h"
+//#import "AugmentedScrollView.h"
 #import "BookmarksController.h"
 #import "SyncSessionController.h"
 #import "MultiplePageView.h"
@@ -50,6 +48,7 @@
 #import "ETContentView.h"
 #import "PreviewController.h"
 #import "ETClipView.h"
+#import "ETScrollView.h"
 
 #define NSApplicationPresentationAutoHideMenuBar (1 <<  2)
 #define NSApplicationPresentationHideMenuBar (1 <<  3)
@@ -86,8 +85,11 @@ BOOL isEd;
     
 		previewController = [[PreviewController alloc] init];
 		
-    [[NSNotificationCenter defaultCenter] addObserver:previewController selector:@selector(requestPreviewUpdate:) name:@"TextView has changed contents" object:self];
-    
+      NSNotificationCenter *nc=[NSNotificationCenter defaultCenter];
+    [nc addObserver:previewController selector:@selector(requestPreviewUpdate:) name:@"TextView has changed contents" object:self];
+      [nc addObserver:self selector:@selector(toggleAttachedWindow:) name:@"NVShouldActivate" object:nil];
+      [nc addObserver:self selector:@selector(toggleAttachedMenu:) name:@"StatusItemMenuShouldDrop" object:nil];
+     [nc addObserver:self selector:@selector(togDockIcon:) name:@"AppShouldToggleDockIcon" object:nil];
 		
 		// Setup URL Handling
 		NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
@@ -103,7 +105,7 @@ BOOL isEd;
 }
 
 - (void)awakeFromNib {
-	if (![[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Show Dock Icon"]){		
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"]){		
 		
         if((IsSnowLeopardOrLater)&&([[NSApplication sharedApplication] respondsToSelector: @selector(setActivationPolicy:)])) {
             enum {NSApplicationActivationPolicyRegular};	
@@ -185,7 +187,6 @@ BOOL isEd;
 	[field setDelegate:self];
 	[textView setDelegate:self];
 
-    
 	//set up temporary FastListDataSource containing false visible notes
 		
 	//this will not make a difference
@@ -329,7 +330,7 @@ void outletObjectAwoke(id sender) {
 	// add elasticthreads' menuitems
 	NSMenuItem *theMenuItem = [[[NSMenuItem alloc] init] autorelease];
 	[theMenuItem setTarget:self];
-	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
+//	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	theMenuItem = [theMenuItem copy];
 //	[statBarMenu insertItem:theMenuItem atIndex:4];
 	[theMenuItem release];
@@ -344,7 +345,9 @@ void outletObjectAwoke(id sender) {
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
         if (IsLionOrLater) {
             //  [window setCollectionBehavior:NSWindowCollectionBehaviorTransient|NSWindowCollectionBehaviorMoveToActiveSpace];
+//            
             [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+//            [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenAuxiliary];
             [NSApp setPresentationOptions:NSApplicationPresentationFullScreen];
 
        
@@ -389,7 +392,7 @@ void outletObjectAwoke(id sender) {
 	}
 	
 	if (aliasData) {
-	    newNotation = [[NotationController alloc] initWithAliasData:aliasData error:&err];
+	    newNotation = [[NotationController alloc] initWithAliasData:aliasData error:&err];//autorelease]
 	    subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.",nil);
 	} else {
 	    newNotation = [[NotationController alloc] initWithDefaultDirectoryReturningError:&err];
@@ -432,7 +435,6 @@ void outletObjectAwoke(id sender) {
 	}
 	
 	[self setNotationController:newNotation];
-	[newNotation release];
 	
 	NSLog(@"load time: %g, ",[[NSDate date] timeIntervalSinceDate:before]);
 	//	NSLog(@"version: %s", PRODUCT_NAME);
@@ -440,8 +442,9 @@ void outletObjectAwoke(id sender) {
 	//import old database(s) here if necessary
 	[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation:newNotation];
 	
+	[newNotation release];
 	if (pathsToOpenOnLaunch) {
-		[notationController openFiles:[pathsToOpenOnLaunch autorelease]];
+		[notationController openFiles:[pathsToOpenOnLaunch autorelease]];//autorelease
 		pathsToOpenOnLaunch = nil;
 	}
 	
@@ -462,7 +465,7 @@ void outletObjectAwoke(id sender) {
 	 @selector(removeTableColumn:sender:),  //ditto
 	 @selector(setTableColumnsShowPreview:sender:),  //when to tell notationcontroller to generate or disable note-body previews
 	 @selector(setConfirmNoteDeletion:sender:),  //whether "delete note" should have an ellipsis
-	 @selector(setAutoCompleteSearches:sender:), nil];   //when to tell notationcontroller to build its title-prefix connections
+	 @selector(setAutoCompleteSearches:sender:),@selector(setUseETScrollbarsOnLion:sender:), nil];   //when to tell notationcontroller to build its title-prefix connections
 	
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.0];
 			
@@ -572,7 +575,7 @@ terminateApp:
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	SEL selector = [menuItem action];
-	int numberSelected = [notesTableView numberOfSelectedRows];
+	NSInteger numberSelected = [notesTableView numberOfSelectedRows];
 	NSInteger tag = [menuItem tag];
     
     if ((tag == TextilePreview) || (tag == MarkdownPreview) || (tag == MultiMarkdownPreview)) {
@@ -654,7 +657,7 @@ terminateApp:
 - (void)updateNoteMenus {
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
-	int menuIndex = [notesMenu indexOfItemWithTarget:self andAction:@selector(deleteNote:)];
+	NSInteger menuIndex = [notesMenu indexOfItemWithTarget:self andAction:@selector(deleteNote:)];
 	NSMenuItem *deleteItem = nil;
 	if (menuIndex > -1 && (deleteItem = [notesMenu itemAtIndex:menuIndex]))	{
 		NSString *trailingQualifier = [prefsController confirmNoteDeletion] ? NSLocalizedString(@"...", @"ellipsis character") : @"";
@@ -1000,17 +1003,12 @@ terminateApp:
 		if ([prefsController autoCompleteSearches])
 			[notationController updateTitlePrefixConnections];
 		
-	} else if ([selectorString isEqualToString:SEL_STR(setMaxNoteBodyWidth:sender:)]) {
-//        [textScrollView setNeedsDisplay:YES];
-     
-		[self setMaxNoteBodyWidth];
-	
-	}
+	} 
 	
 }
 
 - (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn {
-    NSLog(@"dickclicktablecol");
+//    NSLog(@"dickclicktablecol");
     if (tableView == notesTableView) {
 		//this sets global prefs options, which ultimately calls back to us
 		[notesTableView setStatusForSortedColumn:tableColumn];
@@ -1113,7 +1111,10 @@ terminateApp:
 - (void)cancelOperation:(id)sender {
 	//simulate a search for nothing
 	if ([window isKeyWindow]) {
-		
+		if (IsLionOrLater&&([textView textFinderIsVisible])) {
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:self];
+            return;
+        }
 		[field setStringValue:@""];
 		typedStringIsCached = NO;
 		
@@ -1131,7 +1132,13 @@ terminateApp:
 	}
 }
 
+//- (BOOL)textView:(NSTextView *)aTextView doCommandBySelector:(SEL)aSelector{
+//    NSLog(@"AtextView:%@ doCommand:%@",[aTextView description],NSStringFromSelector(aSelector));
+//    return NO;
+//}
+
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)aTextView doCommandBySelector:(SEL)command {
+//    NSLog(@"BtextView:%@ doCommand:%@",[aTextView description],NSStringFromSelector(command));
 	if (control == (NSControl*)field) {
 		
         isEd=NO;
@@ -1149,7 +1156,7 @@ terminateApp:
 			BOOL singleSelection = ([notesTableView numberOfRows] == 1 && [notesTableView numberOfSelectedRows] == 1);
 			[notesTableView keyDown:[window currentEvent]];
 			
-			unsigned int strLen = [[aTextView string] length];
+			NSUInteger strLen = [[aTextView string] length];
 			if (!singleSelection && [aTextView selectedRange].length != strLen) {
 				[aTextView setSelectedRange:NSMakeRange(0, strLen)];
 			}
@@ -1237,7 +1244,7 @@ terminateApp:
         
 		if (command == @selector(insertNewline:)) {
             if ([aTextView selectedRange].length>0) {
-                NSString *theLabels = [TagEditer newMultinoteLabels];
+                NSString *theLabels = [[TagEditer newMultinoteLabels] autorelease];
                 if (![theLabels hasSuffix:@" "]) {
                     theLabels = [theLabels stringByAppendingString:@" "];
                 }
@@ -1247,7 +1254,7 @@ terminateApp:
             }
 		}else if (command == @selector(insertTab:)) {
             if ([aTextView selectedRange].length>0) {
-                NSString *theLabels = [TagEditer newMultinoteLabels];
+                NSString *theLabels = [[TagEditer newMultinoteLabels] autorelease];
                 if (![theLabels hasSuffix:@" "]) {
                     theLabels = [theLabels stringByAppendingString:@" "];
                 }
@@ -1382,9 +1389,9 @@ terminateApp:
 	} else if ([TagEditer isMultitagging]) { //<--for elasticthreads multitagging
         if (!isAutocompleting&&!wasDeleting) {
             isAutocompleting = YES;                
-            NSTextView *editor = [[TagEditer tagPanel] fieldEditor:YES forObject:[TagEditer tagField]];
+            NSTextView *editor = (NSTextView *)[[TagEditer tagPanel] fieldEditor:YES forObject:[TagEditer tagField]];
             NSRange selRange = [editor selectedRange];
-            NSString *tagString = [TagEditer newMultinoteLabels];
+            NSString *tagString = [[TagEditer newMultinoteLabels] autorelease];
             NSString *searchString = tagString;
             if (selRange.length>0) {
                  searchString = [searchString substringWithRange:selRange];
@@ -1408,6 +1415,7 @@ terminateApp:
                 }
             }
             isAutocompleting = NO;
+//            [tagString release];
         }
         wasDeleting = NO;
     }
@@ -1423,7 +1431,7 @@ terminateApp:
 	NSEventType type = [event type];
 	//do not allow drag-selections unless a modifier is pressed
 	if (type == NSLeftMouseDragged || type == NSLeftMouseDown) {
-		unsigned flags = [event modifierFlags];
+		NSUInteger flags = [event modifierFlags];
 		if ((flags & NSShiftKeyMask) || (flags & NSCommandKeyMask)) {
 			allowMultipleSelection = YES;
 		}
@@ -1454,6 +1462,9 @@ terminateApp:
 }
 
 - (void)tableViewSelectionDidChange:(NSNotification *)aNotification {
+    if (IsLionOrLater) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:self];
+    }
     isEd = NO;
 	NSEventType type = [[window currentEvent] type];
 	if (type != NSKeyDown && type != NSKeyUp) {
@@ -1464,8 +1475,8 @@ terminateApp:
 }
 
 - (void)processChangedSelectionForTable:(NSTableView*)table {
-	int selectedRow = [table selectedRow];
-	int numberSelected = [table numberOfSelectedRows];
+	NSInteger selectedRow = [table selectedRow];
+	NSInteger numberSelected = [table numberOfSelectedRows];
 	
 	NSTextView *fieldEditor = (NSTextView*)[field currentEditor];
 	
@@ -1493,7 +1504,7 @@ terminateApp:
 						if (fieldEditor) {
 							//the field editor has focus--select text, too
 							[fieldEditor setString:titleOfNote(currentNote)];
-							unsigned int strLen = [titleOfNote(currentNote) length];
+							NSUInteger strLen = [titleOfNote(currentNote) length];
 							if (strLen != [fieldEditor selectedRange].length)
 								[fieldEditor setSelectedRange:NSMakeRange(0, strLen)];
 						} else {
@@ -1557,6 +1568,15 @@ terminateApp:
 	[self setEmptyViewState:currentNote == nil];
 	[field setShowsDocumentIcon:currentNote != nil];
 	[[field cell] setShowsClearButton:currentNote != nil || [[field stringValue] length]];
+}
+
+
+- (BOOL)setNoteIfNecessary{
+    if (currentNote==nil) {
+        [notesTableView selectRowAndScroll:0];
+        return (currentNote!=nil);
+    }
+    return YES;
 }
 
 - (void)setEmptyViewState:(BOOL)state {
@@ -1639,13 +1659,15 @@ terminateApp:
 //from linkingeditor
 - (void)textDidChange:(NSNotification *)aNotification {
 	id textObject = [aNotification object];
-	
     //[self resetModTimers];
 	if (textObject == textView) {
 		[currentNote setContentString:[textView textStorage]];
 		[self postTextUpdate];
 		[self updateWordCount:(![prefsController showWordCount])];
 	}
+    if (IsLionOrLater) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:self];
+    }
 }
 
 - (void)textDidBeginEditing:(NSNotification *)aNotification {
@@ -2165,6 +2187,7 @@ terminateApp:
 }
 
 - (void)dealloc {
+    [[NSNotificationCenter defaultCenter]removeObserver:self];
     [fsMenuItem release];
     [mainView release];
     [dualFieldView release];
@@ -2211,6 +2234,10 @@ terminateApp:
 
 - (IBAction)bringFocusToControlField:(id)sender {
 	//For ElasticThreads' fullscreen mode use this if/else otherwise uncomment the expand toolbar
+    
+    if (IsLionOrLater) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:sender];        
+    }
 	if ([notesSubview isCollapsed]) {
 		[self toggleCollapse:self];
 	}else if (![self dualFieldIsVisible]){
@@ -2257,27 +2284,22 @@ terminateApp:
 	return statBarMenu;
 }
 
-- (BOOL)toggleAttachedWindow:(id)sender
+- (void)toggleAttachedWindow:(NSNotification *)aNotification
 {
 	if (![window isKeyWindow]) {
 	//	[self focusOnCtrlFld:self];
 		[NSApp activateIgnoringOtherApps:YES];
 	}else {
-		[NSApp hide:sender];
+		[NSApp hide:[aNotification object]];
 	//	[statusItem popUpStatusItemMenu:statBarMenu];
 	//	return YES;
 	}
-	return NO;
 }
 
-- (BOOL)toggleAttachedMenu:(id)sender
-{
-	/*if (![window isKeyWindow]) {
-	 [self focusOnCtrlFld:self];
-	 }*/	
+- (void)toggleAttachedMenu:(NSNotification *)aNotification
+{	
 	[statusItem popUpStatusItemMenu:statBarMenu];
 	
-	return YES;
 }
 
 
@@ -2341,7 +2363,7 @@ terminateApp:
 	NSString *existTagString;
 	NSMutableArray *theTags = [[[NSMutableArray alloc] init] autorelease];
 	NSString *thisTag = [TagEditer newMultinoteLabels];
-	NSArray *newTags = [thisTag componentsSeparatedByCharactersInSet:tagSeparators];
+	NSArray *newTags = [NSArray arrayWithArray:[thisTag componentsSeparatedByCharactersInSet:tagSeparators]];
 	[thisTag release];
     for (thisTag in newTags) {
         if (([thisTag hasPrefix:@" "])||([thisTag hasSuffix:@" "])) {
@@ -2415,7 +2437,7 @@ terminateApp:
 
 - (void)setDualFieldInView {
 	NSView *dualSV = [field superview];
-	BOOL dfIsVis = [self dualFieldIsVisible];
+//	BOOL dfIsVis = [self dualFieldIsVisible];
 	[dualSV removeFromSuperviewWithoutNeedingDisplay];
 	//NSView *wView = [window contentView];
 	NSSize wSize = [mainView frame].size;
@@ -2531,12 +2553,6 @@ terminateApp:
 }
 
 
-- (void)setMaxNoteBodyWidth{
-    [(ETClipView *)[textScrollView contentView] clipWidthSettingChanged:[textScrollView frame]];
-   	
-}
-
-
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 
@@ -2550,6 +2566,7 @@ terminateApp:
 
 - (void)windowWillEnterFullScreen:(NSNotification *)aNotification{
     //   / [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+    
     if (![splitView isVertical]) {
         [self switchViewLayout:self];
         wasVert = NO;
@@ -2593,7 +2610,9 @@ terminateApp:
 #endif
 
 - (BOOL)isInFullScreen{
-//    NSLog(@"in fs:%d",[mainView isInFullScreenMode]);
+    if (IsLionOrLater) {
+       return (([window styleMask]&NSFullScreenWindowMask)>0);
+    }
     return [mainView isInFullScreenMode];
 
 }
@@ -2601,8 +2620,9 @@ terminateApp:
 - (IBAction)switchFullScreen:(id)sender
 {		
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
-    if (IsLionOrLater) {
-        [window toggleFullScreen:nil];
+    if (IsLionOrLater) {        
+        BOOL inFS=[self isInFullScreen];
+        [window toggleFullScreen:nil];        
 	}else if(IsLeopardOrLater){
 #else
 	 if(IsLeopardOrLater){
@@ -2613,7 +2633,7 @@ terminateApp:
         isEd = NO;
         NSResponder *currentResponder = [window firstResponder];
         NSDictionary* options;
-        if (([[[NSUserDefaults standardUserDefaults] stringForKey:@"HideDockIcon"] isEqualToString:@"Hide Dock Icon"])&&(IsSnowLeopardOrLater)) {
+        if (([[NSUserDefaults standardUserDefaults] boolForKey:@"ShowDockIcon"])&&(IsSnowLeopardOrLater)) {
             options = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:(NSApplicationPresentationAutoHideMenuBar | NSApplicationPresentationHideDock)],@"NSFullScreenModeApplicationPresentationOptions", nil];
         }else {
             options = [NSDictionary dictionaryWithObjectsAndKeys:nil];
@@ -2671,12 +2691,7 @@ terminateApp:
         [field setNextKeyView:textView];
         [textView setNextKeyView:field];
         [window setAutorecalculatesKeyViewLoop:NO];
-        [window makeFirstResponder:currentResponder];
-        
-        [textView switchFindPanelDelegate];
-        [textView setUsesFindPanel:YES];
-        
-        
+        [window makeFirstResponder:currentResponder];       
         [mainView setNeedsDisplay:YES];
         if (![NSApp isActive]) {
             [NSApp activateIgnoringOtherApps:YES];
@@ -2783,9 +2798,9 @@ terminateApp:
 	}
 }
 
-- (void)updateTextApp:(id)sender{
-	[prefsWindowController updateAppList:self];
-}
+//- (void)updateTextApp:(id)sender{
+//	[prefsWindowController updateAppList:self];
+//}
 
 - (IBAction)setBWColorScheme:(id)sender{
 	userScheme=0;
@@ -2855,7 +2870,6 @@ terminateApp:
         }
         [mainView setBackgroundColor:backgrndColor];
 		[notesTableView setBackgroundColor:backgrndColor];
-		[dividerShader updateColors:backgrndColor];
 		
         [self updateFieldAttributes];
 		[NotesTableHeaderCell setForegroundColor:foregrndColor];
@@ -2867,6 +2881,8 @@ terminateApp:
 		if (currentNote) {
 			[self contentsUpdatedForNote:currentNote];
 		} 
+		[dividerShader updateColors:backgrndColor];
+        [splitView setNeedsDisplay:YES];
 	}
 	@catch (NSException * e) {
 		NSLog(@"setting SCheme EXception : %@",[e name]);
@@ -2930,8 +2946,11 @@ terminateApp:
 				theColor = [prefsController backgroundTextColor];
 			}
 
-		}	
-		[self setBackgrndColor:theColor];
+		}else{
+           theColor =  [NSColor whiteColor];            
+        }
+        [self setBackgrndColor:theColor];            
+        
 		return theColor;
 	}else {
 		return backgrndColor;
@@ -3250,4 +3269,46 @@ terminateApp:
     return [super performKeyEquivalent:theEvent];
 }
 
+#pragma mark toggleDock
+- (void)togDockIcon:(NSNotification *)notification{
+    BOOL showIt=[[notification object]boolValue];
+    if (showIt) {	   
+        [self performSelectorOnMainThread:@selector(reactivateAfterDelay) withObject:nil waitUntilDone:NO];
+    }else {
+        [self performSelectorOnMainThread:@selector(relaunchAfterDelay) withObject:nil waitUntilDone:NO];
+        
+    }    
+}
+
+- (void)relaunchAfterDelay{
+    
+    [self performSelector:@selector(relaunchNV:) withObject:self afterDelay:0.22];	
+}
+
+- (void)relaunchNV:(id)sender{
+    id fullPath = [[NSBundle mainBundle] executablePath];
+    NSArray *arg = [NSArray arrayWithObjects:nil];    
+    [NSTask launchedTaskWithLaunchPath:fullPath arguments:arg];
+    [NSApp terminate:sender];
+}
+
+- (void)reactivateAfterDelay{
+    [NSApp hide:self];
+    if((IsSnowLeopardOrLater)&&([NSApp respondsToSelector: @selector(setActivationPolicy:)])) {
+        enum {NSApplicationActivationPolicyRegular};	
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+    }else {
+        ProcessSerialNumber psn = { 0, kCurrentProcess }; 
+        OSStatus returnCode = TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+        if( returnCode != 0) {
+            NSLog(@"Could not bring the application to front. Error %d", returnCode);
+        }
+    }
+    [self performSelector:@selector(reActivate:) withObject:self afterDelay:0.16];
+}
+
+- (void)reActivate:(id)sender{
+    [NSApp activateIgnoringOtherApps:YES];    
+}
+    
 @end

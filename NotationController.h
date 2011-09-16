@@ -62,7 +62,7 @@ typedef struct _NoteCatalogEntry {
     
     NSUInteger selectedNoteIndex;
     char *currentFilterStr, *manglingString;
-    int lastWordInFilterStr;
+    NSInteger lastWordInFilterStr;
     
 	BOOL directoryChangesFound;
     
@@ -124,7 +124,7 @@ typedef struct _NoteCatalogEntry {
 - (void)setDelegate:(id)theDelegate;
 
 - (void)databaseEncryptionSettingsChanged;
-- (void)databaseSettingsChangedFromOldFormat:(int)oldFormat;
+- (void)databaseSettingsChangedFromOldFormat:(NSInteger)oldFormat;
 
 - (int)currentNoteStorageFormat;
 - (void)synchronizeNoteChanges:(NSTimer*)timer;

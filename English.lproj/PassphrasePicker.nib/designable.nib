@@ -2,13 +2,13 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="8.00">
 	<data>
 		<int key="IBDocument.SystemTarget">1050</int>
-		<string key="IBDocument.SystemVersion">11A480b</string>
-		<string key="IBDocument.InterfaceBuilderVersion">1864</string>
-		<string key="IBDocument.AppKitVersion">1127</string>
-		<string key="IBDocument.HIToolboxVersion">561.00</string>
+		<string key="IBDocument.SystemVersion">11B26</string>
+		<string key="IBDocument.InterfaceBuilderVersion">1617</string>
+		<string key="IBDocument.AppKitVersion">1138</string>
+		<string key="IBDocument.HIToolboxVersion">566.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin</string>
-			<string key="NS.object.0">1864</string>
+			<string key="NS.object.0">1617</string>
 		</object>
 		<array key="IBDocument.IntegratedClassDependencies">
 			<string>NSTextField</string>
@@ -24,10 +24,7 @@
 		<array key="IBDocument.PluginDependencies">
 			<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 		</array>
-		<object class="NSMutableDictionary" key="IBDocument.Metadata">
-			<string key="NS.key.0">PluginDependencyRecalculationVersion</string>
-			<integer value="1" key="NS.object.0"/>
-		</object>
+		<dictionary class="NSMutableDictionary" key="IBDocument.Metadata"/>
 		<array class="NSMutableArray" key="IBDocument.RootObjects" id="96709467">
 			<object class="NSCustomObject" id="222197082">
 				<string key="NSClassName">PassphrasePickerController</string>
@@ -66,6 +63,7 @@
 									<int key="NSvFlags">266</int>
 									<string key="NSFrame">{{17, 247}, {440, 41}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="496682251"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSTextFieldCell" key="NSCell" id="667183415">
@@ -103,6 +101,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{17, 207}, {440, 23}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="368735885"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSTextFieldCell" key="NSCell" id="110691569">
@@ -120,6 +119,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{20, 236}, {434, 5}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="961376500"/>
 									<string key="NSOffsets">{0, 0}</string>
 									<object class="NSTextFieldCell" key="NSTitleCell">
@@ -151,6 +151,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{17, 174}, {79, 22}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="659283120"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSTextFieldCell" key="NSCell" id="747008014">
@@ -168,6 +169,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{51, 144}, {45, 22}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="90479301"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSTextFieldCell" key="NSCell" id="1072067069">
@@ -185,6 +187,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{431, 177}, {23, 22}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="997750274"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSButtonCell" key="NSCell" id="649756844">
@@ -218,6 +221,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{101, 177}, {326, 22}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="47213238"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSTextFieldCell" key="NSCell" id="936281296">
@@ -241,6 +245,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{101, 147}, {353, 22}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="1049807428"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSTextFieldCell" key="NSCell" id="367061129">
@@ -259,6 +264,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{99, 123}, {265, 18}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="704497703"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSButtonCell" key="NSCell" id="573763295">
@@ -287,6 +293,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{20, 85}, {13, 13}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="938966227"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSButtonCell" key="NSCell" id="983493534">
@@ -311,6 +318,7 @@
 									<int key="NSvFlags">264</int>
 									<string key="NSFrame">{{38, 82}, {128, 17}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="982020265"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSTextFieldCell" key="NSCell" id="1026343250">
@@ -332,12 +340,14 @@
 									<int key="NSvFlags">-2147483392</int>
 									<string key="NSFrame">{{41, 0}, {413, 74}}</string>
 									<reference key="NSSuperview" ref="91828191"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="512873390"/>
 									<string key="NSClassName">NSView</string>
 								</object>
 							</array>
 							<string key="NSFrame">{{0, -65}, {474, 308}}</string>
 							<reference key="NSSuperview" ref="648414315"/>
+							<reference key="NSWindow"/>
 							<reference key="NSNextKeyView" ref="1067502238"/>
 							<string key="NSClassName">NSView</string>
 						</object>
@@ -350,7 +360,7 @@
 									<int key="NSvFlags">256</int>
 									<string key="NSFrame">{{96, 12}, {82, 32}}</string>
 									<reference key="NSSuperview" ref="512873390"/>
-									<reference key="NSNextKeyView"/>
+									<reference key="NSWindow"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSButtonCell" key="NSCell" id="18770099">
 										<int key="NSCellFlags">604110336</int>
@@ -372,6 +382,7 @@
 									<int key="NSvFlags">256</int>
 									<string key="NSFrame">{{14, 12}, {82, 32}}</string>
 									<reference key="NSSuperview" ref="512873390"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="975300229"/>
 									<bool key="NSEnabled">YES</bool>
 									<object class="NSButtonCell" key="NSCell" id="18866375">
@@ -392,12 +403,14 @@
 							</array>
 							<string key="NSFrame">{{282, 0}, {192, 60}}</string>
 							<reference key="NSSuperview" ref="648414315"/>
+							<reference key="NSWindow"/>
 							<reference key="NSNextKeyView" ref="1032505420"/>
 							<string key="NSClassName">NSView</string>
 						</object>
 					</array>
 					<string key="NSFrameSize">{474, 243}</string>
 					<reference key="NSSuperview"/>
+					<reference key="NSWindow"/>
 					<reference key="NSNextKeyView" ref="91828191"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
@@ -919,6 +932,49 @@
 						<string key="minorKey"/>
 					</object>
 				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">SFPasswordAssistantInspectorController</string>
+					<string key="superclassName">NSObject</string>
+					<object class="NSMutableDictionary" key="actions">
+						<string key="NS.key.0">showPasswordAssistantPanel:</string>
+						<string key="NS.object.0">id</string>
+					</object>
+					<object class="NSMutableDictionary" key="actionInfosByName">
+						<string key="NS.key.0">showPasswordAssistantPanel:</string>
+						<object class="IBActionInfo" key="NS.object.0">
+							<string key="name">showPasswordAssistantPanel:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+					</object>
+					<dictionary class="NSMutableDictionary" key="outlets">
+						<string key="_baseWindow">NSWindow</string>
+						<string key="_newPassword">NSTextField</string>
+						<string key="_originalPassword">NSTextField</string>
+						<string key="_verifyPassword">NSTextField</string>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="toOneOutletInfosByName">
+						<object class="IBToOneOutletInfo" key="_baseWindow">
+							<string key="name">_baseWindow</string>
+							<string key="candidateClassName">NSWindow</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="_newPassword">
+							<string key="name">_newPassword</string>
+							<string key="candidateClassName">NSTextField</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="_originalPassword">
+							<string key="name">_originalPassword</string>
+							<string key="candidateClassName">NSTextField</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="_verifyPassword">
+							<string key="name">_verifyPassword</string>
+							<string key="candidateClassName">NSTextField</string>
+						</object>
+					</dictionary>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/SFPasswordAssistantInspectorController.h</string>
+					</object>
+				</object>
 			</array>
 		</object>
 		<int key="IBDocument.localizationMode">0</int>
@@ -926,6 +982,10 @@
 		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDependencies">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.macosx</string>
 			<real value="1050" key="NS.object.0"/>
+		</object>
+		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDevelopmentDependencies">
+			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.InterfaceBuilder3</string>
+			<real value="4100" key="NS.object.0"/>
 		</object>
 		<bool key="IBDocument.PluginDeclaredDependenciesTrackSystemTargetVersion">YES</bool>
 		<int key="IBDocument.defaultPropertyAccessControl">3</int>

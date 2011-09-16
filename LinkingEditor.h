@@ -18,17 +18,16 @@
 @class NotesTableView;
 @class NoteObject;
 @class GlobalPrefs;
-//@class ETTransparentScroller;
 
 @interface LinkingEditor : NSTextView
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
 <NSLayoutManagerDelegate>
 #endif
 {	
+    id textFinder;
     IBOutlet NSTextField *controlField;
     IBOutlet NotesTableView *notesTableView;
 	
-	//ETTransparentScroller *nvTextScroller;
 	GlobalPrefs *prefsController;
 	BOOL didRenderFully;
 	
@@ -46,13 +45,20 @@
 	NoteObject *noteDuringFind;
 	
 	IMP defaultIBeamCursorIMP, whiteIBeamCursorIMP;
+    
+    
+	NSString *beforeString;
+	NSString *afterString;
 }
-//- (IBAction)performNVFindPanelAction:(id)sender;
+
+
+@property (readonly) NSString *beforeString;
+@property (readonly) NSString *afterString;
+
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSDictionary*)preferredLinkAttributes;
-- (void)updateTextColors;
 - (NSRange)selectedRangeWasAutomatic:(BOOL*)automatic;
 - (void)setAutomaticallySelectedRange:(NSRange)newRange;
 - (void)removeHighlightedTerms;
@@ -78,10 +84,19 @@
 
 - (BOOL)didRenderFully;
 
-//elasticwork
-- (void)switchFindPanelDelegate;
-- (IBAction)findInFullscreen;
+#pragma mark ElasticThreads additions
+- (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter;
+- (BOOL)pairIsOnOwnParagraph:(NSString *)closingChar;
+- (BOOL)cursorIsImmediatelyPastPair:(NSString *)closingCharacter;
+- (IBAction)performFindPanelAction:(id)sender;
+- (void)updateTextColors;
 - (IBAction)insertLink:(id)sender;
+- (void)prepareTextFinder;
+- (void)prepareTextFinderPreLion;
+- (BOOL)textFinderIsVisible;
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)hideTextFinderIfNecessary:(NSNotification *)aNotification;
+#endif
 //
 @end
 

@@ -266,7 +266,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return storesPasswordInKeychain;
 }
 
-- (int)notesStorageFormat {
+- (NSInteger)notesStorageFormat {
 	return notesStorageFormat;
 }
 - (BOOL)confirmFileDeletion {
@@ -593,9 +593,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return [masterKey derivedKeyOfLength:keyLengthInBits/8 salt:sessionSalt iterations:1];
 }
 
-- (void)setNotesStorageFormat:(int)formatID {
+- (void)setNotesStorageFormat:(NSInteger)formatID {
 	if (formatID != notesStorageFormat) {
-		int oldFormat = notesStorageFormat;
+		NSInteger oldFormat = notesStorageFormat;
 		notesStorageFormat = formatID;	
 		preferencesChanged = YES;
 		
@@ -610,7 +610,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	}
 }
 
-- (BOOL)shouldDisplaySheetForProposedFormat:(int)proposedFormat {
+- (BOOL)shouldDisplaySheetForProposedFormat:(NSInteger)proposedFormat {
 	BOOL notesExist = YES;
 	
 	if ([delegate respondsToSelector:@selector(totalNoteCount)])
@@ -917,11 +917,11 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return 0;
 }
 
-- (NSString*)typeStringAtIndex:(int)typeIndex {
+- (NSString*)typeStringAtIndex:(NSInteger)typeIndex {
 
     return [typeStrings[notesStorageFormat] objectAtIndex:typeIndex];
 }
-- (NSString*)pathExtensionAtIndex:(int)pathIndex {
+- (NSString*)pathExtensionAtIndex:(NSInteger)pathIndex {
     return [pathExtensions[notesStorageFormat] objectAtIndex:pathIndex];
 }
 - (unsigned int)indexOfChosenPathExtension {
@@ -953,7 +953,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	preferencesChanged = YES;
 }
 
-- (BOOL)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex {
+- (BOOL)removeAllowedPathExtensionAtIndex:(NSUInteger)extensionIndex {
 
 	if ([pathExtensions[notesStorageFormat] count] > 1 && extensionIndex < [pathExtensions[notesStorageFormat] count]) {
 		[pathExtensions[notesStorageFormat] removeObjectAtIndex:extensionIndex];
@@ -966,7 +966,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	}
 	return NO;
 }
-- (BOOL)setChosenPathExtensionAtIndex:(unsigned int)extensionIndex {
+- (BOOL)setChosenPathExtensionAtIndex:(NSUInteger)extensionIndex {
 	if ([pathExtensions[notesStorageFormat] count] > extensionIndex &&
 		[[pathExtensions[notesStorageFormat] objectAtIndex:extensionIndex] length]) {
 		chosenExtIndices[notesStorageFormat] = extensionIndex;
@@ -989,7 +989,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return NO;
 }
 
-- (void)removeAllowedTypeAtIndex:(unsigned int)typeIndex {
+- (void)removeAllowedTypeAtIndex:(NSUInteger)typeIndex {
 	[typeStrings[notesStorageFormat] removeObjectAtIndex:typeIndex];
 	[self updateOSTypesArray];
 	

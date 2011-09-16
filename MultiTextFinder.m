@@ -12,6 +12,7 @@
      or promote products derived from this software without specific prior written permission. */
 
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
 @implementation MultiTextFinder
 
 - (IBAction)changeEntirePhrase:(id)sender {
@@ -207,3 +208,4 @@ static id sharedFindObject = nil;
 }
 
 @end
+#endif
