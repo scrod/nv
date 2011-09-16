@@ -58,6 +58,9 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 
 @synthesize beforeString;
 @synthesize afterString;
+@synthesize activeParagraph;
+@synthesize activeParagraphBeforeCursor;
+@synthesize activeParagraphPastCursor;
 
 CGFloat _perceptualDarkness(NSColor*a);
 
@@ -1630,6 +1633,9 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     if (IsLionOrLater) {
         [textFinder release];
     }
+    [activeParagraphPastCursor release];
+    [activeParagraph release];
+    [activeParagraphBeforeCursor release];
     [beforeString release];
     [afterString release];
     [controlField release];
@@ -1645,135 +1651,106 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 #pragma mark ElasticThreads additions
 
+- (IBAction)insertLink:(id)sender{
+    if ([[self window] firstResponder]!=self) {
+        [[self window] makeFirstResponder:self];
+    }
+    NSRange selRange = [self selectedRange];
+    if (selRange.length>0) {
+        NSString *selString = [[self string] substringWithRange:selRange];
+        selString = [NSString stringWithFormat:@"%@%@%@",@"[[",selString,@"]]"];
+        [super insertText:selString];
+        
+    }else{
+        [super insertText:@"[[]]"];
+        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
+    }
+    
+} 
+
+
+- (void)mouseDown:(NSEvent *)theEvent{
+    [[NSApp delegate] setIsEditing:NO];
+    
+    [super mouseDown:theEvent];
+}
+
 - (void)doCommandBySelector:(SEL)aSelector{
     if (aSelector==@selector(insertTab:)) {
-        NSUInteger closer=[self cursorIsInsidePair:@"]"];
-        if (closer!=NSNotFound) {
-            closer+=[self.beforeString length];
-            if ([self pairIsOnOwnParagraph:@"]"]) {
-                [self insertText:@": http://" replacementRange:NSMakeRange((closer+1), 0)];
-                [self setSelectedRange:NSMakeRange((closer+3), 7)];
-                
-            }else{
-                if ([[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]] hasPrefix:@"http://"]) {
-                    NSString *testString=[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
-                    NSString *appender=@":";
-                    if (![self.afterString hasPrefix:@" "]) {
-                        appender=[appender stringByAppendingString:@" "];
-                    }
-                    
-                    NSUInteger spaceDex=[testString rangeOfString:@" "].location;
-                    NSUInteger nlDex=[testString rangeOfString:@"\n"].location;
-                   
-                    if (nlDex!=NSNotFound) {
-                        if (spaceDex!=NSNotFound&&(spaceDex<nlDex)) {
-                            nlDex=spaceDex;
-                        }
-                    }else if (spaceDex!=NSNotFound){
-                        nlDex=spaceDex;
-                    }
-                    NSUInteger selDex;
-                    if (nlDex!=NSNotFound) {
-                        selDex=nlDex+3;
-                    }else{
-                        selDex=self.afterString.length;
-                    }
-                    selDex+=self.beforeString.length;
-                   
-                    [self insertText:@": " replacementRange:NSMakeRange(closer+1, 0)];
-                    [self setSelectedRange:NSMakeRange(selDex, 0)];
-                }else{
-                    [self insertText:@"[]" replacementRange:NSMakeRange((closer+1), 0)];
-                    [self setSelectedRange:NSMakeRange((closer+2), 0)];
+//        NSUInteger
+        
+        NSUInteger closer=[self cursorIsInsidePair:@"]"];        
+        if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
+            
+            NSUInteger insertPt=[self selectedRange].location;
+            NSRange selRange=NSMakeRange(NSNotFound, 0);
+            NSString *insertString;
+//             NSLog(@"closer:%lu",closer);
+            NSString *testString=self.activeParagraphPastCursor;
+            if (closer!=NSNotFound) {
+                closer+=1;
+                if(testString.length>closer) {
+                    testString=[testString substringFromIndex:closer];
                 }
             }
-            return;
-        }else if ([self cursorIsImmediatelyPastPair:@"]"]){
-            closer=[self.beforeString length];
+            testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
             if ([self pairIsOnOwnParagraph:@"]"]) {
-                [self insertText:@": http://" replacementRange:NSMakeRange(closer, 0)];
-                [self setSelectedRange:NSMakeRange((closer+2), 7)];
+                insertString=@": http://";
+                selRange=NSMakeRange((insertPt+2), 7);
+            }else if ([testString hasPrefix:@"http://"]) {
+                NSUInteger spaceDex=[testString rangeOfString:@" "].location;
                 
-            }else{
-                if ([[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]] hasPrefix:@"http://"]) {
-                    NSString *testString=[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
-                    NSString *appender=@":";
-                    if (![self.afterString hasPrefix:@" "]) {
-                        appender=[appender stringByAppendingString:@" "];
-                    }
-                    
-                    NSUInteger spaceDex=[testString rangeOfString:@" "].location;
-                    NSUInteger nlDex=[testString rangeOfString:@"\n"].location;
-                    
-                    if (nlDex!=NSNotFound) {
-                        if (spaceDex!=NSNotFound&&(spaceDex<nlDex)) {
-                            nlDex=spaceDex;
-                        }
-                    }else if (spaceDex!=NSNotFound){
-                        nlDex=spaceDex;
-                    }
-                    NSUInteger selDex;
-                    if (nlDex!=NSNotFound) {
-                        selDex=nlDex+2;
-                    }else{
-                        selDex=self.afterString.length;
-                    }
-                    selDex+=self.beforeString.length;
-                    
-                    [self insertText:@": " replacementRange:NSMakeRange(closer, 0)];
-                    [self setSelectedRange:NSMakeRange(selDex, 0)];
+                NSUInteger selDex;
+                if (spaceDex!=NSNotFound){
+                    selDex=spaceDex;
                 }else{
-                [self insertText:@"[]" replacementRange:NSMakeRange(closer, 0)];
-                [self setSelectedRange:NSMakeRange((closer+1), 0)];
+                    selDex=testString.length;
+                }           
+                selDex+=insertPt;
+                selDex+=3;
+                selRange=NSMakeRange(selDex, 0);
+                insertString=@": ";
+            }else{					
+                insertString=@"[]";
+                selRange=NSMakeRange((insertPt+1), 0);
+            }            
+            if (selRange.location!=NSNotFound) {
+                if (closer!=NSNotFound) {
+                    insertPt+=closer;
+                    selRange.location+=closer;  
                 }
-            }
-            return;
+                [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
+                [self setSelectedRange:selRange];
+                return;
+            } 
         }
     }
     [super doCommandBySelector:aSelector];
 }
 
-- (BOOL)pairIsOnOwnParagraph:(NSString *)closingChar{
-   // NSUInteger closer=[self cursorIsInsidePair:closingChar];
-    //if (closer!=NSNotFound) {
-        NSString *openingChar=closingChar;
-        if ([closingChar isEqualToString:@"]"]) {
-            openingChar=@"[";
-        }else if ([closingChar isEqualToString:@")"]){
-            openingChar=@"(";
-        }else{
-            return NO;
-        }
-        //closer+=[self.beforeString length];
-        const unichar nLChar = NSNewlineCharacter;
-        NSString *nL=[NSString stringWithCharacters:&nLChar length:1];
-        NSUInteger startDex;
-//        NSUInteger lineEndDex;
-        NSUInteger contentsEndDex;
-        [[self string] getLineStart:&startDex end:NULL contentsEnd:&contentsEndDex forRange:[self selectedRange]];
-//         NSLog(@"startDex:%lu  contentsEnd:%lu",startDex,contentsEndDex);
-        NSString *thisPar=[[[self string]substringWithRange:NSMakeRange(startDex, (contentsEndDex-startDex))] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-//         NSLog(@"thisPar :>%@<",thisPar);
-        if (([thisPar hasSuffix:closingChar])&&([thisPar hasPrefix:openingChar])) {
-            return YES;
-        }
-        
-        
-        
-//    }
+#pragma mark Pairing
+
+- (BOOL)pairIsOnOwnParagraph:(NSString *)closingCharacter{
+    if (![closingCharacter isEqualToString:@"]"]) 
+        return NO;
+    
+    NSString *openingChar=@"[";
+    NSString *thisPar=self.activeParagraph;
+    if ((thisPar.length>0)&&([thisPar hasSuffix:closingCharacter])&&([thisPar hasPrefix:openingChar])) {
+        return YES;
+    }
     return NO;
 }
 
 - (BOOL)cursorIsImmediatelyPastPair:(NSString *)closingCharacter{
+    if (![closingCharacter isEqualToString:@"]"]) 
+        return NO;
+    
     NSString *testString=[self.beforeString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     if ([testString hasSuffix:closingCharacter]) {
         testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:closingCharacter]];
-        NSString *openingCharacter=closingCharacter;
-        if ([closingCharacter isEqualToString:@"]"]) {
-            openingCharacter=@"[";
-        }else{
-            return NO;
-        }
+        NSString *openingCharacter=@"[";
+       
         NSUInteger openingDex=[testString rangeOfString:openingCharacter options:NSBackwardsSearch].location;
         NSUInteger closingDex=[testString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
         if ((openingDex!=NSNotFound)&&((closingDex==NSNotFound)||(openingDex>closingDex))) {
@@ -1784,30 +1761,95 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 }
 
 - (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter{
+    if (![closingCharacter isEqualToString:@"]"])
+        return NSNotFound;    
+    NSString *testString=self.activeParagraphBeforeCursor;
+    if(([[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""])||([[testString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""]))
+        return NSNotFound;   
     
-    if(([[self.afterString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""])||([[self.beforeString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""]))
-        return NSNotFound;
-        
-    NSString *openingChar=closingCharacter;
-    if ([closingCharacter isEqualToString:@"]"]) {
-        openingChar=@"[";
-    }else if ([closingCharacter isEqualToString:@")"]) {
-        openingChar=@"(";
-    }else{
-        return NSNotFound;
-    }
-    
-    NSUInteger openingIndex=[self.beforeString rangeOfString:openingChar options:NSBackwardsSearch].location;
-    NSUInteger closingIndex=[self.beforeString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
+    NSString *openingChar=@"[";
+    NSUInteger openingIndex=[testString rangeOfString:openingChar options:NSBackwardsSearch].location;
+    NSUInteger closingIndex=[testString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
     if ((openingIndex!=NSNotFound)&&((closingIndex==NSNotFound)||(openingIndex>closingIndex))) {
-        closingIndex=[self.afterString rangeOfString:closingCharacter].location;
-        openingIndex=[self.afterString rangeOfString:openingChar].location;
+        
+        testString=self.activeParagraphPastCursor;
+        closingIndex=[testString rangeOfString:closingCharacter].location;
+        openingIndex=[testString rangeOfString:openingChar].location;
         if ((closingIndex!=NSNotFound)&&((openingIndex==NSNotFound)||(closingIndex<openingIndex))) {            
-            return closingIndex;
+            return closingIndex;//+[self selectedRange].location;
         }
     }
-    return NSNotFound;
+    return NSNotFound;    
+}
+
+
+- (NSString *)pairedCharacterForString:(NSString *)pairString{
+    if ([pairString isEqualToString:@"]"]) {
+        return @"[";
+    }else if ([pairString isEqualToString:@")"]) {
+        return @"(";
+    }else if ([pairString isEqualToString:@"}"]) {
+        return @"{";
+    }else if ([pairString isEqualToString:@"["]) {
+        return @"]";
+    }else if ([pairString isEqualToString:@"("]) {
+        return @")";
+    }else if ([pairString isEqualToString:@"{"]) {
+        return @"{";
+    }else if ([pairString isEqualToString:@"\""]) {
+        return @"\"";
+    }else if ([pairString isEqualToString:@"'"]) {
+        return @"'";
+    }
+    return "";
+}
+
+#pragma mark Useful properties
+
+- (NSString *)activeParagraph{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    if ((actRange.location!=NSNotFound)&&(actRange.length>0)) {
+        NSString *actPar=[[[self string]substringWithRange:actRange] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (!actPar||actPar.length==0) {
+            return @"";
+        }
+        return actPar;        
+    }
+    return @"";
+}
+
+- (NSRange)rangeOfActiveParagraph{
+    NSUInteger startDex;
+    NSUInteger contentsEndDex;
+    [[self string] getLineStart:&startDex end:NULL contentsEnd:&contentsEndDex forRange:[self selectedRange]];
+    if ((contentsEndDex!=NSNotFound)&&(contentsEndDex>startDex)) {
+        return NSMakeRange(startDex,(contentsEndDex-startDex));        
+    }
+    return NSMakeRange(NSNotFound, 0);
     
+}
+
+- (NSString *)activeParagraphPastCursor{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    if ((actRange.location!=NSNotFound)&&(actRange.length>0)&&(actRange.location!=[self string].length)) {
+        NSUInteger diff=[self selectedRange].location-actRange.location;
+        if (diff!=NSNotFound) {
+            
+            return [[self string] substringWithRange:NSMakeRange([self selectedRange].location, actRange.length-diff)];
+        }       
+    }      
+    return @"";     
+}
+
+- (NSString *)activeParagraphBeforeCursor{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    if ((actRange.location!=NSNotFound)&&(actRange.length>0)) {
+        NSUInteger diff=[self selectedRange].location-actRange.location;
+        if (diff!=NSNotFound) {
+            return [[self string]substringWithRange:NSMakeRange(actRange.location, diff)];  
+        }       
+    }      
+    return @"";    
 }
 
 - (NSString *)afterString{
@@ -1839,31 +1881,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         return @"";
     }
     return beforeString;
-}
-
-
-- (IBAction)insertLink:(id)sender{
-     if ([[self window] firstResponder]!=self) {
-         [[self window] makeFirstResponder:self];
-    }
-    NSRange selRange = [self selectedRange];
-    if (selRange.length>0) {
-        NSString *selString = [[self string] substringWithRange:selRange];
-        selString = [NSString stringWithFormat:@"%@%@%@",@"[[",selString,@"]]"];
-        [super insertText:selString];
-        
-    }else{
-        [super insertText:@"[[]]"];
-        [self setSelectedRange:NSMakeRange([self selectedRange].location-2, 0)];
-    }
-    
-} 
-
-
-- (void)mouseDown:(NSEvent *)theEvent{
-    [[NSApp delegate] setIsEditing:NO];
-    
-    [super mouseDown:theEvent];
 }
 
 #pragma mark ElasticThreads Lion Find... implementation

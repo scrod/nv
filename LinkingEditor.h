@@ -49,11 +49,16 @@
     
 	NSString *beforeString;
 	NSString *afterString;
+    NSString *activeParagraph;
+    NSString *activeParagraphPastCursor;
+    NSString *activeParagraphBeforeCursor;
 }
 
-
+@property (readonly) NSString *activeParagraphBeforeCursor;
+@property (readonly) NSString *activeParagraphPastCursor;
 @property (readonly) NSString *beforeString;
 @property (readonly) NSString *afterString;
+@property (readonly) NSString *activeParagraph;
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
@@ -85,8 +90,11 @@
 - (BOOL)didRenderFully;
 
 #pragma mark ElasticThreads additions
+
+- (NSString *)pairedCharacterForString:(NSString *)pairString;
+- (NSRange)rangeOfActiveParagraph;
 - (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter;
-- (BOOL)pairIsOnOwnParagraph:(NSString *)closingChar;
+- (BOOL)pairIsOnOwnParagraph:(NSString *)closingCharacter;
 - (BOOL)cursorIsImmediatelyPastPair:(NSString *)closingCharacter;
 - (IBAction)performFindPanelAction:(id)sender;
 - (void)updateTextColors;
