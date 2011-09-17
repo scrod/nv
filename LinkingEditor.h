@@ -90,6 +90,7 @@
 - (BOOL)didRenderFully;
 
 #pragma mark ElasticThreads additions
+- (BOOL)setInsetForFrame:(NSRect)frameRect;
 - (BOOL)deleteEmptyPairsInRange:(NSRange)charRange;
 - (void)selectRangeAndRegisterUndo:(NSRange)selRange;
 - (BOOL)cursorIsBetweenEmptyPairs;

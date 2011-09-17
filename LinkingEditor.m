@@ -73,13 +73,16 @@ CGFloat _perceptualDarkness(NSColor*a);
 		[self setAutomaticTextReplacementEnabled:[prefsController useTextReplacement]];
 	}
 
+    
     [prefsController registerWithTarget:self forChangesInSettings:
 	 @selector(setCheckSpellingAsYouType:sender:),
 	 @selector(setUseTextReplacement:sender:),
 	 @selector(setNoteBodyFont:sender:),
 	 @selector(setMakeURLsClickable:sender:),
 	 @selector(setSearchTermHighlightColor:sender:),
-	 @selector(setShouldHighlightSearchTerms:sender:), nil];	
+	 @selector(setShouldHighlightSearchTerms:sender:),
+     @selector(setMaxNoteBodyWidth:sender:),
+     @selector(setManagesTextWidthInWindow:sender:), nil];	
 	// @selector(setBackgroundTextColor:sender:),
 	// @selector(setForegroundTextColor:sender:),
 	
@@ -88,7 +91,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:NO];
-//    [self setBackgroundColor:[NSColor darkGrayColor]];
+    
     
     [self prepareTextFinder];
     
@@ -108,6 +111,7 @@ CGFloat _perceptualDarkness(NSColor*a);
     
 	//[center addObserver:self selector:@selector(updateTextColors) name:NSSystemColorsDidChangeNotification object:nil]; // recreate gradient if needed
 //	NoMods = YES;
+    [self setInsetForFrame:[self frame]];
 	outletObjectAwoke(self);
 }
 
@@ -129,7 +133,12 @@ CGFloat _perceptualDarkness(NSColor*a);
 	} else if ([selectorString isEqualToString:SEL_STR(setMakeURLsClickable:sender:)]) {
 		
 		[self setLinkTextAttributes:[self preferredLinkAttributes]];
+    } else if (([selectorString isEqualToString:SEL_STR(setManagesTextWidthInWindow:sender:)])||([selectorString isEqualToString:SEL_STR(setMaxNoteBodyWidth:sender:)])) {
+		[self setInsetForFrame:[self frame]];
+//		[self setLinkTextAttributes:[self preferredLinkAttributes]];
 		
+//        @selector(setMaxNoteBodyWidth:sender:),
+//        @selector(setManagesTextWidthInWindow:sender:), nil];	
 	//} else if ([selectorString isEqualToString:SEL_STR(setBackgroundTextColor:sender:)]) {
 		
 		//link-color is derived both from foreground and background colors
@@ -153,20 +162,17 @@ CGFloat _perceptualDarkness(NSColor*a);
 	}
 }
 
-- (void)drawRect:(NSRect)dirtyRect{
-    NSRect aRect=[self frame];
-    //
-//	[self setTextContainerInset:NSMakeSize(3, 8)];
-    
+- (BOOL)setInsetForFrame:(NSRect)frameRect{
+//    NSLog(@"setting inset");
     CGFloat insX=3.0;
     CGFloat insY=8.0;
     if (([[NSApp delegate]isInFullScreen])||([prefsController managesTextWidthInWindow])) {
-        if (aRect.size.width>[prefsController maxNoteBodyWidth]) {
+        if (frameRect.size.width>[prefsController maxNoteBodyWidth]) {
             insX=kTextMargins;
             insY=40.0;
             CGFloat theMin=[prefsController maxNoteBodyWidth]+(insX*1.9);
-            if (aRect.size.width<theMin) {
-                CGFloat diff=theMin-aRect.size.width;
+            if (frameRect.size.width<theMin) {
+                CGFloat diff=theMin-frameRect.size.width;
                 diff=round(diff/2);
                 
                 insX=insX-diff;
@@ -182,12 +188,19 @@ CGFloat _perceptualDarkness(NSColor*a);
         }
         
     }
-    if ([self textContainerInset].width!=insX) {
+    if (([self textContainerInset].width!=insX)||([self textContainerInset].height!=insY)) {
         [self setTextContainerInset:NSMakeSize(insX, insY)];
+        return YES;
     }
-    [super drawRect:aRect];
-    
+
+    return NO;
 }
+
+- (void)setFrame:(NSRect)frameRect{
+    [self setInsetForFrame:frameRect];
+    [super setFrame:frameRect];
+}
+
 
 - (BOOL)becomeFirstResponder {
 	[notesTableView setShouldUseSecondaryHighlightColor:YES];
@@ -238,6 +251,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 	//[self setBackgroundColor:bgColor];
 	//[nvTextScroller setBackgroundColor:bgColor];
 	//[[self enclosingScrollView] setNeedsDisplay:YES];
+    
+//    [self setBackgroundColor:bgColor];
 	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:fgColor backgroundColor:bgColor]];
 	[self setLinkTextAttributes:[self preferredLinkAttributes]];
 	[self setSelectedTextAttributes:[NSDictionary dictionaryWithObject:[self _selectionColorForForegroundColor:fgColor backgroundColor:bgColor] 

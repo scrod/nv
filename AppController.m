@@ -169,11 +169,11 @@ BOOL isEd;
     [docView release];
     
     [textScrollView setFrame:[splitSubview frame]];
-    [textScrollView setAutoresizingMask:(NSViewWidthSizable | NSViewHeightSizable)];
+//    [textScrollView setAutoresizingMask:(NSViewWidthSizable | NSViewHeightSizable)];
     
-    [mainView setNeedsDisplay:YES];
     [splitView adjustSubviews];    
     [splitView needsDisplay];
+    [mainView setNeedsDisplay:YES];
     splitViewAwoke = YES;
     
 	[notesScrollView setBorderType:NSNoBorder];
@@ -3316,14 +3316,14 @@ terminateApp:
     
 #pragma mark NSPREDICATE TO FIND MARKDOWN REFERENCE LINKS
 - (IBAction)testThing:(id)sender{
-    NSString *testString=@"not []http://sdfas as\n\not [][]\n not [](http://)\n     a   [a ref]: http://nytimes.com \n squirels [another ref]: http://google.com    \n http://squarshit \n how's tthat http his lorem ipsum";
-    
-    NSArray *foundLinks=[self referenceLinksInString:testString];
-    if (foundLinks&&([foundLinks count]>0)) {
-        NSLog(@"found'em:%@",[foundLinks description]);
-    }else{
-        NSLog(@"didn't find shit");
-    }
+//    NSString *testString=@"not []http://sdfas as\n\not [][]\n not [](http://)\n     a   [a ref]: http://nytimes.com \n squirels [another ref]: http://google.com    \n http://squarshit \n how's tthat http his lorem ipsum";
+//    
+//    NSArray *foundLinks=[self referenceLinksInString:testString];
+//    if (foundLinks&&([foundLinks count]>0)) {
+//        NSLog(@"found'em:%@",[foundLinks description]);
+//    }else{
+//        NSLog(@"didn't find shit");
+//    }
 }
 
 - (NSArray *)referenceLinksInString:(NSString *)contentString{    
