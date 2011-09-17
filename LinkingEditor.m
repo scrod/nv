@@ -851,54 +851,56 @@ copyRTFType:
 
 - (void)insertTab:(id)sender {
 	//check prefs for tab behavior
-	NSRange selectedRange=[self selectedRange];
-    NSUInteger closer=[self cursorIsInsidePair:@"]"];        
-    if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
-        
-        NSUInteger insertPt=selectedRange.location;
-        NSRange selRange=NSMakeRange(NSNotFound, 0);
-        NSString *insertString;
-        //             NSLog(@"closer:%lu",closer);
-        NSString *testString=self.activeParagraphPastCursor;
-        if (closer!=NSNotFound) {
-            closer+=1;
-            if(testString.length>closer) {
-                testString=[testString substringFromIndex:closer];
-            }
-        }
-        testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
-        if ([self pairIsOnOwnParagraph:@"]"]) {
-            insertString=@": http://";
-            selRange=NSMakeRange((insertPt+2), 7);
-        }else if ([testString hasPrefix:@"http://"]) {
-            NSUInteger spaceDex=[testString rangeOfString:@" "].location;
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        NSRange selectedRange=[self selectedRange];
+        NSUInteger closer=[self cursorIsInsidePair:@"]"];        
+        if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
             
-            NSUInteger selDex;
-            if (spaceDex!=NSNotFound){
-                selDex=spaceDex;
-            }else{
-                selDex=testString.length;
-            }           
-            selDex+=insertPt;
-            selDex+=3;
-            selRange=NSMakeRange(selDex, 0);
-            insertString=@": ";
-        }else{					
-            insertString=@"[]";
-            selRange=NSMakeRange((insertPt+1), 0);
-        }            
-        if (selRange.location!=NSNotFound) {
+            NSUInteger insertPt=selectedRange.location;
+            NSRange selRange=NSMakeRange(NSNotFound, 0);
+            NSString *insertString;
+            //             NSLog(@"closer:%lu",closer);
+            NSString *testString=self.activeParagraphPastCursor;
             if (closer!=NSNotFound) {
-                insertPt+=closer;
-                selRange.location+=closer;  
+                closer+=1;
+                if(testString.length>closer) {
+                    testString=[testString substringFromIndex:closer];
+                }
             }
-            [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
-            [self setSelectedRange:selRange];
+            testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
+            if ([self pairIsOnOwnParagraph:@"]"]) {
+                insertString=@": http://";
+                selRange=NSMakeRange((insertPt+2), 7);
+            }else if ([testString hasPrefix:@"http://"]) {
+                NSUInteger spaceDex=[testString rangeOfString:@" "].location;
+                
+                NSUInteger selDex;
+                if (spaceDex!=NSNotFound){
+                    selDex=spaceDex;
+                }else{
+                    selDex=testString.length;
+                }           
+                selDex+=insertPt;
+                selDex+=3;
+                selRange=NSMakeRange(selDex, 0);
+                insertString=@": ";
+            }else{					
+                insertString=@"[]";
+                selRange=NSMakeRange((insertPt+1), 0);
+            }            
+            if (selRange.location!=NSNotFound) {
+                if (closer!=NSNotFound) {
+                    insertPt+=closer;
+                    selRange.location+=closer;  
+                }
+                [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
+                [self setSelectedRange:selRange];
+                return;
+            } 
+        }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&(([self.activeParagraphBeforeCursor rangeOfString:@"]: "].location!=NSNotFound)||([self.activeParagraphBeforeCursor hasSuffix:@"]("]))){
+            [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
             return;
-        } 
-    }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&(([self.activeParagraphBeforeCursor rangeOfString:@"]: "].location!=NSNotFound)||([self.activeParagraphBeforeCursor hasSuffix:@"]("]))){
-        [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
-        return;
+        }      
     }
 	BOOL wasAutomatic = NO;
 	[self selectedRangeWasAutomatic:&wasAutomatic];
@@ -912,22 +914,24 @@ copyRTFType:
 
 - (void)insertBacktab:(id)sender {
 	//check temporary NVHiddenBulletIndentAttributeName here first
-    NSRange selectedRange=[self selectedRange];
-    NSUInteger closer=[self cursorIsInsidePair:@"]"];        
-    if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){             
-        NSUInteger insertPt=selectedRange.location;
-        NSString *insertString=@"(http://)";
-        if (closer!=NSNotFound) {
-            closer+=1;
-            insertPt+=closer;
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        NSRange selectedRange=[self selectedRange];
+        NSUInteger closer=[self cursorIsInsidePair:@"]"];        
+        if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){             
+            NSUInteger insertPt=selectedRange.location;
+            NSString *insertString=@"(http://)";
+            if (closer!=NSNotFound) {
+                closer+=1;
+                insertPt+=closer;
+            }
+            NSRange selRange=NSMakeRange((insertPt+1), 7);
+            [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
+            [self setSelectedRange:selRange];
+            return;
+        }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&([self.activeParagraphBeforeCursor hasSuffix:@"]("])){
+            [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
+            return;
         }
-        NSRange selRange=NSMakeRange((insertPt+1), 7);
-        [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
-        [self setSelectedRange:selRange];
-        return;
-    }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&([self.activeParagraphBeforeCursor hasSuffix:@"]("])){
-        [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
-        return;
     }
 	if ([prefsController autoFormatsListBullets] && [self _selectionAbutsBulletIndentRange]) {
 		

@@ -86,6 +86,7 @@ static NSString *ShowWordCount = @"ShowWordCount";
 static NSString *markupPreviewMode = @"markupPreviewMode";
 static NSString *UseAutoPairing = @"UseAutoPairing";
 static NSString *UseETScrollbarsOnLion = @"UseETScrollbarsOnLion";
+static NSString *UsesMarkdownCompletions = @"UsesMarkdownCompletions";
 //static NSString *PasteClipboardOnNewNoteKey = @"PasteClipboardOnNewNote";
 
 //these 4 strings manually localized
@@ -157,6 +158,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
             [NSNumber numberWithBool:NO], AlternatingRowsKey,
             [NSNumber numberWithBool:NO], UseAutoPairing,
             [NSNumber numberWithBool:NO], UseETScrollbarsOnLion,
+            [NSNumber numberWithBool:NO], UsesMarkdownCompletions,
 			
 			[NSArchiver archivedDataWithRootObject:
 			 [NSFont fontWithName:@"Helvetica" size:12.0f]], NoteBodyFontKey,
