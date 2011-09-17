@@ -836,7 +836,55 @@ copyRTFType:
 
 - (void)insertTab:(id)sender {
 	//check prefs for tab behavior
-	
+	NSRange selectedRange=[self selectedRange];
+    NSUInteger closer=[self cursorIsInsidePair:@"]"];        
+    if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
+        
+        NSUInteger insertPt=selectedRange.location;
+        NSRange selRange=NSMakeRange(NSNotFound, 0);
+        NSString *insertString;
+        //             NSLog(@"closer:%lu",closer);
+        NSString *testString=self.activeParagraphPastCursor;
+        if (closer!=NSNotFound) {
+            closer+=1;
+            if(testString.length>closer) {
+                testString=[testString substringFromIndex:closer];
+            }
+        }
+        testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
+        if ([self pairIsOnOwnParagraph:@"]"]) {
+            insertString=@": http://";
+            selRange=NSMakeRange((insertPt+2), 7);
+        }else if ([testString hasPrefix:@"http://"]) {
+            NSUInteger spaceDex=[testString rangeOfString:@" "].location;
+            
+            NSUInteger selDex;
+            if (spaceDex!=NSNotFound){
+                selDex=spaceDex;
+            }else{
+                selDex=testString.length;
+            }           
+            selDex+=insertPt;
+            selDex+=3;
+            selRange=NSMakeRange(selDex, 0);
+            insertString=@": ";
+        }else{					
+            insertString=@"[]";
+            selRange=NSMakeRange((insertPt+1), 0);
+        }            
+        if (selRange.location!=NSNotFound) {
+            if (closer!=NSNotFound) {
+                insertPt+=closer;
+                selRange.location+=closer;  
+            }
+            [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
+            [self setSelectedRange:selRange];
+            return;
+        } 
+    }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&(([self.activeParagraphBeforeCursor rangeOfString:@"]: "].location!=NSNotFound)||([self.activeParagraphBeforeCursor hasSuffix:@"]("]))){
+        [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
+        return;
+    }
 	BOOL wasAutomatic = NO;
 	[self selectedRangeWasAutomatic:&wasAutomatic];
 	
@@ -849,6 +897,23 @@ copyRTFType:
 
 - (void)insertBacktab:(id)sender {
 	//check temporary NVHiddenBulletIndentAttributeName here first
+    NSRange selectedRange=[self selectedRange];
+    NSUInteger closer=[self cursorIsInsidePair:@"]"];        
+    if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){             
+        NSUInteger insertPt=selectedRange.location;
+        NSString *insertString=@"(http://)";
+        if (closer!=NSNotFound) {
+            closer+=1;
+            insertPt+=closer;
+        }
+        NSRange selRange=NSMakeRange((insertPt+1), 7);
+        [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
+        [self setSelectedRange:selRange];
+        return;
+    }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&([self.activeParagraphBeforeCursor hasSuffix:@"]("])){
+        [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
+        return;
+    }
 	if ([prefsController autoFormatsListBullets] && [self _selectionAbutsBulletIndentRange]) {
 		
 		[self shiftLeftAction:nil];
@@ -903,61 +968,49 @@ copyRTFType:
 ////    [super drawCharactersInRange:range forContentView:view];
 //}
 
-- (void)insertText:(id)string {
-    BOOL interpretEvent = YES;
-    if (([prefsController useAutoPairing])&&([[NSArray arrayWithObjects:@"\"",@"[",@"{",@"(",@"]",@"}",@")", nil] containsObject:string])){
-        NSString *appendString = string;
-        NSRange selRange = [self selectedRange];
-        NSString *postString =@"";
-        postString = [[self string] substringFromIndex:selRange.location+selRange.length];
-        if (!postString) {
-            postString=@"";
-        }
-        if (([[NSArray arrayWithObjects:@"]",@"}",@")", nil] containsObject:appendString])&&([postString hasPrefix:appendString])&&(selRange.length==0)) {
-            interpretEvent=NO;
-            selRange.length=1;
-            [self setSelectedRange:selRange];
-            [super insertText:appendString];
-        }else  if ([[NSArray arrayWithObjects:@"\"",@"[",@"{",@"(", nil] containsObject:appendString]){     
-             NSString *oppositeAppend = appendString;
-            
-             if ([appendString isEqualToString:@"["]) {
-                 oppositeAppend = @"]";
-             }else if ([appendString isEqualToString:@"{"]) {
-                 oppositeAppend = @"}";
-             }else if ([appendString isEqualToString:@"("]) {
-                 oppositeAppend = @")";
-             }
-            
-            interpretEvent=NO; 
-            if (([postString hasPrefix:oppositeAppend])&&(![[[self string]substringToIndex:selRange.location] hasSuffix:appendString])) {
-                    //NSLog(@"gotchas2");
-                    interpretEvent=YES;                 
-            }
-            if (!interpretEvent) {
-                int extra = appendString.length;
-                if (selRange.length>0) {
-                    NSString *selString = [[self string] substringWithRange:selRange];                 
-                    appendString = [NSString stringWithFormat:@"%@%@%@",appendString,selString,oppositeAppend];
-                    extra = extra+selString.length+oppositeAppend.length;
-                }else {                 
-                    if (([appendString isEqualToString:@"\""])&&([postString hasPrefix:@"\""])) {                     
-                        appendString = @"";
-                        oppositeAppend = @"";
-                    }
-                    appendString = [appendString stringByAppendingString:oppositeAppend];
-                }
-                [super insertText:appendString];
-                [self setSelectedRange:NSMakeRange(selRange.location+extra, 0)];  
-            }
-             
-        }
-    }
-    if (interpretEvent){
-        [super insertText:string]; 
+- (void)selectRangeAndRegisterUndo:(NSRange)selRange{
+    if (!NSEqualRanges([self selectedRange], selRange)) {
+        [[[self undoManager] prepareWithInvocationTarget:self]
+         selectRangeAndRegisterUndo:[self selectedRange]];
+        [self setSelectedRange:selRange];
     }
 }
 
+- (void)insertText:(id)string {
+    if([prefsController useAutoPairing]){
+        NSString *oppositeAppend = [self pairedCharacterForString:string];
+        if (![oppositeAppend isEqualToString:@""]){
+            NSString *appendString = string;
+            NSRange selRange = [self selectedRange];
+            NSString *postString = [NSString stringWithString:self.activeParagraphPastCursor];
+            if ((selRange.length==0)&&([postString hasPrefix:appendString])&&([[NSArray arrayWithObjects:@"n",@"\"", nil] containsObject:oppositeAppend])) {
+                selRange.location+=1;
+                [self selectRangeAndRegisterUndo:selRange];        
+                return;
+            }else if ((![oppositeAppend isEqualToString:@"n"])&&((![postString hasPrefix:oppositeAppend])||([self.activeParagraphBeforeCursor hasSuffix:appendString]))) {
+                if (selRange.length>0) {
+                    [[[self undoManager] prepareWithInvocationTarget:self] setSelectedRange:selRange];
+                    NSRange insRange=selRange;
+                    insRange.length=0;
+                    [super insertText:appendString replacementRange:insRange];
+                    insRange.location+=selRange.length;
+                    insRange.location+=1;
+                    [super insertText:oppositeAppend replacementRange:insRange];                    
+                    insRange.location+=1;                    
+                    [self setSelectedRange:insRange];
+                    return;
+                }else {       
+                    int extra = appendString.length;   
+                    appendString = [appendString stringByAppendingString:oppositeAppend];
+                    [super insertText:appendString];
+                    [self setSelectedRange:NSMakeRange(selRange.location+extra, 0)];  
+                    return;
+                }
+            }
+        }
+    }
+    [super insertText:string]; 
+}
 
 - (void)deleteBackward:(id)sender {
 	
@@ -970,7 +1023,7 @@ copyRTFType:
 			if (charRange.location == 0) {
 				// At beginning of text.  Delete normally.
 				[super deleteBackward:sender];
-			} else {
+			}else if (![self deleteEmptyPairsInRange:charRange]) {
 				NSString *string = [self string];
 				NSRange paraRange = [string lineRangeForRange:NSMakeRange(charRange.location - 1, 1)];
 				if (paraRange.location == charRange.location) {
@@ -1675,61 +1728,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     [super mouseDown:theEvent];
 }
 
-- (void)doCommandBySelector:(SEL)aSelector{
-    if (aSelector==@selector(insertTab:)) {
-//        NSUInteger
-        NSRange selectedRange=[self selectedRange];
-        NSUInteger closer=[self cursorIsInsidePair:@"]"];        
-        if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
-            
-            NSUInteger insertPt=[self selectedRange].location;
-            NSRange selRange=NSMakeRange(NSNotFound, 0);
-            NSString *insertString;
-//             NSLog(@"closer:%lu",closer);
-            NSString *testString=self.activeParagraphPastCursor;
-            if (closer!=NSNotFound) {
-                closer+=1;
-                if(testString.length>closer) {
-                    testString=[testString substringFromIndex:closer];
-                }
-            }
-            testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"] "]];
-            if ([self pairIsOnOwnParagraph:@"]"]) {
-                insertString=@": http://";
-                selRange=NSMakeRange((insertPt+2), 7);
-            }else if ([testString hasPrefix:@"http://"]) {
-                NSUInteger spaceDex=[testString rangeOfString:@" "].location;
-                
-                NSUInteger selDex;
-                if (spaceDex!=NSNotFound){
-                    selDex=spaceDex;
-                }else{
-                    selDex=testString.length;
-                }           
-                selDex+=insertPt;
-                selDex+=3;
-                selRange=NSMakeRange(selDex, 0);
-                insertString=@": ";
-            }else{					
-                insertString=@"[]";
-                selRange=NSMakeRange((insertPt+1), 0);
-            }            
-            if (selRange.location!=NSNotFound) {
-                if (closer!=NSNotFound) {
-                    insertPt+=closer;
-                    selRange.location+=closer;  
-                }
-                [self insertText:insertString replacementRange:NSMakeRange(insertPt, 0)];
-                [self setSelectedRange:selRange];
-                return;
-            } 
-        }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&([self.activeParagraphBeforeCursor rangeOfString:@"]: " options:NSBackwardsSearch].location!=NSNotFound)){
-            [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
-            return;
-        }
-    }
-    [super doCommandBySelector:aSelector];
-}
+
 
 #pragma mark Pairing
 
@@ -1738,7 +1737,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         return NO;
     
     NSString *openingChar=@"[";
-    NSString *thisPar=self.activeParagraph;
+    NSString *thisPar=[[NSString stringWithString:self.activeParagraph] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     if ((thisPar.length>0)&&([thisPar hasSuffix:closingCharacter])&&([thisPar hasPrefix:openingChar])) {
         return YES;
     }
@@ -1788,24 +1787,47 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (NSString *)pairedCharacterForString:(NSString *)pairString{
     if ([pairString isEqualToString:@"]"]) {
-        return @"[";
+        return @"n";
     }else if ([pairString isEqualToString:@")"]) {
-        return @"(";
+        return @"n";
     }else if ([pairString isEqualToString:@"}"]) {
-        return @"{";
+        return @"n";
     }else if ([pairString isEqualToString:@"["]) {
         return @"]";
     }else if ([pairString isEqualToString:@"("]) {
         return @")";
     }else if ([pairString isEqualToString:@"{"]) {
-        return @"{";
+        return @"}";
     }else if ([pairString isEqualToString:@"\""]) {
         return @"\"";
-    }else if ([pairString isEqualToString:@"'"]) {
-        return @"'";
     }
-    return "";
+    return @"";
 }
+
+- (BOOL)deleteEmptyPairsInRange:(NSRange)charRange{
+    if (([prefsController useAutoPairing])&&([self cursorIsBetweenEmptyPairs])) {
+        NSRange selRange=charRange;
+        charRange.location-=1;
+        charRange.length=2; 
+        selRange.location-=1;
+        [self selectRangeAndRegisterUndo:selRange];
+        [self insertText:@"" replacementRange:charRange];   
+        return YES;
+    }
+    
+    return NO;
+}
+
+
+- (BOOL)cursorIsBetweenEmptyPairs{
+    NSString *before=[NSString stringWithString:self.activeParagraphBeforeCursor];
+    NSString *after=[NSString stringWithString:self.activeParagraphPastCursor];
+    if ((([before hasSuffix:@"["])&&([after hasPrefix:@"]"]))||(([before hasSuffix:@"("])&&([after hasPrefix:@")"]))||(([before hasSuffix:@"{"])&&([after hasPrefix:@"}"]))||(([before hasSuffix:@"\""])&&([after hasPrefix:@"\""]))||(([before hasSuffix:@"'"])&&([after hasPrefix:@"'"]))) {
+        return YES;
+    }
+    return NO;
+}
+
 
 #pragma mark Useful properties
 

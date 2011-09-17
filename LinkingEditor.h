@@ -90,7 +90,9 @@
 - (BOOL)didRenderFully;
 
 #pragma mark ElasticThreads additions
-
+- (BOOL)deleteEmptyPairsInRange:(NSRange)charRange;
+- (void)selectRangeAndRegisterUndo:(NSRange)selRange;
+- (BOOL)cursorIsBetweenEmptyPairs;
 - (NSString *)pairedCharacterForString:(NSString *)pairString;
 - (NSRange)rangeOfActiveParagraph;
 - (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter;
