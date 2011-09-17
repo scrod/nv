@@ -1678,7 +1678,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 - (void)doCommandBySelector:(SEL)aSelector{
     if (aSelector==@selector(insertTab:)) {
 //        NSUInteger
-        NSRange selectedRange=[self selectedRange];
+        
         NSUInteger closer=[self cursorIsInsidePair:@"]"];        
         if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
             
@@ -1723,9 +1723,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
                 [self setSelectedRange:selRange];
                 return;
             } 
-        }else if((selectedRange.length==7)&&([[[self string]substringWithRange:selectedRange] isEqualToString:@"http://"])&&([self.activeParagraphBeforeCursor rangeOfString:@"]: " options:NSBackwardsSearch].location!=NSNotFound)){
-            [self setSelectedRange:NSMakeRange(selectedRange.location+7, 0)];
-            return;
         }
     }
     [super doCommandBySelector:aSelector];
