@@ -648,3 +648,18 @@
 
 /* prefix for source-URLs inserted into imported notes; e.g., "From <http://www.apple.com>: ..." */
 "From" = "Von";
+
+/* insert link menu item title */
+"Insert Link" = "Link einfügen";
+
+/* menu item title for entering fullscreen */
+"Enter Full Screen" = "Vollbildmodus ein";
+
+/* menu item title for exiting fullscreen */
+"Exit Full Screen" = "Vollbildmodus aus";
+
+/* menu item title for expanding notes list */
+"Expand Notes List" = "Notizliste ausklappen";
+
+/* menu item title for collapsing notes list */
+"Collapse Notes List" = "Notizliste einklappen";

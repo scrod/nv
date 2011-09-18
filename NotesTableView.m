@@ -331,8 +331,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	[self setRowHeight: horiz ? ([globalPrefs tableColumnsShowPreview] ? h[0] : 
 								 (ColumnIsSet(NoteLabelsColumn,[globalPrefs tableColumnsBitmap]) ? h[1] : h[2])) : h[3]];
 	[lm release];
-	
-	[self setIntercellSpacing:NSMakeSize(12, 2)];
+	[self setIntercellSpacing:NSMakeSize(12.0, 2.0)];
 	
 	//[self setGridStyleMask:horiz ? NSTableViewSolidHorizontalGridLineMask : NSTableViewGridNone];
 }
@@ -563,6 +562,10 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     }
     
     [self sizeToFit];
+}
+
+- (void)sizeToFit{
+    [super sizeToFit];
 }
 
 - (IBAction)toggleNoteBodyPreviews:(id)sender {

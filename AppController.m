@@ -621,10 +621,10 @@ terminateApp:
 		return (numberSelected == 1) && [notationController currentNoteStorageFormat] != SingleDatabaseFormat;
 	} else if (selector == @selector(toggleCollapse:)) {
         if ([notesSubview isCollapsed]) {
-            [menuItem setTitle:@"Expand Notes List"];
+            [menuItem setTitle:NSLocalizedString(@"Expand Notes List",@"menu item title for expanding notes list")];
         }else{
             
-            [menuItem setTitle:@"Collapse Notes List"]; 
+            [menuItem setTitle:NSLocalizedString(@"Collapse Notes List",@"menu item title for collapsing notes list")];
             
             if (!currentNote){
                 return NO;

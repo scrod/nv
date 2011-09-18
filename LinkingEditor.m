@@ -1570,7 +1570,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	NSMenuItem *theMenuItem;
 	if(IsLeopardOrLater){
         
-        theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Enter Full Screen",@"toggle fs menu item title") action:@selector(switchFullScreen:) keyEquivalent:@""] autorelease];
+        theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Enter Full Screen",@"menu item title for entering fullscreen") action:@selector(switchFullScreen:) keyEquivalent:@""] autorelease];
         [theMenuItem setTarget:[NSApp delegate]];
         [theMenu addItem:theMenuItem];         
 	}

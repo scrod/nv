@@ -331,7 +331,7 @@
 								</object>
 								<object class="NSMenuItem" id="825593411">
 									<reference key="NSMenu" ref="386735725"/>
-									<string key="NSTitle">Edit With</string>
+									<string key="NSTitle">Bearbeiten mit …</string>
 									<string key="NSKeyEquiv"/>
 									<int key="NSMnemonicLoc">2147483647</int>
 									<reference key="NSOnImage" ref="259802817"/>
@@ -522,7 +522,7 @@
 											</object>
 											<object class="NSMenuItem" id="307426605">
 												<reference key="NSMenu" ref="508869822"/>
-												<string key="NSTitle">Find and Replace…</string>
+												<string key="NSTitle">Suchen und Ersetzen…</string>
 												<string key="NSKeyEquiv">f</string>
 												<int key="NSKeyEquivModMask">1572864</int>
 												<int key="NSMnemonicLoc">2147483647</int>
@@ -552,7 +552,7 @@
 											</object>
 											<object class="NSMenuItem" id="729776078">
 												<reference key="NSMenu" ref="508869822"/>
-												<string key="NSTitle">Nur in Auswahl suchen</string>
+												<string key="NSTitle">Auswahl suchen</string>
 												<string key="NSKeyEquiv"/>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="259802817"/>
@@ -561,7 +561,7 @@
 											</object>
 											<object class="NSMenuItem" id="511575145">
 												<reference key="NSMenu" ref="508869822"/>
-												<string key="NSTitle">Jump to Selection</string>
+												<string key="NSTitle">Auswahl anzeigen</string>
 												<string key="NSKeyEquiv"/>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="259802817"/>
@@ -614,7 +614,7 @@
 								</object>
 								<object class="NSMenuItem" id="1030723702">
 									<reference key="NSMenu" ref="938580667"/>
-									<string key="NSTitle">Substitutions</string>
+									<string key="NSTitle">Ersetzungen</string>
 									<string key="NSKeyEquiv"/>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -622,11 +622,11 @@
 									<reference key="NSMixedImage" ref="853026812"/>
 									<string key="NSAction">submenuAction:</string>
 									<object class="NSMenu" key="NSSubmenu" id="13163360">
-										<string key="NSTitle">Substitutions</string>
+										<string key="NSTitle">Ersetzungen</string>
 										<array class="NSMutableArray" key="NSMenuItems">
 											<object class="NSMenuItem" id="560515423">
 												<reference key="NSMenu" ref="13163360"/>
-												<string key="NSTitle">Show Substitutions</string>
+												<string key="NSTitle">Ersetzungen einblenden</string>
 												<string key="NSKeyEquiv"/>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="259802817"/>
@@ -652,7 +652,7 @@
 											</object>
 											<object class="NSMenuItem" id="1001060334">
 												<reference key="NSMenu" ref="13163360"/>
-												<string key="NSTitle">Text Replacement</string>
+												<string key="NSTitle">Text ersetzen</string>
 												<string key="NSKeyEquiv"/>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="259802817"/>
@@ -704,7 +704,7 @@
 					</object>
 					<object class="NSMenuItem" id="540596830">
 						<reference key="NSMenu" ref="828948142"/>
-						<string key="NSTitle">View</string>
+						<string key="NSTitle">Darstellung</string>
 						<string key="NSKeyEquiv"/>
 						<int key="NSKeyEquivModMask">1048576</int>
 						<int key="NSMnemonicLoc">2147483647</int>
@@ -713,13 +713,13 @@
 						<string key="NSAction">submenuAction:</string>
 						<int key="NSTag">99</int>
 						<object class="NSMenu" key="NSSubmenu" id="645308513">
-							<string key="NSTitle">View</string>
+							<string key="NSTitle">Darstellung</string>
 							<array class="NSMutableArray" key="NSMenuItems">
 								<object class="NSMenuItem" id="909342570">
 									<reference key="NSMenu" ref="645308513"/>
 									<bool key="NSIsDisabled">YES</bool>
 									<bool key="NSIsHidden">YES</bool>
-									<string key="NSTitle">Enter Full Screen</string>
+									<string key="NSTitle">Vollbildmodus ein</string>
 									<string key="NSKeyEquiv">f</string>
 									<int key="NSKeyEquivModMask">1310720</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -738,7 +738,7 @@
 								</object>
 								<object class="NSMenuItem" id="229227447">
 									<reference key="NSMenu" ref="645308513"/>
-									<string key="NSTitle">Collapse Notes List</string>
+									<string key="NSTitle">Notizliste einklappen</string>
 									<string key="NSKeyEquiv">C</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -747,19 +747,19 @@
 								</object>
 								<object class="NSMenuItem" id="668549069">
 									<reference key="NSMenu" ref="645308513"/>
-									<string key="NSTitle">Color Schemes</string>
+									<string key="NSTitle">Farb-Schemata</string>
 									<string key="NSKeyEquiv"/>
 									<int key="NSMnemonicLoc">2147483647</int>
 									<reference key="NSOnImage" ref="259802817"/>
 									<reference key="NSMixedImage" ref="853026812"/>
 									<string key="NSAction">submenuAction:</string>
 									<object class="NSMenu" key="NSSubmenu" id="472438760">
-										<string key="NSTitle">Color Schemes</string>
+										<string key="NSTitle">Farb-Schemata</string>
 										<array class="NSMutableArray" key="NSMenuItems">
 											<object class="NSMenuItem" id="776594233">
 												<reference key="NSMenu" ref="472438760"/>
 												<bool key="NSIsAlternate">YES</bool>
-												<string key="NSTitle">B/W</string>
+												<string key="NSTitle">Schwarz-weiß</string>
 												<string key="NSKeyEquiv">A</string>
 												<int key="NSKeyEquivModMask">1048576</int>
 												<int key="NSMnemonicLoc">2147483647</int>
@@ -770,7 +770,7 @@
 											<object class="NSMenuItem" id="999001534">
 												<reference key="NSMenu" ref="472438760"/>
 												<bool key="NSIsAlternate">YES</bool>
-												<string key="NSTitle">Low Contrast</string>
+												<string key="NSTitle">Niedriger Kontrast</string>
 												<string key="NSKeyEquiv">S</string>
 												<int key="NSKeyEquivModMask">1048576</int>
 												<int key="NSMnemonicLoc">2147483647</int>
@@ -780,7 +780,7 @@
 											<object class="NSMenuItem" id="608810522">
 												<reference key="NSMenu" ref="472438760"/>
 												<bool key="NSIsAlternate">YES</bool>
-												<string key="NSTitle">User Scheme</string>
+												<string key="NSTitle">Nutzer-Farbschema</string>
 												<string key="NSKeyEquiv">D</string>
 												<int key="NSKeyEquivModMask">1048576</int>
 												<int key="NSMnemonicLoc">2147483647</int>
@@ -864,7 +864,7 @@
 								<object class="NSMenuItem" id="899114822">
 									<reference key="NSMenu" ref="645308513"/>
 									<bool key="NSIsAlternate">YES</bool>
-									<string key="NSTitle">Show Word Count</string>
+									<string key="NSTitle">Wortanzahl anzeigen</string>
 									<string key="NSKeyEquiv">K</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1113,14 +1113,14 @@
 					</object>
 					<object class="NSMenuItem" id="978647151">
 						<reference key="NSMenu" ref="828948142"/>
-						<string key="NSTitle">Preview</string>
+						<string key="NSTitle">Vorschau</string>
 						<string key="NSKeyEquiv"/>
 						<int key="NSMnemonicLoc">2147483647</int>
 						<reference key="NSOnImage" ref="259802817"/>
 						<reference key="NSMixedImage" ref="853026812"/>
 						<string key="NSAction">submenuAction:</string>
 						<object class="NSMenu" key="NSSubmenu" id="618325934">
-							<string key="NSTitle">Preview</string>
+							<string key="NSTitle">Vorschau</string>
 							<array class="NSMutableArray" key="NSMenuItems">
 								<object class="NSMenuItem" id="464813953">
 									<reference key="NSMenu" ref="618325934"/>
@@ -1152,7 +1152,7 @@
 								</object>
 								<object class="NSMenuItem" id="976589762">
 									<reference key="NSMenu" ref="618325934"/>
-									<string key="NSTitle">Toggle Preview Window</string>
+									<string key="NSTitle">Anzeige Vorschau-Fenster</string>
 									<string key="NSKeyEquiv">p</string>
 									<int key="NSKeyEquivModMask">1310720</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1161,7 +1161,7 @@
 								</object>
 								<object class="NSMenuItem" id="92389048">
 									<reference key="NSMenu" ref="618325934"/>
-									<string key="NSTitle">Toggle Source View</string>
+									<string key="NSTitle">Anzeige Quelltext</string>
 									<string key="NSKeyEquiv">u</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1178,7 +1178,7 @@
 								</object>
 								<object class="NSMenuItem" id="369177489">
 									<reference key="NSMenu" ref="618325934"/>
-									<string key="NSTitle">Lock Note to Preview</string>
+									<string key="NSTitle">Notiz in Vorschau fixieren</string>
 									<string key="NSKeyEquiv">L</string>
 									<int key="NSKeyEquivModMask">1572864</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1187,7 +1187,7 @@
 								</object>
 								<object class="NSMenuItem" id="511617810">
 									<reference key="NSMenu" ref="618325934"/>
-									<string key="NSTitle">Print Preview / PDF</string>
+									<string key="NSTitle">Vorschau drucken/als pdf</string>
 									<string key="NSKeyEquiv">P</string>
 									<int key="NSKeyEquivModMask">1572864</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1196,7 +1196,7 @@
 								</object>
 								<object class="NSMenuItem" id="854335324">
 									<reference key="NSMenu" ref="618325934"/>
-									<string key="NSTitle">Save Preview HTML</string>
+									<string key="NSTitle">Vorschau HTML-Datei speichern</string>
 									<string key="NSKeyEquiv">S</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1774,7 +1774,7 @@
 					</object>
 					<object class="NSMenuItem" id="723061302">
 						<reference key="NSMenu" ref="1004757369"/>
-						<string key="NSTitle">Insert Link</string>
+						<string key="NSTitle">Link einfügen</string>
 						<string key="NSKeyEquiv">L</string>
 						<int key="NSKeyEquivModMask">1048576</int>
 						<int key="NSMnemonicLoc">2147483647</int>
@@ -1783,7 +1783,7 @@
 					</object>
 					<object class="NSMenuItem" id="208026127">
 						<reference key="NSMenu" ref="1004757369"/>
-						<string key="NSTitle">Toggle Preview Window</string>
+						<string key="NSTitle">Anzeige Vorschau-Fenster</string>
 						<string key="NSKeyEquiv">p</string>
 						<int key="NSKeyEquivModMask">1310720</int>
 						<int key="NSMnemonicLoc">2147483647</int>
@@ -1820,19 +1820,19 @@
 					</object>
 					<object class="NSMenuItem" id="104660366">
 						<reference key="NSMenu" ref="1004757369"/>
-						<string key="NSTitle">Color Schemes</string>
+						<string key="NSTitle">Farb-Schemata</string>
 						<string key="NSKeyEquiv"/>
 						<int key="NSMnemonicLoc">2147483647</int>
 						<reference key="NSOnImage" ref="259802817"/>
 						<reference key="NSMixedImage" ref="853026812"/>
 						<string key="NSAction">submenuAction:</string>
 						<object class="NSMenu" key="NSSubmenu" id="666903815">
-							<string key="NSTitle">Color Schemes</string>
+							<string key="NSTitle">Farb-Schemata</string>
 							<array class="NSMutableArray" key="NSMenuItems">
 								<object class="NSMenuItem" id="663573380">
 									<reference key="NSMenu" ref="666903815"/>
 									<bool key="NSIsAlternate">YES</bool>
-									<string key="NSTitle">B/W</string>
+									<string key="NSTitle">Schwarz-weiß</string>
 									<string key="NSKeyEquiv">A</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1843,7 +1843,7 @@
 								<object class="NSMenuItem" id="39401438">
 									<reference key="NSMenu" ref="666903815"/>
 									<bool key="NSIsAlternate">YES</bool>
-									<string key="NSTitle">Low Contrast</string>
+									<string key="NSTitle">Niedriger Kontrast</string>
 									<string key="NSKeyEquiv">S</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1853,7 +1853,7 @@
 								<object class="NSMenuItem" id="640879347">
 									<reference key="NSMenu" ref="666903815"/>
 									<bool key="NSIsAlternate">YES</bool>
-									<string key="NSTitle">User Scheme</string>
+									<string key="NSTitle">Nutzer-Farbschema</string>
 									<string key="NSKeyEquiv">D</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -2030,28 +2030,8 @@
 							<object class="NSTextView" id="333194602">
 								<reference key="NSNextResponder" ref="1032425933"/>
 								<int key="NSvFlags">2322</int>
-								<set class="NSMutableSet" key="NSDragTypes">
-									<string>Apple HTML pasteboard type</string>
-									<string>Apple PDF pasteboard type</string>
-									<string>Apple PICT pasteboard type</string>
-									<string>Apple PNG pasteboard type</string>
-									<string>Apple URL pasteboard type</string>
-									<string>CorePasteboardFlavorType 0x6D6F6F76</string>
-									<string>NSColor pasteboard type</string>
-									<string>NSFilenamesPboardType</string>
-									<string>NSStringPboardType</string>
-									<string>NeXT Encapsulated PostScript v1.2 pasteboard type</string>
-									<string>NeXT RTFD pasteboard type</string>
-									<string>NeXT Rich Text Format v1.0 pasteboard type</string>
-									<string>NeXT TIFF v4.0 pasteboard type</string>
-									<string>NeXT font pasteboard type</string>
-									<string>NeXT ruler pasteboard type</string>
-									<string>WebURLsWithTitlesPboardType</string>
-									<string>public.url</string>
-								</set>
 								<string key="NSFrameSize">{399, 14}</string>
 								<reference key="NSSuperview" ref="1032425933"/>
-								<reference key="NSWindow"/>
 								<reference key="NSNextKeyView" ref="829414797"/>
 								<object class="NSTextContainer" key="NSTextContainer" id="288937214">
 									<object class="NSLayoutManager" key="NSLayoutManager">
@@ -2110,7 +2090,6 @@
 						</array>
 						<string key="NSFrameSize">{399, 304}</string>
 						<reference key="NSSuperview" ref="635102632"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="333194602"/>
 						<reference key="NSDocView" ref="333194602"/>
 						<reference key="NSBGColor" ref="527351440"/>
@@ -2144,7 +2123,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<int key="NSvFlags">-2147479296</int>
 						<string key="NSFrame">{{383, 1}, {15, 288}}</string>
 						<reference key="NSSuperview" ref="635102632"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView"/>
 						<int key="NSArrowsLoc">2</int>
 						<reference key="NSTarget" ref="635102632"/>
@@ -2156,7 +2134,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<int key="NSvFlags">-2147479552</int>
 						<string key="NSFrame">{{-100, -100}, {87, 18}}</string>
 						<reference key="NSSuperview" ref="635102632"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="1032425933"/>
 						<int key="NSsFlags">1</int>
 						<int key="NSArrowsLoc">2</int>
@@ -2168,7 +2145,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</array>
 				<string key="NSFrameSize">{399, 304}</string>
 				<reference key="NSSuperview"/>
-				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="315518795"/>
 				<int key="NSsFlags">133648</int>
 				<reference key="NSVScroller" ref="829414797"/>

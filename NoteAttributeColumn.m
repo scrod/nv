@@ -44,6 +44,11 @@
 	return standardDictionary;
 }
 
+- (void)sizeToFit{
+    NSLog(@"tablecolumn size to fit");
+    [super sizeToFit];
+}
+
 - (void)updateWidthForHighlight {
 	[self setMinWidth:absoluteMinimumWidth + ([[self tableView] highlightedTableColumn] == self ? 10 : 0)];
   
