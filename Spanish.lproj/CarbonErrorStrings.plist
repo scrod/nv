@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>-33</key>
-	<string>esta carpeta está llena</string>
+	<string>la carpeta está llena</string>
 	<key>-34</key>
-	<string>este disco está lleno</string>
+	<string>el disco está lleno</string>
 	<key>-35</key>
 	<string>el dispositivo no existe</string>
 	<key>-36</key>
 	<string>se ha producido un problema al acceder al dispositivo</string>
 	<key>-37</key>
-	<string>el nombre estaba mal</string>
+	<string>el nombre era incorrecto</string>
 	<key>-38</key>
 	<string>el archivo no está abierto</string>
 	<key>-39</key>
@@ -47,35 +47,35 @@
 	<key>-54</key>
 	<string>el archivo está bloqueado</string>
 	<key>-55</key>
-	<string>el dispositivo ya está montado</string>
+	<string>el disco ya está montado</string>
 	<key>-56</key>
-	<string>se ha referido un dispositivo que no existe</string>
+	<string>se ha referido un volumen que no existe</string>
 	<key>-57</key>
 	<string>el dispositivo no tiene un formato compatible con Mac</string>
 	<key>-58</key>
-	<string>the volume&apos;s file system type is not handled</string>
+	<string>el sistema de ficheros del volumen no se puede manejar</string>
 	<key>-59</key>
-	<string>there was a problem in the middle of renaming</string>
+	<string>ha ocurrido un problema durante el renombramiento</string>
 	<key>-60</key>
-	<string>the master directory block is bad</string>
+	<string>el bloque principal de la carpeta está mal</string>
 	<key>-61</key>
-	<string>the file&apos;s permissions prevent you from writing</string>
+	<string>los permisos del archivo no le autorizan a editarlo</string>
 	<key>-64</key>
-	<string>the drive is not installed</string>
+	<string>el dispositivo no está instalado</string>
 	<key>-120</key>
-	<string>the directory was not found</string>
+	<string>no se ha encontrado la carpeta</string>
 	<key>-121</key>
-	<string>there are too many open working directories</string>
+	<string>hay demasiadas carpetas abiertas</string>
 	<key>-122</key>
-	<string>folders cannot be moved into folders that they contain</string>
+	<string>una carpetaa no se pueden mover a otra carpeta que tenga dentro</string>
 	<key>-123</key>
-	<string>the volume is of the wrong type</string>
+	<string>el volumen no es del tipo correcto</string>
 	<key>-124</key>
-	<string>the server volume disconnected</string>
+	<string>el volumen del servidor se ha desconectado</string>
 	<key>-127</key>
-	<string>there was a problem with the file system driver software</string>
+	<string>ha habido un problema con el controlado del sistema de ficheros</string>
 	<key>-128</key>
-	<string>the operation was cancelled</string>
+	<string>la operación ha sido cancelada</string>
 	<key>-818</key>
 	<string>the data could not be unserialized</string>
 	<key>-819</key>
@@ -83,31 +83,31 @@
 	<key>-820</key>
 	<string>the Interim Note-Changes file couldn&apos;t be appended-to</string>
 	<key>-821</key>
-	<string>authentication failed</string>
+	<string>erroe en la identificación</string>
 	<key>-822</key>
-	<string>the data couldn&apos;t be decompressed</string>
+	<string>no se han podido descomprimir los datos</string>
 	<key>-823</key>
-	<string>you did not enter a passphrase</string>
+	<string>no ha introducido un frase de contraseña</string>
 	<key>-824</key>
-	<string>the data could not be formatted appropriately</string>
+	<string>no se le puede dar un formato apropiado a los datos</string>
 	<key>-825</key>
-	<string>notes had mis-matching values after decoding</string>
+	<string>las notas tienen diferentes valores tras la descodificación</string>
 	<key>-1300</key>
-	<string>the specified file ID was not found on the file system</string>
+	<string>la ID del archivo no ha sido encontrada en el sistema de ficheros</string>
 	<key>-1301</key>
-	<string>the file ID already exists on the file system</string>
+	<string>ya hay un archivo con ese ID en el sistema de ficheros</string>
 	<key>-1302</key>
-	<string>a file was in fact a folder</string>
+	<string>el archivo era en realidad una carpeta</string>
 	<key>-1303</key>
-	<string>the files are on different volumes</string>
+	<string>los archivos están en volúmenes diferentes</string>
 	<key>-1304</key>
-	<string>the catalog changed unexpectedly</string>
+	<string>el catálogo ha cambiado sin aviso</string>
 	<key>-1306</key>
 	<string>the file&apos;s contents were attempted to be exchanged with itself</string>
 	<key>-1307</key>
 	<string>the file doesn&apos;t match the file ID number</string>
 	<key>-1308</key>
-	<string>the volume was improperly remounted</string>
+	<string>el volumen se ha vuelto a montar de forma inapropiada</string>
 	<key>-1309</key>
 	<string>the file was accessed outside of its bounds</string>
 	<key>-1310</key>
