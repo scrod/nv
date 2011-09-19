@@ -1,0 +1,102 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1138
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;}
+\paperw12240\paperh15840\margl1440\margr1440\vieww7060\viewh10060\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 \CocoaLigature0 Ordenados de mayor a menor utilidad:\
+\
+
+\f1 \uc0\u8984 
+\f0  L		Llevar el cursor al \'e1rea de b\'fasqueda.\
+Escape	Borrar la b\'fasqueda actual\
+Retorno	Empezar a editar una nota existente o nueva\
+Tab		Mover el cursor entre diferentes \'e1reas\
+
+\f1 \uc0\u8984 
+\f0  K		Seleccionar la nota precedente en la lista\
+
+\f1 \uc0\u8984 
+\f0  J		Seleccionar la siguiente nota en la lista\
+
+\f1 \uc0\u8984 
+\f0  D		Des-seleccionar nota actual y borrar la b\'fasqueda\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  V	Pegar el portapapeles como una nueva nota\
+
+\f1 \uc0\u8984 
+\f0  R		Renombrar la nota seleccionada\
+\pard\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f1 \cf0 \uc0\u8984 
+\f0  
+\f1 \uc0\u9003 	Borrar la(s) nota(s) seleccionada(s)
+\f0 \
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f1 \cf0 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679  T
+\f0 	Etiquetar la nota seleccionada\
+
+\f1 \uc0\u8984 
+\f0  G		Saltar a la siguiente aparici\'f3n del texto buscado\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  G	Buscar la aparici\'f3n anterior del texto buscado\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8617 
+\f0 		Abrir la URL en la que se encuentra el cursor\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8592 
+\f0 		Ir a la edici\'f3n de t\'edtulo desde el principio de la nota\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8594 
+\f0 		Ir al cuerpo de la nota desde el final del t\'edtulo\
+
+\f1 \uc0\u8984 
+\f0  
+\f1 \uc0\u8679 
+\f0  D	A\'f1adir a marcadores la nota seleccionada\
+
+\f1 \uc0\u8984 
+\f0  P		Imprimir las nota(s) seleccionada(s)\
+
+\f1 \uc0\u8984 
+\f0  E		Exportar las nota(s) seleccionada(s) a otro formato\
+\
+Atajos de teclado para dar formato al texto:\
+\
+
+\f1 \uc0\u8984 
+\f0  [		(corchete izquiero) Quitar sangr\'eda\
+
+\f1 \uc0\u8984 
+\f0  ]		(corchete derecho) A\'f1adir sangr\'eda\
+
+\f1 \uc0\u8997 
+\f0  Tab	Sangrar texto\
+
+\f1 \uc0\u8984 
+\f0  T		Quitar estilos y activar texto plano\
+
+\f1 \uc0\u8984 
+\f0  B		Negrita\
+
+\f1 \uc0\u8984 
+\f0  I		It\'e1lica\
+
+\f1 \uc0\u8984 
+\f0  Y		Tachado\
+}
