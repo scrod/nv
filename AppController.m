@@ -598,27 +598,27 @@ terminateApp:
 	
 		return (numberSelected == 1) && [notationController currentNoteStorageFormat] != SingleDatabaseFormat;
 		
-	} else if (selector == @selector(openFileInEditor:)) {
-		NSString *defApp = [prefsController textEditor];
-		if (![[self getTxtAppList] containsObject:defApp]) {
-			defApp = @"Default";
-			[prefsController setTextEditor:@"Default"];
-		}
-		if (([defApp isEqualToString:@"Default"])||(![[NSFileManager defaultManager] fileExistsAtPath:[[NSWorkspace sharedWorkspace] fullPathForApplication:defApp]])) {
-			
-			if (![defApp isEqualToString:@"Default"]) {
-				[prefsController setTextEditor:@"Default"];
-			}
-			CFStringRef cfFormat = (CFStringRef)noteFormat;
-			defApp = [(NSString *)LSCopyDefaultRoleHandlerForContentType(cfFormat,kLSRolesEditor) autorelease];
-			defApp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: defApp];
-			defApp = [[NSFileManager defaultManager] displayNameAtPath: defApp];
-		}
-		if ((!defApp)||([defApp isEqualToString:@"Safari"])) {
-			defApp = @"TextEdit";
-		}
-		[menuItem setTitle:[@"Open Note in " stringByAppendingString:defApp]];
-		return (numberSelected == 1) && [notationController currentNoteStorageFormat] != SingleDatabaseFormat;
+//	} else if (selector == @selector(openFileInEditor:)) {
+//		NSString *defApp = [prefsController textEditor];
+//		if (![[self getTxtAppList] containsObject:defApp]) {
+//			defApp = @"Default";
+//			[prefsController setTextEditor:@"Default"];
+//		}
+//		if (([defApp isEqualToString:@"Default"])||(![[NSFileManager defaultManager] fileExistsAtPath:[[NSWorkspace sharedWorkspace] fullPathForApplication:defApp]])) {
+//			
+//			if (![defApp isEqualToString:@"Default"]) {
+//				[prefsController setTextEditor:@"Default"];
+//			}
+//			CFStringRef cfFormat = (CFStringRef)noteFormat;
+//			defApp = [(NSString *)LSCopyDefaultRoleHandlerForContentType(cfFormat,kLSRolesEditor) autorelease];
+//			defApp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: defApp];
+//			defApp = [[NSFileManager defaultManager] displayNameAtPath: defApp];
+//		}
+//		if ((!defApp)||([defApp isEqualToString:@"Safari"])) {
+//			defApp = @"TextEdit";
+//		}
+//		[menuItem setTitle:[@"Open Note in " stringByAppendingString:defApp]];
+//		return (numberSelected == 1) && [notationController currentNoteStorageFormat] != SingleDatabaseFormat;
 	} else if (selector == @selector(toggleCollapse:)) {
         if ([notesSubview isCollapsed]) {
             [menuItem setTitle:NSLocalizedString(@"Expand Notes List",@"menu item title for expanding notes list")];
@@ -745,8 +745,8 @@ terminateApp:
     //	[notesTableView noteFirstVisibleRow];
     [notesSubview setDimension:colW];
 	[notationController regenerateAllPreviews]; 
-	[splitView adjustSubviews];
-		
+	[splitView adjustSubviews];	
+
 	[notesTableView setViewingLocation:ctx];
 	[notesTableView makeFirstPreviouslyVisibleRowVisibleIfNecessary];
 	
@@ -2705,101 +2705,101 @@ terminateApp:
          }*/
 	}
 }
-
-
-- (IBAction)openFileInEditor:(id)sender { 
-	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
-	NSString *path = nil;
-	
-	if ([indexes count] != 1 || !(path = [[notationController noteObjectAtFilteredIndex:[indexes lastIndex]] noteFilePath])) {
-		NSBeep();
-		return;
-	}
-	NSString *theApp = [prefsController textEditor];
-	if (![[self getTxtAppList] containsObject:theApp]) {
-		theApp = @"Default";
-		[prefsController setTextEditor:@"Default"];
-	}
-	if ((![theApp isEqualToString:@"Default"])&&([[NSFileManager defaultManager] fileExistsAtPath:[[NSWorkspace sharedWorkspace] fullPathForApplication:theApp]])) {
-		[[NSWorkspace sharedWorkspace] openFile:path withApplication:theApp];
-	}else {				
-		if (![theApp isEqualToString:@"Default"]) {
-			[prefsController setTextEditor:@"Default"];
-		}
-		theApp = [(NSString *)LSCopyDefaultRoleHandlerForContentType((CFStringRef)noteFormat,kLSRolesEditor) autorelease];
-		theApp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: theApp];
-		theApp = [[NSFileManager defaultManager] displayNameAtPath: theApp];
-		
-		
-		if ((!theApp)||([theApp isEqualToString:@"Safari"])) {
-			theApp = @"TextEdit";
-		}
-		[[NSWorkspace sharedWorkspace] openFile:path withApplication:theApp];
-	}
-
-}
-
-- (NSArray *)getTxtAppList{
-	int format = [notationController currentNoteStorageFormat];
-	if (format == 0) {
-		noteFormat = @"database";
-		[prefsController setTextEditor:nil];
-		return nil;
-	}else{
-		if (format == 1) {
-			noteFormat = [@"public.plain-text" retain];
-			//
-		}else if (format == 2) {
-			noteFormat = [@"public.text" retain];
-			//
-		}else if (format == 3) {
-			noteFormat = [@"public.html" retain];
-			//
-		}
-		NSString *path = nil;
-		NSMutableArray *retArray= [[[NSMutableArray alloc] initWithObjects:nil] autorelease];
-		
-		path = [[notationController noteObjectAtFilteredIndex:0] noteFilePath];
-		CFURLRef myURL = CFURLCreateWithFileSystemPath(kCFAllocatorDefault,(CFStringRef)path,kCFURLPOSIXPathStyle,false);
-
-		NSArray *handlers = [(NSArray *)LSCopyApplicationURLsForURL(myURL,kLSRolesEditor) autorelease];
-		CFRelease(myURL);
-		if ([handlers count]>0) {
-			for (NSString* fPath in handlers) {
-				NSString* name = [[fPath lastPathComponent]stringByDeletingPathExtension];
-				if ((![name hasPrefix:@"Adobe"])&&(![name isEqualToString:@"Dashcode"])&&(![retArray containsObject:name])&&(name)&&(![name isEqualToString:@"Notational Velocity"])) {
-					[retArray addObject:name];
-				}
-			}	 	
-		}
-		handlers = [(NSArray *)LSCopyAllRoleHandlersForContentType((CFStringRef)noteFormat,kLSRolesEditor) autorelease];
-		
-		if ([handlers count]>0) {
-			for (NSString* bundleIdentifier in handlers) {
-				path = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: bundleIdentifier];
-				NSString* name = [[NSFileManager defaultManager] displayNameAtPath: path];
-				if ((![name hasPrefix:@"Adobe"])&&(![name isEqualToString:@"Dashcode"])&&(![retArray containsObject:name])&&(name)&&(![name isEqualToString:@"Notational Velocity"])) {
-					[retArray addObject:name];
-				}
-			}	 	
-		}
-		[retArray sortUsingSelector:@selector(caseInsensitiveCompare:)];
-		NSString *defApp = [(NSString *)LSCopyDefaultRoleHandlerForContentType((CFStringRef)noteFormat,kLSRolesEditor) autorelease];
-		defApp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: defApp];
-		defApp = [[NSFileManager defaultManager] displayNameAtPath: defApp];
-		
-		if ((!defApp)||([defApp isEqualToString:@"Safari"])) {
-			[retArray removeObjectAtIndex:[retArray indexOfObject:@"TextEdit"]];
-			defApp = @"TextEdit";
-		}
-			defApp = [@"Default (" stringByAppendingString:defApp];
-			defApp = [defApp stringByAppendingString:@")"];
-		
-		[retArray insertObject:defApp atIndex:0];
-		return retArray;
-		
-	}
-}
+//
+//
+//- (IBAction)openFileInEditor:(id)sender { 
+//	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
+//	NSString *path = nil;
+//	
+//	if ([indexes count] != 1 || !(path = [[notationController noteObjectAtFilteredIndex:[indexes lastIndex]] noteFilePath])) {
+//		NSBeep();
+//		return;
+//	}
+//	NSString *theApp = [prefsController textEditor];
+//	if (![[self getTxtAppList] containsObject:theApp]) {
+//		theApp = @"Default";
+//		[prefsController setTextEditor:@"Default"];
+//	}
+//	if ((![theApp isEqualToString:@"Default"])&&([[NSFileManager defaultManager] fileExistsAtPath:[[NSWorkspace sharedWorkspace] fullPathForApplication:theApp]])) {
+//		[[NSWorkspace sharedWorkspace] openFile:path withApplication:theApp];
+//	}else {				
+//		if (![theApp isEqualToString:@"Default"]) {
+//			[prefsController setTextEditor:@"Default"];
+//		}
+//		theApp = [(NSString *)LSCopyDefaultRoleHandlerForContentType((CFStringRef)noteFormat,kLSRolesEditor) autorelease];
+//		theApp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: theApp];
+//		theApp = [[NSFileManager defaultManager] displayNameAtPath: theApp];
+//		
+//		
+//		if ((!theApp)||([theApp isEqualToString:@"Safari"])) {
+//			theApp = @"TextEdit";
+//		}
+//		[[NSWorkspace sharedWorkspace] openFile:path withApplication:theApp];
+//	}
+//
+//}
+//
+//- (NSArray *)getTxtAppList{
+//	int format = [notationController currentNoteStorageFormat];
+//	if (format == 0) {
+//		noteFormat = @"database";
+//		[prefsController setTextEditor:nil];
+//		return nil;
+//	}else{
+//		if (format == 1) {
+//			noteFormat = [@"public.plain-text" retain];
+//			//
+//		}else if (format == 2) {
+//			noteFormat = [@"public.text" retain];
+//			//
+//		}else if (format == 3) {
+//			noteFormat = [@"public.html" retain];
+//			//
+//		}
+//		NSString *path = nil;
+//		NSMutableArray *retArray= [[[NSMutableArray alloc] initWithObjects:nil] autorelease];
+//		
+//		path = [[notationController noteObjectAtFilteredIndex:0] noteFilePath];
+//		CFURLRef myURL = CFURLCreateWithFileSystemPath(kCFAllocatorDefault,(CFStringRef)path,kCFURLPOSIXPathStyle,false);
+//
+//		NSArray *handlers = [(NSArray *)LSCopyApplicationURLsForURL(myURL,kLSRolesEditor) autorelease];
+//		CFRelease(myURL);
+//		if ([handlers count]>0) {
+//			for (NSString* fPath in handlers) {
+//				NSString* name = [[fPath lastPathComponent]stringByDeletingPathExtension];
+//				if ((![name hasPrefix:@"Adobe"])&&(![name isEqualToString:@"Dashcode"])&&(![retArray containsObject:name])&&(name)&&(![name isEqualToString:@"Notational Velocity"])) {
+//					[retArray addObject:name];
+//				}
+//			}	 	
+//		}
+//		handlers = [(NSArray *)LSCopyAllRoleHandlersForContentType((CFStringRef)noteFormat,kLSRolesEditor) autorelease];
+//		
+//		if ([handlers count]>0) {
+//			for (NSString* bundleIdentifier in handlers) {
+//				path = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: bundleIdentifier];
+//				NSString* name = [[NSFileManager defaultManager] displayNameAtPath: path];
+//				if ((![name hasPrefix:@"Adobe"])&&(![name isEqualToString:@"Dashcode"])&&(![retArray containsObject:name])&&(name)&&(![name isEqualToString:@"Notational Velocity"])) {
+//					[retArray addObject:name];
+//				}
+//			}	 	
+//		}
+//		[retArray sortUsingSelector:@selector(caseInsensitiveCompare:)];
+//		NSString *defApp = [(NSString *)LSCopyDefaultRoleHandlerForContentType((CFStringRef)noteFormat,kLSRolesEditor) autorelease];
+//		defApp = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier: defApp];
+//		defApp = [[NSFileManager defaultManager] displayNameAtPath: defApp];
+//		
+//		if ((!defApp)||([defApp isEqualToString:@"Safari"])) {
+//			[retArray removeObjectAtIndex:[retArray indexOfObject:@"TextEdit"]];
+//			defApp = @"TextEdit";
+//		}
+//			defApp = [@"Default (" stringByAppendingString:defApp];
+//			defApp = [defApp stringByAppendingString:@")"];
+//		
+//		[retArray insertObject:defApp atIndex:0];
+//		return retArray;
+//		
+//	}
+//}
 
 //- (void)updateTextApp:(id)sender{
 //	[prefsWindowController updateAppList:self];

@@ -163,7 +163,6 @@ CGFloat _perceptualDarkness(NSColor*a);
 }
 
 - (BOOL)setInsetForFrame:(NSRect)frameRect{
-//    NSLog(@"setting inset");
     CGFloat insX=3.0;
     CGFloat insY=8.0;
     if (([[NSApp delegate]isInFullScreen])||([prefsController managesTextWidthInWindow])) {
@@ -179,7 +178,6 @@ CGFloat _perceptualDarkness(NSColor*a);
                 if (insX<3.0) {
                     insX=3.0;
                 }
-                //             NSLog(@"insX :>%f<",diff);
                 insY=(insX/kTextMargins)*insY;
                 if (insY<8.0) {
                     insY=8.0;
@@ -561,17 +559,149 @@ copyRTFType:
 
 #define STROKE_WIDTH_FOR_BOLD (-3.50)
 #define OBLIQUENESS_FOR_ITALIC (0.20)
-- (void)bold:(id)sender {	
-	[self applyStyleOfTrait:NSBoldFontMask alternateAttributeName:NSStrokeWidthAttributeName 
-	alternateAttributeValue:[NSNumber numberWithFloat:STROKE_WIDTH_FOR_BOLD]];	
-	
-	[[self undoManager] setActionName:NSLocalizedString(@"Bold",nil)];
+
+- (BOOL)changeMarkdownAttribute:(NSString *)syntaxBit{
+    NSUInteger syntaxLength=syntaxBit.length;    
+    NSRange selRange=[self selectedRange];    
+    NSString *bifoString=[NSString stringWithString:self.activeParagraphBeforeCursor];
+    NSString *aftaString=[NSString stringWithString:self.activeParagraphPastCursor];
+      
+    if (selRange.length==0){
+        if([[aftaString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]hasPrefix:syntaxBit]){
+            NSString *trimmedBefore=[bifoString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            if ([trimmedBefore hasSuffix:syntaxBit]) {
+                selRange.location-=syntaxLength;
+                NSUInteger diff=syntaxLength*2;
+                if ([bifoString hasSuffix:@" "]) {
+                    diff=(bifoString.length-trimmedBefore.length);
+                    if ([bifoString hasPrefix:@" "]) {
+                        do {
+                            bifoString = [bifoString substringFromIndex:1];
+                            diff-=1;
+                        } while ([bifoString hasPrefix:@" "]);
+                    }
+                    selRange.location-=diff;
+                    diff+=(syntaxLength*2);
+                }
+                selRange.length=diff;
+                [self insertText:@"" replacementRange:selRange];
+            }else{
+                selRange.location+=([aftaString rangeOfString:syntaxBit].location+syntaxLength);
+                selRange.length=0;
+                [self setSelectedRange:selRange];
+            }
+            return YES;
+        }
+    }else{
+        NSString *selString=[[self string]substringWithRange:selRange];
+        aftaString=[aftaString substringFromIndex:selRange.length];
+        
+        NSRange beforeSyntax=NSMakeRange(NSNotFound, 0);
+        NSRange afterSyntax=NSMakeRange(NSNotFound, 0);
+        
+        if ([aftaString hasPrefix:syntaxBit]) {
+            if([bifoString hasSuffix:syntaxBit]){
+                beforeSyntax=selRange;
+                beforeSyntax.length=syntaxLength;
+                afterSyntax=beforeSyntax;
+                beforeSyntax.location-=syntaxLength; 
+                afterSyntax.location+=selRange.length;
+                selRange.location=NSNotFound;
+            }else{                
+                afterSyntax.location=NSMaxRange(selRange);
+                afterSyntax.length=syntaxLength;
+                [super insertText:@"" replacementRange:afterSyntax];
+                selRange.length=0;
+                [super insertText:syntaxBit replacementRange:selRange];
+                return YES;
+            }
+        }else if([bifoString hasSuffix:syntaxBit]){
+            beforeSyntax=selRange;
+            beforeSyntax.location-=syntaxLength;
+            beforeSyntax.length=syntaxLength;
+            [super insertText:@"" replacementRange:beforeSyntax];
+            selRange.location=NSMaxRange(selRange);
+            selRange.location-=syntaxLength;
+            selRange.length=0;
+            [super insertText:syntaxBit replacementRange:selRange];
+            return YES;
+            
+        } else if(([selString hasPrefix:syntaxBit])&&([selString hasSuffix:syntaxBit])){
+            afterSyntax=selRange;
+            afterSyntax.location+=(selRange.length-syntaxLength);
+            afterSyntax.length=syntaxLength;
+            beforeSyntax=selRange;
+            beforeSyntax.length=syntaxLength;
+            selRange.length-=(syntaxLength*2); 
+        }else if([selString rangeOfString:syntaxBit].location!=NSNotFound){
+            NSUInteger syntCt=[selString componentsSeparatedByString:syntaxBit];
+            if ((syntCt % 2)==0) {//odd number of syntaxBits
+                
+                NSRange insertRange=selRange;
+                insertRange.length=0;
+                NSRange synRange=[selString rangeOfString:syntaxBit];
+                if (synRange.location==0) {
+                    insertRange.location+=(selRange.length-syntaxLength);
+                }
+                synRange.location+=selRange.location;
+                [self insertText:@"" replacementRange:synRange];
+                selRange.length-=syntaxLength;
+                [self insertText:syntaxBit replacementRange:insertRange];
+                [self setSelectedRange:selRange];
+                return YES;
+            }else{
+            NSLog(@"trying to add markdown syntax, but selection string contains an even# of the syntax. haven't dealt with this condition yet");
+            }
+        }
+        
+        if (beforeSyntax.location!=NSNotFound&&afterSyntax.location!=NSNotFound) {    
+            [super insertText:@"" replacementRange:afterSyntax];
+            [super insertText:@"" replacementRange:beforeSyntax];
+            if (selRange.location!=NSNotFound) {
+                [self setSelectedRange:selRange];
+            }
+            return YES;            
+        }
+    }   
+    if (selRange.length>0) {
+        NSRange insertRange=selRange;
+        insertRange.length=0;
+        [super insertText:syntaxBit replacementRange:insertRange];
+        insertRange.location+=(selRange.length+syntaxLength);
+        [super insertText:syntaxBit replacementRange:insertRange];
+        insertRange.location+=syntaxLength;
+        selRange.location+=syntaxLength;
+        [self setSelectedRange:selRange];
+        return YES;
+    }else{
+        NSString *doubleString=[syntaxBit stringByAppendingString:syntaxBit];
+        [super insertText:doubleString];
+        selRange.location+=syntaxLength;
+        [self setSelectedRange:selRange];
+        return YES;
+    }
+    return NO;
 }
+
+- (void)bold:(id)sender {	
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        [self changeMarkdownAttribute:@"**"];
+    }else{
+        [self applyStyleOfTrait:NSBoldFontMask alternateAttributeName:NSStrokeWidthAttributeName 
+        alternateAttributeValue:[NSNumber numberWithFloat:STROKE_WIDTH_FOR_BOLD]];	
+        [[self undoManager] setActionName:NSLocalizedString(@"Bold",nil)];
+	}
+}
+
 - (void)italic:(id)sender {
-	[self applyStyleOfTrait:NSItalicFontMask alternateAttributeName:NSObliquenessAttributeName 
-	alternateAttributeValue:[NSNumber numberWithFloat:OBLIQUENESS_FOR_ITALIC]];	
-	
-	[[self undoManager] setActionName:NSLocalizedString(@"Italic",nil)];
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
+        [self changeMarkdownAttribute:@"*"];
+    }else{
+        [self applyStyleOfTrait:NSItalicFontMask alternateAttributeName:NSObliquenessAttributeName 
+        alternateAttributeValue:[NSNumber numberWithFloat:OBLIQUENESS_FOR_ITALIC]];	
+        
+        [[self undoManager] setActionName:NSLocalizedString(@"Italic",nil)];
+    }
 }
 
 - (void)applyStyleOfTrait:(NSFontTraitMask)trait alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value {
@@ -853,13 +983,11 @@ copyRTFType:
 	//check prefs for tab behavior
     if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {
         NSRange selectedRange=[self selectedRange];
-        NSUInteger closer=[self cursorIsInsidePair:@"]"];        
+        NSUInteger closer=[self cursorIsInsidePair:@"]"];   
         if ((closer!=NSNotFound)||([self cursorIsImmediatelyPastPair:@"]"])){ 
-            
             NSUInteger insertPt=selectedRange.location;
             NSRange selRange=NSMakeRange(NSNotFound, 0);
             NSString *insertString;
-            //             NSLog(@"closer:%lu",closer);
             NSString *testString=self.activeParagraphPastCursor;
             if (closer!=NSNotFound) {
                 closer+=1;
@@ -1764,10 +1892,11 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 }
 
 - (BOOL)cursorIsImmediatelyPastPair:(NSString *)closingCharacter{
-    if (![closingCharacter isEqualToString:@"]"]) 
-        return NO;
+    if (![closingCharacter isEqualToString:@"]"])
+        return NO;   
     
-    NSString *testString=[self.beforeString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        //||([self isAlreadyNearMarkdownLink]))
+    NSString *testString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     if ([testString hasSuffix:closingCharacter]) {
         testString=[testString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:closingCharacter]];
         NSString *openingCharacter=@"[";
@@ -1775,29 +1904,66 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         NSUInteger openingDex=[testString rangeOfString:openingCharacter options:NSBackwardsSearch].location;
         NSUInteger closingDex=[testString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
         if ((openingDex!=NSNotFound)&&((closingDex==NSNotFound)||(openingDex>closingDex))) {
-            return YES;
+            NSString *aftaTest=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            testString=[[testString substringToIndex:openingDex] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            NSPredicate *aftaRefPred=[NSPredicate predicateWithFormat:@"SELF BEGINSWITH[cd] %@ OR SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@":",@"[*]*",@"(*)*"];
+             NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"*[*]"];
+            if ((![aftaRefPred evaluateWithObject:aftaTest])&&(![bifoRefPred evaluateWithObject:testString])) {
+                
+                return YES;
+            }
         }
     }
     return NO;
 }
 
+
+//- (BOOL)isAlreadyNearMarkdownLink{
+//    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ]"]];
+//    NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ["]];
+//    NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*",@"*[*]"];
+//    NSPredicate *aftaRefPred=[NSPredicate predicateWithFormat:@"SELF BEGINSWITH[cd] %@ OR SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@":",@"[*]*",@"(*)*"];
+////    BOOL bifoBool=[bifoRefPred evaluateWithObject:bifoString];
+////    BOOL aftaBool=[aftaRefPred evaluateWithObject:aftaString];
+////     NSLog(@"bifoBool:%d forString :>%@<\naftaBool:%d forString:>%@<",bifoBool,bifoString,aftaBool,aftaString);
+//    if(([bifoRefPred evaluateWithObject:bifoString])||([aftaRefPred evaluateWithObject:aftaString]))
+//        return YES;
+//    
+//    
+//    return NO;
+//}
+
 - (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter{
     if (![closingCharacter isEqualToString:@"]"])
-        return NSNotFound;    
+        return NSNotFound;
+    
+        //||([self isAlreadyNearMarkdownLink]))
+    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     NSString *testString=self.activeParagraphBeforeCursor;
-    if(([[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""])||([[testString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""]))
+    if(([aftaString isEqualToString:@""])||([[testString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] isEqualToString:@""]))
         return NSNotFound;   
     
     NSString *openingChar=@"[";
     NSUInteger openingIndex=[testString rangeOfString:openingChar options:NSBackwardsSearch].location;
     NSUInteger closingIndex=[testString rangeOfString:closingCharacter options:NSBackwardsSearch].location;
+//     NSLog(@"openingIndex:%lu closingIndex:%lu",openingIndex,closingIndex);
     if ((openingIndex!=NSNotFound)&&((closingIndex==NSNotFound)||(openingIndex>closingIndex))) {
-        
-        testString=self.activeParagraphPastCursor;
-        closingIndex=[testString rangeOfString:closingCharacter].location;
-        openingIndex=[testString rangeOfString:openingChar].location;
-        if ((closingIndex!=NSNotFound)&&((openingIndex==NSNotFound)||(closingIndex<openingIndex))) {            
-            return closingIndex;//+[self selectedRange].location;
+        testString=[[testString substringToIndex:openingIndex] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"*[*]"];
+        closingIndex=[aftaString rangeOfString:closingCharacter].location;
+        openingIndex=[aftaString rangeOfString:openingChar].location;
+        if ((closingIndex!=NSNotFound)&&(![bifoRefPred evaluateWithObject:testString])&&((openingIndex==NSNotFound)||(closingIndex<openingIndex))) {  
+            BOOL returnIt=YES;
+            if (aftaString.length>(closingIndex+1)) {
+                aftaString=[[aftaString substringFromIndex:(closingIndex+1)] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                NSPredicate *aftaRefPred=[NSPredicate predicateWithFormat:@"SELF BEGINSWITH[cd] %@ OR SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@":",@"[*]*",@"(*)*"];
+                if([aftaRefPred evaluateWithObject:aftaString]) {
+                    returnIt=NO;
+                }
+            }
+            if(returnIt) {
+                return closingIndex;//+[self selectedRange].location;                
+            }
         }
     }
     return NSNotFound;    
@@ -1832,8 +1998,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         [self selectRangeAndRegisterUndo:selRange];
         [self insertText:@"" replacementRange:charRange];   
         return YES;
-    }
-    
+    }    
     return NO;
 }
 
@@ -1847,6 +2012,47 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     return NO;
 }
 
+- (void)paste:(id)sender{    
+    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {       
+        NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" https://"]];
+        NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*]",@"*[*]("];
+        if((![bifoRefPred evaluateWithObject:bifoString])&&((![aftaString hasPrefix:@"]"])&&(![bifoString hasSuffix:@"["]))&&((![aftaString hasPrefix:@"\""])&&(![bifoString hasSuffix:@"\""]))&&((![aftaString hasPrefix:@">"])&&(![bifoString hasSuffix:@"<"]))&&((![aftaString hasPrefix:@"'"])&&(![bifoString hasSuffix:@"'"]))&&((![aftaString hasPrefix:@")"])&&(![bifoString hasSuffix:@"("]))){        
+            NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
+            NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
+            if (type) {
+                NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
+                NSURL *pUrl=[NSURL URLWithString:pString];
+                if (pUrl) {
+                    NSString *urlString =[pUrl absoluteString];
+                    NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
+                    if ([urlMatch evaluateWithObject:urlString]) {
+                        NSString *selString=@"";
+                        NSRange selRange=[self selectedRange];
+                        if (selRange.length>0) {
+                            selString=[[self string]substringWithRange:selRange];
+                        }
+                        if ([[self.activeParagraph stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] isEqualToString:@""]) {
+                            urlString=[NSString stringWithFormat:@"[%@]: %@",selString,urlString];
+                        }else{
+                            urlString=[NSString stringWithFormat:@"[%@](%@)",selString,urlString];            
+                        }
+                        [super insertText:urlString];
+                        selRange.location=[self selectedRange].location;
+                        selRange.location-=(urlString.length-1);
+                        [self setSelectedRange:selRange];
+                        return;
+                    }
+                    //            else  if ([urlString hasPrefix:@"http"]) {
+                    //                NSLog(@"not match but has prefix:%@",urlString);
+                    //            }
+                }
+            }
+        }
+    }
+    [super paste:sender];
+//    [[self undoManager]registerUndoWithTarget:self selector:@selector(paste:) object:sender];
+}
 
 #pragma mark Useful properties
 
