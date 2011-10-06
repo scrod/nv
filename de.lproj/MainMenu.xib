@@ -58,9 +58,12 @@
 				<nil key="NSUserInterfaceItemIdentifier"/>
 				<string key="NSWindowContentMinSize">{213, 107}</string>
 				<object class="NSView" key="NSWindowView" id="360165499">
-					<nil key="NSNextResponder"/>
+					<reference key="NSNextResponder"/>
 					<int key="NSvFlags">256</int>
 					<string key="NSFrameSize">{397, 464}</string>
+					<reference key="NSSuperview"/>
+					<reference key="NSWindow"/>
+					<reference key="NSNextKeyView"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
 				<string key="NSMinSize">{213, 129}</string>
@@ -1168,14 +1171,6 @@
 									<reference key="NSOnImage" ref="259802817"/>
 									<reference key="NSMixedImage" ref="853026812"/>
 								</object>
-								<object class="NSMenuItem" id="725773763">
-									<reference key="NSMenu" ref="618325934"/>
-									<string key="NSTitle">Toggle Completions</string>
-									<string key="NSKeyEquiv"/>
-									<int key="NSMnemonicLoc">2147483647</int>
-									<reference key="NSOnImage" ref="259802817"/>
-									<reference key="NSMixedImage" ref="853026812"/>
-								</object>
 								<object class="NSMenuItem" id="369177489">
 									<reference key="NSMenu" ref="618325934"/>
 									<string key="NSTitle">Notiz in Vorschau fixieren</string>
@@ -1198,6 +1193,15 @@
 									<reference key="NSMenu" ref="618325934"/>
 									<string key="NSTitle">Vorschau HTML-Datei speichern</string>
 									<string key="NSKeyEquiv">S</string>
+									<int key="NSKeyEquivModMask">1048576</int>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="259802817"/>
+									<reference key="NSMixedImage" ref="853026812"/>
+								</object>
+								<object class="NSMenuItem" id="725773763">
+									<reference key="NSMenu" ref="618325934"/>
+									<string key="NSTitle">Use Markdown Syntax Completion</string>
+									<string key="NSKeyEquiv">M</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
 									<reference key="NSOnImage" ref="259802817"/>
@@ -2020,7 +2024,7 @@
 				<bytes key="NSScrollAmts">QSAAAEEgAABBgAAAQYAAAA</bytes>
 			</object>
 			<object class="NSScrollView" id="635102632">
-				<reference key="NSNextResponder"/>
+				<nil key="NSNextResponder"/>
 				<int key="NSvFlags">274</int>
 				<array class="NSMutableArray" key="NSSubviews">
 					<object class="NSClipView" id="1032425933">
@@ -2032,7 +2036,7 @@
 								<int key="NSvFlags">2322</int>
 								<string key="NSFrameSize">{399, 14}</string>
 								<reference key="NSSuperview" ref="1032425933"/>
-								<reference key="NSNextKeyView" ref="829414797"/>
+								<reference key="NSNextKeyView" ref="315518795"/>
 								<object class="NSTextContainer" key="NSTextContainer" id="288937214">
 									<object class="NSLayoutManager" key="NSLayoutManager">
 										<object class="NSTextStorage" key="NSTextStorage">
@@ -2052,7 +2056,7 @@
 									<int key="NSTCFlags">1</int>
 								</object>
 								<object class="NSTextViewSharedData" key="NSSharedData">
-									<int key="NSFlags">11299</int>
+									<int key="NSFlags">67120163</int>
 									<int key="NSTextCheckingTypes">0</int>
 									<nil key="NSMarkedAttributes"/>
 									<reference key="NSBackgroundColor" ref="527351440"/>
@@ -2123,7 +2127,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<int key="NSvFlags">-2147479296</int>
 						<string key="NSFrame">{{383, 1}, {15, 288}}</string>
 						<reference key="NSSuperview" ref="635102632"/>
-						<reference key="NSNextKeyView"/>
 						<int key="NSArrowsLoc">2</int>
 						<reference key="NSTarget" ref="635102632"/>
 						<string key="NSAction">_doScroller:</string>
@@ -2144,8 +2147,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 					</object>
 				</array>
 				<string key="NSFrameSize">{399, 304}</string>
-				<reference key="NSSuperview"/>
-				<reference key="NSNextKeyView" ref="315518795"/>
+				<reference key="NSNextKeyView" ref="1032425933"/>
 				<int key="NSsFlags">133648</int>
 				<reference key="NSVScroller" ref="829414797"/>
 				<reference key="NSHScroller" ref="315518795"/>
