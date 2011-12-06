@@ -1,1 +1,0 @@
-mmd2LaTeX.pl

@@ -23,15 +23,8 @@
  */
 +(NSString*)mmdDirectory {
     // fallback path in this program's directiory
-    NSString *bundlePath = [[[[[NSBundle mainBundle] resourcePath]
-                              stringByAppendingPathComponent:@"MultiMarkdown"] 
-                             stringByAppendingPathComponent:@"bin"]
-                            stringByAppendingPathComponent:@"mmd2XHTML.pl"];
-    NSString *mmd3 = [NSString stringWithString:@"/usr/local/bin/multimarkdown"];
-    NSFileManager *mgr = [NSFileManager defaultManager];        
-    if ([mgr fileExistsAtPath:mmd3]) {
-      return mmd3;
-    } 
+    NSString *bundlePath = [[[NSBundle mainBundle] resourcePath]
+                              stringByAppendingPathComponent:@"multimarkdown"];
     return bundlePath;
 } // mmdDirectory
 
