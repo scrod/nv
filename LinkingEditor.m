@@ -1359,6 +1359,21 @@ copyRTFType:
             return NO;
         }
         return YES;
+    }else if (action==@selector(pasteMarkdownLink:)) {
+        
+      //  if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {  
+           // [menuItem setHidden:NO];
+            if ([self clipboardHasLink]) {
+                
+                return YES;
+            }
+            
+       // }
+//        else{
+//            
+//            [menuItem setHidden:YES];
+//        }
+        return NO;
     }
 	
 	return [super validateMenuItem:menuItem];
@@ -2012,48 +2027,67 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     return NO;
 }
 
-- (void)paste:(id)sender{    
-    if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {       
-        NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-        NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" https://"]];
-        NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*]",@"*[*]("];
-        if((![bifoRefPred evaluateWithObject:bifoString])&&((![aftaString hasPrefix:@"]"])&&(![bifoString hasSuffix:@"["]))&&((![aftaString hasPrefix:@"\""])&&(![bifoString hasSuffix:@"\""]))&&((![aftaString hasPrefix:@">"])&&(![bifoString hasSuffix:@"<"]))&&((![aftaString hasPrefix:@"'"])&&(![bifoString hasSuffix:@"'"]))&&((![aftaString hasPrefix:@")"])&&(![bifoString hasSuffix:@"("]))){        
-            NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
-            NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
-            if (type) {
-                NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
-                NSURL *pUrl=[NSURL URLWithString:pString];
-                if (pUrl) {
-                    NSString *urlString =[pUrl absoluteString];
-                    NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
-                    if ([urlMatch evaluateWithObject:urlString]) {
-                        NSString *selString=@"";
-                        NSRange selRange=[self selectedRange];
-                        if (selRange.length>0) {
-                            selString=[[[self string]substringWithRange:selRange]stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-                        }
-                        NSString *paraString=[self.activeParagraph stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-                        if (([paraString isEqualToString:@""])||([paraString isEqualToString:selString])) {
-                            urlString=[NSString stringWithFormat:@"[%@]: %@",selString,urlString];
-                        }else{
-                            urlString=[NSString stringWithFormat:@"[%@](%@)",selString,urlString];            
-                        }
-                        [super insertText:urlString];
-                        selRange.location=[self selectedRange].location;
-                        selRange.location-=(urlString.length-1);
-                        [self setSelectedRange:selRange];
-                        return;
-                    }
-                    //            else  if ([urlString hasPrefix:@"http"]) {
-                    //                NSLog(@"not match but has prefix:%@",urlString);
-                    //            }
-                }
+- (BOOL)clipboardHasLink{      
+    NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
+    NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
+    if (type) {
+        NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
+        NSURL *pUrl=[NSURL URLWithString:pString];
+        if (pUrl) {
+            NSString *urlString =[pUrl absoluteString];
+            NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
+            if ([urlMatch evaluateWithObject:urlString]) {
+                
+                return YES;
             }
         }
     }
-    [super paste:sender];
-//    [[self undoManager]registerUndoWithTarget:self selector:@selector(paste:) object:sender];
+    
+    return NO;
 }
+
+- (IBAction)pasteMarkdownLink:(id)sender{
+    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" https://"]];
+    NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*]",@"*[*]("];
+    if((![bifoRefPred evaluateWithObject:bifoString])&&((![aftaString hasPrefix:@"]"])&&(![bifoString hasSuffix:@"["]))&&((![aftaString hasPrefix:@"\""])&&(![bifoString hasSuffix:@"\""]))&&((![aftaString hasPrefix:@">"])&&(![bifoString hasSuffix:@"<"]))&&((![aftaString hasPrefix:@"'"])&&(![bifoString hasSuffix:@"'"]))&&((![aftaString hasPrefix:@")"])&&(![bifoString hasSuffix:@"("]))){ 
+        NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
+        NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
+        if (type) {
+            NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
+            NSURL *pUrl=[NSURL URLWithString:pString];
+            if (pUrl) {
+                NSString *urlString =[pUrl absoluteString];
+               // NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
+                //if ([urlMatch evaluateWithObject:urlString]) {
+                    NSString *selString=@"";
+                    NSRange selRange=[self selectedRange];
+                    if (selRange.length>0) {
+                        selString=[[[self string]substringWithRange:selRange]stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                    }
+                    NSString *paraString=[self.activeParagraph stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                    if (([paraString isEqualToString:@""])||([paraString isEqualToString:selString])) {
+                        urlString=[NSString stringWithFormat:@"[%@]: %@",selString,urlString];
+                    }else{
+                        urlString=[NSString stringWithFormat:@"[%@](%@)",selString,urlString];            
+                    }
+                    [super insertText:urlString];
+                    selRange.location=[self selectedRange].location;
+                    selRange.location-=(urlString.length-1);
+                    [self setSelectedRange:selRange];
+                    return;
+               // }
+                //            else  if ([urlString hasPrefix:@"http"]) {
+                //                NSLog(@"not match but has prefix:%@",urlString);
+                //            }
+            }
+        }
+    }
+//    NSLog(@"pasting non link");
+     [super paste:sender];
+     
+}
+
 
 #pragma mark Useful properties
 

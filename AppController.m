@@ -2262,6 +2262,8 @@ terminateApp:
 
 #pragma mark ElasticThreads methods
 
+
+
 - (void)setIsEditing:(BOOL)inBool{
     isEd = inBool;
 }

@@ -52,6 +52,7 @@
     NSString *activeParagraph;
     NSString *activeParagraphPastCursor;
     NSString *activeParagraphBeforeCursor;
+//    BOOL clipboardHasLink;
 }
 
 @property (readonly) NSString *activeParagraphBeforeCursor;
@@ -59,6 +60,7 @@
 @property (readonly) NSString *beforeString;
 @property (readonly) NSString *afterString;
 @property (readonly) NSString *activeParagraph;
+//@property (readonly) BOOL clipboardHasLink;
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
@@ -109,6 +111,8 @@
 - (BOOL)textFinderIsVisible;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)hideTextFinderIfNecessary:(NSNotification *)aNotification;
+- (IBAction)pasteMarkdownLink:(id)sender;
+- (BOOL)clipboardHasLink;
 #endif
 //
 @end
