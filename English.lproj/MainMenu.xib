@@ -462,7 +462,7 @@
 									<reference key="NSOnImage" ref="838981797"/>
 									<reference key="NSMixedImage" ref="795901623"/>
 								</object>
-								<object class="NSMenuItem" id="666433961">
+								<object class="NSMenuItem" id="85880920">
 									<reference key="NSMenu" ref="731693694"/>
 									<string key="NSTitle">Paste Markdown Link</string>
 									<string key="NSKeyEquiv">v</string>
@@ -565,7 +565,8 @@
 											<object class="NSMenuItem" id="20457900">
 												<reference key="NSMenu" ref="1050605419"/>
 												<string key="NSTitle">Use Selection for Find</string>
-												<string key="NSKeyEquiv"/>
+												<string key="NSKeyEquiv">e</string>
+												<int key="NSKeyEquivModMask">1572864</int>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="838981797"/>
 												<reference key="NSMixedImage" ref="795901623"/>
@@ -574,7 +575,8 @@
 											<object class="NSMenuItem" id="585792653">
 												<reference key="NSMenu" ref="1050605419"/>
 												<string key="NSTitle">Jump to Selection</string>
-												<string key="NSKeyEquiv"/>
+												<string key="NSKeyEquiv">j</string>
+												<int key="NSKeyEquivModMask">1572864</int>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="838981797"/>
 												<reference key="NSMixedImage" ref="795901623"/>
@@ -3382,7 +3384,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 					<object class="IBActionConnection" key="connection">
 						<string key="label">pasteMarkdownLink:</string>
 						<reference key="source" ref="633888970"/>
-						<reference key="destination" ref="666433961"/>
+						<reference key="destination" ref="85880920"/>
 					</object>
 					<int key="connectionID">1414</int>
 				</object>
@@ -3750,7 +3752,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 							<reference ref="346101227"/>
 							<reference ref="918319331"/>
 							<reference ref="87625361"/>
-							<reference ref="666433961"/>
+							<reference ref="85880920"/>
 						</array>
 						<reference key="parent" ref="121270273"/>
 					</object>
@@ -4747,7 +4749,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">1394</int>
-						<reference key="object" ref="666433961"/>
+						<reference key="object" ref="85880920"/>
 						<reference key="parent" ref="731693694"/>
 					</object>
 				</array>
