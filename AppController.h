@@ -56,6 +56,7 @@
 {
 	IBOutlet NSMenuItem *fsMenuItem;
 	BOOL wasVert;
+    BOOL wasDFVisible;
   BOOL isAutocompleting;
   BOOL wasDeleting;
   IBOutlet ETContentView *mainView;
@@ -208,7 +209,7 @@ void outletObjectAwoke(id sender);
 - (NSColor *)foregrndColor;
 - (void)updateWordCount:(BOOL)doIt;
 - (void)ensurePreviewIsVisible;
-- (void)resetModTimers;
+- (void)resetModTimers:(NSNotification *)notification;
 - (IBAction)toggleWordCount:(id)sender;
 - (void)popWordCount:(BOOL)showIt;
 - (void)popPreview:(BOOL)showIt;
@@ -231,5 +232,9 @@ void outletObjectAwoke(id sender);
 - (void)reActivate:(id)sender;
 - (NSArray *)referenceLinksInString:(NSString *)contentString;
 - (IBAction)testThing:(id)sender;
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)postToggleToolbar:(NSNumber *)boolNum;
+#endif
 
 @end

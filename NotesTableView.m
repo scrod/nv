@@ -659,7 +659,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
     return YES;
 }
 
-- (NSMenu *)menuForEvent:(NSEvent *)theEvent {
+- (NSMenu *)menuForEvent:(NSEvent *)theEvent {    
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     NSPoint mousePoint = [self convertPoint:[theEvent locationInWindow] fromView:nil];
     int row = [self rowAtPoint:mousePoint];
 	
@@ -749,7 +750,15 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	return isLocal ? NSDragOperationNone : NSDragOperationCopy;
 }
 
+//- (void)mouseUp:(NSEvent *)theEvent{
+//    //    [[NSApp delegate] resetModTimers];
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    [super mouseUp:theEvent];
+//}
+
 - (void)mouseDown:(NSEvent*)event {
+    
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     if ([event clickCount]==1) {
         [(AppController *)[self delegate] setIsEditing:NO];
     }
@@ -810,7 +819,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 
 - (void)keyDown:(NSEvent*)theEvent {
     
-    [[NSApp delegate] resetModTimers];
+//    [[NSApp delegate] resetModTimers];
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	unichar keyChar = [theEvent firstCharacter];
 
     if (keyChar == NSNewlineCharacter || keyChar == NSCarriageReturnCharacter || keyChar == NSEnterCharacter) {
@@ -901,7 +911,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 //use this method to catch next note/prev note before View menu does
 //thus avoiding annoying flicker and slow-down
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
-   [[NSApp delegate] resetModTimers];
+//   [[NSApp delegate] resetModTimers];
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	unsigned mods = [theEvent modifierFlags];
 	
 	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0 && [userDefaults boolForKey: @"UseCtrlForSwitchingNotes"];

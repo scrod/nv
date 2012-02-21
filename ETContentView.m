@@ -25,13 +25,27 @@
 //    [super dealloc];
 //}
 
+//- (void)mouseUp:(NSEvent *)theEvent{
+//    //    [[NSApp delegate] resetModTimers];
+//    NSLog(@"etcontent mouseup");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    [super mouseUp:theEvent];
+//}
+//
+//- (void)mouseDown:(NSEvent *)theEvent{
+//    //    [[NSApp delegate] resetModTimers];
+//    NSLog(@"etcontent mousedown");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    [super mouseDown:theEvent];
+//}
 
-- (void)keyDown:(NSEvent *)theEvent{
-  // NSLog(@"keydownCV");
-    [[NSApp delegate] resetModTimers];
-    [super keyDown:theEvent];
-   // [super interpretKeyEvents:[NSArray arrayWithObject:theEvent]];
-}
+//- (void)keyDown:(NSEvent *)theEvent{
+//  // NSLog(@"keydownCV");
+////    [[NSApp delegate] resetModTimers];
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    [super keyDown:theEvent];
+//   // [super interpretKeyEvents:[NSArray arrayWithObject:theEvent]];
+//}
 
 - (void)drawRect:(NSRect)dirtyRect
 {

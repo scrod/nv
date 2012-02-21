@@ -90,6 +90,7 @@ BOOL isEd;
       [nc addObserver:self selector:@selector(toggleAttachedWindow:) name:@"NVShouldActivate" object:nil];
       [nc addObserver:self selector:@selector(toggleAttachedMenu:) name:@"StatusItemMenuShouldDrop" object:nil];
      [nc addObserver:self selector:@selector(togDockIcon:) name:@"AppShouldToggleDockIcon" object:nil];
+      [nc addObserver:self selector:@selector(resetModTimers:) name:@"ModTimersShouldReset" object:nil];
 		
 		// Setup URL Handling
 		NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
@@ -1089,7 +1090,8 @@ terminateApp:
 	//sync note files when switching apps so user doesn't have to guess when they'll be updated
 	[notationController synchronizeNoteChanges:nil];
 	[cView setInactiveIcon:self];
-	[self resetModTimers];
+//	[self resetModTimers];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     
 }
 
@@ -1112,7 +1114,7 @@ terminateApp:
 	//simulate a search for nothing
 	if ([window isKeyWindow]) {
 		if (IsLionOrLater&&([textView textFinderIsVisible])) {
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:self];
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:self];
             return;
         }
 		[field setStringValue:@""];
@@ -1325,7 +1327,8 @@ terminateApp:
 - (void)controlTextDidChange:(NSNotification *)aNotification {
     
 	if ([aNotification object] == field) {
-        [self resetModTimers];
+//        [self resetModTimers];
+//        [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 		typedStringIsCached = NO;
 		isFilteringFromTyping = YES;
 		
@@ -1427,7 +1430,8 @@ terminateApp:
 	BOOL allowMultipleSelection = NO;
 	NSEvent *event = [window currentEvent];
     
-    [self resetModTimers];
+//    [self resetModTimers];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	NSEventType type = [event type];
 	//do not allow drag-selections unless a modifier is pressed
 	if (type == NSLeftMouseDragged || type == NSLeftMouseDown) {
@@ -1703,6 +1707,7 @@ terminateApp:
 }
 
 - (NSMenu *)textView:(NSTextView *)view menu:(NSMenu *)menu forEvent:(NSEvent *)event atIndex:(NSUInteger)charIndex {
+//    NSLog(@"textview menu for event");
 	NSInteger idx;
 	if ((idx = [menu indexOfItemWithTarget:nil andAction:@selector(_removeLinkFromMenu:)]) > -1)
 		[menu removeItemAtIndex:idx];
@@ -2097,9 +2102,9 @@ terminateApp:
 	}
 }
 
+
 - (void)windowDidResignKey:(NSNotification *)notification{
-    
-	[self resetModTimers];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     if ([notification object] == [TagEditer tagPanel]) {  //<--this is for ElasticThreads' multitagging window
         
         if ([TagEditer isMultitagging]) {
@@ -2116,7 +2121,8 @@ terminateApp:
 
 - (void)windowWillClose:(NSNotification *)aNotification {
     
-	[self resetModTimers];
+//	[self resetModTimers];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     if ([prefsController quitWhenClosingWindow]){
 		[NSApp terminate:nil];
     }
@@ -2236,7 +2242,7 @@ terminateApp:
 	//For ElasticThreads' fullscreen mode use this if/else otherwise uncomment the expand toolbar
     
     if (IsLionOrLater) {
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFindContextDidChange" object:sender];        
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"TextFinderShouldHide" object:sender];        
     }
 	if ([notesSubview isCollapsed]) {
 		[self toggleCollapse:self];
@@ -2466,6 +2472,7 @@ terminateApp:
 }
 
 - (void)setDualFieldIsVisible:(BOOL)isVis{
+//    NSLog(@"settin' df vis:%d",isVis);
     if (isVis) {
 		[window setTitle:@"nvALT"];
 		if (currentNote)
@@ -2555,8 +2562,6 @@ terminateApp:
     [mainView setNeedsDisplay:YES];
 }
 
-
-
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 
 /*
@@ -2569,7 +2574,7 @@ terminateApp:
 
 - (void)windowWillEnterFullScreen:(NSNotification *)aNotification{
     //   / [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
-    
+    wasDFVisible=[self dualFieldIsVisible];
     if (![splitView isVertical]) {
         [self switchViewLayout:self];
         wasVert = NO;
@@ -2577,39 +2582,37 @@ terminateApp:
         wasVert = YES;
         //[splitView adjustSubviews];
     }
-    
+   
 }
-/*
- - (void)windowDidEnterFullScreen:(NSNotification *)aNotification{
- NSLog(@"windowDidEnterfs and is vert:%d",[splitView isVertical]);
- if (![splitView isVertical]) {
- [self switchViewLayout:self];
- wasVert = NO;
- }else {
- wasVert = YES;
- //[splitView adjustSubviews];
- }
- 
- }
- 
- - (void)windowWillExitFullScreen:(NSNotification *)aNotification{
- NSLog(@"windowwillEXITfs");
- if ((!wasVert)&&([splitView isVertical])) {
- [self switchViewLayout:self];
- }//else{
- // [splitView adjustSubviews];
- //}
- }
-- (void)windowDidExitFullScreen:(NSNotification *)notification{
-    //  [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorMoveToActiveSpace];
-}*/
+
+- (void)windowDidEnterFullScreen:(NSNotification *)aNotification{
+     if (!wasDFVisible) {         
+         [self performSelector:@selector(postToggleToolbar:) withObject:[NSNumber numberWithBool:NO] afterDelay:0.0001];
+     } 
+}
+
 - (void)windowWillExitFullScreen:(NSNotification *)aNotification{
+     wasDFVisible=[self dualFieldIsVisible];
     if ((!wasVert)&&([splitView isVertical])) {
         [self switchViewLayout:self];
-    }//else{
-    // [splitView adjustSubviews];
-    //}
+    }
 }
+- (void)windowDidExitFullScreen:(NSNotification *)notification{
+    //  [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorMoveToActiveSpace];
+    if (wasDFVisible!=[notesSubview isCollapsed]) {
+        if (!wasDFVisible) {
+            [self performSelector:@selector(postToggleToolbar:) withObject:[NSNumber numberWithBool:NO] afterDelay:0.0001];
+           
+        }else{
+            [self performSelector:@selector(postToggleToolbar:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0001];
+        }
+    }
+}
+
+- (void)postToggleToolbar:(NSNumber *)boolNum{
+    [self setDualFieldIsVisible:[boolNum boolValue]];
+}
+
 #endif
 
 - (BOOL)isInFullScreen{
@@ -2626,8 +2629,9 @@ terminateApp:
 {		
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
     if (IsLionOrLater) {        
-        BOOL inFS=[self isInFullScreen];
-        [window toggleFullScreen:nil];        
+//        BOOL inFS=[self isInFullScreen];
+        [window toggleFullScreen:nil];
+       
 	}else if(IsLeopardOrLater){
 #else
 	 if(IsLeopardOrLater){
@@ -3027,6 +3031,9 @@ terminateApp:
 }
 
 - (void)popWordCount:(BOOL)showIt{
+//    NSUInteger testInt=NSFlagsChanged|NSMouseMoved|NSMouseEntered|NSMouseExited|NSScrollWheel;
+   NSUInteger curEv=[[NSApp currentEvent] type];
+    if ((curEv==NSFlagsChanged)||(curEv==NSMouseMoved)||(curEv==NSMouseEntered)||(curEv==NSMouseExited)||(curEv==NSScrollWheel)){
 	if (showIt) {
 		if (([wordCounter isHidden])&&([prefsController showWordCount])) {
 			[self updateWordCount:YES];
@@ -3040,6 +3047,10 @@ terminateApp:
             popped=0;
 		}
 	}
+    }
+//    else{
+//    NSLog(@"not flagschanged on popWord:%lu",[[NSApp currentEvent] type]);
+//    }
 }
 
 - (IBAction)toggleWordCount:(id)sender{
@@ -3064,6 +3075,7 @@ terminateApp:
 }
 
 - (void)flagsChanged:(NSEvent *)theEvent{
+    
     //	if (ModFlagger>=0) {
     // NSLog(@"flagschanged :>%@<",theEvent);
     if ((ModFlagger==0)&&(popped==0)&&([theEvent modifierFlags]&NSAlternateKeyMask)&&(([theEvent keyCode]==58)||([theEvent keyCode]==61))) { //option down&NSKeyDownMask
@@ -3083,10 +3095,7 @@ terminateApp:
                                                          repeats:NO] retain];
         
     }else {
-        [self resetModTimers];
-       /* if ([theEvent modifierFlags]==256){            
-            ModFlagger = 0;
-        }*/
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     }
 }
 
@@ -3106,8 +3115,9 @@ terminateApp:
 	}
 }
 
-- (void)resetModTimers{
-    // NSLog(@"resetmods");
+- (void)resetModTimers:(NSNotification *)notification{
+
+   
 	if ((ModFlagger>0)||(popped>0)) {
         ModFlagger = 0;	
         if (modifierTimer){
@@ -3129,6 +3139,9 @@ terminateApp:
 
 #pragma mark Preview-related and to be extracted into separate files
 - (void)popPreview:(BOOL)showIt{
+//    NSLog(@"current event is :%@",[[NSApp currentEvent] description]);
+    NSUInteger curEv=[[NSApp currentEvent] type];
+    if((curEv==NSFlagsChanged)||(curEv==NSMouseMoved)||(curEv==NSMouseEntered)||(curEv==NSMouseExited)||(curEv==NSScrollWheel)){
 	if ([previewToggler state]==0) {
 		if (showIt) {
 			if (![previewController previewIsVisible]) {
@@ -3141,7 +3154,12 @@ terminateApp:
 			}
             popped=0;
 		}
-	}
+    }
+    }
+//    else{
+//        
+//        NSLog(@"not flagschanged on popPre:%lu",[[NSApp currentEvent] type]);
+//    }
 }
 
 
@@ -3270,7 +3288,8 @@ terminateApp:
 
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
      NSLog(@"perform key AC");
-    [[NSApp delegate] resetModTimers];
+//    [self resetModTimers];
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
     return [super performKeyEquivalent:theEvent];
 }
 

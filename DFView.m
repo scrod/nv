@@ -55,5 +55,35 @@
 	vColor = [NSColor colorWithCalibratedWhite:fWhite alpha:1.0f];
 	[vColor retain];
 }
+//
+//- (void)mouseDown:(NSEvent*)anEvent {
+//    
+//    NSLog(@"dfview mouse down");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    
+//	
+//	[super mouseDown:anEvent];
+//    
+//}
+//
+//- (void)mouseUp:(NSEvent*)anEvent {
+//    
+//    NSLog(@"dfview mouseUp");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    
+//	
+//	[super mouseUp:anEvent];
+//    
+//}
+//
+//- (NSMenu *)menuForEvent:(NSEvent *)theEvent{
+//    NSLog(@"dfview menuForEvent");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    
+//	
+//	return [super menuForEvent:theEvent];
+//    
+//}
+
 
 @end

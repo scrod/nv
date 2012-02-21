@@ -118,9 +118,43 @@
 		snapbackButtonState = shouldShow ? BUTTON_NORMAL : BUTTON_HIDDEN;
 		[controlView setNeedsDisplayInRect:[self snapbackButtonRectForBounds:[controlView bounds]]];
 		[[controlView window] invalidateCursorRectsForView:controlView];
-	}
-	
+	}	
 }
+
+//- (void)mouseDown:(NSEvent*)anEvent {
+//    
+//    NSLog(@"dfc mouse down");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//   
+//	
+//	[super mouseDown:anEvent];
+//    
+//}
+//
+//- (NSMenu *)menuForEvent:(NSEvent *)theEvent{
+//    NSLog(@"dfc menuForEvent");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    
+//	
+//	return [super menuForEvent:theEvent];
+//
+//}
+//
+//- (void)mouseUp:(NSEvent*)anEvent {
+//    
+//    NSLog(@"dfc mouse up");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    
+//	
+//	[super mouseUp:anEvent];
+//    
+//}
+
+//- (NSMenu *)menu{
+//    NSLog(@"dfc menu");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    return [super menu];
+//}
 
 - (BOOL)handleMouseDown:(NSEvent *)theEvent {
 	DualField *controlView = (DualField *)[self controlView];
@@ -294,16 +328,6 @@
 
 - (void)reflectScrolledClipView:(NSClipView *)aClipView {	
 	[super setKeyboardFocusRingNeedsDisplayInRect: [self bounds]];
-}
-
-- (void)mouseDown:(NSEvent*)anEvent {
-    [[NSApp delegate] setIsEditing:NO];
-	
-	if ([[self cell] handleMouseDown:anEvent])
-		return;
-	
-	[super mouseDown:anEvent];
-    
 }
 
 - (BOOL)hasFollowedLinks {
@@ -501,6 +525,42 @@
 
 //elasticwork
 
+//- (NSMenu *)menuForEvent:(NSEvent *)theEvent{
+//    NSLog(@"df menuForEvent");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    
+//	
+//	return [super menuForEvent:theEvent];
+//    
+//}
+//
+//- (void)mouseUp:(NSEvent*)anEvent {
+//    
+//    NSLog(@"df mouse up");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    
+//	[super mouseUp:anEvent];
+//    
+//}
+//
+//- (NSMenu *)menu{
+//    NSLog(@"df menu");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    return [super menu];
+//}
+
+- (void)mouseDown:(NSEvent*)anEvent {
+    
+//    NSLog(@"df mouse down");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+    [[NSApp delegate] setIsEditing:NO];
+	
+	if ([[self cell] handleMouseDown:anEvent])
+		return;
+	
+	[super mouseDown:anEvent];
+    
+}
 
 - (void)flagsChanged:(NSEvent *)theEvent{
 	[[NSApp delegate] flagsChanged:theEvent];

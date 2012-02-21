@@ -56,13 +56,27 @@ NSString *imageName = @"nvMenuDark";
 
 - (void)mouseDown:(NSEvent *)event
 {
+//    [controller resetModTimers];
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	clicked = YES;
 	[self setNeedsDisplay:YES];
-    [[NSNotificationCenter defaultCenter]postNotificationName:@"NVShouldActivate" object:self];
+    NSUInteger modFlags=[event modifierFlags];
+    if ((modFlags&NSControlKeyMask)&&!((modFlags&NSCommandKeyMask)||(modFlags&NSAlternateKeyMask)||(modFlags&NSShiftKeyMask))) {
+//        NSLog(@"ctrl click");
+        [[NSNotificationCenter defaultCenter]postNotificationName:@"StatusItemMenuShouldDrop" object:nil];
+        //	[controller toggleAttachedMenu:self];	
+        clicked = NO;
+        [self setNeedsDisplay:YES];
+    }else{
+//        NSLog(@"not ctrl click");
+        [[NSNotificationCenter defaultCenter]postNotificationName:@"NVShouldActivate" object:self];
+    }
 //	[controller toggleAttachedWindow:self];
 }
 
 - (void)mouseUp:(NSEvent *)event {
+    
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	clicked = NO;	
 	[self setNeedsDisplay:YES];
 	[self viewWillDraw];

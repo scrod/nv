@@ -908,7 +908,8 @@ copyRTFType:
 
     
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
-    [[NSApp delegate] resetModTimers];
+//    [[NSApp delegate] resetModTimers];
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	if ([anEvent modifierFlags] & NSCommandKeyMask) {
 		
 		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
@@ -937,7 +938,8 @@ copyRTFType:
 }
 
 - (void)keyDown:(NSEvent*)anEvent {	
-    [[NSApp delegate] resetModTimers];
+//    [[NSApp delegate] resetModTimers];
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 
 	if (keyChar == NSBackTabCharacter) {
@@ -1883,13 +1885,26 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     
 } 
 
-
-- (void)mouseDown:(NSEvent *)theEvent{
-    [[NSApp delegate] setIsEditing:NO];
-    
-    [super mouseDown:theEvent];
-}
-
+//- (void)mouseUp:(NSEvent *)theEvent{
+////    [[NSApp delegate] resetModTimers];
+//    NSLog(@"linking ed mouseup");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    [super mouseUp:theEvent];
+//}
+//
+//- (void)mouseDown:(NSEvent *)theEvent{
+//    //    [[NSApp delegate] resetModTimers];
+//    NSLog(@"linking ed mousedown");
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    [[NSApp delegate] setIsEditing:NO];
+//    
+//    [super mouseDown:theEvent];
+//}
+//
+//- (NSMenu *)menu{
+//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+//    return [super menu];
+//}
 
 
 #pragma mark Pairing
@@ -2172,11 +2187,18 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 - (void)prepareTextFinder{        
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
     if (IsLionOrLater) {
+        
+        
+        [self setUsesFindBar:YES];
+        
+        [self setIncrementalSearchingEnabled:YES];
         textFinder=[[[NSTextFinder alloc]init]retain];
         [textFinder setClient:self];
-        [self setUsesFindBar:YES];
-        [self setIncrementalSearchingEnabled:YES];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hideTextFinderIfNecessary:) name:@"TextFindContextDidChange" object:nil];
+        
+        [textFinder setIncrementalSearchingEnabled:YES];
+//        [textFinder setIncrementalSearchingShouldDimContentView:NO];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textFinderShouldUpdateContext:) name:@"TextFindContextDidChange" object:nil];
+         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(hideTextFinderIfNecessary:) name:@"TextFinderShouldHide" object:nil];
         return;       
     }
 #endif
@@ -2202,11 +2224,21 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
+- (void)textFinderShouldUpdateContext:(NSNotification *)aNotification{
+    
+    if (IsLionOrLater){        
+        [textFinder setFindIndicatorNeedsUpdate:YES];
+    }
+}
+
 - (void)hideTextFinderIfNecessary:(NSNotification *)aNotification{
-    if ((IsLionOrLater)&&([self textFinderIsVisible])){
-        [textFinder cancelFindIndicator];
-        [textFinder performAction:NSTextFinderActionHideFindInterface];
-        //        [[NSNotificationCenter defaultCenter] removeObserver:self name:@"TextFindContextDidChange" object:nil];
+    if (IsLionOrLater){        
+        if([self textFinderIsVisible]){            
+            [textFinder setFindIndicatorNeedsUpdate:YES];
+            [textFinder cancelFindIndicator];
+            [textFinder performAction:NSTextFinderActionHideFindInterface];
+            //                [[NSNotificationCenter defaultCenter] removeObserver:self name:@"TextFindContextDidChange" object:nil];
+        }
     }
 }
 #endif
@@ -2286,7 +2318,9 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
             if ((findTag==NSTextFinderActionSetSearchString)&&(![self textFinderIsVisible])) {
                 [sender setTag:NSTextFinderActionShowFindInterface];
                 [super performTextFinderAction:sender];
-            }            
+            }
+            
+            [textFinder setFindIndicatorNeedsUpdate:YES];
         }else{
             NSLog(@"find action was invalid");
         }
