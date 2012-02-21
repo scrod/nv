@@ -72,7 +72,7 @@
 	NSRect part, clear;
 	
 	NSDivideRect(rect, &clear, &part, CLEAR_BUTTON_IMG_DIM + BORDER_LEFT_OFFSET + 4.0, NSMaxXEdge);
-	clear.origin.y -= 1.0;
+	clear.origin.y -= 0.5;
 	return clear;
 }
 

@@ -2296,6 +2296,7 @@ terminateApp:
 {
 	if (![window isKeyWindow]) {
 	//	[self focusOnCtrlFld:self];
+       if (![window isMainWindow]) [window makeKeyAndOrderFront:self];
 		[NSApp activateIgnoringOtherApps:YES];
 	}else {
 		[NSApp hide:[aNotification object]];
@@ -2437,7 +2438,7 @@ terminateApp:
 	[window setToolbar:toolbar];
 	
 	[window setShowsToolbarButton:NO];
-	titleBarButton = [[TitlebarButton alloc] initWithFrame:NSMakeRect(0, 0, 17.0, 17.0) pullsDown:YES];
+	titleBarButton = [[TitlebarButton alloc] initWithFrame:NSMakeRect(0, 0, 19.0, 19.0) pullsDown:YES];
 	[titleBarButton addToWindow:window];
 	
 	[field setDelegate:self];

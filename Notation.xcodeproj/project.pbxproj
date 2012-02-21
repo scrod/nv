@@ -182,6 +182,7 @@
 		5CBA7A981305E38C004ADEBB /* TagEditingManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CBA7A971305E38C004ADEBB /* TagEditingManager.m */; };
 		5CC2DF0B13083BCF006772D9 /* StatusItemView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CC2DF0A13083BCF006772D9 /* StatusItemView.m */; };
 		5CCEEF1D130B599B00E15B77 /* DFView.m in Sources */ = {isa = PBXBuildFile; fileRef = 5CCEEF1C130B599B00E15B77 /* DFView.m */; };
+		5CD1B00714F4593900AC948E /* Add.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 219196BC09D4F20000586B15 /* Add.tiff */; };
 		5CE5B0081422795300FB554C /* PTKeyComboPanel.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5CE5B00A1422795300FB554C /* PTKeyComboPanel.xib */; };
 		5CF01B08132975910083D66E /* greyscrollervertbottom.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 5CF01B02132975910083D66E /* greyscrollervertbottom.tiff */; };
 		5CF01B0C132975910083D66E /* greyscrollerverttop.tiff in Resources */ = {isa = PBXBuildFile; fileRef = 5CF01B06132975910083D66E /* greyscrollerverttop.tiff */; };
@@ -1545,6 +1546,7 @@
 				5C84319114229D810020E5A7 /* PassphraseRetriever.xib in Resources */,
 				5CE5B0081422795300FB554C /* PTKeyComboPanel.xib in Resources */,
 				9335C40D148EC7AC009CE623 /* multimarkdown in Resources */,
+				5CD1B00714F4593900AC948E /* Add.tiff in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
