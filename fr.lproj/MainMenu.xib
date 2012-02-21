@@ -2,13 +2,13 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="8.00">
 	<data>
 		<int key="IBDocument.SystemTarget">1050</int>
-		<string key="IBDocument.SystemVersion">11B26</string>
-		<string key="IBDocument.InterfaceBuilderVersion">1617</string>
-		<string key="IBDocument.AppKitVersion">1138</string>
-		<string key="IBDocument.HIToolboxVersion">566.00</string>
+		<string key="IBDocument.SystemVersion">11D50b</string>
+		<string key="IBDocument.InterfaceBuilderVersion">2177</string>
+		<string key="IBDocument.AppKitVersion">1138.32</string>
+		<string key="IBDocument.HIToolboxVersion">568.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin</string>
-			<string key="NS.object.0">1617</string>
+			<string key="NS.object.0">2177</string>
 		</object>
 		<array key="IBDocument.IntegratedClassDependencies">
 			<string>NSUserDefaultsController</string>
@@ -34,7 +34,10 @@
 		<array key="IBDocument.PluginDependencies">
 			<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 		</array>
-		<dictionary class="NSMutableDictionary" key="IBDocument.Metadata"/>
+		<object class="NSMutableDictionary" key="IBDocument.Metadata">
+			<string key="NS.key.0">PluginDependencyRecalculationVersion</string>
+			<integer value="1" key="NS.object.0"/>
+		</object>
 		<array class="NSMutableArray" key="IBDocument.RootObjects" id="180991162">
 			<object class="NSCustomObject" id="68649721">
 				<string key="NSClassName">NSApplication</string>
@@ -62,7 +65,7 @@
 					<int key="NSvFlags">256</int>
 					<string key="NSFrameSize">{397, 464}</string>
 					<reference key="NSSuperview"/>
-					<reference key="NSNextKeyView"/>
+					<reference key="NSWindow"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
 				<string key="NSMinSize">{213, 129}</string>
@@ -1417,7 +1420,7 @@
 				<string key="NSClassName">NSFontManager</string>
 			</object>
 			<object class="NSCustomView" id="1062704936">
-				<nil key="NSNextResponder"/>
+				<reference key="NSNextResponder"/>
 				<int key="NSvFlags">258</int>
 				<array class="NSMutableArray" key="NSSubviews">
 					<object class="NSTokenField" id="865238549">
@@ -1428,6 +1431,7 @@
 						</set>
 						<string key="NSFrame">{{206, 6}, {145, 14}}</string>
 						<reference key="NSSuperview" ref="1062704936"/>
+						<reference key="NSWindow"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTokenFieldCell" key="NSCell" id="401863581">
 							<int key="NSCellFlags">67239424</int>
@@ -1465,8 +1469,9 @@
 					<object class="NSTextField" id="893130091">
 						<reference key="NSNextResponder" ref="1062704936"/>
 						<int key="NSvFlags">266</int>
-						<string key="NSFrameSize">{381, 23}</string>
+						<string key="NSFrame">{{0, 1}, {381, 23}}</string>
 						<reference key="NSSuperview" ref="1062704936"/>
+						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="865238549"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="824481872">
@@ -1490,7 +1495,9 @@
 						</object>
 					</object>
 				</array>
-				<string key="NSFrameSize">{381, 23}</string>
+				<string key="NSFrameSize">{381, 24}</string>
+				<reference key="NSSuperview"/>
+				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="893130091"/>
 				<object class="NSMutableString" key="NSClassName">
 					<characters key="NS.bytes">NSView</characters>
@@ -2174,30 +2181,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 			<array class="NSMutableArray" key="connectionRecords">
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
-						<string key="label">performMiniaturize:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="563882729"/>
-					</object>
-					<int key="connectionID">37</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">arrangeInFront:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="313445401"/>
-					</object>
-					<int key="connectionID">39</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">runPageLayout:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="708555771"/>
-					</object>
-					<int key="connectionID">87</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
 						<string key="label">terminate:</string>
 						<reference key="source" ref="68649721"/>
 						<reference key="destination" ref="803154628"/>
@@ -2235,6 +2218,46 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<reference key="destination" ref="167734252"/>
 					</object>
 					<int key="connectionID">153</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="68649721"/>
+						<reference key="destination" ref="449647087"/>
+					</object>
+					<int key="connectionID">1041</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">terminate:</string>
+						<reference key="source" ref="68649721"/>
+						<reference key="destination" ref="160867168"/>
+					</object>
+					<int key="connectionID">1163</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">performMiniaturize:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="563882729"/>
+					</object>
+					<int key="connectionID">37</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">arrangeInFront:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="313445401"/>
+					</object>
+					<int key="connectionID">39</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">runPageLayout:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="708555771"/>
+					</object>
+					<int key="connectionID">87</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -2317,68 +2340,12 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 					<int key="connectionID">198</int>
 				</object>
 				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">editorStatusView</string>
-						<reference key="source" ref="449647087"/>
-						<reference key="destination" ref="76967489"/>
-					</object>
-					<int key="connectionID">348</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">labelText</string>
-						<reference key="source" ref="76967489"/>
-						<reference key="destination" ref="806923116"/>
-					</object>
-					<int key="connectionID">350</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">showPreferencesWindow:</string>
-						<reference key="source" ref="449647087"/>
-						<reference key="destination" ref="371777993"/>
-					</object>
-					<int key="connectionID">381</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">deleteNote:</string>
-						<reference key="source" ref="449647087"/>
-						<reference key="destination" ref="438608200"/>
-					</object>
-					<int key="connectionID">491</int>
-				</object>
-				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
 						<string key="label">performClose:</string>
 						<reference key="source" ref="17963713"/>
 						<reference key="destination" ref="853806141"/>
 					</object>
 					<int key="connectionID">496</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">renameNote:</string>
-						<reference key="source" ref="449647087"/>
-						<reference key="destination" ref="188918319"/>
-					</object>
-					<int key="connectionID">526</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">fixFileEncoding:</string>
-						<reference key="source" ref="449647087"/>
-						<reference key="destination" ref="11926709"/>
-					</object>
-					<int key="connectionID">536</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">bringFocusToControlField:</string>
-						<reference key="source" ref="449647087"/>
-						<reference key="destination" ref="344416416"/>
-					</object>
-					<int key="connectionID">555</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -2430,6 +2397,166 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
+						<string key="label">uppercaseWord:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="625641328"/>
+					</object>
+					<int key="connectionID">1110</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">lowercaseWord:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="363298438"/>
+					</object>
+					<int key="connectionID">1111</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">capitalizeWord:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="237246075"/>
+					</object>
+					<int key="connectionID">1112</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">strikethroughNV:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="721950874"/>
+					</object>
+					<int key="connectionID">1114</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">shiftLeftAction:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="589539040"/>
+					</object>
+					<int key="connectionID">1197</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">strikethroughNV:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="971467479"/>
+					</object>
+					<int key="connectionID">1198</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">italic:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="426234915"/>
+					</object>
+					<int key="connectionID">1200</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">bold:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="931326372"/>
+					</object>
+					<int key="connectionID">1201</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">defaultStyle:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="235588915"/>
+					</object>
+					<int key="connectionID">1202</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">shiftRightAction:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="659218162"/>
+					</object>
+					<int key="connectionID">1203</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">orderFrontSubstitutionsPanel:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="121872337"/>
+					</object>
+					<int key="connectionID">1331</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">toggleAutomaticDashSubstitution:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="122569534"/>
+					</object>
+					<int key="connectionID">1332</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">toggleAutomaticTextReplacement:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="688317292"/>
+					</object>
+					<int key="connectionID">1333</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">toggleFullScreen:</string>
+						<reference key="source" ref="17963713"/>
+						<reference key="destination" ref="284267857"/>
+					</object>
+					<int key="connectionID">1340</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">editorStatusView</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="76967489"/>
+					</object>
+					<int key="connectionID">348</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">showPreferencesWindow:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="371777993"/>
+					</object>
+					<int key="connectionID">381</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">deleteNote:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="438608200"/>
+					</object>
+					<int key="connectionID">491</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">renameNote:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="188918319"/>
+					</object>
+					<int key="connectionID">526</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">fixFileEncoding:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="11926709"/>
+					</object>
+					<int key="connectionID">536</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">bringFocusToControlField:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="344416416"/>
+					</object>
+					<int key="connectionID">555</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
 						<string key="label">importNotes:</string>
 						<reference key="source" ref="449647087"/>
 						<reference key="destination" ref="800344705"/>
@@ -2462,27 +2589,11 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="68649721"/>
-						<reference key="destination" ref="449647087"/>
-					</object>
-					<int key="connectionID">1041</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
 						<string key="label">sparkleUpdateItem</string>
 						<reference key="source" ref="449647087"/>
 						<reference key="destination" ref="770677830"/>
 					</object>
 					<int key="connectionID">1052</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="893130091"/>
-						<reference key="destination" ref="449647087"/>
-					</object>
-					<int key="connectionID">1068</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -2499,14 +2610,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<reference key="destination" ref="893130091"/>
 					</object>
 					<int key="connectionID">1074</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">nextKeyView</string>
-						<reference key="source" ref="76967489"/>
-						<reference key="destination" ref="893130091"/>
-					</object>
-					<int key="connectionID">1076</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
@@ -2566,38 +2669,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
-						<string key="label">uppercaseWord:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="625641328"/>
-					</object>
-					<int key="connectionID">1110</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">lowercaseWord:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="363298438"/>
-					</object>
-					<int key="connectionID">1111</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">capitalizeWord:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="237246075"/>
-					</object>
-					<int key="connectionID">1112</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">strikethroughNV:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="721950874"/>
-					</object>
-					<int key="connectionID">1114</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
 						<string key="label">switchViewLayout:</string>
 						<reference key="source" ref="449647087"/>
 						<reference key="destination" ref="191774858"/>
@@ -2622,27 +2693,11 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="1000189933"/>
-						<reference key="destination" ref="385450670"/>
-					</object>
-					<int key="connectionID">1159</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
 						<string key="label">statBarMenu</string>
 						<reference key="source" ref="449647087"/>
 						<reference key="destination" ref="1000189933"/>
 					</object>
 					<int key="connectionID">1160</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">terminate:</string>
-						<reference key="source" ref="68649721"/>
-						<reference key="destination" ref="160867168"/>
-					</object>
-					<int key="connectionID">1163</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -2734,59 +2789,11 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
-						<string key="label">shiftLeftAction:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="589539040"/>
-					</object>
-					<int key="connectionID">1197</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">strikethroughNV:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="971467479"/>
-					</object>
-					<int key="connectionID">1198</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
 						<string key="label">fixFileEncoding:</string>
 						<reference key="source" ref="449647087"/>
 						<reference key="destination" ref="226729837"/>
 					</object>
 					<int key="connectionID">1199</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">italic:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="426234915"/>
-					</object>
-					<int key="connectionID">1200</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">bold:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="931326372"/>
-					</object>
-					<int key="connectionID">1201</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">defaultStyle:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="235588915"/>
-					</object>
-					<int key="connectionID">1202</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">shiftRightAction:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="659218162"/>
-					</object>
-					<int key="connectionID">1203</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -2835,134 +2842,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<reference key="destination" ref="793531675"/>
 					</object>
 					<int key="connectionID">1236</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="793531675"/>
-						<reference key="destination" ref="449647087"/>
-					</object>
-					<int key="connectionID">1237</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">initialFirstResponder</string>
-						<reference key="source" ref="793531675"/>
-						<reference key="destination" ref="893130091"/>
-					</object>
-					<int key="connectionID">1238</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">controlField</string>
-						<reference key="source" ref="215342296"/>
-						<reference key="destination" ref="893130091"/>
-					</object>
-					<int key="connectionID">1240</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="215342296"/>
-						<reference key="destination" ref="449647087"/>
-					</object>
-					<int key="connectionID">1241</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="645308513"/>
-						<reference key="destination" ref="215342296"/>
-					</object>
-					<int key="connectionID">1242</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">notesTable</string>
-						<reference key="source" ref="893130091"/>
-						<reference key="destination" ref="215342296"/>
-					</object>
-					<int key="connectionID">1244</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">deselectAll:</string>
-						<reference key="source" ref="215342296"/>
-						<reference key="destination" ref="931874481"/>
-					</object>
-					<int key="connectionID">1245</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">incrementNoteSelection:</string>
-						<reference key="source" ref="215342296"/>
-						<reference key="destination" ref="934510319"/>
-					</object>
-					<int key="connectionID">1246</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">incrementNoteSelection:</string>
-						<reference key="source" ref="215342296"/>
-						<reference key="destination" ref="118835713"/>
-					</object>
-					<int key="connectionID">1247</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">paste:</string>
-						<reference key="source" ref="215342296"/>
-						<reference key="destination" ref="747374042"/>
-					</object>
-					<int key="connectionID">1248</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">toggleNoteBodyPreviews:</string>
-						<reference key="source" ref="215342296"/>
-						<reference key="destination" ref="816126785"/>
-					</object>
-					<int key="connectionID">1249</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="788571463"/>
-						<reference key="destination" ref="449647087"/>
-					</object>
-					<int key="connectionID">1262</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">notesTableView</string>
-						<reference key="source" ref="788571463"/>
-						<reference key="destination" ref="215342296"/>
-					</object>
-					<int key="connectionID">1263</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">nextKeyView</string>
-						<reference key="source" ref="788571463"/>
-						<reference key="destination" ref="893130091"/>
-					</object>
-					<int key="connectionID">1264</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">controlField</string>
-						<reference key="source" ref="788571463"/>
-						<reference key="destination" ref="893130091"/>
-					</object>
-					<int key="connectionID">1265</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">nextKeyView</string>
-						<reference key="source" ref="82828000"/>
-						<reference key="destination" ref="893130091"/>
-					</object>
-					<int key="connectionID">1266</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -3054,39 +2933,11 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
-						<string key="label">delegate</string>
-						<reference key="source" ref="865238549"/>
-						<reference key="destination" ref="449647087"/>
-					</object>
-					<int key="connectionID">1288</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
 						<string key="label">wordCounter</string>
 						<reference key="source" ref="449647087"/>
 						<reference key="destination" ref="865238549"/>
 					</object>
 					<int key="connectionID">1289</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBBindingConnection" key="connection">
-						<string key="label">value: values.ShowWordCount</string>
-						<reference key="source" ref="907501573"/>
-						<reference key="destination" ref="782335111"/>
-						<object class="NSNibBindingConnector" key="connector">
-							<reference key="NSSource" ref="907501573"/>
-							<reference key="NSDestination" ref="782335111"/>
-							<string key="NSLabel">value: values.ShowWordCount</string>
-							<string key="NSBinding">value</string>
-							<string key="NSKeyPath">values.ShowWordCount</string>
-							<object class="NSDictionary" key="NSOptions">
-								<string key="NS.key.0">NSValueTransformerName</string>
-								<string key="NS.object.0">NSNegateBoolean</string>
-							</object>
-							<int key="NSNibBindingConnectorVersion">2</int>
-						</object>
-					</object>
-					<int key="connectionID">1293</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -3178,35 +3029,179 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
+						<string key="label">togglePreview:</string>
+						<reference key="source" ref="449647087"/>
+						<reference key="destination" ref="314110703"/>
+					</object>
+					<int key="connectionID">1346</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">labelText</string>
+						<reference key="source" ref="76967489"/>
+						<reference key="destination" ref="806923116"/>
+					</object>
+					<int key="connectionID">350</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">nextKeyView</string>
+						<reference key="source" ref="76967489"/>
+						<reference key="destination" ref="893130091"/>
+					</object>
+					<int key="connectionID">1076</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="645308513"/>
+						<reference key="destination" ref="215342296"/>
+					</object>
+					<int key="connectionID">1242</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="893130091"/>
+						<reference key="destination" ref="449647087"/>
+					</object>
+					<int key="connectionID">1068</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">notesTable</string>
+						<reference key="source" ref="893130091"/>
+						<reference key="destination" ref="215342296"/>
+					</object>
+					<int key="connectionID">1244</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="1000189933"/>
+						<reference key="destination" ref="385450670"/>
+					</object>
+					<int key="connectionID">1159</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="793531675"/>
+						<reference key="destination" ref="449647087"/>
+					</object>
+					<int key="connectionID">1237</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">initialFirstResponder</string>
+						<reference key="source" ref="793531675"/>
+						<reference key="destination" ref="893130091"/>
+					</object>
+					<int key="connectionID">1238</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">controlField</string>
+						<reference key="source" ref="215342296"/>
+						<reference key="destination" ref="893130091"/>
+					</object>
+					<int key="connectionID">1240</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="215342296"/>
+						<reference key="destination" ref="449647087"/>
+					</object>
+					<int key="connectionID">1241</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">deselectAll:</string>
+						<reference key="source" ref="215342296"/>
+						<reference key="destination" ref="931874481"/>
+					</object>
+					<int key="connectionID">1245</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">incrementNoteSelection:</string>
+						<reference key="source" ref="215342296"/>
+						<reference key="destination" ref="934510319"/>
+					</object>
+					<int key="connectionID">1246</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">incrementNoteSelection:</string>
+						<reference key="source" ref="215342296"/>
+						<reference key="destination" ref="118835713"/>
+					</object>
+					<int key="connectionID">1247</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">paste:</string>
+						<reference key="source" ref="215342296"/>
+						<reference key="destination" ref="747374042"/>
+					</object>
+					<int key="connectionID">1248</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">toggleNoteBodyPreviews:</string>
+						<reference key="source" ref="215342296"/>
+						<reference key="destination" ref="816126785"/>
+					</object>
+					<int key="connectionID">1249</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">nextKeyView</string>
+						<reference key="source" ref="82828000"/>
+						<reference key="destination" ref="893130091"/>
+					</object>
+					<int key="connectionID">1266</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="788571463"/>
+						<reference key="destination" ref="449647087"/>
+					</object>
+					<int key="connectionID">1262</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">notesTableView</string>
+						<reference key="source" ref="788571463"/>
+						<reference key="destination" ref="215342296"/>
+					</object>
+					<int key="connectionID">1263</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">nextKeyView</string>
+						<reference key="source" ref="788571463"/>
+						<reference key="destination" ref="893130091"/>
+					</object>
+					<int key="connectionID">1264</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">controlField</string>
+						<reference key="source" ref="788571463"/>
+						<reference key="destination" ref="893130091"/>
+					</object>
+					<int key="connectionID">1265</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
 						<string key="label">insertLink:</string>
 						<reference key="source" ref="788571463"/>
 						<reference key="destination" ref="116067716"/>
 					</object>
 					<int key="connectionID">1324</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">orderFrontSubstitutionsPanel:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="121872337"/>
-					</object>
-					<int key="connectionID">1331</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">toggleAutomaticDashSubstitution:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="122569534"/>
-					</object>
-					<int key="connectionID">1332</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">toggleAutomaticTextReplacement:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="688317292"/>
-					</object>
-					<int key="connectionID">1333</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
@@ -3242,14 +3237,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
-						<string key="label">toggleFullScreen:</string>
-						<reference key="source" ref="17963713"/>
-						<reference key="destination" ref="284267857"/>
-					</object>
-					<int key="connectionID">1340</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
 						<string key="label">performFindPanelAction:</string>
 						<reference key="source" ref="788571463"/>
 						<reference key="destination" ref="729776078"/>
@@ -3257,12 +3244,32 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 					<int key="connectionID">1341</int>
 				</object>
 				<object class="IBConnectionRecord">
-					<object class="IBActionConnection" key="connection">
-						<string key="label">togglePreview:</string>
-						<reference key="source" ref="449647087"/>
-						<reference key="destination" ref="314110703"/>
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">delegate</string>
+						<reference key="source" ref="865238549"/>
+						<reference key="destination" ref="449647087"/>
 					</object>
-					<int key="connectionID">1346</int>
+					<int key="connectionID">1288</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBBindingConnection" key="connection">
+						<string key="label">value: values.ShowWordCount</string>
+						<reference key="source" ref="907501573"/>
+						<reference key="destination" ref="782335111"/>
+						<object class="NSNibBindingConnector" key="connector">
+							<reference key="NSSource" ref="907501573"/>
+							<reference key="NSDestination" ref="782335111"/>
+							<string key="NSLabel">value: values.ShowWordCount</string>
+							<string key="NSBinding">value</string>
+							<string key="NSKeyPath">values.ShowWordCount</string>
+							<object class="NSDictionary" key="NSOptions">
+								<string key="NS.key.0">NSValueTransformerName</string>
+								<string key="NS.object.0">NSNegateBoolean</string>
+							</object>
+							<int key="NSNibBindingConnectorVersion">2</int>
+						</object>
+					</object>
+					<int key="connectionID">1293</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBBindingConnection" key="connection">
@@ -4870,6 +4877,336 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
 				<object class="IBPartialClassDescription">
+					<string key="className">AppController</string>
+					<string key="superclassName">NSObject</string>
+					<dictionary class="NSMutableDictionary" key="actions">
+						<string key="bringFocusToControlField:">id</string>
+						<string key="copyNoteLink:">id</string>
+						<string key="deleteNote:">id</string>
+						<string key="editNoteExternally:">id</string>
+						<string key="exportNote:">id</string>
+						<string key="fieldAction:">id</string>
+						<string key="importNotes:">id</string>
+						<string key="lockPreview:">id</string>
+						<string key="multiTag:">id</string>
+						<string key="openFileInEditor:">id</string>
+						<string key="printNote:">id</string>
+						<string key="printPreview:">id</string>
+						<string key="renameNote:">id</string>
+						<string key="revealNote:">id</string>
+						<string key="savePreview:">id</string>
+						<string key="selectPreviewMode:">id</string>
+						<string key="setBWColorScheme:">id</string>
+						<string key="setLCColorScheme:">id</string>
+						<string key="setUserColorScheme:">id</string>
+						<string key="sharePreview:">id</string>
+						<string key="showHelpDocument:">id</string>
+						<string key="showPreferencesWindow:">id</string>
+						<string key="switchFullScreen:">id</string>
+						<string key="switchViewLayout:">id</string>
+						<string key="syncWaitQuit:">id</string>
+						<string key="tagNote:">id</string>
+						<string key="testThing:">id</string>
+						<string key="toggleCollapse:">id</string>
+						<string key="toggleNVActivation:">id</string>
+						<string key="togglePreview:">id</string>
+						<string key="toggleSourceView:">id</string>
+						<string key="toggleWordCount:">id</string>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="actionInfosByName">
+						<object class="IBActionInfo" key="bringFocusToControlField:">
+							<string key="name">bringFocusToControlField:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="copyNoteLink:">
+							<string key="name">copyNoteLink:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="deleteNote:">
+							<string key="name">deleteNote:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="editNoteExternally:">
+							<string key="name">editNoteExternally:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="exportNote:">
+							<string key="name">exportNote:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="fieldAction:">
+							<string key="name">fieldAction:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="importNotes:">
+							<string key="name">importNotes:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="lockPreview:">
+							<string key="name">lockPreview:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="multiTag:">
+							<string key="name">multiTag:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="openFileInEditor:">
+							<string key="name">openFileInEditor:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="printNote:">
+							<string key="name">printNote:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="printPreview:">
+							<string key="name">printPreview:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="renameNote:">
+							<string key="name">renameNote:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="revealNote:">
+							<string key="name">revealNote:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="savePreview:">
+							<string key="name">savePreview:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="selectPreviewMode:">
+							<string key="name">selectPreviewMode:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="setBWColorScheme:">
+							<string key="name">setBWColorScheme:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="setLCColorScheme:">
+							<string key="name">setLCColorScheme:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="setUserColorScheme:">
+							<string key="name">setUserColorScheme:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="sharePreview:">
+							<string key="name">sharePreview:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="showHelpDocument:">
+							<string key="name">showHelpDocument:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="showPreferencesWindow:">
+							<string key="name">showPreferencesWindow:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="switchFullScreen:">
+							<string key="name">switchFullScreen:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="switchViewLayout:">
+							<string key="name">switchViewLayout:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="syncWaitQuit:">
+							<string key="name">syncWaitQuit:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="tagNote:">
+							<string key="name">tagNote:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="testThing:">
+							<string key="name">testThing:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="toggleCollapse:">
+							<string key="name">toggleCollapse:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="toggleNVActivation:">
+							<string key="name">toggleNVActivation:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="togglePreview:">
+							<string key="name">togglePreview:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="toggleSourceView:">
+							<string key="name">toggleSourceView:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="toggleWordCount:">
+							<string key="name">toggleWordCount:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="outlets">
+						<string key="editorStatusView">EmptyView</string>
+						<string key="field">DualField</string>
+						<string key="fsMenuItem">NSMenuItem</string>
+						<string key="lockNoteItem">NSMenuItem</string>
+						<string key="mainView">ETContentView</string>
+						<string key="multiMarkdownPreview">NSMenuItem</string>
+						<string key="notesScrollView">ETScrollView</string>
+						<string key="notesTableView">NotesTableView</string>
+						<string key="previewToggler">NSMenuItem</string>
+						<string key="printPreviewItem">NSMenuItem</string>
+						<string key="savePreviewItem">NSMenuItem</string>
+						<string key="sparkleUpdateItem">NSMenuItem</string>
+						<string key="statBarMenu">NSMenu</string>
+						<string key="syncWaitPanel">NSPanel</string>
+						<string key="syncWaitSpinner">NSProgressIndicator</string>
+						<string key="textScrollView">ETScrollView</string>
+						<string key="textView">LinkingEditor</string>
+						<string key="textilePreview">NSMenuItem</string>
+						<string key="window">NSWindow</string>
+						<string key="wordCounter">WordCountToken</string>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="toOneOutletInfosByName">
+						<object class="IBToOneOutletInfo" key="editorStatusView">
+							<string key="name">editorStatusView</string>
+							<string key="candidateClassName">EmptyView</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="field">
+							<string key="name">field</string>
+							<string key="candidateClassName">DualField</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="fsMenuItem">
+							<string key="name">fsMenuItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="lockNoteItem">
+							<string key="name">lockNoteItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="mainView">
+							<string key="name">mainView</string>
+							<string key="candidateClassName">ETContentView</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="multiMarkdownPreview">
+							<string key="name">multiMarkdownPreview</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="notesScrollView">
+							<string key="name">notesScrollView</string>
+							<string key="candidateClassName">ETScrollView</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="notesTableView">
+							<string key="name">notesTableView</string>
+							<string key="candidateClassName">NotesTableView</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="previewToggler">
+							<string key="name">previewToggler</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="printPreviewItem">
+							<string key="name">printPreviewItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="savePreviewItem">
+							<string key="name">savePreviewItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="sparkleUpdateItem">
+							<string key="name">sparkleUpdateItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="statBarMenu">
+							<string key="name">statBarMenu</string>
+							<string key="candidateClassName">NSMenu</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="syncWaitPanel">
+							<string key="name">syncWaitPanel</string>
+							<string key="candidateClassName">NSPanel</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="syncWaitSpinner">
+							<string key="name">syncWaitSpinner</string>
+							<string key="candidateClassName">NSProgressIndicator</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="textScrollView">
+							<string key="name">textScrollView</string>
+							<string key="candidateClassName">ETScrollView</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="textView">
+							<string key="name">textView</string>
+							<string key="candidateClassName">LinkingEditor</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="textilePreview">
+							<string key="name">textilePreview</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="window">
+							<string key="name">window</string>
+							<string key="candidateClassName">NSWindow</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="wordCounter">
+							<string key="name">wordCounter</string>
+							<string key="candidateClassName">WordCountToken</string>
+						</object>
+					</dictionary>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/AppController.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">DualField</string>
+					<string key="superclassName">NSTextField</string>
+					<object class="NSMutableDictionary" key="outlets">
+						<string key="NS.key.0">notesTable</string>
+						<string key="NS.object.0">NSTableView</string>
+					</object>
+					<object class="NSMutableDictionary" key="toOneOutletInfosByName">
+						<string key="NS.key.0">notesTable</string>
+						<object class="IBToOneOutletInfo" key="NS.object.0">
+							<string key="name">notesTable</string>
+							<string key="candidateClassName">NSTableView</string>
+						</object>
+					</object>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/DualField.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">ETContentView</string>
+					<string key="superclassName">NSView</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/ETContentView.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">ETScrollView</string>
+					<string key="superclassName">NSScrollView</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/ETScrollView.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">EmptyView</string>
+					<string key="superclassName">NSView</string>
+					<object class="NSMutableDictionary" key="outlets">
+						<string key="NS.key.0">labelText</string>
+						<string key="NS.object.0">NSTextField</string>
+					</object>
+					<object class="NSMutableDictionary" key="toOneOutletInfosByName">
+						<string key="NS.key.0">labelText</string>
+						<object class="IBToOneOutletInfo" key="NS.object.0">
+							<string key="name">labelText</string>
+							<string key="candidateClassName">NSTextField</string>
+						</object>
+					</object>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/EmptyView.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
 					<string key="className">FirstResponder</string>
 					<dictionary class="NSMutableDictionary" key="actions">
 						<string key="bold:">id</string>
@@ -4920,6 +5257,114 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<string key="minorKey"/>
 					</object>
 				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">HeaderViewWithMenu</string>
+					<string key="superclassName">NSTableHeaderView</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/HeaderViewWithMenu.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">LinkingEditor</string>
+					<string key="superclassName">NSTextView</string>
+					<dictionary class="NSMutableDictionary" key="actions">
+						<string key="insertLink:">id</string>
+						<string key="pasteMarkdownLink:">id</string>
+						<string key="performFindPanelAction:">id</string>
+						<string key="shiftLeftAction:">id</string>
+						<string key="shiftRightAction:">id</string>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="actionInfosByName">
+						<object class="IBActionInfo" key="insertLink:">
+							<string key="name">insertLink:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="pasteMarkdownLink:">
+							<string key="name">pasteMarkdownLink:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="performFindPanelAction:">
+							<string key="name">performFindPanelAction:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="shiftLeftAction:">
+							<string key="name">shiftLeftAction:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="shiftRightAction:">
+							<string key="name">shiftRightAction:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="outlets">
+						<string key="controlField">NSTextField</string>
+						<string key="notesTableView">NotesTableView</string>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="toOneOutletInfosByName">
+						<object class="IBToOneOutletInfo" key="controlField">
+							<string key="name">controlField</string>
+							<string key="candidateClassName">NSTextField</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="notesTableView">
+							<string key="name">notesTableView</string>
+							<string key="candidateClassName">NotesTableView</string>
+						</object>
+					</dictionary>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/LinkingEditor.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">NotesTableView</string>
+					<string key="superclassName">NSTableView</string>
+					<dictionary class="NSMutableDictionary" key="actions">
+						<string key="actionHideShowColumn:">id</string>
+						<string key="toggleNoteBodyPreviews:">id</string>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="actionInfosByName">
+						<object class="IBActionInfo" key="actionHideShowColumn:">
+							<string key="name">actionHideShowColumn:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="toggleNoteBodyPreviews:">
+							<string key="name">toggleNoteBodyPreviews:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+					</dictionary>
+					<object class="NSMutableDictionary" key="outlets">
+						<string key="NS.key.0">controlField</string>
+						<string key="NS.object.0">NSTextField</string>
+					</object>
+					<object class="NSMutableDictionary" key="toOneOutletInfosByName">
+						<string key="NS.key.0">controlField</string>
+						<object class="IBToOneOutletInfo" key="NS.object.0">
+							<string key="name">controlField</string>
+							<string key="candidateClassName">NSTextField</string>
+						</object>
+					</object>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/NotesTableView.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">StatusItemView</string>
+					<string key="superclassName">NSView</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/StatusItemView.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">WordCountToken</string>
+					<string key="superclassName">NSTokenField</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/WordCountToken.h</string>
+					</object>
+				</object>
 			</array>
 		</object>
 		<int key="IBDocument.localizationMode">0</int>
@@ -4931,8 +5376,8 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 		<bool key="IBDocument.PluginDeclaredDependenciesTrackSystemTargetVersion">YES</bool>
 		<int key="IBDocument.defaultPropertyAccessControl">3</int>
 		<dictionary class="NSMutableDictionary" key="IBDocument.LastKnownImageSizes">
-			<string key="NSMenuCheckmark">{9, 8}</string>
-			<string key="NSMenuMixedState">{7, 2}</string>
+			<string key="NSMenuCheckmark">{11, 11}</string>
+			<string key="NSMenuMixedState">{10, 3}</string>
 		</dictionary>
 	</data>
 </archive>
