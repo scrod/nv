@@ -947,9 +947,14 @@ copyRTFType:
 		//maybe it works on someone else's 10.3 Mac
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
-	}else if (([anEvent keyCode]==36)&&([anEvent modifierFlags]&NSCommandKeyMask)&&(!(([anEvent modifierFlags]&NSControlKeyMask)||([anEvent modifierFlags]&NSAlternateKeyMask)||([anEvent modifierFlags]&NSShiftKeyMask)))) {        
-        [self moveToEndOfParagraph:self];
-        [self insertNewlineIgnoringFieldEditor:self]; 
+	}else if (([anEvent keyCode]==36)&&([anEvent modifierFlags]&NSCommandKeyMask)&&(!(([anEvent modifierFlags]&NSControlKeyMask)||([anEvent modifierFlags]&NSAlternateKeyMask)))) {
+        if ([anEvent modifierFlags]&NSShiftKeyMask) {
+            [self moveToBeginningOfParagraph:self]; 
+            [self moveBackward:self];       
+        }else{            
+            [self moveToEndOfParagraph:self];
+        }     
+        [self insertNewlineIgnoringFieldEditor:self];   
 		return;
     }
     //[super interpretKeyEvents:[NSArray arrayWithObject:anEvent]];
@@ -1356,17 +1361,24 @@ copyRTFType:
         //for ElasticThreads Find... fix. Also make sure all Find menuItems point their targets to LinkingEditor instead of firstResponder
         
         //hide Find and Replace... on Pre-Lion machines
-        if (!IsLionOrLater&&([menuItem tag]==12)) {
+        if (!IsLionOrLater){
+            if([menuItem tag]==12) {
             [menuItem setHidden:YES];
             return NO;
+            }
+        }else{
+            if ([menuItem tag]==7) {
+                if (![textFinder validateAction:[menuItem tag]]) {
+                    return NO;
+                }
+            }
         }
         return YES;
     }else if (action==@selector(pasteMarkdownLink:)) {
         
       //  if ([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"]) {  
            // [menuItem setHidden:NO];
-            if ([self clipboardHasLink]) {
-                
+            if ([self clipboardHasLink]) {                
                 return YES;
             }
             
@@ -1423,6 +1435,7 @@ copyRTFType:
 
 - (void)clickedOnLink:(id)aLink atIndex:(NSUInteger)charIndex {
 	NSEvent *currentEvent = [[self window] currentEvent];
+//    NSLog(@"clicked:%@",[currentEvent description]);
 	
 	if (![prefsController URLsAreClickable] && [currentEvent modifierFlags] & NSCommandKeyMask) {
 		
@@ -1435,6 +1448,15 @@ copyRTFType:
 	}
 	
 	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nv"]) {
+        if (([currentEvent type]==10)&&((([currentEvent modifierFlags] & NSAlternateKeyMask)&&([currentEvent modifierFlags] & NSCommandKeyMask))&&!(([currentEvent modifierFlags] & NSControlKeyMask)))) {
+            NSString *newURLString=[[aLink lastPathComponent]stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+            NSString *txtString=[[NSString stringWithFormat:@"[[%@]]",[aLink lastPathComponent]] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+            newURLString=[NSString stringWithFormat:@"nv://make/?title=%@&txt=%@",newURLString,txtString];
+//            NSLog(@"newurlstring:%@",newURLString);
+            NSURL *newURL=[NSURL URLWithString:newURLString];
+//            NSLog(@"interpret from cmd-keydown OLD URL:||%@||  AND NEW URL:|%@|",[aLink absoluteString],[newURL absoluteString]);
+            aLink=newURL;
+        }
 		[[NSApp delegate] interpretNVURL:aLink];
 	} else {
 		[super clickedOnLink:aLink atIndex:charIndex];
@@ -1875,7 +1897,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     NSRange selRange = [self selectedRange];
     if (selRange.length>0) {
         NSString *selString = [[self string] substringWithRange:selRange];
-        selString = [NSString stringWithFormat:@"%@%@%@",@"[[",selString,@"]]"];
+        selString = [NSString stringWithFormat:@"[[%@]]",selString];
         [super insertText:selString];
         
     }else{
@@ -2057,7 +2079,6 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
             }
         }
     }
-    
     return NO;
 }
 
@@ -2258,9 +2279,9 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         return;
     
     NSInteger findTag=[sender tag];
+    
     [sender setTarget:self];
     if(!IsLionOrLater||([sender tag]!=7)){
-        
         NSString *pbType;
         if (IsSnowLeopardOrLater) {
             pbType=NSPasteboardTypeString;
@@ -2282,15 +2303,19 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
             [lastImportedFindString release];
             lastImportedFindString = [typedString retain];
         }
+        
+//        NSLog(@"aqui typedSTring:|%@|",typedString);
     }
     if ([[self window] firstResponder]!=self) {
         [[self window]makeFirstResponder:self];
     }
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
     if (IsLionOrLater) {
+        
+        id newSender=[sender copy];
         if((findTag!=1)&&(findTag!=12)&&(findTag!=7)&&(![self textFinderIsVisible])){            
-            [sender setTag:NSTextFinderActionShowFindInterface];
-            [super performTextFinderAction:sender];
+            [newSender setTag:NSTextFinderActionShowFindInterface];
+            [super performTextFinderAction:newSender];
         } 
         if (findTag==1) {
             findTag=NSTextFinderActionShowFindInterface;
@@ -2305,25 +2330,27 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         }else if (findTag==6) {
             findTag=NSTextFinderActionReplaceAndFind;
         }else if (findTag==7) {
+//            NSLog(@"aqui2");
             findTag=(NSTextFinderActionSetSearchString);
         }else if (findTag==9) {
             findTag=NSTextFinderActionSelectAll;
         }else if (findTag==12) {
             findTag=NSTextFinderActionShowReplaceInterface;
         }//NSTextFinderActionSelectAll = 9,
-        [sender setTag:findTag];
+        [newSender setTag:findTag];
         
         if ([textFinder validateAction:findTag]) {
-            [super performTextFinderAction:sender]; 
+            [super performTextFinderAction:newSender]; 
             if ((findTag==NSTextFinderActionSetSearchString)&&(![self textFinderIsVisible])) {
-                [sender setTag:NSTextFinderActionShowFindInterface];
-                [super performTextFinderAction:sender];
+                [newSender setTag:NSTextFinderActionShowFindInterface];
+                [super performTextFinderAction:newSender];
             }
             
-            [textFinder setFindIndicatorNeedsUpdate:YES];
+//            [textFinder setFindIndicatorNeedsUpdate:YES];
         }else{
             NSLog(@"find action was invalid");
         }
+        [newSender release];
         return;
     }
 #endif
@@ -2338,6 +2365,13 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         }	
     }
     [super performFindPanelAction:sender];    
+}
+
+- (IBAction)toggleLayoutOrientation:(id)sender {
+  /*not ready yet. lots of display bugs. no horizontal scrollers... need to make SELF horizontally scrollable and switch to default scrollers or add ETTRANSPARENTHORIZONTAL BOYS. ALSO preference, binding, tag switching, etc.*/
+    
+//    [super changeLayoutOrientation:sender];
+    
 }
 
 @end

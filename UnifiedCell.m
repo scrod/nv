@@ -82,7 +82,7 @@
 - (NSRect)nv_titleRectForFrame:(NSRect)aFrame {
 	//fixed based on width of the cell
 
-	//height could justifiably vary based on wrapped height of title string
+	//height could justifiably vary based on wrapped height of title string-9.0
 	return NSMakeRect(aFrame.origin.x, aFrame.origin.y, aFrame.size.width, [self tableFontFrameHeight]);
 }
 
@@ -203,7 +203,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 		}
 		
 		NSString *dateStr = (showDateCreated ? dateCreatedStringOfNote : dateModifiedStringOfNote)(tv, noteObject, NSNotFound);
-		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 67.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
+		[dateStr drawInRect:NSMakeRect(NSMaxX(cellFrame) - 76.0, NSMinY(cellFrame), 70.0, fontHeight) withAttributes:baseAttrs];
 	}
 
 	if (ColumnIsSet(NoteLabelsColumn, columnsBitmap) && [labelsOfNote(noteObject) length]) {

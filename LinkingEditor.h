@@ -113,6 +113,7 @@
 - (void)hideTextFinderIfNecessary:(NSNotification *)aNotification;
 - (IBAction)pasteMarkdownLink:(id)sender;
 - (BOOL)clipboardHasLink;
+- (IBAction)toggleLayoutOrientation:(id)sender;
 #endif
 //
 @end

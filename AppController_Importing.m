@@ -151,6 +151,9 @@
 }
 
 - (BOOL)interpretNVURL:(NSURL*)aURL {
+    
+//    NSLog(@"interpret URL:|||%@|||",[aURL absoluteString]);
+    
 	// currently supported:
 	// hostname -> command
 	// first level -> search term / title
