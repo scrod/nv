@@ -109,10 +109,12 @@
 - (void)prepareTextFinder;
 - (void)prepareTextFinderPreLion;
 - (BOOL)textFinderIsVisible;
+- (IBAction)pasteMarkdownLink:(id)sender;
+- (void)insertStringAtStartOfParagraph:(NSString *)insertString;
+- (void)removeStringAtStartOfParagraph:(NSString *)removeString;
+- (BOOL)clipboardHasLink;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)hideTextFinderIfNecessary:(NSNotification *)aNotification;
-- (IBAction)pasteMarkdownLink:(id)sender;
-- (BOOL)clipboardHasLink;
 - (IBAction)toggleLayoutOrientation:(id)sender;
 #endif
 //

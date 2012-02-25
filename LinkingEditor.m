@@ -938,17 +938,17 @@ copyRTFType:
 }
 
 - (void)keyDown:(NSEvent*)anEvent {	
-//    [[NSApp delegate] resetModTimers];
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+    //    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
-
+    //    NSLog(@"firstChar:   |%@|",firstChar);
+    NSUInteger modFlags=[anEvent modifierFlags];
 	if (keyChar == NSBackTabCharacter) {
 		//apparently interpretKeyEvents: on 10.3 does not call insertBacktab
 		//maybe it works on someone else's 10.3 Mac
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
-	}else if (([anEvent keyCode]==36)&&([anEvent modifierFlags]&NSCommandKeyMask)&&(!(([anEvent modifierFlags]&NSControlKeyMask)||([anEvent modifierFlags]&NSAlternateKeyMask)))) {
-        if ([anEvent modifierFlags]&NSShiftKeyMask) {
+	}else if ((keyChar == NSCarriageReturnCharacter)&&(modFlags&NSCommandKeyMask)&&(!((modFlags&NSControlKeyMask)||(modFlags&NSAlternateKeyMask)))) {
+        if (modFlags&NSShiftKeyMask) {
             [self moveToBeginningOfParagraph:self]; 
             [self moveBackward:self];       
         }else{            
@@ -956,10 +956,56 @@ copyRTFType:
         }     
         [self insertNewlineIgnoringFieldEditor:self];   
 		return;
+    }else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(modFlags&NSCommandKeyMask)&&!(modFlags&NSControlKeyMask)&&!(modFlags&NSAlternateKeyMask)){        
+        NSString *firstChar=[NSString stringWithCharacters:&keyChar length:1];
+        if ([firstChar isEqualToString:@"<"]) {
+            [self removeStringAtStartOfParagraph:@">"];
+            //              NSLog(@"cmd-shift-<");   
+        }else if ([firstChar isEqualToString:@">"]){ 
+            [self insertStringAtStartOfParagraph:@">"];
+            //            NSLog(@"cmd-shift->");   
+        }else if (([firstChar isEqualToString:@"+"])||([firstChar isEqualToString:@"="])){ 
+            
+            [self insertStringAtStartOfParagraph:@"#"];
+            //            NSLog(@"cmd-shift-+");   
+        }else if (([firstChar isEqualToString:@"-"])||([firstChar isEqualToString:@"_"])){ 
+            [self removeStringAtStartOfParagraph:@"#"];
+            //            NSLog(@"cmd-shift-MINUS");   
+        }  
     }
     //[super interpretKeyEvents:[NSArray arrayWithObject:anEvent]];
 	[super keyDown:anEvent];
     
+}
+
+- (void)insertStringAtStartOfParagraph:(NSString *)insertString{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    actRange.length=0;
+    if ((actRange.location!=NSNotFound)&&([self shouldChangeTextInRange:actRange replacementString:insertString])) {
+        if ((![[self activeParagraph] hasPrefix:insertString])&&(![[self activeParagraph] hasPrefix:@" "])) {
+            insertString=[insertString stringByAppendingString:@" "];
+        }
+        [self replaceCharactersInRange:actRange withString:insertString];
+        [self didChangeText];
+    }
+}
+
+- (void)removeStringAtStartOfParagraph:(NSString *)removeString{
+    if (![[self activeParagraph] hasPrefix:removeString]) {
+        removeString=@" ";
+    }
+    if ([[self activeParagraph] hasPrefix:removeString]) {
+        NSRange actRange=[self rangeOfActiveParagraph];
+        if ([[self activeParagraph] hasPrefix:[removeString stringByAppendingString:@" "]]) {
+            actRange.length=2;
+        }else{
+        actRange.length=1;
+        }
+        if ((actRange.location!=NSNotFound)&&([self shouldChangeTextInRange:actRange replacementString:@""])) {
+            [self replaceCharactersInRange:actRange withString:@""];
+             [self didChangeText];
+        }
+    }
 }
 
 - (BOOL)jumpToRenaming {
