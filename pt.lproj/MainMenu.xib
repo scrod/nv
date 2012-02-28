@@ -65,7 +65,6 @@
 					<int key="NSvFlags">256</int>
 					<string key="NSFrameSize">{397, 464}</string>
 					<reference key="NSSuperview"/>
-					<reference key="NSWindow"/>
 				</object>
 				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
 				<string key="NSMinSize">{213, 129}</string>
@@ -463,6 +462,15 @@
 									<reference key="NSOnImage" ref="108278331"/>
 									<reference key="NSMixedImage" ref="323189366"/>
 								</object>
+								<object class="NSMenuItem" id="934925894">
+									<reference key="NSMenu" ref="906904136"/>
+									<string key="NSTitle">Colar Markdown Link</string>
+									<string key="NSKeyEquiv">v</string>
+									<int key="NSKeyEquivModMask">1572864</int>
+									<int key="NSMnemonicLoc">2147483647</int>
+									<reference key="NSOnImage" ref="108278331"/>
+									<reference key="NSMixedImage" ref="323189366"/>
+								</object>
 								<object class="NSMenuItem" id="642071313">
 									<reference key="NSMenu" ref="906904136"/>
 									<string key="NSTitle">Limpar</string>
@@ -558,16 +566,18 @@
 											<object class="NSMenuItem" id="375602835">
 												<reference key="NSMenu" ref="256029499"/>
 												<string key="NSTitle">Procurar utilizando texto selecionado</string>
-												<string key="NSKeyEquiv"/>
+												<string key="NSKeyEquiv">e</string>
+												<int key="NSKeyEquivModMask">1572864</int>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="108278331"/>
 												<reference key="NSMixedImage" ref="323189366"/>
 												<int key="NSTag">7</int>
 											</object>
-											<object class="NSMenuItem" id="557766603">
+											<object class="NSMenuItem" id="771943686">
 												<reference key="NSMenu" ref="256029499"/>
 												<string key="NSTitle">Jump to Selection</string>
-												<string key="NSKeyEquiv"/>
+												<string key="NSKeyEquiv">j</string>
+												<int key="NSKeyEquivModMask">1572864</int>
 												<int key="NSMnemonicLoc">2147483647</int>
 												<reference key="NSOnImage" ref="108278331"/>
 												<reference key="NSMixedImage" ref="323189366"/>
@@ -1199,7 +1209,7 @@
 								</object>
 								<object class="NSMenuItem" id="1039646925">
 									<reference key="NSMenu" ref="686109328"/>
-									<string key="NSTitle">Use Markdown Syntax Completion</string>
+									<string key="NSTitle">Enable Markdown Completion</string>
 									<string key="NSKeyEquiv">M</string>
 									<int key="NSKeyEquivModMask">1048576</int>
 									<int key="NSMnemonicLoc">2147483647</int>
@@ -1433,7 +1443,6 @@
 						</set>
 						<string key="NSFrame">{{206, 6}, {145, 14}}</string>
 						<reference key="NSSuperview" ref="758322499"/>
-						<reference key="NSWindow"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTokenFieldCell" key="NSCell" id="449847778">
 							<int key="NSCellFlags">67239424</int>
@@ -1473,7 +1482,6 @@
 						<int key="NSvFlags">266</int>
 						<string key="NSFrame">{{0, 1}, {381, 23}}</string>
 						<reference key="NSSuperview" ref="758322499"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="906994"/>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="587206907">
@@ -1499,7 +1507,6 @@
 				</array>
 				<string key="NSFrameSize">{381, 24}</string>
 				<reference key="NSSuperview"/>
-				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="444057362"/>
 				<object class="NSMutableString" key="NSClassName">
 					<characters key="NS.bytes">NSView</characters>
@@ -1791,6 +1798,15 @@
 						<string key="NSTitle">Toggle Preview Window</string>
 						<string key="NSKeyEquiv">p</string>
 						<int key="NSKeyEquivModMask">1310720</int>
+						<int key="NSMnemonicLoc">2147483647</int>
+						<reference key="NSOnImage" ref="108278331"/>
+						<reference key="NSMixedImage" ref="323189366"/>
+					</object>
+					<object class="NSMenuItem" id="806044197">
+						<reference key="NSMenu" ref="252210853"/>
+						<string key="NSTitle">Enable Markdown Completion</string>
+						<string key="NSKeyEquiv">M</string>
+						<int key="NSKeyEquivModMask">1048576</int>
 						<int key="NSMnemonicLoc">2147483647</int>
 						<reference key="NSOnImage" ref="108278331"/>
 						<reference key="NSMixedImage" ref="323189366"/>
@@ -2508,6 +2524,14 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 					<int key="connectionID">1326</int>
 				</object>
 				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">centerSelectionInVisibleArea:</string>
+						<reference key="source" ref="245057961"/>
+						<reference key="destination" ref="771943686"/>
+					</object>
+					<int key="connectionID">1349</int>
+				</object>
+				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
 						<string key="label">editorStatusView</string>
 						<reference key="source" ref="308109095"/>
@@ -3196,6 +3220,14 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 					<int key="connectionID">1328</int>
 				</object>
 				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">pasteMarkdownLink:</string>
+						<reference key="source" ref="273782792"/>
+						<reference key="destination" ref="934925894"/>
+					</object>
+					<int key="connectionID">1336</int>
+				</object>
+				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
 						<string key="label">nextKeyView</string>
 						<reference key="source" ref="809404436"/>
@@ -3306,6 +3338,26 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						</object>
 					</object>
 					<int key="connectionID">1332</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBBindingConnection" key="connection">
+						<string key="label">value: values.UsesMarkdownCompletions</string>
+						<reference key="source" ref="806044197"/>
+						<reference key="destination" ref="849887006"/>
+						<object class="NSNibBindingConnector" key="connector">
+							<reference key="NSSource" ref="806044197"/>
+							<reference key="NSDestination" ref="849887006"/>
+							<string key="NSLabel">value: values.UsesMarkdownCompletions</string>
+							<string key="NSBinding">value</string>
+							<string key="NSKeyPath">values.UsesMarkdownCompletions</string>
+							<dictionary key="NSOptions">
+								<boolean value="NO" key="NSAllowsEditingMultipleValuesSelection"/>
+								<boolean value="NO" key="NSRaisesForNotApplicableKeys"/>
+							</dictionary>
+							<int key="NSNibBindingConnectorVersion">2</int>
+						</object>
+					</object>
+					<int key="connectionID">1338</int>
 				</object>
 			</array>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -3656,6 +3708,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 							<reference ref="619717677"/>
 							<reference ref="533936059"/>
 							<reference ref="1052397089"/>
+							<reference ref="934925894"/>
 						</array>
 						<reference key="parent" ref="315588652"/>
 					</object>
@@ -3696,7 +3749,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 							<reference ref="110028837"/>
 							<reference ref="354584156"/>
 							<reference ref="271920211"/>
-							<reference ref="557766603"/>
+							<reference ref="771943686"/>
 						</array>
 						<reference key="parent" ref="998074185"/>
 					</object>
@@ -4173,6 +4226,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 							<reference ref="528224981"/>
 							<reference ref="654269800"/>
 							<reference ref="864853283"/>
+							<reference ref="806044197"/>
 						</array>
 						<reference key="parent" ref="0"/>
 					</object>
@@ -4604,11 +4658,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<reference key="parent" ref="256029499"/>
 					</object>
 					<object class="IBObjectRecord">
-						<int key="objectID">1305</int>
-						<reference key="object" ref="557766603"/>
-						<reference key="parent" ref="256029499"/>
-					</object>
-					<object class="IBObjectRecord">
 						<int key="objectID">1317</int>
 						<reference key="object" ref="1052397089"/>
 						<array class="NSMutableArray" key="children">
@@ -4656,6 +4705,21 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<int key="objectID">1333</int>
 						<reference key="object" ref="864853283"/>
 						<reference key="parent" ref="252210853"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1335</int>
+						<reference key="object" ref="934925894"/>
+						<reference key="parent" ref="906904136"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1337</int>
+						<reference key="object" ref="806044197"/>
+						<reference key="parent" ref="252210853"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">1345</int>
+						<reference key="object" ref="771943686"/>
+						<reference key="parent" ref="256029499"/>
 					</object>
 				</array>
 			</object>
@@ -4784,7 +4848,6 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				<string key="1300.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="1302.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="1304.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<string key="1305.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="131.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="1317.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="1318.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -4794,7 +4857,10 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 				<string key="1322.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="1329.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="1333.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="1335.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="1337.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="134.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="1345.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="136.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="143.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="144.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -4887,7 +4953,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 			<nil key="activeLocalization"/>
 			<dictionary class="NSMutableDictionary" key="localizations"/>
 			<nil key="sourceID"/>
-			<int key="maxID">1334</int>
+			<int key="maxID">1350</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -5289,6 +5355,7 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						<string key="performFindPanelAction:">id</string>
 						<string key="shiftLeftAction:">id</string>
 						<string key="shiftRightAction:">id</string>
+						<string key="toggleLayoutOrientation:">id</string>
 					</dictionary>
 					<dictionary class="NSMutableDictionary" key="actionInfosByName">
 						<object class="IBActionInfo" key="insertLink:">
@@ -5309,6 +5376,10 @@ AAEAAQAAAT0AAwAAAAEAAgAAAVIAAwAAAAEAAQAAAVMAAwAAAAIAAQABAAAAAA</bytes>
 						</object>
 						<object class="IBActionInfo" key="shiftRightAction:">
 							<string key="name">shiftRightAction:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="toggleLayoutOrientation:">
+							<string key="name">toggleLayoutOrientation:</string>
 							<string key="candidateClassName">id</string>
 						</object>
 					</dictionary>

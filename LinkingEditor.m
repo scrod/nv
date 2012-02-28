@@ -909,7 +909,11 @@ copyRTFType:
     
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
 //    [[NSApp delegate] resetModTimers];
-//    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+    //    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+    NSUInteger modFlags=[anEvent modifierFlags];
+    if((modFlags&NSControlKeyMask)||(modFlags&NSAlternateKeyMask)){
+         [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
+    }
 	if ([anEvent modifierFlags] & NSCommandKeyMask) {
 		
 		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
@@ -921,13 +925,42 @@ copyRTFType:
 			if ([aLink isKindOfClass:[NSURL class]]) {
 				[self clickedOnLink:aLink atIndex:charIndex];
 				return YES;
-			}
+			}else if (!((modFlags&NSControlKeyMask)||(modFlags&NSAlternateKeyMask))){
+                if (modFlags&NSShiftKeyMask) {
+                    [self moveToBeginningOfParagraph:self]; 
+                    [self moveBackward:self];       
+                }else{            
+                    [self moveToEndOfParagraph:self];
+                }     
+                [self insertNewlineIgnoringFieldEditor:self];  
+                return YES;
+            }
 		} else if ((keyChar == NSBackspaceCharacter || keyChar == NSDeleteCharacter) && [[self window] firstResponder] == self) {
 			if ([[self string] length]) {
 				[self doCommandBySelector:@selector(deleteToBeginningOfLine:)];
 				return YES;
 			}
-		}
+		}else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(modFlags&NSCommandKeyMask)&&!(modFlags&NSControlKeyMask)&&!(modFlags&NSAlternateKeyMask)){        
+            NSString *firstChar=[NSString stringWithCharacters:&keyChar length:1]; 
+            if ([firstChar isEqualToString:@"<"]) {
+                [self removeStringAtStartOfSelectedParagraphs:@">"];
+                return YES;
+                //              NSLog(@"cmd-shift-<");   
+            }else if ([firstChar isEqualToString:@">"]){ 
+                [self insertStringAtStartOfSelectedParagraphs:@">"];
+                return YES;
+                //            NSLog(@"cmd-shift->");   
+            }else if (([firstChar isEqualToString:@"+"])||([firstChar isEqualToString:@"="])){ 
+                
+                [self insertStringAtStartOfSelectedParagraphs:@"#"];
+                return YES;
+                //            NSLog(@"cmd-shift-+");   
+            }else if (([firstChar isEqualToString:@"-"])||([firstChar isEqualToString:@"_"])){ 
+                [self removeStringAtStartOfSelectedParagraphs:@"#"];
+                return YES;
+                //            NSLog(@"cmd-shift-MINUS");   
+            } 
+        }
 	}
 	
 	return [super performKeyEquivalent:anEvent];
@@ -940,72 +973,16 @@ copyRTFType:
 - (void)keyDown:(NSEvent*)anEvent {	
     //    [[NSNotificationCenter defaultCenter] postNotificationName:@"ModTimersShouldReset" object:nil];
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
-    //    NSLog(@"firstChar:   |%@|",firstChar);
-    NSUInteger modFlags=[anEvent modifierFlags];
+    
 	if (keyChar == NSBackTabCharacter) {
 		//apparently interpretKeyEvents: on 10.3 does not call insertBacktab
 		//maybe it works on someone else's 10.3 Mac
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
-	}else if ((keyChar == NSCarriageReturnCharacter)&&(modFlags&NSCommandKeyMask)&&(!((modFlags&NSControlKeyMask)||(modFlags&NSAlternateKeyMask)))) {
-        if (modFlags&NSShiftKeyMask) {
-            [self moveToBeginningOfParagraph:self]; 
-            [self moveBackward:self];       
-        }else{            
-            [self moveToEndOfParagraph:self];
-        }     
-        [self insertNewlineIgnoringFieldEditor:self];   
-		return;
-    }else if (([[NSUserDefaults standardUserDefaults]boolForKey:@"UsesMarkdownCompletions"])&&(modFlags&NSCommandKeyMask)&&!(modFlags&NSControlKeyMask)&&!(modFlags&NSAlternateKeyMask)){        
-        NSString *firstChar=[NSString stringWithCharacters:&keyChar length:1];
-        if ([firstChar isEqualToString:@"<"]) {
-            [self removeStringAtStartOfParagraph:@">"];
-            //              NSLog(@"cmd-shift-<");   
-        }else if ([firstChar isEqualToString:@">"]){ 
-            [self insertStringAtStartOfParagraph:@">"];
-            //            NSLog(@"cmd-shift->");   
-        }else if (([firstChar isEqualToString:@"+"])||([firstChar isEqualToString:@"="])){ 
-            
-            [self insertStringAtStartOfParagraph:@"#"];
-            //            NSLog(@"cmd-shift-+");   
-        }else if (([firstChar isEqualToString:@"-"])||([firstChar isEqualToString:@"_"])){ 
-            [self removeStringAtStartOfParagraph:@"#"];
-            //            NSLog(@"cmd-shift-MINUS");   
-        }  
-    }
+	}
     //[super interpretKeyEvents:[NSArray arrayWithObject:anEvent]];
 	[super keyDown:anEvent];
     
-}
-
-- (void)insertStringAtStartOfParagraph:(NSString *)insertString{
-    NSRange actRange=[self rangeOfActiveParagraph];
-    actRange.length=0;
-    if ((actRange.location!=NSNotFound)&&([self shouldChangeTextInRange:actRange replacementString:insertString])) {
-        if ((![[self activeParagraph] hasPrefix:insertString])&&(![[self activeParagraph] hasPrefix:@" "])) {
-            insertString=[insertString stringByAppendingString:@" "];
-        }
-        [self replaceCharactersInRange:actRange withString:insertString];
-        [self didChangeText];
-    }
-}
-
-- (void)removeStringAtStartOfParagraph:(NSString *)removeString{
-    if (![[self activeParagraph] hasPrefix:removeString]) {
-        removeString=@" ";
-    }
-    if ([[self activeParagraph] hasPrefix:removeString]) {
-        NSRange actRange=[self rangeOfActiveParagraph];
-        if ([[self activeParagraph] hasPrefix:[removeString stringByAppendingString:@" "]]) {
-            actRange.length=2;
-        }else{
-        actRange.length=1;
-        }
-        if ((actRange.location!=NSNotFound)&&([self shouldChangeTextInRange:actRange replacementString:@""])) {
-            [self replaceCharactersInRange:actRange withString:@""];
-             [self didChangeText];
-        }
-    }
 }
 
 - (BOOL)jumpToRenaming {
@@ -2110,79 +2087,25 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     return NO;
 }
 
-- (BOOL)clipboardHasLink{      
-    NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
-    NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
-    if (type) {
-        NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
-        NSURL *pUrl=[NSURL URLWithString:pString];
-        if (pUrl) {
-            NSString *urlString =[pUrl absoluteString];
-            NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
-            if ([urlMatch evaluateWithObject:urlString]) {
-                
-                return YES;
-            }
-        }
-    }
-    return NO;
-}
-
-- (IBAction)pasteMarkdownLink:(id)sender{
-    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-    NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" https://"]];
-    NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*]",@"*[*]("];
-    if((![bifoRefPred evaluateWithObject:bifoString])&&((![aftaString hasPrefix:@"]"])&&(![bifoString hasSuffix:@"["]))&&((![aftaString hasPrefix:@"\""])&&(![bifoString hasSuffix:@"\""]))&&((![aftaString hasPrefix:@">"])&&(![bifoString hasSuffix:@"<"]))&&((![aftaString hasPrefix:@"'"])&&(![bifoString hasSuffix:@"'"]))&&((![aftaString hasPrefix:@")"])&&(![bifoString hasSuffix:@"("]))){ 
-        NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
-        NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
-        if (type) {
-            NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
-            NSURL *pUrl=[NSURL URLWithString:pString];
-            if (pUrl) {
-                NSString *urlString =[pUrl absoluteString];
-               // NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
-                //if ([urlMatch evaluateWithObject:urlString]) {
-                    NSString *selString=@"";
-                    NSRange selRange=[self selectedRange];
-                    if (selRange.length>0) {
-                        selString=[[[self string]substringWithRange:selRange]stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-                    }
-                    NSString *paraString=[self.activeParagraph stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-                    if (([paraString isEqualToString:@""])||([paraString isEqualToString:selString])) {
-                        urlString=[NSString stringWithFormat:@"[%@]: %@",selString,urlString];
-                    }else{
-                        urlString=[NSString stringWithFormat:@"[%@](%@)",selString,urlString];            
-                    }
-                    [super insertText:urlString];
-                    selRange.location=[self selectedRange].location;
-                    selRange.location-=(urlString.length-1);
-                    [self setSelectedRange:selRange];
-                    return;
-               // }
-                //            else  if ([urlString hasPrefix:@"http"]) {
-                //                NSLog(@"not match but has prefix:%@",urlString);
-                //            }
-            }
-        }
-    }
-//    NSLog(@"pasting non link");
-     [super paste:sender];
-     
-}
-
-
 #pragma mark Useful properties
 
-- (NSString *)activeParagraph{
+- (NSString *)activeParagraphTrimWS:(BOOL)shouldTrim{
     NSRange actRange=[self rangeOfActiveParagraph];
     if ((actRange.location!=NSNotFound)&&(actRange.length>0)) {
-        NSString *actPar=[[[self string]substringWithRange:actRange] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        NSString *actPar=[[self string]substringWithRange:actRange];
+        if (shouldTrim) {
+            actPar=[actPar stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        }
         if (!actPar||actPar.length==0) {
             return @"";
         }
         return actPar;        
     }
     return @"";
+}
+
+- (NSString *)activeParagraph{
+    return [self activeParagraphTrimWS:YES];
 }
 
 - (NSRange)rangeOfActiveParagraph{
@@ -2339,16 +2262,18 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
         if (!typedString||([typedString length]==0)) {
             typedString =[[NSPasteboard generalPasteboard]stringForType:pbType];
         }
-        typedString = [typedString stringByReplacingOccurrencesOfString:@"\"" withString:@""];
-        typedString=[typedString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-        if ([typedString length] > 0 && ![lastImportedFindString isEqualToString:typedString]) {
-            
-            NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:NSFindPboard];
-            [pasteboard declareTypes:[NSArray arrayWithObject:pbType] owner:nil];
-            [pasteboard setString:typedString forType:pbType];
-            [lastImportedFindString release];
-            lastImportedFindString = [typedString retain];
-        }
+         if (typedString&&([typedString length]>0)) {
+             typedString = [typedString stringByReplacingOccurrencesOfString:@"\"" withString:@""];
+             typedString=[typedString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+             if ([typedString length] > 0 && ![lastImportedFindString isEqualToString:typedString]) {
+                 
+                 NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+                 [pasteboard declareTypes:[NSArray arrayWithObject:pbType] owner:nil];
+                 [pasteboard setString:typedString forType:pbType];
+                 [lastImportedFindString release];
+                 lastImportedFindString = [typedString retain];
+             }
+         }       
         
 //        NSLog(@"aqui typedSTring:|%@|",typedString);
     }
@@ -2402,13 +2327,14 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 #endif
     //not lion do it the old, hacky way
     if([sender tag]==1){
-        if([textFinder respondsToSelector:@selector(loadFindStringFromPasteboard)]){                
+        if(lastImportedFindString&&(lastImportedFindString.length>0)&&([textFinder respondsToSelector:@selector(loadFindStringFromPasteboard)])){                
             if(![textFinder loadFindStringFromPasteboard]){
                 [textFinder setFindString:lastImportedFindString writeToPasteboard:YES updateUI:YES];
             }
-        }else{
-            NSLog(@"Apple changed NSTextFinder (loadFindStringFromPasteboard)");
-        }	
+        }
+//        else{
+//            NSLog(@"Apple changed NSTextFinder (loadFindStringFromPasteboard)");
+//        }	
     }
     [super performFindPanelAction:sender];    
 }
@@ -2418,6 +2344,199 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     
 //    [super changeLayoutOrientation:sender];
     
+}
+
+# pragma mark some markdown trickery methods
+
+- (BOOL)clipboardHasLink{      
+    NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
+    NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
+    if (type) {
+        NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
+        NSURL *pUrl=[NSURL URLWithString:pString];
+        if (pUrl) {
+            NSString *urlString =[pUrl absoluteString];
+            NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
+            if ([urlMatch evaluateWithObject:urlString]) {
+                
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
+
+- (IBAction)pasteMarkdownLink:(id)sender{
+    NSString *aftaString=[self.activeParagraphPastCursor stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    NSString *bifoString=[self.activeParagraphBeforeCursor stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" https://"]];
+    NSPredicate *bifoRefPred=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@ OR SELF LIKE[cd] %@",@"*[*]",@"*[*]("];
+    if((![bifoRefPred evaluateWithObject:bifoString])&&((![aftaString hasPrefix:@"]"])&&(![bifoString hasSuffix:@"["]))&&((![aftaString hasPrefix:@"\""])&&(![bifoString hasSuffix:@"\""]))&&((![aftaString hasPrefix:@">"])&&(![bifoString hasSuffix:@"<"]))&&((![aftaString hasPrefix:@"'"])&&(![bifoString hasSuffix:@"'"]))&&((![aftaString hasPrefix:@")"])&&(![bifoString hasSuffix:@"("]))){ 
+        NSPasteboard *pasteboard =  [NSPasteboard generalPasteboard]; 
+        NSString *type = [pasteboard availableTypeFromArray: [NSArray arrayWithObjects: NSPasteboardTypeString,NSURLPboardType, nil]];
+        if (type) {
+            NSString *pString=[[pasteboard stringForType:type] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];       
+            NSURL *pUrl=[NSURL URLWithString:pString];
+            if (pUrl) {
+                NSString *urlString =[pUrl absoluteString];
+                // NSPredicate *urlMatch=[NSPredicate predicateWithFormat:@"SELF LIKE[cd] %@",@"http*://*.*"];
+                //if ([urlMatch evaluateWithObject:urlString]) {
+                NSString *selString=@"";
+                NSRange selRange=[self selectedRange];
+                if (selRange.length>0) {
+                    selString=[[[self string]substringWithRange:selRange]stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                }
+                NSString *paraString=[self.activeParagraph stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                if (([paraString isEqualToString:@""])||([paraString isEqualToString:selString])) {
+                    urlString=[NSString stringWithFormat:@"[%@]: %@",selString,urlString];
+                }else{
+                    urlString=[NSString stringWithFormat:@"[%@](%@)",selString,urlString];            
+                }
+                [super insertText:urlString];
+                selRange.location=[self selectedRange].location;
+                selRange.location-=(urlString.length-1);
+                [self setSelectedRange:selRange];
+                return;
+                // }
+                //            else  if ([urlString hasPrefix:@"http"]) {
+                //                NSLog(@"not match but has prefix:%@",urlString);
+                //            }
+            }
+        }
+    }
+    //    NSLog(@"pasting non link");
+    [super paste:sender];
+    
+}
+
+
+- (void)insertStringAtStartOfSelectedParagraphs:(NSString *)insertString{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    NSRange selRange=[self selectedRange];
+    if((actRange.location==NSNotFound)&&(selRange.length==0)){
+        actRange=selRange;
+    }    
+    actRange.length=0;        
+    if (actRange.location!=NSNotFound) {        
+        NSString *actPar=[self activeParagraphTrimWS:NO];
+        if (selRange.length==0) {
+            if ((![actPar hasPrefix:insertString])&&(![actPar hasPrefix:@" "])) {
+                insertString=[insertString stringByAppendingString:@" "];
+            }
+            if ([self shouldChangeTextInRange:actRange replacementString:insertString]) {
+                [self replaceCharactersInRange:actRange withString:insertString];
+                [self didChangeText]; 
+            }
+        }else{
+            BOOL didIt=NO;
+            NSArray *paragraphArray=[actPar componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+            NSMutableCharacterSet *trimSet=[NSCharacterSet characterSetWithCharactersInString:insertString];            
+            [trimSet formUnionWithCharacterSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            NSString *replaceString;
+            int xtraLength=0;
+            int i=0;
+            int charCt=0;
+            for (NSString *thisPar in paragraphArray) {                
+                if ([thisPar stringByTrimmingCharactersInSet:trimSet].length>0) {
+                    replaceString=insertString;
+                    if ((![thisPar hasPrefix:replaceString])&&(![thisPar hasPrefix:@" "])) {
+                        replaceString=[replaceString stringByAppendingString:@" "];
+                    }
+                    NSRange thisRange=actRange;
+                    if (i>0) {
+                        thisRange.location+=charCt;
+                    }else{
+                        selRange.location+=replaceString.length;
+                        selRange.length-=replaceString.length;
+                    }
+                    if ([self shouldChangeTextInRange:thisRange replacementString:replaceString]) {
+                        didIt=YES;
+                        [self replaceCharactersInRange:thisRange withString:replaceString];
+                        charCt+=replaceString.length;
+                        xtraLength+=replaceString.length;
+                    }
+                }                
+                charCt++;
+                charCt+=thisPar.length;
+                i++;
+            }
+            if (didIt) {
+                selRange.length+=xtraLength;
+                [self setSelectedRange:selRange];
+                [self didChangeText];    
+            }
+        }        
+    }
+}
+
+- (void)removeStringAtStartOfSelectedParagraphs:(NSString *)removeString{
+    NSRange actRange=[self rangeOfActiveParagraph];
+    NSRange selRange=[self selectedRange];
+    if((actRange.location==NSNotFound)&&(selRange.length==0)){
+        actRange=selRange;
+    }
+    if (actRange.location!=NSNotFound){
+        NSString *actPar=[self activeParagraphTrimWS:NO];
+        if (selRange.length==0) {
+            if (![actPar hasPrefix:removeString]) {
+                removeString=@" ";
+            }
+            if ([actPar hasPrefix:removeString]) {
+                if ([actPar hasPrefix:[removeString stringByAppendingString:@" "]]) {
+                    actRange.length=2;
+                }else{
+                    actRange.length=1;
+                }
+                if ([self shouldChangeTextInRange:actRange replacementString:@""]) {
+                    [self replaceCharactersInRange:actRange withString:@""];
+                    [self didChangeText];
+                }
+            }
+        }else{
+            BOOL didIt=NO;
+            NSArray *paragraphArray=[actPar componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+            NSString *removerStr;
+            int xtraLength=0;
+            int i=0;
+            int charCt=0;
+            for (NSString *thisPar in paragraphArray) {
+                if ([thisPar stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length>0) {
+                    removerStr=removeString;
+                    NSRange thisRange=actRange;
+                    if (![thisPar hasPrefix:removerStr]) {
+                        removerStr=@" ";
+                    }
+                    if ([thisPar hasPrefix:removerStr]) {                       
+                        if ([thisPar hasPrefix:[removerStr stringByAppendingString:@" "]]) {
+                            thisRange.length=2;
+                        }else{
+                            thisRange.length=1;
+                        }
+                        if (i>0) {                            
+                            thisRange.location+=charCt;
+                        }else{
+                            selRange.location-=thisRange.length;
+                            selRange.length+=thisRange.length;
+                        }
+                        
+                        if ([self shouldChangeTextInRange:thisRange replacementString:@""]) {
+                            didIt=YES;
+                            [self replaceCharactersInRange:thisRange withString:@""];
+                            xtraLength+=thisRange.length;                            
+                            charCt-=thisRange.length;
+                        }
+                    }
+                } 
+                charCt++;
+                charCt+=thisPar.length; 
+                i++;
+            }            
+            if (didIt) {
+                selRange.length-=xtraLength;
+                [self setSelectedRange:selRange];
+                [self didChangeText];
+            } 
+        }        
+    }
 }
 
 @end

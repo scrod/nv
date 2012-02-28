@@ -100,6 +100,7 @@
 - (BOOL)cursorIsBetweenEmptyPairs;
 - (NSString *)pairedCharacterForString:(NSString *)pairString;
 - (NSRange)rangeOfActiveParagraph;
+- (NSString *)activeParagraphTrimWS:(BOOL)shouldTrim;
 - (NSUInteger)cursorIsInsidePair:(NSString *)closingCharacter;
 - (BOOL)pairIsOnOwnParagraph:(NSString *)closingCharacter;
 - (BOOL)cursorIsImmediatelyPastPair:(NSString *)closingCharacter;
@@ -110,8 +111,8 @@
 - (void)prepareTextFinderPreLion;
 - (BOOL)textFinderIsVisible;
 - (IBAction)pasteMarkdownLink:(id)sender;
-- (void)insertStringAtStartOfParagraph:(NSString *)insertString;
-- (void)removeStringAtStartOfParagraph:(NSString *)removeString;
+- (void)insertStringAtStartOfSelectedParagraphs:(NSString *)insertString;
+- (void)removeStringAtStartOfSelectedParagraphs:(NSString *)removeString;
 - (BOOL)clipboardHasLink;
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
 - (void)hideTextFinderIfNecessary:(NSNotification *)aNotification;

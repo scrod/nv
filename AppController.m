@@ -361,7 +361,7 @@ void outletObjectAwoke(id sender) {
         }
 #endif
         theMenuItem = [fsMenuItem copy];
-        [statBarMenu insertItem:theMenuItem atIndex:11];
+        [statBarMenu insertItem:theMenuItem atIndex:12];
         [theMenuItem release];
     }
 
@@ -2631,13 +2631,11 @@ terminateApp:
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_7
     if (IsLionOrLater) {        
 //        BOOL inFS=[self isInFullScreen];
-        [window toggleFullScreen:nil];
-       
+        [window toggleFullScreen:nil];       
 	}else if(IsLeopardOrLater){
 #else
 	 if(IsLeopardOrLater){
 #endif
-		
 		//@try {			
         
         isEd = NO;

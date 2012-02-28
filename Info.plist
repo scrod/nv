@@ -159,7 +159,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>93</string>
+	<string>94</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSArchitecturePriority</key>
@@ -215,21 +215,17 @@
 	</array>
 	<key>OSAScriptingDefinition</key>
 	<string>Notation.sdef</string>
-	<key>SmartCrashReports_CompanyName</key>
-	<string>Notational.net</string>
-	<key>SmartCrashReports_EmailTicket</key>
-	<string>SCR-51ED0F7B2A</string>
 	<key>SUCheckAtStartup</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>http://abyss.designheresy.com/nvalt/updates.xml</string>
+	<string>http://abyss.designheresy.com/nvalt/betaupdates.xml</string>
 	<key>SUPublicDSAKeyFile</key>
 	<string>dsa_pub.pem</string>
 	<key>SUScheduledCheckInterval</key>
 	<real>345600</real>
-	<key>UTExportedTypeDeclarations</key>
-	<array/>
-	<key>UTImportedTypeDeclarations</key>
-	<array/>
+	<key>SmartCrashReports_CompanyName</key>
+	<string>Notational.net</string>
+	<key>SmartCrashReports_EmailTicket</key>
+	<string>SCR-51ED0F7B2A</string>
 </dict>
 </plist>
