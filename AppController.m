@@ -49,6 +49,7 @@
 #import "PreviewController.h"
 #import "ETClipView.h"
 #import "ETScrollView.h"
+#import "NSFileManager+DirectoryLocations.h"
 
 #define NSApplicationPresentationAutoHideMenuBar (1 <<  2)
 #define NSApplicationPresentationHideMenuBar (1 <<  3)
@@ -79,30 +80,42 @@ BOOL isEd;
 
 
 - (id)init {
-  if ([super init]) {
-    splitViewAwoke = NO;
-		windowUndoManager = [[NSUndoManager alloc] init];
-    
-		previewController = [[PreviewController alloc] init];
-		
-      NSNotificationCenter *nc=[NSNotificationCenter defaultCenter];
-    [nc addObserver:previewController selector:@selector(requestPreviewUpdate:) name:@"TextView has changed contents" object:self];
-      [nc addObserver:self selector:@selector(toggleAttachedWindow:) name:@"NVShouldActivate" object:nil];
-      [nc addObserver:self selector:@selector(toggleAttachedMenu:) name:@"StatusItemMenuShouldDrop" object:nil];
-     [nc addObserver:self selector:@selector(togDockIcon:) name:@"AppShouldToggleDockIcon" object:nil];
-      [nc addObserver:self selector:@selector(resetModTimers:) name:@"ModTimersShouldReset" object:nil];
-		
-		// Setup URL Handling
-		NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
-		[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];	
-		
-    //	dividerShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithCalibratedWhite:0.988 alpha:1.0] 
-    //														   endColor:[NSColor colorWithCalibratedWhite:0.875 alpha:1.0]];
-		dividerShader = [[[LinearDividerShader alloc] initWithBaseColors:self] retain];
-		isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
-		typedString = @"";
-  }
-  return self;
+		self = [super init];
+		if (self) {
+				splitViewAwoke = NO;
+				windowUndoManager = [[NSUndoManager alloc] init];
+				
+				previewController = [[PreviewController alloc] init];
+				
+				NSFileManager *fileManager = [NSFileManager defaultManager];
+				
+				
+				NSString *folder = [[NSFileManager defaultManager] applicationSupportDirectory];
+				
+				if ([fileManager fileExistsAtPath: folder] == NO)
+				{
+						[fileManager createDirectoryAtPath: folder attributes: nil];
+						
+				}
+				
+				NSNotificationCenter *nc=[NSNotificationCenter defaultCenter];
+				[nc addObserver:previewController selector:@selector(requestPreviewUpdate:) name:@"TextView has changed contents" object:self];
+				[nc addObserver:self selector:@selector(toggleAttachedWindow:) name:@"NVShouldActivate" object:nil];
+				[nc addObserver:self selector:@selector(toggleAttachedMenu:) name:@"StatusItemMenuShouldDrop" object:nil];
+				[nc addObserver:self selector:@selector(togDockIcon:) name:@"AppShouldToggleDockIcon" object:nil];
+				[nc addObserver:self selector:@selector(resetModTimers:) name:@"ModTimersShouldReset" object:nil];
+				
+				// Setup URL Handling
+				NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
+				[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];	
+				
+				//	dividerShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithCalibratedWhite:0.988 alpha:1.0] 
+				//														   endColor:[NSColor colorWithCalibratedWhite:0.875 alpha:1.0]];
+				dividerShader = [[[LinearDividerShader alloc] initWithBaseColors:self] retain];
+				isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
+				typedString = @"";
+		}
+		return self;
 }
 
 - (void)awakeFromNib {

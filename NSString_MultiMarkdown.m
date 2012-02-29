@@ -76,7 +76,7 @@
     inputString = [self processTaskPaper:inputString];
   }
 	NSString* mdScriptPath = [[self class] mmdDirectory];
-    NSString* tpScriptPath = [[self class] tp2mdDirectory];
+//    NSString* tpScriptPath = [[self class] tp2mdDirectory];
 	NSTask* task = [[[NSTask alloc] init] autorelease];
 	NSMutableArray* args = [NSMutableArray array];
 	
@@ -109,14 +109,13 @@
 +(NSString*)documentWithProcessedMultiMarkdown:(NSString*)inputString
 {
   AppController *app = [[NSApplication sharedApplication] delegate];
-	if (![[[self class] mmdDirectory] hasPrefix:@"/usr/local/bin"])
-    inputString = [@"Format: Snippet\n\n" stringByAppendingString:inputString];
   NSString *processedString = [self processMultiMarkdown:inputString];
   NSString *htmlString = [[PreviewController class] html];
   NSString *cssString = [[PreviewController class] css];
   NSMutableString *outputString = [NSMutableString stringWithString:(NSString *)htmlString];
   NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
-  NSString *nvSupportPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/Notational Velocity"];
+		NSString *nvSupportPath = [[NSFileManager defaultManager] applicationSupportDirectory];
+
   [outputString replaceOccurrencesOfString:@"{%support%}" withString:nvSupportPath options:0 range:NSMakeRange(0, [outputString length])];
   [outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
   [outputString replaceOccurrencesOfString:@"{%content%}" withString:processedString options:0 range:NSMakeRange(0, [outputString length])];
@@ -126,19 +125,11 @@
 
 +(NSString*)xhtmlWithProcessedMultiMarkdown:(NSString*)inputString
 {
-	AppController *app = [[NSApplication sharedApplication] delegate];
-	NSString *noteTitle =  ([app selectedNoteObject]) ? [NSString stringWithFormat:@"%@",titleOfNote([app selectedNoteObject])] : @"";
-  if (![[[self class] mmdDirectory] hasPrefix:@"/usr/local/bin"]) {
-    inputString = [@"Format: Snippet\n\n" stringByAppendingString:inputString];
-//	inputString = [[NSString stringWithFormat:@"Title: %@\n\n",noteTitle] stringByAppendingString:inputString];
-  }
 	return [self processMultiMarkdown:inputString];
 }
 
 +(NSString*)stringWithProcessedMultiMarkdown:(NSString*)inputString
 {
-  if (![[[self class] mmdDirectory] hasPrefix:@"/usr/local/bin"])
-    inputString = [@"Format: Snippet\n\n" stringByAppendingString:inputString];
 	return [self processMultiMarkdown:inputString];
 } // stringWithProcessedMultiMarkdown:
 

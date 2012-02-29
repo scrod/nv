@@ -68,7 +68,7 @@
     if ((self = [super initWithWindowNibName:@"MarkupPreview" owner:self])) {
         self.isPreviewOutdated = YES;
         self.isPreviewSticky = NO;
-        [[self class] createCustomFiles];
+//        [[self class] createCustomFiles];
         BOOL showPreviewWindow = [[NSUserDefaults standardUserDefaults] boolForKey:kDefaultMarkupPreviewVisible];
         if (showPreviewWindow) {
             [[self window] orderFront:self];
@@ -286,36 +286,43 @@
 }
 
 +(NSString*)css {
-	NSFileManager *mgr = [NSFileManager defaultManager];
-	
-	NSString *folder = @"~/Library/Application Support/Notational Velocity/";
-	folder = [folder stringByExpandingTildeInPath];
-	NSString *cssFileName = @"custom.css";
-	NSString *customCSSPath = [folder stringByAppendingPathComponent: cssFileName];
-	
-	if (![mgr fileExistsAtPath:customCSSPath]) {
-		[[self class] createCustomFiles];
-	}
-	return [NSString stringWithContentsOfFile:customCSSPath
-													encoding:NSUTF8StringEncoding
-													   error:NULL];
-	
+		NSFileManager *mgr = [NSFileManager defaultManager];
+		NSString *folder = [[NSFileManager defaultManager] applicationSupportDirectory];
+		NSString *cssFileName = @"custom.css";
+		NSString *customCSSPath = [folder stringByAppendingPathComponent: cssFileName];
+		if ([mgr fileExistsAtPath:customCSSPath]) {
+				return [NSString stringWithContentsOfFile:customCSSPath
+																				 encoding:NSUTF8StringEncoding
+																						error:NULL];
+		} else {
+				NSString *cssPath = [[NSBundle mainBundle] pathForResource:@"custom" ofType:@"css" inDirectory:nil];
+				return [NSString stringWithContentsOfFile:cssPath encoding:NSUTF8StringEncoding error:nil];
+		}
+		
+		//	if (![mgr fileExistsAtPath:customCSSPath]) {
+		//		[[self class] createCustomFiles];
+		//	}
+		
+		
 }
 
 +(NSString*)html {
-	NSFileManager *mgr = [NSFileManager defaultManager];
-	
-    NSString *folder = @"~/Library/Application Support/Notational Velocity/";
-	folder = [folder stringByExpandingTildeInPath];
-	NSString *htmlFileName = @"template.html";
-	NSString *customHTMLPath = [folder stringByAppendingPathComponent: htmlFileName];
-	        
-	if (![mgr fileExistsAtPath:customHTMLPath]) {
-		[[self class] createCustomFiles];
-	}
-	return [NSString stringWithContentsOfFile:customHTMLPath
-													 encoding:NSUTF8StringEncoding
-														error:NULL];
+		NSFileManager *mgr = [NSFileManager defaultManager];
+		
+		NSString *folder = [[NSFileManager defaultManager] applicationSupportDirectory];
+		NSString *htmlFileName = @"template.html";
+		NSString *customHTMLPath = [folder stringByAppendingPathComponent: htmlFileName];
+	  if ([mgr fileExistsAtPath:customHTMLPath]) {
+				return [NSString stringWithContentsOfFile:customHTMLPath
+																				 encoding:NSUTF8StringEncoding
+																						error:NULL];
+		} else {
+				NSString *htmlPath = [[NSBundle mainBundle] pathForResource:@"template" ofType:@"html" inDirectory:nil];
+				return [NSString stringWithContentsOfFile:htmlPath encoding:NSUTF8StringEncoding error:nil];
+		}
+		//	if (![mgr fileExistsAtPath:customHTMLPath]) {
+		//		[[self class] createCustomFiles];
+		//	}
 }
 
 -(void)preview:(id)object
@@ -342,7 +349,8 @@
 		htmlString = [[[self class] html] retain];
 		lastNote = [app selectedNoteObject];
 	}
-	NSString *nvSupportPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/Notational Velocity"];
+		NSString *nvSupportPath = [[NSFileManager defaultManager] applicationSupportDirectory];
+
 	[outputString replaceOccurrencesOfString:@"{%support%}" withString:nvSupportPath options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%title%}" withString:noteTitle options:0 range:NSMakeRange(0, [outputString length])];
 	[outputString replaceOccurrencesOfString:@"{%content%}" withString:previewString options:0 range:NSMakeRange(0, [outputString length])];
@@ -370,37 +378,37 @@
 
 + (void) createCustomFiles
 {
-	NSFileManager *fileManager = [NSFileManager defaultManager];
+		NSFileManager *fileManager = [NSFileManager defaultManager];
     
-	NSString *folder = @"~/Library/Application Support/Notational Velocity/";
-	folder = [folder stringByExpandingTildeInPath];
-	NSString *cssFileName = @"custom.css";
-	NSString *cssFile = [folder stringByAppendingPathComponent: cssFileName];
-	
-	if ([fileManager fileExistsAtPath: folder] == NO)
-	{
-		[fileManager createDirectoryAtPath: folder attributes: nil];
+		NSString *folder = [[NSFileManager defaultManager] applicationSupportDirectory];		
+		if ([fileManager fileExistsAtPath: folder] == NO)
+		{
+				[fileManager createDirectoryAtPath: folder attributes: nil];
 		    
-	}
-	if ([fileManager fileExistsAtPath:cssFile] == NO)
-	{
-		NSString *cssString = @"body,p,td,div{font-family:Helvetica,Arial,sans-serif;line-height:1.4em;font-size:14px;color:#111;word-wrap:break-word}p{margin:0 0 1.7em 0}a{color:rgb(13,110,161);text-decoration:none;-webkit-transition:color .2s ease-in-out}a:hover{color:#3593d9}h1.doctitle{background:#eee;font-size:14px;font-weight:bold;color:#333;line-height:28px;margin:0;padding:0 10px;border-bottom:solid 1px #aaa;white-space:nowrap}h1,h2,h3,h4,h5{line-height:1.1em}h1{font-size:24px;color:#000;margin:12px 0 15px 0}h2{font-size:20px;color:#111;width:auto;margin:15px 0 10px 2px}h2 em{line-height:1.6em;font-size:12px;color:#111;text-shadow:0 1px 0 #FFF;padding-left:10px}h3{font-size:20px;color:#111}h4{font-size:14px;color:#111;margin-bottom:1.3em}.footnote{font-size:.8em;vertical-align:super;color:rgb(13,110,161)}#contentdiv img{max-width:100%}dt{font-weight:bold}dd{margin-bottom:1em}@media print{body{overflow:auto}#wrapper{background:#fff;position:relative}#contentdiv{position:relative;background:transparent;color:#303030;text-indent:0px;padding:10px}}@media screen{body{overflow:hidden}#wrapper{background:#fff;position:fixed;top:0;left:0;right:0;bottom:0;-webkit-box-shadow:inset 0px 0px 4px #8F8D87}#contentdiv{position:fixed;top:27px;left:5px;right:5px;bottom:5px;background:transparent;color:#303030;overflow:auto;text-indent:0px;padding:10px}#contentdiv::-webkit-scrollbar{width:6px}#contentdiv::-webkit-scrollbar:horizontal{height:6px;display:none}#contentdiv::-webkit-scrollbar-track{background:transparent;-webkit-border-radius:0;right:10px}#contentdiv::-webkit-scrollbar-track:disabled{display:none}#contentdiv::-webkit-scrollbar-thumb{border-width:0;min-height:20px;background:#777;opacity:0.4;-webkit-border-radius:5px}}li>p{margin:0 0 1em}ul ul,ul ol{margin-bottom:1em}";
+		}
 		
-		NSData *cssData = [NSData dataWithBytes:[cssString UTF8String] length:[cssString length]];
-		[fileManager createFileAtPath:cssFile contents:cssData attributes:nil];
-    }
-	
-	NSString *htmlFileName = @"template.html";
-	NSString *htmlFile = [folder stringByAppendingPathComponent: htmlFileName];
-	
-	if ([fileManager fileExistsAtPath:htmlFile] == NO)
-	{
-		NSString *htmlString = @"<!DOCTYPE html>  \n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge,chrome=1\">\n\n  <title>{%title%}</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\n  <style type=\"text/css\">\n    {%style%}\n  </style>\n</head>\n\n<body>\n\n  <div id=\"wrapper\">\n    <header>\n      <h1 class=\"doctitle\">{%title%}</h1>\n    </header>\n    \n    <div id=\"contentdiv\">\n      {%content%}\n    </div>\n\n  </div> <!-- end of #container -->\n\n\n  <script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js\"></script>    <script>(function($){$('h1,h2,h3,h4').each(function(){$(this).html($(this).text().replace(/([^\\s])\\s+([^\\s]{1,5})\\s*$/,'$1&nbsp;$2'));});$('a[href^=#]').click(function(){if(location.pathname.replace(/^\\//,'')==this.pathname.replace(/^\\//,'')&&location.hostname==this.hostname){var $target=$(this.hash);$target=$target.length&&$target||$('[id='+this.hash.slice(1)+']');if($target.length){var targetOffset=$target.offset().top;$('#contentdiv').animate({scrollTop:targetOffset-40},1000);return false;}}});$('#contentdiv').scroll(function(){if(this.scrollTop>150){if($('#backtotop').length==0)\n$('h1.doctitle').append($('<a href=\"javascript:void()\" id=\"backtotop\" />').text('Back to top').css({'float':'right','display':'none'}).click(function(){$('#contentdiv').animate({scrollTop:0},1000);}));$('#backtotop').fadeIn('slow');}else{$('#backtotop').fadeOut('slow',function(){$(this).remove();});}});})(jQuery);\n  </script>\n</body>\n</html>";
+		NSString *cssFileName = @"custom.css";
+		NSString *cssFile = [folder stringByAppendingPathComponent: cssFileName];
 		
-		NSData *htmlData = [NSData dataWithBytes:[htmlString UTF8String] length:[htmlString length]];
-		[fileManager createFileAtPath:htmlFile contents:htmlData attributes:nil];
+		if ([fileManager fileExistsAtPath:cssFile] == NO)
+		{
+				NSString *cssPath = [[NSBundle mainBundle] pathForResource:@"customclean" ofType:@"css" inDirectory:nil];
+				NSString *cssString = [NSString stringWithContentsOfFile:cssPath encoding:NSUTF8StringEncoding error:nil];
+				NSData *cssData = [NSData dataWithBytes:[cssString UTF8String] length:[cssString length]];
+				[fileManager createFileAtPath:cssFile contents:cssData attributes:nil];
     }
-	
+		
+		NSString *htmlFileName = @"template.html";
+		NSString *htmlFile = [folder stringByAppendingPathComponent: htmlFileName];
+		
+		if ([fileManager fileExistsAtPath:htmlFile] == NO)
+		{
+				NSString *htmlPath = [[NSBundle mainBundle] pathForResource:@"templateclean" ofType:@"html" inDirectory:nil];
+				NSString *htmlString = [NSString stringWithContentsOfFile:htmlPath encoding:NSUTF8StringEncoding error:nil];		
+				NSData *htmlData = [NSData dataWithBytes:[htmlString UTF8String] length:[htmlString length]];
+				[fileManager createFileAtPath:htmlFile contents:htmlData attributes:nil];
+    }
+		
 }
 
 - (NSString *)urlEncodeValue:(NSString *)str

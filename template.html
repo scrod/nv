@@ -1,0 +1,33 @@
+<!DOCTYPE html>  
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <title>{%title%}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style type="text/css">
+    {%style%}
+  </style>
+</head>
+
+<body>
+
+  <div id="wrapper">
+    <header>
+      <h1 class="doctitle">{%title%}</h1>
+    </header>
+    
+    <div id="contentdiv">
+      {%content%}
+    </div>
+
+  </div> <!-- end of #container -->
+
+
+  <script src="{%support%}/jquery.js"></script>    <script>(function($){$('h1,h2,h3,h4').each(function(){$(this).html($(this).text().replace(/([^\\s])\\s+([^\\s]{1,5})\\s*$/,'$1&nbsp;$2'));});$('a[href^=#]').click(function(){if(location.pathname.replace(/^\\//,'')==this.pathname.replace(/^\\//,'')&&location.hostname==this.hostname){var $target=$(this.hash);$target=$target.length&&$target||$('[id='+this.hash.slice(1)+']');if($target.length){var targetOffset=$target.offset().top;$('#contentdiv').animate({scrollTop:targetOffset-40},1000);return false;}}});$('#contentdiv').scroll(function(){if(this.scrollTop>150){if($('#backtotop').length==0)
+$('h1.doctitle').append($('<a href="javascript:void()" id="backtotop" />').text('Back to top').css({'float':'right','display':'none'}).click(function(){$('#contentdiv').animate({scrollTop:0},1000);}));$('#backtotop').fadeIn('slow');}else{$('#backtotop').fadeOut('slow',function(){$(this).remove();});}});})(jQuery);
+  </script>
+</body>
+</html>
