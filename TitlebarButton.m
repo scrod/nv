@@ -159,7 +159,7 @@
 	NSButton* closeButton = [aWin standardWindowButton:NSWindowCloseButton];
 	NSView* superview = [closeButton superview];
 	NSRect rc = [closeButton frame];
-	[self setFrameOrigin:NSMakePoint(NSMaxX([superview bounds]) - rc.origin.x - rc.size.width, rc.origin.y + 1.0)];
+	[self setFrameOrigin:NSMakePoint(NSMaxX([superview bounds]) - rc.origin.x - rc.size.width - 20, rc.origin.y - 2.0)];
 	[superview addSubview:self];
 	
 	//work around a problem with mouseentered/exited events on tiger:

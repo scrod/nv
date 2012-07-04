@@ -2,13 +2,13 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="8.00">
 	<data>
 		<int key="IBDocument.SystemTarget">1050</int>
-		<string key="IBDocument.SystemVersion">10J869</string>
-		<string key="IBDocument.InterfaceBuilderVersion">1306</string>
-		<string key="IBDocument.AppKitVersion">1038.35</string>
-		<string key="IBDocument.HIToolboxVersion">461.00</string>
+		<string key="IBDocument.SystemVersion">11E53</string>
+		<string key="IBDocument.InterfaceBuilderVersion">2182</string>
+		<string key="IBDocument.AppKitVersion">1138.47</string>
+		<string key="IBDocument.HIToolboxVersion">569.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin</string>
-			<string key="NS.object.0">1306</string>
+			<string key="NS.object.0">2182</string>
 		</object>
 		<array key="IBDocument.IntegratedClassDependencies">
 			<string>NSView</string>
@@ -25,7 +25,10 @@
 		<array key="IBDocument.PluginDependencies">
 			<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 		</array>
-		<dictionary class="NSMutableDictionary" key="IBDocument.Metadata"/>
+		<object class="NSMutableDictionary" key="IBDocument.Metadata">
+			<string key="NS.key.0">PluginDependencyRecalculationVersion</string>
+			<integer value="1" key="NS.object.0"/>
+		</object>
 		<array class="NSMutableArray" key="IBDocument.RootObjects" id="275331370">
 			<object class="NSCustomObject" id="285140037">
 				<string key="NSClassName">SavedSearchesController</string>
@@ -37,7 +40,7 @@
 				<string key="NSClassName">NSApplication</string>
 			</object>
 			<object class="NSWindowTemplate" id="493354331">
-				<int key="NSWindowStyleMask">8219</int>
+				<int key="NSWindowStyleMask">27</int>
 				<int key="NSWindowBacking">2</int>
 				<string key="NSWindowRect">{{495, 324}, {317, 207}}</string>
 				<int key="NSWTFlags">-260571136</int>
@@ -48,6 +51,7 @@
 				<object class="NSMutableString" key="NSViewClass">
 					<characters key="NS.bytes">View</characters>
 				</object>
+				<nil key="NSUserInterfaceItemIdentifier"/>
 				<string key="NSWindowContentMinSize">{255, 64}</string>
 				<object class="NSView" key="NSWindowView" id="38158821">
 					<reference key="NSNextResponder"/>
@@ -64,8 +68,9 @@
 										<object class="NSTableView" id="310392156">
 											<reference key="NSNextResponder" ref="1060353316"/>
 											<int key="NSvFlags">256</int>
-											<string key="NSFrameSize">{286, 159}</string>
+											<string key="NSFrameSize">{297, 159}</string>
 											<reference key="NSSuperview" ref="1060353316"/>
+											<reference key="NSWindow"/>
 											<bool key="NSEnabled">YES</bool>
 											<object class="_NSCornerView" key="NSCornerView">
 												<nil key="NSNextResponder"/>
@@ -75,7 +80,7 @@
 											<array class="NSMutableArray" key="NSTableColumns">
 												<object class="NSTableColumn" id="216607993">
 													<string key="NSIdentifier">description</string>
-													<double key="NSWidth">228</double>
+													<double key="NSWidth">239</double>
 													<double key="NSMinWidth">40</double>
 													<double key="NSMaxWidth">1000</double>
 													<object class="NSTableHeaderCell" key="NSHeaderCell">
@@ -186,10 +191,12 @@
 											<int key="NSDraggingSourceMaskForNonLocal">0</int>
 											<bool key="NSAllowsTypeSelect">YES</bool>
 											<int key="NSTableViewDraggingDestinationStyle">0</int>
+											<int key="NSTableViewGroupRowStyle">1</int>
 										</object>
 									</array>
-									<string key="NSFrameSize">{286, 159}</string>
+									<string key="NSFrameSize">{297, 159}</string>
 									<reference key="NSSuperview" ref="786511830"/>
+									<reference key="NSWindow"/>
 									<reference key="NSNextKeyView" ref="310392156"/>
 									<reference key="NSDocView" ref="310392156"/>
 									<reference key="NSBGColor" ref="958129185"/>
@@ -200,6 +207,7 @@
 									<int key="NSvFlags">256</int>
 									<string key="NSFrame">{{286, 0}, {11, 159}}</string>
 									<reference key="NSSuperview" ref="786511830"/>
+									<reference key="NSWindow"/>
 									<int key="NSsFlags">256</int>
 									<reference key="NSTarget" ref="786511830"/>
 									<string key="NSAction">_doScroller:</string>
@@ -210,6 +218,7 @@
 									<int key="NSvFlags">-2147483392</int>
 									<string key="NSFrame">{{-100, -100}, {132, 11}}</string>
 									<reference key="NSSuperview" ref="786511830"/>
+									<reference key="NSWindow"/>
 									<int key="NSsFlags">257</int>
 									<reference key="NSTarget" ref="786511830"/>
 									<string key="NSAction">_doScroller:</string>
@@ -218,8 +227,9 @@
 							</array>
 							<string key="NSFrame">{{10, 39}, {297, 159}}</string>
 							<reference key="NSSuperview" ref="38158821"/>
+							<reference key="NSWindow"/>
 							<reference key="NSNextKeyView" ref="1060353316"/>
-							<int key="NSsFlags">16</int>
+							<int key="NSsFlags">133136</int>
 							<reference key="NSVScroller" ref="879720789"/>
 							<reference key="NSHScroller" ref="167197941"/>
 							<reference key="NSContentView" ref="1060353316"/>
@@ -230,6 +240,7 @@
 							<int key="NSvFlags">292</int>
 							<string key="NSFrame">{{9, 6}, {25, 25}}</string>
 							<reference key="NSSuperview" ref="38158821"/>
+							<reference key="NSWindow"/>
 							<reference key="NSNextKeyView" ref="1001003525"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSButtonCell" key="NSCell" id="711038378">
@@ -253,6 +264,7 @@
 							<int key="NSvFlags">292</int>
 							<string key="NSFrame">{{36, 6}, {23, 25}}</string>
 							<reference key="NSSuperview" ref="38158821"/>
+							<reference key="NSWindow"/>
 							<bool key="NSEnabled">YES</bool>
 							<object class="NSButtonCell" key="NSCell" id="700064989">
 								<int key="NSCellFlags">604110336</int>
@@ -271,25 +283,19 @@
 							</object>
 						</object>
 					</array>
-					<string key="NSFrame">{{7, 11}, {317, 207}}</string>
+					<string key="NSFrameSize">{317, 207}</string>
 					<reference key="NSSuperview"/>
+					<reference key="NSWindow"/>
 				</object>
-				<string key="NSScreenRect">{{0, 0}, {1440, 878}}</string>
-				<string key="NSMinSize">{255, 83}</string>
-				<string key="NSMaxSize">{1e+13, 1e+13}</string>
+				<string key="NSScreenRect">{{0, 0}, {1920, 1058}}</string>
+				<string key="NSMinSize">{255, 80}</string>
+				<string key="NSMaxSize">{10000000000000, 10000000000000}</string>
 				<string key="NSFrameAutosaveName">bookmarksWindow</string>
+				<bool key="NSWindowIsRestorable">YES</bool>
 			</object>
 		</array>
 		<object class="IBObjectContainer" key="IBDocument.Objects">
 			<array class="NSMutableArray" key="connectionRecords">
-				<object class="IBConnectionRecord">
-					<object class="IBOutletConnection" key="connection">
-						<string key="label">nextKeyView</string>
-						<reference key="source" ref="523548986"/>
-						<reference key="destination" ref="1001003525"/>
-					</object>
-					<int key="connectionID">369</int>
-				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBOutletConnection" key="connection">
 						<string key="label">addBookmarkButton</string>
@@ -337,6 +343,14 @@
 						<reference key="destination" ref="1001003525"/>
 					</object>
 					<int key="connectionID">377</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">nextKeyView</string>
+						<reference key="source" ref="523548986"/>
+						<reference key="destination" ref="1001003525"/>
+					</object>
+					<int key="connectionID">369</int>
 				</object>
 			</array>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -472,16 +486,11 @@
 				<string key="-2.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="-3.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="354.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="354.ImportedFromIB2"/>
 				<string key="355.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="355.ImportedFromIB2"/>
 				<string key="363.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="363.ImportedFromIB2"/>
 				<string key="364.CustomClassName">BookmarksTable</string>
 				<string key="364.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="364.ImportedFromIB2"/>
 				<string key="366.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="366.ImportedFromIB2"/>
 				<object class="NSMutableDictionary" key="367.IBAttributePlaceholdersKey">
 					<string key="NS.key.0">ToolTip</string>
 					<object class="IBToolTipAttribute" key="NS.object.0">
@@ -491,7 +500,6 @@
 					</object>
 				</object>
 				<string key="367.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="367.ImportedFromIB2"/>
 				<object class="NSMutableDictionary" key="368.IBAttributePlaceholdersKey">
 					<string key="NS.key.0">ToolTip</string>
 					<object class="IBToolTipAttribute" key="NS.object.0">
@@ -501,9 +509,7 @@
 					</object>
 				</object>
 				<string key="368.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="368.ImportedFromIB2"/>
 				<string key="378.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
-				<boolean value="YES" key="378.ImportedFromIB2"/>
 				<string key="383.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="384.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="385.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -521,12 +527,27 @@
 			<nil key="sourceID"/>
 			<int key="maxID">388</int>
 		</object>
-		<object class="IBClassDescriber" key="IBDocument.Classes"/>
+		<object class="IBClassDescriber" key="IBDocument.Classes">
+			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
+				<object class="IBPartialClassDescription">
+					<string key="className">BookmarksTable</string>
+					<string key="superclassName">NSTableView</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/BookmarksTable.h</string>
+					</object>
+				</object>
+			</array>
+		</object>
 		<int key="IBDocument.localizationMode">0</int>
 		<string key="IBDocument.TargetRuntimeIdentifier">IBCocoaFramework</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDependencies">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.macosx</string>
 			<real value="1050" key="NS.object.0"/>
+		</object>
+		<object class="NSMutableDictionary" key="IBDocument.PluginDeclaredDependencyDefaults">
+			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin.macosx</string>
+			<real value="1060" key="NS.object.0"/>
 		</object>
 		<bool key="IBDocument.PluginDeclaredDependenciesTrackSystemTargetVersion">YES</bool>
 		<int key="IBDocument.defaultPropertyAccessControl">3</int>
