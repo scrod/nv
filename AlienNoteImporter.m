@@ -279,7 +279,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		
 	[self retain];
 	
-	(void)[[[URLGetter alloc] initWithURL:aURL delegate:self userData:linkTitle] autorelease];
+	(void)[[URLGetter alloc] initWithURL:aURL delegate:self userData:linkTitle];
 }
 
 - (NSArray*)importedNotes {
