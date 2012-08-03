@@ -44,7 +44,7 @@ static const char nvSymbolSet[] = "!@#$%^&*()-+=?/<>";
     for (i = 0; i < len; ++i) {
         char c;
         do {
-            c = source[arc4random() % srclen];
+            c = source[arc4random_uniform(srclen)];
         } while (0 == (options & knvPasswordDuplicates) && NULL != strchr(gen, c));
         
         gen[i] = c;
