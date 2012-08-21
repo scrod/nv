@@ -335,7 +335,7 @@ def main():
 	else:
 		file = open(args[0])
 	try:
-		print Document(file.read(), debug=options.verbose).summary().encode('ascii','ignore')
+		print Document(file.read(), debug=options.verbose).summary().encode('utf-8','ignore')
 	finally:
 		file.close()
 

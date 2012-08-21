@@ -579,7 +579,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	
     [task launch];
 	
-    [writeHandle writeData: [htmlString dataUsingEncoding: NSASCIIStringEncoding]];
+    [writeHandle writeData: [htmlString dataUsingEncoding: NSUTF8StringEncoding]];
     [writeHandle closeFile];
 	
     NSMutableData *data = [[NSMutableData alloc] init];
@@ -593,7 +593,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
     NSString *strippedString;
     strippedString = [[NSString alloc]
 					  initWithData: data
-					  encoding: NSASCIIStringEncoding];
+					  encoding: NSUTF8StringEncoding];
 	
     [task release];
     [data release];
