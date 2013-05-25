@@ -383,7 +383,6 @@
 		217CEBA209E9885500DF0E09 /* NotationFileManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotationFileManager.m; sourceTree = "<group>"; };
 		217D4280096545A000E84749 /* LabelObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LabelObject.h; sourceTree = "<group>"; };
 		217D4281096545A000E84749 /* LabelObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LabelObject.m; sourceTree = "<group>"; };
-		217D4B570A61F42700887100 /* NSTextFinder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSTextFinder.h; sourceTree = "<group>"; };
 		217EB3CD0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = NSTextFinder_LastFind.m; sourceTree = "<group>"; };
 		2181171109F311110020A252 /* DeletedNoteObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DeletedNoteObject.h; sourceTree = "<group>"; };
 		2181171209F311110020A252 /* DeletedNoteObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DeletedNoteObject.m; sourceTree = "<group>"; };
@@ -1018,7 +1017,6 @@
 				21BD2ECF10DAF31500BA3DF6 /* LinearDividerShader.m */,
 				2114C23B095883A600614E74 /* NSData_transformations.h */,
 				2114C23C095883A600614E74 /* NSData_transformations.m */,
-				217D4B570A61F42700887100 /* NSTextFinder.h */,
 				217EB3CD0B0F62FB0041A8A9 /* NSTextFinder_LastFind.m */,
 				214495040ADC7F4F00E2A2B6 /* SFPasswordAssistantInspectorController.h */,
 				213FAD510B3C6B52004C74BD /* FSExchangeObjectsCompat.h */,
@@ -1798,7 +1796,7 @@
 				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Notation_Prefix.pch;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
@@ -1818,10 +1816,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				LD_GENERATE_MAP_FILE = YES;
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
-				OTHER_CFLAGS = (
-					"-pg",
-					"-whatsloaded",
-				);
+				OTHER_CFLAGS = "-pg";
 				OTHER_LDFLAGS = (
 					"-pg",
 					"-whatsloaded",
@@ -1830,6 +1825,7 @@
 				);
 				PREBINDING = NO;
 				PRODUCT_NAME = "Notational Velocity";
+				SDKROOT = macosx;
 				STRIP_STYLE = "non-global";
 				WARNING_CFLAGS = "-pg";
 				WARNING_LDFLAGS = "-pg";
@@ -1863,7 +1859,7 @@
 				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Notation_Prefix.pch;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
@@ -1886,6 +1882,7 @@
 				OTHER_LDFLAGS = "";
 				PREBINDING = NO;
 				PRODUCT_NAME = "Notational Velocity";
+				SDKROOT = macosx;
 				"SDKROOT[arch=x86_64]" = macosx10.5;
 				SECTORDER_FLAGS = (
 					"-sectorder",
@@ -1924,7 +1921,7 @@
 				GCC_PFE_FILE_C_DIALECTS = "c objective-c";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = Notation_Prefix.pch;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_CHECK_SWITCH_STATEMENTS = YES;
 				GCC_WARN_FOUR_CHARACTER_CONSTANTS = YES;
@@ -1946,6 +1943,7 @@
 					PDFKit,
 				);
 				PRODUCT_NAME = "Notational Velocity";
+				SDKROOT = macosx;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Default;

@@ -5,7 +5,8 @@
  *  Created by Zachary Schneirov
  *
  */
-#import "NSTextFinder.h"
+#include <AppKit/NSTextFinder.h>
+#import "LinkingEditor.h"
 
 @implementation NSTextFinder (LastFind)
 

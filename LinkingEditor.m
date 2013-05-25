@@ -20,7 +20,6 @@
 #import "AppController.h"
 #import "AppController_Importing.h"
 #import "NotesTableView.h"
-#import "NSTextFinder.h"
 #import "LinkingEditor_Indentation.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"

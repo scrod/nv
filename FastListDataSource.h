@@ -30,7 +30,7 @@
     NSUInteger count;
 }
 
-- (const id *)immutableObjects;
+- (id *)immutableObjects;
 - (NSUInteger)count;
 
 - (NSUInteger)indexOfObjectIdenticalTo:(id)address;
