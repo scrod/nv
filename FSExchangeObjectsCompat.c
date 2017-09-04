@@ -23,7 +23,7 @@ __private_extern__ u_int32_t volumeCapabilities(const char *path)
     bzero(&vinfo, sizeof(vinfo));
     if (0 == getattrlist(path, &alist, &vinfo, sizeof(vinfo), 0)
         && 0 != (alist.volattr & ATTR_VOL_CAPABILITIES)) {
-        return (vinfo.v_caps.capabilities[VOL_CAPABILITIES_FORMAT]);
+        return (vinfo.v_caps.capabilities[VOL_CAPABILITIES_INTERFACES]);
     }
     
     return (0);
