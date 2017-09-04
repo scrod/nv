@@ -27,6 +27,8 @@ extern NSString *ExternalEditorsChangedNotification;
 
 @class NoteObject;
 
+@protocol NSMenuDelegate;
+
 @interface ExternalEditor : NSObject {
 
 	BOOL installCheckFailed;
@@ -49,7 +51,7 @@ extern NSString *ExternalEditorsChangedNotification;
 
 @end
 
-@interface ExternalEditorListController : NSObject {
+@interface ExternalEditorListController : NSObject <NSMenuDelegate> {
 
 	NSMutableArray *userEditorList;
 	NSArray *ODBEditorList;
