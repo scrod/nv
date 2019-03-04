@@ -64,7 +64,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	//path example: "/api2/index"
 	
 	NSString *queryStr = params ? [NSString stringWithFormat:@"?%@", [params URLEncodedString]] : @"";
-	return [NSURL URLWithString:[NSString stringWithFormat:@"https://simple-note.appspot.com%@%@", path, queryStr]];
+	return [NSURL URLWithString:[NSString stringWithFormat:@"https://app.simplenote.com%@%@", path, queryStr]];
 }
 
 #if 0
