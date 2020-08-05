@@ -25,7 +25,7 @@
 typedef int CGSConnection;
 typedef int CGSWorkspace;
 typedef int CGSWindow;
-typedef int32_t CGError;
+// typedef int32_t CGError;
 
 extern CGSConnection _CGSDefaultConnection(void);
 extern CGError CGSGetWorkspace(const CGSConnection cid, CGSWorkspace *workspace);
