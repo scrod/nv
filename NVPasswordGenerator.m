@@ -88,15 +88,17 @@ static const char nvSymbolSet[] = "!@#$%^&*()-+=?/<>";
 {
     enum {numSuggestions = 4};
     const SEL methods[numSuggestions] = {@selector(strong), @selector(medium), @selector(light), @selector(lightNumeric)};
+	const SEL* methodsPtr = methods;
     
     NSString* suggest[numSuggestions];
+	NSString** suggestPtr = suggest;
     #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     dispatch_apply(numSuggestions, dispatch_get_global_queue(0, 0), ^(size_t i) {
     #else
     size_t i;
     for (i = 0; i < numSuggestions; ++i) {
     #endif
-        suggest[i] = [self performSelector:methods[i]];
+        suggestPtr[i] = [self performSelector:methodsPtr[i]];
     }
     #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     );
