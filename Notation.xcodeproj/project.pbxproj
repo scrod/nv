@@ -41,8 +41,6 @@
 		212C6A2D110E371B004DD82C /* TBRolloverBG.png in Resources */ = {isa = PBXBuildFile; fileRef = 212C6A26110E371B004DD82C /* TBRolloverBG.png */; };
 		212C6A2E110E371B004DD82C /* TBMousedownBG.png in Resources */ = {isa = PBXBuildFile; fileRef = 212C6A27110E371B004DD82C /* TBMousedownBG.png */; };
 		212C6E9A110E46F0004DD82C /* TBDownArrow.png in Resources */ = {isa = PBXBuildFile; fileRef = 212C6E99110E46F0004DD82C /* TBDownArrow.png */; };
-		212C6EA3110E493C004DD82C /* Clear.tif in Resources */ = {isa = PBXBuildFile; fileRef = 212C6EA1110E493C004DD82C /* Clear.tif */; };
-		212C6EA4110E493C004DD82C /* ClearPressed.tif in Resources */ = {isa = PBXBuildFile; fileRef = 212C6EA2110E493C004DD82C /* ClearPressed.tif */; };
 		212DCA470A6AD28700F74E46 /* EncodingsManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 212DCA460A6AD28700F74E46 /* EncodingsManager.m */; };
 		212DCB310A6AE38500F74E46 /* EncodingsManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 212DCB2F0A6AE38500F74E46 /* EncodingsManager.nib */; };
 		212DCF610A6DEECB00F74E46 /* DeletionManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 212DCF600A6DEECB00F74E46 /* DeletionManager.m */; };
@@ -62,8 +60,6 @@
 		2143322912EC584E000F473B /* Raccourcis incroyablement utiles.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 2143322612EC584E000F473B /* Raccourcis incroyablement utiles.nvhelp */; };
 		2143331F12ECC4B2000F473B /* Dies ist der Titel einer Notiz.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 2143331B12ECC4B2000F473B /* Dies ist der Titel einer Notiz.nvhelp */; };
 		2143332012ECC4B2000F473B /* Moglicherweise nutzliche Tastenkurzel.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 2143331D12ECC4B2000F473B /* Moglicherweise nutzliche Tastenkurzel.nvhelp */; };
-		2143D2F410E953F500127EA6 /* SnapBackPressed.tif in Resources */ = {isa = PBXBuildFile; fileRef = 2143D2F210E953F400127EA6 /* SnapBackPressed.tif */; };
-		2143D2F510E953F500127EA6 /* SnapBack.tif in Resources */ = {isa = PBXBuildFile; fileRef = 2143D2F310E953F500127EA6 /* SnapBack.tif */; };
 		2143D3D910E987B100127EA6 /* Pencil.png in Resources */ = {isa = PBXBuildFile; fileRef = 2143D3D810E987B100127EA6 /* Pencil.png */; };
 		21447B6F133BFE1E00ACC1A7 /* ExternalEditorListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21447B6E133BFE1E00ACC1A7 /* ExternalEditorListController.m */; };
 		214493F60ADB892C00E2A2B6 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 214493E70ADB892C00E2A2B6 /* CoreServices.framework */; };
@@ -192,6 +188,18 @@
 		21FF94F70B5AD23B00DB6A2F /* ExporterManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21FF94F50B5AD23B00DB6A2F /* ExporterManager.m */; };
 		57F27F7B11973A7F00C63ACF /* Notation.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 57F27F7A11973A7F00C63ACF /* Notation.sdef */; };
 		57F27FB91197407400C63ACF /* SearchCommand.m in Sources */ = {isa = PBXBuildFile; fileRef = 57F27FB81197407400C63ACF /* SearchCommand.m */; };
+		6E12BABC24DAEE5800CBB989 /* SnapBackPressed.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BAB824DAEE5800CBB989 /* SnapBackPressed.png */; };
+		6E12BABD24DAEE5800CBB989 /* SnapBack.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BAB924DAEE5800CBB989 /* SnapBack.png */; };
+		6E12BABE24DAEE5800CBB989 /* SnapBack@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BABA24DAEE5800CBB989 /* SnapBack@2x.png */; };
+		6E12BABF24DAEE5800CBB989 /* SnapBackPressed@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BABB24DAEE5800CBB989 /* SnapBackPressed@2x.png */; };
+		6E12BAC124DAF0D300CBB989 /* Search@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BAC024DAF0D300CBB989 /* Search@2x.png */; };
+		6E12BAC424DAF30300CBB989 /* Clear.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BAC224DAF30200CBB989 /* Clear.png */; };
+		6E12BAC524DAF30300CBB989 /* Clear@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BAC324DAF30200CBB989 /* Clear@2x.png */; };
+		6E12BAC824DAF33900CBB989 /* ClearPressed@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BAC624DAF33900CBB989 /* ClearPressed@2x.png */; };
+		6E12BAC924DAF33900CBB989 /* ClearPressed.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BAC724DAF33900CBB989 /* ClearPressed.png */; };
+		6E12BACC24DAF45A00CBB989 /* LinkBackPressed@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BACA24DAF45A00CBB989 /* LinkBackPressed@2x.png */; };
+		6E12BACD24DAF45A00CBB989 /* LinkBack@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BACB24DAF45A00CBB989 /* LinkBack@2x.png */; };
+		6E12BACF24DAF4FB00CBB989 /* Pencil@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6E12BACE24DAF4FB00CBB989 /* Pencil@2x.png */; };
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
@@ -277,8 +285,6 @@
 		212C6A26110E371B004DD82C /* TBRolloverBG.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = TBRolloverBG.png; path = Images/TBRolloverBG.png; sourceTree = "<group>"; };
 		212C6A27110E371B004DD82C /* TBMousedownBG.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = TBMousedownBG.png; path = Images/TBMousedownBG.png; sourceTree = "<group>"; };
 		212C6E99110E46F0004DD82C /* TBDownArrow.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = TBDownArrow.png; path = Images/TBDownArrow.png; sourceTree = "<group>"; };
-		212C6EA1110E493C004DD82C /* Clear.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = Clear.tif; path = Images/Clear.tif; sourceTree = "<group>"; };
-		212C6EA2110E493C004DD82C /* ClearPressed.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = ClearPressed.tif; path = Images/ClearPressed.tif; sourceTree = "<group>"; };
 		212DCA450A6AD28700F74E46 /* EncodingsManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = EncodingsManager.h; sourceTree = "<group>"; };
 		212DCA460A6AD28700F74E46 /* EncodingsManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = EncodingsManager.m; sourceTree = "<group>"; };
 		212DCF5F0A6DEECB00F74E46 /* DeletionManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DeletionManager.h; sourceTree = "<group>"; };
@@ -293,8 +299,6 @@
 		213FAD520B3C6B52004C74BD /* FSExchangeObjectsCompat.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = FSExchangeObjectsCompat.c; sourceTree = "<group>"; };
 		213FB0230B3CB1C4004C74BD /* PTKeyboardIcon.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = PTKeyboardIcon.tiff; path = Images/PTKeyboardIcon.tiff; sourceTree = "<group>"; };
 		214141B512FC64BE0019D275 /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = dsa_pub.pem; sourceTree = "<group>"; };
-		2143D2F210E953F400127EA6 /* SnapBackPressed.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = SnapBackPressed.tif; path = Images/SnapBackPressed.tif; sourceTree = "<group>"; };
-		2143D2F310E953F500127EA6 /* SnapBack.tif */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; name = SnapBack.tif; path = Images/SnapBack.tif; sourceTree = "<group>"; };
 		2143D3D810E987B100127EA6 /* Pencil.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = Pencil.png; path = Images/Pencil.png; sourceTree = "<group>"; };
 		21447B6D133BFE1E00ACC1A7 /* ExternalEditorListController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ExternalEditorListController.h; sourceTree = "<group>"; };
 		21447B6E133BFE1E00ACC1A7 /* ExternalEditorListController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ExternalEditorListController.m; sourceTree = "<group>"; };
@@ -475,6 +479,18 @@
 		57F27F7A11973A7F00C63ACF /* Notation.sdef */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.sdef; path = Notation.sdef; sourceTree = "<group>"; };
 		57F27FB71197407400C63ACF /* SearchCommand.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SearchCommand.h; sourceTree = "<group>"; };
 		57F27FB81197407400C63ACF /* SearchCommand.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SearchCommand.m; sourceTree = "<group>"; };
+		6E12BAB824DAEE5800CBB989 /* SnapBackPressed.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = SnapBackPressed.png; path = Images/SnapBackPressed.png; sourceTree = "<group>"; };
+		6E12BAB924DAEE5800CBB989 /* SnapBack.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = SnapBack.png; path = Images/SnapBack.png; sourceTree = "<group>"; };
+		6E12BABA24DAEE5800CBB989 /* SnapBack@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "SnapBack@2x.png"; path = "Images/SnapBack@2x.png"; sourceTree = "<group>"; };
+		6E12BABB24DAEE5800CBB989 /* SnapBackPressed@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "SnapBackPressed@2x.png"; path = "Images/SnapBackPressed@2x.png"; sourceTree = "<group>"; };
+		6E12BAC024DAF0D300CBB989 /* Search@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Search@2x.png"; path = "Images/Search@2x.png"; sourceTree = "<group>"; };
+		6E12BAC224DAF30200CBB989 /* Clear.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = Clear.png; path = Images/Clear.png; sourceTree = "<group>"; };
+		6E12BAC324DAF30200CBB989 /* Clear@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Clear@2x.png"; path = "Images/Clear@2x.png"; sourceTree = "<group>"; };
+		6E12BAC624DAF33900CBB989 /* ClearPressed@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "ClearPressed@2x.png"; path = "Images/ClearPressed@2x.png"; sourceTree = "<group>"; };
+		6E12BAC724DAF33900CBB989 /* ClearPressed.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = ClearPressed.png; path = Images/ClearPressed.png; sourceTree = "<group>"; };
+		6E12BACA24DAF45A00CBB989 /* LinkBackPressed@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "LinkBackPressed@2x.png"; path = "Images/LinkBackPressed@2x.png"; sourceTree = "<group>"; };
+		6E12BACB24DAF45A00CBB989 /* LinkBack@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "LinkBack@2x.png"; path = "Images/LinkBack@2x.png"; sourceTree = "<group>"; };
+		6E12BACE24DAF4FB00CBB989 /* Pencil@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Pencil@2x.png"; path = "Images/Pencil@2x.png"; sourceTree = "<group>"; };
 		6E6AFB0124DAE619005CFF74 /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/BlorPasswordRetriever.nib; sourceTree = "<group>"; };
 		6E6AFB0224DAE619005CFF74 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = it; path = it.lproj/CarbonErrorStrings.plist; sourceTree = "<group>"; };
 		6E6AFB0324DAE619005CFF74 /* it */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = it; path = it.lproj/DeletionManager.nib; sourceTree = "<group>"; };
@@ -921,14 +937,22 @@
 				21DF19AF10D172F600543C35 /* DFCapRight.png */,
 				21DF19B010D172F600543C35 /* DFCapLeftRoundedInactive.png */,
 				21DF19B110D172F600543C35 /* DFCapLeftRounded.png */,
+				6E12BAC224DAF30200CBB989 /* Clear.png */,
+				6E12BAC324DAF30200CBB989 /* Clear@2x.png */,
+				6E12BAC724DAF33900CBB989 /* ClearPressed.png */,
+				6E12BAC624DAF33900CBB989 /* ClearPressed@2x.png */,
 				21665A9C10E6032F00188D3D /* Search.png */,
+				6E12BAC024DAF0D300CBB989 /* Search@2x.png */,
 				2143D3D810E987B100127EA6 /* Pencil.png */,
-				212C6EA1110E493C004DD82C /* Clear.tif */,
-				212C6EA2110E493C004DD82C /* ClearPressed.tif */,
+				6E12BACE24DAF4FB00CBB989 /* Pencil@2x.png */,
 				216D9C2B12CFEF2A0004B9CE /* LinkBack.tif */,
+				6E12BACB24DAF45A00CBB989 /* LinkBack@2x.png */,
 				216D9C2C12CFEF2A0004B9CE /* LinkBackPressed.tif */,
-				2143D2F310E953F500127EA6 /* SnapBack.tif */,
-				2143D2F210E953F400127EA6 /* SnapBackPressed.tif */,
+				6E12BACA24DAF45A00CBB989 /* LinkBackPressed@2x.png */,
+				6E12BAB924DAEE5800CBB989 /* SnapBack.png */,
+				6E12BABA24DAEE5800CBB989 /* SnapBack@2x.png */,
+				6E12BAB824DAEE5800CBB989 /* SnapBackPressed.png */,
+				6E12BABB24DAEE5800CBB989 /* SnapBackPressed@2x.png */,
 				21B1C16E110764570004A7D0 /* statusValidated.png */,
 				21B1C16F110764570004A7D0 /* statusError.png */,
 				21B1C170110764570004A7D0 /* statusInProgress.png */,
@@ -1127,6 +1151,7 @@
 				8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */,
 				2114C25B095885C800614E74 /* Localizable.strings in Resources */,
 				219195E609D3A20F00586B15 /* Preferences.nib in Resources */,
+				6E12BAC424DAF30300CBB989 /* Clear.png in Resources */,
 				219196BF09D4F20100586B15 /* Add_Pressed.tiff in Resources */,
 				219196C009D4F20100586B15 /* Add.tiff in Resources */,
 				219196C109D4F20100586B15 /* Remove_Pressed.tiff in Resources */,
@@ -1134,14 +1159,18 @@
 				21A2FA7C09DF64E9001AF0B5 /* NotationPrefsView.nib in Resources */,
 				215DEA3F09EF5323009A710B /* General.tiff in Resources */,
 				215DEA4709EF6446009A710B /* Notes.tiff in Resources */,
+				6E12BAC824DAF33900CBB989 /* ClearPressed@2x.png in Resources */,
 				215DEE1309F1AA4C009A710B /* Editing.tiff in Resources */,
 				212DCB310A6AE38500F74E46 /* EncodingsManager.nib in Resources */,
 				212DCFF70A6E005000F74E46 /* DeletionManager.nib in Resources */,
+				6E12BAC524DAF30300CBB989 /* Clear@2x.png in Resources */,
 				2144950F0ADC883100E2A2B6 /* PasswordAssistantButton.tif in Resources */,
 				214495100ADC883100E2A2B6 /* PasswordAssistantButtonPressed.tif in Resources */,
 				2144957A0ADCC06300E2A2B6 /* PassphrasePicker.nib in Resources */,
 				214495870ADCC07E00E2A2B6 /* PassphraseChanger.nib in Resources */,
+				6E12BAC124DAF0D300CBB989 /* Search@2x.png in Resources */,
 				21973A290AFE447A0046683E /* PassphraseRetriever.nib in Resources */,
+				6E12BAC924DAF33900CBB989 /* ClearPressed.png in Resources */,
 				21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */,
 				211344C00B3551BD0081B064 /* BlorPasswordRetriever.nib in Resources */,
 				21F1CD700B3A38DB001FB5F6 /* PTKeyCodes.plist in Resources */,
@@ -1160,13 +1189,15 @@
 				21DF19B410D172F600543C35 /* DFCapLeftRoundedInactive.png in Resources */,
 				21DF19B510D172F600543C35 /* DFCapLeftRounded.png in Resources */,
 				21BD2F3610DAF61700BA3DF6 /* SplitViewDimple.tif in Resources */,
+				6E12BACF24DAF4FB00CBB989 /* Pencil@2x.png in Resources */,
 				21665A9E10E6032F00188D3D /* Search.png in Resources */,
-				2143D2F410E953F500127EA6 /* SnapBackPressed.tif in Resources */,
-				2143D2F510E953F500127EA6 /* SnapBack.tif in Resources */,
+				6E12BABC24DAEE5800CBB989 /* SnapBackPressed.png in Resources */,
+				6E12BABD24DAEE5800CBB989 /* SnapBack.png in Resources */,
 				2143D3D910E987B100127EA6 /* Pencil.png in Resources */,
 				21B1C171110764570004A7D0 /* statusValidated.png in Resources */,
 				21B1C172110764570004A7D0 /* statusError.png in Resources */,
 				21B1C173110764570004A7D0 /* statusInProgress.png in Resources */,
+				6E12BACD24DAF45A00CBB989 /* LinkBack@2x.png in Resources */,
 				21AD292D110C188800B7A985 /* TinyAlert.tif in Resources */,
 				212C6A29110E371B004DD82C /* TBAlertWhite.png in Resources */,
 				212C6A2A110E371B004DD82C /* TBSynchronizingWhite.png in Resources */,
@@ -1175,8 +1206,6 @@
 				212C6A2D110E371B004DD82C /* TBRolloverBG.png in Resources */,
 				212C6A2E110E371B004DD82C /* TBMousedownBG.png in Resources */,
 				212C6E9A110E46F0004DD82C /* TBDownArrow.png in Resources */,
-				212C6EA3110E493C004DD82C /* Clear.tif in Resources */,
-				212C6EA4110E493C004DD82C /* ClearPressed.tif in Resources */,
 				219D1BB3110EA66A005E7DF5 /* TBAlert.png in Resources */,
 				219D222F1111564F005E7DF5 /* Contact Information.nvhelp in Resources */,
 				219D22301111564F005E7DF5 /* This is the title of a note.nvhelp in Resources */,
@@ -1192,9 +1221,12 @@
 				21C0F8A212C7E7160068693F /* Fonts & Colors.tiff in Resources */,
 				216D9C2D12CFEF2A0004B9CE /* LinkBack.tif in Resources */,
 				216D9C2E12CFEF2A0004B9CE /* LinkBackPressed.tif in Resources */,
+				6E12BABF24DAEE5800CBB989 /* SnapBackPressed@2x.png in Resources */,
+				6E12BACC24DAF45A00CBB989 /* LinkBackPressed@2x.png in Resources */,
 				216DA1AD12D15F310004B9CE /* ListDividerDrag.png in Resources */,
 				21C3DBF412D23C83002F707A /* Notality.icns in Resources */,
 				21DB407E12D5383F0057F52B /* IBeamInverted.png in Resources */,
+				6E12BABE24DAEE5800CBB989 /* SnapBack@2x.png in Resources */,
 				21A38EE412EA864400CEB5F0 /* MakeDefault_Pressed.tiff in Resources */,
 				21A38EE512EA864400CEB5F0 /* MakeDefault.tiff in Resources */,
 				2143322812EC584E000F473B /* Ceci est le titre d'une note.nvhelp in Resources */,
