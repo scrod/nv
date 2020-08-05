@@ -51,7 +51,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	loadStatusString = NSLocalizedString(@"Loading Notes...",nil);
 	loadStatusAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
 		[NSFont fontWithName:@"Helvetica" size:STATUS_STRING_FONT_SIZE], NSFontAttributeName,
-		[NSColor colorWithCalibratedRed:0.0f green:0.0f blue:0.0f alpha:0.5f], NSForegroundColorAttributeName, nil] retain];
+		[[NSColor controlTextColor] colorWithAlphaComponent:0.5f], NSForegroundColorAttributeName, nil] retain];
 	loadStatusStringWidth = [loadStatusString sizeWithAttributes:loadStatusAttributes].width;
 	
 	affinity = 0;
@@ -315,7 +315,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	
 	if (IsLeopardOrLater)
 		[self setSelectionHighlightStyle:isOneRow ? NSTableViewSelectionHighlightStyleRegular : NSTableViewSelectionHighlightStyleSourceList];
-	[self setBackgroundColor: horiz ? [NSColor colorWithCalibratedWhite:0.98 alpha:1.0] : [NSColor whiteColor]];
+	[self setBackgroundColor: [NSColor textBackgroundColor]];
 	
 	NSLayoutManager *lm = [[NSLayoutManager alloc] init];
 	tableFontHeight = [lm defaultLineHeightForFont:font];
