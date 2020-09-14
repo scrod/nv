@@ -1207,6 +1207,7 @@ cancelCompetion:
 	[[self textStorage] addLinkAttributesForRange:changedRange];
 	
 	[[self textStorage] addStrikethroughNearDoneTagsForRange:changedRange];
+	[[self textStorage] addAttributesForMarkdownHeadingLinesInRange:changedRange];
 	
 	if (!isAutocompleting && !wasDeleting && [prefsController linksAutoSuggested] && 
 		![[self undoManager] isUndoing] && ![[self undoManager] isRedoing]) {

@@ -51,6 +51,7 @@ static NSString *QuitWhenClosingMainWindowKey = @"QuitWhenClosingMainWindow";
 static NSString *TabKeyIndentsKey = @"TabKeyIndents";
 static NSString *PastePreservesStyleKey = @"PastePreservesStyle";
 static NSString *AutoFormatsDoneTagKey = @"AutoFormatsDoneTag";
+static NSString *AutoFormatsMarkdownHeadingsKey = @"AutoFormatsMarkdownHeadings";
 static NSString *AutoFormatsListBulletsKey = @"AutoFormatsListBullets";
 static NSString *AutoSuggestLinksKey = @"AutoSuggestLinks";
 static NSString *AutoIndentsNewLinesKey = @"AutoIndentsNewLines";
@@ -107,7 +108,8 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		
 		[defaults registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:
 			[NSNumber numberWithBool:YES], AutoSuggestLinksKey,
-			[NSNumber numberWithBool:YES], AutoFormatsDoneTagKey, 
+			[NSNumber numberWithBool:YES], AutoFormatsDoneTagKey,
+			[NSNumber numberWithBool:YES], AutoFormatsMarkdownHeadingsKey,
 			[NSNumber numberWithBool:YES], AutoIndentsNewLinesKey, 
 			[NSNumber numberWithBool:YES], AutoFormatsListBulletsKey,
 			[NSNumber numberWithBool:NO], UseSoftTabsKey,
@@ -351,6 +353,9 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 - (BOOL)autoFormatsDoneTag {
 	return [defaults boolForKey:AutoFormatsDoneTagKey];
+}
+- (BOOL)autoFormatsMarkdownHeadings {
+	return [defaults boolForKey:AutoFormatsMarkdownHeadingsKey];
 }
 - (BOOL)autoFormatsListBullets {
 	return [defaults boolForKey:AutoFormatsListBulletsKey];
