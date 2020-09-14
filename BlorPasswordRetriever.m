@@ -274,6 +274,7 @@
 																					   attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 	[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
 	[attributedBody addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBody length])];
+	[attributedBody addAttributesForMarkdownHeadingLinesInRange:NSMakeRange(0, [attributedBody length])];
 	NoteObject *note = [[NoteObject alloc] initWithNoteBody:attributedBody title:titleString delegate:nil format:SingleDatabaseFormat labels:nil];
 
 	[bodyString release];

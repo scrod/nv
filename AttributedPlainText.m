@@ -126,7 +126,7 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 	[self restyleTextToFont:[[GlobalPrefs defaultPrefs] noteBodyFont] usingBaseFont:nil];
 	[self addLinkAttributesForRange:range];
 	[self addStrikethroughNearDoneTagsForRange:range];
-	[self boldenMarkdownHeadingLinesForRange:range];
+	[self addAttributesForMarkdownHeadingLinesInRange:range];
 }
 
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont {

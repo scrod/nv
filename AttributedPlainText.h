@@ -44,6 +44,7 @@ extern NSString *NVHiddenBulletIndentAttributeName;
 - (void)addLinkAttributesForRange:(NSRange)changedRange;
 - (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange;
 - (void)addStrikethroughNearDoneTagsForRange:(NSRange)changedRange;
+- (void)addAttributesForMarkdownHeadingLinesInRange:(NSRange)changedRange;
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont;
 
 @end

@@ -637,6 +637,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 			NSMutableAttributedString *attributedBody = [[[NSMutableAttributedString alloc] initWithString:s attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
 			[attributedBody addLinkAttributesForRange:NSMakeRange(0, [attributedBody length])];
 			[attributedBody addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBody length])];
+			[attributedBody addAttributesForMarkdownHeadingLinesInRange:NSMakeRange(0, [attributedBody length])];
 			
             NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedBody title:title delegate:nil format:SingleDatabaseFormat labels:nil] autorelease];
 			if (note) {
