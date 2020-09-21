@@ -37,6 +37,7 @@ typedef struct _NoteFilterContext {
 } NoteFilterContext;
 
 @interface NoteObject : NSObject <NSCoding, SynchronizedNote> {
+@public
 	NSAttributedString *tableTitleString;
 	NSString *titleString, *labelString;
 	NSMutableAttributedString *contentString;
@@ -52,7 +53,7 @@ typedef struct _NoteFilterContext {
 	NSString *dateModifiedString, *dateCreatedString;
 	
 	id delegate; //the notes controller
-	
+
 	//for syncing to text file
 	NSString *filename;
 	UInt32 nodeID;

@@ -30,6 +30,7 @@
 
 NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
 NSString *NVHiddenBulletIndentAttributeName = @"NVBulletIndentTag";
+NSString *NVHiddenHeadingTagAttributeName = @"NVHeadingTag";
 
 static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange);
 
@@ -125,6 +126,7 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 	[self restyleTextToFont:[[GlobalPrefs defaultPrefs] noteBodyFont] usingBaseFont:nil];
 	[self addLinkAttributesForRange:range];
 	[self addStrikethroughNearDoneTagsForRange:range];
+	[self addAttributesForMarkdownHeadingLinesInRange:range];
 }
 
 - (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont {
@@ -315,6 +317,39 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 	//an improvement would be to use rangeOfCharacterFromSet:@"[]" to count all the left and right brackets from left to right;
 	//a leftbracket would increment a count, a right bracket would decrement it; at the end of blockRange, the count should be 0
 	//this is left as an exercise to the anal-retentive reader
+}
+
+-(void)addAttributesForMarkdownHeadingLinesInRange:(NSRange)changedRange
+{
+	if(![[GlobalPrefs defaultPrefs] autoFormatsMarkdownHeadings])
+		return;
+	
+	NSCharacterSet *newlineSet = [NSCharacterSet newlineCharacterSet];
+	NSRange lineEndRange, scanRange = changedRange;
+	@try {
+		do {
+			lineEndRange = [[self string] rangeOfCharacterFromSet:newlineSet options:NSLiteralSearch range:scanRange];
+			if(lineEndRange.location == NSNotFound) {
+				lineEndRange = NSMakeRange(NSMaxRange(scanRange), 1);
+			}
+			NSRange thisLineRange = NSMakeRange(scanRange.location, lineEndRange.location - scanRange.location);
+			NSString *thisLine = [[self string] substringWithRange:thisLineRange];
+			if([thisLine hasPrefix:@"#"]) {
+				[self addAttributes:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInt:NSUnderlineStyleSingle],  NSUnderlineStyleAttributeName, [NSNull null], NVHiddenHeadingTagAttributeName, nil] range:NSMakeRange(thisLineRange.location, thisLineRange.length)];
+			} else if([self attribute:NVHiddenHeadingTagAttributeName existsInRange:thisLineRange]) {
+				[self removeAttribute:NVHiddenHeadingTagAttributeName range:thisLineRange];
+				[self removeAttribute:NSUnderlineStyleAttributeName range:thisLineRange];
+			}
+			scanRange = NSMakeRange(NSMaxRange(thisLineRange), changedRange.length - (NSMaxRange(thisLineRange) - changedRange.location));
+			if(scanRange.length > 0) {
+				scanRange = NSMakeRange(scanRange.location + 1, scanRange.length - 1);
+			} else {
+				break;
+			}
+		} while(NSMaxRange(scanRange) <= NSMaxRange(changedRange));
+	} @catch (NSException *e) {
+		NSLog(@"_%s(%@): %@", _cmd, NSStringFromRange(changedRange), e);
+	}
 }
 
 - (void)addStrikethroughNearDoneTagsForRange:(NSRange)changedRange {

@@ -132,7 +132,7 @@ static NSString *TempDirectoryPathForEditing() {
 
 	[self retain];
 	[(attachTask = [NSTask new]) setLaunchPath:@"/usr/bin/hdiutil"];
-	[attachTask setArguments:[NSArray arrayWithObjects:@"attach", @"-nomount", @"-nobrowse", [NSString stringWithFormat:@"ram://%u", (2 * 1024 * numberOfMegabytes)], nil]];
+	[attachTask setArguments:[NSArray arrayWithObjects:@"attach", @"-nomount", @"-nobrowse", [NSString stringWithFormat:@"ram://%lu", (unsigned long)(2 * 1024 * numberOfMegabytes)], nil]];
 	[attachTask setStandardOutput:[NSPipe pipe]];
 	[attachTask launch];
 }

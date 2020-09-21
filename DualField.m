@@ -88,9 +88,9 @@
 - (NSRect)textAreaForBounds:(NSRect)rect {
 	
 	NSRect textRect = rect;
-	textRect.origin.y += BORDER_TOP_OFFSET;
-	textRect.origin.x += TEXT_LEFT_OFFSET;
-	textRect.size.height = MAX_STATE_IMG_DIM;
+//	textRect.origin.y += BORDER_TOP_OFFSET;
+//	textRect.origin.x += TEXT_LEFT_OFFSET;
+//	textRect.size.height = MAX_STATE_IMG_DIM;
 	textRect.size.width = rect.size.width - 23;	
 	//if ([self clearButtonIsVisible]) {
 		textRect.size.width -= CLEAR_BUTTON_IMG_DIM - 1.0;
@@ -170,7 +170,7 @@
 	}
 	if (BUTTON_HIDDEN != snapbackButtonState) {
 		NSRect snRect = [self snapbackButtonRectForBounds:cellFrame];
-		NSEraseRect(centeredRectInRect(snRect, NSMakeSize(MAX_STATE_IMG_DIM, MAX_STATE_IMG_DIM)));
+//		NSEraseRect(centeredRectInRect(snRect, NSMakeSize(MAX_STATE_IMG_DIM, MAX_STATE_IMG_DIM)));
 		NSImage *snapImg = [NSImage imageNamed:
 							[(DualField *)controlView hasFollowedLinks] ? (snapbackButtonState == BUTTON_NORMAL ? @"LinkBack" : @"LinkBackPressed") :
 							(snapbackButtonState == BUTTON_NORMAL ? @"SnapBack" : @"SnapBackPressed") ];
@@ -202,9 +202,9 @@
 	DualFieldCell *myCell = [self cell];
 	//[myCell setWraps:YES];
 	
-	[self setDrawsBackground:NO];
-	[self setBordered:NO];
-	[self setBezeled:NO];
+	[self setDrawsBackground:YES];
+	[self setBordered:YES];
+	[self setBezeled:YES];
 	[self setFocusRingType:NSFocusRingTypeExterior];
 			
 	[myCell setAllowsUndo:NO];
@@ -436,7 +436,14 @@
 }
 
 - (void)drawRect:(NSRect)rect {
-//	[super drawRect:rect];
+	[super drawRect:rect];
+	if(![self.cell snapbackButtonIsVisible]){
+		NSImage *docIcon = [NSImage imageNamed: showsDocumentIcon ? @"Pencil" : @"Search" ];
+		[docIcon setFlipped:YES];
+		NSRect docImageRect = NSMakeRect(BORDER_LEFT_OFFSET, BORDER_TOP_OFFSET, [docIcon size].width, [docIcon size].height);
+		[docIcon drawInRect:docImageRect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+	}
+	return;
 	
 	NSWindow *window = [self window];
 	BOOL isActiveWin = [window isMainWindow];

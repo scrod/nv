@@ -30,6 +30,7 @@
 #import "NSData_transformations.h"
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <openssl/md5.h>
 
 NSString *NotesDatabaseFileName = @"Notes & Settings";
 

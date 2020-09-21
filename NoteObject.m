@@ -1536,6 +1536,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	NSMutableAttributedString *attributedBodyString = [[NSMutableAttributedString alloc] initWithString:newBody attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
 	[attributedBodyString addLinkAttributesForRange:NSMakeRange(0, [attributedBodyString length])];
 	[attributedBodyString addStrikethroughNearDoneTagsForRange:NSMakeRange(0, [attributedBodyString length])];
+	[attributedBodyString addAttributesForMarkdownHeadingLinesInRange:NSMakeRange(0, [attributedBodyString length])];
 	
 	//should eventually sync changes back to disk:
 	[self setContentString:[attributedBodyString autorelease]];

@@ -64,13 +64,13 @@ static OSErr GenerateUniqueHFSUniStr(long *startSeed, const FSRef *dir1, const F
 			if ( fnfErr != result )
 			{
 				/* exit if anything other than noErr or fnfErr */
-				require_noerr(result, Dir2PBMakeFSRefUnicodeSyncFailed);
+				__Require_noErr(result, Dir2PBMakeFSRefUnicodeSyncFailed);
 			}
 		}
 		else
 		{
 			/* exit if anything other than noErr or fnfErr */
-			require_noerr(result, Dir1PBMakeFSRefUnicodeSyncFailed);
+			__Require_noErr(result, Dir1PBMakeFSRefUnicodeSyncFailed);
 		}
 		
 		/* increment seed for next pass through loop, */
@@ -115,7 +115,7 @@ OSErr FSExchangeObjectsEmulate(const FSRef *sourceRef, const FSRef *destRef, FSR
 	Boolean          sameParentDirs;    /* true if source and destinatin parent directory is the same */
 	
 	/* check parameters */
-	require_action((NULL != newSourceRef) && (NULL != newDestRef), BadParameter, result = paramErr);
+	__Require_Action((NULL != newSourceRef) && (NULL != newDestRef), BadParameter, result = paramErr);
 	
 	/* output refs and current refs = input refs to start with */
 	memcpy(newSourceRef, sourceRef, sizeof(FSRef));
@@ -129,35 +129,35 @@ OSErr FSExchangeObjectsEmulate(const FSRef *sourceRef, const FSRef *destRef, FSR
 	
 	/* get all catalog information and Unicode names for each file */
 	result = FSGetCatalogInfo(&sourceCurrentRef, kGetCatInformationMask, &sourceCatalogInfo, &sourceName, NULL, &sourceParentRef);
-	require_noerr(result, SourceFSGetCatalogInfoFailed);
+	__Require_noErr(result, SourceFSGetCatalogInfoFailed);
 	
 	result = FSGetCatalogInfo(&destCurrentRef, kGetCatInformationMask, &destCatalogInfo, &destName, NULL, &destParentRef);
-	require_noerr(result, DestFSGetCatalogInfoFailed);
+	__Require_noErr(result, DestFSGetCatalogInfoFailed);
 	
 	/* make sure source and destination are on same volume */
-	require_action(sourceCatalogInfo.volume == destCatalogInfo.volume, NotSameVolume, result = diffVolErr);
+	__Require_Action(sourceCatalogInfo.volume == destCatalogInfo.volume, NotSameVolume, result = diffVolErr);
 	
 	/* make sure both files are *really* files */
-	require_action((0 == (sourceCatalogInfo.nodeFlags & kFSNodeIsDirectoryMask)) &&
+	__Require_Action((0 == (sourceCatalogInfo.nodeFlags & kFSNodeIsDirectoryMask)) &&
 				   (0 == (destCatalogInfo.nodeFlags & kFSNodeIsDirectoryMask)), NotAFile, result = notAFileErr);
 	
 	/* generate 2 names that are unique in both directories */
 	theSeed = 0x4a696d4c;  /* a fine unlikely filename */
 	
 	result = GenerateUniqueHFSUniStr(&theSeed, &sourceParentRef, &destParentRef, &sourceUniqueName);
-	require_noerr(result, GenerateUniqueHFSUniStr1Failed);
+	__Require_noErr(result, GenerateUniqueHFSUniStr1Failed);
 	
 	result = GenerateUniqueHFSUniStr(&theSeed, &sourceParentRef, &destParentRef, &destUniqueName);
-	require_noerr(result, GenerateUniqueHFSUniStr2Failed);
+	__Require_noErr(result, GenerateUniqueHFSUniStr2Failed);
 	
 	/* rename sourceCurrentRef to sourceUniqueName */
 	result = FSRenameUnicode(&sourceCurrentRef, sourceUniqueName.length, sourceUniqueName.unicode, kTextEncodingUnknown, newSourceRef);
-	require_noerr(result, FSRenameUnicode1Failed);
+	__Require_noErr(result, FSRenameUnicode1Failed);
 	memcpy(&sourceCurrentRef, newSourceRef, sizeof(FSRef));
 	
 	/* rename destCurrentRef to destUniqueName */
 	result = FSRenameUnicode(&destCurrentRef, destUniqueName.length, destUniqueName.unicode, kTextEncodingUnknown, newDestRef);
-	require_noerr(result, FSRenameUnicode2Failed);
+	__Require_noErr(result, FSRenameUnicode2Failed);
 	memcpy(&destCurrentRef, newDestRef, sizeof(FSRef));
 	
 	/* are the source and destination parent directories the same? */
@@ -166,12 +166,12 @@ OSErr FSExchangeObjectsEmulate(const FSRef *sourceRef, const FSRef *destRef, FSR
 	{
 		/* move source file to dest parent directory */
 		result = FSMoveObject(&sourceCurrentRef, &destParentRef, newSourceRef);
-		require_noerr(result, FSMoveObject1Failed);
+		__Require_noErr(result, FSMoveObject1Failed);
 		memcpy(&sourceCurrentRef, newSourceRef, sizeof(FSRef));
 		
 		/* move dest file to source parent directory */
 		result = FSMoveObject(&destCurrentRef, &sourceParentRef, newDestRef);
-		require_noerr(result, FSMoveObject2Failed);
+		__Require_noErr(result, FSMoveObject2Failed);
 		memcpy(&destCurrentRef, newDestRef, sizeof(FSRef));
 	}
 	
@@ -182,20 +182,20 @@ OSErr FSExchangeObjectsEmulate(const FSRef *sourceRef, const FSRef *destRef, FSR
 	
 	/* give source file the dest file's catalog information except for mod dates */
 	result = FSSetCatalogInfo(&sourceCurrentRef, kSetCatinformationMask, &destCatalogInfo);
-	require_noerr(result, FSSetCatalogInfo1Failed);
+	__Require_noErr(result, FSSetCatalogInfo1Failed);
 	
 	/* give dest file the source file's catalog information except for mod dates */
 	result = FSSetCatalogInfo(&destCurrentRef, kSetCatinformationMask, &sourceCatalogInfo);
-	require_noerr(result, FSSetCatalogInfo2Failed);
+	__Require_noErr(result, FSSetCatalogInfo2Failed);
 	
 	/* rename source file with dest file's name */
 	result = FSRenameUnicode(&sourceCurrentRef, destName.length, destName.unicode, destCatalogInfo.textEncodingHint, newSourceRef);
-	require_noerr(result, FSRenameUnicode3Failed);
+	__Require_noErr(result, FSRenameUnicode3Failed);
 	memcpy(&sourceCurrentRef, newSourceRef, sizeof(FSRef));
 	
 	/* rename dest file with source file's name */
 	result = FSRenameUnicode(&destCurrentRef, sourceName.length, sourceName.unicode, sourceCatalogInfo.textEncodingHint, newDestRef);
-	require_noerr(result, FSRenameUnicode4Failed);
+	__Require_noErr(result, FSRenameUnicode4Failed);
 	
 	/* we're done with no errors, so swap newSourceRef and newDestRef */
 	memcpy(newSourceRef, newDestRef, sizeof(FSRef));
@@ -220,12 +220,12 @@ FSRenameUnicode4Failed:
 FSRenameUnicode3Failed:
 		
 		/* attempt to restore dest file's catalog information */
-		verify_noerr(FSSetCatalogInfo(&destCurrentRef, kFSCatInfoSettableInfo, &destCatalogInfo));
+		__Verify_noErr(FSSetCatalogInfo(&destCurrentRef, kFSCatInfoSettableInfo, &destCatalogInfo));
 	
 FSSetCatalogInfo2Failed:
 		
 		/* attempt to restore source file's catalog information */
-		verify_noerr(FSSetCatalogInfo(&sourceCurrentRef, kFSCatInfoSettableInfo, &sourceCatalogInfo));
+		__Verify_noErr(FSSetCatalogInfo(&sourceCurrentRef, kFSCatInfoSettableInfo, &sourceCatalogInfo));
 	
 FSSetCatalogInfo1Failed:
 		
@@ -252,12 +252,12 @@ FSMoveObject2Failed:
 FSMoveObject1Failed:
 		
 		/* attempt to rename dest file to original name */
-		verify_noerr(FSRenameUnicode(&destCurrentRef, destName.length, destName.unicode, destCatalogInfo.textEncodingHint, newDestRef));
+		__Verify_noErr(FSRenameUnicode(&destCurrentRef, destName.length, destName.unicode, destCatalogInfo.textEncodingHint, newDestRef));
 	
 FSRenameUnicode2Failed:
 		
 		/* attempt to rename source file to original name */
-		verify_noerr(FSRenameUnicode(&sourceCurrentRef, sourceName.length, sourceName.unicode, sourceCatalogInfo.textEncodingHint, newSourceRef));
+		__Verify_noErr(FSRenameUnicode(&sourceCurrentRef, sourceName.length, sourceName.unicode, sourceCatalogInfo.textEncodingHint, newSourceRef));
 	
 FSRenameUnicode1Failed:
 GenerateUniqueHFSUniStr2Failed:

@@ -20,7 +20,6 @@
 #import "AppController.h"
 #import "AppController_Importing.h"
 #import "NotesTableView.h"
-#import "NSTextFinder.h"
 #import "LinkingEditor_Indentation.h"
 #import "NSCollection_utils.h"
 #import "AttributedPlainText.h"
@@ -1208,6 +1207,7 @@ cancelCompetion:
 	[[self textStorage] addLinkAttributesForRange:changedRange];
 	
 	[[self textStorage] addStrikethroughNearDoneTagsForRange:changedRange];
+	[[self textStorage] addAttributesForMarkdownHeadingLinesInRange:changedRange];
 	
 	if (!isAutocompleting && !wasDeleting && [prefsController linksAutoSuggested] && 
 		![[self undoManager] isUndoing] && ![[self undoManager] isRedoing]) {
