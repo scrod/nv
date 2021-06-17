@@ -1858,12 +1858,16 @@
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				MARKETING_VERSION = "2.0 β7";
-				OTHER_CFLAGS = "-I/usr/local/opt/openssl/include";
+				OTHER_CFLAGS = (
+					"-I/usr/local/opt/openssl/include",
+					"-I/opt/homebrew/opt/openssl/include",
+				);
 				OTHER_LDFLAGS = (
 					"-whatsloaded",
 					"-weak_framework",
 					PDFKit,
 					"-L/usr/local/opt/openssl/lib",
+					"-L/opt/homebrew/opt/openssl/lib",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.notational.velocity;
 				PRODUCT_NAME = "Notational Velocity";
@@ -1928,8 +1932,14 @@
 				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.9;
 				MARKETING_VERSION = "2.0 β7";
 				ONLY_ACTIVE_ARCH = NO;
-				OTHER_CFLAGS = "-I/usr/local/opt/openssl/include";
-				OTHER_LDFLAGS = "-L/usr/local/opt/openssl/lib";
+				OTHER_CFLAGS = (
+					"-I/usr/local/opt/openssl/include",
+					"-I/opt/homebrew/opt/openssl/include",
+				);
+				OTHER_LDFLAGS = (
+					"-L/usr/local/opt/openssl/lib",
+					"-L/opt/homebrew/opt/openssl/lib",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.notational.velocity;
 				PRODUCT_NAME = "Notational Velocity";
 				SDKROOT = macosx;
@@ -1996,11 +2006,15 @@
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				MARKETING_VERSION = "2.0 β7";
-				OTHER_CFLAGS = "-I/usr/local/opt/openssl/include";
+				OTHER_CFLAGS = (
+					"-I/usr/local/opt/openssl/include",
+					"-I/opt/homebrew/opt/openssl/include",
+				);
 				OTHER_LDFLAGS = (
 					"-weak_framework",
 					PDFKit,
 					"-L/usr/local/opt/openssl/lib",
+					"-L/opt/homebrew/opt/openssl/lib",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.notational.velocity;
 				PRODUCT_NAME = "Notational Velocity";
