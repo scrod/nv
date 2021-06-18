@@ -45,6 +45,7 @@
 #import "InvocationRecorder.h"
 #import "LinearDividerShader.h"
 #import "SecureTextEntryManager.h"
+#import "NSString_CustomTruncation.h"
 
 
 @implementation AppController
