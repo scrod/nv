@@ -51,8 +51,9 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 	NSString *stringDuringFind;
 	NoteObject *noteDuringFind;
 	
-	IMP defaultIBeamCursorIMP, whiteIBeamCursorIMP;
-}
+    id (*defaultIBeamCursorIMP)(Class, SEL);
+    id (*whiteIBeamCursorIMP)(Class, SEL);
+};
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;

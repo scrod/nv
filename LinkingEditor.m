@@ -88,8 +88,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 	
 	[[self window] setAcceptsMouseMovedEvents:YES];
 	if (IsLeopardOrLater) {
-		defaultIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(IBeamCursor)));
-		whiteIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(whiteIBeamCursor)));
+        defaultIBeamCursorIMP = (id(*)(Class, SEL))method_getImplementation(class_getClassMethod([NSCursor class], @selector(IBeamCursor)));
+        whiteIBeamCursorIMP = (id(*)(Class, SEL))method_getImplementation(class_getClassMethod([NSCursor class], @selector(whiteIBeamCursor)));
 	}
 
 	didRenderFully = NO;
