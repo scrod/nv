@@ -45,6 +45,7 @@
 #import "InvocationRecorder.h"
 #import "LinearDividerShader.h"
 #import "SecureTextEntryManager.h"
+#import "NSString_CustomTruncation.h"
 
 
 @implementation AppController
@@ -187,7 +188,10 @@ void outletObjectAwoke(id sender) {
 			if (![[prefsController notationPrefs] firstTimeUsed]) {
 				//don't do anything automatically on the first launch; afterwards, check every 4 days, as specified in Info.plist
 				SEL checksSEL = @selector(setAutomaticallyChecksForUpdates:);
-				[updater methodForSelector:checksSEL](updater, checksSEL, YES);
+                typedef void (*UpdaterMethod)(id, SEL, BOOL);
+                UpdaterMethod updaterChecks;
+                updaterChecks = (UpdaterMethod)[updater methodForSelector:checksSEL];
+                updaterChecks(updater, checksSEL, YES);
 			}
 		} else {
 			NSLog(@"Could not load %@!", frameworkPath);
@@ -1182,6 +1186,7 @@ terminateApp:
     
 	//int numberSelected = [notesTableView numberOfSelectedRows];
 	BOOL enable = /*numberSelected != 1;*/ state;
+	[textView clearFindPanel];
 	[textView setHidden:enable];
 	[editorStatusView setHidden:!enable];
 	
@@ -1238,6 +1243,7 @@ terminateApp:
 		
 		//NSString *words = noteIndex != [notationController preferredSelectedNoteIndex] ? typedString : nil;
 		//[textView setFutureSelectionRange:noteSelectionRange highlightingWords:words];
+		[textView clearFindPanel];
 		
 		return YES;
 	}

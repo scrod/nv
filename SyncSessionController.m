@@ -26,6 +26,7 @@
 #import "SyncServiceSessionProtocol.h"
 #import "NotationDirectoryManager.h"
 #import "SimplenoteSession.h"
+#import <IOKit/pwr_mgt/IOPMLib.h>
 
 //#import <IOKit/IOMessage.h>
 
