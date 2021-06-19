@@ -1186,6 +1186,7 @@ terminateApp:
     
 	//int numberSelected = [notesTableView numberOfSelectedRows];
 	BOOL enable = /*numberSelected != 1;*/ state;
+	[textView clearFindPanel];
 	[textView setHidden:enable];
 	[editorStatusView setHidden:!enable];
 	
@@ -1242,6 +1243,7 @@ terminateApp:
 		
 		//NSString *words = noteIndex != [notationController preferredSelectedNoteIndex] ? typedString : nil;
 		//[textView setFutureSelectionRange:noteSelectionRange highlightingWords:words];
+		[textView clearFindPanel];
 		
 		return YES;
 	}

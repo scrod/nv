@@ -37,7 +37,6 @@
 static long (*GetGetScriptManagerVariablePointer())(short);
 #endif
 
-
 @interface NSCursor (WhiteIBeamCursor)
 + (NSCursor*)whiteIBeamCursor;
 @end
@@ -63,6 +62,10 @@ CGFloat _perceptualDarkness(NSColor*a);
 	
     prefsController = [GlobalPrefs defaultPrefs];
 	
+	[self setUsesFindBar:YES];
+	[self setIncrementalSearchingEnabled:YES];
+	textFinder = [[[NSTextFinder alloc] init] retain];
+ 	[textFinder setClient:(id)self];
     [self setContinuousSpellCheckingEnabled:[prefsController checkSpellingAsYouType]];
 	if (IsSnowLeopardOrLater) {
 		[self setAutomaticTextReplacementEnabled:[prefsController useTextReplacement]];
@@ -707,69 +710,36 @@ copyRTFType:
 
 - (IBAction)performFindPanelAction:(id)sender {
 	id controller = [NSApp delegate];
-    NSString *typedString = [controller typedString];
-	NSString *currentFindString = nil;
-    
-    if (!typedString) typedString = [controlField stringValue];
-	typedString = [typedString stringByReplacingOccurrencesOfString:@"\"" withString:@""];
-    
-    NSTextFinder *textFinder = [NSTextFinder sharedTextFinder];
-    if ([typedString length] > 0 && ![lastImportedFindString isEqualToString:typedString]) {
-		
-		NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:NSFindPboard];
-		[pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-		[pasteboard setString:typedString forType:NSStringPboardType];
-		
-		if ([textFinder respondsToSelector:@selector(loadFindStringFromPasteboard)])
-			[textFinder loadFindStringFromPasteboard];
-		else
-			NSLog(@"Apple changed NSTextFinder (loadFindStringFromPasteboard)");
-		
-		[lastImportedFindString release];
-		lastImportedFindString = [typedString retain];
-    }
-	
-	[currentFindString release];
-	if ([textFinder respondsToSelector:@selector(findString)])
-		currentFindString = [[textFinder findString] retain];
-    else
-		NSLog(@"Apple changed NSTextFinder (findString)");
     
     int rowNumber = -1;
     int totalNotes = [notesTableView numberOfRows];
     int tag = [sender tag];
     
     if (![controller selectedNoteObject]) {
-		
 		rowNumber = (tag == NSFindPanelActionPrevious ? totalNotes - 1 : 0);
-		
-    } else if (textFinder && [textFinder nv_lastFindWasSuccessful] == LAST_FIND_NO &&	//if the last find op. didn't work
-			   selectedRangeDuringFind.location == [self selectedRange].location &&	//and user didn't change the selection
-			   noteDuringFind == [controller selectedNoteObject] &&					//or select a different note
-			   [stringDuringFind isEqualToString:currentFindString]) {				//or type a new search string
-			   
-		//then go to next/previous note in the list
-		int selectedRow = [notesTableView selectedRow];
-		rowNumber = (tag == NSFindPanelActionPrevious ? (selectedRow < 1 ? totalNotes - 1 : selectedRow - 1) : 
-					 (selectedRow >= totalNotes - 1 ? 0 : selectedRow + 1));
     }
     
     if (rowNumber > -1 && tag != NSFindPanelActionShowFindPanel) {
 		//when skipping notes, also set the selection depending on find direction
 		[notesTableView selectRowAndScroll:rowNumber];
 		[self setSelectedRange:NSMakeRange((tag == NSFindPanelActionPrevious ? [[self string] length] : 0),0)];
-    }
+	} else if (rowNumber == 0)
+		return;
     
 	if ([controller selectedNoteObject])
 		[[self window] makeFirstResponder:self];
 	
     [super performFindPanelAction:sender];
 	
-	[stringDuringFind release];
-	stringDuringFind = [currentFindString retain];
-	noteDuringFind = [controller selectedNoteObject];
-	selectedRangeDuringFind = [self selectedRange];
-	lastAutomaticallySelectedRange = selectedRangeDuringFind;
+	lastAutomaticallySelectedRange = [self selectedRange];
+}
+
+- (void)clearFindPanel {
+	if (([[self enclosingScrollView]findBarView]!=nil)) {
+	   [textFinder setFindIndicatorNeedsUpdate:YES];
+	   [textFinder cancelFindIndicator];
+	   [textFinder performAction:NSTextFinderActionHideFindInterface];
+	}
 }
 
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {

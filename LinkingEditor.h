@@ -36,6 +36,7 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
     IBOutlet NotesTableView *notesTableView;
 
 	GlobalPrefs *prefsController;
+	id textFinder;
 	BOOL didRenderFully;
 	
 	BOOL didChangeIntoAutomaticRange;
@@ -44,12 +45,6 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 	BOOL isAutocompleting, wasDeleting;
 	
 	BOOL backgroundIsDark, mouseInside;
-	
-	//ludicrous ivars used to hack NSTextFinder. just write your own, damnit!
-	NSRange selectedRangeDuringFind;
-	NSString *lastImportedFindString;
-	NSString *stringDuringFind;
-	NoteObject *noteDuringFind;
 	
     id (*defaultIBeamCursorIMP)(Class, SEL);
     id (*whiteIBeamCursorIMP)(Class, SEL);
@@ -82,7 +77,7 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 - (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange;
 
 - (void)setupFontMenu;
-
+- (void)clearFindPanel;
 - (BOOL)didRenderFully;
 @end
 
