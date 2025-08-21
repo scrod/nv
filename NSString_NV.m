@@ -575,36 +575,15 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return [(NSString*)uuidString autorelease];	
 }
 
-
-- (NSData *)decodeBase64 {
-    return [self decodeBase64WithNewlines:YES];
-}
-
-- (NSData *)decodeBase64WithNewlines:(BOOL)encodedWithNewlines {
-    // Create a memory buffer containing Base64 encoded string data
-	const char *utf8String = [self UTF8String];
-	if (!utf8String)
-		return nil;
+- (NSData *)decodeBase64WithoutNewlines {
+	SecTransformRef const transform = SecDecodeTransformCreate(kSecBase64Encoding, NULL);
 	
-    BIO * mem = BIO_new_mem_buf((void *)utf8String, strlen(utf8String));
-    
-    // Push a Base64 filter so that reading from the buffer decodes it
-    BIO * b64 = BIO_new(BIO_f_base64());
-    if (!encodedWithNewlines)
-        BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    mem = BIO_push(b64, mem);
-    
-    // Decode into an NSMutableData
-    NSMutableData * data = [NSMutableData data];
-    char inbuf[512];
-    int inlen;
-    while ((inlen = BIO_read(mem, inbuf, sizeof(inbuf))) > 0)
-        [data appendBytes: inbuf length: inlen];
-    
-    // Clean up and go home
-    BIO_free_all(mem);
-    return data;
+	NSData *const data = ExecuteTransformWithInput([self dataUsingEncoding:NSASCIIStringEncoding], transform);
+	
+	CFRelease(transform);
+	return data;
 }
+
 
 @end
 

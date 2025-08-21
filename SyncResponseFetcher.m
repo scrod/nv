@@ -39,7 +39,7 @@
 - (id)initWithURL:(NSURL*)aURL bodyStringAsUTF8B64:(NSString*)stringToEncode delegate:(id)aDelegate {
 	NSData *B64Data = nil;
 	if (stringToEncode) {
-		NSString *B64String = [[stringToEncode dataUsingEncoding:NSUTF8StringEncoding] encodeBase64WithNewlines:NO];
+		NSString *B64String = [[stringToEncode dataUsingEncoding:NSUTF8StringEncoding] encodeBase64WithoutNewlines];
 		if (!(B64Data = [B64String dataUsingEncoding:NSASCIIStringEncoding])) {
 			return nil;
 		}

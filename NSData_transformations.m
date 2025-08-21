@@ -1,12 +1,5 @@
 
 /*
- * You need to have the OpenSSL header files (as well as the location of their
- * include directory given to Project Builder) for this to compile.  For it
- * to link, add /usr/lib/libcrypto.dylib and /usr/lib/libssl.dylib to the linked
- * frameworks.
- */
-
-/*
  * Compresses/decompresses data using zlib (see RFC 1950 and /usr/include/zlib.h)
  *
  * Be sure to add /usr/lib/libz.dylib to the linked frameworks, or add "-lz" to
@@ -24,10 +17,20 @@
 
 #include <unistd.h>
 #include <zlib.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-
+#import <CommonCrypto/CommonCrypto.h>
 #import <WebKit/WebKit.h>
+
+NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
+	NSData *output = nil;
+	assert(transform);
+	assert(input);
+	
+	if (SecTransformSetAttribute(transform, kSecTransformInputAttributeName, input, NULL))
+		output = (NSData *)SecTransformExecute(transform, NULL);
+	
+	return [output autorelease];
+}
+
 
 @implementation NSData (NVUtilities)
 
@@ -212,14 +215,14 @@
 }
 
 - (NSData*)MD5Digest {
-	EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
-	unsigned char md_value[EVP_MAX_MD_SIZE];
-	unsigned int md_len;
-	EVP_DigestInit(mdctx, EVP_md5());
-	EVP_DigestUpdate(mdctx, [self bytes], [self length]);
-	EVP_DigestFinal(mdctx, md_value, &md_len);
-	EVP_MD_CTX_free(mdctx);
-	return [NSData dataWithBytes: md_value length: md_len];	
+	CC_MD5_CTX ctx;
+	CC_MD5_Init(&ctx);
+	CC_MD5_Update(&ctx, self.bytes, (CC_LONG)self.length);
+
+	unsigned char md[CC_MD5_DIGEST_LENGTH];
+	CC_MD5_Final(md, &ctx);
+
+	return [NSData dataWithBytes:md length:CC_MD5_DIGEST_LENGTH];
 }
 
 
@@ -341,37 +344,14 @@
 	return nil;
 }
 
-
-- (NSString *)encodeBase64 {
-    return [self encodeBase64WithNewlines:YES];
-}
-
-- (NSString *)encodeBase64WithNewlines:(BOOL)encodeWithNewlines {
+- (NSString *)encodeBase64WithoutNewlines {
+	SecTransformRef const transform = SecEncodeTransformCreate(kSecBase64Encoding, NULL);
 	
-    // Create a memory buffer which will contain the Base64 encoded string
-    BIO * mem = BIO_new(BIO_s_mem());
-    
-    // Push on a Base64 filter so that writing to the buffer encodes the data
-    BIO * b64 = BIO_new(BIO_f_base64());
-    if (!encodeWithNewlines)
-        BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    mem = BIO_push(b64, mem);
-    
-    // Encode all the data
-    BIO_write(mem, [self bytes], [self length]);
-    (void)BIO_flush(mem);
-    
-    // Create a new string from the data in the memory buffer
-    char * base64Pointer;
-    long base64Length = BIO_get_mem_data(mem, &base64Pointer);
-    NSString * base64String = [[NSString alloc] initWithBytes:base64Pointer length:base64Length encoding:NSASCIIStringEncoding];
-    
-    // Clean up and go home
-    BIO_free_all(mem);
-    return [base64String autorelease];
+	NSString *const str = [[[NSString alloc] initWithData:ExecuteTransformWithInput(self, transform) encoding:NSASCIIStringEncoding] autorelease];
+	
+	CFRelease(transform);
+	return str;
 }
-
-
 
 
 @end
@@ -408,130 +388,81 @@
 }
 
 - (BOOL)encryptAESDataWithKey:(NSData*)key iv:(NSData*)iv {
-	return [self encryptDataWithCipher:EVP_aes_256_cbc() key:key iv:iv];
+	// AES-256-CBC with PKCS7 padding to match OpenSSL EVP defaults
+	const size_t expectedKeyLen = kCCKeySizeAES256; // 32
+	const size_t expectedIVLen  = kCCBlockSizeAES128; // 16
+
+	if ([key length] != expectedKeyLen) {
+		NSLog(@"encryption key length was wrong size: %lu", (unsigned long)[key length]);
+		return NO;
+	}
+	if ([iv length] != expectedIVLen) {
+		NSLog(@"initialization vector length was wrong size: %lu", (unsigned long)[iv length]);
+		return NO;
+	}
+
+	size_t dataInLength = [self length];
+	size_t outBufferSize = dataInLength + kCCBlockSizeAES128; // allow for padding
+	NSMutableData *outData = [NSMutableData dataWithLength:outBufferSize];
+
+	size_t outMoved = 0;
+	CCCryptorStatus status = CCCrypt(kCCEncrypt,
+									 kCCAlgorithmAES,
+									 kCCOptionPKCS7Padding, // CBC mode is default when IV provided
+									 [key bytes], expectedKeyLen,
+									 [iv bytes],
+									 [self bytes], dataInLength,
+									 [outData mutableBytes], outBufferSize,
+									 &outMoved);
+
+	if (status != kCCSuccess) {
+		NSLog(@"Couldn't encrypt data (status=%d)", (int)status);
+		return NO;
+	}
+
+	[outData setLength:outMoved];
+	[self setData:outData];
+	return YES;
 }
 
 - (BOOL)decryptAESDataWithKey:(NSData*)key iv:(NSData*)iv {
-	return [self decryptDataWithCipher:EVP_aes_256_cbc() key:key iv:iv];
-}
+	// AES-256-CBC with PKCS7 padding to match OpenSSL EVP defaults
+	const size_t expectedKeyLen = kCCKeySizeAES256; // 32
+	const size_t expectedIVLen  = kCCBlockSizeAES128; // 16
 
-
-//these two methods will change the size of the data, but at large sizes that should be well within the malloc'ed block padding, anyway
-- (BOOL)encryptDataWithCipher:(const EVP_CIPHER*)cipher key:(NSData*)key iv:(NSData*)iv {
-	int originalDataLength = [self length];
-	
-	EVP_CIPHER_CTX* cipherContext = EVP_CIPHER_CTX_new();
-	if (!EVP_EncryptInit(cipherContext, cipher /*EVP_aes_256_cbc()*/, NULL, NULL)) {
-		NSLog(@"Couldn't initialization encryption?");
-		EVP_CIPHER_CTX_free(cipherContext);
+	if ([key length] != expectedKeyLen) {
+		NSLog(@"decryption key length was wrong size: %lu", (unsigned long)[key length]);
 		return NO;
 	}
-	//check IV and key lengths
-	if ((int)[iv length] != EVP_CIPHER_CTX_iv_length(cipherContext)) {
+	if ([iv length] != expectedIVLen) {
 		NSLog(@"initialization vector length was wrong size: %lu", (unsigned long)[iv length]);
-		EVP_CIPHER_CTX_free(cipherContext);
 		return NO;
 	}
-	if ((int)[key length] != EVP_CIPHER_CTX_key_length(cipherContext)) {
-		NSLog(@"encryption key length was wrong size: %lu", [key length]);
-		EVP_CIPHER_CTX_free(cipherContext);
+
+	size_t dataInLength = [self length];
+	// For decryption, output won't be bigger than input
+	NSMutableData *outData = [NSMutableData dataWithLength:dataInLength];
+
+	size_t outMoved = 0;
+	CCCryptorStatus status = CCCrypt(kCCDecrypt,
+									 kCCAlgorithmAES,
+									 kCCOptionPKCS7Padding, // must match encryption
+									 [key bytes], expectedKeyLen,
+									 [iv bytes],
+									 [self bytes], dataInLength,
+									 [outData mutableBytes], [outData length],
+									 &outMoved);
+
+	if (status != kCCSuccess) {
+		NSLog(@"Couldn't decrypt data (status=%d)", (int)status);
 		return NO;
 	}
-	
-	//actually init the IV and key
-	if (!EVP_EncryptInit( cipherContext, NULL, [key bytes], [iv bytes])) {
-		NSLog(@"Couldn't init cipher context with IV and key");
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	
-	//[self alignForBlockSize:EVP_CIPHER_CTX_block_size(cipherContext)];
-	[self increaseLengthBy:EVP_CIPHER_CTX_block_size(cipherContext)];
-	int encLen, finalLen = 0;
-	
-	encLen = [self length];
-	if (!EVP_EncryptUpdate(cipherContext, [self mutableBytes], &encLen,
-						   (unsigned char *)[self bytes], originalDataLength)) {
-		NSLog(@"Couldn't encrypt data--buffer is wrong size?");
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	
-	finalLen = encLen;
-	encLen = [self length] - finalLen;
-	if (!EVP_EncryptFinal(cipherContext, (unsigned char *)[self mutableBytes] + finalLen, &encLen)) {
-		NSLog(@"Couldn't encrypt final buffer--buffer is wrong size?");
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	finalLen += encLen;
-	
-	[self setLength:finalLen];
-	
-	EVP_CIPHER_CTX_cleanup(cipherContext);
-	EVP_CIPHER_CTX_free(cipherContext);
-	
+
+	[outData setLength:outMoved];
+	[self setData:outData];
 	return YES;
 }
 
-- (BOOL)decryptDataWithCipher:(const EVP_CIPHER*)cipher key:(NSData*)key iv:(NSData*)iv {
-	int originalDataLength = [self length];
-	
-	EVP_CIPHER_CTX* cipherContext = EVP_CIPHER_CTX_new();
-	if (!EVP_DecryptInit(cipherContext, cipher /*EVP_aes_256_cbc()*/, NULL, NULL)) {
-		NSLog(@"Couldn't initialize decryption?");
-		return NO;
-	}
-	//check IV and key lengths
-	if ((int)[iv length] != EVP_CIPHER_CTX_iv_length(cipherContext)) {
-		NSLog(@"initialization vector length was wrong size: %lu", (unsigned long)[iv length]);
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	if ((int)[key length] != EVP_CIPHER_CTX_key_length(cipherContext)) {
-		NSLog(@"decryption key length was wrong size: %lu", [key length]);
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	
-	//actually init the IV and key
-	if (!EVP_DecryptInit( cipherContext, NULL, [key bytes], [iv bytes])) {
-		NSLog(@"Couldn't init cipher context with IV and key");
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	
-	//[self alignForBlockSize:EVP_CIPHER_CTX_block_size(&cipherContext)];
-	[self increaseLengthBy:EVP_CIPHER_CTX_block_size(cipherContext)];
-	int decLen, finalLen = 0;
-	
-	decLen = [self length];
-	if (!EVP_DecryptUpdate(cipherContext, [self mutableBytes], &decLen,
-						   (unsigned char *)[self bytes], originalDataLength)) {
-		NSLog(@"Couldn't decrypt data--buffer is wrong size?");
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	
-	finalLen = decLen;
-	decLen = [self length] - finalLen;
-	if (!EVP_DecryptFinal(cipherContext, (unsigned char *)[self mutableBytes] + finalLen, &decLen)) {
-		char buf[256];
-		ERR_error_string_n(ERR_get_error(), buf, sizeof(buf));
-		NSLog(@"Couldn't decrypt final buffer: %s", buf);
-		EVP_CIPHER_CTX_free(cipherContext);
-		return NO;
-	}
-	finalLen += decLen;
-	
-	[self setLength:finalLen];
-	
-	EVP_CIPHER_CTX_cleanup(cipherContext);
-	EVP_CIPHER_CTX_free(cipherContext);
-	
-	
-	return YES;
-}
 
 @end
 
