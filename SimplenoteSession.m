@@ -28,7 +28,6 @@
 #import "GlobalPrefs.h"
 #import "NotationPrefs.h"
 #import "NSString_NV.h"
-#import "NSDictionary+BSJSONAdditions.h"
 #import "AttributedPlainText.h"
 #import "InvocationRecorder.h"
 #import "SynchronizedNoteProtocol.h"
@@ -1014,23 +1013,21 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		} else {
 			[self _stoppedWithErrorString:NSLocalizedString(@"No authorization token", @"Simplenote-specific error")];
 		}
-	} else if (fetcher == listFetcher) {
-		lastIndexAuthFailed = NO;
-		NSDictionary *responseDictionary = nil;
-		NSArray *rawEntries = nil;
-		@try {
-			responseDictionary = [NSDictionary dictionaryWithJSONString:bodyString];
-			if (responseDictionary) {
-				rawEntries = [responseDictionary objectForKey:@"data"];
-			}
-		} @catch (NSException *e) {
-			NSLog(@"Exception while parsing Simplenote JSON index: %@", [e reason]);
-		} @finally {
-			if (!rawEntries) {
-				[self _stoppedWithErrorString:NSLocalizedString(@"The index of notes could not be parsed.", @"Simplenote-specific error")];
-				return;
-			}
-		}
+    } else if (fetcher == listFetcher) {
+        lastIndexAuthFailed = NO;
+        NSDictionary *responseDictionary = nil;
+        NSArray *rawEntries = nil;
+        NSError *jsonError = nil;
+        id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+        if ([json isKindOfClass:[NSDictionary class]]) {
+            responseDictionary = (NSDictionary *)json;
+            rawEntries = [responseDictionary objectForKey:@"data"];
+        }
+        if (!rawEntries) {
+            if (jsonError) NSLog(@"JSON parse error for Simplenote index: %@", jsonError);
+            [self _stoppedWithErrorString:NSLocalizedString(@"The index of notes could not be parsed.", @"Simplenote-specific error")];
+            return;
+        }
 		//convert syncnum, dates and "deleted" indicator into NSNumbers
 		NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[rawEntries count]];
 		NSUInteger i = 0;
@@ -1131,4 +1128,3 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 }
 
 @end
-

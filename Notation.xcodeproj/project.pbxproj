@@ -166,11 +166,6 @@
 		21F078FC10EC280E004FE56F /* NotationSyncServiceManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F078FB10EC280E004FE56F /* NotationSyncServiceManager.m */; };
 		21F0794310EC5EA2004FE56F /* SimplenoteSession.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F0794210EC5EA2004FE56F /* SimplenoteSession.m */; };
 		21F0797E10EC93B0004FE56F /* SyncResponseFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F0797D10EC93B0004FE56F /* SyncResponseFetcher.m */; };
-		21F07C7B10EDED93004FE56F /* BSJSONEncoder.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F07C7210EDED93004FE56F /* BSJSONEncoder.m */; };
-		21F07C7C10EDED93004FE56F /* NSArray+BSJSONAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F07C7410EDED93004FE56F /* NSArray+BSJSONAdditions.m */; };
-		21F07C7D10EDED93004FE56F /* NSDictionary+BSJSONAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F07C7610EDED93004FE56F /* NSDictionary+BSJSONAdditions.m */; };
-		21F07C7E10EDED93004FE56F /* NSScanner+BSJSONAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F07C7810EDED93004FE56F /* NSScanner+BSJSONAdditions.m */; };
-		21F07C7F10EDED93004FE56F /* NSString+BSJSONAdditions.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F07C7A10EDED93004FE56F /* NSString+BSJSONAdditions.m */; };
 		21F1CD6D0B3A38DB001FB5F6 /* PTHotKeyCenter.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CD660B3A38DB001FB5F6 /* PTHotKeyCenter.m */; };
 		21F1CD6F0B3A38DB001FB5F6 /* PTKeyBroadcaster.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CD690B3A38DB001FB5F6 /* PTKeyBroadcaster.m */; };
 		21F1CD700B3A38DB001FB5F6 /* PTKeyCodes.plist in Resources */ = {isa = PBXBuildFile; fileRef = 21F1CD6A0B3A38DB001FB5F6 /* PTKeyCodes.plist */; };
@@ -437,16 +432,6 @@
 		21F0794210EC5EA2004FE56F /* SimplenoteSession.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SimplenoteSession.m; sourceTree = "<group>"; };
 		21F0797C10EC93B0004FE56F /* SyncResponseFetcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SyncResponseFetcher.h; sourceTree = "<group>"; };
 		21F0797D10EC93B0004FE56F /* SyncResponseFetcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SyncResponseFetcher.m; sourceTree = "<group>"; };
-		21F07C7110EDED93004FE56F /* BSJSONEncoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = BSJSONEncoder.h; path = JSON/BSJSONEncoder.h; sourceTree = "<group>"; };
-		21F07C7210EDED93004FE56F /* BSJSONEncoder.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = BSJSONEncoder.m; path = JSON/BSJSONEncoder.m; sourceTree = "<group>"; };
-		21F07C7310EDED93004FE56F /* NSArray+BSJSONAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSArray+BSJSONAdditions.h"; path = "JSON/NSArray+BSJSONAdditions.h"; sourceTree = "<group>"; };
-		21F07C7410EDED93004FE56F /* NSArray+BSJSONAdditions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSArray+BSJSONAdditions.m"; path = "JSON/NSArray+BSJSONAdditions.m"; sourceTree = "<group>"; };
-		21F07C7510EDED93004FE56F /* NSDictionary+BSJSONAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSDictionary+BSJSONAdditions.h"; path = "JSON/NSDictionary+BSJSONAdditions.h"; sourceTree = "<group>"; };
-		21F07C7610EDED93004FE56F /* NSDictionary+BSJSONAdditions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSDictionary+BSJSONAdditions.m"; path = "JSON/NSDictionary+BSJSONAdditions.m"; sourceTree = "<group>"; };
-		21F07C7710EDED93004FE56F /* NSScanner+BSJSONAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSScanner+BSJSONAdditions.h"; path = "JSON/NSScanner+BSJSONAdditions.h"; sourceTree = "<group>"; };
-		21F07C7810EDED93004FE56F /* NSScanner+BSJSONAdditions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSScanner+BSJSONAdditions.m"; path = "JSON/NSScanner+BSJSONAdditions.m"; sourceTree = "<group>"; };
-		21F07C7910EDED93004FE56F /* NSString+BSJSONAdditions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSString+BSJSONAdditions.h"; path = "JSON/NSString+BSJSONAdditions.h"; sourceTree = "<group>"; };
-		21F07C7A10EDED93004FE56F /* NSString+BSJSONAdditions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSString+BSJSONAdditions.m"; path = "JSON/NSString+BSJSONAdditions.m"; sourceTree = "<group>"; };
 		21F1CD650B3A38DB001FB5F6 /* PTHotKeyCenter.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = PTHotKeyCenter.h; path = PTHotKeys/PTHotKeyCenter.h; sourceTree = "<group>"; };
 		21F1CD660B3A38DB001FB5F6 /* PTHotKeyCenter.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; name = PTHotKeyCenter.m; path = PTHotKeys/PTHotKeyCenter.m; sourceTree = "<group>"; };
 		21F1CD680B3A38DB001FB5F6 /* PTKeyBroadcaster.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = PTKeyBroadcaster.h; path = PTHotKeys/PTKeyBroadcaster.h; sourceTree = "<group>"; };
@@ -960,23 +945,6 @@
 			name = "Sync Services";
 			sourceTree = "<group>";
 		};
-		21F07C7010EDED87004FE56F /* BSJSON */ = {
-			isa = PBXGroup;
-			children = (
-				21F07C7110EDED93004FE56F /* BSJSONEncoder.h */,
-				21F07C7210EDED93004FE56F /* BSJSONEncoder.m */,
-				21F07C7310EDED93004FE56F /* NSArray+BSJSONAdditions.h */,
-				21F07C7410EDED93004FE56F /* NSArray+BSJSONAdditions.m */,
-				21F07C7510EDED93004FE56F /* NSDictionary+BSJSONAdditions.h */,
-				21F07C7610EDED93004FE56F /* NSDictionary+BSJSONAdditions.m */,
-				21F07C7710EDED93004FE56F /* NSScanner+BSJSONAdditions.h */,
-				21F07C7810EDED93004FE56F /* NSScanner+BSJSONAdditions.m */,
-				21F07C7910EDED93004FE56F /* NSString+BSJSONAdditions.h */,
-				21F07C7A10EDED93004FE56F /* NSString+BSJSONAdditions.m */,
-			);
-			name = BSJSON;
-			sourceTree = "<group>";
-		};
 		21F1CD490B3A38CB001FB5F6 /* HotKeys */ = {
 			isa = PBXGroup;
 			children = (
@@ -1013,7 +981,6 @@
 			isa = PBXGroup;
 			children = (
 				212897BF133002C600380B64 /* ODBEditor */,
-				21F07C7010EDED87004FE56F /* BSJSON */,
 				2182B38E106B2286008641E4 /* RBSplitView */,
 				21F1CD490B3A38CB001FB5F6 /* HotKeys */,
 				211345A10B35D8340081B064 /* Crypto */,
@@ -1298,11 +1265,6 @@
 				21F078FC10EC280E004FE56F /* NotationSyncServiceManager.m in Sources */,
 				21F0794310EC5EA2004FE56F /* SimplenoteSession.m in Sources */,
 				21F0797E10EC93B0004FE56F /* SyncResponseFetcher.m in Sources */,
-				21F07C7B10EDED93004FE56F /* BSJSONEncoder.m in Sources */,
-				21F07C7C10EDED93004FE56F /* NSArray+BSJSONAdditions.m in Sources */,
-				21F07C7D10EDED93004FE56F /* NSDictionary+BSJSONAdditions.m in Sources */,
-				21F07C7E10EDED93004FE56F /* NSScanner+BSJSONAdditions.m in Sources */,
-				21F07C7F10EDED93004FE56F /* NSString+BSJSONAdditions.m in Sources */,
 				21B1BC361104D20E0004A7D0 /* InvocationRecorder.m in Sources */,
 				21AD2550110A8BA600B7A985 /* SimplenoteEntryCollector.m in Sources */,
 				21AD2850110BE99B00B7A985 /* SyncSessionController.m in Sources */,

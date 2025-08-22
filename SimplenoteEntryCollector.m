@@ -26,7 +26,6 @@
 #import "SyncResponseFetcher.h"
 #import "SimplenoteSession.h"
 #import "NSString_NV.h"
-#import "NSDictionary+BSJSONAdditions.h"
 #import "SynchronizedNoteProtocol.h"
 #import "NoteObject.h"
 #import "DeletedNoteObject.h"
@@ -141,19 +140,16 @@
 - (NSDictionary*)preparedDictionaryWithFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data {
 	//logic abstracted for subclassing
 	
-	NSString *bodyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
-	
-	NSDictionary *rawObject = nil;
-	@try {
-		rawObject = [NSDictionary dictionaryWithJSONString:bodyString];
-	}
-	@catch (NSException *e) {
-		NSLog(@"Exception while parsing Simplenote JSON note object: %@", [e reason]);
-	}
-	@finally {
-		if (!rawObject)
-			return nil;
-	}
+    NSDictionary *rawObject = nil;
+    NSError *jsonError = nil;
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+    if ([json isKindOfClass:[NSDictionary class]]) {
+        rawObject = (NSDictionary *)json;
+    }
+    if (!rawObject) {
+        if (jsonError) NSLog(@"JSON parse error for Simplenote note object: %@", jsonError);
+        return nil;
+    }
 
 	NSMutableDictionary *entry = [NSMutableDictionary dictionaryWithCapacity:12];
 	[entry setObject:[rawObject objectForKey:@"key"] forKey:@"key"];
@@ -283,7 +279,12 @@
 	} else {
 		noteURL = [SimplenoteSession servletURLWithPath:[NSString stringWithFormat:@"/api2/data/%@", [info objectForKey:@"key"]] parameters:params];
 	}
-	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:[[rawObject jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding] contentType:@"application/json" delegate:self];
+    NSError *encodeError = nil;
+    NSData *postData = [NSJSONSerialization dataWithJSONObject:rawObject options:0 error:&encodeError];
+    if (!postData) {
+        NSLog(@"Failed to encode JSON for create/update note: %@", encodeError);
+    }
+    SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:postData contentType:@"application/json" delegate:self];
 	[fetcher setRepresentedObject:aNote];
 	return [fetcher autorelease];
 }
@@ -315,7 +316,11 @@
 	NSURL *noteURL = [SimplenoteSession servletURLWithPath:[NSString stringWithFormat:@"/api2/data/%@", [info objectForKey:@"key"]] parameters:
 					  [NSDictionary dictionaryWithObjectsAndKeys: email, @"email", 
 					   authToken, @"auth", nil]];
-	NSData *postData = [[[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:1] forKey:@"deleted"] jsonStringValue] dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *encodeError2 = nil;
+    NSData *postData = [NSJSONSerialization dataWithJSONObject:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:1] forKey:@"deleted"] options:0 error:&encodeError2];
+    if (!postData) {
+        NSLog(@"Failed to encode JSON for delete note: %@", encodeError2);
+    }
 	SyncResponseFetcher *fetcher = [[SyncResponseFetcher alloc] initWithURL:noteURL POSTData:postData contentType:@"application/json" delegate:self];
 	[fetcher setRepresentedObject:aDeletedNote];
 	return [fetcher autorelease];
@@ -358,19 +363,16 @@
 
 - (NSDictionary*)preparedDictionaryWithFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data {
 	
-	NSString *bodyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
-	
-	NSDictionary *rawObject = nil;
-	@try {
-		rawObject = [NSDictionary dictionaryWithJSONString:bodyString];
-	}
-	@catch (NSException *e) {
-		NSLog(@"Exception while parsing Simplenote JSON note object: %@", [e reason]);
-	}
-	@finally {
-		if (!rawObject)
-			return nil;
-	}
+    NSDictionary *rawObject = nil;
+    NSError *jsonError = nil;
+    id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
+    if ([json isKindOfClass:[NSDictionary class]]) {
+        rawObject = (NSDictionary *)json;
+    }
+    if (!rawObject) {
+        if (jsonError) NSLog(@"JSON parse error for Simplenote note object: %@", jsonError);
+        return nil;
+    }
 	
 	NSString *keyString = [rawObject objectForKey:@"key"];
 	
