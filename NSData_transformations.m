@@ -11,8 +11,7 @@
 /* NSData_transformations.m */
 
 #import "NSData_transformations.h"
-#include "pbkdf2.h"
-#include "hmacsha1.h"
+#import <CommonCrypto/CommonKeyDerivation.h>
 #include "broken_md5.h"
 
 #include <unistd.h>
@@ -169,21 +168,21 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 }
 
 - (NSMutableData*)derivedKeyOfLength:(int)len salt:(NSData*)salt iterations:(int)count {
-	
-	NSMutableData *derivedKey = [NSMutableData dataWithLength:len];
-	
-	//NSDate *date = [NSDate date];
-	//when compiled with -Os or greater, this is always faster than OpenSSL version
-#if 1
-	if (!pbkdf2_sha1([self bytes], [self length], [salt bytes], [salt length], (unsigned int)count, [derivedKey mutableBytes], (size_t)len))
-		return nil;
-	//NSLog(@"dk_time(%d): %g", count, (float)[[NSDate date] timeIntervalSinceDate:date]);
-#else
-	if (!PKCS5_PBKDF2_HMAC_SHA1([self bytes], [self length], (unsigned char*)[salt bytes], [salt length], count, len, [derivedKey mutableBytes]))
-		return nil;
-#endif
-	
-	return derivedKey;
+    NSMutableData *derivedKey = [NSMutableData dataWithLength:len];
+
+    CCStatus status = CCKeyDerivationPBKDF(kCCPBKDF2,
+                                           (const char *)[self bytes], (size_t)[self length],
+                                           (const uint8_t *)[salt bytes], (size_t)[salt length],
+                                           kCCPRFHmacAlgSHA1,
+                                           (uint32_t)count,
+                                           (uint8_t *)[derivedKey mutableBytes], (size_t)len);
+
+    if (status != kCCSuccess) {
+        NSLog(@"CCKeyDerivationPBKDF failed (status=%d)", (int)status);
+        return nil;
+    }
+
+    return derivedKey;
 }
 
 - (unsigned long)CRC32 {
@@ -192,15 +191,9 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 }
 
 - (NSData*)SHA1Digest {
-	sha1_ctx_nv keyhash;
-	
-	NSMutableData *mutableData = [NSMutableData dataWithLength:20];
-	
-	sha1_init_ctx(&keyhash);
-	sha1_process_bytes([self bytes], [self length], &keyhash);
-	sha1_finish_ctx(&keyhash, [mutableData mutableBytes]);
-	
-	return mutableData;
+	unsigned char digest[CC_SHA1_DIGEST_LENGTH];
+	CC_SHA1(self.bytes, (CC_LONG)self.length, digest);
+	return [NSData dataWithBytes:digest length:CC_SHA1_DIGEST_LENGTH];
 }
 
 - (NSData*)BrokenMD5Digest {
@@ -465,4 +458,3 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 
 
 @end
-
