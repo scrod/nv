@@ -80,8 +80,63 @@
 	dualFieldItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"DualField"];
 	//[[dualSV superview] setFrameSize:NSMakeSize([[dualSV superview] frame].size.width, [[dualSV superview] frame].size.height -1)];
 	[dualFieldItem setView:dualSV];
-	[dualFieldItem setMaxSize:NSMakeSize(FLT_MAX, [dualSV frame].size.height)];
-	[dualFieldItem setMinSize:NSMakeSize(50.0f, [dualSV frame].size.height)];
+
+	// Create a static label toolbar item titled "Notation" to the left of the DualField
+	appTitleItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"AppTitleLabel"];
+	{
+		NSTextField *titleLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 10, 10)];
+		[titleLabel setBezeled:NO];
+		[titleLabel setDrawsBackground:NO];
+		[titleLabel setEditable:NO];
+		[titleLabel setSelectable:NO];
+		// Explicitly set bold font via attributed string to avoid toolbar overrides
+		CGFloat fontSize = [NSFont systemFontSize];
+		if (@available(macOS 11, *)) {
+			fontSize = [NSFont systemFontSizeForControlSize:NSControlSizeRegular];
+		}
+		NSFont *font = nil;
+		if (@available(macOS 10.11, *)) {
+			font = [NSFont systemFontOfSize:fontSize weight:NSFontWeightBold];
+		} else {
+			font = [NSFont boldSystemFontOfSize:fontSize];
+		}
+		NSColor *fg = nil;
+		if (@available(macOS 10.10, *)) {
+			fg = [NSColor labelColor];
+		} else {
+			fg = [NSColor controlTextColor];
+		}
+		NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
+			font, NSFontAttributeName,
+			fg, NSForegroundColorAttributeName,
+			nil];
+		NSAttributedString *as = [[[NSAttributedString alloc] initWithString:@"Notation" attributes:attrs] autorelease];
+		[titleLabel setAttributedStringValue:as];
+		[titleLabel sizeToFit];
+
+		NSSize labelSize = [titleLabel frame].size;
+		// Add a little horizontal padding
+		CGFloat padX = 4.0;
+		NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, labelSize.width + padX * 2, labelSize.height)];
+		[titleLabel setFrameOrigin:NSMakePoint(padX, 0)];
+		[container addSubview:titleLabel];
+
+		[appTitleItem setView:container];
+		[appTitleItem setLabel:@"Notation"];
+		[appTitleItem setMinSize:NSMakeSize(container.frame.size.width, container.frame.size.height)];
+		[appTitleItem setMaxSize:NSMakeSize(container.frame.size.width, container.frame.size.height)];
+	}
+	
+	window.titleVisibility = NSWindowTitleHidden;
+	
+	if (@available(macOS 11, *)) {
+			// Keep the title visible and push it to the left by centering our field
+		window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleLine;
+		window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
+	} else {
+		[dualFieldItem setMaxSize:NSMakeSize(FLT_MAX, [dualSV frame].size.height)];
+		[dualFieldItem setMinSize:NSMakeSize(50.0f, [dualSV frame].size.height)];
+	}
     [dualFieldItem setLabel:NSLocalizedString(@"Search or Create", @"placeholder text in search/create field")];
 	
 	toolbar = [[NSToolbar alloc] initWithIdentifier:@"NVToolbar"];
@@ -385,7 +440,9 @@ terminateApp:
 }
 
 - (NSToolbarItem *)toolbar:(NSToolbar *)toolbar itemForItemIdentifier:(NSString *)itemIdentifier willBeInsertedIntoToolbar:(BOOL)flag {
-	return [itemIdentifier isEqualToString:@"DualField"] ? dualFieldItem : nil;
+	if ([itemIdentifier isEqualToString:@"AppTitleLabel"]) return appTitleItem;
+	if ([itemIdentifier isEqualToString:@"DualField"]) return dualFieldItem;
+	return nil;
 }
 
 - (NSArray *)toolbarAllowedItemIdentifiers:(NSToolbar*)theToolbar {
@@ -393,7 +450,7 @@ terminateApp:
 }
 
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
-	return [NSArray arrayWithObject:@"DualField"];
+	return [NSArray arrayWithObjects:@"AppTitleLabel", @"DualField", nil];
 }
 
 
@@ -1496,6 +1553,9 @@ terminateApp:
 
 - (void)_expandToolbar {
 	if (![toolbar isVisible]) {
+		if (@available(macOS 10.10, *)) {
+			window.titleVisibility = NSWindowTitleHidden;
+		}
 		[window setTitle:@"Notation"];
 		if (currentNote)
 			[field setStringValue:titleOfNote(currentNote)];
@@ -1511,6 +1571,9 @@ terminateApp:
 
 - (void)_collapseToolbar {
 	if ([toolbar isVisible]) {
+		if (@available(macOS 10.10, *)) {
+			window.titleVisibility = NSWindowTitleVisible;
+		}
 		if (currentNote)
 			[window setTitle:titleOfNote(currentNote)];
 		[window toggleToolbarShown:nil];

@@ -51,6 +51,7 @@
 	IBOutlet NSProgressIndicator *syncWaitSpinner;
 	NSToolbar *toolbar;
 	NSToolbarItem *dualFieldItem;
+	NSToolbarItem *appTitleItem;
 	TitlebarButton *titleBarButton;
 	
 	BOOL waitedForUncommittedChanges;
