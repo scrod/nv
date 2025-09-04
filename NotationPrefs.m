@@ -307,10 +307,10 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	const char *kcSyncAccountName = [self keychainSyncAccountNameForService:serviceName];
 	if (!kcSyncAccountName) return nil;
 	
-	OSStatus err = SecKeychainFindGenericPassword(NULL, strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-												  strlen(kcSyncAccountName), kcSyncAccountName, &passwordLength, &passwordData, &returnedItem);
+    OSStatus err = SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
+                                                  (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, &passwordLength, &passwordData, &returnedItem);
 	if (err != noErr) {
-		NSLog(@"Error finding keychain password for service account %@: %d\n", serviceName, err);
+		NSLog(@"Error finding keychain password for service account %@: %d\n", serviceName, (int)err);
 		return nil;
 	}
 	password = [[[NSString alloc] initWithBytes:passwordData length:passwordLength encoding:NSUTF8StringEncoding] autorelease];
@@ -422,8 +422,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	
 	const char *accountName = [self setKeychainIdentifier];
 	
-	OSStatus err = SecKeychainFindGenericPassword(NULL, strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-											 strlen(accountName), accountName, NULL, NULL, &returnedItem);
+    OSStatus err = SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
+                                                 (UInt32)strlen(accountName), accountName, NULL, NULL, &returnedItem);
 	if (err != noErr)
 		return NULL;
 	
@@ -435,7 +435,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if (itemRef) {
 		OSStatus err = SecKeychainItemDelete(itemRef);
 		if (err != noErr)
-			NSLog(@"Error deleting keychain item: %d", err);
+			NSLog(@"Error deleting keychain item: %d", (int)err);
 		CFRelease(itemRef);
 	}
 }
@@ -446,18 +446,18 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	const char *accountName = [self setKeychainIdentifier];
 	SecKeychainItemRef returnedItem = NULL;	
 	
-	OSStatus err = SecKeychainFindGenericPassword(NULL,
-												  strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-												  strlen(accountName), accountName,
-												  &passwordLength, &passwordData,
-												  &returnedItem);
+    OSStatus err = SecKeychainFindGenericPassword(NULL,
+                                                  (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
+                                                  (UInt32)strlen(accountName), accountName,
+                                                  &passwordLength, &passwordData,
+                                                  &returnedItem);
 	if (err != noErr) {
-		NSLog(@"Error finding keychain password for account %s: %d\n", accountName, err);
+		NSLog(@"Error finding keychain password for account %s: %d\n", accountName, (int)err);
 		return nil;
 	}
 	NSData *data = [NSData dataWithBytes:passwordData length:passwordLength];
 	
-	bzero(passwordData, passwordLength);
+    bzero(passwordData, (size_t)passwordLength);
 	
 	SecKeychainItemFreeContent(NULL, passwordData);
 	
@@ -474,13 +474,13 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		const char *accountName = [self setKeychainIdentifier];
 		
-		SecKeychainAttribute attrs[] = {
-		{ kSecAccountItemAttr, strlen(accountName), (char*)accountName },
-		{ kSecServiceItemAttr, strlen(KEYCHAIN_SERVICENAME), (char*)KEYCHAIN_SERVICENAME } };
+        SecKeychainAttribute attrs[] = {
+        { kSecAccountItemAttr, (UInt32)strlen(accountName), (char*)accountName },
+        { kSecServiceItemAttr, (UInt32)strlen(KEYCHAIN_SERVICENAME), (char*)KEYCHAIN_SERVICENAME } };
 		
 		const SecKeychainAttributeList attributes = { sizeof(attrs) / sizeof(attrs[0]), attrs };
 		
-		if (noErr != (status = SecKeychainItemModifyAttributesAndData(itemRef, &attributes, [data length], [data bytes]))) {
+        if (noErr != (status = SecKeychainItemModifyAttributesAndData(itemRef, &attributes, (UInt32)[data length], [data bytes]))) {
 			NSLog(@"Error modifying keychain data with new passphrase-data: %d", status);
 		}
 		
@@ -490,8 +490,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		const char *accountName = [self setKeychainIdentifier];
 		
 		//add new data; item does not exist
-		if (noErr != (status = SecKeychainAddGenericPassword(NULL, strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-															 strlen(accountName), accountName, [data length], [data bytes], NULL))) {
+        if (noErr != (status = SecKeychainAddGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
+                                                             (UInt32)strlen(accountName), accountName, (UInt32)[data length], [data bytes], NULL))) {
 			NSLog(@"Error adding new passphrase item to keychain: %d", status);
 		}
 	}
@@ -709,7 +709,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	INIT_DICT_ACCT();
 	
 	if ([self syncFrequencyInMinutesForServiceName:serviceName] != frequencyInMinutes) {
-		[accountDict setObject:[NSNumber numberWithUnsignedInt:frequencyInMinutes] forKey:@"frequency"];
+		[accountDict setObject:[NSNumber numberWithUnsignedInteger:frequencyInMinutes] forKey:@"frequency"];
 		preferencesChanged = YES;
 		[delegate syncSettingsChangedForService:serviceName];
 	}
@@ -721,7 +721,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if ([self syncNotesShouldMergeForServiceName:serviceName] != shouldMerge) {
 		NSString *username = [accountDict objectForKey:@"username"];
 		if (username) {
-			NSLog(@"%s: %d, %@", _cmd, shouldMerge, username);
+			NSLog(@"%@: %d, %@", NSStringFromSelector(_cmd), shouldMerge, username);
 			if (shouldMerge) {
 				[accountDict setObject:username forKey:@"shouldmerge"];
 			} else {
@@ -729,7 +729,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 			}
 			preferencesChanged = YES;
 		} else {
-			NSLog(@"%s: no username found in %@", serviceName);
+			NSLog(@"%@: no username found in %@", NSStringFromSelector(_cmd), serviceName);
 		}
 	}
 }
@@ -765,27 +765,27 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		if (kcSyncAccountName) {
 			//insert this password into the keychain for this service
 			SecKeychainItemRef itemRef = NULL;
-			if (SecKeychainFindGenericPassword(NULL, strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME, strlen(kcSyncAccountName), kcSyncAccountName, NULL, NULL, &itemRef) != noErr) {
+        if (SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME, (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, NULL, NULL, &itemRef) != noErr) {
 				itemRef = NULL;
 			}
 			if (itemRef) {
 				//modify existing data; item already exists
-				SecKeychainAttribute attrs[] = {
-					{ kSecAccountItemAttr, strlen(kcSyncAccountName), (char*)kcSyncAccountName },
-					{ kSecServiceItemAttr, strlen(KEYCHAIN_SERVICENAME), (char*)KEYCHAIN_SERVICENAME } };
+                SecKeychainAttribute attrs[] = {
+                    { kSecAccountItemAttr, (UInt32)strlen(kcSyncAccountName), (char*)kcSyncAccountName },
+                    { kSecServiceItemAttr, (UInt32)strlen(KEYCHAIN_SERVICENAME), (char*)KEYCHAIN_SERVICENAME } };
 				
 				const SecKeychainAttributeList attributes = { sizeof(attrs) / sizeof(attrs[0]), attrs };
 				
 				OSStatus status = noErr;
-				if (noErr != (status = SecKeychainItemModifyAttributesAndData(itemRef, &attributes, [passwordData length], [passwordData bytes]))) {
+                if (noErr != (status = SecKeychainItemModifyAttributesAndData(itemRef, &attributes, (UInt32)[passwordData length], [passwordData bytes]))) {
 					NSLog(@"Error modifying keychain data with different service password: %d", status);
 				}
 				CFRelease(itemRef);
 			} else {
 				//add new data; item does not exist
 				OSStatus status = noErr;
-				if (noErr != (status = SecKeychainAddGenericPassword(NULL, strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-																	 strlen(kcSyncAccountName), kcSyncAccountName, [passwordData length], [passwordData bytes], NULL))) {
+                if (noErr != (status = SecKeychainAddGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
+                                                                     (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, (UInt32)[passwordData length], [passwordData bytes], NULL))) {
 					NSLog(@"Error adding new service password to keychain: %d", status);
 				}
 			}
@@ -807,12 +807,12 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		const char *kcSyncAccountName = [self keychainSyncAccountNameForService:serviceName];
 		if (kcSyncAccountName) {
 			SecKeychainItemRef itemRef = NULL;
-			if (SecKeychainFindGenericPassword(NULL, strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME, strlen(kcSyncAccountName), kcSyncAccountName, NULL, NULL, &itemRef) != noErr) {
+            if (SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME, (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, NULL, NULL, &itemRef) != noErr) {
 				itemRef = NULL;
 			}	
 			if (itemRef) {
 				OSStatus err = SecKeychainItemDelete(itemRef);
-				if (err != noErr) NSLog(@"Error deleting keychain item for service %@: %d, serviceName", err);
+				if (err != noErr) NSLog(@"Error deleting keychain item for service %@: %d", serviceName, (int)err);
 				CFRelease(itemRef);
 			}
 		} else {
@@ -867,8 +867,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 			offendingFileConduitName = NSLocalizedString(@"Dropbox", nil);
 		}
 		if (offendingFileConduitName) {
-			NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"<Feedback loop warning title>", nil), offendingFileConduitName, syncServiceTitle], 
-							[NSString stringWithFormat:NSLocalizedString(@"<Feedback loop warning message>", nil), syncServiceTitle], NSLocalizedString(@"OK", nil), nil, nil);
+			NSString *title = [NSString stringWithFormat:NSLocalizedString(@"<Feedback loop warning title>", nil), offendingFileConduitName, syncServiceTitle];
+			NSString *message = [NSString stringWithFormat:NSLocalizedString(@"<Feedback loop warning message>", nil), syncServiceTitle];
+			NSRunAlertPanel(@"%@", title, @"%@", message, NSLocalizedString(@"OK", nil), nil, nil);
 		}
 	}
 }
@@ -908,13 +909,13 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 //for our nstableview data source
 - (int)typeStringsCount {
 	if (typeStrings[notesStorageFormat])
-		return [typeStrings[notesStorageFormat] count];
+		return (int)[typeStrings[notesStorageFormat] count];
 	
 	return 0;
 }
 - (int)pathExtensionsCount {
 	if (pathExtensions[notesStorageFormat])
-	    return [pathExtensions[notesStorageFormat] count];
+	    return (int)[pathExtensions[notesStorageFormat] count];
 	
 	return 0;
 }
@@ -940,7 +941,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
     if (!typeStrings[notesStorageFormat])
 	return;
     
-    unsigned int i, newSize = sizeof(OSType) * [typeStrings[notesStorageFormat] count];
+    unsigned int i; size_t newSize = sizeof(OSType) * (size_t)[typeStrings[notesStorageFormat] count];
     allowedTypes = (OSType*)realloc(allowedTypes, newSize);
 	
     for (i=0; i<[typeStrings[notesStorageFormat] count]; i++)

@@ -257,16 +257,16 @@ CFHashCode CFHashBytes(uint8_t *bytes, CFIndex length) {
 - (BOOL)_encryptAndWriteData:(NSMutableData*)data {
     WALRecordHeader record = {{0}};
 	
-	record.originalDataLength = CFSwapInt32HostToBig([data length]);
+	record.originalDataLength = CFSwapInt32HostToBig((UInt32)[data length]);
 	
 	size_t compressedDataBufferSize = [data length] + (( [data length] + 99 ) / 100 ) + 12;
 	Bytef *compressedDataBuffer = (Bytef *)malloc(compressedDataBufferSize);
 	
     //adapt nsdata to compression stream
 	compressionStream.next_in = (Bytef*)[data bytes];
-	compressionStream.avail_in = [data length];
+	compressionStream.avail_in = (uInt)[data length];
 	compressionStream.next_out = compressedDataBuffer;
-	compressionStream.avail_out = compressedDataBufferSize;
+	compressionStream.avail_out = (uInt)compressedDataBufferSize;
 	compressionStream.data_type = Z_BINARY;
 	
 	uLong previousOut = compressionStream.total_out;
@@ -290,7 +290,7 @@ CFHashCode CFHashBytes(uint8_t *bytes, CFIndex length) {
     
 	//encrypt nsdata here using record salt and record key
 	NSData *recordSalt = [NSData randomDataOfLength:RECORD_SALT_LEN];
-	NSData *recordKey = [logSessionKey derivedKeyOfLength:[logSessionKey length] salt:recordSalt iterations:1];
+    NSData *recordKey = [logSessionKey derivedKeyOfLength:(int)[logSessionKey length] salt:recordSalt iterations:1];
 	
 	if (![data encryptAESDataWithKey:recordKey iv:[recordSalt subdataWithRange:NSMakeRange(0, 16)]]) {
 		NSLog(@"Couldn't encrypt WAL record data!");
@@ -300,16 +300,16 @@ CFHashCode CFHashBytes(uint8_t *bytes, CFIndex length) {
 	//write length, checksum of data, record salt, then data itself
     //assert(sizeof(record) == sizeof(record.recordBuffer));
     
-    record.dataLength = CFSwapInt32HostToBig([data length]);
-    record.checksum = CFSwapInt32HostToBig([data CRC32]);
+    record.dataLength = CFSwapInt32HostToBig((UInt32)[data length]);
+    record.checksum = CFSwapInt32HostToBig((UInt32)[data CRC32]);
 	memcpy(record.saltBuffer, [recordSalt bytes], RECORD_SALT_LEN);
     
     //pack all the data to avoid multiple writes
-    size_t dataChunkSize = sizeof(record) + [data length];
+    size_t dataChunkSize = sizeof(record) + (size_t)[data length];
     char *dataChunk = (char*)malloc(dataChunkSize);
     
     memcpy(dataChunk, record.recordBuffer, sizeof(record.recordBuffer));
-    memcpy(dataChunk + sizeof(record.recordBuffer), [data bytes], [data length]);
+    memcpy(dataChunk + sizeof(record.recordBuffer), [data bytes], (size_t)[data length]);
     
     ssize_t bytesWritten = 0;
     
@@ -466,7 +466,7 @@ CFHashCode CFHashBytes(uint8_t *bytes, CFIndex length) {
 	    
     //attempt to decrypt using record key based on record salt and log session key
 	NSData *recordSalt = [NSData dataWithBytesNoCopy:record.saltBuffer length:RECORD_SALT_LEN freeWhenDone:NO];
-	NSData *recordKey = [logSessionKey derivedKeyOfLength:[logSessionKey length] salt:recordSalt iterations:1];
+    NSData *recordKey = [logSessionKey derivedKeyOfLength:(int)[logSessionKey length] salt:recordSalt iterations:1];
 	
 	if (!([presumablySerializedData decryptAESDataWithKey:recordKey iv:[recordSalt subdataWithRange:NSMakeRange(0, 16)]])) {
 		NSLog(@"Record decryption failed!");
@@ -476,9 +476,9 @@ CFHashCode CFHashBytes(uint8_t *bytes, CFIndex length) {
 	//decompress here
 	Bytef *uncompressedDataBuffer = (Bytef *)malloc(record.originalDataLength);
 	
-	compressionStream.avail_in = [presumablySerializedData length];
+	compressionStream.avail_in = (uInt)[presumablySerializedData length];
 	compressionStream.next_in = (Bytef*)[presumablySerializedData bytes];
-	compressionStream.avail_out = record.originalDataLength;
+	compressionStream.avail_out = (uInt)record.originalDataLength;
 	compressionStream.next_out = uncompressedDataBuffer;
 	compressionStream.data_type = Z_BINARY;
 	

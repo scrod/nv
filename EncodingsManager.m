@@ -263,7 +263,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 		(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&info.contentModDate, &timeOnDisk) == noErr))) {
 		
 		if (lastTime > timeOnDisk) {
-			int result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark is newer than its file on disk.",nil), titleOfNote(note)], 
+                NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark is newer than its file on disk.",nil), titleOfNote(note)], 
 												 NSLocalizedString(@"If you update this note with re-interpreted data from the file, you may overwrite your changes.",nil), 
 												 NSLocalizedString(@"Don't Update", @"don't update the note from its file on disk"), 
 												 NSLocalizedString(@"Overwrite Note", @"...from file on disk"), NULL);

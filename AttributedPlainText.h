@@ -55,7 +55,7 @@ extern NSString *NVHiddenBulletIndentAttributeName;
 - (BOOL)attribute:(NSString*)anAttribute existsInRange:(NSRange)aRange;
 
 - (NSArray*)allLinks;
-- (id)findNextLinkAtIndex:(unsigned int)startIndex effectiveRange:(NSRange *)range;
+- (id)findNextLinkAtIndex:(NSUInteger)startIndex effectiveRange:(NSRange *)range;
 #if SEPARATE_ATTRS
 //extract the attributes using their ranges as keys
 - (NSDictionary*)attributesByRange;

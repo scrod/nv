@@ -240,7 +240,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(NSInteger)rowIndex {
 
 	if (aTableView == allowedExtensionsTable) {
-		NSString *extension = [notationPrefs pathExtensionAtIndex:rowIndex];
+			NSString *extension = [notationPrefs pathExtensionAtIndex:(int)rowIndex];
 		
 		if ([notationPrefs indexOfChosenPathExtension] == (unsigned int)rowIndex) {
 			return [[[NSAttributedString alloc] initWithString:extension attributes:
@@ -251,7 +251,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 			
 	} else if (aTableView == allowedTypesTable) {
 		
-		return [notationPrefs typeStringAtIndex:rowIndex];
+			return [notationPrefs typeStringAtIndex:(int)rowIndex];
 	}
 	return 0;
 }
@@ -327,7 +327,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (IBAction)changedFileStorageFormat:(id)sender {
-    int storageTag = [storageFormatPopupButton selectedTag];
+	    NSInteger storageTag = [storageFormatPopupButton selectedTag];
 	
 	if (storageTag != SingleDatabaseFormat && [notationPrefs doesEncryption]) {
 		if (NSRunAlertPanel(NSLocalizedString(@"Encryption is currently on, but storing notes individually requires it to be off. Disable encryption?",nil),
@@ -343,7 +343,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 		}
 	}
 	
-	notesStorageFormatInProgress = storageTag;
+	notesStorageFormatInProgress = (int)storageTag;
 	
 	//if we're changing to a database format from a non-database-format, ask to trash existing files
     if ([notationPrefs shouldDisplaySheetForProposedFormat:notesStorageFormatInProgress]) {
@@ -480,9 +480,9 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (IBAction)makeDefaultExtension:(id)sender {
 	[[allowedExtensionsTable window] makeFirstResponder:allowedExtensionsTable];
 	
-	int selectedRow = [allowedExtensionsTable selectedRow];
+	NSInteger selectedRow = [allowedExtensionsTable selectedRow];
 	if (selectedRow > -1)
-		[notationPrefs setChosenPathExtensionAtIndex:selectedRow];
+		[notationPrefs setChosenPathExtensionAtIndex:(unsigned int)selectedRow];
 	
 	[allowedExtensionsTable reloadData];	
 }
@@ -490,9 +490,9 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (IBAction)removedExtension:(id)sender {
 	[allowedExtensionsTable abortEditing];
 	
-	int selectedRow = [allowedExtensionsTable selectedRow];
+	NSInteger selectedRow = [allowedExtensionsTable selectedRow];
 	if (selectedRow > -1)
-		if (![notationPrefs removeAllowedPathExtensionAtIndex:selectedRow]) NSBeep();
+			if (![notationPrefs removeAllowedPathExtensionAtIndex:(unsigned int)selectedRow]) NSBeep();
 	
 	[allowedExtensionsTable reloadData];
 }
@@ -500,9 +500,9 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (IBAction)removedType:(id)sender {
 	[allowedTypesTable abortEditing];
 	
-	int selectedRow = [allowedTypesTable selectedRow];
+	NSInteger selectedRow = [allowedTypesTable selectedRow];
 	if (selectedRow > -1)
-		[notationPrefs removeAllowedTypeAtIndex:selectedRow];
+		[notationPrefs removeAllowedTypeAtIndex:(unsigned int)selectedRow];
 	
 	[allowedTypesTable reloadData];
 }

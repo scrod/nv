@@ -273,7 +273,7 @@ static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 			
 			isRestoringSearch = NO;
 		} else {
-			NSLog(@"reveal target %@ doesn't respond to %s!", revealTarget, revealAction);
+			NSLog(@"reveal target %@ doesn't respond to %@!", revealTarget, NSStringFromSelector(revealAction));
 			return NO;
 		}
 		return YES;

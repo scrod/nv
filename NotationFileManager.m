@@ -56,7 +56,7 @@ OSStatus CreateDirectoryIfNotPresent(FSRef *parentRef, CFStringRef subDirectoryN
 
 OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef) {
     UniChar chars[256];
-    unsigned int nameLength = 0;
+    CFIndex nameLength = 0;
     OSStatus result = noErr;
     
     do {
@@ -68,7 +68,7 @@ OSStatus CreateTemporaryFile(FSRef *parentRef, FSRef *childTempRef) {
     } while (result == noErr);
     
     if (result == fnfErr) {
-		result = FSCreateFileUnicode(parentRef, nameLength, chars, kFSCatInfoNone, NULL, childTempRef, NULL);
+            result = FSCreateFileUnicode(parentRef, (UniCharCount)nameLength, chars, kFSCatInfoNone, NULL, childTempRef, NULL);
     }
     
     return result;
@@ -220,7 +220,7 @@ static BOOL VolumeSupportsExchangeObjects(NotationController *controller) {
 			//all other checks failed; just use the volume's creation date
 			diskUUID = CopySyntheticUUIDForVolumeCreationDate(&noteDirectoryRef);
 		}
-		diskUUIDIndex = [notationPrefs tableIndexOfDiskUUID:diskUUID];
+			diskUUIDIndex = (unsigned int)[notationPrefs tableIndexOfDiskUUID:diskUUID];
 	}
 }
 
@@ -427,7 +427,7 @@ terminate:
 		extension = [filenameOfNote(note) pathExtension];
 	
 	//assume that we won't have more than 999 notes with the exact same name and of more than 247 chars
-	uniqueFilename = [uniqueFilename filenameExpectingAdditionalCharCount:3 + [extension length] + 2];
+    uniqueFilename = [uniqueFilename filenameExpectingAdditionalCharCount:(int)(3 + [extension length] + 2)];
 	
     unsigned int iteration = 0;
     do {
@@ -526,7 +526,7 @@ terminate:
 	if (noErr != err) return nil;
 	
     if ((err = FSRefReadData(childRef, BlockSizeForNotation(self), &fileSize, (void**)&notesDataPtr, noCacheMask)) != noErr) {
-		NSLog(@"%s: error %d", _cmd, err);
+        NSLog(@"%@: error %d", NSStringFromSelector(_cmd), (int)err);
 		return nil;
 	}    
     if (!notesDataPtr)

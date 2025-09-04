@@ -353,16 +353,16 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	}
 }
 
-- (double)distanceFromRow:(int)aRow forVisibleArea:(NSRect)visibleRect {
+- (double)distanceFromRow:(NSInteger)aRow forVisibleArea:(NSRect)visibleRect {
 	return [self rectOfRow:aRow].origin.y - visibleRect.origin.y;
 }
 
 - (ViewLocationContext)viewingLocation {
 	ViewLocationContext ctx;
 	
-	int pivotRow = [[self selectedRowIndexes] firstIndex];
+	NSInteger pivotRow = [[self selectedRowIndexes] firstIndex];
 	
-	int nRows = [self numberOfRows];
+	NSInteger nRows = [self numberOfRows];
 	
 	NSRect visibleRect = [self visibleRect];
 	NSRange range = [self rowsInRect:visibleRect];
@@ -380,8 +380,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	ctx.nonRetainedPivotObject = nil;
 	ctx.verticalDistanceToPivotRow = 0;
 	
-	if ((unsigned int)pivotRow < (unsigned int)nRows) {
-		if ((ctx.nonRetainedPivotObject = [(FastListDataSource*)[self dataSource] immutableObjects][pivotRow])) {
+	if ((NSUInteger)pivotRow < (NSUInteger)nRows) {
+			if ((ctx.nonRetainedPivotObject = [(FastListDataSource*)[self dataSource] immutableObjects][(NSUInteger)pivotRow])) {
 			ctx.verticalDistanceToPivotRow = [self distanceFromRow:pivotRow forVisibleArea:visibleRect];
 		}
 	}
@@ -397,8 +397,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 			//if pivotRow was 0 or nRows-1, and pivotIndex is not either, then scroll maximally in the nearest direction?
 			NSInteger lastRow = [self numberOfRows] - 1;
 			
-			if (ctx.pivotRowWasEdge && (pivotIndex != 0 && pivotIndex != lastRow)) {
-				pivotIndex = abs(pivotIndex - 0) < abs(pivotIndex - lastRow) ? 0 : lastRow;
+				if (ctx.pivotRowWasEdge && (pivotIndex != 0 && pivotIndex != lastRow)) {
+					pivotIndex = llabs((long long)pivotIndex) < llabs((long long)pivotIndex - (long long)lastRow) ? 0 : lastRow;
 				ctx.verticalDistanceToPivotRow = 0;
 				//NSLog(@"edge pivot dislodged!");
 			}
@@ -650,7 +650,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 
 - (NSMenu *)menuForEvent:(NSEvent *)theEvent {
     NSPoint mousePoint = [self convertPoint:[theEvent locationInWindow] fromView:nil];
-    int row = [self rowAtPoint:mousePoint];
+    NSInteger row = [self rowAtPoint:mousePoint];
 	
     if (row >= 0) {
 		[self selectRowIndexes:[NSIndexSet indexSetWithIndex:row]
@@ -748,14 +748,14 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		[[self window] makeKeyAndOrderFront:self];
 	}
 	
-	unsigned int flags = [event modifierFlags]; 
+	NSEventModifierFlags flags = [event modifierFlags]; 
     if (flags & NSAlternateKeyMask) { // option click starts a drag 
 		
 		NSPoint mousePoint = [self convertPoint:[event locationInWindow] fromView:nil];
         NSPoint dragPoint = NSMakePoint(mousePoint.x - 16, mousePoint.y + 16); 
 		NSIndexSet *selectedRows = [self selectedRowIndexes];
 		
-		int row = [self rowAtPoint:mousePoint];
+			NSInteger row = [self rowAtPoint:mousePoint];
 		if (row >= 0) {
 			[self selectRowIndexes:[NSIndexSet indexSetWithIndex:row]
 			  byExtendingSelection:[selectedRows containsIndex:row] && [selectedRows count] > 1];
@@ -765,8 +765,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		
         NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:selectedRows];
 		NSMutableArray *paths = [NSMutableArray arrayWithCapacity:[notes count]];
-		unsigned int i;
-		for (i=0;i<[notes count]; i++) {
+			NSUInteger i;
+			for (i=0;i<[notes count]; i++) {
 			NoteObject *note = [notes objectAtIndex:i];
 			//for now, allow option-dragging-out only for notes with separate file-backing stores
 			if (storageFormatOfNote(note) != SingleDatabaseFormat) {
@@ -800,9 +800,9 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	unichar keyChar = [theEvent firstCharacter];
 
     if (keyChar == NSNewlineCharacter || keyChar == NSCarriageReturnCharacter || keyChar == NSEnterCharacter) {
-		unsigned int sel = [self selectedRow];
-		if (sel < (unsigned)[self numberOfRows] && [self numberOfSelectedRows] == 1) {
-			int colIndex = [self columnWithIdentifier:NoteTitleColumnString];
+			NSInteger sel = [self selectedRow];
+			if (sel < [self numberOfRows] && [self numberOfSelectedRows] == 1) {
+				NSInteger colIndex = [self columnWithIdentifier:NoteTitleColumnString];
 			if (colIndex > -1) {
 				[self editColumn:colIndex row:sel withEvent:theEvent select:YES];
 			} else {
@@ -839,20 +839,20 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		if (DOWNCHAR(keyChar) || UPCHAR(keyChar)) {
 			
 			NSIndexSet *indexes = [self selectedRowIndexes];
-			int count = [indexes count];
+				NSUInteger count = [indexes count];
 			if (count <= 1) {                 // reset affinity, since there's at most one item selected
 				affinity = 0;
 			} else if (affinity == 0) {                     // affinity not set, so take current direction
 				affinity = DOWNCHAR(keyChar) ? 1 : -1;      // down == down-document == means positive affinity
 			} else {
-				int row = -1;                           // affinity had been set, so enforce it
+					NSInteger row = -1;                           // affinity had been set, so enforce it
 				if (DOWNCHAR(keyChar) && (affinity != 1)) {           // down not allowed here
-					row = [indexes firstIndex];
+						row = (NSInteger)[indexes firstIndex];
 				} else if (UPCHAR(keyChar) && (affinity != -1)) {    // up not allowed here
-					row = [indexes lastIndex];
+						row = (NSInteger)[indexes lastIndex];
 				}
 				if (row >= 0) {
-					int scrollTo = row - affinity;
+						NSInteger scrollTo = row - affinity;
 					[self scrollRowToVisible:scrollTo];  // make sure we can see things
 					[self deselectRow:row];         // deselect the last row
 					return;     // skip further processing of the key event
@@ -885,7 +885,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 //thus avoiding annoying flicker and slow-down
 - (BOOL)performKeyEquivalent:(NSEvent *)theEvent {
 	
-	unsigned mods = [theEvent modifierFlags];
+	NSEventModifierFlags mods = [theEvent modifierFlags];
 	
 	BOOL isControlKeyPressed = (mods & NSControlKeyMask) != 0 && [userDefaults boolForKey: @"UseCtrlForSwitchingNotes"];
 	BOOL isCommandKeyPressed = (mods & NSCommandKeyMask) != 0;
@@ -932,8 +932,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 - (void)_incrementNoteSelectionByTag:(NSInteger)tag {
-	int rowNumber = [self selectedRow];
-	int totalNotes = [self numberOfRows];
+	NSInteger rowNumber = [self selectedRow];
+	NSInteger totalNotes = [self numberOfRows];
 	
 	if (rowNumber == -1) {
 		rowNumber = (tag == kPrev_Tag ? totalNotes - 1 : 0);

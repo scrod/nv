@@ -238,7 +238,7 @@
 - (void)sortStableUsingFunction:(NSInteger (*)(id *, id *))compare usingBuffer:(id **)buffer ofSize:(unsigned int*)bufSize {
 	CFIndex count = CFArrayGetCount((CFArrayRef)self);
 	
-	ResizeArray(buffer, count, bufSize);
+    ResizeArray(buffer, (unsigned int)count, bufSize);
 	
 	CFArrayGetValues((CFArrayRef)self, CFRangeMake(0, [self count]), (const void **)*buffer);
 	

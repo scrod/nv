@@ -102,7 +102,7 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 		for (i=0;i<subcount;i++) {
 			RBSplitView* sv = [[subviews objectAtIndex:i] asSplitView];
 			if (sv) {
-				NSString* subst = clear?@"":[aString stringByAppendingFormat:@"[%d]",i];
+				NSString* subst = clear?@"":[aString stringByAppendingFormat:@"[%ld]", (long)i];
 				[sv setAutosaveName:subst recursively:YES];
 			}
 		}
@@ -1737,4 +1737,3 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 }
 
 @end
-

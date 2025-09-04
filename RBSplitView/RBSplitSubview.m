@@ -564,7 +564,7 @@ static animationData* currentAnimation = NULL;
 	}
 	if ([coder allowsKeyedCoding]) {
 		[coder encodeObject:identifier forKey:@"identifier"];
-		[coder encodeInt:tag forKey:@"tag"];
+		[coder encodeInt:(int)tag forKey:@"tag"];
 		[coder encodeDouble:minDimension forKey:@"minDimension"];
 		[coder encodeDouble:maxDimension forKey:@"maxDimension"];
 		[coder encodeDouble:fraction forKey:@"fraction"];

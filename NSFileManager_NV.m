@@ -53,9 +53,9 @@
 	// ok, we have some data 
 	NSPropertyListFormat formatFound;
 	NSString* errorString = nil;
-	id outObject = [NSPropertyListSerialization propertyListFromData:nsData mutabilityOption:kCFPropertyListImmutable format:&formatFound errorDescription:&errorString];
+id outObject = [NSPropertyListSerialization propertyListFromData:nsData mutabilityOption:NSPropertyListImmutable format:&formatFound errorDescription:&errorString];
 	if (errorString) {
-		NSLog(@"%s: error deserializing labels: %@", _cmd, errorString);
+			NSLog(@"%@: error deserializing labels: %@", NSStringFromSelector(_cmd), errorString);
 		[errorString autorelease];
 		return nil;
 	}
@@ -78,9 +78,9 @@
 	NSData* dataToSendNS = nil;
 	if (plistObject) {
 		NSString *errorString = nil;
-		dataToSendNS = [NSPropertyListSerialization dataFromPropertyList:plistObject format:kCFPropertyListBinaryFormat_v1_0 errorDescription:&errorString];
+dataToSendNS = [NSPropertyListSerialization dataFromPropertyList:plistObject format:NSPropertyListBinaryFormat_v1_0 errorDescription:&errorString];
 		if (errorString) {
-			NSLog(@"%s: error serializing labels: %@", _cmd, errorString);
+				NSLog(@"%@: error serializing labels: %@", NSStringFromSelector(_cmd), errorString);
 			[errorString autorelease];
 			return NO;
 		}
@@ -96,7 +96,7 @@
 	}
 	
 	if (returnVal < 0) {
-		if (errno != ENOATTR) NSLog(@"%s: couldn't set/remove attribute: %d (value '%@')", _cmd, errno, dataToSendNS);
+            if (errno != ENOATTR) NSLog(@"%@: couldn't set/remove attribute: %d (value '%@')", NSStringFromSelector(_cmd), errno, dataToSendNS);
 		return NO;
 	}
 
@@ -110,8 +110,8 @@
 	if (!path) return NO;
 	
 	CFStringEncoding cfStringEncoding = CFStringConvertNSStringEncodingToEncoding(encoding);
-	if (cfStringEncoding == kCFStringEncodingInvalidId) {
-		NSLog(@"%s: encoding %lu is invalid!", _cmd, encoding);
+        if (cfStringEncoding == kCFStringEncodingInvalidId) {
+            NSLog(@"%@: encoding %lu is invalid!", NSStringFromSelector(_cmd), (unsigned long)encoding);
 		return NO;
 	}
 	NSString *textEncStr = [(NSString *)CFStringConvertEncodingToIANACharSetName(cfStringEncoding) stringByAppendingFormat:@";%@", 
@@ -133,12 +133,12 @@
 	//It could be, but it probably won't. If it is, then we won't get the encoding. Too bad.
 	char xattrValueBytes[128] = { 0 };
 	if (getxattr(path, "com.apple.TextEncoding", xattrValueBytes, sizeof(xattrValueBytes), 0, 0) < 0) {
-		if (ENOATTR != errno) NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
+        if (ENOATTR != errno) NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
 		goto errorReturn;
 	}
 	NSString *encodingStr = [NSString stringWithUTF8String:xattrValueBytes];
 	if (!encodingStr) {
-		NSLog(@"couldn't make attribute data from %s into a string", path);
+        NSLog(@"couldn't make attribute data from %s into a string", path);
 		goto errorReturn;
 	}
 	NSArray *segs = [encodingStr componentsSeparatedByString:@";"];

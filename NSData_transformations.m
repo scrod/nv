@@ -62,8 +62,8 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 							   [self bytes], [self length], level);
 		if (zlibError == Z_OK) {
 			// Add original size to the end of the buffer, written big-endian
-			*( (unsigned *) ([newData mutableBytes] + bufferLength) ) =
-            NSSwapHostIntToBig( [self length] );
+				*( (unsigned *) ([newData mutableBytes] + bufferLength) ) =
+	            NSSwapHostIntToBig( (unsigned)[self length] );
 			[newData setLength:bufferLength + sizeof(unsigned)];
 		} else {
 			NSLog(@"error compressing: %s", zError(zlibError));
@@ -187,7 +187,7 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 
 - (unsigned long)CRC32 {
 	uLong crc = crc32(0L, Z_NULL, 0);
-    return crc32(crc, [self bytes], [self length]);
+    return crc32(crc, [self bytes], (uInt)[self length]);
 }
 
 - (NSData*)SHA1Digest {
@@ -201,7 +201,7 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 	NSMutableData *digest = [NSMutableData dataWithLength:16];
     
     BrokenMD5Init(&context);
-    BrokenMD5Update(&context, [self bytes], [self length]);
+    BrokenMD5Update(&context, [self bytes], (unsigned int)[self length]);
     BrokenMD5Final([digest mutableBytes], &context);
 	
 	return digest;
@@ -278,7 +278,7 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 //but those 1) require file paths and 2) the non-deprecated version is available only on 10.4
 
 - (NSMutableString*)newStringUsingBOMReturningEncoding:(NSStringEncoding*)encoding {
-	unsigned len = [self length];
+	NSUInteger len = [self length];
 	NSMutableString *string = nil;
 	
 	if (len % 2 != 0 || !len) {
@@ -315,9 +315,9 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 	}
 	
 	if (foundBOM) {
-		unsigned char *u = (unsigned char*)malloc(len);
+		unsigned char *u = (unsigned char*)malloc((size_t)len);
 		if (swapped) {
-			unsigned i;
+			NSUInteger i;
 			
 			for (i = 0; i < len; i += 2) {
 				u[i] = b[i + 1];
@@ -351,11 +351,12 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 
 @implementation NSMutableData (NVCryptoRelated)
 
+
 - (void)reverseBytes {
-	int head, tail;
+	NSInteger head, tail;
 	unsigned char temp, *str = [self mutableBytes];
 	if (!str) return;
-	tail = [self length] - 1;
+	tail = (NSInteger)[self length] - 1;
 	
 	for (head = 0; head < tail; ++head, --tail) {
 		temp = str[tail];
@@ -366,8 +367,8 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 
 //extends nsmutabledata if necessary
 - (void)alignForBlockSize:(int)alignedBlockSize {
-	int dataBlockSize = [self length];
-	int paddedDataBlockSize = 0;
+	NSUInteger dataBlockSize = [self length];
+	NSUInteger paddedDataBlockSize = 0;
 	
 	if (dataBlockSize <= alignedBlockSize)
 		paddedDataBlockSize = alignedBlockSize;
@@ -375,9 +376,9 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 		paddedDataBlockSize = alignedBlockSize * ((dataBlockSize + (alignedBlockSize-1)) / alignedBlockSize);
 
 	//if malloc was used on conventional architectures, nsdata should be smart enough not to have to allocate a new block
-	int difference = paddedDataBlockSize - dataBlockSize;
+	NSInteger difference = (NSInteger)paddedDataBlockSize - (NSInteger)dataBlockSize;
 	if (difference > 0)
-		[self increaseLengthBy:difference];	
+		[self increaseLengthBy:(NSUInteger)difference];	
 }
 
 - (BOOL)encryptAESDataWithKey:(NSData*)key iv:(NSData*)iv {

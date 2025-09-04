@@ -122,7 +122,7 @@
 	[helpStringField setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Please enter the passphrase to import old notes at %@.",nil), 
 		[path stringByAbbreviatingWithTildeInPath]]];
 	
-	int result = [NSApp runModalForWindow:window];
+	NSInteger result = [NSApp runModalForWindow:window];
 	
 	NSString *passwordString = [passphraseField stringValue];
 	passwordData = [passwordString dataUsingEncoding:[NSString defaultCStringEncoding] allowLossyConversion:NO];
@@ -183,7 +183,7 @@
 			return nil;
 			
 		if ([blorData length] < 28) {
-			NSLog(@"read data is too small (%d) to hold any notes!", [blorData length]);
+			NSLog(@"read data is too small (%lu) to hold any notes!", (unsigned long)[blorData length]);
 			return nil;
 		}
 		
@@ -227,10 +227,10 @@
 
 
 #define ASSERT_CAN_READ_BYTE_COUNT(n) do { \
-	if (!((n) + currentByteOffset <= [blorData length])) { \
-		NSLog(@"Attempted to read %d bytes past the length of the blor!", ((n) + currentByteOffset) - [blorData length]);\
-		return nil;\
-	} \
+    if (!((n) + currentByteOffset <= [blorData length])) { \
+        NSLog(@"Attempted to read %lu bytes past the length of the blor!", (unsigned long)(((n) + currentByteOffset) - [blorData length]));\
+        return nil;\
+    } \
 } while (0)
 
 - (id)nextNote {

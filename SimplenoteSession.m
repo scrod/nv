@@ -248,7 +248,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		reachabilityFailed = NO;
 
 		if (![(emailAddress = [aUserString retain]) length]) {
-			NSLog(@"%s: empty email address", _cmd);
+			NSLog(@"%@: empty email address", NSStringFromSelector(_cmd));
 			return nil;
 		}
 		if (![(password = [aPassString retain]) length]) {
@@ -263,7 +263,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 }
 
 - (NSString*)description {
-	return [NSString stringWithFormat:@"SimplenoteSession<%@,%X>", emailAddress, self];
+	return [NSString stringWithFormat:@"SimplenoteSession<%@,%p>", emailAddress, self];
 }
 
 - (id)copyWithZone:(NSZone *)zone {
@@ -338,7 +338,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 				stringByAppendingString:[NSString relativeDateStringWithAbsoluteTime:lastSyncedTime]];
 	} else if ([collectorsInProgress count]) {
 		//probably won't display this very often
-		return [NSString stringWithFormat:NSLocalizedString(@"%u update(s) in progress", nil), [collectorsInProgress count]];
+		return [NSString stringWithFormat:NSLocalizedString(@"%u update(s) in progress", nil), (unsigned)[collectorsInProgress count]];
 	} else {
 		return NSLocalizedString(@"Not synchronized yet", nil);
 	}
@@ -433,7 +433,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	if ([unsyncedServiceNotes count] > 0) {
 		
 		if ([listFetcher isRunning]) {
-			NSLog(@"%s: not pushing because a full sync index is in progress", _cmd);
+			NSLog(@"%@: not pushing because a full sync index is in progress", NSStringFromSelector(_cmd));
 			return NO;
 		}
 		
@@ -687,7 +687,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	//because there could be many notes missing
 	//although notes that encountered errors normally (entriesInError w/o stopping) will potentially be duplicated anyway.
 	if ([collector collectionStoppedPrematurely]) {
-		NSLog(@"%s: not merging notes because collection was cancelled", _cmd);
+		NSLog(@"%@: not merging notes because collection was cancelled", NSStringFromSelector(_cmd));
 		return;
 	}
 	
@@ -746,15 +746,15 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	}
 		
 	if ([downloadedNotesToKeep count]) {
-		NSLog(@"%s: found %u genuinely new notes on the server",_cmd, [downloadedNotesToKeep count]);
+		NSLog(@"%@: found %u genuinely new notes on the server", NSStringFromSelector(_cmd), (unsigned)[downloadedNotesToKeep count]);
 		[delegate syncSession:self receivedAddedNotes:downloadedNotesToKeep];
 	}
 	if ([notesToReportModified count]) {
-		NSLog(@"%s: found %u duplicate notes on the server",_cmd, [notesToReportModified count]);
+		NSLog(@"%@: found %u duplicate notes on the server", NSStringFromSelector(_cmd), (unsigned)[notesToReportModified count]);
 		[delegate syncSession:self didModifyNotes:notesToReportModified];
 	}
 	if ([localNotesToUpload count] && ![collector collectionStoppedPrematurely]) {
-		NSLog(@"%s: found %u locally unique notes",_cmd, [localNotesToUpload count]);
+		NSLog(@"%@: found %u locally unique notes", NSStringFromSelector(_cmd), (unsigned)[localNotesToUpload count]);
 		//automatically upload the rest of the unique notes using -startCreatingNotes:
 		[self startCreatingNotes:[localNotesToUpload allObjects]];
 	}
@@ -811,7 +811,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	if (![collector collectionStoppedPrematurely] && [[collector entriesInError] count] && ![[collector entriesCollected] count]) {
 		//failed! all failed!
 		[self _stoppedWithErrorString:[NSString stringWithFormat:NSLocalizedString(@"%@ %u note(s) failed", @"e.g., Downloading 2 note(s) failed"), 
-									   [collector localizedActionDescription], [[collector entriesToCollect] count]]];
+									   [collector localizedActionDescription], (unsigned)[[collector entriesToCollect] count]]];
 	} else {
 		reachabilityFailed = NO;
 		

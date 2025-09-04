@@ -33,7 +33,7 @@
 		labelName = [name retain];
 		lowercaseName = [[name lowercaseString] retain];
 	
-		lowercaseHash = [lowercaseName hash];
+        lowercaseHash = (unsigned int)[lowercaseName hash];
 		
 		notes = [[NSMutableSet alloc] init];
     }
@@ -74,7 +74,7 @@ int compareLabel(const void *one, const void *two) {
     [lowercaseName release];
     lowercaseName = [[title lowercaseString] retain];
     
-    lowercaseHash = [lowercaseName hash];
+    lowercaseHash = (unsigned int)[lowercaseName hash];
 }
 
 - (void)addNote:(NoteObject*)note {

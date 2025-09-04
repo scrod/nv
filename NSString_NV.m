@@ -311,8 +311,8 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	//break string into pieces for turning into a note
 	//find the first line, whitespace or no whitespace
 	
-	NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:
-											  [NSString stringWithFormat:@"\n\r\t%C%C", NSLineSeparatorCharacter, NSParagraphSeparatorCharacter]];
+    NSCharacterSet *titleDelimiters = [NSCharacterSet characterSetWithCharactersInString:
+                                      [NSString stringWithFormat:@"\n\r\t%C%C", (unichar)NSLineSeparatorCharacter, (unichar)NSParagraphSeparatorCharacter]];
 	
 	NSScanner *scanner = [NSScanner scannerWithString:self];
 	[scanner setCharactersToBeSkipped:[[[NSMutableCharacterSet alloc] init] autorelease]];
@@ -475,7 +475,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 		size_t length = [self length];
 		char *cstringBuffer = (char*)malloc(length + 1);
 		//modp will add the NULL terminator
-		modp_tolower_copy(cstringBuffer, cstringPtr, length);
+    modp_tolower_copy(cstringBuffer, cstringPtr, (int)length);
 		
 		return cstringBuffer;
 	} else {
@@ -597,12 +597,12 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 		NSRange tabRange, nextRange = NSMakeRange(0, [self length]);
 		while ((tabRange = [self rangeOfString:@"\t" options:NSLiteralSearch range:nextRange]).location != NSNotFound) {
 			
-			int numberOfSpacesPerTab = tabWidth;
-			int locationOnLine = tabRange.location - [self lineRangeForRange:tabRange].location;
-			if (numberOfSpacesPerTab != 0) {
-				int numberOfSpacesLess = locationOnLine % numberOfSpacesPerTab;
-				numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
-			}
+        int numberOfSpacesPerTab = tabWidth;
+        NSUInteger locationOnLine = tabRange.location - [self lineRangeForRange:tabRange].location;
+        if (numberOfSpacesPerTab != 0) {
+            int numberOfSpacesLess = (int)(locationOnLine % (NSUInteger)numberOfSpacesPerTab);
+            numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
+        }
 			//NSLog(@"loc on line: %d, numberOfSpacesPerTab: %d", locationOnLine, numberOfSpacesPerTab);
 			
 			NSMutableString *spacesString = [[NSMutableString alloc] initWithCapacity:numberOfSpacesPerTab];
@@ -613,11 +613,11 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 			[self replaceCharactersInRange:tabRange withString:spacesString];
 			[spacesString release];
 			
-			NSUInteger rangeLoc = MIN((tabRange.location + numberOfSpacesPerTab), [self length]);
+        NSUInteger rangeLoc = MIN((tabRange.location + (NSUInteger)numberOfSpacesPerTab), [self length]);
 			nextRange = NSMakeRange(rangeLoc, [self length] - rangeLoc);
 		}
 	} @catch (NSException *e) {
-		NSLog(@"%s got an exception: %@", _cmd, [e reason]);
+        NSLog(@"%@: got an exception: %@", NSStringFromSelector(_cmd), [e reason]);
 	}
 }
 
@@ -654,7 +654,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 		NSStringEncoding extendedAttrsEncoding = 0;
 		if (!aPath && fsRef && !IsZeros(fsRef, sizeof(FSRef))) {
 			NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
-			if (FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length]) == noErr)
+        if (FSRefMakePath(fsRef, [pathData mutableBytes], (UInt32)[pathData length]) == noErr)
 				extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:[pathData bytes]];
 		} else if (aPath) {
 			extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:aPath];

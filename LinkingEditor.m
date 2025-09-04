@@ -446,7 +446,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 			
 			NSAttributedString *newString = [[self textStorage] attributedSubstringFromRange:selectedRange];
 			NSRange effectiveRange = NSMakeRange(0,0);
-			unsigned int stringLength = [newString length];
+				NSUInteger stringLength = [newString length];
 			
 			//iterate over all styles; if any are acceptable, copy as RTF
 			while (NSMaxRange(effectiveRange) < stringLength) {
@@ -563,7 +563,7 @@ copyRTFType:
 //use with rangesOfWordsInString:(NSString*)findString earliestRange:(NSRange*)aRange inRange:
 - (void)highlightRangesTemporarily:(CFArrayRef)ranges {
 	CFIndex rangeIndex;
-	int bodyLength = [[self string] length];
+		NSUInteger bodyLength = [[self string] length];
 	NSDictionary *highlightDict = [prefsController searchTermHighlightAttributes];
 	
 	for (rangeIndex = 0; rangeIndex < CFArrayGetCount(ranges); rangeIndex++) {
@@ -629,13 +629,13 @@ copyRTFType:
 		return [super selectionRangeForProposedRange:proposedSelRange granularity:granularity];
 	}
 	
-	unsigned int location = [super selectionRangeForProposedRange:proposedSelRange granularity:NSSelectByCharacter].location;
-	int originalLocation = location;
+		NSUInteger location = [super selectionRangeForProposedRange:proposedSelRange granularity:NSSelectByCharacter].location;
+		NSUInteger originalLocation = location;
 	
 	NSString *completeString = [self string];
 	unichar characterToCheck = [completeString characterAtIndex:location];
 	unsigned short skipMatchingBrace = 0;
-	unsigned int lengthOfString = [completeString length];
+		NSUInteger lengthOfString = [completeString length];
 	if (lengthOfString == proposedSelRange.location) { // To avoid crash if a double-click occurs after any text
 		return [super selectionRangeForProposedRange:proposedSelRange granularity:granularity];
 	}
@@ -644,7 +644,7 @@ copyRTFType:
 	
 	char *rightGroupings = ")}]>";
 	char *leftGroupings = "({[<";
-	int groupingIndex = 0;
+		NSInteger groupingIndex = 0;
 	
 	char *rightChar = strchr(rightGroupings, (char)characterToCheck);
 	if (rightChar) {
@@ -711,9 +711,9 @@ copyRTFType:
 - (IBAction)performFindPanelAction:(id)sender {
 	id controller = [NSApp delegate];
     
-    int rowNumber = -1;
-    int totalNotes = [notesTableView numberOfRows];
-    int tag = [sender tag];
+    NSInteger rowNumber = -1;
+    NSInteger totalNotes = [notesTableView numberOfRows];
+    NSInteger tag = [sender tag];
     
     if (![controller selectedNoteObject]) {
 		rowNumber = (tag == NSFindPanelActionPrevious ? totalNotes - 1 : 0);
@@ -749,7 +749,7 @@ copyRTFType:
 		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 		if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
 			
-			unsigned charIndex = [self selectedRange].location;
+			NSUInteger charIndex = [self selectedRange].location;
 			
 			id aLink = [self highlightLinkAtIndex:charIndex];
 			if ([aLink isKindOfClass:[NSURL class]]) {
@@ -839,13 +839,13 @@ copyRTFType:
 		
 	} else if ([prefsController softTabs]) {
 		
-		int numberOfSpacesPerTab = [prefsController numberOfSpacesInTab];
+			int numberOfSpacesPerTab = [prefsController numberOfSpacesInTab];
 
-		int locationOnLine = range.location - [[self string] lineRangeForRange:range].location;
-		if (numberOfSpacesPerTab != 0) {
-			int numberOfSpacesLess = locationOnLine % numberOfSpacesPerTab;
-			numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
-		}
+			NSUInteger locationOnLine = range.location - [[self string] lineRangeForRange:range].location;
+			if (numberOfSpacesPerTab != 0) {
+				int numberOfSpacesLess = (int)(locationOnLine % (NSUInteger)numberOfSpacesPerTab);
+				numberOfSpacesPerTab = numberOfSpacesPerTab - numberOfSpacesLess;
+			}
 		NSMutableString *spacesString = [[NSMutableString alloc] initWithCapacity:numberOfSpacesPerTab];
 		while (numberOfSpacesPerTab--) {
 			[spacesString appendString:@" "];
@@ -1078,9 +1078,9 @@ copyRTFType:
 	[[self undoManager] setActionName:NSLocalizedString(@"Plain Text Style",nil)];
 }
 
-- (id)highlightLinkAtIndex:(unsigned)givenIndex {
-	unsigned totalLength = [[self string] length];
-	unsigned charIndex = givenIndex;
+- (id)highlightLinkAtIndex:(NSUInteger)givenIndex {
+	NSUInteger totalLength = [[self string] length];
+	NSUInteger charIndex = givenIndex;
 	if (charIndex >= totalLength)
 		charIndex = totalLength - 1;
 

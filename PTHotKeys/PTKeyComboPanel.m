@@ -97,12 +97,12 @@ static id _sharedKeyComboPanel = nil;
 }
 
 - (void)runModalForHotKey: (PTHotKey*)hotKey {
-	int resultCode;
+	NSInteger resultCode;
     
     [self setKeyCombo: [hotKey keyCombo]];
 	[self setKeyBindingName: [hotKey name]];
      
-    resultCode = [NSApp runModalForWindow: [self window]];
+	resultCode = [NSApp runModalForWindow: [self window]];
 	[[self window] orderOut:self];
     
 	if (resultCode == NSOKButton) {

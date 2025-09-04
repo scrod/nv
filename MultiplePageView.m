@@ -228,7 +228,7 @@ static float defaultTextPadding(void) {
 	[pageStorage addLayoutManager:lm];
 	[lm release]; // owned by the text storage
 	
-	NSAttributedString *formfeed = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%C", NSFormFeedCharacter] attributes:nil];
+    NSAttributedString *formfeed = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%C", (unichar)NSFormFeedCharacter] attributes:nil];
 	NSFont *bodyFont = [[GlobalPrefs defaultPrefs] noteBodyFont];
 	
 	unsigned i, totalPageCount = 0; //[tableView numberOfSelectedRows];
@@ -264,11 +264,11 @@ static float defaultTextPadding(void) {
 	[formfeed release];
 	
 	// force layout before printing
-	unsigned len;
-	unsigned loc = INT_MAX;
-	if (loc > 0 && (len = [pageStorage length]) > 0) {
+        NSUInteger len;
+        NSUInteger loc = NSUIntegerMax;
+        if (loc > 0 && (len = [pageStorage length]) > 0) {
 		NSRange glyphRange;
-		if (loc >= len) loc = len - 1;
+            if (loc >= len) loc = len - 1;
 		// Find out which glyph index the desired character index corresponds to
 		glyphRange = [[[pageStorage layoutManagers] objectAtIndex:0] glyphRangeForCharacterRange:NSMakeRange(loc, 1) actualCharacterRange:NULL];
 		if (glyphRange.location > 0) {
@@ -294,7 +294,7 @@ static float defaultTextPadding(void) {
 }
 
 - (NSRect)rectForPage:(NSInteger)page {
-    return [self documentRectForPageNumber:page-1];  /* Our page numbers start from 0; the kit's from 1 */
+    return [self documentRectForPageNumber:(unsigned)(page-1)];  /* Our page numbers start from 0; the kit's from 1 */
 }
 
 @end

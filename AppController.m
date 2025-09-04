@@ -456,7 +456,7 @@ terminateApp:
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem {
 	SEL selector = [menuItem action];
-	int numberSelected = [notesTableView numberOfSelectedRows];
+	NSInteger numberSelected = [notesTableView numberOfSelectedRows];
 	
 	if (selector == @selector(printNote:) || 
 		selector == @selector(deleteNote:) ||
@@ -489,7 +489,7 @@ terminateApp:
 - (void)updateNoteMenus {
 	NSMenu *notesMenu = [[[NSApp mainMenu] itemWithTag:NOTES_MENU_ID] submenu];
 	
-	int menuIndex = [notesMenu indexOfItemWithTarget:self andAction:@selector(deleteNote:)];
+	NSInteger menuIndex = [notesMenu indexOfItemWithTarget:self andAction:@selector(deleteNote:)];
 	NSMenuItem *deleteItem = nil;
 	if (menuIndex > -1 && (deleteItem = [notesMenu itemAtIndex:menuIndex]))	{
 		NSString *trailingQualifier = [prefsController confirmNoteDeletion] ? NSLocalizedString(@"...", @"ellipsis character") : @"";
@@ -601,14 +601,14 @@ terminateApp:
 		
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 	if ([indexes count] > 0) {
-		id deleteObj = [indexes count] > 1 ? (id)([notationController notesAtIndexes:indexes]) : (id)([notationController noteObjectAtFilteredIndex:[indexes firstIndex]]);
+	id deleteObj = [indexes count] > 1 ? (id)([notationController notesAtIndexes:indexes]) : (id)([notationController noteObjectAtFilteredIndex:(int)[indexes firstIndex]]);
 		
 		if ([prefsController confirmNoteDeletion]) {
 			[deleteObj retain];
 			NSString *warningSingleFormatString = NSLocalizedString(@"Delete the note titled quotemark%@quotemark?", @"alert title when asked to delete a note");
 			NSString *warningMultipleFormatString = NSLocalizedString(@"Delete %d notes?", @"alert title when asked to delete multiple notes");
 			NSString *warnString = currentNote ? [NSString stringWithFormat:warningSingleFormatString, titleOfNote(currentNote)] : 
-			[NSString stringWithFormat:warningMultipleFormatString, [indexes count]];
+			[NSString stringWithFormat:warningMultipleFormatString, (int)[indexes count]];
 			
 			NSAlert *alert = [NSAlert alertWithMessageText:warnString defaultButton:NSLocalizedString(@"Delete", @"name of delete button")
 										   alternateButton:NSLocalizedString(@"Cancel", @"name of cancel button") otherButton:nil 
@@ -645,7 +645,7 @@ terminateApp:
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 	NSString *path = nil;
 	
-	if ([indexes count] != 1 || !(path = [[notationController noteObjectAtFilteredIndex:[indexes lastIndex]] noteFilePath])) {
+	if ([indexes count] != 1 || !(path = [[notationController noteObjectAtFilteredIndex:(int)[indexes lastIndex]] noteFilePath])) {
 		NSBeep();
 		return;
 	}
@@ -899,7 +899,7 @@ terminateApp:
 			BOOL singleSelection = ([notesTableView numberOfRows] == 1 && [notesTableView numberOfSelectedRows] == 1);
 			[notesTableView keyDown:[window currentEvent]];
 			
-			unsigned int strLen = [[aTextView string] length];
+			NSUInteger strLen = [[aTextView string] length];
 			if (!singleSelection && [aTextView selectedRange].length != strLen) {
 				[aTextView setSelectedRange:NSMakeRange(0, strLen)];
 			}
@@ -1056,7 +1056,7 @@ terminateApp:
 				
 				if (didFilter) { 
 					//current selection may be at the same row, but note at that row may have changed
-					[self displayContentsForNoteAtIndex:preferredNoteIndex];
+					[self displayContentsForNoteAtIndex:(int)preferredNoteIndex];
 				}
 				
 				NSAssert(currentNote != nil, @"currentNote must not--cannot--be nil!");
@@ -1105,7 +1105,7 @@ terminateApp:
 	NSEventType type = [event type];
 	//do not allow drag-selections unless a modifier is pressed
 	if (type == NSLeftMouseDragged || type == NSLeftMouseDown) {
-		unsigned flags = [event modifierFlags];
+		NSEventModifierFlags flags = [event modifierFlags];
 		if ((flags & NSShiftKeyMask) || (flags & NSCommandKeyMask)) {
 			allowMultipleSelection = YES;
 		}
@@ -1145,8 +1145,8 @@ terminateApp:
 }
 
 - (void)processChangedSelectionForTable:(NSTableView*)table {
-	int selectedRow = [table selectedRow];
-	int numberSelected = [table numberOfSelectedRows];
+	NSInteger selectedRow = [table selectedRow];
+	NSInteger numberSelected = [table numberOfSelectedRows];
 	
 	NSTextView *fieldEditor = (NSTextView*)[field currentEditor];
 	
@@ -1161,7 +1161,7 @@ terminateApp:
 			if (!isFilteringFromTyping && !isCreatingANote)
 				[field setSnapbackString:typedString];
 			
-			if ([self displayContentsForNoteAtIndex:selectedRow]) {
+				if ([self displayContentsForNoteAtIndex:(int)selectedRow]) {
 				
 				[[field cell] setShowsClearButton:YES];
 				
@@ -1173,7 +1173,7 @@ terminateApp:
 						if (fieldEditor) {
 							//the field editor has focus--select text, too
 							[fieldEditor setString:titleOfNote(currentNote)];
-							unsigned int strLen = [titleOfNote(currentNote) length];
+							NSUInteger strLen = [titleOfNote(currentNote) length];
 							if (strLen != [fieldEditor selectedRange].length)
 								[fieldEditor setSelectedRange:NSMakeRange(0, strLen)];
 						} else {
@@ -1248,7 +1248,7 @@ terminateApp:
 	[editorStatusView setHidden:!enable];
 	
 	if (enable) {
-		[editorStatusView setLabelStatus:[notesTableView numberOfSelectedRows]];
+		[editorStatusView setLabelStatus:(int)[notesTableView numberOfSelectedRows]];
 	}
 }
 

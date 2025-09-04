@@ -37,7 +37,7 @@
 		NoteAttributeColumn *col = [[[self tableView] tableColumns] objectAtIndex:i];
 		if ((originalResizingMask = [col resizingMask]) == NSTableColumnUserResizingMask) {
 			[col setResizingMask: NSTableColumnAutoresizingMask | NSTableColumnUserResizingMask];
-			[col performSelector:@selector(setResizingMaskNumber:) withObject:[NSNumber numberWithUnsignedInt:originalResizingMask] afterDelay:0];
+                [col performSelector:@selector(setResizingMaskNumber:) withObject:[NSNumber numberWithUnsignedInteger:originalResizingMask] afterDelay:0];
 		}
 	}
 	
@@ -58,7 +58,7 @@
     
     if ([[self tableView] respondsToSelector:@selector(menuForColumnConfiguration:)]) {
 	NSPoint theClickPoint = [self convertPoint:[theEvent locationInWindow] fromView:NULL];
-	int theColumn = [self columnAtPoint:theClickPoint];
+        NSInteger theColumn = [self columnAtPoint:theClickPoint];
 	NSTableColumn *theTableColumn = nil;
 	if (theColumn > -1)
 	    theTableColumn = [[[self tableView] tableColumns] objectAtIndex:theColumn];

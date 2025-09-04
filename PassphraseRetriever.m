@@ -79,12 +79,12 @@
 
 	[rememberKeychainButton setState:[notationPrefs storesPasswordInKeychain]];
 	
-	int result = [NSApp runModalForWindow:window];
+		NSInteger result = [NSApp runModalForWindow:window];
 	
 	[passphraseField setStringValue:@""];
 	[self textDidChange:nil];
 	
-	return result;
+		return (int)result;
 }
 
 - (void)awakeFromNib {

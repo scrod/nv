@@ -24,6 +24,7 @@
 
 #include "BufferUtils.h"
 #include <string.h>
+#include <stdint.h>
 
 static const unsigned char gsToLowerMap[256] = {
 '\0', 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, '\t',
@@ -322,20 +323,20 @@ void RemovePerDiskInfoWithTableIndex(UInt32 diskIndex, PerDiskInfo **perDiskGrou
 				//if pair isn't the last struct, then bring everything after pair up one spot
 				memmove(&groups[i], &groups[i + 1], sizeof(PerDiskInfo) * ((count - 1) - i));
 			}
-			ResizeArray(perDiskGroups, count - 1, groupCount);
+                ResizeArray(perDiskGroups, (unsigned int)(count - 1), groupCount);
 			return;
 		}
 	}
 }
 
-unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID, UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount) {
+    unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID, UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount) {
 	//if an entry for this diskIndex already exists, then just update it in place
 	//if an entry does not exist, then resize the buffer and add one at the end
 	//if one of dateTime or nodeID is NULL, then do not set it
 	
 	assert(nodeID || dateTime);
 	
-	NSUInteger i = 0, count = *groupCount;
+    	unsigned int i = 0, count = *groupCount;
 	
 	PerDiskInfo *groups = *perDiskGroups;
 	for (i=0; i<count; i++) {
@@ -350,7 +351,7 @@ unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID,
 //	printf("table ID %u not found; expanding to %u\n", (unsigned)diskIndex, (unsigned)(count + 1));
 	
 	//diskID not found in existing buffer; add a new entry one or both attributes
-	ResizeArray(perDiskGroups, count + 1, groupCount);
+                ResizeArray(perDiskGroups, (unsigned int)(count + 1), groupCount);
 	
 	//items not currently being set are initialized to a known value, so that they can be initialized later by attrsModifiedDateOfNote and fileNodeIDOfNote
 	//although those functions do not initialize these to anything particularly useful, anyway
@@ -359,7 +360,7 @@ unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID,
 	groups[count].nodeID = nodeID ? *nodeID : 0;
 	groups[count].diskIDIndex = diskIndex;
 	
-	return count;
+                return (unsigned int)count;
 }
 
 COMPILE_ASSERT(sizeof(PerDiskInfo) == 16, PER_DISK_INFO_MUST_BE_16_BYTES);
@@ -369,9 +370,9 @@ void CopyPerDiskInfoGroupsToOrder(PerDiskInfo **flippedGroups, unsigned int *exi
 	//swap between host order and big endian
 	//resizes flippedPairs if it is too small (based on *existingCount)
 	
-	NSUInteger i, count = bufferSize / sizeof(PerDiskInfo);
+    	NSUInteger i, count = bufferSize / sizeof(PerDiskInfo);
 	
-	ResizeArray(flippedGroups, count, existingCount);
+    	ResizeArray(flippedGroups, (unsigned int)count, existingCount);
 	PerDiskInfo *newGroups = *flippedGroups;
 		
 	//does this need to flip the entire struct, too?
@@ -396,7 +397,7 @@ void CopyPerDiskInfoGroupsToOrder(PerDiskInfo **flippedGroups, unsigned int *exi
 	}
 }
 
-CFStringRef CreateRandomizedFileName() {
+CFStringRef CreateRandomizedFileName(void) {
     static int sequence = 0;
     
     sequence++;
@@ -407,11 +408,11 @@ CFStringRef CreateRandomizedFileName() {
 	printf("error getting process serial number: %d\n", (int)err);
 	
 	//just use the location of our memory
-	psn.lowLongOfPSN = (unsigned long)&psn;
+		psn.lowLongOfPSN = (UInt32)(uintptr_t)&psn;
     }
     
     CFStringRef name = CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR(".%lu%lu-%d-%d"), 
-						psn.highLongOfPSN, (NSUInteger)psn.lowLongOfPSN, (int)CFAbsoluteTimeGetCurrent(), sequence);
+						(unsigned long)psn.highLongOfPSN, (unsigned long)psn.lowLongOfPSN, (int)CFAbsoluteTimeGetCurrent(), sequence);
     
     return name;
 }

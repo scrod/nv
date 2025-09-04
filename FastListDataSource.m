@@ -68,7 +68,7 @@
 			if (objIndex < count)
 				[objectsInIndexSet addObject:objects[objIndex]];
 			else
-				NSLog(@"objectsAtFilteredIndexes: index is %u ( > %u)", objIndex, count);
+                NSLog(@"objectsAtFilteredIndexes: index is %lu ( > %lu)", (unsigned long)objIndex, (unsigned long)count);
 		}
 	}
 	
@@ -146,4 +146,3 @@
 }
 
 @end
-

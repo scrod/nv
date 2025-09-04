@@ -419,10 +419,10 @@ bail:
 - (void)processRecoveredNotes:(NSDictionary*)dict {
     const unsigned int vListBufCount = 16;
     void* keysBuffer[vListBufCount], *valuesBuffer[vListBufCount];
-    unsigned int i, count = [dict count];
+    NSUInteger i, count = [dict count];
     
-    void **keys = (count <= vListBufCount) ? keysBuffer : (void **)malloc(sizeof(void*) * count);
-    void **values = (count <= vListBufCount) ? valuesBuffer : (void **)malloc(sizeof(void*) * count);
+    void **keys = (count <= vListBufCount) ? keysBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
+    void **values = (count <= vListBufCount) ? valuesBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
     
     if (keys && values && dict) {
 	CFDictionaryGetKeysAndValues((CFDictionaryRef)dict, (const void **)keys, (const void **)values);
@@ -724,7 +724,7 @@ bail:
 		
 		NSString *trashLocation = [[[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
 		if (!trashLocation) trashLocation = @"unknown";
-		int result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
+NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
 											 NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?",nil),
 											 NSLocalizedString(@"Relocate Notes",nil), NSLocalizedString(@"Quit",nil), NULL);
 		if (result == NSAlertDefaultReturn)
@@ -875,7 +875,7 @@ bail:
 		//NSLog(@"registering %s", _cmd);
 		[undoManager registerUndoWithTarget:self selector:@selector(removeNotes:) object:noteArray];		
 		if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
-			[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Add %d Notes", @"undo action name for creating multiple notes"), [noteArray count]]];	
+				[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Add %lu Notes", @"undo action name for creating multiple notes"), (unsigned long)[noteArray count]]];
 	}
 	[self resortAllNotes];
 	[self refilterNotes];
@@ -1035,7 +1035,7 @@ bail:
 	}
 	[undoManager endUndoGrouping];
 	if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
-		[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Delete %d Notes",@"undo action name for deleting notes"), [noteArray count]]];
+			[undoManager setActionName:[NSString stringWithFormat:NSLocalizedString(@"Delete %lu Notes",@"undo action name for deleting notes"), (unsigned long)[noteArray count]]];
 	
 }
 
@@ -1305,7 +1305,7 @@ bail:
 				if ([notesListDataSource filterArrayUsingFunction:(BOOL (*)(id, void*))noteContainsUTF8String context:&filterContext])
 					didFilterNotes = YES;
 								
-				lastWordInFilterStr = token - manglingString;
+    lastWordInFilterStr = (int)(token - manglingString);
 			}
 		}
     }
@@ -1572,5 +1572,3 @@ bail:
 }
 
 @end
-
-

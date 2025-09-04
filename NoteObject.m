@@ -458,7 +458,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		free(flippedPerDiskInfoGroups);
 		
 		[coder encodeInt64:*(int64_t*)&fileModifiedDate forKey:VAR_STR(fileModifiedDate)];
-		[coder encodeInt32:fileEncoding forKey:VAR_STR(fileEncoding)];
+			[coder encodeInt32:(int32_t)fileEncoding forKey:VAR_STR(fileEncoding)];
 		
 		[coder encodeBytes:(const uint8_t *)&uniqueNoteIDBytes length:sizeof(CFUUIDBytes) forKey:VAR_STR(uniqueNoteIDBytes)];
 		[coder encodeObject:syncServicesMD forKey:VAR_STR(syncServicesMD)];
@@ -617,7 +617,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		cContentsFoundPtr = cContents = replaceString(cContents, [[contentString string] lowercaseUTF8String]);
 		contentCacheNeedsUpdate = NO;
 		
-		int len = strlen(cContents);
+			size_t len = strlen(cContents);
 		contentsWere7Bit = !(ContainsHighAscii(cContents, len));
 		
 		//could cache dumbwordcount here for faster launch, but string creation takes more time, anyway
@@ -1305,10 +1305,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	
 	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
 	OSStatus err = noErr;
-	if ((err = FSRefMakePath(fsRef, [pathData mutableBytes], [pathData length])) == noErr) {
+		if ((err = FSRefMakePath(fsRef, [pathData mutableBytes], (UInt32)[pathData length])) == noErr) {
 		[[NSFileManager defaultManager] setTextEncodingAttribute:fileEncoding atFSPath:[pathData bytes]];
 	} else {
-		NSLog(@"%s: error getting path from FSRef: %d (IsZeros: %d)", _cmd, err, IsZeros(fsRef, sizeof(fsRef)));
+		NSLog(@"%@: error getting path from FSRef: %d (IsZeros: %d)", NSStringFromSelector(_cmd), err, IsZeros(fsRef, sizeof(fsRef)));
 	}
 	return err;
 }
@@ -1340,7 +1340,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 				//a side effect is that if the user switches to an RTF or HTML format,
 				//this note will be written immediately instead of lazily upon the next modification
 				if (UCConvertCFAbsoluteTimeToUTCDateTime(CFAbsoluteTimeGetCurrent(), &fileModifiedDate) != noErr)
-					NSLog(@"%s: can't set file modification date from current date", _cmd);
+					NSLog(@"%@: can't set file modification date from current date", NSStringFromSelector(_cmd));
 			}
 		}
 		//make note dirty to ensure these changes are saved
@@ -1424,7 +1424,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	logicalSize = catEntry->logicalSize;
 	
 	NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
-	if (FSRefMakePath(noteFileRefInit(self), [pathData mutableBytes], [pathData length]) == noErr) {
+		if (FSRefMakePath(noteFileRefInit(self), [pathData mutableBytes], (UInt32)[pathData length]) == noErr) {
 		
 		NSArray *openMetaTags = [[NSFileManager defaultManager] getOpenMetaTagsAtFSPath:[pathData bytes]];
 		if (openMetaTags) {

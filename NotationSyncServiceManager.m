@@ -266,7 +266,7 @@
 	if ([locallyAddedNotes count] && ([locallyAddedNotes count] == [allNotes count] || wasToldToMerge)) {	
 		if ([allNotes count] > 1 && !wasToldToMerge) {
 			if (NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Add %u existing notes in the database to %@?", nil), 
-								 [allNotes count], [[syncSession class] localizedServiceTitle]],
+								 (unsigned)[allNotes count], [[syncSession class] localizedServiceTitle]],
 								NSLocalizedString(@"Notes will be merged, omitting entries duplicated on the server.", nil), 
 								NSLocalizedString(@"Add Notes", nil), NSLocalizedString(@"Turn Off Syncing", nil), nil) == NSAlertAlternateReturn) {
 				[syncSessionController disableService:serviceName];
@@ -286,9 +286,9 @@
 	if ([locallyAddedNotes count] || [locallyChangedNotes count] || [locallyDeletedNotes count] || [mergeNotes count] || 
 		[remotelyAddedEntries count] || [remotelyChangedNotes count] || [remotelyDeletedNotes count] || [remotelyMissingNotes count]) {
 		NSLog(@"local: %u added, %u changed, %u deleted, %u to merge", 
-			  [locallyAddedNotes count], [locallyChangedNotes count], [locallyDeletedNotes count], [mergeNotes count]);
+			  (unsigned)[locallyAddedNotes count], (unsigned)[locallyChangedNotes count], (unsigned)[locallyDeletedNotes count], (unsigned)[mergeNotes count]);
 		NSLog(@"remote: %u added, %u changed, %u deleted, %u missing", 
-			  [remotelyAddedEntries count], [remotelyChangedNotes count], [remotelyDeletedNotes count], [remotelyMissingNotes count]);
+			  (unsigned)[remotelyAddedEntries count], (unsigned)[remotelyChangedNotes count], (unsigned)[remotelyDeletedNotes count], (unsigned)[remotelyMissingNotes count]);
 	}
 
 	//POST these entries to the server, with the assumption that the dates in syncServiceMD are set already
@@ -296,7 +296,7 @@
 	if (!([mergeNotes count] && [remotelyAddedEntries count])) 
 		[syncSession startCreatingNotes:locallyAddedNotes];
 	else
-		NSLog(@"not creating notes because %u mergenotes exist", [mergeNotes count]);
+		NSLog(@"not creating notes because %u mergenotes exist", (unsigned)[mergeNotes count]);
 	
 	[syncSession startModifyingNotes:locallyChangedNotes];
 	
@@ -371,19 +371,23 @@ ended:
 	NSInteger res = NSAlertDefaultReturn;
 	
 	if (!foundNotes) {
-		res = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The %@ server reports that no notes exist. Delete all %u notes in Notational Velocity to match it, or re-upload them now?", nil), serviceTitle, [allNotes count]],
-									  [NSString stringWithFormat:NSLocalizedString(@"If your %@ account is different, you may prefer to create a new database in Notational Velocity instead.", nil), serviceTitle],
-									  [NSString stringWithFormat:NSLocalizedString(@"Turn Off Syncing", nil), serviceTitle], 
-									  NSLocalizedString(@"Re-upload Notes", @"dialog button for uploading local notes when none exist remotely"), 
-									  NSLocalizedString(@"Remove All Notes", @"dialog button for deleting all notes when none exist remotely"));
+		NSString *title = [NSString stringWithFormat:NSLocalizedString(@"The %@ server reports that no notes exist. Delete all %u notes in Notational Velocity to match it, or re-upload them now?", nil), serviceTitle, (unsigned)[allNotes count]];
+		NSString *message = [NSString stringWithFormat:NSLocalizedString(@"If your %@ account is different, you may prefer to create a new database in Notational Velocity instead.", nil), serviceTitle];
+		res = NSRunCriticalAlertPanel(@"%@", title,
+									 @"%@", message,
+									 NSLocalizedString(@"Turn Off Syncing", nil), 
+									 NSLocalizedString(@"Re-upload Notes", @"dialog button for uploading local notes when none exist remotely"), 
+									 NSLocalizedString(@"Remove All Notes", @"dialog button for deleting all notes when none exist remotely"));
 	} else {
-		res = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The %@ server holds a different set of notes. Replace all %u notes in Notational Velocity with the %u notes on the server, or merge both sets together?", nil), 
-									   serviceTitle, [allNotes count], foundNotes],
-									  [NSString stringWithFormat:NSLocalizedString(@"Replacing will remove all %u notes from Notational Velocity. Merging will upload all notes to %@, omitting duplicates.", nil), 
-									   [allNotes count], serviceTitle],
-									  [NSString stringWithFormat:NSLocalizedString(@"Turn Off Syncing", nil), serviceTitle], 
-									  NSLocalizedString(@"Merge Notes", @"dialog button for uploading local notes"), 
-									  NSLocalizedString(@"Replace All Notes", @"dialog button for deleting all notes"));
+		NSString *title = [NSString stringWithFormat:NSLocalizedString(@"The %@ server holds a different set of notes. Replace all %u notes in Notational Velocity with the %u notes on the server, or merge both sets together?", nil), 
+									   serviceTitle, (unsigned)[allNotes count], (unsigned)foundNotes];
+		NSString *message = [NSString stringWithFormat:NSLocalizedString(@"Replacing will remove all %u notes from Notational Velocity. Merging will upload all notes to %@, omitting duplicates.", nil), 
+									   (unsigned)[allNotes count], serviceTitle];
+		res = NSRunCriticalAlertPanel(@"%@", title,
+									 @"%@", message,
+									 NSLocalizedString(@"Turn Off Syncing", nil), 
+									 NSLocalizedString(@"Merge Notes", @"dialog button for uploading local notes"), 
+									 NSLocalizedString(@"Replace All Notes", @"dialog button for deleting all notes"));
 	}
 	switch (res) {
 		case NSAlertDefaultReturn:
@@ -413,10 +417,8 @@ ended:
 			return NO;			
 	}
 	
-	NSLog(@"%s: unhandled case (res: %d)!", _cmd, res);
+	NSLog(@"%@: unhandled case (res: %ld)!", NSStringFromSelector(_cmd), (long)res);
 	return YES;
 }
 
 @end
-
-

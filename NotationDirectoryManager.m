@@ -283,7 +283,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 				
 				totalObjects += dirObjectCount;
 				if (totalObjects > totalCatEntriesCount) {
-					unsigned int oldCatEntriesCount = totalCatEntriesCount;
+						size_t oldCatEntriesCount = totalCatEntriesCount;
 					
 					totalCatEntriesCount = totalObjects;
 					catalogEntries = (NoteCatalogEntry *)realloc(catalogEntries, totalObjects * sizeof(NoteCatalogEntry));
@@ -396,18 +396,18 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 - (void)makeNotesMatchCatalogEntries:(NoteCatalogEntry**)catEntriesPtrs ofSize:(size_t)catCount {
     
-    unsigned int aSize = [allNotes count];
-    unsigned int bSize = catCount;
+    NSUInteger aSize = [allNotes count];
+    size_t bSize = catCount;
     
-	ResizeArray(&allNotesBuffer, aSize, &allNotesBufferSize);
+    ResizeArray(&allNotesBuffer, (unsigned int)aSize, &allNotesBufferSize);
 	
 	NSAssert(allNotesBuffer != NULL, @"sorting buffer not initialized");
 	
     NoteObject **currentNotes = allNotesBuffer;
     [allNotes getObjects:(id*)currentNotes];
 	
-	mergesort((void *)allNotesBuffer, (size_t)aSize, sizeof(id), (int (*)(const void *, const void *))compareFilename);
-	mergesort((void *)catEntriesPtrs, (size_t)bSize, sizeof(NoteCatalogEntry*), (int (*)(const void *, const void *))compareCatalogEntryName);
+    mergesort((void *)allNotesBuffer, (size_t)aSize, sizeof(id), (int (*)(const void *, const void *))compareFilename);
+    mergesort((void *)catEntriesPtrs, (size_t)bSize, sizeof(NoteCatalogEntry*), (int (*)(const void *, const void *))compareCatalogEntryName);
 	
     NSMutableArray *addedEntries = [NSMutableArray array];
     NSMutableArray *removedEntries = [NSMutableArray array];
@@ -453,7 +453,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			if (CFStringCompare((CFStringRef)filenameOfNote(currentNotes[i]),
 								(CFStringRef)(catEntriesPtrs[MIN(lastInserted, bSize-1)]->filename), 
 								kCFCompareCaseInsensitive) == kCFCompareGreaterThan) {
-				lastInserted = bSize;
+                lastInserted = (unsigned int)bSize;
 				
 				//NSLog(@"FILE DELETED (after): %@", filenameOfNote(currentNotes[i]));
 				[removedEntries addObject:currentNotes[i]];
@@ -488,7 +488,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 
 //find renamed notes through unique file IDs
 - (void)processNotesAddedByCNID:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries {
-	unsigned int aSize = [removedEntries count], bSize = [addedEntries count];
+    NSUInteger aSize = [removedEntries count], bSize = [addedEntries count];
     
     //sort on nodeID here
 	[addedEntries sortUnstableUsingFunction:compareCatalogValueNodeID];
@@ -549,7 +549,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 			
 			NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:MIN(lastInserted, bSize-1)] pointerValue];
 			if (fileNodeIDOfNote(currentNote) - appendedCatEntry->nodeID > 0) {
-				lastInserted = bSize;
+                lastInserted = (unsigned int)bSize;
 				
 				//file deleted from disk; 
 				NSLog(@"File deleted as per CNID: %@", filenameOfNote(currentNote));
@@ -570,7 +570,7 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		//NSLog(@"hfsAddedEntries: %@, hfsRemovedEntries: %@", hfsAddedEntries, hfsRemovedEntries);
 		if (![hfsRemovedEntries count]) {
 			for (i=0; i<[hfsAddedEntries count]; i++) {
-				NSLog(@"File _actually_ added: %@ (%s)", ((NoteCatalogEntry*)[[hfsAddedEntries objectAtIndex:i] pointerValue])->filename, _cmd);
+				NSLog(@"File _actually_ added: %@ (%@)", ((NoteCatalogEntry*)[[hfsAddedEntries objectAtIndex:i] pointerValue])->filename, NSStringFromSelector(_cmd));
 				[self addNoteFromCatalogEntry:(NoteCatalogEntry*)[[hfsAddedEntries objectAtIndex:i] pointerValue]];
 			}
 		}
@@ -652,18 +652,16 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 		}
 		
 		if (!foundMatchingContent) {
-			NSLog(@"File %@ _actually_ removed (size: %u)", filenameOfNote(removedObj), fileSizeOfNote(removedObj));
+			NSLog(@"File %@ _actually_ removed (size: %u)", filenameOfNote(removedObj), (unsigned)fileSizeOfNote(removedObj));
 			[deletionManager addDeletedNote:removedObj];
 		}
 	}
 	
 	for (i=0; i<[addedEntries count]; i++) {
 		NoteCatalogEntry *appendedCatEntry = (NoteCatalogEntry *)[[addedEntries objectAtIndex:i] pointerValue];
-		NSLog(@"File _actually_ added: %@ (%s)", appendedCatEntry->filename, _cmd);
+		NSLog(@"File _actually_ added: %@ (%@)", appendedCatEntry->filename, NSStringFromSelector(_cmd));
 		[self addNoteFromCatalogEntry:appendedCatEntry];
     }	
 }
 
 @end
-
-

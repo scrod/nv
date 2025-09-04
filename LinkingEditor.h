@@ -65,7 +65,7 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 - (void)bold:(id)sender;
 - (void)italic:(id)sender;
 - (void)applyStyleOfTrait:(NSFontTraitMask)trait alternateAttributeName:(NSString*)attrName alternateAttributeValue:(id)value;
-- (id)highlightLinkAtIndex:(unsigned)givenIndex;
+- (id)highlightLinkAtIndex:(NSUInteger)givenIndex;
 
 - (BOOL)jumpToRenaming;
 - (void)indicateRange:(NSValue*)rangeValue;

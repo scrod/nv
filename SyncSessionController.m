@@ -39,11 +39,11 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 - (id)initWithSyncDelegate:(id)aSyncDelegate notationPrefs:(NotationPrefs*)prefs {
 	if ([super init]) {
 		if (!(syncDelegate = aSyncDelegate)) {
-			NSLog(@"%s: need syncDelegate!", _cmd);
+			NSLog(@"%@: need syncDelegate!", NSStringFromSelector(_cmd));
 			return nil;
 		}
 		if (!(notationPrefs = [prefs retain])) {
-			NSLog(@"%s: need notationPrefs!", _cmd);
+			NSLog(@"%@: need notationPrefs!", NSStringFromSelector(_cmd));
 			return nil;
 		}
 		syncServiceTimers = [[NSMutableDictionary alloc] init];
@@ -155,7 +155,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 		   //init and return other services here
 		   
 		} */ else {
-		   NSLog(@"%s: unknown service named '%@'", _cmd, serviceName);
+		   NSLog(@"%@: unknown service named '%@'", NSStringFromSelector(_cmd), serviceName);
 		}
 	}
 	return session;
@@ -398,7 +398,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	NSAssert(anInvocation != nil, @"cannot wait without an ending invocation");
 	ComparableInvocation *cInvocation = [[[ComparableInvocation alloc] initWithInvocation: anInvocation] autorelease];
 	if ([uncommittedWaitInvocations containsObject:cInvocation]) {
-		NSLog(@"%s: already waiting for %@", _cmd, anInvocation);
+		NSLog(@"%@: already waiting for %@", NSStringFromSelector(_cmd), anInvocation);
 		return YES; //we're already waiting for this invocation
 	}
 	
@@ -414,7 +414,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 			
 			//if the session has an error, the last reachability status is bad, and nothing is currently in progress, then skip pushing for it
 			if ([session reachabilityFailed] && [session lastError] && ![session isRunning]) {
-				NSLog(@"%s: skipped %@ due to assumed reachability status", _cmd, session);
+				NSLog(@"%@: skipped %@ due to assumed reachability status", NSStringFromSelector(_cmd), session);
 				continue;
 			}
 			
