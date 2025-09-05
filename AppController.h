@@ -75,6 +75,9 @@
 	
 	NoteObject *currentNote;
 	NSArray *savedSelectedNotes;
+
+	// Holds an instance of Sparkle 2's SPUStandardUpdaterController if available
+	id sparkleController;
 }
 
 void outletObjectAwoke(id sender);

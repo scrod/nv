@@ -38,12 +38,13 @@
 #import "DualField.h"
 #import "TitlebarButton.h"
 #import "RBSplitView/RBSplitView.h"
+#import <objc/message.h>
 
-// Forward declarations to silence undeclared-selector warnings for Sparkle
-@interface SUUpdater : NSObject
-+ (instancetype)sharedUpdater;
-- (void)checkForUpdates:(id)sender;
+@interface SPUUpdater : NSObject
 - (void)setAutomaticallyChecksForUpdates:(BOOL)flag;
+@end
+@interface SPUStandardUpdaterController : NSObject
+- (IBAction)checkForUpdates:(nullable id)sender;
 @end
 
 // Forward-declare a private AppKit selector used in menu tweaking
@@ -249,24 +250,26 @@ void outletObjectAwoke(id sender) {
 	[notationController checkIfNotationIsTrashed];
 	[[SecureTextEntryManager sharedInstance] checkForIncompatibleApps];
 	
-	//connect sparkle programmatically to avoid loading its framework at nib awake;
+	// Connect Sparkle programmatically to avoid loading its framework at nib awake
+	Class SPUControllerClass = NSClassFromString(@"SPUStandardUpdaterController");
+	if (!SPUControllerClass) {
+		if (![[NSBundle bundleWithPath:[[[NSBundle bundleForClass:[self class]] privateFrameworksPath] stringByAppendingPathComponent:@"Sparkle.framework"]] load]) {
+			NSLog(@"Could not load Sparkle framework!");
+		}
+		SPUControllerClass = NSClassFromString(@"SPUStandardUpdaterController");
+	}
 	
-	if (!NSClassFromString(@"SUUpdater")) {
-		NSString *frameworkPath = [[[NSBundle bundleForClass:[self class]] privateFrameworksPath] stringByAppendingPathComponent:@"Sparkle.framework"];
-		if ([[NSBundle bundleWithPath:frameworkPath] load]) {
-			id updater = [NSClassFromString(@"SUUpdater") performSelector:@selector(sharedUpdater)];
-			[sparkleUpdateItem setTarget:updater];
-			[sparkleUpdateItem setAction:@selector(checkForUpdates:)];
+	if (SPUControllerClass) {
+		sparkleController = [[SPUControllerClass alloc] performSelector:NSSelectorFromString(@"initWithUpdaterDelegate:userDriverDelegate:") withObject:nil withObject:nil];
+		[sparkleUpdateItem setTarget:sparkleController];
+		[sparkleUpdateItem setAction:@selector(checkForUpdates:)];
+		// Enable automatic checks after the first launch, if updater is available
+		SEL updaterSEL = NSSelectorFromString(@"updater");
+		if ([sparkleController respondsToSelector:updaterSEL]) {
+			id updater = [sparkleController performSelector:updaterSEL];
 			if (![[prefsController notationPrefs] firstTimeUsed]) {
-				//don't do anything automatically on the first launch; afterwards, check every 4 days, as specified in Info.plist
-				SEL checksSEL = @selector(setAutomaticallyChecksForUpdates:);
-                typedef void (*UpdaterMethod)(id, SEL, BOOL);
-                UpdaterMethod updaterChecks;
-                updaterChecks = (UpdaterMethod)[updater methodForSelector:checksSEL];
-                updaterChecks(updater, checksSEL, YES);
+				[updater setAutomaticallyChecksForUpdates:YES];
 			}
-		} else {
-			NSLog(@"Could not load %@!", frameworkPath);
 		}
 	}
 	
@@ -1830,6 +1833,7 @@ terminateApp:
 - (void)dealloc {
 	[windowUndoManager release];
 	[dividerShader release];
+	[sparkleController release];
 	
 	[super dealloc];
 }
