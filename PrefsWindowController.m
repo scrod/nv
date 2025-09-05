@@ -26,6 +26,7 @@
 #import "NSBezierPath_NV.h"
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
+#import "AppController.h"
 
 #define SYSTEM_LIST_FONT_SIZE 12.0f
 
@@ -88,7 +89,7 @@
 	
 	[appShortcutField setStringValue:[[prefsController appActivationKeyCombo] description]];
 		
-	if (![prefsController registerAppActivationKeystrokeWithTarget:[NSApp delegate] selector:@selector(toggleNVActivation:)]) {
+		if (![prefsController registerAppActivationKeystrokeWithTarget:(AppController*)[NSApp delegate] selector:@selector(toggleNVActivation:)]) {
 		[prefsController setAppActivationKeyCombo:oldKeyCombo sender:self];
 		NSLog(@"reverting to old (hopefully working key combo");
 	}
@@ -120,7 +121,7 @@
 	}
 }
 
-- (NSUInteger)validModesForFontPanel:(NSFontPanel *)fontPanel {
+- (NSFontPanelModeMask)validModesForFontPanel:(NSFontPanel *)fontPanel {
 	
 	return NSFontPanelSizeModeMask | NSFontPanelCollectionModeMask;
 }

@@ -30,7 +30,7 @@
     NSUInteger count;
 }
 
-- (id *)immutableObjects;
+- (const id *)immutableObjects;
 - (NSUInteger)count;
 
 - (NSUInteger)indexOfObjectIdenticalTo:(id)address;
@@ -53,4 +53,3 @@
 - (SEL)attributeSetterForColumn:(NoteAttributeColumn*)col;
 
 @end
-

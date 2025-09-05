@@ -22,6 +22,7 @@
 
 
 #import "ExternalEditorListController.h"
+#import "AppController.h"
 #import "NoteObject.h"
 #import "NotationController.h"
 #import "NotationPrefs.h"
@@ -30,6 +31,11 @@
 static NSString *UserEEIdentifiersKey = @"UserEEIdentifiers";
 static NSString *DefaultEEIdentifierKey = @"DefaultEEIdentifier";
 NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
+
+@interface NSMenu (ExternalEditorListMenu)
+- (void)_updateMenuForEEListController:(ExternalEditorListController*)controller;
+@end
+
 
 @implementation ExternalEditor
 
@@ -337,7 +343,7 @@ errorReturn:
 - (void)menusChanged {
 
 	[editNotesMenus makeObjectsPerformSelector:@selector(_updateMenuForEEListController:) withObject:self];
-	[editorPrefsMenus makeObjectsPerformSelector:@selector(_updateMenuForEEListController:) withObject:self];	
+	[editorPrefsMenus makeObjectsPerformSelector:@selector(_updateMenuForEEListController:) withObject:self];
 	[[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:ExternalEditorsChangedNotification object:self]];
 }
 
@@ -372,7 +378,7 @@ errorReturn:
 		}
 		//PrefsWindowController maintains default-editor selection by updating on ExternalEditorsChangedNotification
 			
-		[theMenuItem setTarget: isPrefsMenu ? self : [NSApp delegate]];
+		[theMenuItem setTarget: isPrefsMenu ? (id)self : (id)[NSApp delegate]];
 		
 		[theMenuItem setRepresentedObject:ed];
 		
@@ -426,13 +432,6 @@ errorReturn:
 	}
 }
 
-@end
-
-
-//this category exists because I want to use -makeObjectsPerformSelector: in -menusChanged
-
-@interface NSMenu (ExternalEditorListMenu)
-- (void)_updateMenuForEEListController:(ExternalEditorListController*)controller;
 @end
 
 @implementation NSMenu (ExternalEditorListMenu)

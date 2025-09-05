@@ -125,8 +125,9 @@
 	
 	[tempDirectory autorelease];
 	tempDirectory = [[NSTemporaryDirectory() stringByAppendingPathComponent:[[NSProcessInfo processInfo] globallyUniqueString]] retain];
-	if (![[NSFileManager defaultManager] createDirectoryAtPath:tempDirectory attributes:nil]) {
-		NSLog(@"URLGetter: Couldn't create temporary directory!");
+	NSError *mkErr = nil;
+	if (![[NSFileManager defaultManager] createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&mkErr]) {
+		NSLog(@"URLGetter: Couldn't create temporary directory! %@", mkErr.localizedDescription);
 		[download cancel];
 		NSBeep();
 	}

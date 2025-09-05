@@ -38,6 +38,23 @@
 #import "DualField.h"
 #import "TitlebarButton.h"
 #import "RBSplitView/RBSplitView.h"
+
+// Forward declarations to silence undeclared-selector warnings for Sparkle
+@interface SUUpdater : NSObject
++ (instancetype)sharedUpdater;
+- (void)checkForUpdates:(id)sender;
+- (void)setAutomaticallyChecksForUpdates:(BOOL)flag;
+@end
+
+// Forward-declare a private AppKit selector used in menu tweaking
+@interface NSMenu (NVPrivate)
+- (void)_removeLinkFromMenu:(id)sender;
+@end
+
+// Dummy declaration to silence undeclared-selector warning for @selector(noop:)
+@interface NSObject (NVNoop)
+- (void)noop:(id)sender;
+@end
 #import "AugmentedScrollView.h"
 #import "BookmarksController.h"
 #import "SyncSessionController.h"

@@ -1312,7 +1312,7 @@ NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalize
     
 	//PHASE 3: reset found pointers in case have been cleared
 	NSUInteger filteredNoteCount = [notesListDataSource count];
-	NoteObject **notesBuffer = [notesListDataSource immutableObjects];
+	NoteObject const * const *notesBuffer = [notesListDataSource immutableObjects];
 	
     if (didFilterNotes) {
 		
@@ -1322,7 +1322,7 @@ NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalize
 			
 			//reset found-ptr values; the search string was effectively blank and so no notes were examined
 			for (i=0; i<filteredNoteCount; i++)
-				resetFoundPtrsForNote(notesBuffer[i]);
+				resetFoundPtrsForNote((NoteObject*)notesBuffer[i]);
 		}
 		
 		//we have to re-create the array at each iteration while searching notes, but not here, so we can wait until the end
@@ -1338,12 +1338,12 @@ NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalize
 
 		for (i=0; i<filteredNoteCount; i++) {			
 			//because we already searched word-by-word up there, this is just way simpler
-			if (noteTitleHasPrefixOfUTF8String(notesBuffer[i], searchString, newLen)) {
+			if (noteTitleHasPrefixOfUTF8String((NoteObject*)notesBuffer[i], searchString, newLen)) {
 				selectedNoteIndex = i;
 				//this note matches, but what if there are other note-titles that are prefixes of both this one and the search string?
 				//find the first prefix-parent of which searchString is also a prefix
 				NSUInteger j = 0, prefixParentIndex = NSNotFound;
-				NSArray *prefixParents = prefixParentsOfNote(notesBuffer[i]);
+				NSArray *prefixParents = prefixParentsOfNote((NoteObject*)notesBuffer[i]);
 				
 				for (j=0; j<[prefixParents count]; j++) {
 					NoteObject *obj = [prefixParents objectAtIndex:j];

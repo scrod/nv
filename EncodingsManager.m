@@ -20,6 +20,7 @@
 #import "NotationFileManager.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
+#import "AppController.h"
 
 @implementation EncodingsManager
 
@@ -147,7 +148,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 		
 		//setup panel for given note
 		if ([self tryToUpdateTextForEncoding:currentEncoding]) {
-			[NSApp beginSheet:window modalForWindow:[[NSApp delegate] window] modalDelegate:self 
+			[NSApp beginSheet:window modalForWindow:[(AppController*)[NSApp delegate] window] modalDelegate:self 
 			   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
 		} else {
 			//this shouldn't happen
@@ -289,7 +290,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 	//check whether file mod. date of note is older than mod. date on disk
 	if ([self shouldUpdateNoteFromDisk]) {
 		[note setFileEncodingAndReinterpret:currentEncoding];
-		[[NSApp delegate] contentsUpdatedForNote:note];
+				[(AppController*)[NSApp delegate] contentsUpdatedForNote:note];
 	}
 	
 	[NSApp endSheet:window returnCode:1];

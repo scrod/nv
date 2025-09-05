@@ -367,13 +367,13 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 
 //extends nsmutabledata if necessary
 - (void)alignForBlockSize:(int)alignedBlockSize {
-	NSUInteger dataBlockSize = [self length];
-	NSUInteger paddedDataBlockSize = 0;
-	
-	if (dataBlockSize <= alignedBlockSize)
-		paddedDataBlockSize = alignedBlockSize;
-	else
-		paddedDataBlockSize = alignedBlockSize * ((dataBlockSize + (alignedBlockSize-1)) / alignedBlockSize);
+		NSUInteger dataBlockSize = [self length];
+		NSUInteger paddedDataBlockSize = 0;
+		
+		if (dataBlockSize <= (NSUInteger)alignedBlockSize)
+			paddedDataBlockSize = alignedBlockSize;
+		else
+			paddedDataBlockSize = (NSUInteger)alignedBlockSize * ((dataBlockSize + ((NSUInteger)alignedBlockSize-1)) / (NSUInteger)alignedBlockSize);
 
 	//if malloc was used on conventional architectures, nsdata should be smart enough not to have to allocate a new block
 	NSInteger difference = (NSInteger)paddedDataBlockSize - (NSInteger)dataBlockSize;

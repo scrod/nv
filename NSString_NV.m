@@ -27,6 +27,11 @@
 #import "GlobalPrefs.h"
 #import "LabelObject.h"
 
+// Ensure proper prototypes are visible in this translation unit
+unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime);
+void resetCurrentDayTime(void);
+CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
+
 @implementation NSString (NV)
 
 static int dayFromAbsoluteTime(CFAbsoluteTime absTime);
@@ -44,7 +49,7 @@ unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime) {
 }
 
 //should be called after midnight, and then all the notes should have their date-strings recomputed
-void resetCurrentDayTime() {
+void resetCurrentDayTime(void) {
     CFAbsoluteTime current = CFAbsoluteTimeGetCurrent();
     
     CFTimeZoneRef timeZone = CFTimeZoneCopyDefault();

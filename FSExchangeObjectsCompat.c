@@ -8,7 +8,8 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 
-__private_extern__ u_int32_t volumeCapabilities(const char *path)
+extern u_int32_t volumeCapabilities(const char *path) __attribute__((visibility("hidden")));
+u_int32_t volumeCapabilities(const char *path)
 {
     struct attrlist alist;
     bzero(&alist, sizeof(alist));
@@ -270,4 +271,3 @@ BadParameter:
 		
 		return ( result );
 }
-

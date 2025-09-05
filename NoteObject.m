@@ -1191,7 +1191,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		case RTFTextFormat:
 			contentMinusColor = [contentString mutableCopy];
 			[contentMinusColor removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [contentMinusColor length])];
-			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:nil];
+			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:@{}];
 			[contentMinusColor release];
 			
 			break;
@@ -1652,7 +1652,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
 			break;
 		case WordDocFormat:
-			formattedData = [contentMinusColor docFormatFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:nil];
+			formattedData = [contentMinusColor docFormatFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:@{}];
 			break;
 		case WordXMLFormat:
 			formattedData = [contentMinusColor dataFromRange:NSMakeRange(0, [contentMinusColor length]) 

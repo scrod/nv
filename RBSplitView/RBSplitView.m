@@ -1680,8 +1680,8 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 		if (i==divcount) {
 // We're at the last subview, so we now check if the actual and calculated dimensions
 // are the same.
-			CGFloat remain = DIM(bounds.size)-DIM(newframe.origin);
-			if (last&&(fabsf(remain)>0.0)) {
+				CGFloat remain = DIM(bounds.size)-DIM(newframe.origin);
+				if (last&&(fabs(remain)>0.0)) {
 // We'll resize the last expanded subview to whatever it takes to squeeze within the frame.
 // Normally the change should be at most one pixel, but if too many subviews were constrained,
 // this may be a large value, and the last subview may be resized beyond its constraints;

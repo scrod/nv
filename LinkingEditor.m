@@ -143,7 +143,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 		if (![prefsController highlightSearchTerms]) {
 			[self removeHighlightedTerms];
 		} else {
-			NSString *typedString = [[NSApp delegate] typedString];
+				NSString *typedString = [(AppController*)[NSApp delegate] typedString];
 			if (typedString)
 				[self highlightTermsTemporarilyReturningFirstRange:typedString avoidHighlight:NO];
 		}
@@ -350,7 +350,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	
 	if ([type isEqualToString:NSFilenamesPboardType]) {
 		//paste as a file:// URL, so that it can be linked
-		NSString *allURLsString = [[NSApp delegate] stringWithNoteURLsOnPasteboard:pboard];
+			NSString *allURLsString = [(AppController*)[NSApp delegate] stringWithNoteURLsOnPasteboard:pboard];
 		
 		if ([allURLsString length]) {
 			NSRange selectedRange = [self rangeForUserTextChange];
@@ -382,7 +382,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 			if ([self shouldChangeTextInRange:selectedRange replacementString:[newString string]]) {
 				
 				[self replaceCharactersInRange:selectedRange withRTF:[newString RTFFromRange:
-																	  NSMakeRange(0, [newString length]) documentAttributes:nil]];
+																	  NSMakeRange(0, [newString length]) documentAttributes:@{}]];
 			
 				//paragraph styles will ALWAYS be added _after_ replaceCharactersInRange, it seems
 				//[[self textStorage] removeAttribute:NSParagraphStyleAttributeName range:NSMakeRange(0, [[self string] length])];
@@ -422,7 +422,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 		if (![type isEqualToString:NVPTFPboardType])
 			[newString removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [newString length])];
 
-		NSData *rtfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil];;
+		NSData *rtfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:@{}];
 		if (rtfData) [pboard setData:rtfData forType:type];
 		[newString release];
 		return YES;
@@ -569,10 +569,16 @@ copyRTFType:
 	for (rangeIndex = 0; rangeIndex < CFArrayGetCount(ranges); rangeIndex++) {
 		CFRange *range = (CFRange *)CFArrayGetValueAtIndex(ranges, rangeIndex);
 		
-		if (range && range->length > 0 && range->location + range->length <= bodyLength) {
-			[[self layoutManager] addTemporaryAttributes:highlightDict forCharacterRange:*(NSRange*)range];
+		if (range) {
+			NSUInteger loc = (NSUInteger)range->location;
+			NSUInteger len = (NSUInteger)range->length;
+			if (len > 0 && loc + len <= bodyLength) {
+				[[self layoutManager] addTemporaryAttributes:highlightDict forCharacterRange:*(NSRange*)range];
+			} else {
+				NSLog(@"highlightRangesTemporarily: Invalid range (%@)", NSStringFromRange(*(NSRange*)range));
+			}
 		} else {
-			NSLog(@"highlightRangesTemporarily: Invalid range (%@)", range ? NSStringFromRange(*(NSRange*)range) : @"null");
+			NSLog(@"highlightRangesTemporarily: Invalid range (%@)", @"null");
 		}
 	}
 }
@@ -783,7 +789,7 @@ copyRTFType:
 	NSEvent *event = [[self window] currentEvent];
 	if ([event type] == NSKeyDown && ![event isARepeat] && NSEqualRanges([self selectedRange], NSMakeRange(0, 0))) {
 		//command-left at the beginning of the note--jump to editing the title!
-		[[NSApp delegate] renameNote:nil];
+				[(AppController*)[NSApp delegate] renameNote:nil];
 		NSText *editor = [notesTableView currentEditor];
 		NSRange endRange = NSMakeRange([[editor string] length], 0);
 		[editor setSelectedRange:endRange];
@@ -976,8 +982,8 @@ copyRTFType:
 		Class class = [NSCursor class];
 		
 		//set method implementation directly; whiteIBeamCursorIMP and defaultIBeamCursorIMP always point to the same respective blocks of code
-		Method defaultIBeamCursorMethod = class_getClassMethod(class, @selector(IBeamCursor));
-		method_setImplementation(defaultIBeamCursorMethod, shouldBeWhite ? whiteIBeamCursorIMP : defaultIBeamCursorIMP);
+			Method defaultIBeamCursorMethod = class_getClassMethod(class, @selector(IBeamCursor));
+			method_setImplementation(defaultIBeamCursorMethod, (IMP)(shouldBeWhite ? whiteIBeamCursorIMP : defaultIBeamCursorIMP));
 		
 		NSCursor *currentCursor = [NSCursor currentCursor];
 		NSCursor *whiteCursor = whiteIBeamCursorIMP(class, @selector(whiteIBeamCursor));
@@ -1031,15 +1037,15 @@ copyRTFType:
 			attrs = [self typingAttributes];
 		}
 		
-		BOOL menuItemState = NO;
+		NSControlStateValue menuItemState = NSControlStateValueOff;
 		if (action == @selector(defaultStyle:)) {
-			menuItemState = [attrs isEqualToDictionary:[prefsController noteBodyAttributes]];
+			menuItemState = (NSControlStateValue)[attrs isEqualToDictionary:[prefsController noteBodyAttributes]];
 		} else if (action == @selector(bold:)) {
-			menuItemState = [attrs attributesHaveFontTrait:NSBoldFontMask orAttribute:NSStrokeWidthAttributeName];
+			menuItemState = (NSControlStateValue)[attrs attributesHaveFontTrait:NSBoldFontMask orAttribute:NSStrokeWidthAttributeName];
 		} else if (action == @selector(italic:)) {
-			menuItemState = [attrs attributesHaveFontTrait:NSItalicFontMask orAttribute:NSObliquenessAttributeName];
+			menuItemState = (NSControlStateValue)[attrs attributesHaveFontTrait:NSItalicFontMask orAttribute:NSObliquenessAttributeName];
 		} else if (action == @selector(strikethroughNV:)) {
-			menuItemState = [attrs attributesHaveFontTrait:0 orAttribute:NSStrikethroughStyleAttributeName];
+			menuItemState = (NSControlStateValue)[attrs attributesHaveFontTrait:0 orAttribute:NSStrikethroughStyleAttributeName];
 		}
 		
 		if (menuItemState && multipleAttributes)
@@ -1106,7 +1112,7 @@ copyRTFType:
 	}
 	
 	if ([aLink isKindOfClass:[NSURL class]] && [[aLink scheme] isEqualToString:@"nv"]) {
-		[[NSApp delegate] interpretNVURL:aLink];
+				[(AppController*)[NSApp delegate] interpretNVURL:aLink];
 	} else {
 		[super clickedOnLink:aLink atIndex:charIndex];
 	}

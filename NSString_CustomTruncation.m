@@ -26,9 +26,9 @@
 
 @implementation NSString (CustomTruncation)
 
-static NSMutableParagraphStyle *LineBreakingStyle();
-static NSDictionary *GrayTextAttributes();
-static NSDictionary *LineTruncAttributes();
+static NSMutableParagraphStyle *LineBreakingStyle(void);
+static NSDictionary *GrayTextAttributes(void);
+static NSDictionary *LineTruncAttributes(void);
 static size_t EstimatedCharCountForWidth(float upToWidth);
 
 
@@ -84,14 +84,14 @@ replace:
 	return [truncatedBodyString autorelease];
 }
 
-static NSMutableDictionary *titleTruncAttrs = nil;
+static NSDictionary *titleTruncAttrs = nil;
 
-void ResetFontRelatedTableAttributes() {
+void ResetFontRelatedTableAttributes(void) {
 	[titleTruncAttrs release];
 	titleTruncAttrs = nil;
 }
 
-static NSMutableParagraphStyle *LineBreakingStyle() {
+static NSMutableParagraphStyle *LineBreakingStyle(void) {
 	static NSMutableParagraphStyle *lineBreaksStyle = nil;
 	if (!lineBreaksStyle) {
 		lineBreaksStyle = [[NSMutableParagraphStyle alloc] init];
@@ -101,19 +101,19 @@ static NSMutableParagraphStyle *LineBreakingStyle() {
 	return lineBreaksStyle;
 }
 
-static NSDictionary *GrayTextAttributes() {
+static NSDictionary *GrayTextAttributes(void) {
 	static NSDictionary *grayTextAttributes = nil;
 	if (!grayTextAttributes) grayTextAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:[NSColor grayColor], NSForegroundColorAttributeName, nil] retain];
 	return grayTextAttributes;
 }
 
-static NSDictionary *LineTruncAttributes() {
+static NSDictionary *LineTruncAttributes(void) {
 	static NSDictionary *lineTruncAttributes = nil;
 	if (!lineTruncAttributes) lineTruncAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:LineBreakingStyle(), NSParagraphStyleAttributeName, nil] retain];
 	return lineTruncAttributes;
 }
 
-NSDictionary *LineTruncAttributesForTitle() {
+NSDictionary *LineTruncAttributesForTitle(void) {
 	if (!titleTruncAttrs) {
 		GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
 		unsigned int bitmap = [prefs tableColumnsBitmap];

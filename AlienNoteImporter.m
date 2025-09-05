@@ -355,7 +355,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		//make it guess for us, but if it's a webarchive we'll get the URL
 		NSData *data = [NSData uncachedDataFromFile:filename];
 		NSString *path = [data pathURLFromWebArchive];
-		attributedStringFromData = [[NSMutableAttributedString alloc] initWithData:data options:nil documentAttributes:NULL error:NULL];
+	attributedStringFromData = [[NSMutableAttributedString alloc] initWithData:data options:@{} documentAttributes:NULL error:NULL];
 		
 		if ([path length] > 0 && [attributedStringFromData length] > 0)
 			sourceIdentifierString = path;
@@ -367,7 +367,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				id doc = [[PdfDocClass alloc] initWithURL:[NSURL fileURLWithPath:filename]];
 				if (doc) {
 					//this method reliably crashes in 64-bit Leopard, and sometimes elsewhere as well
-					id sel = [doc performSelector:@selector(selectionForEntireDocument)];
+						SEL selectionSEL = NSSelectorFromString(@"selectionForEntireDocument");
+						id sel = ([doc respondsToSelector:selectionSEL] ? [doc performSelector:selectionSEL] : nil);
 					if (sel) {
 						attributedStringFromData = [[NSMutableAttributedString alloc] initWithAttributedString:[sel attributedString]];
 						//maybe we could check pages and boundsForPage: to try to determine where a line was soft-wrapped in the document?
@@ -653,3 +654,9 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
     return (notes);
 }
 @end
+#if 1
+// Forward-declare PDFKit selector to avoid undeclared-selector warning
+@interface NSObject (PDFKitSelection)
+- (id)selectionForEntireDocument;
+@end
+#endif

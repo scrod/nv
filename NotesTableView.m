@@ -26,7 +26,7 @@
 #import "NSCollection_utils.h"
 #import "LabelColumnCell.h"
 #import "UnifiedCell.h"
-#import "HeaderViewWithMenu.h"
+#import "HeaderViewWIthMenu.h"
 #import "NSString_NV.h"
 #import "LinkingEditor.h"
 
@@ -196,11 +196,11 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	if ([sender draggingSource] == self)
 		return NO;
 		
-	return [[NSApp delegate] addNotesFromPasteboard:[sender draggingPasteboard]];
+	return [(AppController*)[NSApp delegate] addNotesFromPasteboard:[sender draggingPasteboard]];
 }
 
 - (void)paste:(id)sender {
-	[[NSApp delegate] addNotesFromPasteboard:[NSPasteboard generalPasteboard]];
+	[(AppController*)[NSApp delegate] addNotesFromPasteboard:[NSPasteboard generalPasteboard]];
 }
 
 - (float)tableFontHeight {
@@ -660,7 +660,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	if (![self numberOfSelectedRows])
 		return nil;
 	
-	return [self defaultNoteCommandsMenuWithTarget:[NSApp delegate]];
+	return [self defaultNoteCommandsMenuWithTarget:(AppController*)[NSApp delegate]];
 }
 
 static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, SEL aSel, id target, NSInteger tag) {
@@ -811,7 +811,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 			return;
 		}
     } else if (keyChar == NSDeleteCharacter || keyChar == NSDeleteFunctionKey || keyChar == NSDeleteCharFunctionKey) {
-		[[NSApp delegate] deleteNote:self];
+			[(AppController*)[NSApp delegate] deleteNote:self];
 		return;
 	} else if (keyChar == NSTabCharacter) {
 		[[self window] selectNextKeyView:self];
@@ -1149,12 +1149,12 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 
 - (void)cancelOperation:(id)sender {
 	[self abortEditing];
-	[[NSApp delegate] cancelOperation:sender];
+	[(AppController*)[NSApp delegate] cancelOperation:sender];
 }
 
 - (void)textDidChange:(NSNotification *)aNotification {
 	NSInteger col = [self editedColumn];
-	if (col > -1 && [self attributeSetterForColumn:[[self tableColumns] objectAtIndex:col]] == @selector(setLabelString:)) {
+	if (col > -1 && [self attributeSetterForColumn:(NoteAttributeColumn*)[[self tableColumns] objectAtIndex:col]] == @selector(setLabelString:)) {
 		//text changed while editing tags; autocomplete!
 		
 		NSTextView *editor = [aNotification object];

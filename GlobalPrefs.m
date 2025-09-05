@@ -99,7 +99,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (id)init {
 	if ([super init]) {
 	
-		runCallbacksIMP = [self methodForSelector:@selector(notifyCallbacksForSelector:excludingSender:)];
+		runCallbacksIMP = (id (*)(GlobalPrefs*, SEL, SEL, id))[self methodForSelector:@selector(notifyCallbacksForSelector:excludingSender:)];
 		selectorObservers = [[NSMutableDictionary alloc] init];
 		
 		defaults = [NSUserDefaults standardUserDefaults];
@@ -497,12 +497,15 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	
 	//restyle any PTF data on the clipboard to the new font
 	NSData *ptfData = [[NSPasteboard generalPasteboard] dataForType:NVPTFPboardType];
-	NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] initWithRTF:ptfData documentAttributes:nil] autorelease];
+	if (ptfData) {
+		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] initWithRTF:ptfData documentAttributes:nil] autorelease];
 	
 	[newString restyleTextToFont:noteBodyFont usingBaseFont:oldFont];
 	
-	if ((ptfData = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:nil])) {
-		[[NSPasteboard generalPasteboard] setData:ptfData forType:NVPTFPboardType];
+		NSData *rtf = [newString RTFFromRange:NSMakeRange(0, [newString length]) documentAttributes:@{}];
+		if (rtf) {
+			[[NSPasteboard generalPasteboard] setData:rtf forType:NVPTFPboardType];
+		}
 	}
 	[oldFont release];
 }

@@ -18,6 +18,11 @@
 #import "HeaderViewWIthMenu.h"
 #import "NoteAttributeColumn.h"
 
+// Forward-declare private selectors used via respondsToSelector/performSelector
+@interface NSTableView (NVColumnConfig)
+- (NSMenu *)menuForColumnConfiguration:(NSTableColumn *)inSelectedColumn;
+@end
+
 @implementation HeaderViewWithMenu
 
 - (id)init {
@@ -31,15 +36,15 @@
 	//use a more understandable column resizing by changing the resizing mask immediately before calling through to the private method,
 	//and reverting it back to the original at the next runloop iteration
 	NSUInteger originalResizingMask = 0;
-	int i;
-	//change all user-resizable-only columns
-	for (i=0; i<[[self tableView] numberOfColumns]; i++) {
-		NoteAttributeColumn *col = [[[self tableView] tableColumns] objectAtIndex:i];
-		if ((originalResizingMask = [col resizingMask]) == NSTableColumnUserResizingMask) {
-			[col setResizingMask: NSTableColumnAutoresizingMask | NSTableColumnUserResizingMask];
+    int i;
+    //change all user-resizable-only columns
+    for (i=0; i<[[self tableView] numberOfColumns]; i++) {
+        NSTableColumn *col = [[[self tableView] tableColumns] objectAtIndex:i];
+        if ((originalResizingMask = [col resizingMask]) == NSTableColumnUserResizingMask) {
+            [col setResizingMask: NSTableColumnAutoresizingMask | NSTableColumnUserResizingMask];
                 [col performSelector:@selector(setResizingMaskNumber:) withObject:[NSNumber numberWithUnsignedInteger:originalResizingMask] afterDelay:0];
-		}
-	}
+        }
+    }
 	
 	[super _resizeColumn:resizedColIdx withEvent:event];
 }

@@ -415,7 +415,7 @@ static animationData* currentAnimation = NULL;
 // to call this directly.
 - (CGFloat)changeDimensionBy:(CGFloat)increment mayCollapse:(BOOL)mayCollapse move:(BOOL)move {
 	RBSplitView* sv = [self splitView];
-	if (!sv||(fabsf(increment)<1.0)) {
+	if (!sv||(fabs(increment)<1.0)) {
 		return 0.0;
 	}
 	BOOL ishor = [sv isHorizontal];
@@ -923,4 +923,3 @@ static animationData* currentAnimation = NULL;
 }
 
 @end
-

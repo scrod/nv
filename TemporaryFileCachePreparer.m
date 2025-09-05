@@ -31,8 +31,8 @@
 @implementation TemporaryFileCachePreparer
 
 static BOOL MountPointExists(const char *expectedMountPath);
-static NSString *RAMDiskMountPath();
-static NSString *TempDirectoryPathForEditing();
+static NSString *RAMDiskMountPath(void);
+static NSString *TempDirectoryPathForEditing(void);
 
 - (id)init {
 	if ([super init]) {
@@ -70,11 +70,11 @@ static BOOL MountPointExists(const char *expectedMountPath) {
 	return NO;
 }
 
-static NSString *RAMDiskMountPath() {
+static NSString *RAMDiskMountPath(void) {
 	return [NSTemporaryDirectory() stringByAppendingPathComponent:@"NVProtectedEditingSpace"];
 }
 
-static NSString *TempDirectoryPathForEditing() {
+static NSString *TempDirectoryPathForEditing(void) {
 	return [NSTemporaryDirectory() stringByAppendingPathComponent:@"NVPlainTextEditingSpace"];
 }
 

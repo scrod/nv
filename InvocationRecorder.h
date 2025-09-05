@@ -37,8 +37,9 @@
 @end
 
 @interface ComparableInvocation : NSObject {
-	NSInvocation *innerInvocation;
+    NSInvocation *innerInvocation;
 }
+- (id)initWithInvocation:(NSInvocation*)anInvocation;
 - (NSInvocation*)invocation;
 - (void)invoke;
 

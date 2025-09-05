@@ -621,7 +621,7 @@ terminate:
 		NSLog(@"notifyOfChangedTrash: error getting trash: %d", err);
 	
 	 NSString *sillyDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:[(NSString*)CreateRandomizedFileName() autorelease]];
-	 [[NSFileManager defaultManager] createDirectoryAtPath:sillyDirectory attributes:nil];
+	 [[NSFileManager defaultManager] createDirectoryAtPath:sillyDirectory withIntermediateDirectories:YES attributes:nil error:NULL];
 	 NSInteger tag = 0;
 	 [[NSWorkspace sharedWorkspace] performFileOperation:NSWorkspaceRecycleOperation source:NSTemporaryDirectory() destination:@"" 
 												   files:[NSArray arrayWithObject:[sillyDirectory lastPathComponent]] tag:&tag];

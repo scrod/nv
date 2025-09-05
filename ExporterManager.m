@@ -140,7 +140,7 @@ NSInteger storageFormat = [[formatSelectorPopup selectedItem] tag];
 		filename = [filename stringByDeletingPathExtension];
         filename = [filename stringByAppendingPathExtension:[NotationPrefs pathExtensionForFormat:(int)[[formatSelectorPopup selectedItem] tag]]];
 			
-		[savePanel beginSheetForDirectory:nil file:filename modalForWindow:window modalDelegate:self 
+		[savePanel beginSheetForDirectory:NSHomeDirectory() file:filename modalForWindow:window modalDelegate:self 
 						   didEndSelector:@selector(exportPanelDidEnd:returnCode:contextInfo:) contextInfo:[notes retain]];
 		
 	} else if ([notes count] > 1) {

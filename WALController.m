@@ -37,7 +37,7 @@
  */
 #define ELF_STEP(B) T1 = (H << 4) + B; T2 = T1 & 0xF0000000; if (T2) T1 ^= (T2 >> 24); T1 &= (~T2); H = T1;
 
-CFHashCode CFHashBytes(uint8_t *bytes, CFIndex length) {
+CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     /* The ELF hash algorithm, used in the ELF object file format */
     UInt32 H = 0, T1, T2;
     SInt32 rem = (SInt32)length;
@@ -524,7 +524,7 @@ static CFStringRef SynchronizedNoteKeyDescription(const void *value) {
 }
 static CFHashCode SynchronizedNoteHash(const void * o) {
 	
-	return CFHashBytes(o, sizeof(CFUUIDBytes));
+	return CFHashBytes((const uint8_t *)o, sizeof(CFUUIDBytes));
 }
 static Boolean SynchronizedNoteIsEqual(const void *o, const void *p) {
 	
