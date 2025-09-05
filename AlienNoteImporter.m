@@ -219,9 +219,11 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	[grabCreationDatesButton setState:[[NSUserDefaults standardUserDefaults] boolForKey:ShouldImportCreationDates]];
 	
 	[self retain];
-	
-	[openPanel beginSheetForDirectory:nil file:nil types:nil modalForWindow:mainWindow modalDelegate:self 
-					   didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:receiver];
+
+	[openPanel beginSheetModalForWindow:mainWindow completionHandler:^(NSModalResponse response) {
+		int code = (response == NSModalResponseOK) ? NSOKButton : NSCancelButton;
+		[self openPanelDidEnd:openPanel returnCode:code contextInfo:receiver];
+	}];
 }
 
 - (void)URLGetter:(URLGetter*)getter returnedDownloadedFile:(NSString*)filename {

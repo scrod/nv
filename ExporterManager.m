@@ -23,6 +23,8 @@
 
 @implementation ExporterManager
 
+@synthesize currentPanel;
+
 + (ExporterManager *)sharedManager {
 	static ExporterManager *man = nil;
 	if (!man)
@@ -37,10 +39,11 @@
 }
 
 - (IBAction)formatSelectorChanged:(id)sender {
-	NSSavePanel *panel = (NSSavePanel *)[sender window];
-	
-NSInteger storageFormat = [[formatSelectorPopup selectedItem] tag];
-        [panel setRequiredFileType:[NotationPrefs pathExtensionForFormat:(int)storageFormat]];
+    NSSavePanel *panel = self.currentPanel;
+    if (!panel) return; // Panel not yet shown or already dismissed
+
+    NSInteger storageFormat = [[formatSelectorPopup selectedItem] tag];
+    [panel setAllowedFileTypes:@[[NotationPrefs pathExtensionForFormat:(int)storageFormat]]];
 }
 
 - (void)exportPanelDidEnd:(NSSavePanel *)sheet returnCode:(int)returnCode contextInfo:(void  *)contextInfo {
@@ -128,37 +131,56 @@ NSInteger storageFormat = [[formatSelectorPopup selectedItem] tag];
 		}
 	}
 	
-	if ([notes count] == 1) {
-		NSSavePanel *savePanel = [NSSavePanel savePanel];
-		[savePanel setAccessoryView:accessoryView];
-		[savePanel setCanCreateDirectories:YES];
-		[savePanel setCanSelectHiddenExtension:YES];
-		
-		[self formatSelectorChanged:formatSelectorPopup];
-		
-		NSString *filename = filenameOfNote([notes lastObject]);
-		filename = [filename stringByDeletingPathExtension];
-        filename = [filename stringByAppendingPathExtension:[NotationPrefs pathExtensionForFormat:(int)[[formatSelectorPopup selectedItem] tag]]];
-			
-		[savePanel beginSheetForDirectory:NSHomeDirectory() file:filename modalForWindow:window modalDelegate:self 
-						   didEndSelector:@selector(exportPanelDidEnd:returnCode:contextInfo:) contextInfo:[notes retain]];
-		
-	} else if ([notes count] > 1) {
-		NSOpenPanel *openPanel = [NSOpenPanel openPanel];
-		[openPanel setAccessoryView:accessoryView];
-		[openPanel setCanCreateDirectories:YES];
-		[openPanel setCanChooseFiles:NO];
-		[openPanel setCanChooseDirectories:YES];
-		[openPanel setPrompt:NSLocalizedString(@"Export",@"title of button to export notes from folder selection dialog")];
-		[openPanel setTitle:NSLocalizedString(@"Export Notes", @"title of export notes dialog")];
-            [openPanel setMessage:[NSString stringWithFormat:NSLocalizedString(@"Choose a folder into which %lu notes will be exported",nil), (unsigned long)[notes count]]];
+    if ([notes count] == 1) {
+        NSSavePanel *savePanel = [NSSavePanel savePanel];
+        self.currentPanel = savePanel;
+        [savePanel setAccessoryView:accessoryView];
+        [savePanel setCanCreateDirectories:YES];
+        [savePanel setCanSelectHiddenExtension:YES];
 
-		[openPanel beginSheetForDirectory:nil file:nil types:nil modalForWindow:window modalDelegate:self 
-						   didEndSelector:@selector(exportPanelDidEnd:returnCode:contextInfo:) contextInfo:[notes retain]];
-	} else {
-		NSRunAlertPanel(NSLocalizedString(@"No notes were selected for exporting.",nil), 
-						NSLocalizedString(@"You must select at least one note to export.",nil), NSLocalizedString(@"OK",nil), NULL, NULL);
-	}
+        NSInteger storageFormat = [[formatSelectorPopup selectedItem] tag];
+        [savePanel setAllowedFileTypes:@[[NotationPrefs pathExtensionForFormat:(int)storageFormat]]];
+
+        NSString *filename = filenameOfNote([notes lastObject]);
+        filename = [filename stringByDeletingPathExtension];
+        filename = [filename stringByAppendingPathExtension:[NotationPrefs pathExtensionForFormat:(int)[[formatSelectorPopup selectedItem] tag]]];
+
+        [savePanel setDirectoryURL:[NSURL fileURLWithPath:NSHomeDirectory()]];
+        [savePanel setNameFieldStringValue:filename];
+
+        NSArray *retainedNotes = [notes retain];
+        [savePanel beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+            int code = (response == NSModalResponseOK) ? NSFileHandlingPanelOKButton : NSFileHandlingPanelCancelButton;
+            [self exportPanelDidEnd:savePanel returnCode:code contextInfo:(void *)retainedNotes];
+            self.currentPanel = nil;
+        }];
+
+    } else if ([notes count] > 1) {
+        NSOpenPanel *openPanel = [NSOpenPanel openPanel];
+        self.currentPanel = openPanel;
+        [openPanel setAccessoryView:accessoryView];
+        [openPanel setCanCreateDirectories:YES];
+        [openPanel setCanChooseFiles:NO];
+        [openPanel setCanChooseDirectories:YES];
+        [openPanel setPrompt:NSLocalizedString(@"Export",@"title of button to export notes from folder selection dialog")];
+        [openPanel setTitle:NSLocalizedString(@"Export Notes", @"title of export notes dialog")];
+        [openPanel setMessage:[NSString stringWithFormat:NSLocalizedString(@"Choose a folder into which %lu notes will be exported",nil), (unsigned long)[notes count]]];
+
+        NSArray *retainedNotes = [notes retain];
+        [openPanel beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+            int code = (response == NSModalResponseOK) ? NSFileHandlingPanelOKButton : NSFileHandlingPanelCancelButton;
+            [self exportPanelDidEnd:openPanel returnCode:code contextInfo:(void *)retainedNotes];
+            self.currentPanel = nil;
+        }];
+    } else {
+        NSRunAlertPanel(NSLocalizedString(@"No notes were selected for exporting.",nil), 
+                        NSLocalizedString(@"You must select at least one note to export.",nil), NSLocalizedString(@"OK",nil), NULL, NULL);
+    }
+}
+
+- (void)dealloc {
+    [currentPanel release];
+    [super dealloc];
 }
 
 @end

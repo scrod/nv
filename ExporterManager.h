@@ -20,13 +20,15 @@
 #import <Cocoa/Cocoa.h>
 
 @interface ExporterManager : NSObject {
-	IBOutlet NSView *accessoryView;
-	IBOutlet NSPopUpButton *formatSelectorPopup;
-	
+    IBOutlet NSView *accessoryView;
+    IBOutlet NSPopUpButton *formatSelectorPopup;
+    NSSavePanel *currentPanel;
 }
 
 + (ExporterManager *)sharedManager;
 - (IBAction)formatSelectorChanged:(id)sender;
 - (void)exportNotes:(NSArray*)notes forWindow:(NSWindow*)window;
+
+@property (retain) NSSavePanel *currentPanel;
 
 @end
