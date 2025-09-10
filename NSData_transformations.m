@@ -15,6 +15,7 @@
 #include "broken_md5.h"
 
 #include <unistd.h>
+#include <stdint.h>
 #include <zlib.h>
 #import <CommonCrypto/CommonCrypto.h>
 #import <WebKit/WebKit.h>
@@ -62,9 +63,10 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 							   [self bytes], [self length], level);
 		if (zlibError == Z_OK) {
 			// Add original size to the end of the buffer, written big-endian
-				*( (unsigned *) ([newData mutableBytes] + bufferLength) ) =
-	            NSSwapHostIntToBig( (unsigned)[self length] );
-			[newData setLength:bufferLength + sizeof(unsigned)];
+			// Use memcpy to avoid undefined behavior from unaligned stores
+			uint32_t origLenBE = NSSwapHostIntToBig((uint32_t)[self length]);
+			memcpy(((uint8_t *)[newData mutableBytes]) + bufferLength, &origLenBE, sizeof(origLenBE));
+			[newData setLength:bufferLength + sizeof(origLenBE)];
 		} else {
 			NSLog(@"error compressing: %s", zError(zlibError));
 			newData = nil;
@@ -82,13 +84,16 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 - (NSMutableData *) uncompressedData {
 	
 	NSMutableData *newData;
-	unsigned originalSize;
+	uint32_t originalSize;
 	unsigned long outSize;
 	int zlibError;
 	
 	newData = nil;
 	if ( [self isCompressedFormat] ) {
-		originalSize = NSSwapBigIntToHost(*((unsigned *) ([self bytes] + [self length] - sizeof(unsigned))));
+		// Read original size from the last 4 bytes (big-endian), using memcpy to avoid unaligned loads
+		uint32_t beSize = 0;
+		memcpy(&beSize, ((const uint8_t *)[self bytes]) + [self length] - sizeof(beSize), sizeof(beSize));
+		originalSize = NSSwapBigIntToHost(beSize);
 		
 		//catch the NSInvalidArgumentException that's thrown if originalSize is too large
 		NS_DURING
@@ -133,9 +138,12 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 	 *    *( (short *) bytes ) ) % 31 == 0 : the two first bytes as a whole (big endian format) must be a multiple of 31
 	 *                                       (this is discussed in the FCHECK in FLG, flags, section)
 	 */
-	if( ( *bytes & 0x0F ) == 8 && ( *bytes & 0x80 ) == 0 &&
-		NSSwapBigShortToHost( *( (short *) bytes ) ) % 31 == 0 )
-		return YES;
+	if( ( *bytes & 0x0F ) == 8 && ( *bytes & 0x80 ) == 0 ) {
+		uint16_t hdr = 0;
+		memcpy(&hdr, bytes, sizeof(hdr)); // avoid potential unaligned short load
+		if (NSSwapBigShortToHost(hdr) % 31 == 0)
+			return YES;
+	}
 	
 	return NO;
 }
@@ -290,14 +298,15 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 	BOOL foundBOM = NO;
 	BOOL swapped = NO;
 	unsigned char *b = (unsigned char*)[self bytes];
-	unichar *uptr = (unichar*)b;
+	unichar firstWord = 0;
+	memcpy(&firstWord, b, sizeof(firstWord)); // avoid potential unaligned unichar load
 	
-	if (*uptr == byteOrderMark) {
-		b = (unsigned char*)++uptr;
+	if (firstWord == byteOrderMark) {
+		b += sizeof(unichar);
 		len -= sizeof(unichar);
 		foundBOM = YES;
-	} else if (*uptr == byteOrderMarkSwapped) {
-		b = (unsigned char*)++uptr;
+	} else if (firstWord == byteOrderMarkSwapped) {
+		b += sizeof(unichar);
 		len -= sizeof(unichar);
 		swapped = YES;
 		foundBOM = YES;
