@@ -259,45 +259,6 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	}
 }
 
-- (void)drawGridInClipRect:(NSRect)clipRect {
-	//draw lines manually to avoid interfering with title-focusrings and selection highlighting on leopard+
-	if (![self dataSource]) {
-		return;
-	}
-	[NSGraphicsContext saveGraphicsState];
-    [[NSGraphicsContext currentContext] setShouldAntialias:NO];
-
-	NSBezierPath *line = [NSBezierPath bezierPath];
-    NSUInteger i;
-	
-    [[self gridColor] setStroke];
-	
-	NSIndexSet *set = [self selectedRowIndexes];
-	NSInteger editedRow = [self editedRow];
-	
-	NSRange rangeOfRows = [self rowsInRect:clipRect];
-	float yToDraw = -0.5;
-	float ySpacing = [self rowHeight] + [self intercellSpacing].height;
-	float rowRectOrigin = ySpacing * rangeOfRows.location;
-	
-	for (i = rangeOfRows.location; i < rangeOfRows.location + rangeOfRows.length; i++) {
-		//don't draw this line if it's next to a selected row, or the row after it is being edited
-		if (![set containsIndex:i] && editedRow != (NSInteger)(i+1)) {			
-			yToDraw = rowRectOrigin + ySpacing - 0.5;
-			[line moveToPoint:NSMakePoint(clipRect.origin.x, yToDraw)];
-			[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, yToDraw)];
-		}
-		rowRectOrigin += ySpacing;
-	}
-	//draw everything after the visible range of rows
-	while (rowRectOrigin < clipRect.size.height) {
-		rowRectOrigin += ySpacing;
-		[line moveToPoint:NSMakePoint(clipRect.origin.x, rowRectOrigin)];
-		[line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, rowRectOrigin)];
-	}
-	[line stroke];
-	[NSGraphicsContext restoreGraphicsState];
-}
 
 - (void)_configureAttributesForCurrentLayout {
 	BOOL horiz = [globalPrefs horizontalLayout];
