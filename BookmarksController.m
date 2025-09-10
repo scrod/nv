@@ -34,22 +34,24 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 @implementation NoteBookmark
 
 - (id)initWithDictionary:(NSDictionary*)aDict {
-	if (aDict) {
-		NSString *uuidString = [aDict objectForKey:BMNoteUUIDStringKey];
-		if (uuidString) {
-			[self initWithNoteUUIDBytes:[uuidString uuidBytes] searchString:[aDict objectForKey:BMSearchStringKey]];
-		} else {
-			NSLog(@"NoteBookmark init: supplied nil uuidString");
-		}
-	} else {
-		NSLog(@"NoteBookmark init: supplied nil dictionary; couldn't init");
-		return nil;
-	}
-	return self;
+    if (!aDict) {
+        NSLog(@"NoteBookmark init: supplied nil dictionary; couldn't init");
+        [self release];
+        return nil;
+    }
+    NSString *uuidString = [aDict objectForKey:BMNoteUUIDStringKey];
+    if (!uuidString) {
+        NSLog(@"NoteBookmark init: supplied nil uuidString");
+        [self release];
+        return nil;
+    }
+    return [self initWithNoteUUIDBytes:[uuidString uuidBytes]
+                         searchString:[aDict objectForKey:BMSearchStringKey]];
 }
 
 - (id)initWithNoteUUIDBytes:(CFUUIDBytes)bytes searchString:(NSString*)aString {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		uuidBytes = bytes;
 		searchString = [aString copy];
 	}
@@ -59,7 +61,8 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 
 - (id)initWithNoteObject:(NoteObject*)aNote searchString:(NSString*)aString {
 	
-	if ([super init] && aNote) {
+	self = [super init];
+	if (self && aNote) {
 		noteObject = [aNote retain];
 		searchString = [aString copy];
 		
@@ -138,7 +141,8 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 @implementation BookmarksController
 
 - (id)init {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		bookmarks = [[NSMutableArray alloc] init];
 		isSelectingProgrammatically = isRestoringSearch = NO;
 		
@@ -171,7 +175,8 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (id)initWithBookmarks:(NSArray*)array {
-	if ([self init]) {
+	self = [self init];
+	if (self) {
 		unsigned int i;
 		for (i=0; i<[array count]; i++) {
 			NSDictionary *dict = [array objectAtIndex:i];

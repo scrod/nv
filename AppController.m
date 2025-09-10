@@ -71,7 +71,8 @@
 //an instance of this class is designated in the nib as the delegate of the window, nstextfield and two nstextviews
 
 - (id)init {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		
 		windowUndoManager = [[NSUndoManager alloc] init];
 

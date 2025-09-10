@@ -23,7 +23,8 @@
 	if (!aUrl || [aUrl isFileURL]) {
 		return nil;
 	}
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		maxExpectedByteCount = 0;
 		isImporting = isIndicating = NO;
 		delegate = aDelegate;

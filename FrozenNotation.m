@@ -29,6 +29,8 @@
 @implementation FrozenNotation
 
 - (id)initWithCoder:(NSCoder*)decoder {
+	self = [super init];
+	if (!self) return nil;
 	if ([decoder containsValueForKey:VAR_STR(prefs)]) {
 		prefs = [[decoder decodeObjectForKey:VAR_STR(prefs)] retain];
 		notesData = [[decoder decodeObjectForKey:VAR_STR(notesData)] retain];
@@ -56,7 +58,8 @@
 
 - (id)initWithNotes:(NSMutableArray*)notes deletedNotes:(NSMutableSet*)antiNotes prefs:(NotationPrefs*)somePrefs {
 	
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 
 		notesData = [[NSMutableData alloc] init];
 		NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initForWritingWithMutableData:notesData];

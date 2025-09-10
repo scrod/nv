@@ -230,8 +230,9 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		return nil;
 	}
 	
-	if ([self initWithUsername:[[prefs syncAccountForServiceName:SimplenoteServiceName] objectForKey:@"username"] 
-				   andPassword:[prefs syncPasswordForServiceName:SimplenoteServiceName]]) {
+    self = [self initWithUsername:[[prefs syncAccountForServiceName:SimplenoteServiceName] objectForKey:@"username"] 
+                   andPassword:[prefs syncPasswordForServiceName:SimplenoteServiceName]];
+    if (self) {
 		
 		//create a reachability ref to trigger a sync upon network reestablishment
 		reachableRef = [[self class] createReachabilityRefWithCallback:SNReachabilityCallback target:self];
@@ -242,8 +243,9 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 }
 
 - (id)initWithUsername:(NSString*)aUserString andPassword:(NSString*)aPassString {
-	
-	if ([super init]) {
+    
+	self = [super init];
+	if (self) {
 		lastSyncedTime = 0.0;
 		reachabilityFailed = NO;
 

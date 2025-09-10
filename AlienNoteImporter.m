@@ -50,7 +50,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 @implementation AlienNoteImporter
 
 - (id)init {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		shouldGrabCreationDates = NO;
 		documentSettings = [[NSMutableDictionary alloc] init];
 	}
@@ -100,7 +101,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 }
 
 - (id)initWithStoragePaths:(NSArray*)filenames {
-	if ([self init]) {
+	self = [self init];
+	if (self) {
 		if ((source = [filenames retain])) {
 		
 			importerSelector = @selector(notesWithPaths:);
@@ -113,7 +115,8 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 }
 
 - (id)initWithStoragePath:(NSString*)filename {
-	if ([self init]) {
+	self = [self init];
+	if (self) {
 		if ((source = [filename retain])) {
 			
 			//auto-detect based on bundle/extension/metadata

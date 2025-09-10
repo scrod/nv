@@ -31,7 +31,8 @@
 }
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		notationPrefs = [prefs retain];
 		
 	}

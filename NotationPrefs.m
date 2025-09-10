@@ -57,7 +57,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 }
 
 - (id)init {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		allowedTypes = NULL;
 		
 		unsigned int i;
@@ -87,7 +88,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 }
 
 - (id)initWithCoder:(NSCoder*)decoder {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		NSAssert([decoder allowsKeyedCoding], @"Keyed decoding only!");
 		
 		//if we're initializing from an archive, we've obviously been run at least once before

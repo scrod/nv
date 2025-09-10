@@ -60,11 +60,12 @@
 }
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs {
-	if ([super init]) {
+    self = [super init];
+    if (self) {
 		notationPrefs = [prefs retain];
 		
 	}
-	return self;
+    return self;
 }
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];

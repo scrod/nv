@@ -44,7 +44,8 @@
 @implementation NotationController
 
 - (id)init {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		directoryChangesFound = notesChanged = aliasNeedsUpdating = NO;
 		
 		allNotes = [[NSMutableArray alloc] init]; //<--the authoritative list of all memory-accessible notes
@@ -94,7 +95,8 @@
 	Boolean changed;
 	
 	if ((anErr = FSResolveAliasWithMountFlags(NULL, aliasHandle, &targetRef, &changed, 0)) == noErr) {
-	    if ([self initWithDirectoryRef:&targetRef error:&anErr]) {
+	    self = [self initWithDirectoryRef:&targetRef error:&anErr];
+	    if (self) {
 		aliasNeedsUpdating = changed;
 		*err = noErr;
 		
@@ -114,7 +116,8 @@
     OSStatus anErr = noErr;
     if ((anErr = [NotationController getDefaultNotesDirectoryRef:&targetRef]) == noErr) {
 		
-		if ([self initWithDirectoryRef:&targetRef error:&anErr]) {
+		self = [self initWithDirectoryRef:&targetRef error:&anErr];
+		if (self) {
 			*err = noErr;
 			return self;
 		}
@@ -129,7 +132,8 @@
     
     *err = noErr;
     
-    if ([self init]) {
+    self = [self init];
+    if (self) {
 		aliasNeedsUpdating = YES; //we don't know if we have an alias yet
 		
 		noteDirectoryRef = *directoryRef;

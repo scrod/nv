@@ -59,7 +59,8 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (id)init {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		didAwakeFromNib = NO;
 		notationPrefs = [[[GlobalPrefs defaultPrefs] notationPrefs] retain];
 		

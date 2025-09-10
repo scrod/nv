@@ -33,7 +33,8 @@
 @implementation PrefsWindowController
 
 - (id)init {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		prefsController = [GlobalPrefs defaultPrefs];
 		fontPanelWasOpen = NO;
 		

@@ -60,7 +60,8 @@ static void setAttrModifiedDate(NoteObject *note, UTCDateTime *dateTime);
 static void setCatalogNodeID(NoteObject *note, UInt32 cnid);
 
 - (id)init {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 	
 		perDiskInfoGroups = calloc(1, sizeof(PerDiskInfo));
 		perDiskInfoGroups[0].diskIDIndex = -1;
@@ -324,7 +325,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 #define DECODE_INDIVIDUALLY 1
 
 - (id)initWithCoder:(NSCoder*)decoder {
-	if ([self init]) {
+	self = [self init];
+	if (self) {
 		
 		if ([decoder allowsKeyedCoding]) {
 			//(hopefully?) no versioning necessary here
@@ -508,7 +510,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 - (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID labels:(NSString*)aLabelString {
 	//delegate optional here
-    if ([self init]) {
+    self = [self init];
+    if (self) {
 		
 		if (!bodyText || !aNoteTitle) {
 			return nil;
@@ -552,7 +555,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 - (id)initWithCatalogEntry:(NoteCatalogEntry*)entry delegate:(id)aDelegate {
 	NSAssert(aDelegate != nil, @"must supply a delegate");
-    if ([self init]) {
+    self = [self init];
+    if (self) {
 		delegate = aDelegate;
 		filename = [(NSString*)entry->filename copy];
 		currentFormatID = [delegate currentNoteStorageFormat];
@@ -1644,7 +1648,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			}
 			break;
 		case RTFTextFormat:
-			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:nil];
+			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:@{}];
 			break;
 		case HTMLFormat:
 			formattedData = [contentMinusColor dataFromRange:NSMakeRange(0, [contentMinusColor length]) 

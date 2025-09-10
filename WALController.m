@@ -70,7 +70,8 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 @implementation WALController
 
 - (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		logFD = -1;
 		
 		char filename[] = "Interim Note-Changes";
@@ -157,7 +158,8 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 
 - (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
-    if ([super initWithParentFSRep:path encryptionKey:key]) {
+    self = [super initWithParentFSRep:path encryptionKey:key];
+    if (self) {
 	
 	//we could make parent dir writable just in case, but that might be a security hazard depending on ownership
 	//chmod(path, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -373,7 +375,8 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 //if that works, then remove the log file
 
 - (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
-    if ([super initWithParentFSRep:path encryptionKey:key]) {
+    self = [super initWithParentFSRep:path encryptionKey:key];
+    if (self) {
 	fileLength = totalBytesRead = 0;
 	
 	//make file readable just in case

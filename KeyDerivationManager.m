@@ -24,21 +24,22 @@
 @implementation KeyDerivationManager
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs {
-	notationPrefs = [prefs retain];
-	
-	//compute initial test duration for the current iteration number
-	crapData = [[@"random crap" dataUsingEncoding:NSASCIIStringEncoding] retain];
-	crapSalt = [[NSData randomDataOfLength:256] retain];
-	
-	lastHashIterationCount = [notationPrefs hashIterationCount];
-	lastHashDuration = [self delayForHashIterations:lastHashIterationCount];
-	
-	if (![self init]) {
-		[self release];
-		return nil;
-	}
-		
-	return self;
+    self = [self init];
+    if (!self) return nil;
+
+    notationPrefs = [prefs retain];
+    crapData = [[@"random crap" dataUsingEncoding:NSASCIIStringEncoding] retain];
+    crapSalt = [[NSData randomDataOfLength:256] retain];
+
+    lastHashIterationCount = [notationPrefs hashIterationCount];
+    lastHashDuration = [self delayForHashIterations:lastHashIterationCount];
+
+    // Update controls now that values are finalized.
+    [slider setDoubleValue:lastHashDuration];
+    [self updateToolTip];
+    [self sliderChanged:slider];
+
+    return self;
 }
 
 - (void)awakeFromNib {
@@ -54,17 +55,17 @@
 }
 
 - (id)init {
-	if ([super init]) {
-		if (!view) {
-			if (![NSBundle loadNibNamed:@"KeyDerivationManager" owner:self])  {
-				NSLog(@"Failed to load KeyDerivationManager.nib");
-				NSBeep();
-				return nil;
-			}
-		}
-	}
-		
-	return self;
+    self = [super init];
+    if (self) {
+        if (!view) {
+            if (![NSBundle loadNibNamed:@"KeyDerivationManager" owner:self])  {
+                NSLog(@"Failed to load KeyDerivationManager.nib");
+                NSBeep();
+                return nil;
+            }
+        }
+    }
+    return self;
 }
 
 - (void)dealloc {

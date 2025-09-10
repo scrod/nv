@@ -18,20 +18,23 @@ static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 
 @implementation SavedSearch
 
-- (id)initWithDictionary:(NSDictionary*)aDict {
-	if (aDict && [self initWithSearchString:[aDict objectForKey:SSSearchStringKey]]) {
+ - (id)initWithDictionary:(NSDictionary*)aDict {
+    if (aDict) {
+        self = [self initWithSearchString:[aDict objectForKey:SSSearchStringKey]];
+        if (!self) return nil;
 
-		uuidBytes = [[aDict objectForKey:SSSelectedNoteUUIDStringKey] uuidBytes];
-	} else {
-		NSLog(@"SavedSearch: Supplied dictionary: %@; couldn't init", aDict);
-		return nil;
-	}
-	return self;
+        	uuidBytes = [[aDict objectForKey:SSSelectedNoteUUIDStringKey] uuidBytes];
+    } else {
+        NSLog(@"SavedSearch: Supplied dictionary: %@; couldn't init", aDict);
+        return nil;
+    }
+    return self;
 }
-- (id)initWithSearchString:(NSString*)aString {
-	if ([super init] && aString) {
-		searchString = [aString copy];
-		needsMenuUpdate = NO;
+ - (id)initWithSearchString:(NSString*)aString {
+    self = [super init];
+    if (self && aString) {
+        searchString = [aString copy];
+        needsMenuUpdate = NO;
 		
 		lowercaseSearchString = [[searchString lowercaseString] retain];
 		hashValue = [lowercaseSearchString hash];
@@ -109,16 +112,17 @@ static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 
 @implementation SavedSearchesController
 
-- (id)init {
-	if ([super init]) {
-		searches = [[NSMutableArray alloc] init];
-		searchSet = [[NSMutableSet alloc] init];
-		isSelectingProgrammatically = isRestoringSearch = NO;
-		
-		prefsController = [GlobalPrefs defaultPrefs];
-		autosaveNotesForSavedSearches = [prefsController autosaveNotesForSavedSearches];
-	}
-	return self;
+ - (id)init {
+    self = [super init];
+    if (self) {
+        searches = [[NSMutableArray alloc] init];
+        searchSet = [[NSMutableSet alloc] init];
+        isSelectingProgrammatically = isRestoringSearch = NO;
+
+        prefsController = [GlobalPrefs defaultPrefs];
+        autosaveNotesForSavedSearches = [prefsController autosaveNotesForSavedSearches];
+    }
+    return self;
 }
 
 - (void)awakeFromNib {
@@ -138,10 +142,11 @@ static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 	[super dealloc];
 }
 
-- (id)initWithSearches:(NSArray*)array {
-	if ([self init]) {
-		unsigned int i;
-		for (i=0; i<[array count]; i++) {
+ - (id)initWithSearches:(NSArray*)array {
+    self = [self init];
+    if (self) {
+        unsigned int i;
+        for (i=0; i<[array count]; i++) {
 			NSDictionary *dict = [array objectAtIndex:i];
 			SavedSearch *search = [[SavedSearch alloc] initWithDictionary:dict];
 			[search setDelegate:self];

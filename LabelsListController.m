@@ -31,8 +31,10 @@
 
 @implementation LabelsListController
 
+
 - (id)init {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 	    
 	    allLabels = [[NSCountedSet alloc] init]; //authoritative
 	    //for faster(?) filtering during search
@@ -40,7 +42,7 @@
 		
 	    removeIndicies = NULL;
 	}
-	
+
 	return self;
 }
 

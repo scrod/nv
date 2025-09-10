@@ -29,7 +29,8 @@
 @implementation LabelObject
 
 - (id)initWithTitle:(NSString*)name {
-    if ([super init]) {
+    self = [super init];
+    if (self) {
 		labelName = [name retain];
 		lowercaseName = [[name lowercaseString] retain];
 	

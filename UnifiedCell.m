@@ -26,7 +26,8 @@
 @implementation UnifiedCell
 
 - (id)init {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 
 		//should be handled by NSParagraphStyle in our string, as it is more complex than this
 //		[self setLineBreakMode:NSLineBreakByTruncatingTail];

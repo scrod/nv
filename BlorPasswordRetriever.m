@@ -32,7 +32,8 @@
 @implementation BlorPasswordRetriever
 
 - (id)initWithBlor:(NSString*)blorPath {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		path = [blorPath retain];
 		
 		couldRetrieveFromKeychain = NO;
@@ -173,7 +174,8 @@
 @implementation BlorNoteEnumerator
 
 - (id)initWithBlor:(NSString*)blorPath passwordHashData:(NSData*)passwordHashData {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		path = [blorPath retain];
 		
 		if (!(keyData = [passwordHashData retain]))

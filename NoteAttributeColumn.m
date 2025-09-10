@@ -31,7 +31,8 @@
 
 - (id)initWithIdentifier:(id)anObject {
 	
-	if ([super initWithIdentifier:anObject]) {
+	self = [super initWithIdentifier:anObject];
+	if (self) {
 
 		absoluteMinimumWidth = [anObject sizeWithAttributes:[NoteAttributeColumn standardDictionary]].width + 5;
 		[self setMinWidth:absoluteMinimumWidth];

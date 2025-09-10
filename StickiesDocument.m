@@ -44,7 +44,8 @@
 */
 
 - (id)initWithCoder:(id)decoder {
-	[super init];
+	self = [super init];
+	if (!self) return nil;
 	
 	mRTFDData = [[decoder decodeObject] retain];
 	[decoder decodeValueOfObjCType:@encode(int) at:&mWindowFlags];

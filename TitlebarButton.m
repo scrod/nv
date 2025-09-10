@@ -26,7 +26,8 @@
 @implementation TitlebarButtonCell
 
 - (id)initTextCell:(NSString *)stringValue pullsDown:(BOOL)pullDown {
-	if ([super initTextCell:stringValue pullsDown:pullDown]) {
+	self = [super initTextCell:stringValue pullsDown:pullDown];
+	if (self) {
 		[self setBordered:NO];
 		[self setArrowPosition:NSPopUpNoArrow];
 	}
@@ -138,7 +139,8 @@
 }
 
 - (id)initWithFrame:(NSRect)frameRect pullsDown:(BOOL)flag {
-	if ([super initWithFrame:NSMakeRect(frameRect.origin.x, frameRect.origin.y, 17.0, 17.0) pullsDown:flag]) {
+	self = [super initWithFrame:NSMakeRect(frameRect.origin.x, frameRect.origin.y, 17.0, 17.0) pullsDown:flag];
+	if (self) {
 		
 		TitlebarButtonCell *buttonCell = [[[TitlebarButtonCell alloc] initTextCell:@"" pullsDown:flag] autorelease];
 		[buttonCell setAction:[[self cell] action]];

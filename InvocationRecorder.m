@@ -71,7 +71,8 @@
 @implementation ComparableInvocation 
 
 - (id)initWithInvocation:(NSInvocation*)anInvocation {
-	if ([super init]) {
+	self = [super init];
+	if (self) {
 		if (!(innerInvocation = [anInvocation retain]))
 			return nil;
 	}
