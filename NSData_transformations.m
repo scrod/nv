@@ -19,6 +19,7 @@
 #include <zlib.h>
 #import <CommonCrypto/CommonCrypto.h>
 #import <WebKit/WebKit.h>
+#import <Security/Security.h>
 
 NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 	NSData *output = nil;
@@ -149,29 +150,14 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 }
 
 + (NSMutableData *)randomDataOfLength:(int)len {
-	NSMutableData *randomData = nil;
-	ssize_t amtRead = 0, oneRead;
-	NSFileHandle *devRandom = [ NSFileHandle fileHandleForReadingAtPath:@"/dev/random" ];
-	
-	if(devRandom != nil) {
-		randomData = [NSMutableData dataWithLength:len];
-		while (amtRead < len) {
-			
-			//read mutable data
-			oneRead = read( [ devRandom fileDescriptor ], [ randomData mutableBytes ],
-							len - amtRead );
-			if (oneRead <= 0 && ( errno != EINTR && errno != EAGAIN ) ) {
-				
-				NSLog(@"random data read error: %s", strerror(errno));
-				randomData = nil;
-				break;
-			}
-			amtRead += oneRead;
-		}
-		[devRandom closeFile];
-	} else
-		NSLog(@"error opening /dev/random");
-	
+	if (len <= 0) return [NSMutableData data];
+
+	NSMutableData *randomData = [NSMutableData dataWithLength:(NSUInteger)len];
+	OSStatus status = SecRandomCopyBytes(kSecRandomDefault, (size_t)len, [randomData mutableBytes]);
+	if (status != errSecSuccess) {
+		NSLog(@"SecRandomCopyBytes failed (status=%d)", (int)status);
+		return nil;
+	}
 	return randomData;
 }
 
