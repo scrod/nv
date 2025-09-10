@@ -1,5 +1,6 @@
 # Xcode user-settings files
 build/*
+DerivedData/*
 *.pbxuser
 *.mode1v3
 *.mode1
