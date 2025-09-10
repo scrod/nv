@@ -62,7 +62,7 @@ static const unsigned char gsToLowerMap[256] = {
 #define MAX(A,B)	({ __typeof__(A) __a = (A); __typeof__(B) __b = (B); __a < __b ? __b : __a; })
 #endif
 
-static u_int32_t u8_nextchar(const char *s, size_t *i);
+static u_int32_t u8_nextchar(const char *s, size_t *i, size_t len);
 
 char *replaceString(char *oldString, const char *newString) {
     size_t newLen = strlen(newString) + 1;
@@ -98,45 +98,50 @@ int IsZeros(const void *s1, size_t n) {
 }
 
 void modp_tolower_copy(char* dest, const char* str, int len) {
-	int i;
-	NSUInteger eax, ebx;
-	const uint8_t* ustr = (const uint8_t*) str;
-	const int leftover = len % sizeof(NSUInteger);
-	const int imax = len / sizeof(NSUInteger);
-	const NSUInteger* s = (const NSUInteger*) str;
-	NSUInteger* d = (NSUInteger*) dest;
-	for (i = 0; i != imax; ++i) {
-		eax = s[i];
-		/*
-		 * This is based on the algorithm by Paul Hsieh
-		 * http://www.azillionmonkeys.com/qed/asmexample.html
-		 */
+    int i;
+    const uint8_t* ustr = (const uint8_t*) str;
+    const int leftover = len % sizeof(NSUInteger);
+    const int imax = len / sizeof(NSUInteger);
+
+    // Process word-sized chunks without assuming alignment (use memcpy)
+    const char* sp = str;
+    char* dp = dest;
+    for (i = 0; i != imax; ++i) {
+        NSUInteger eax, ebx;
+        memcpy(&eax, sp, sizeof(NSUInteger));
+        /*
+         * This is based on the algorithm by Paul Hsieh
+         * http://www.azillionmonkeys.com/qed/asmexample.html
+         */
 #if __LP64__ || NS_BUILD_32_LIKE_64
-		ebx = (0x7f7f7f7f7f7f7f7fllu & eax) + 0x2525252525252525llu;
-		ebx = (0x7f7f7f7f7f7f7f7fllu & ebx) + 0x1a1a1a1a1a1a1a1allu;
-		ebx = ((ebx & ~eax) >> 2)  & 0x2020202020202020llu;
+        ebx = (0x7f7f7f7f7f7f7f7fllu & eax) + 0x2525252525252525llu;
+        ebx = (0x7f7f7f7f7f7f7f7fllu & ebx) + 0x1a1a1a1a1a1a1a1allu;
+        ebx = ((ebx & ~eax) >> 2)  & 0x2020202020202020llu;
 #else
-		ebx = (0x7f7f7f7fu & eax) + 0x25252525u;
-		ebx = (0x7f7f7f7fu & ebx) + 0x1a1a1a1au;
-		ebx = ((ebx & ~eax) >> 2)  & 0x20202020u;
+        ebx = (0x7f7f7f7fu & eax) + 0x25252525u;
+        ebx = (0x7f7f7f7fu & ebx) + 0x1a1a1a1au;
+        ebx = ((ebx & ~eax) >> 2)  & 0x20202020u;
 #endif
-		*d++ = eax + ebx;
-	}
-	
-	i = imax * sizeof(NSUInteger);
-	dest = (char*) d;
-	switch (leftover) {
+        NSUInteger out = eax + ebx;
+        memcpy(dp, &out, sizeof(NSUInteger));
+        sp += sizeof(NSUInteger);
+        dp += sizeof(NSUInteger);
+    }
+
+    i = imax * (int)sizeof(NSUInteger);
+    dest = dp;
+    switch (leftover) {
 #if __LP64__ || NS_BUILD_32_LIKE_64
-		case 7: *dest++ = (char) gsToLowerMap[ustr[i++]];
-		case 6: *dest++ = (char) gsToLowerMap[ustr[i++]];
-		case 5: *dest++ = (char) gsToLowerMap[ustr[i++]];
-		case 4: *dest++ = (char) gsToLowerMap[ustr[i++]];			
+        case 7: *dest++ = (char) gsToLowerMap[ustr[i++]];
+        case 6: *dest++ = (char) gsToLowerMap[ustr[i++]];
+        case 5: *dest++ = (char) gsToLowerMap[ustr[i++]];
+        case 4: *dest++ = (char) gsToLowerMap[ustr[i++]];
 #endif
-		case 3: *dest++ = (char) gsToLowerMap[ustr[i++]];
-		case 2: *dest++ = (char) gsToLowerMap[ustr[i++]];
-		case 1: *dest++ = (char) gsToLowerMap[ustr[i]];
-		case 0: *dest = '\0';
-	}
+        case 3: *dest++ = (char) gsToLowerMap[ustr[i++]];
+        case 2: *dest++ = (char) gsToLowerMap[ustr[i++]];
+        case 1: *dest++ = (char) gsToLowerMap[ustr[i]];
+        case 0: *dest = '\0';
+    }
 }
 
 static const u_int32_t offsetsFromUTF8[6] = {
@@ -146,19 +151,30 @@ static const u_int32_t offsetsFromUTF8[6] = {
 
 #define isutf(c) (((c)&0xC0)!=0x80)
 
-/* reads the next utf-8 sequence out of a string, updating an index */
-static force_inline u_int32_t u8_nextchar(const char *s, size_t *i) {
-	u_int32_t ch = 0;
-	size_t sz = 0;
-	
-	do {
-		ch <<= 6;
-		ch += (unsigned char)s[(*i)];
-		sz++;
-	} while (s[*i] && (++(*i)) && !isutf(s[*i]));
-	ch -= offsetsFromUTF8[sz-1];
-	
-	return ch;
+/* reads the next utf-8 sequence out of a string, updating an index; never reads beyond len */
+static force_inline u_int32_t u8_nextchar(const char *s, size_t *i, size_t len) {
+    u_int32_t ch = 0;
+    size_t sz = 0;
+
+    if (*i >= len) return 0;
+
+    for (;;) {
+        ch <<= 6;
+        ch += (unsigned char)s[*i];
+        sz++;
+
+        // If next byte would be out of range, advance once and stop
+        if (*i + 1 >= len) { (*i)++; break; }
+
+        // If next byte starts a new UTF-8 sequence or is NUL, advance and stop
+        if (!s[*i + 1] || isutf(s[*i + 1])) { (*i)++; break; }
+
+        // Otherwise, consume continuation byte and continue
+        (*i)++;
+    }
+    ch -= offsetsFromUTF8[sz - 1];
+
+    return ch;
 }
 
 
@@ -170,8 +186,8 @@ void replace_breaks_utf8(char *s, size_t up_to_len) {
 	size_t i = 0, lasti = 0;
 	u_int32_t c;
 	
-	while (i < up_to_len && s[i]) {
-		c = u8_nextchar(s, &i);
+    while (i < up_to_len && s[i]) {
+        c = u8_nextchar(s, &i, up_to_len);
 		
 		//get rid of any kind of funky whitespace-esq character
 		if (c == 0x0009 || c == 0x000a || c == 0x000d || c == 0x0003 || c == 0x2029 || c == 0x2028 || c == 0x000c) {
@@ -214,32 +230,32 @@ int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint
 
 
 int ContainsHighAscii(const void *s1, size_t n) {
-	
-	register NSUInteger *intBuffer = (NSUInteger*)s1;
-	register NSUInteger i, integerCount = n/sizeof(NSUInteger);	
-	register NSUInteger pattern = 
+    // Check in word-sized chunks without requiring alignment
+    register NSUInteger i, integerCount = n/sizeof(NSUInteger);
+    register NSUInteger pattern =
 #if __LP64__ || NS_BUILD_32_LIKE_64
-	0x8080808080808080;
+    0x8080808080808080;
 #else
-	0x80808080;
+    0x80808080;
 #endif
-	
-	for (i=0; i<integerCount; i++ ) {
-		if (pattern & intBuffer[i]) {
-			return 1;
-		}
-	}
-	
-	unsigned char *charBuffer = (unsigned char*)s1;
-	NSUInteger leftOverCharCount = n % sizeof(NSUInteger);
-	
-	for (i = n - leftOverCharCount; i<n; i++) {
-		if (charBuffer[i] > 127) {
-			return 1;
-		}
-	}
-	
-	return 0;
+    const unsigned char* base = (const unsigned char*)s1;
+    for (i = 0; i < integerCount; i++) {
+        NSUInteger chunk;
+        memcpy(&chunk, base + i * sizeof(NSUInteger), sizeof(NSUInteger));
+        if (pattern & chunk) {
+            return 1;
+        }
+    }
+
+    const unsigned char *charBuffer = (const unsigned char*)s1;
+    NSUInteger leftOverCharCount = n % sizeof(NSUInteger);
+    for (i = n - leftOverCharCount; i < n; i++) {
+        if (charBuffer[i] > 127) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 CFStringRef CFStringFromBase10Integer(int quantity) {

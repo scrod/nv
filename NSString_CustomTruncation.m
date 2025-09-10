@@ -67,12 +67,13 @@ static size_t EstimatedCharCountForWidth(float upToWidth);
 		}
 	}
 replace:
-	//if bodyPreviewBuffer is a UTF-8 encoded string, then examine the string one UTF-8 sequence at a time to catch multi-byte breaks
-	if (bodyPreviewEncoding == kCFStringEncodingUTF8) {
-		replace_breaks_utf8(bodyPreviewBuffer, bodyCharCount);
-	} else {
-		replace_breaks(bodyPreviewBuffer, bodyCharCount);
-	}
+    // If bodyPreviewBuffer is a UTF-8 encoded string, examine one UTF-8 sequence at a time.
+    // Use the actual number of bytes produced (usedBufLen) to avoid scanning past valid data.
+    if (bodyPreviewEncoding == kCFStringEncodingUTF8) {
+        replace_breaks_utf8(bodyPreviewBuffer, (size_t)usedBufLen);
+    } else {
+        replace_breaks(bodyPreviewBuffer, (size_t)usedBufLen);
+    }
 	
 	NSString* truncatedBodyString = [[NSString alloc] initWithBytesNoCopy:bodyPreviewBuffer length:usedBufLen 
 																 encoding:CFStringConvertEncodingToNSStringEncoding(bodyPreviewEncoding) freeWhenDone:YES];
