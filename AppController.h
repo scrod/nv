@@ -33,12 +33,17 @@
 @class RBSplitSubview;
 @class TitlebarButton;
 @class LinearDividerShader;
+@class TagEditingManager;
 
 @interface AppController : NSObject 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
 <NSToolbarDelegate, NSTableViewDelegate, NSWindowDelegate, NSTextFieldDelegate, NSTextViewDelegate>
 #endif
 {
+    // Multitagging support
+    TagEditingManager *tagEditor;
+    BOOL isAutocompleting;
+    BOOL wasDeleting;
     IBOutlet DualField *field;
 	IBOutlet RBSplitSubview *splitSubview;
 	IBOutlet RBSplitView *splitView;
@@ -97,6 +102,7 @@ void outletObjectAwoke(id sender);
 - (IBAction)editNoteExternally:(id)sender;
 - (IBAction)printNote:(id)sender;
 - (IBAction)tagNote:(id)sender;
+- (IBAction)multiTag:(id)sender;
 - (IBAction)importNotes:(id)sender;
 - (IBAction)switchViewLayout:(id)sender;
 

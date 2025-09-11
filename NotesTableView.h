@@ -99,6 +99,9 @@ typedef struct _ViewLocationContext {
 - (id)labelsListSource;
 - (void)setLabelsListSource:(id)labelsSource;
 
+// Provides tag completions for an arbitrary tag string (used by multitag panel)
+- (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(NSInteger)index;
+
 @end
 
 @interface NSTableView (Private)

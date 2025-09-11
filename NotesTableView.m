@@ -1008,6 +1008,40 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 }
 
 
+// Shared completions logic for multitag panel (raw string input)
+- (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(NSInteger)index{
+    NSRange charRange = [fieldString rangeOfString:fieldString];
+    NSArray *tags = [NSArray arrayWithObject:@""];
+    if (charRange.location != NSNotFound) {
+        if (!IsLeopardOrLater)
+            goto getCompletions;
+
+        NSCharacterSet *set = [NSCharacterSet labelSeparatorCharacterSet];
+        NSString *str = fieldString;
+#define CharIndexIsMember(__index) ([set characterIsMember:[str characterAtIndex:(__index)]])
+
+        BOOL hasLChar = charRange.location > 0;
+        BOOL hasRChar = NSMaxRange(charRange) < [str length];
+
+        //suggest tags only if the suggestion-range borders a tag-separating character; if at the end/beginning of a string, check the other side
+        if (NSEqualRanges(charRange, NSMakeRange(0, [str length])) ||
+            (hasLChar && hasRChar && CharIndexIsMember(charRange.location - 1) && CharIndexIsMember(NSMaxRange(charRange))) ||
+            (hasLChar && NSMaxRange(charRange) == [str length] && CharIndexIsMember(charRange.location - 1)) ||
+            (hasRChar && charRange.location == 0 && CharIndexIsMember(NSMaxRange(charRange)))) {
+
+        getCompletions:
+            {
+                NSSet *existingWordSet = [NSSet setWithArray:[fieldString labelCompatibleWords]];
+                tags = [labelsListSource labelTitlesPrefixedByString:[fieldString substringWithRange:charRange]
+                                               indexOfSelectedItem:&index minusWordSet:existingWordSet];
+
+            }
+        }
+    }
+    return tags;
+}
+
+
 - (BOOL)eventIsTagEdit:(NSEvent*)event forColumn:(NSInteger)columnIndex row:(NSInteger)rowIndex {
 	//is it a mouse event? is it within the tags area?
 	//is it a keyboard event? is it command-shift-t?

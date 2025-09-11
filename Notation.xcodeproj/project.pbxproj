@@ -154,6 +154,8 @@
 		21DB407E12D5383F0057F52B /* IBeamInverted.png in Resources */ = {isa = PBXBuildFile; fileRef = 21DB407D12D5383F0057F52B /* IBeamInverted.png */; };
 		21DB4BE612DE4E3D0057F52B /* NSString_CustomTruncation.m in Sources */ = {isa = PBXBuildFile; fileRef = 21DB4BE512DE4E3D0057F52B /* NSString_CustomTruncation.m */; };
 		21DC788F097894B600E59B09 /* NSCollection_utils.m in Sources */ = {isa = PBXBuildFile; fileRef = 21DC788E097894B600E59B09 /* NSCollection_utils.m */; };
+		21DEA49A2E73563C009413FF /* TagEditingManager.xib in Resources */ = {isa = PBXBuildFile; fileRef = 21DEA4912E73563C009413FF /* TagEditingManager.xib */; };
+		21DEA4AD2E7356FA009413FF /* TagEditingManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21DEA4AB2E7356FA009413FF /* TagEditingManager.m */; };
 		21DF19B210D172F600543C35 /* DFCapRightInactive.png in Resources */ = {isa = PBXBuildFile; fileRef = 21DF19AE10D172F600543C35 /* DFCapRightInactive.png */; };
 		21DF19B310D172F600543C35 /* DFCapRight.png in Resources */ = {isa = PBXBuildFile; fileRef = 21DF19AF10D172F600543C35 /* DFCapRight.png */; };
 		21DF19B410D172F600543C35 /* DFCapLeftRoundedInactive.png in Resources */ = {isa = PBXBuildFile; fileRef = 21DF19B010D172F600543C35 /* DFCapLeftRoundedInactive.png */; };
@@ -418,6 +420,16 @@
 		21DB4BE512DE4E3D0057F52B /* NSString_CustomTruncation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSString_CustomTruncation.m; sourceTree = "<group>"; };
 		21DC788D097894B600E59B09 /* NSCollection_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSCollection_utils.h; sourceTree = "<group>"; };
 		21DC788E097894B600E59B09 /* NSCollection_utils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSCollection_utils.m; sourceTree = "<group>"; };
+		21DEA4922E73563C009413FF /* fr */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = fr; path = fr.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA4932E73563C009413FF /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh_CN; path = zh_CN.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA4942E73563C009413FF /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA4952E73563C009413FF /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA4962E73563C009413FF /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA4972E73563C009413FF /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA4982E73563C009413FF /* pt-PT */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = "pt-PT"; path = "pt-PT.lproj/TagEditingManager.xib"; sourceTree = "<group>"; };
+		21DEA4992E73563C009413FF /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA4AB2E7356FA009413FF /* TagEditingManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TagEditingManager.m; sourceTree = "<group>"; };
+		21DEA4AC2E7356FA009413FF /* TagEditingManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TagEditingManager.h; sourceTree = "<group>"; };
 		21DF19AE10D172F600543C35 /* DFCapRightInactive.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = DFCapRightInactive.png; path = Images/DFCapRightInactive.png; sourceTree = "<group>"; };
 		21DF19AF10D172F600543C35 /* DFCapRight.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = DFCapRight.png; path = Images/DFCapRight.png; sourceTree = "<group>"; };
 		21DF19B010D172F600543C35 /* DFCapLeftRoundedInactive.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = DFCapLeftRoundedInactive.png; path = Images/DFCapLeftRoundedInactive.png; sourceTree = "<group>"; };
@@ -676,6 +688,8 @@
 				21D6FB4812E104D6005C2DA5 /* NSBezierPath_NV.m */,
 				215309F212E4E92300AF2739 /* DiskUUIDEntry.h */,
 				215309F312E4E92300AF2739 /* DiskUUIDEntry.m */,
+				21DEA4AC2E7356FA009413FF /* TagEditingManager.h */,
+				21DEA4AB2E7356FA009413FF /* TagEditingManager.m */,
 				21F0793710EC5E21004FE56F /* Sync Services */,
 				212089CF0B0C2BCF00A15A69 /* Note Importing */,
 				57F27FB71197407400C63ACF /* SearchCommand.h */,
@@ -1009,6 +1023,7 @@
 				2128651C1278AF220013820A /* ServicesMenu.strings */,
 				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
 				212850860B56E549005F6E34 /* CarbonErrorStrings.plist */,
+				21DEA4912E73563C009413FF /* TagEditingManager.xib */,
 				2182B3C1106B2509008641E4 /* MainMenu.nib */,
 				212DCFF50A6E005000F74E46 /* DeletionManager.nib */,
 				212DCB2F0A6AE38500F74E46 /* EncodingsManager.nib */,
@@ -1080,6 +1095,9 @@
 				de,
 				fr,
 				pt,
+				zh,
+				"pt-PT",
+				French,
 			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
@@ -1121,6 +1139,7 @@
 				21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */,
 				211344C00B3551BD0081B064 /* BlorPasswordRetriever.nib in Resources */,
 				21F1CD700B3A38DB001FB5F6 /* PTKeyCodes.plist in Resources */,
+				21DEA49A2E73563C009413FF /* TagEditingManager.xib in Resources */,
 				21F1CD9F0B3A3F88001FB5F6 /* PTKeyComboPanel.nib in Resources */,
 				213FB0240B3CB1C4004C74BD /* PTKeyboardIcon.tiff in Resources */,
 				212850880B56E549005F6E34 /* CarbonErrorStrings.plist in Resources */,
@@ -1242,6 +1261,7 @@
 				219FD3160B2CC655004E132B /* LinkingEditor_Indentation.m in Sources */,
 				219FD63E0B309B69004E132B /* BlorPasswordRetriever.m in Sources */,
 				211344450B354E000081B064 /* idea_ossl.c in Sources */,
+				21DEA4AD2E7356FA009413FF /* TagEditingManager.m in Sources */,
 				211345AB0B35D8540081B064 /* broken_md5.c in Sources */,
 				21F1CD6D0B3A38DB001FB5F6 /* PTHotKeyCenter.m in Sources */,
 				21F1CD6F0B3A38DB001FB5F6 /* PTKeyBroadcaster.m in Sources */,
@@ -1672,6 +1692,21 @@
 				6E6AFB1824DAE61B005CFF74 /* it */,
 			);
 			name = "Scorciatoie terribilmente utili.nvhelp";
+			sourceTree = "<group>";
+		};
+		21DEA4912E73563C009413FF /* TagEditingManager.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				21DEA4922E73563C009413FF /* fr */,
+				21DEA4932E73563C009413FF /* zh_CN */,
+				21DEA4942E73563C009413FF /* it */,
+				21DEA4952E73563C009413FF /* zh */,
+				21DEA4962E73563C009413FF /* de */,
+				21DEA4972E73563C009413FF /* pt */,
+				21DEA4982E73563C009413FF /* pt-PT */,
+				21DEA4992E73563C009413FF /* en */,
+			);
+			name = TagEditingManager.xib;
 			sourceTree = "<group>";
 		};
 		21E6B0950B6E6D0B001ABEDC /* URLGetter.nib */ = {

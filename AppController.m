@@ -64,6 +64,7 @@
 #import "LinearDividerShader.h"
 #import "SecureTextEntryManager.h"
 #import "NSString_CustomTruncation.h"
+#import "TagEditingManager.h"
 
 
 @implementation AppController
@@ -698,17 +699,22 @@ terminateApp:
 }
 
 - (IBAction)tagNote:(id)sender {
-	//if single note, add the tag column if necessary and then begin editing
-	
-	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
-	
-	if ([indexes count] > 1) {
-		//show dialog for multiple notes, add or remove tags from them all using a dialog
-		//tags to remove is constituted by a union of all selected notes' tags
-		NSLog(@"multiple rows");	
-	} else if ([indexes count] == 1) {
-		[notesTableView editRowAtColumnWithIdentifier:NoteLabelsColumnString];		
-	}
+    //if single note, add the tag column if necessary and then begin editing
+    NSIndexSet *indexes = [notesTableView selectedRowIndexes];
+
+    if ([indexes count] > 1) {
+        // Multiple Notes selected: present multitagging panel
+        NSRect wFrame = [[self window] frame];
+        NSPoint cPoint = NSMakePoint(NSMidX(wFrame), NSMaxY(wFrame));
+        if (tagEditor) {
+            [tagEditor release];
+            tagEditor = nil;
+        }
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(releaseTagEditor:) name:@"TagEditorShouldRelease" object:nil];
+        tagEditor = [[TagEditingManager alloc] initWithDelegate:self commonTags:[self commonLabelsForNotesAtIndexes:indexes] atPoint:cPoint];
+    } else if ([indexes count] == 1) {
+        [notesTableView editRowAtColumnWithIdentifier:NoteLabelsColumnString];
+    }
 }
 
 - (void)noteImporter:(AlienNoteImporter*)importer importedNotes:(NSArray*)notes {
@@ -799,6 +805,118 @@ terminateApp:
 	}
 	
 }
+
+#pragma mark - Multitagging
+
+- (NSArray *)commonLabelsForNotesAtIndexes:(NSIndexSet *)selDexes {
+    NSArray *retArray = [NSArray array];
+    NSArray *selectedNotes = [notationController notesAtIndexes:selDexes];
+    NSEnumerator *noteEnum = [[selectedNotes objectEnumerator] retain];
+    NoteObject *aNote = [noteEnum nextObject];
+    NSString *existTags = labelsOfNote(aNote);
+    if (existTags && (existTags.length > 0)) {
+        NSMutableSet *commonTags = [NSMutableSet new];
+        [commonTags addObjectsFromArray:[existTags labelCompatibleWords]];
+        while (((aNote = [noteEnum nextObject])) && ([commonTags count] > 0)) {
+            existTags = labelsOfNote(aNote);
+            if (!existTags || (existTags.length == 0)) {
+                [commonTags removeAllObjects];
+                break;
+            } else {
+                NSArray *tagArray = [existTags labelCompatibleWords];
+                if (tagArray && ([tagArray count] > 0)) {
+                    NSSet *tagsForNote = [NSSet setWithArray:tagArray];
+                    if ([commonTags intersectsSet:tagsForNote]) {
+                        [commonTags intersectSet:tagsForNote];
+                    } else {
+                        [commonTags removeAllObjects];
+                        break;
+                    }
+                } else {
+                    [commonTags removeAllObjects];
+                    break;
+                }
+            }
+        }
+        if ([commonTags count] > 0) {
+            retArray = [NSArray arrayWithArray:[commonTags allObjects]];
+        }
+        [commonTags release];
+    }
+    [noteEnum release];
+    return retArray;
+}
+
+- (IBAction)multiTag:(id)sender {
+    if (!tagEditor) return;
+    NSString *tagString = [tagEditor.tagFieldString stringByTrimmingCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
+    NSArray *newTags = nil;
+    if (tagString && (tagString.length > 0)) {
+        newTags = [tagString labelCompatibleWords];
+    } else {
+        newTags = [NSArray array];
+    }
+    NSArray *commonLabs = tagEditor.commonTags;
+    if (![newTags isEqualToArray:commonLabs]) {
+        NSArray *selNotes = [notationController notesAtIndexes:[notesTableView selectedRowIndexes]];
+        if (!selNotes || ([selNotes count] == 0)) {
+            return;
+        }
+        tagString = nil;
+        BOOL gotNewLabels = (newTags && ([newTags count] > 0));
+        BOOL gotCommonLabels = (commonLabs && ([commonLabs count] > 0));
+        NSPredicate *pred;
+        NSMutableArray *finalTags = [NSMutableArray new];
+        for (NoteObject *aNote in selNotes) {
+            NSString *separator = @" ";
+            tagString = labelsOfNote(aNote);
+            NSArray *filteredTags = nil;
+            if (tagString && (tagString.length > 0)) {
+                if (([tagString rangeOfString:@","].location != NSNotFound)) {
+                    separator = @",";
+                }
+                filteredTags = [tagString labelCompatibleWords];
+                if (gotCommonLabels) {
+                    pred = [NSPredicate predicateWithFormat:@"NOT %@ CONTAINS[cd] SELF", commonLabs];
+                    filteredTags = [filteredTags filteredArrayUsingPredicate:pred];
+                }
+                if (filteredTags && ([filteredTags count] > 0)) {
+                    [finalTags addObjectsFromArray:filteredTags];
+                }
+            }
+            if (gotNewLabels) {
+                if ([finalTags count] > 0) {
+                    pred = [NSPredicate predicateWithFormat:@"NOT %@ CONTAINS[cd] SELF", finalTags];
+                    filteredTags = [newTags filteredArrayUsingPredicate:pred];
+                    if (filteredTags && ([filteredTags count] > 0)) {
+                        [finalTags addObjectsFromArray:filteredTags];
+                    }
+                } else {
+                    [finalTags addObjectsFromArray:newTags];
+                }
+            }
+            if ([finalTags count] > 0) {
+                tagString = [finalTags componentsJoinedByString:separator];
+            } else {
+                tagString = @"";
+            }
+            [aNote setLabelString:tagString];
+            [finalTags removeAllObjects];
+        }
+        [notesTableView scrollRowToVisible:[[notesTableView selectedRowIndexes] firstIndex]];
+        [finalTags release];
+    }
+    [tagEditor closeTP:self];
+}
+
+- (void)releaseTagEditor:(NSNotification *)note {
+    if (tagEditor) {
+        [tagEditor release];
+        tagEditor = nil;
+        [[NSNotificationCenter defaultCenter] removeObserver:self name:@"TagEditorShouldRelease" object:nil];
+    }
+}
+
 
 - (void)tableView:(NSTableView *)tableView didClickTableColumn:(NSTableColumn *)tableColumn {
     if (tableView == notesTableView) {
@@ -904,7 +1022,7 @@ terminateApp:
 }
 
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)aTextView doCommandBySelector:(SEL)command {
-	if (control == (NSControl*)field) {
+    if (control == (NSControl*)field) {
 		
 		//backwards-searching is slow enough as it is, so why not just check this first?
 		if (command == @selector(deleteBackward:))
@@ -996,14 +1114,32 @@ terminateApp:
 			}
 		}
 		
-	} else if (control == (NSControl*)notesTableView) {
-		if (command == @selector(insertNewline:)) {
-			//hit return in cell
-			[window makeFirstResponder:textView];
-			return YES;
-		}
-	} else
-		NSLog(@"%@/%@ got %@", [control description], [aTextView description], NSStringFromSelector(command));
+    } else if (control == (NSControl*)notesTableView) {
+        if (command == @selector(insertNewline:)) {
+            //hit return in cell
+            [window makeFirstResponder:textView];
+            return YES;
+        }
+    } else if (tagEditor && control == [tagEditor tagField]) {
+        if ((command == @selector(insertNewline:)) || (command == @selector(insertTab:))) {
+            if ([aTextView selectedRange].length > 0) {
+                NSString *fieldStr = [aTextView string];
+                NSInteger len = fieldStr.length;
+                if ((![fieldStr hasSuffix:@","]) && ![fieldStr hasSuffix:@" "]) {
+                    [aTextView insertText:@"," replacementRange:NSMakeRange(len, 0)];
+                    len++;
+                }
+                [aTextView setSelectedRange:NSMakeRange(len, 0)];
+                return YES;
+            }
+        } else {
+            if ((command == @selector(deleteBackward:)) || (command == @selector(deleteForward:))) {
+                wasDeleting = YES;
+            }
+            return NO;
+        }
+    } else
+        NSLog(@"%@/%@ got %@", [control description], [aTextView description], NSStringFromSelector(command));
 	
 	return NO;
 }
@@ -1054,8 +1190,8 @@ terminateApp:
 
 //from fieldeditor
 - (void)controlTextDidChange:(NSNotification *)aNotification {
-	
-	if ([aNotification object] == field) {
+    
+    if ([aNotification object] == field) {
 		typedStringIsCached = NO;
 		isFilteringFromTyping = YES;
 		
@@ -1114,8 +1250,39 @@ terminateApp:
 			[self processChangedSelectionForTable:notesTableView];
 		}
 		
-		isFilteringFromTyping = NO;
-	}
+        isFilteringFromTyping = NO;
+    } else if (tagEditor && [tagEditor isMultitagging]) {
+        if (!isAutocompleting && !wasDeleting) {
+            isAutocompleting = YES;
+            NSTextView *editor = [tagEditor tagFieldEditor];
+            NSRange selRange = [editor selectedRange];
+            NSString *tagString = [NSString stringWithString:tagEditor.tagFieldString];
+            NSString *searchString = tagString;
+            if (selRange.length > 0) {
+                searchString = [searchString substringWithRange:selRange];
+            }
+            searchString = [[searchString componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@", "]] lastObject];
+            selRange = [tagString rangeOfString:searchString options:NSBackwardsSearch];
+            NSArray *theTags = [notesTableView labelCompletionsForString:searchString index:0];
+            if ((theTags) && ([theTags count] > 0) && (![[theTags objectAtIndex:0] isEqualToString:@""])) {
+                NSString *useStr = nil;
+                for (useStr in theTags) {
+                    if ([tagString rangeOfString:useStr].location == NSNotFound) {
+                        break;
+                    }
+                }
+                if (useStr) {
+                    tagString = [tagString substringToIndex:selRange.location];
+                    tagString = [tagString stringByAppendingString:useStr];
+                    NSRange newSel = NSMakeRange(selRange.location + selRange.length, useStr.length - searchString.length);
+                    [tagEditor setTF:tagString];
+                    [editor setSelectedRange:newSel];
+                }
+            }
+            isAutocompleting = NO;
+        }
+        wasDeleting = NO;
+    }
 }
 
 - (void)tableViewSelectionIsChanging:(NSNotification *)aNotification {

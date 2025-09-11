@@ -193,23 +193,28 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 }
 
 - (NSArray*)labelCompatibleWords {
-	NSArray *array = nil;
-	if (IsLeopardOrLater) {
-		array = [self componentsSeparatedByCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
-	} else {
-		BOOL lacksSpace = [self rangeOfString:@" " options:NSLiteralSearch].location == NSNotFound;
-		array = [self componentsSeparatedByString: lacksSpace ? @"," : @" "];
-	}
-	NSMutableArray *titles = [NSMutableArray arrayWithCapacity:[array count]];
-	
-	NSUInteger i;
-	for (i=0; i<[array count]; i++) {
-		NSString *aWord = [array objectAtIndex:i];
-		if ([aWord length] > 0) {
-			[titles addObject:aWord];
-		}
-	}
-	return titles;
+    NSArray *array = nil;
+    if (IsLeopardOrLater) {
+        array = [self componentsSeparatedByCharactersInSet:[NSCharacterSet labelSeparatorCharacterSet]];
+    } else {
+        BOOL lacksSpace = [self rangeOfString:@" " options:NSLiteralSearch].location == NSNotFound;
+        array = [self componentsSeparatedByString: lacksSpace ? @"," : @" "];
+    }
+    if (array && ([array count] > 0)) {
+        NSMutableArray *titles = [[NSMutableArray alloc] initWithCapacity:[array count]];
+        for (NSString *aWord in array) {
+            if (aWord && (aWord.length > 0) && ![titles containsObject:aWord]) {
+                [titles addObject:aWord];
+            }
+        }
+        if ([titles count] > 0) {
+            NSArray *retArray = [NSArray arrayWithArray:titles];
+            [titles release];
+            return retArray;
+        }
+        [titles release];
+    }
+    return [NSArray array];
 }
 
 - (CFArrayRef)copyRangesOfWordsInString:(NSString*)findString inRange:(NSRange)limitRange {
@@ -649,7 +654,7 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	
 #define AddIfUnique(enc) if (!ContainsUInteger(encodingsToTry, encodingIndex, (enc))) encodingsToTry[encodingIndex++] = (enc)
 	
-	NSStringEncoding encodingsToTry[5];
+	NSStringEncoding encodingsToTry[5] = { 0 };
 	NSUInteger encodingIndex = 0;
 	
 	AddIfUnique(firstEncodingToTry);
