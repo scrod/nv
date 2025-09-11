@@ -127,7 +127,6 @@
 		21A3913A12EB4C2F00CEB5F0 /* Spaces.c in Sources */ = {isa = PBXBuildFile; fileRef = 21A3913912EB4C2F00CEB5F0 /* Spaces.c */; };
 		21A6E6FD0974204F008436A9 /* LabelsListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21A6E6FC0974204F008436A9 /* LabelsListController.m */; };
 		21A73DC8099712A8009F8A6C /* WALController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21A73DC7099712A8009F8A6C /* WALController.m */; };
-		21AD2550110A8BA600B7A985 /* SimplenoteEntryCollector.m in Sources */ = {isa = PBXBuildFile; fileRef = 21AD254F110A8BA600B7A985 /* SimplenoteEntryCollector.m */; };
 		21AD2850110BE99B00B7A985 /* SyncSessionController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21AD284F110BE99B00B7A985 /* SyncSessionController.m */; };
 		21AD292D110C188800B7A985 /* TinyAlert.tif in Resources */ = {isa = PBXBuildFile; fileRef = 21AD292C110C188800B7A985 /* TinyAlert.tif */; };
 		21B1BC361104D20E0004A7D0 /* InvocationRecorder.m in Sources */ = {isa = PBXBuildFile; fileRef = 21B1BC351104D20E0004A7D0 /* InvocationRecorder.m */; };
@@ -164,7 +163,6 @@
 		21E6EC21111DD52B0038ECC7 /* Comment ça marche.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21E6EC1F111DD52B0038ECC7 /* Comment ça marche.nvhelp */; };
 		21EA369C111C9AD900E2B517 /* Contact.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21EA3697111C9AD900E2B517 /* Contact.nvhelp */; };
 		21F078FC10EC280E004FE56F /* NotationSyncServiceManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F078FB10EC280E004FE56F /* NotationSyncServiceManager.m */; };
-		21F0794310EC5EA2004FE56F /* SimplenoteSession.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F0794210EC5EA2004FE56F /* SimplenoteSession.m */; };
 		21F0797E10EC93B0004FE56F /* SyncResponseFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F0797D10EC93B0004FE56F /* SyncResponseFetcher.m */; };
 		21F1CD6D0B3A38DB001FB5F6 /* PTHotKeyCenter.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CD660B3A38DB001FB5F6 /* PTHotKeyCenter.m */; };
 		21F1CD6F0B3A38DB001FB5F6 /* PTKeyBroadcaster.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F1CD690B3A38DB001FB5F6 /* PTKeyBroadcaster.m */; };
@@ -1263,10 +1261,8 @@
 				D3EECA00106F66C70023D7F8 /* NVPasswordGenerator.m in Sources */,
 				21BD2ED110DAF31500BA3DF6 /* LinearDividerShader.m in Sources */,
 				21F078FC10EC280E004FE56F /* NotationSyncServiceManager.m in Sources */,
-				21F0794310EC5EA2004FE56F /* SimplenoteSession.m in Sources */,
 				21F0797E10EC93B0004FE56F /* SyncResponseFetcher.m in Sources */,
 				21B1BC361104D20E0004A7D0 /* InvocationRecorder.m in Sources */,
-				21AD2550110A8BA600B7A985 /* SimplenoteEntryCollector.m in Sources */,
 				21AD2850110BE99B00B7A985 /* SyncSessionController.m in Sources */,
 				212C6952110E1940004DD82C /* TitlebarButton.m in Sources */,
 				21B548FA112F307E00E163A1 /* NotationDirectoryManager.m in Sources */,

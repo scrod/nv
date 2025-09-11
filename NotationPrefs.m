@@ -24,7 +24,6 @@
 #import "NotationPrefs.h"
 #import "GlobalPrefs.h"
 #import "NSString_NV.h"
-#import "SimplenoteSession.h"
 #import "NSCollection_utils.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
@@ -842,38 +841,6 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	preferencesChanged = YES;
 	
 	return [seenDiskUUIDEntries count] - 1;
-}
-
-- (void)checkForKnownRedundantSyncConduitsAtPath:(NSString*)dbPath {
-	//is inside dropbox folder and notes are separate files
-	//is set to sync with any service
-	//then display warning
-	
-	NSArray *enabledValues = [[syncServiceAccounts allValues] objectsFromDictionariesForKey:@"enabled"];	
-	if ([enabledValues containsObject:[NSNumber numberWithBool:YES]] && SingleDatabaseFormat != notesStorageFormat) {
-		//this DB is syncing with a service and is storing separate files; could it be syncing with anything else, too?
-		
-		//this logic will need to be more sophisticated anyway when multiple sync services are supported
-		NSString *syncServiceTitle = [SimplenoteSession localizedServiceTitle];
-		
-		NSDictionary *stDict = [[NSUserDefaults standardUserDefaults] persistentDomainForName:@"com.hogbaysoftware.SimpleText"];
-		NSString *simpleTextFolder = [stDict objectForKey:@"SyncedDocumentsPathKey"];
-		if (!simpleTextFolder) simpleTextFolder = [NSHomeDirectory() stringByAppendingPathComponent:@"SimpleText"];
-		//for dropbox, a 'select value from config where key = "dropbox_path";' sqlite query would be necessary to get the true path
-		NSString *dropboxFolder = [NSHomeDirectory() stringByAppendingPathComponent:@"Dropbox"];
-		
-		NSString *offendingFileConduitName = nil;
-		if ([[dbPath lowercaseString] hasPrefix:[simpleTextFolder lowercaseString]]) {
-			offendingFileConduitName = NSLocalizedString(@"SimpleText", nil);
-		} else if ([[dbPath lowercaseString] hasPrefix:[dropboxFolder lowercaseString]]) {
-			offendingFileConduitName = NSLocalizedString(@"Dropbox", nil);
-		}
-		if (offendingFileConduitName) {
-			NSString *title = [NSString stringWithFormat:NSLocalizedString(@"<Feedback loop warning title>", nil), offendingFileConduitName, syncServiceTitle];
-			NSString *message = [NSString stringWithFormat:NSLocalizedString(@"<Feedback loop warning message>", nil), syncServiceTitle];
-			NSRunAlertPanel(@"%@", title, @"%@", message, NSLocalizedString(@"OK", nil), nil, nil);
-		}
-	}
 }
 
 - (void)setKeyLengthInBits:(unsigned int)newLength {

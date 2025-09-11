@@ -25,7 +25,9 @@
 #import "InvocationRecorder.h"
 #import "SyncServiceSessionProtocol.h"
 #import "NotationDirectoryManager.h"
+#if USE_SIMPLENOTE
 #import "SimplenoteSession.h"
+#endif
 #import <IOKit/pwr_mgt/IOPMLib.h>
 
 //#import <IOKit/IOMessage.h>
@@ -53,7 +55,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 }
 
 //these two methods must return parallel arrays:
-
+#if USE_SIMPLENOTE
 + (NSArray*)allServiceNames {
 	static NSArray *allNames = nil;
 	if (!allNames) allNames = [[NSArray alloc] initWithObjects:SimplenoteServiceName, nil];
@@ -66,6 +68,14 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	
 	return allClasses;
 }
+#else
++ (NSArray*)allServiceNames {
+	return [NSArray array];
+}
++ (NSArray*)allServiceClasses {
+	return [NSArray array];
+}
+#endif
 
 - (void)setSyncDelegate:(id)aDelegate {
 	syncDelegate = aDelegate;
@@ -139,11 +149,11 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	
 	id<SyncServiceSession> session = [syncServiceSessions objectForKey:serviceName];
 	
-	if (!session) {		
+	if (!session) {
+#if USE_SIMPLENOTE
 		if ([serviceName isEqualToString:SimplenoteServiceName]) {
 			
 			if (![notationPrefs syncServiceIsEnabled:SimplenoteServiceName]) return nil;
-			
 			SimplenoteSession *snSession = [[SimplenoteSession alloc] initWithNotationPrefs:notationPrefs];
 			if (snSession) {
 				[syncServiceSessions setObject:snSession forKey:serviceName];
@@ -158,17 +168,18 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 		} */ else {
 		   NSLog(@"%@: unknown service named '%@'", NSStringFromSelector(_cmd), serviceName);
 		}
+#endif
 	}
 	return session;
 }
 
 - (void)invalidateSyncService:(NSString*)serviceName {
 	id<SyncServiceSession> session = [[[syncServiceSessions objectForKey:serviceName] retain] autorelease];
-	
+#if USE_SIMPLENOTE
 	//ensure that reachability is unscheduled if dealloc of session does not occur here
 	if ([session respondsToSelector:@selector(invalidateReachabilityRefs)])
 		[session performSelector:@selector(invalidateReachabilityRefs)];
-	
+#endif
 	[session stop];
 	[session setDelegate:nil];
 	[syncServiceSessions removeObjectForKey:serviceName];

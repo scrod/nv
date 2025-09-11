@@ -294,10 +294,7 @@
 		if (FSCompareFSRefs(&notesDirectoryRef, &currentNotesDirectoryRef) != noErr) {
 			
 			if ((aliasData = [NSData aliasDataForFSRef:&notesDirectoryRef])) {
-				[prefsController setAliasDataForDefaultDirectory:aliasData sender:self];
-				
-				//check for potential synchronization problems; (e.g., simplenote w/ dropbox or writeroom):
-				[[prefsController notationPrefs] checkForKnownRedundantSyncConduitsAtPath:directoryPath];
+				[prefsController setAliasDataForDefaultDirectory:aliasData sender:self];				
 			}
 		} else {
 			NSLog(@"This folder is already chosen!");
