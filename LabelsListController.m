@@ -91,7 +91,8 @@
 	for (i=0; i<[objs count]; i++) {
 		CFStringRef title = (CFStringRef)titleOfLabel((LabelObject*)[objs objectAtIndex:i]);
 		
-		if (CFStringFindWithOptions(title, prefix, CFRangeMake(0, CFStringGetLength(prefix)), kCFCompareAnchored | kCFCompareCaseInsensitive, NULL)) {
+		// Search range must be within the title length, not the prefix length
+		if (CFStringFindWithOptions(title, prefix, CFRangeMake(0, CFStringGetLength(title)), kCFCompareAnchored | kCFCompareCaseInsensitive, NULL)) {
 			
 			if (![antiSet containsObject:(id)title]) {
 				[titles addObject:(id)title];
