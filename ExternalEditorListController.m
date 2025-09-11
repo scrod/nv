@@ -258,7 +258,7 @@ static ExternalEditorListController* sharedInstance = nil;
 							  @"com.macromates.textmate", @"com.transtex.texeditplus", @"jp.co.artman21.JeditX", @"org.gnu.Aquamacs", 
 							  @"org.smultron.Smultron", @"com.peterborgapps.Smultron", @"org.fraise.Fraise", @"com.aynimac.CotEditor", @"com.macrabbit.cssedit", 
 							  @"com.talacia.Tag", @"org.skti.skEdit", @"com.cgerdes.ji", @"com.optima.PageSpinner", @"com.hogbaysoftware.WriteRoom", 
-							  @"com.hogbaysoftware.WriteRoom.mac", @"org.vim.MacVim", @"com.forgedit.ForgEdit", @"com.tacosw.TacoHTMLEdit", @"com.macrabbit.espresso", nil];
+							  @"com.hogbaysoftware.WriteRoom.mac", @"org.vim.MacVim", @"com.forgedit.ForgEdit", @"com.tacosw.TacoHTMLEdit", @"com.macrabbit.espresso", @"com.sublimetext.2", @"com.sublimetext.3", @"com.sublimetext.4", @"com.metaclassy.byword", @"jp.informationarchitects.WriterForMacOSX", @"com.chocolatapp.Chocolat", @"org.gnu.Emacs", @"com.panic.Coda2", @"com.panic.Nova", nil];
 	return _ODBAppIdentifiers;
 }
 
@@ -271,10 +271,12 @@ static ExternalEditorListController* sharedInstance = nil;
 	NSOpenPanel *openPanel = [NSOpenPanel openPanel];
     [openPanel setResolvesAliases:YES];
     [openPanel setAllowsMultipleSelection:NO];
+    [openPanel setDirectoryURL:[NSURL fileURLWithPath:@"/Applications"]];
+    [openPanel setAllowedFileTypes:@[@"app"]];
     
-    if ([openPanel runModalForDirectory:@"/Applications" file:nil types:[NSArray arrayWithObject:@"app"]] == NSOKButton) {
-		if (![openPanel filename]) goto errorReturn;
-		NSURL *appURL = [NSURL fileURLWithPath:[openPanel filename]];
+    if ([openPanel runModal] == NSFileHandlingPanelOKButton) {
+		if (![[openPanel URL] path]) goto errorReturn;
+		NSURL *appURL = [openPanel URL];
 		if (!appURL) goto errorReturn;
 		
 		ExternalEditor *ed = [[ExternalEditor alloc] initWithBundleID:nil resolvedURL:appURL];
@@ -287,6 +289,7 @@ static ExternalEditorListController* sharedInstance = nil;
 		}
 		
 		[self setDefaultEditor:ed];
+		[ed release];
     }
 	return;
 errorReturn:
