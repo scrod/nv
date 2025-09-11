@@ -649,3 +649,6 @@
 
 /* menu command to clear out custom external editors*/
 "Reset" = "重设";
+
+/* App name */
+"Notation" = "笔记列表";

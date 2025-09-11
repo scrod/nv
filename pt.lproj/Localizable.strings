@@ -648,3 +648,6 @@
 
 /* menu command to clear out custom external editors*/
 "Reset" = "Redefinir";
+
+/* App name */
+"Notation" = "Anotações";

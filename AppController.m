@@ -130,7 +130,7 @@
 			font, NSFontAttributeName,
 			fg, NSForegroundColorAttributeName,
 			nil];
-		NSAttributedString *as = [[[NSAttributedString alloc] initWithString:@"Notation" attributes:attrs] autorelease];
+		NSAttributedString *as = [[[NSAttributedString alloc] initWithString:NSLocalizedString(@"Notation", @"App name") attributes:attrs] autorelease];
 		[titleLabel setAttributedStringValue:as];
 		[titleLabel sizeToFit];
 
@@ -142,7 +142,7 @@
 		[container addSubview:titleLabel];
 
 		[appTitleItem setView:container];
-		[appTitleItem setLabel:@"Notation"];
+		[appTitleItem setLabel:NSLocalizedString(@"Notation", @"App name")];
 		[appTitleItem setMinSize:NSMakeSize(container.frame.size.width, container.frame.size.height)];
 		[appTitleItem setMaxSize:NSMakeSize(container.frame.size.width, container.frame.size.height)];
 	}
@@ -1744,7 +1744,7 @@ terminateApp:
 		if (@available(macOS 10.10, *)) {
 			window.titleVisibility = NSWindowTitleHidden;
 		}
-		[window setTitle:@"Notation"];
+		[window setTitle:NSLocalizedString(@"Notation", @"App name")];
 		if (currentNote)
 			[field setStringValue:titleOfNote(currentNote)];
 		[window toggleToolbarShown:nil];

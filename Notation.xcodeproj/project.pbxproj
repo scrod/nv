@@ -423,10 +423,8 @@
 		21DEA4922E73563C009413FF /* fr */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = fr; path = fr.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4932E73563C009413FF /* zh_CN */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh_CN; path = zh_CN.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4942E73563C009413FF /* it */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = it; path = it.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
-		21DEA4952E73563C009413FF /* zh */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = zh; path = zh.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4962E73563C009413FF /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4972E73563C009413FF /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
-		21DEA4982E73563C009413FF /* pt-PT */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = "pt-PT"; path = "pt-PT.lproj/TagEditingManager.xib"; sourceTree = "<group>"; };
 		21DEA4992E73563C009413FF /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4AB2E7356FA009413FF /* TagEditingManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TagEditingManager.m; sourceTree = "<group>"; };
 		21DEA4AC2E7356FA009413FF /* TagEditingManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TagEditingManager.h; sourceTree = "<group>"; };
@@ -1700,10 +1698,8 @@
 				21DEA4922E73563C009413FF /* fr */,
 				21DEA4932E73563C009413FF /* zh_CN */,
 				21DEA4942E73563C009413FF /* it */,
-				21DEA4952E73563C009413FF /* zh */,
 				21DEA4962E73563C009413FF /* de */,
 				21DEA4972E73563C009413FF /* pt */,
-				21DEA4982E73563C009413FF /* pt-PT */,
 				21DEA4992E73563C009413FF /* en */,
 			);
 			name = TagEditingManager.xib;

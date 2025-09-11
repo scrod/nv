@@ -651,3 +651,6 @@
 
 /* menu command to clear out custom external editors*/
 "Reset" = "Vaciar menú";
+
+/* App name */
+"Notation" = "Notation";
