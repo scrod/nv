@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <deployment version="1050" identifier="macosx"/>
+        <deployment version="101300" identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -73,8 +73,8 @@
                             <action selector="chooseEncoding:" target="-2" id="324"/>
                         </connections>
                     </popUpButton>
-                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="374" translatesAutoresizingMaskIntoConstraints="NO" id="318" propertyAccessControl="nonLocalizable">
-                        <rect key="frame" x="17" y="295" width="378" height="51"/>
+                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="374" translatesAutoresizingMaskIntoConstraints="NO" id="318" propertyAccessControl="none">
+                        <rect key="frame" x="17" y="295" width="367" height="51"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="Notational Velocity should assume the file “%@” was saved with the encoding:" id="330">
                             <font key="font" metaFont="system"/>

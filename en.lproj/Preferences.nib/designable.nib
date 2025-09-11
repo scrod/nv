@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <deployment version="1050" identifier="macosx"/>
+        <deployment version="101300" identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -54,7 +54,7 @@
             <autoresizingMask key="autoresizingMask"/>
             <subviews>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="282" translatesAutoresizingMaskIntoConstraints="NO" id="323" propertyAccessControl="none">
-                    <rect key="frame" x="49" y="67" width="286" height="33"/>
+                    <rect key="frame" x="51" y="71" width="272" height="28"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="Automatically selecting very long notes may affect responsiveness." id="335">
                         <font key="font" metaFont="smallSystem"/>
@@ -82,17 +82,8 @@
                         <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                     </textFieldCell>
                 </textField>
-                <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="148" translatesAutoresizingMaskIntoConstraints="NO" id="287" propertyAccessControl="none">
-                    <rect key="frame" x="17" y="185" width="152" height="17"/>
-                    <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
-                    <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Bring-to-Front Hotkey:" id="331">
-                        <font key="font" metaFont="system"/>
-                        <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                        <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                    </textFieldCell>
-                </textField>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="97" translatesAutoresizingMaskIntoConstraints="NO" id="429" propertyAccessControl="none">
-                    <rect key="frame" x="68" y="144" width="101" height="17"/>
+                    <rect key="frame" x="72" y="144" width="97" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="External Editor:" id="430">
                         <font key="font" metaFont="system"/>
@@ -164,7 +155,7 @@
                     </connections>
                 </popUpButton>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="97" translatesAutoresizingMaskIntoConstraints="NO" id="157" propertyAccessControl="none">
-                    <rect key="frame" x="68" y="226" width="101" height="17"/>
+                    <rect key="frame" x="81" y="227" width="88" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="List Text Size:" id="325">
                         <font key="font" metaFont="system"/>
@@ -190,6 +181,15 @@
                         <action selector="changedExternalEditorsMenu:" target="-2" id="438"/>
                     </connections>
                 </popUpButton>
+                <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="148" translatesAutoresizingMaskIntoConstraints="NO" id="287" propertyAccessControl="none">
+                    <rect key="frame" x="27" y="186" width="142" height="16"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
+                    <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Bring-to-Front Hotkey:" id="331">
+                        <font key="font" metaFont="system"/>
+                        <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                        <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                    </textFieldCell>
+                </textField>
             </subviews>
             <point key="canvasLocation" x="164" y="-291"/>
         </customView>
@@ -268,7 +268,7 @@
                     </connections>
                 </button>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="54" translatesAutoresizingMaskIntoConstraints="NO" id="282">
-                    <rect key="frame" x="39" y="43" width="58" height="17"/>
+                    <rect key="frame" x="57" y="43" width="40" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Links:" id="347">
                         <font key="font" metaFont="system"/>
@@ -277,7 +277,7 @@
                     </textFieldCell>
                 </textField>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="54" translatesAutoresizingMaskIntoConstraints="NO" id="280">
-                    <rect key="frame" x="39" y="197" width="58" height="21"/>
+                    <rect key="frame" x="40" y="201" width="57" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Spelling:" id="346">
                         <font key="font" metaFont="system"/>
@@ -286,7 +286,7 @@
                     </textFieldCell>
                 </textField>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="76" translatesAutoresizingMaskIntoConstraints="NO" id="279">
-                    <rect key="frame" x="17" y="220" width="80" height="22"/>
+                    <rect key="frame" x="20" y="225" width="76" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Styled Text:" id="345">
                         <font key="font" metaFont="system"/>
@@ -317,7 +317,7 @@
                     </connections>
                 </button>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="225" translatesAutoresizingMaskIntoConstraints="NO" id="275">
-                    <rect key="frame" x="118" y="106" width="229" height="30"/>
+                    <rect key="frame" x="118" y="109" width="220" height="28"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="Option-Tab always indents and Shift-Tab always moves the focus backward." id="341">
                         <font key="font" metaFont="smallSystem"/>
@@ -326,7 +326,7 @@
                     </textFieldCell>
                 </textField>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="61" translatesAutoresizingMaskIntoConstraints="NO" id="274">
-                    <rect key="frame" x="32" y="158" width="65" height="22"/>
+                    <rect key="frame" x="40" y="163" width="56" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Tab Key:" id="340">
                         <font key="font" metaFont="system"/>
@@ -384,7 +384,7 @@
                     </connections>
                 </colorWell>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="110" translatesAutoresizingMaskIntoConstraints="NO" id="397" propertyAccessControl="none">
-                    <rect key="frame" x="100" y="153" width="114" height="17"/>
+                    <rect key="frame" x="107" y="153" width="107" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Foreground Text:" id="398">
                         <font key="font" metaFont="system"/>
@@ -401,7 +401,7 @@
                     </connections>
                 </colorWell>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="81" translatesAutoresizingMaskIntoConstraints="NO" id="401" propertyAccessControl="none">
-                    <rect key="frame" x="129" y="121" width="85" height="17"/>
+                    <rect key="frame" x="133" y="121" width="81" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Background:" id="402">
                         <font key="font" metaFont="system"/>
@@ -410,7 +410,7 @@
                     </textFieldCell>
                 </textField>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="387" propertyAccessControl="none">
-                    <rect key="frame" x="114" y="20" width="145" height="23"/>
+                    <rect key="frame" x="114" y="17" width="146" height="21"/>
                     <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
                     <textFieldCell key="cell" lineBreakMode="charWrapping" sendsActionOnEndEditing="YES" borderStyle="bezel" title="Helvetica 12" drawsBackground="YES" id="392">
                         <font key="font" metaFont="system"/>
@@ -418,19 +418,8 @@
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
                     </textFieldCell>
                 </textField>
-                <button verticalHuggingPriority="750" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="388" propertyAccessControl="none">
-                    <rect key="frame" x="261" y="13" width="72" height="32"/>
-                    <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
-                    <buttonCell key="cell" type="push" title="Set…" bezelStyle="rounded" alignment="center" state="on" borderStyle="border" inset="2" id="391">
-                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                        <font key="font" metaFont="system"/>
-                    </buttonCell>
-                    <connections>
-                        <action selector="changeBodyFont:" target="-2" id="395"/>
-                    </connections>
-                </button>
                 <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="72" translatesAutoresizingMaskIntoConstraints="NO" id="389" propertyAccessControl="none">
-                    <rect key="frame" x="33" y="20" width="76" height="20"/>
+                    <rect key="frame" x="39" y="20" width="70" height="16"/>
                     <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                     <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Body Font:" id="390">
                         <font key="font" metaFont="system"/>
@@ -449,8 +438,19 @@
                         <action selector="changedHighlightSearchTerms:" target="-2" id="422"/>
                     </connections>
                 </button>
+                <button verticalHuggingPriority="750" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="388" propertyAccessControl="none">
+                    <rect key="frame" x="261" y="11" width="72" height="32"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
+                    <buttonCell key="cell" type="push" title="Set…" bezelStyle="rounded" alignment="center" state="on" borderStyle="border" inset="2" id="391">
+                        <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                        <font key="font" metaFont="system"/>
+                    </buttonCell>
+                    <connections>
+                        <action selector="changeBodyFont:" target="-2" id="395"/>
+                    </connections>
+                </button>
             </subviews>
-            <point key="canvasLocation" x="83" y="-1384"/>
+            <point key="canvasLocation" x="83" y="-1384.5"/>
         </customView>
     </objects>
 </document>
