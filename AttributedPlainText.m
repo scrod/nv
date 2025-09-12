@@ -25,7 +25,7 @@
 #import "NSCollection_utils.h"
 #import "GlobalPrefs.h"
 #import "NSString_NV.h"
-
+#import <math.h>
 
 NSString *NVHiddenDoneTagAttributeName = @"NVDoneTag";
 NSString *NVHiddenBulletIndentAttributeName = @"NVBulletIndentTag";
@@ -128,85 +128,98 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 	[self addAttributesForMarkdownHeadingLinesInRange:range];
 }
 
-- (BOOL)restyleTextToFont:(NSFont*)currentFont usingBaseFont:(NSFont*)baseFont {
-	NSRange effectiveRange = NSMakeRange(0,0);
-	NSUInteger stringLength = [self length];
-	int rangesChanged = 0;
-	NSFontManager *fontMan = [NSFontManager sharedFontManager];
-	NSDictionary *defaultBodyAttributes = [[GlobalPrefs defaultPrefs] noteBodyAttributes];
-	
+- (BOOL)restyleTextToFont:(NSFont *)currentFont usingBaseFont:(NSFont *)baseFont {
 	NSAssert(currentFont != nil, @"restyleTextToFont needs a current font!");
 	
+	NSRange effective = NSMakeRange(0, 0);
+	NSUInteger len = self.length;
+	NSInteger rangesChanged = 0;
+	NSFontManager *fm = [NSFontManager sharedFontManager];
+	NSDictionary *defaultBodyAttributes = [[GlobalPrefs defaultPrefs] noteBodyAttributes];
+	
 	@try {
+		while (NSMaxRange(effective) < len) {
+			NSDictionary *attrs = [self attributesAtIndex:NSMaxRange(effective)
+										   effectiveRange:&effective];
+			NSMutableDictionary *newAttrs = [defaultBodyAttributes mutableCopyWithZone:nil];
+			[newAttrs addDesiredAttributesFromDictionary:attrs];
 			
-		while (NSMaxRange(effectiveRange) < stringLength) {
-			// Get the attributes for the current range
-			NSDictionary *attributes = [self attributesAtIndex:NSMaxRange(effectiveRange) effectiveRange:&effectiveRange];
+			NSFont *srcFont = [attrs objectForKey:NSFontAttributeName];
+			NSFont *dstFont = currentFont;
 			
-			NSMutableDictionary *newAttributes = [defaultBodyAttributes mutableCopyWithZone:nil];
-			[newAttributes addDesiredAttributesFromDictionary:attributes];
+			// Derive desired *binary* traits from either real font traits or “fake” attributes.
+			NSFontTraitMask srcTraits = srcFont ? [fm traitsOfFont:srcFont] : 0;
 			
-			NSFont *aFont = [attributes objectForKey:NSFontAttributeName];
-			NSFont *newFont = currentFont;
-			BOOL needToMatchAttributes = NO;
-			NSFontTraitMask traits = 0;
+			NSNumber *oblNum    = [attrs objectForKey:NSObliquenessAttributeName];
+			NSNumber *strokeNum = [attrs objectForKey:NSStrokeWidthAttributeName];
 			
-			if (!baseFont) {
-				if (aFont) {
-					//we have a font--try to match its traits, if there are any
-					traits = [fontMan traitsOfFont:aFont];
-					if (traits & NSBoldFontMask || traits & NSItalicFontMask)
-						//do we need to check stroke width & obliqueness? the base font should only be nonexistent when we have new foreign text
-						needToMatchAttributes = YES;
+			CGFloat obl    = oblNum    ? [oblNum floatValue]    : 0.0f;
+			CGFloat stroke = strokeNum ? [strokeNum floatValue] : 0.0f;
+			
+			// Treat only meaningful values as “fake” styles.
+			BOOL fakeItalic = fabs(obl) > 0.001f;   // HTML sometimes sets 0.0 everywhere
+			BOOL fakeBold   = stroke < -0.001f;     // negative stroke => thicker/faux-bold; 0.0 is no-op
+			
+			BOOL wantsItalic = ((srcTraits & NSItalicFontMask) != 0) || fakeItalic;
+			BOOL wantsBold   = ((srcTraits & NSBoldFontMask)   != 0) || fakeBold;
+			
+			// Choose a starting face in the target family.
+			if (baseFont) {
+				if (srcFont && [[srcFont familyName] isEqualToString:[baseFont familyName]]) {
+					// Map source face to the current family (keeps weight/width intent where possible).
+					dstFont = [fm convertFont:srcFont toFamily:[currentFont familyName]];
+				} else {
+					dstFont = currentFont;
 				}
-			} else if (!aFont || [[aFont fontName] isEqualToString:[baseFont fontName]]) {
-				//just change the font to currentFont
-				newFont = currentFont;
-			} else if ([[aFont familyName] isEqualToString:[baseFont familyName]]) {
-				traits = [fontMan traitsOfFont:aFont];
-				needToMatchAttributes = YES;
+			} else {
+				// “Foreign” text (no base): try to map source to the target family; fall back to currentFont.
+				dstFont = srcFont ? [fm convertFont:srcFont toFamily:[currentFont familyName]] : currentFont;
 			}
 			
-			BOOL hasFakeItalic = [attributes objectForKey:NSObliquenessAttributeName] != nil;
-			BOOL hasFakeBold = [attributes objectForKey:NSStrokeWidthAttributeName] != nil;
-			
-			if (needToMatchAttributes || hasFakeItalic || hasFakeBold) {
-				newFont = [fontMan convertFont:aFont toFamily:[currentFont familyName]];
-				
-				if (hasFakeItalic) newFont = [fontMan convertFont:newFont toHaveTrait:NSItalicFontMask];	
-				if (hasFakeBold) newFont = [fontMan convertFont:newFont toHaveTrait:NSBoldFontMask];
-				
-				NSFontTraitMask newTraits = [fontMan traitsOfFont:newFont];
-				
-				if (!(newTraits & NSItalicFontMask) && (traits & NSItalicFontMask)) {
-					[newAttributes setObject:[NSNumber numberWithFloat:0.20] forKey:NSObliquenessAttributeName];
-				} else if (newTraits & NSItalicFontMask) {
-					[newAttributes removeObjectForKey:NSObliquenessAttributeName];
-				}
-				if (!(newTraits & NSBoldFontMask) && (traits & NSBoldFontMask)) {
-					[newAttributes setObject:[NSNumber numberWithFloat:-3.50] forKey:NSStrokeWidthAttributeName];
-				} else if (newTraits & NSBoldFontMask) {
-					[newAttributes removeObjectForKey:NSStrokeWidthAttributeName];
-				}
-			}
-			if (newFont && [newFont pointSize] != [currentFont pointSize]) {
-				//also make the font have the same size
-				newFont = [fontMan convertFont:newFont toSize:[currentFont pointSize]];
+			// Normalize point size to the current font’s size.
+			if (dstFont && fabs([dstFont pointSize] - [currentFont pointSize]) > 0.001f) {
+				dstFont = [fm convertFont:dstFont toSize:[currentFont pointSize]];
 			}
 			
-			[newAttributes setObject:newFont ? newFont : currentFont forKey:NSFontAttributeName];
-			[self setAttributes:newAttributes range:effectiveRange];
-			[newAttributes release];
+			// Apply desired binary traits.
+			if (wantsItalic) dstFont = [fm convertFont:dstFont toHaveTrait:NSItalicFontMask];
+			if (wantsBold)   dstFont = [fm convertFont:dstFont toHaveTrait:NSBoldFontMask];
 			
+			NSFontTraitMask realized = dstFont ? [fm traitsOfFont:dstFont] : 0;
+			
+			// Write the font first.
+			[newAttrs setObject:(dstFont ?: currentFont) forKey:NSFontAttributeName];
+			
+			// Recreate fake styles only if the target family can’t realize the trait.
+			if (wantsItalic && !(realized & NSItalicFontMask)) {
+				[newAttrs setObject:@(0.20f) forKey:NSObliquenessAttributeName];
+			} else {
+				[newAttrs removeObjectForKey:NSObliquenessAttributeName];
+			}
+			
+			if (wantsBold && !(realized & NSBoldFontMask)) {
+				[newAttrs setObject:@(-3.5f) forKey:NSStrokeWidthAttributeName];
+			} else {
+				[newAttrs removeObjectForKey:NSStrokeWidthAttributeName];
+			}
+			
+			// Ensure zero/no-op HTML artifacts don’t persist.
+			if (!wantsItalic) [newAttrs removeObjectForKey:NSObliquenessAttributeName];
+			if (!wantsBold)   [newAttrs removeObjectForKey:NSStrokeWidthAttributeName];
+			
+			[self setAttributes:newAttrs range:effective];
+			[newAttrs release];
 			rangesChanged++;
 		}
-	}	
+	}
 	@catch (NSException *e) {
 		NSLog(@"Error trying to re-style text (%@, %@)", [e name], [e reason]);
 	}
-		
+	
 	return rangesChanged > 0;
 }
+
+
 
 - (void)addLinkAttributesForRange:(NSRange)changedRange {
 	
