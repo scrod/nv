@@ -23,6 +23,7 @@
 @class NotesTableView;
 @class NoteObject;
 @class GlobalPrefs;
+@class AppController;
 
 // From old version of NSTextFinder.h before including in OSX 10.8
 enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
@@ -43,9 +44,10 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 	NSRange lastAutomaticallySelectedRange;
 	NSRange changedRange;
 	BOOL isAutocompleting, wasDeleting;
-	
+
 	BOOL backgroundIsDark, mouseInside;
-	
+	NSString *_lastFindSearchString;
+
     id (*defaultIBeamCursorIMP)(Class, SEL);
     id (*whiteIBeamCursorIMP)(Class, SEL);
 };
@@ -76,9 +78,13 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 - (BOOL)_selectionAbutsBulletIndentRange;
 - (BOOL)_rangeIsAutoIdentedBullet:(NSRange)aRange;
 
+- (void)_synchronizeFindStringIfNeededForSender:(id)sender controller:(AppController *)controller;
+
 - (void)setupFontMenu;
 - (void)clearFindPanel;
 - (BOOL)didRenderFully;
+
+@property (nonatomic, copy) NSString *lastFindSearchString;
 @end
 
 @interface NSTextView (Private)

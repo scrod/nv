@@ -1239,6 +1239,7 @@ NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalize
 - (BOOL)filterNotesFromString:(NSString*)string {
 	
 	[delegate notationListMightChange:self];
+	self.filterString = string;
 	if ([self filterNotesFromUTF8String:[string lowercaseUTF8String] forceUncached:NO]) {
 		[delegate notationListDidChange:self];
 		

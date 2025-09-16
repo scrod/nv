@@ -54,7 +54,20 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 @end
 
 
+@interface LinkingEditor ()
+- (BOOL)_selection:(NSRange)newRange wrapsPastRange:(NSRange)originalRange forward:(BOOL)searchForward;
+- (BOOL)_searchAdjacentNotesForAction:(id)sender
+	originalRow:(NSInteger)originalRow
+	originalSelection:(NSRange)originalSelection
+	searchForward:(BOOL)searchForward
+	movedToDifferentNote:(BOOL)movedToDifferentNote
+	noteCount:(NSInteger)noteCount;
+@end
+
+
 @implementation LinkingEditor
+
+@synthesize lastFindSearchString = _lastFindSearchString;
 
 CGFloat _perceptualDarkness(NSColor*a);
 
@@ -715,16 +728,28 @@ copyRTFType:
 }
 
 - (IBAction)performFindPanelAction:(id)sender {
-	id controller = [NSApp delegate];
+	AppController *controller = (AppController *)[NSApp delegate];
     
-    NSInteger rowNumber = -1;
-    NSInteger totalNotes = [notesTableView numberOfRows];
-    NSInteger tag = [sender tag];
-    
-    if (![controller selectedNoteObject]) {
+	NSInteger rowNumber = -1;
+	NSInteger totalNotes = [notesTableView numberOfRows];
+	NSInteger tag = [sender tag];
+	BOOL directionalAction = (tag == NSFindPanelActionNext || tag == NSFindPanelActionPrevious);
+	BOOL searchForward = (tag == NSFindPanelActionNext);
+
+	if (directionalAction) {
+		NSString *searchString = [controller fieldSearchString];
+		if (![searchString length]) {
+			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+			NSString *pboardString = [findPboard stringForType:NSStringPboardType];
+			if ([pboardString length])
+				[controller searchForString:pboardString];
+		}
+	}
+
+	if (![controller selectedNoteObject]) {
 		rowNumber = (tag == NSFindPanelActionPrevious ? totalNotes - 1 : 0);
     }
-    
+
     if (rowNumber > -1 && tag != NSFindPanelActionShowFindPanel) {
 		//when skipping notes, also set the selection depending on find direction
 		[notesTableView selectRowAndScroll:rowNumber];
@@ -734,10 +759,115 @@ copyRTFType:
     
 	if ([controller selectedNoteObject])
 		[[self window] makeFirstResponder:self];
+
+	if (directionalAction) {
+		[self _synchronizeFindStringIfNeededForSender:sender controller:controller];
+	}
 	
+    NSRange originalSelection = [self selectedRange];
+    NSInteger originalRow = [notesTableView selectedRow];
     [super performFindPanelAction:sender];
-	
+
+	NSRange newSelection = [self selectedRange];
+	NSInteger newRow = [notesTableView selectedRow];
+	BOOL movedToDifferentNote = (newRow != originalRow);
+
+	if (directionalAction) {
+		BOOL searchFailed = NSEqualRanges(originalSelection, newSelection);
+		if (!searchFailed && !movedToDifferentNote) {
+			if (originalSelection.location != NSNotFound && newSelection.location != NSNotFound) {
+				searchFailed = [self _selection:newSelection wrapsPastRange:originalSelection forward:searchForward];
+			}
+		}
+		if (searchFailed) {
+			NSInteger noteCount = [notesTableView numberOfRows];
+			[self _searchAdjacentNotesForAction:sender
+									originalRow:originalRow
+							  originalSelection:originalSelection
+								  searchForward:searchForward
+						   movedToDifferentNote:movedToDifferentNote
+									  noteCount:noteCount];
+		}
+	} else if (!movedToDifferentNote) {
+		[self setSelectedRange:originalSelection];
+	}
 	lastAutomaticallySelectedRange = [self selectedRange];
+}
+
+- (void)_synchronizeFindStringIfNeededForSender:(id)sender controller:(AppController *)controller {
+	
+	// Keep the find string synced with the current global search query on first reuse.
+	NSString *searchString = [(AppController*)controller fieldSearchString];
+	if (![searchString length]) {
+		NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+		NSString *pboardString = [findPboard stringForType:NSStringPboardType];
+		if ([pboardString length])
+			searchString = pboardString;
+	}
+	BOOL stringsEqual = ((searchString == nil && _lastFindSearchString == nil) ||
+						 (searchString && _lastFindSearchString && [searchString isEqualToString:_lastFindSearchString]));
+	if (!stringsEqual) {
+		self.lastFindSearchString = [searchString length] ? searchString : nil;
+		if ([searchString length]) {
+			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+			if (findPboard) {
+				NSArray *types = [NSArray arrayWithObject:NSStringPboardType];
+				[findPboard declareTypes:types owner:nil];
+				[findPboard setString:searchString forType:NSStringPboardType];
+			}
+			//NSTextFinder must be programmatically triggered with the show-find-panel action to register the initial find string
+			NSMenuItem *menuSender = [sender isKindOfClass:[NSMenuItem class]] ? sender : nil;
+			NSMenuItem *showPanelItem = [[menuSender menu] itemWithTag:NSFindPanelActionShowFindPanel];
+			if (showPanelItem) [super performFindPanelAction:showPanelItem];
+		}
+	}
+}
+
+- (BOOL)_selection:(NSRange)newRange wrapsPastRange:(NSRange)originalRange forward:(BOOL)searchForward {
+	if (searchForward)
+		return newRange.location < originalRange.location;
+	return newRange.location > originalRange.location;
+}
+
+- (BOOL)_searchAdjacentNotesForAction:(id)sender
+	originalRow:(NSInteger)originalRow
+	originalSelection:(NSRange)originalSelection
+	searchForward:(BOOL)searchForward
+	movedToDifferentNote:(BOOL)movedToDifferentNote
+	noteCount:(NSInteger)noteCount {
+	if (noteCount <= 1 || originalRow < 0) {
+		if (!movedToDifferentNote)
+			[self setSelectedRange:originalSelection];
+		return NO;
+	}
+
+	NSInteger currentRow = originalRow;
+	NSInteger delta = searchForward ? 1 : -1;
+	for (NSInteger attempt = 1; attempt < noteCount; attempt++) {
+		currentRow += delta;
+		if (currentRow >= noteCount)
+			currentRow = 0;
+		else if (currentRow < 0)
+			currentRow = noteCount - 1;
+
+		[notesTableView selectRowAndScroll:currentRow];
+		[[self window] makeFirstResponder:self];
+		NSUInteger location = searchForward ? 0 : [[self string] length];
+		[self setSelectedRange:NSMakeRange(location, 0)];
+
+		NSRange attemptStart = [self selectedRange];
+		[super performFindPanelAction:sender];
+		if (!NSEqualRanges(attemptStart, [self selectedRange]))
+			return YES;
+	}
+
+	NSInteger updatedCount = [notesTableView numberOfRows];
+	if (originalRow > -1 && originalRow < updatedCount) {
+		[notesTableView selectRowAndScroll:originalRow];
+		[[self window] makeFirstResponder:self];
+	}
+	[self setSelectedRange:originalSelection];
+	return NO;
 }
 
 - (void)clearFindPanel {
@@ -1505,6 +1635,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver: self];
+	[_lastFindSearchString release];
 	[super dealloc];
 }
 

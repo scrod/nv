@@ -66,6 +66,7 @@ typedef struct _NoteCatalogEntry {
 	unsigned int allNotesBufferSize;
     
     NSUInteger selectedNoteIndex;
+	NSString *_filterString;
     char *currentFilterStr, *manglingString;
     int lastWordInFilterStr;
     
@@ -106,6 +107,8 @@ typedef struct _NoteCatalogEntry {
 	NSTimer *changeWritingTimer;
 	NSUndoManager *undoManager;
 }
+
+@property(retain,nonatomic) NSString *filterString;
 
 - (id)init;
 - (id)initWithAliasData:(NSData*)data error:(OSStatus*)err;

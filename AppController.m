@@ -1170,7 +1170,7 @@ terminateApp:
 	
 	if (!currentNote) return [field stringValue];
 	
-	return nil;
+	return notationController.filterString;
 }
 
 - (NSString*)typedString {
@@ -1202,7 +1202,9 @@ terminateApp:
 		
 		if ([fieldString length] > 0) {
 			[field setSnapbackString:nil];
-			
+			if (didFilter) {
+				textView.lastFindSearchString = nil;
+			}
 
 			NSUInteger preferredNoteIndex = [notationController preferredSelectedNoteIndex];
 			
@@ -1412,12 +1414,15 @@ terminateApp:
 			//remove snapback-button from dual field here?
 			[field setSnapbackString:nil];
 			
-			if (!numberSelected && savedSelectedNotes) {
-				//savedSelectedNotes needs to be empty after de-selecting all notes, 
-				//to ensure that any delayed list-resorting does not re-select savedSelectedNotes
+			if (!numberSelected) {
+				if (savedSelectedNotes) {
+					//savedSelectedNotes needs to be empty after de-selecting all notes,
+					//to ensure that any delayed list-resorting does not re-select savedSelectedNotes
 
-				[savedSelectedNotes release];
-				savedSelectedNotes = nil;
+					[savedSelectedNotes release];
+					savedSelectedNotes = nil;
+				}
+				[notesTableView setNeedsDisplay:YES]; //edge case of deselecting a note at row 0 with no other changes
 			}
 		}
 	}
