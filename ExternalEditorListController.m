@@ -274,7 +274,7 @@ static ExternalEditorListController* sharedInstance = nil;
     [openPanel setDirectoryURL:[NSURL fileURLWithPath:@"/Applications"]];
     [openPanel setAllowedFileTypes:@[@"app"]];
     
-    if ([openPanel runModal] == NSFileHandlingPanelOKButton) {
+    if ([openPanel runModal] == NSModalResponseOK) {
 		if (![[openPanel URL] path]) goto errorReturn;
 		NSURL *appURL = [openPanel URL];
 		if (!appURL) goto errorReturn;

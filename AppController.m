@@ -323,7 +323,7 @@ void outletObjectAwoke(id sender) {
 	    NSString *reason = [NSString reasonStringFromCarbonFSError:err];
 		
 	    NSAlert *initializationAlert = [[[NSAlert alloc] init] autorelease];
-	    [initializationAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in %@ because %@.", nil), location, reason]];
+	    [initializationAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
 	    [initializationAlert setInformativeText:subMessage];
 	    [initializationAlert addButtonWithTitle:NSLocalizedString(@"Choose another folder", nil)];
 	    [initializationAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
@@ -748,7 +748,7 @@ terminateApp:
 				NSString *oldLocation = [[[NSFileManager defaultManager] pathCopiedFromAliasData:oldData] stringByAbbreviatingWithTildeInPath]; 
 				NSString *reason = [NSString reasonStringFromCarbonFSError:err];
 				NSAlert *revertAlert = [[[NSAlert alloc] init] autorelease];
-				[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in %@ because %@.", nil), location, reason]];
+				[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
 				[revertAlert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Reverting to current location of %@.", nil), oldLocation]];
 				[revertAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
 				[revertAlert runModal];
