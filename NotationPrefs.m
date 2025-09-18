@@ -30,9 +30,10 @@
 #import "NotationFileManager.h"
 #import "SecureTextEntryManager.h"
 #import "DiskUUIDEntry.h"
-#include <CoreServices/CoreServices.h>
-#include <Security/Security.h>
-#include <ApplicationServices/ApplicationServices.h>
+#import <CoreServices/CoreServices.h>
+#import <Security/Security.h>
+#import <ApplicationServices/ApplicationServices.h>
+#include <string.h>
 
 #define DEFAULT_HASH_ITERATIONS 8000
 #define DEFAULT_KEY_LENGTH 256
@@ -458,7 +459,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	}
 	NSData *data = [NSData dataWithBytes:passwordData length:passwordLength];
 	
-    bzero(passwordData, (size_t)passwordLength);
+	if (passwordData && passwordLength > 0) {
+		memset_s(passwordData, passwordLength, 0, passwordLength);
+	}
 	
 	SecKeychainItemFreeContent(NULL, passwordData);
 	
