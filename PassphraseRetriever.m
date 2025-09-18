@@ -123,8 +123,11 @@
 		[window close];
 		
 	} else {
-		NSBeginAlertSheet(NSLocalizedString(@"Sorry, you entered an incorrect passphrase.",nil), NSLocalizedString(@"OK",nil), 
-						  nil, nil, window, nil, NULL, NULL, NULL, NSLocalizedString(@"Please try again.",nil));
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedString(@"Sorry, you entered an incorrect passphrase.", nil)];
+		[alert setInformativeText:NSLocalizedString(@"Please try again.", nil)];
+		[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[alert beginSheetModalForWindow:window completionHandler:nil];
 		[passphraseField setStringValue:@""];
 		[self textDidChange:nil];
 	}	

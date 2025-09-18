@@ -354,16 +354,25 @@ long BlockSizeForNotation(NotationController *controller) {
 				CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, filename, kCFURLPOSIXPathStyle, true);
 				[(id)url autorelease];
 				if (!url || !CFURLGetFSRef(url, &newParentRef)) {
-					NSRunAlertPanel(NSLocalizedString(@"Unable to create an FSRef from the chosen directory.",nil), 
-									NSLocalizedString(@"Your notes were not moved.",nil), NSLocalizedString(@"OK",nil), NULL, NULL);
+					NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+					[alert setMessageText:NSLocalizedString(@"Unable to create an FSRef from the chosen directory.", nil)];
+					[alert setInformativeText:NSLocalizedString(@"Your notes were not moved.", nil)];
+					[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+					[alert runModal];
 					continue;
 				}
+
 				
 				FSRef newNotesDirectory;
 				OSErr err = FSMoveObject(&noteDirectoryRef,  &newParentRef, &newNotesDirectory);
 				if (err != noErr) {
-					NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Couldn't move notes into the chosen folder because %@",nil), 
-						[NSString reasonStringFromCarbonFSError:err]], NSLocalizedString(@"Your notes were not moved.",nil), NSLocalizedString(@"OK",nil), NULL, NULL);
+					NSString *messageText = [NSString stringWithFormat:NSLocalizedString(@"Couldn't move notes into the chosen folder because %@", nil),
+						[NSString reasonStringFromCarbonFSError:err]];
+					NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+					[alert setMessageText:messageText];
+					[alert setInformativeText:NSLocalizedString(@"Your notes were not moved.", nil)];
+					[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+					[alert runModal];
 					continue;
 				}
 				

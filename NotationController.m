@@ -209,9 +209,13 @@
 			notesChanged = YES;
 			[self flushEverything];
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
-			if (NSRunCriticalAlertPanel(NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil), 
-										NSLocalizedString(@"If you make changes, some settings and metadata will be lost.", nil), 
-										NSLocalizedString(@"Quit", nil), NSLocalizedString(@"Continue", nil), nil) == NSAlertDefaultReturn)
+			NSAlert *versionAlert = [[[NSAlert alloc] init] autorelease];
+			[versionAlert setMessageText:NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil)];
+			[versionAlert setInformativeText:NSLocalizedString(@"If you make changes, some settings and metadata will be lost.", nil)];
+			[versionAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
+			[versionAlert addButtonWithTitle:NSLocalizedString(@"Continue", nil)];
+			[versionAlert setAlertStyle:NSAlertStyleCritical];
+			if ([versionAlert runModal] == NSAlertFirstButtonReturn)
 			exit(0);
 		}
 	}	
@@ -570,8 +574,12 @@ bail:
 	
 	[self flushAllNoteChanges];
 	
-	NSRunAlertPanel(NSLocalizedString(@"Unable to create or access the Interim Note-Changes file. Is another copy of Notational Velocity currently running?",nil), 
-			NSLocalizedString(@"Open Console in /Applications/Utilities/ for more information.",nil), NSLocalizedString(@"Quit",nil), NULL, NULL);
+	NSAlert *interimAlert = [[[NSAlert alloc] init] autorelease];
+	[interimAlert setMessageText:NSLocalizedString(@"Unable to create or access the Interim Note-Changes file. Is another copy of Notational Velocity currently running?", nil)];
+	[interimAlert setInformativeText:NSLocalizedString(@"Open Console in /Applications/Utilities/ for more information.", nil)];
+	[interimAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
+	[interimAlert setAlertStyle:NSAlertStyleCritical];
+	[interimAlert runModal];
 	
 	
 	exit(1);
@@ -634,9 +642,12 @@ bail:
     [unwrittenNotes addObject:note];
     
     if (error != lastWriteError) {
-		NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Changed notes could not be saved because %@.",
-																	 @"alert title appearing when notes couldn't be written"), 
-			[NSString reasonStringFromCarbonFSError:error]], @"", NSLocalizedString(@"OK",nil), NULL, NULL);
+		NSAlert *writeAlert = [[[NSAlert alloc] init] autorelease];
+		[writeAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Changed notes could not be saved because %@.", @"alert title appearing when notes couldn't be written"),
+			[NSString reasonStringFromCarbonFSError:error]]];
+		[writeAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[writeAlert setAlertStyle:NSAlertStyleWarning];
+		[writeAlert runModal];
 		
 		lastWriteError = error;
     }
@@ -728,10 +739,14 @@ bail:
 		
 		NSString *trashLocation = [[[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef] stringByAbbreviatingWithTildeInPath];
 		if (!trashLocation) trashLocation = @"unknown";
-NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.",nil), trashLocation], 
-											 NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?",nil),
-											 NSLocalizedString(@"Relocate Notes",nil), NSLocalizedString(@"Quit",nil), NULL);
-		if (result == NSAlertDefaultReturn)
+NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
+		[trashAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.", nil), trashLocation]];
+		[trashAlert setInformativeText:NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?", nil)];
+		[trashAlert addButtonWithTitle:NSLocalizedString(@"Relocate Notes", nil)];
+		[trashAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
+		[trashAlert setAlertStyle:NSAlertStyleCritical];
+		NSModalResponse result = [trashAlert runModal];
+		if (result == NSAlertFirstButtonReturn)
 			[self relocateNotesDirectory];
 		else [NSApp terminate:nil];
 	}

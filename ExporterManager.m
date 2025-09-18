@@ -76,8 +76,13 @@
 		CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, (CFStringRef)directory, kCFURLPOSIXPathStyle, true);
 		[(id)url autorelease];
 		if (!url || !CFURLGetFSRef(url, &directoryRef)) {
-			NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The notes couldn't be exported because the directory quotemark%@quotemark couldn't be accessed.",nil),
-				[directory stringByAbbreviatingWithTildeInPath]], @"", NSLocalizedString(@"OK",nil), nil, nil);
+			NSString *messageText = [NSString stringWithFormat:NSLocalizedString(@"The notes couldn't be exported because the directory quotemark%@quotemark couldn't be accessed.", nil),
+				[directory stringByAbbreviatingWithTildeInPath]];
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:messageText];
+			[alert setInformativeText:@""];
+			[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+			[alert runModal];
 			return;
 		}
 		
@@ -92,25 +97,40 @@
 			if (err == dupFNErr) {
 				//ask about overwriting
 				NSString *existingName = filename ? filename : filenameOfNote(note);
-                existingName = [[existingName stringByDeletingPathExtension] stringByAppendingPathExtension:[NotationPrefs pathExtensionForFormat:(int)storageFormat]];
-					result = NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"A file named quotemark%@quotemark already exists.",nil), existingName],
-										 NSLocalizedString(@"Replace its current contents with that of the note?", @"replace the file's contents?"),
-										 NSLocalizedString(@"Replace",nil), NSLocalizedString(@"Don't Replace",nil), lastNote ? NSLocalizedString(@"Replace All",nil) : nil, nil);
-				if (result == NSAlertDefaultReturn || result == NSAlertOtherReturn) {
-					if (result == NSAlertOtherReturn) overwriteNotes = YES;
-                        err = [note exportToDirectoryRef:&directoryRef withFilename:filename usingFormat:(int)storageFormat overwrite:YES];
-				} else continue;
+				existingName = [[existingName stringByDeletingPathExtension] stringByAppendingPathExtension:[NotationPrefs pathExtensionForFormat:(int)storageFormat]];
+				NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+				[alert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"A file named quotemark%@quotemark already exists.", nil), existingName]];
+				[alert setInformativeText:NSLocalizedString(@"Replace its current contents with that of the note?", @"replace the file's contents?")];
+				[alert addButtonWithTitle:NSLocalizedString(@"Replace", nil)];
+				[alert addButtonWithTitle:NSLocalizedString(@"Don't Replace", nil)];
+				if (lastNote) {
+					[alert addButtonWithTitle:NSLocalizedString(@"Replace All", nil)];
+				}
+				NSModalResponse response = [alert runModal];
+				if (response == NSAlertFirstButtonReturn || response == NSAlertThirdButtonReturn) {
+					if (response == NSAlertThirdButtonReturn) overwriteNotes = YES;
+					err = [note exportToDirectoryRef:&directoryRef withFilename:filename usingFormat:(int)storageFormat overwrite:YES];
+				} else {
+					continue;
+				}
 			}
-			
 			if (err != noErr) {
 				NSString *exportErrorTitleString = [NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark couldn't be exported because %@.",nil), 
 					titleOfNote(note), [NSString reasonStringFromCarbonFSError:err]];
 				if (!lastNote) {
-					NSRunAlertPanel(exportErrorTitleString, @"", NSLocalizedString(@"OK",nil), nil, nil, nil);
+					NSAlert *errorAlert = [[[NSAlert alloc] init] autorelease];
+					[errorAlert setMessageText:exportErrorTitleString];
+					[errorAlert setInformativeText:@""];
+					[errorAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+					[errorAlert runModal];
 				} else {
-						result = NSRunAlertPanel(exportErrorTitleString, NSLocalizedString(@"Continue exporting?", @"alert title for exporter interruption"), 
-											 NSLocalizedString(@"Continue", @"(exporting notes?)"), NSLocalizedString(@"Stop Exporting", @"(notes?)"), nil);
-					if (result != NSAlertDefaultReturn) break;
+					NSAlert *continueAlert = [[[NSAlert alloc] init] autorelease];
+					[continueAlert setMessageText:exportErrorTitleString];
+					[continueAlert setInformativeText:NSLocalizedString(@"Continue exporting?", @"alert title for exporter interruption")];
+					[continueAlert addButtonWithTitle:NSLocalizedString(@"Continue", @"(exporting notes?)")];
+					[continueAlert addButtonWithTitle:NSLocalizedString(@"Stop Exporting", @"(notes?)")];
+					NSModalResponse continueResponse = [continueAlert runModal];
+					if (continueResponse != NSAlertFirstButtonReturn) break;
 				}
 			}
 		}
@@ -173,8 +193,11 @@
             self.currentPanel = nil;
         }];
     } else {
-        NSRunAlertPanel(NSLocalizedString(@"No notes were selected for exporting.",nil), 
-                        NSLocalizedString(@"You must select at least one note to export.",nil), NSLocalizedString(@"OK",nil), NULL, NULL);
+        NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+        [alert setMessageText:NSLocalizedString(@"No notes were selected for exporting.", nil)];
+        [alert setInformativeText:NSLocalizedString(@"You must select at least one note to export.", nil)];
+        [alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+        [alert runModal];
     }
 }
 

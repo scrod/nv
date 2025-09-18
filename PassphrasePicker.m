@@ -126,8 +126,12 @@
 		[newPassphraseWindow close];
 		
 	} else {
-		NSRunAlertPanel(NSLocalizedString(@"Your entered passphrase does not match your verify passphrase.",nil), 
-						NSLocalizedString(@"Please try again.",nil), NSLocalizedString(@"OK",nil), nil, nil);
+		NSAlert *mismatchAlert = [[[NSAlert alloc] init] autorelease];
+		[mismatchAlert setMessageText:NSLocalizedString(@"Your entered passphrase does not match your verify passphrase.", nil)];
+		[mismatchAlert setInformativeText:NSLocalizedString(@"Please try again.", nil)];
+		[mismatchAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[mismatchAlert setAlertStyle:NSAlertStyleWarning];
+		[mismatchAlert runModal];
 		[verifyNewPasswordField setStringValue:@""];
 		[verifyNewPasswordField performSelector:@selector(selectText:) withObject:nil afterDelay:0.0];
 	}

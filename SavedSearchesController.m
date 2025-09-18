@@ -524,8 +524,13 @@ static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (void)clearAllSearches:(id)sender {
-	if (NSRunAlertPanel(@"Remove all saved searches?", @"You cannot undo this action.", 
-						@"Remove All Searches", @"Cancel", NULL) == NSAlertDefaultReturn) {
+		NSAlert *clearAlert = [[[NSAlert alloc] init] autorelease];
+	[clearAlert setMessageText:@"Remove all saved searches?"];
+	[clearAlert setInformativeText:@"You cannot undo this action."];
+	[clearAlert addButtonWithTitle:@"Remove All Searches"];
+	[clearAlert addButtonWithTitle:@"Cancel"];
+	[clearAlert setAlertStyle:NSAlertStyleWarning];
+	if ([clearAlert runModal] == NSAlertFirstButtonReturn) {
 
 		[searches removeAllObjects];
 	

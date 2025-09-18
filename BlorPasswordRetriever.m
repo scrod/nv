@@ -55,10 +55,13 @@
 	[NSApp stopModalWithCode:0];
 	[window close];
 	
-	if (![[GlobalPrefs defaultPrefs] triedToImportBlor])
-		NSRunAlertPanel(NSLocalizedString(@"Note Importing Cancelled", nil), 
-						NSLocalizedString(@"You can import your old notes at any time by choosing quotemarkImport...quotemark from the quotemarkNotequotemark menu and selecting your NotationalDatabase.blor file.",nil), 
-						NSLocalizedString(@"OK",nil), nil, nil);
+	if (![[GlobalPrefs defaultPrefs] triedToImportBlor]) {
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedString(@"Note Importing Cancelled", nil)];
+		[alert setInformativeText:NSLocalizedString(@"You can import your old notes at any time by choosing quotemarkImport...quotemark from the quotemarkNotequotemark menu and selecting your NotationalDatabase.blor file.", nil)];
+		[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[alert runModal];
+	}
 }
 
 - (IBAction)importAction:(id)sender {
@@ -72,8 +75,11 @@
 		[window close];
 		
 	} else {
-		NSBeginAlertSheet(NSLocalizedString(@"Sorry, you entered an incorrect passphrase.",nil), NSLocalizedString(@"OK",nil), 
-						  nil, nil, window, nil, NULL, NULL, NULL, NSLocalizedString(@"Please try again.",nil));
+		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:NSLocalizedString(@"Sorry, you entered an incorrect passphrase.", nil)];
+		[alert setInformativeText:NSLocalizedString(@"Please try again.", nil)];
+		[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[alert beginSheetModalForWindow:window completionHandler:nil];
 	}	
 	
 }

@@ -502,10 +502,13 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 }
 
 - (void)clearAllBookmarks:(id)sender {
-	if (NSRunAlertPanel(NSLocalizedString(@"Remove all bookmarks?",@"alert title when clearing bookmarks"), 
-						NSLocalizedString(@"You cannot undo this action.",nil), 
-						NSLocalizedString(@"Remove All Bookmarks",nil), NSLocalizedString(@"Cancel",nil), NULL) == NSAlertDefaultReturn) {
-
+	NSAlert *clearAlert = [[[NSAlert alloc] init] autorelease];
+	[clearAlert setMessageText:NSLocalizedString(@"Remove all bookmarks?", @"alert title when clearing bookmarks")];
+	[clearAlert setInformativeText:NSLocalizedString(@"You cannot undo this action.", nil)];
+	[clearAlert addButtonWithTitle:NSLocalizedString(@"Remove All Bookmarks", nil)];
+	[clearAlert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+	[clearAlert setAlertStyle:NSAlertStyleWarning];
+	if ([clearAlert runModal] == NSAlertFirstButtonReturn) {
 		[bookmarks removeAllObjects];
 	
 		[self updateBookmarksUI];
@@ -516,7 +519,12 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	
 	if (![appController selectedNoteObject]) {
 		
-		NSRunAlertPanel(NSLocalizedString(@"No note selected.",@"alert title when bookmarking no note"), NSLocalizedString(@"You must select a note before it can be added as a bookmark.",nil), NSLocalizedString(@"OK",nil), nil, NULL);
+		NSAlert *noSelectionAlert = [[[NSAlert alloc] init] autorelease];
+		[noSelectionAlert setMessageText:NSLocalizedString(@"No note selected.", @"alert title when bookmarking no note")];
+		[noSelectionAlert setInformativeText:NSLocalizedString(@"You must select a note before it can be added as a bookmark.", nil)];
+		[noSelectionAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[noSelectionAlert setAlertStyle:NSAlertStyleWarning];
+		[noSelectionAlert runModal];
 		
 	} else if ([bookmarks count] < 27) {
 		NSString *newString = [[appController fieldSearchString] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];		
@@ -539,7 +547,12 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 		[bookmark release];
 	} else {
 		//there are only so many numbers and modifiers
-		NSRunAlertPanel(NSLocalizedString(@"Too many bookmarks.",nil), NSLocalizedString(@"You cannot create more than 26 bookmarks. Try removing some first.",nil), NSLocalizedString(@"OK",nil), nil, NULL);
+		NSAlert *tooManyAlert = [[[NSAlert alloc] init] autorelease];
+		[tooManyAlert setMessageText:NSLocalizedString(@"Too many bookmarks.", nil)];
+		[tooManyAlert setInformativeText:NSLocalizedString(@"You cannot create more than 26 bookmarks. Try removing some first.", nil)];
+		[tooManyAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[tooManyAlert setAlertStyle:NSAlertStyleWarning];
+		[tooManyAlert runModal];
 	}
 }
 

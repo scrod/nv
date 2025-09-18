@@ -22,6 +22,19 @@
 #import "NSString_NV.h"
 #import "AppController.h"
 
+static NSModalResponse NVRunAlert(NSString *message, NSString *informative, NSString * _Nonnull defaultButton, NSString *alternateButton, NSString *otherButton, NSAlertStyle style) {
+	NSCParameterAssert(defaultButton != nil);
+
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:message ? message : @""];
+	[alert setInformativeText:informative ? informative : @""];
+	[alert addButtonWithTitle:defaultButton];
+	if (alternateButton) [alert addButtonWithTitle:alternateButton];
+	if (otherButton) [alert addButtonWithTitle:otherButton];
+	[alert setAlertStyle:style];
+	return [alert runModal];
+}
+
 @implementation EncodingsManager
 
 static const NSStringEncoding AllowedEncodings[] = {
@@ -94,21 +107,24 @@ static const NSStringEncoding AllowedEncodings[] = {
 		
 		NSString * alertTitleString = NSLocalizedString(@"quotemark%@quotemark is a Unicode file and not directly interpretable using plain text encodings.", 
 													   @"alert title when converting from unicode");
-		if (NSRunAlertPanel([NSString stringWithFormat:alertTitleString, filenameOfNote(note)],	
-							NSLocalizedString(@"If you wish to convert it, you must open and re-save the file in an external editor.", "alert description when converting from unicode"), 
-							NSLocalizedString(@"OK", nil), NSLocalizedString(@"Open in TextEdit", @"title of button for opening the current note in text edit"), NULL) != NSAlertDefaultReturn) {
+		NSModalResponse unicodeResponse = NVRunAlert([NSString stringWithFormat:alertTitleString, filenameOfNote(note)],
+				NSLocalizedString(@"If you wish to convert it, you must open and re-save the file in an external editor.", "alert description when converting from unicode"),
+				NSLocalizedString(@"OK", nil), NSLocalizedString(@"Open in TextEdit", @"title of button for opening the current note in text edit"), nil, NSAlertStyleWarning);
+		if (unicodeResponse != NSAlertFirstButtonReturn) {
 
 			NSString *textEditPath = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:@"com.apple.TextEdit"];
 			if (textEditPath) {
 				NSString *resolvedPath = [note noteFilePath];
 				if (!resolvedPath) {
-					NSRunAlertPanel(NSLocalizedString(@"Could not locate the note file.", nil), NSLocalizedString(@"Does it still exist?", nil), 
-									NSLocalizedString(@"I'll Go See", @"... if it exists"), NULL, NULL);
+					NVRunAlert(NSLocalizedString(@"Could not locate the note file.", nil), NSLocalizedString(@"Does it still exist?", nil),
+					NSLocalizedString(@"I'll Go See", @"... if it exists"), nil, nil, NSAlertStyleWarning);
 				} else {
 					[[NSWorkspace sharedWorkspace] openFile:resolvedPath withApplication:textEditPath];
 				}
 			} else {
-				NSRunAlertPanel(NSLocalizedString(@"Could not find the application TextEdit.", nil), NSLocalizedString(@"You may need to re-run the Mac OS X installer.",nil), NSLocalizedString(@"OK", nil), NULL, NULL);
+				NVRunAlert(NSLocalizedString(@"Could not find the application TextEdit.", nil),
+					NSLocalizedString(@"You may need to re-run the Mac OS X installer.", nil),
+					NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
 			}
 		}
 
@@ -128,8 +144,9 @@ static const NSStringEncoding AllowedEncodings[] = {
 	
 	[noteData release];
 	if (!(noteData = [[[note delegate] dataFromFileInNotesDirectory:&fsRef forFilename:filenameOfNote(note)] retain])) {
-		NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Error: unable to read the contents of the file quotemark%@.quotemark",nil), filenameOfNote(aNote)], 
-						NSLocalizedString(@"The file may no longer exist or has incorrect permissions.",nil), NSLocalizedString(@"OK",nil), NULL, NULL);
+		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: unable to read the contents of the file quotemark%@.quotemark", nil), filenameOfNote(aNote)],
+				NSLocalizedString(@"The file may no longer exist or has incorrect permissions.", nil),
+				NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
 		return;
 	}
 	
@@ -231,9 +248,10 @@ static const NSStringEncoding AllowedEncodings[] = {
 		
 		return YES;
 	} else {
-		NSRunAlertPanel([NSString stringWithFormat:@"%@ is not a valid encoding for this text file.", 
-			[NSString localizedNameOfStringEncoding:encoding]], NSLocalizedString(@"Please try another encoding.", @"prompt for choosing an incompatible text encoding"), 
-						NSLocalizedString(@"OK",nil), NULL, NULL);
+		NVRunAlert([NSString stringWithFormat:@"%@ is not a valid encoding for this text file.",
+			[NSString localizedNameOfStringEncoding:encoding]],
+			NSLocalizedString(@"Please try another encoding.", @"prompt for choosing an incompatible text encoding"),
+			NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
 	}
 	
 	
@@ -252,9 +270,10 @@ static const NSStringEncoding AllowedEncodings[] = {
 	FSCatalogInfo info;
 	OSStatus err = noErr;
 	if ((err = [[note delegate] fileInNotesDirectory:&fsRef isOwnedByUs:NULL hasCatalogInfo:&info]) != noErr) {
-		NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be determined because %@",nil), 
-			filenameOfNote(note), [NSString reasonStringFromCarbonFSError:err]], NSLocalizedString(@"The file may no longer exist or has incorrect permissions.",nil), 
-						NSLocalizedString(@"OK",nil), NULL, NULL);
+		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be determined because %@", nil),
+			filenameOfNote(note), [NSString reasonStringFromCarbonFSError:err]],
+			NSLocalizedString(@"The file may no longer exist or has incorrect permissions.", nil),
+			NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
 		return NO;
 	}
 	
@@ -264,11 +283,11 @@ static const NSStringEncoding AllowedEncodings[] = {
 		(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&info.contentModDate, &timeOnDisk) == noErr))) {
 		
 		if (lastTime > timeOnDisk) {
-                NSInteger result = NSRunCriticalAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark is newer than its file on disk.",nil), titleOfNote(note)], 
-												 NSLocalizedString(@"If you update this note with re-interpreted data from the file, you may overwrite your changes.",nil), 
-												 NSLocalizedString(@"Don't Update", @"don't update the note from its file on disk"), 
-												 NSLocalizedString(@"Overwrite Note", @"...from file on disk"), NULL);
-			if (result == NSAlertDefaultReturn) {
+			NSModalResponse result = NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark is newer than its file on disk.", nil), titleOfNote(note)],
+				NSLocalizedString(@"If you update this note with re-interpreted data from the file, you may overwrite your changes.", nil),
+				NSLocalizedString(@"Don't Update", @"don't update the note from its file on disk"),
+				NSLocalizedString(@"Overwrite Note", @"...from file on disk"), nil, NSAlertStyleCritical);
+			if (result == NSAlertFirstButtonReturn) {
 				NSLog(@"not updating");
 				return NO;
 			} else {
@@ -276,9 +295,10 @@ static const NSStringEncoding AllowedEncodings[] = {
 			}
 		}
     } else {
-		NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be compared because %@",nil), 
-			filenameOfNote(note), [NSString reasonStringFromCarbonFSError:err]], NSLocalizedString(@"This may be due to an error in the program or operating system.",nil), 
-						NSLocalizedString(@"OK",nil), NULL, NULL);
+		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be compared because %@", nil),
+			filenameOfNote(note), [NSString reasonStringFromCarbonFSError:err]],
+			NSLocalizedString(@"This may be due to an error in the program or operating system.", nil),
+			NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
 		return NO;
     }
 	

@@ -198,9 +198,14 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 			NSArray *notes = [self notesWithPaths:[panel filenames]];
 			if (notes && [notes count])
 				[delegate noteImporter:self importedNotes:notes];
-			else
-				NSRunAlertPanel(NSLocalizedString(@"None of the selected files could be imported.",nil), 
-								NSLocalizedString(@"Please choose other files.",nil), NSLocalizedString(@"OK",nil),nil,nil);
+			else {
+				NSAlert *importAlert = [[[NSAlert alloc] init] autorelease];
+				[importAlert setMessageText:NSLocalizedString(@"None of the selected files could be imported.", nil)];
+				[importAlert setInformativeText:NSLocalizedString(@"Please choose other files.", nil)];
+				[importAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+				[importAlert setAlertStyle:NSAlertStyleWarning];
+				[importAlert runModal];
+			}
 		}
 	} else {
 		NSLog(@"Where's my note importing delegate?");

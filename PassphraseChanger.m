@@ -44,16 +44,24 @@
 			[changePassphraseWindow close];
 			
 		} else {
-			NSRunAlertPanel(NSLocalizedString(@"Your entered new passphrase does not match your verification passphrase.",nil),
-							NSLocalizedString(@"Please try again.",nil), NSLocalizedString(@"OK",nil), nil, nil);
+			NSAlert *mismatchAlert = [[[NSAlert alloc] init] autorelease];
+			[mismatchAlert setMessageText:NSLocalizedString(@"Your entered new passphrase does not match your verification passphrase.", nil)];
+			[mismatchAlert setInformativeText:NSLocalizedString(@"Please try again.", nil)];
+			[mismatchAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+			[mismatchAlert setAlertStyle:NSAlertStyleWarning];
+			[mismatchAlert runModal];
 			[verifyChangedPasswordField setStringValue:@""];
 			[verifyChangedPasswordField performSelector:@selector(selectText:) withObject:nil afterDelay:0.0];
 			[self textDidChange:nil];
 		}
 	} else {
 		
-		NSRunAlertPanel(NSLocalizedString(@"Your entered current passphrase is incorrect.",nil), 
-						NSLocalizedString(@"Please try again.",nil), NSLocalizedString(@"OK",nil), nil, nil);
+		NSAlert *incorrectAlert = [[[NSAlert alloc] init] autorelease];
+		[incorrectAlert setMessageText:NSLocalizedString(@"Your entered current passphrase is incorrect.", nil)];
+		[incorrectAlert setInformativeText:NSLocalizedString(@"Please try again.", nil)];
+		[incorrectAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+		[incorrectAlert setAlertStyle:NSAlertStyleWarning];
+		[incorrectAlert runModal];
 		[currentPasswordField setStringValue:@""];
 		[currentPasswordField performSelector:@selector(selectText:) withObject:nil afterDelay:0.0];
 	}

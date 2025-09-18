@@ -144,8 +144,12 @@
 	
 	NSString *reason = [error localizedDescription];
 	if (!reason) reason = NSLocalizedString(@"unknown error.", @"error description of last resort for why a URL couldn't be accessed");
-	NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"The URL quotemark%@quotemark could not be accessed: %@.", nil), 
-		[url absoluteString], reason], @"", NSLocalizedString(@"OK",nil), nil, nil);
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"The URL quotemark%@quotemark could not be accessed: %@.", nil),
+		[url absoluteString], reason]];
+	[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+	[alert setAlertStyle:NSAlertStyleWarning];
+	[alert runModal];
 	
 	
 	[self endDownloadWithPath:nil];

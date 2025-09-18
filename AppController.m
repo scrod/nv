@@ -322,8 +322,13 @@ void outletObjectAwoke(id sender) {
 	    location = [location stringByAbbreviatingWithTildeInPath];
 	    NSString *reason = [NSString reasonStringFromCarbonFSError:err];
 		
-	    if (NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.",nil), location, reason], 
-							subMessage, NSLocalizedString(@"Choose another folder",nil),NSLocalizedString(@"Quit",nil),NULL) == NSAlertDefaultReturn) {
+	    NSAlert *initializationAlert = [[[NSAlert alloc] init] autorelease];
+	    [initializationAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in %@ because %@.", nil), location, reason]];
+	    [initializationAlert setInformativeText:subMessage];
+	    [initializationAlert addButtonWithTitle:NSLocalizedString(@"Choose another folder", nil)];
+	    [initializationAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
+	    NSModalResponse initializationResponse = [initializationAlert runModal];
+	    if (initializationResponse == NSAlertFirstButtonReturn) {
 			//show nsopenpanel, defaulting to current default notes dir
 			FSRef notesDirectoryRef;
 		showOpenPanel:
@@ -593,32 +598,6 @@ terminateApp:
 	[notesTableView editRowAtColumnWithIdentifier:NoteTitleColumnString];
 }
 
-- (void)deleteAlertDidEnd:(NSAlert *)alert returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo {
-
-	id retainedDeleteObj = (id)contextInfo;
-	
-	if (returnCode == NSAlertDefaultReturn) {
-		//delete! nil-msgsnd-checking
-		
-		//ensure that there are no pending edits in the tableview, 
-		//lest editing end with the same field editor and a different selected note
-		//resulting in the renaming of notes in adjacent rows
-		[notesTableView abortEditing];
-		
-		if ([retainedDeleteObj isKindOfClass:[NSArray class]]) {
-			[notationController removeNotes:retainedDeleteObj];
-		} else if ([retainedDeleteObj isKindOfClass:[NoteObject class]]) {
-			[notationController removeNote:retainedDeleteObj];
-		}
-		
-		if (IsLeopardOrLater && [[alert suppressionButton] state] == NSOnState) {
-			[prefsController setConfirmNoteDeletion:NO sender:self];
-		}
-	}
-	[retainedDeleteObj release];
-}
-
-
 - (IBAction)deleteNote:(id)sender {
 		
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
@@ -632,12 +611,31 @@ terminateApp:
 			NSString *warnString = currentNote ? [NSString stringWithFormat:warningSingleFormatString, titleOfNote(currentNote)] : 
 			[NSString stringWithFormat:warningMultipleFormatString, (int)[indexes count]];
 			
-			NSAlert *alert = [NSAlert alertWithMessageText:warnString defaultButton:NSLocalizedString(@"Delete", @"name of delete button")
-										   alternateButton:NSLocalizedString(@"Cancel", @"name of cancel button") otherButton:nil 
-								 informativeTextWithFormat:NSLocalizedString(@"Press Command-Z to undo this action later.", @"informational delete-this-note? text")];
+			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+			[alert setMessageText:warnString];
+			[alert setInformativeText:NSLocalizedString(@"Press Command-Z to undo this action later.", @"informational delete-this-note? text")];
+			[alert addButtonWithTitle:NSLocalizedString(@"Delete", @"name of delete button")];
+			[alert addButtonWithTitle:NSLocalizedString(@"Cancel", @"name of cancel button")];
 			if (IsLeopardOrLater) [alert setShowsSuppressionButton:YES];
 			
-			[alert beginSheetModalForWindow:window modalDelegate:self didEndSelector:@selector(deleteAlertDidEnd:returnCode:contextInfo:) contextInfo:(void*)deleteObj];
+			[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+				if (response == NSAlertFirstButtonReturn) {
+					//ensure that there are no pending edits in the tableview,
+					//lest editing end with the same field editor and a different selected note
+					//resulting in the renaming of notes in adjacent rows
+					[notesTableView abortEditing];
+					
+					if ([deleteObj isKindOfClass:[NSArray class]]) {
+						[notationController removeNotes:deleteObj];
+					} else if ([deleteObj isKindOfClass:[NoteObject class]]) {
+						[notationController removeNote:deleteObj];
+					}
+					if (IsLeopardOrLater && [[alert suppressionButton] state] == NSOnState) {
+						[prefsController setConfirmNoteDeletion:NO sender:self];
+					}
+				}
+				[deleteObj release];
+			}];
 		} else {
 			//just delete the notes outright			
 			[notationController performSelector:[indexes count] > 1 ? @selector(removeNotes:) : @selector(removeNote:) withObject:deleteObj];
@@ -749,9 +747,11 @@ terminateApp:
 				NSString *location = [[[NSFileManager defaultManager] pathCopiedFromAliasData:newData] stringByAbbreviatingWithTildeInPath];
 				NSString *oldLocation = [[[NSFileManager defaultManager] pathCopiedFromAliasData:oldData] stringByAbbreviatingWithTildeInPath]; 
 				NSString *reason = [NSString reasonStringFromCarbonFSError:err];
-				NSRunAlertPanel([NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.",nil), location, reason], 
-								[NSString stringWithFormat:NSLocalizedString(@"Reverting to current location of %@.",nil), oldLocation], 
-								NSLocalizedString(@"OK",nil), NULL, NULL);
+				NSAlert *revertAlert = [[[NSAlert alloc] init] autorelease];
+				[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in %@ because %@.", nil), location, reason]];
+				[revertAlert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Reverting to current location of %@.", nil), oldLocation]];
+				[revertAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+				[revertAlert runModal];
 			}
 		}
     } else if ([selectorString isEqualToString:SEL_STR(setSortedTableColumnKey:reversed:sender:)]) {
@@ -1949,7 +1949,13 @@ terminateApp:
 	//need this variable to allow overriding the wait
 	waitedForUncommittedChanges = YES;
 	NSString *errMsg = [[notationController syncSessionController] changeCommittingErrorMessage];
-	if ([errMsg length]) NSRunAlertPanel(NSLocalizedString(@"Changes could not be uploaded.", nil), errMsg, @"Quit", nil, nil);
+	if ([errMsg length]) {
+		NSAlert *syncAlert = [[[NSAlert alloc] init] autorelease];
+		[syncAlert setMessageText:NSLocalizedString(@"Changes could not be uploaded.", nil)];
+		[syncAlert setInformativeText:errMsg];
+		[syncAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
+		[syncAlert runModal];
+	}
 	
 	[NSApp terminate:nil];
 }
