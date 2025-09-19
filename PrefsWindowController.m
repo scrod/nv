@@ -48,10 +48,13 @@
 
 - (void)showWindow:(id)sender {
 	if (!window) {
-		if (![NSBundle loadNibNamed:@"Preferences" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"Preferences" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load Preferences.nib");
 			return;
 		}
+		[prefsWindowTopLevelObjects release];
+		prefsWindowTopLevelObjects = [topLevelObjects retain];
 	}
 	
 	if (![window isVisible])
@@ -519,7 +522,12 @@
     [window setShowsResizeIndicator:YES];
     [window setFrame:newFrame display:YES animate:YES];
 
-    [window setContentView:prefsView];
+	[window setContentView:prefsView];
+}
+
+-(void)dealloc {
+	[prefsWindowTopLevelObjects release];
+	[super dealloc];
 }
 
 NSRect ScaleRectWithFactor(NSRect rect, float factor) {

@@ -153,11 +153,14 @@ static const NSStringEncoding AllowedEncodings[] = {
 	if (![self checkUnicode]) {
 		
 		if (!window) {
-			if (![NSBundle loadNibNamed:@"EncodingsManager" owner:self])  {
+			NSArray *topLevelObjects = nil;
+			if (![[NSBundle mainBundle] loadNibNamed:@"EncodingsManager" owner:self topLevelObjects:&topLevelObjects])  {
 				NSLog(@"Failed to load EncodingsManager.nib");
 				NSBeep();
 				return;
 			}
+			[encodingsTopLevelObjects release];
+			encodingsTopLevelObjects = [topLevelObjects retain];
 		}
 		
 		[helpStringField setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Notational Velocity should assume the file quotemark%@quotemark was saved with the encoding:",nil), filenameOfNote(note)]];
@@ -315,6 +318,13 @@ static const NSStringEncoding AllowedEncodings[] = {
 	
 	[NSApp endSheet:window returnCode:1];
 	[window close];
+}
+
+- (void)dealloc {
+	[note release];
+	[noteData release];
+	[encodingsTopLevelObjects release];
+	[super dealloc];
 }
 
 @end

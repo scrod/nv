@@ -140,6 +140,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 - (void)dealloc {
 	[documentSettings release];
 	[source release];
+	[alienImporterTopLevelObjects release];
 	
 	[super dealloc];
 }
@@ -177,11 +178,14 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 
 - (NSView*)accessoryView {
 	if (!importAccessoryView) {
-		if (![NSBundle loadNibNamed:@"ImporterAccessory" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"ImporterAccessory" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load ImporterAccessory.nib");
 			NSBeep();
 			return nil;
 		}
+		[alienImporterTopLevelObjects release];
+		alienImporterTopLevelObjects = [topLevelObjects retain];
 	}
 	return importAccessoryView;
 }

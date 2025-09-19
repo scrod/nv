@@ -37,6 +37,7 @@
 	KeyDerivationManager *keyDerivation;
 	NotationPrefs *notationPrefs;
 	id resultDelegate;
+	NSArray *passphrasePickerTopLevelObjects;
 }
 
 - (IBAction)discloseAdvancedSettings:(id)sender;

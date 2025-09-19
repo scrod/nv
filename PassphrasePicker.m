@@ -34,9 +34,10 @@
 }
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	
+
 	[notationPrefs release];
 	[keyDerivation release];
+	[passphrasePickerTopLevelObjects release];
 	[super dealloc];
 }
 
@@ -73,11 +74,14 @@
 
 - (void)showAroundWindow:(NSWindow*)mainWindow resultDelegate:(id)aDelegate {
 	if (!newPassphraseWindow) {
-		if (![NSBundle loadNibNamed:@"PassphrasePicker" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"PassphrasePicker" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load PassphrasePicker.nib");
 			NSBeep();
 			return;
 		}
+		[passphrasePickerTopLevelObjects release];
+		passphrasePickerTopLevelObjects = [topLevelObjects retain];
 	}
 	
 	resultDelegate = aDelegate;

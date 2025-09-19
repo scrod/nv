@@ -48,10 +48,13 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (NSView*)view {
     if (!view) {
-		if (![NSBundle loadNibNamed:@"NotationPrefsView" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"NotationPrefsView" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load NotationPrefsView.nib");
 			return nil;
 		}
+		[notationPrefsTopLevelObjects release];
+		notationPrefsTopLevelObjects = [topLevelObjects retain];
     }
     
     return view;
@@ -75,6 +78,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	[changer release];
 	[notationPrefs release];
 	[postStorageFormatInvocation release];
+	[notationPrefsTopLevelObjects release];
 	
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	

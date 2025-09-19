@@ -57,6 +57,7 @@
 	[notationController release];
 	notationController = nil;
 	[deletedNotes release];
+	[deletionManagerTopLevelObjects release];
 	[super dealloc];
 }
 
@@ -193,11 +194,14 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 	}
 	
 	if (!window) {
-		if (![NSBundle loadNibNamed:@"DeletionManager" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"DeletionManager" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load DeletionManager.nib");
 			NSBeep();
 			return;
 		}
+		[deletionManagerTopLevelObjects release];
+		deletionManagerTopLevelObjects = [topLevelObjects retain];
 	}
 	[confirmDeletionButton setState:![[notationController notationPrefs] confirmFileDeletion]];
 	

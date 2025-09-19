@@ -119,11 +119,14 @@
 	//run dialog and grab PW
 	
 	if (!window) {
-		if (![NSBundle loadNibNamed:@"BlorPasswordRetriever" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"BlorPasswordRetriever" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load BlorPasswordRetriever.nib");
 			NSBeep();
 			return NULL;
 		}
+		[blorTopLevelObjects release];
+		blorTopLevelObjects = [topLevelObjects retain];
 	}
 	
 	[helpStringField setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Please enter the passphrase to import old notes at %@.",nil), 
@@ -170,6 +173,7 @@
 	[hashData release];
 	[path release];
 	[originalPasswordString release];
+	[blorTopLevelObjects release];
 	
 	[super dealloc];
 }

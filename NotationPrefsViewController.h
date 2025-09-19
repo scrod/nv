@@ -68,6 +68,7 @@
 	PassphraseChanger *changer;
 	
 	NSString *disableEncryptionString, *enableEncryptionString;
+	NSArray *notationPrefsTopLevelObjects;
 }
 
 - (NSView*)view;

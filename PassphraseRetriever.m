@@ -41,9 +41,10 @@
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	
+
 	[notationPrefs release];
-	
+	[passphraseRetrieverTopLevelObjects release];
+
 	[super dealloc];
 }
 
@@ -51,11 +52,14 @@
 - (int)loadedUserPassphraseData {
 	
 	if (!window) {
-		if (![NSBundle loadNibNamed:@"PassphraseRetriever" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"PassphraseRetriever" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load PassphraseRetriever.nib");
 			NSBeep();
 			return 0;
 		}
+		[passphraseRetrieverTopLevelObjects release];
+		passphraseRetrieverTopLevelObjects = [topLevelObjects retain];
 	}
 	
 	NSString *startingDirectory = NSLocalizedString(@"the current notes directory",nil);

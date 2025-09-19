@@ -150,11 +150,14 @@
 - (void)exportNotes:(NSArray*)notes forWindow:(NSWindow*)window {
 	
 	if (!accessoryView) {
-		if (![NSBundle loadNibNamed:@"ExporterManager" owner:self]) {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"ExporterManager" owner:self topLevelObjects:&topLevelObjects]) {
 			NSLog(@"Failed to load ExporterManager.nib");
 			NSBeep();
 			return;
 		}
+		[exporterTopLevelObjects release];
+		exporterTopLevelObjects = [topLevelObjects retain];
 	}
 	
     if ([notes count] == 1) {
@@ -209,6 +212,7 @@
 
 - (void)dealloc {
     [currentPanel release];
+    [exporterTopLevelObjects release];
     [super dealloc];
 }
 

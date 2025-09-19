@@ -32,6 +32,7 @@
 	BOOL couldRetrieveFromKeychain;
 	NSString *path, *originalPasswordString;
 	NSData *hashData;
+	NSArray *blorTopLevelObjects;
 }
 
 - (id)initWithBlor:(NSString*)blorPath;

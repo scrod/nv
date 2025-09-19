@@ -14,9 +14,12 @@
 
 - (id)initWithDelegate:(id)del commonTags:(NSArray *)cTags atPoint:(NSPoint)centerpoint {
     if ((self = [super init])) {
-        if (![NSBundle loadNibNamed:@"TagEditingManager" owner:self])  {
+        NSArray *topLevelObjects = nil;
+        if (![[NSBundle mainBundle] loadNibNamed:@"TagEditingManager" owner:self topLevelObjects:&topLevelObjects])  {
             NSLog(@"Failed to load TagEditingManager.nib");
         } else {
+            [tagNibTopLevelObjects release];
+            tagNibTopLevelObjects = [topLevelObjects retain];
             isHappening = YES;
             NSRect zRect = [tagPanel frame];
             centerpoint.x -= (zRect.size.width/2.0);
@@ -35,6 +38,7 @@
     [tagFieldString release];
     [commonTags release];
     [tagPanel release];
+    [tagNibTopLevelObjects release];
     [tagField release];
     [super dealloc];
 }
@@ -90,4 +94,3 @@
 }
 
 @end
-

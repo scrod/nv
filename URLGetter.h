@@ -36,10 +36,11 @@
 	id userData;
 	
 	id delegate;
-	
+
 	BOOL isIndicating, isImporting;
-	
+
 	long long totalReceivedByteCount, maxExpectedByteCount;
+	NSArray *urlGetterTopLevelObjects;
 }
 
 - (IBAction)cancelDownload:(id)sender;

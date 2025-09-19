@@ -171,6 +171,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	[bookmarks makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
 	
 	[bookmarks release];
+	[bookmarksTopLevelObjects release];
 	[super dealloc];
 }
 
@@ -476,11 +477,14 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 
 - (void)loadWindowIfNecessary {
 	if (!window) {
-		if (![NSBundle loadNibNamed:@"SavedSearches" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"SavedSearches" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load SavedSearches.nib");
 			NSBeep();
 			return;
 		}
+		[bookmarksTopLevelObjects release];
+		bookmarksTopLevelObjects = [topLevelObjects retain];
 		[bookmarksTableView setDataSource:self];
 		[bookmarksTableView reloadData];
 	}	

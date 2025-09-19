@@ -30,6 +30,7 @@
 	NSMutableArray *deletedNotes;
 	NotationController* notationController;
 	BOOL hasDeletedNotes;
+	NSArray *deletionManagerTopLevelObjects;
 }
 
 - (id)initWithNotationController:(NotationController*)aNotationController;

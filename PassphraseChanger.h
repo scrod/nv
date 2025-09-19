@@ -37,6 +37,7 @@
 	
 	KeyDerivationManager *keyDerivation;	
 	NotationPrefs *notationPrefs;
+	NSArray *passphraseChangerTopLevelObjects;
 }
 
 - (IBAction)cancelNewPassword:(id)sender;

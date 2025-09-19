@@ -23,6 +23,7 @@
     IBOutlet NSView *accessoryView;
     IBOutlet NSPopUpButton *formatSelectorPopup;
     NSSavePanel *currentPanel;
+    NSArray *exporterTopLevelObjects;
 }
 
 + (ExporterManager *)sharedManager;

@@ -35,6 +35,7 @@
 	NSData *crapData, *crapSalt;
 	
 	NotationPrefs *notationPrefs;
+	NSArray *keyDerivationTopLevelObjects;
 }
 
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs;

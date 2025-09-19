@@ -44,6 +44,7 @@
 	[downloadPath release];
 	[url release];
 	[userData release];
+	[urlGetterTopLevelObjects release];
 	
 	[super dealloc];
 }
@@ -71,11 +72,14 @@
 
 - (void)startProgressIndication:(id)sender {
 	if (!window) {
-		if (![NSBundle loadNibNamed:@"URLGetter" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"URLGetter" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load URLGetter.nib");
 			NSBeep();
 			return;
 		}
+		[urlGetterTopLevelObjects release];
+		urlGetterTopLevelObjects = [topLevelObjects retain];
 		[progress setUsesThreadedAnimation:YES];
 	}
 	

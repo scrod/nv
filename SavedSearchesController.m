@@ -16,6 +16,11 @@
 static NSString *SSSearchStringKey = @"SearchString";
 static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 
+@interface SavedSearchesController () {
+	NSArray *savedSearchesTopLevelObjects;
+}
+@end
+
 @implementation SavedSearch
 
  - (id)initWithDictionary:(NSDictionary*)aDict {
@@ -139,6 +144,7 @@ static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 - (void)dealloc {
 	[searchSet release];
 	[searches release];
+	[savedSearchesTopLevelObjects release];
 	[super dealloc];
 }
 
@@ -508,11 +514,14 @@ static NSString *SSSelectedNoteUUIDStringKey = @"NoteUUIDString";
 
 - (void)showSearches:(id)sender {
 	if (!window) {
-		if (![NSBundle loadNibNamed:@"SavedSearches" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"SavedSearches" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load SavedSearches.nib");
 			NSBeep();
 			return;
 		}
+		[savedSearchesTopLevelObjects release];
+		savedSearchesTopLevelObjects = [topLevelObjects retain];
 		[searchesTableView setDataSource:self];
 	}
 	

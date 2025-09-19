@@ -92,6 +92,7 @@
 	NSMenuItem *showHideBookmarksItem;
 	
 	NoteBookmark *currentBookmark;
+	NSArray *bookmarksTopLevelObjects;
 }
 
 - (id)initWithBookmarks:(NSArray*)array;
@@ -139,4 +140,3 @@
 - (NoteObject*)noteForUUIDBytes:(CFUUIDBytes*)bytes;
 
 @end
-

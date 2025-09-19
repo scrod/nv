@@ -56,6 +56,7 @@
 	IBOutlet NSView *editingView, *generalView, *fontsColorsView, *databaseView, *notationPrefsView;
 	
 	GlobalPrefs *prefsController;
+	NSArray *prefsWindowTopLevelObjects;
 }
 - (void)showWindow:(id)sender;
 

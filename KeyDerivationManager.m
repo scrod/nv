@@ -56,15 +56,18 @@
 
 - (id)init {
     self = [super init];
-    if (self) {
-        if (!view) {
-            if (![NSBundle loadNibNamed:@"KeyDerivationManager" owner:self])  {
-                NSLog(@"Failed to load KeyDerivationManager.nib");
-                NSBeep();
-                return nil;
-            }
-        }
-    }
+	if (self) {
+		if (!view) {
+			NSArray *topLevelObjects = nil;
+			if (![[NSBundle mainBundle] loadNibNamed:@"KeyDerivationManager" owner:self topLevelObjects:&topLevelObjects])  {
+				NSLog(@"Failed to load KeyDerivationManager.nib");
+				NSBeep();
+				return nil;
+			}
+			[keyDerivationTopLevelObjects release];
+			keyDerivationTopLevelObjects = [topLevelObjects retain];
+		}
+	}
     return self;
 }
 
@@ -72,6 +75,7 @@
 	[notationPrefs release];
 	[crapData release];
 	[crapSalt release];
+	[keyDerivationTopLevelObjects release];
 	
 	[super dealloc];
 }

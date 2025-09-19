@@ -13,6 +13,7 @@
     BOOL isHappening;
     NSString *tagFieldString;
     NSArray *commonTags;
+    NSArray *tagNibTopLevelObjects;
 }
 
 @property(retain,nonatomic) NSArray *commonTags;
@@ -26,4 +27,3 @@
 - (BOOL)isMultitagging;
 
 @end
-

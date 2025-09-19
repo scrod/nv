@@ -80,6 +80,7 @@
 	
 	[notationPrefs release];
 	[keyDerivation release];
+	[passphraseChangerTopLevelObjects release];
 	
 	[super dealloc];
 }
@@ -117,11 +118,14 @@
 
 - (void)showAroundWindow:(NSWindow*)window {
 	if (!changePassphraseWindow) {
-		if (![NSBundle loadNibNamed:@"PassphraseChanger" owner:self])  {
+		NSArray *topLevelObjects = nil;
+		if (![[NSBundle mainBundle] loadNibNamed:@"PassphraseChanger" owner:self topLevelObjects:&topLevelObjects])  {
 			NSLog(@"Failed to load PassphraseChanger.nib");
 			NSBeep();
 			return;
 		}
+		[passphraseChangerTopLevelObjects release];
+		passphraseChangerTopLevelObjects = [topLevelObjects retain];
 	}
 	
 	if (!keyDerivation) {

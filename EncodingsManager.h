@@ -33,6 +33,7 @@
 	NoteObject *note;
 	NSData *noteData;
 	FSRef fsRef;
+	NSArray *encodingsTopLevelObjects;
 }
 
 + (EncodingsManager *)sharedManager;

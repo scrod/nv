@@ -41,6 +41,7 @@ extern NSString *RetrievedPasswordKey;
 	id source;
 	NSMutableDictionary *documentSettings;
 	BOOL shouldGrabCreationDates;
+	NSArray *alienImporterTopLevelObjects;
 }
 
 //a directory containing notes, a custom bundle, or custom file format in which more than one note could be expected

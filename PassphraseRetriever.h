@@ -26,9 +26,10 @@
     IBOutlet NSTextField *helpStringField;
     IBOutlet NSButton *okButton, *differentFolderButton, *cancelButton;
     IBOutlet NSTextField *passphraseField;
-    IBOutlet NSButton *rememberKeychainButton;
+	IBOutlet NSButton *rememberKeychainButton;
     IBOutlet NSPanel *window;
 	NotationPrefs *notationPrefs;
+	NSArray *passphraseRetrieverTopLevelObjects;
 
 }
 
