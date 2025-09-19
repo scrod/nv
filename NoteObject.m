@@ -301,15 +301,14 @@ force_inline id unifiedCellSingleLineForNote(NotesTableView *tv, NoteObject *not
 }
 
 force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row) {
-	//snow leopard is stricter about applying the default highlight-attributes (e.g., no shadow unless no paragraph formatting)
-	//so add the shadow here for snow leopard on selected rows
+//AppKit can drop highlight shadows when custom attributes are present, so add it explicitly.
 	
 	UnifiedCell *cell = [[[tv tableColumns] objectAtIndex:0] dataCellForRow:row];
 	[cell setNoteObject:note];
 	[cell setPreviewIsHidden:NO];
 
 	BOOL rowSelected = [tv isRowSelected:row];
-	BOOL drawShadow = IsSnowLeopardOrLater || (IsLeopardOrLater && rowSelected && [tv currentEditor]);
+	BOOL drawShadow = YES;
 	
 	id obj = note->tableTitleString ? (rowSelected ? (id)AttributedStringForSelection(note->tableTitleString, drawShadow) : 
 									   (id)note->tableTitleString) : (id)titleOfNote(note);

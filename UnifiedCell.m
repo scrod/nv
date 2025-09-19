@@ -31,8 +31,7 @@
 
 		//should be handled by NSParagraphStyle in our string, as it is more complex than this
 //		[self setLineBreakMode:NSLineBreakByTruncatingTail];
-		if (IsLeopardOrLater)
-			[self setTruncatesLastVisibleLine:YES];
+		[self setTruncatesLastVisibleLine:YES];
 		[self setEditable:YES];
 	}
 	return self;
@@ -150,8 +149,8 @@ static NSShadow* ShadowForSnowLeopard() {
 NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL withShadow) {
 	//used to modify the cell's attributed string before display when it is selected
 	
-	//snow leopard is stricter about applying the default highlight-attributes (e.g., no shadow unless no paragraph formatting)
-	//so add the shadow here for snow leopard on selected rows
+	//AppKit can skip default highlight attributes (e.g., shadows) when paragraph formatting is present,
+	//so add the shadow explicitly on selected rows.
 
 	NSRange fullRange = NSMakeRange(0, [str length]);
 	NSMutableAttributedString *colorFreeStr = [str mutableCopy];
@@ -180,12 +179,12 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 	//draw note date and tags
 
 	NSMutableDictionary *baseAttrs = [self baseTextAttributes];
-	BOOL isActive = (IsLeopardOrLater && [tv selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) ? YES : [tv isActiveStyle];
+	BOOL isActive = ([tv selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList) ? YES : [tv isActiveStyle];
 	
 	NSColor *textColor = ([self isHighlighted] && isActive) ? [NSColor whiteColor] : (![self isHighlighted] ? [[self class] dateColorForTint]/*[NSColor grayColor]*/ : nil);
 	if (textColor)
 		[baseAttrs setObject:textColor forKey:NSForegroundColorAttributeName];
-	if (IsSnowLeopardOrLater && [self isHighlighted] && ([tv selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList)) {
+	if ([self isHighlighted] && ([tv selectionHighlightStyle] == NSTableViewSelectionHighlightStyleSourceList)) {
 		[baseAttrs setObject:ShadowForSnowLeopard() forKey:NSShadowAttributeName];
 	}
 	

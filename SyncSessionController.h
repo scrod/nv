@@ -29,10 +29,7 @@
 
 extern NSString *SyncSessionsChangedVisibleStatusNotification;
 
-@interface SyncSessionController : NSObject 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
-<NSMenuDelegate>
-#endif
+@interface SyncSessionController : NSObject <NSMenuDelegate>
 {
 
 	NSMutableDictionary *syncServiceTimers;

@@ -258,12 +258,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 
 - (void)_updateMenuWithCurrentStatus:(NSMenu*)aMenu {
 	
-	if (IsSnowLeopardOrLater) {
-		[aMenu performSelector:@selector(removeAllItems)];
-	} else {
-		while ([aMenu numberOfItems])
-			[aMenu removeItemAtIndex:0];
-	}
+	[aMenu removeAllItems];
 	//BUG: on Tiger this creates an extra item that appears at the _bottom_ of the pulldown,
 	//but on Leopard and above the first item is rightly used as the "title" of the button
 	[aMenu addItem:[NSMenuItem separatorItem]];

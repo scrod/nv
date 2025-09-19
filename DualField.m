@@ -491,18 +491,15 @@
 	//drawWithFrame: would make sense to override, but this works, too
 	[[self cell] drawWithFrame:NSMakeRect(0, 0, NSWidth(tBounds), NSHeight(tBounds)) inView:self];
 	
-	if (IsLeopardOrLater) {
-		//ALERT: TEMPORARY WORK-AROUND FOR TIGER FOCUS RING BUILDUP: DO NOT DRAW FOCUS RING ON TIGER
-		if ([self currentEditor] && isActiveWin) {
-			//draw focus ring
-			[NSGraphicsContext saveGraphicsState];
-			NSSetFocusRingStyle(NSFocusRingOnly);
-			NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
-			focusRect.origin.y -= 0.5f;
-			//drawing could be sped up by a measurable amount if this were cached in a (partially transparent) image
-			[[NSBezierPath bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
-			[NSGraphicsContext restoreGraphicsState];
-		}
+	if ([self currentEditor] && isActiveWin) {
+		//draw focus ring
+		[NSGraphicsContext saveGraphicsState];
+		NSSetFocusRingStyle(NSFocusRingOnly);
+		NSRect focusRect = NSInsetRect(tBounds, 0.0f, 0.5f);
+		focusRect.origin.y -= 0.5f;
+		//drawing could be sped up by a measurable amount if this were cached in a (partially transparent) image
+		[[NSBezierPath bezierPathWithRoundRectInRect:focusRect radius:1.0f] fill];
+		[NSGraphicsContext restoreGraphicsState];
 	}
 	
 }

@@ -148,11 +148,9 @@ static SecureTextEntryManager *sharedInstance = nil;
 				[alert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Secure Text Entry will prevent %@, which is currently installed on this computer, from working in Notational Velocity.", @"for warning about incompatibility with TextExpander, Typinator, etc."), offendingAppName]];
 				[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
 				[alert setAlertStyle:NSAlertStyleWarning];
-				if (IsLeopardOrLater) {
-					[alert setShowsSuppressionButton:YES];
-				}
+				[alert setShowsSuppressionButton:YES];
 				[alert runModal];
-				if (IsLeopardOrLater && [[alert suppressionButton] state] == NSOnState) {
+				if ([[alert suppressionButton] state] == NSOnState) {
 					[[NSUserDefaults standardUserDefaults] setBool:YES forKey:ShouldHideSecureTextEntryWarningKey];
 				}
 				CFRelease(infoDict);

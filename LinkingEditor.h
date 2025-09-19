@@ -28,10 +28,7 @@
 // From old version of NSTextFinder.h before including in OSX 10.8
 enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 
-@interface LinkingEditor : NSTextView
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
-<NSLayoutManagerDelegate>
-#endif
+@interface LinkingEditor : NSTextView <NSLayoutManagerDelegate>
 {
     IBOutlet NSTextField *controlField;
     IBOutlet NotesTableView *notesTableView;
@@ -87,13 +84,3 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 @property (nonatomic, copy) NSString *lastFindSearchString;
 @end
 
-@interface NSTextView (Private)
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
-- (void)toggleAutomaticTextReplacement:(id)sender;
-- (BOOL)isAutomaticTextReplacementEnabled;
-- (void)setAutomaticTextReplacementEnabled:(BOOL)flag;
-
-- (void)moveToLeftEndOfLine:(id)sender;
-#endif
-
-@end
