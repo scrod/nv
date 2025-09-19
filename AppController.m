@@ -183,11 +183,7 @@
 	[textView setDelegate:self];
 	[splitView setDelegate:self];
 	
-	//set up temporary FastListDataSource containing false visible notes
-		
-	//this will not make a difference
-	[window useOptimizedDrawing:YES];
-	
+	//set up temporary FastListDataSource containing false visible notes	
 
 	//[window makeKeyAndOrderFront:self];
 	//[self setEmptyViewState:YES];
@@ -291,21 +287,17 @@ void outletObjectAwoke(id sender) {
 	
 	NSString *subMessage = @"";
 	
-	//if the option key is depressed, go straight to picking a new notes folder location
-	if (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & NSDeviceIndependentModifierFlagsMask)) {
-		goto showOpenPanel;
-	}
+	BOOL skipDefaultInitialization = (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & NSEventModifierFlagDeviceIndependentFlagsMask));
 	
-	if (aliasData) {
-	    newNotation = [[NotationController alloc] initWithAliasData:aliasData error:&err];
-	    subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.",nil);
-	} else {
-	    newNotation = [[NotationController alloc] initWithDefaultDirectoryReturningError:&err];
-	    subMessage = NSLocalizedString(@"Please choose a folder in which your notes will be stored.",nil);
+	if (!skipDefaultInitialization) {
+		if (aliasData) {
+		    newNotation = [[NotationController alloc] initWithAliasData:aliasData error:&err];
+		    subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.",nil);
+		} else {
+		    newNotation = [[NotationController alloc] initWithDefaultDirectoryReturningError:&err];
+		    subMessage = NSLocalizedString(@"Please choose a folder in which your notes will be stored.",nil);
+		}
 	}
-	//no need to display an alert if the error wasn't real
-	if (err == kPassCanceledErr)
-		goto showOpenPanel;
 	
 	NSString *location = (aliasData ? [[NSFileManager defaultManager] pathCopiedFromAliasData:aliasData] : NSLocalizedString(@"your Application Support directory",nil));
 	if (!location) { //fscopyaliasinfo sucks
@@ -317,7 +309,26 @@ void outletObjectAwoke(id sender) {
 		}
 	}
 	
+	FSRef notesDirectoryRef;
+	bzero(&notesDirectoryRef, sizeof(notesDirectoryRef));
+	BOOL shouldShowOpenPanel = skipDefaultInitialization || (newNotation == nil && err == kPassCanceledErr);
+	
 	while (!newNotation) {
+		if (shouldShowOpenPanel) {
+			if (![prefsWindowController getNewNotesRefFromOpenPanel:&notesDirectoryRef returnedPath:&location]) {
+				//they cancelled the open panel, or it was unable to get the path/FSRef of the file
+				goto terminateApp;
+			}
+			newNotation = [[NotationController alloc] initWithDirectoryRef:&notesDirectoryRef error:&err];
+			if (newNotation) {
+				//have to make sure alias data is saved from setNotationController
+				[newNotation setAliasNeedsUpdating:YES];
+				break;
+			}
+			shouldShowOpenPanel = NO;
+			continue;
+		}
+		
 	    location = [location stringByAbbreviatingWithTildeInPath];
 	    NSString *reason = [NSString reasonStringFromCarbonFSError:err];
 		
@@ -329,16 +340,8 @@ void outletObjectAwoke(id sender) {
 	    NSModalResponse initializationResponse = [initializationAlert runModal];
 	    if (initializationResponse == NSAlertFirstButtonReturn) {
 			//show nsopenpanel, defaulting to current default notes dir
-			FSRef notesDirectoryRef;
-		showOpenPanel:
-			if (![prefsWindowController getNewNotesRefFromOpenPanel:&notesDirectoryRef returnedPath:&location]) {
-				//they cancelled the open panel, or it was unable to get the path/FSRef of the file
-				goto terminateApp;
-			} else if ((newNotation = [[NotationController alloc] initWithDirectoryRef:&notesDirectoryRef error:&err])) {
-				//have to make sure alias data is saved from setNotationController
-				[newNotation setAliasNeedsUpdating:YES];
-				break;
-			}
+			shouldShowOpenPanel = YES;
+			continue;
 	    } else {
 			goto terminateApp;
 	    }

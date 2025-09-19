@@ -129,11 +129,19 @@
 }
 
 - (id)initWithDirectoryRef:(FSRef*)directoryRef error:(OSStatus*)err {
-    
-    *err = noErr;
-    
-    self = [self init];
-    if (self) {
+
+	if (!directoryRef) {
+		if (err)
+			*err = paramErr;
+		[self release];
+		return nil;
+	}
+
+	if (err)
+		*err = noErr;
+
+	self = [self init];
+	if (self) {
 		aliasNeedsUpdating = YES; //we don't know if we have an alias yet
 		
 		noteDirectoryRef = *directoryRef;
@@ -143,7 +151,8 @@
 		//first read cache file
 		OSStatus anErr = noErr;
 		if ((anErr = [self _readAndInitializeSerializedNotes]) != noErr) {
-			*err = anErr;
+			if (err)
+				*err = anErr;
 			return nil;
 		}
 		
@@ -151,7 +160,8 @@
 		//and sync based on notes in directory and their mod. dates
 		[self databaseSettingsChangedFromOldFormat:[notationPrefs notesStorageFormat]];
 		if (!walWriter) {
-			*err = kJournalingError;
+			if (err)
+				*err = kJournalingError;
 			return nil;
 		}
 		
