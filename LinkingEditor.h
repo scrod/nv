@@ -81,6 +81,8 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 - (void)clearFindPanel;
 - (BOOL)didRenderFully;
 
+- (void)insertIntoTextStorage:(NSString*)stringToInsert;
+
 @property (nonatomic, copy) NSString *lastFindSearchString;
 @end
 

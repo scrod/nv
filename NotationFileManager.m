@@ -346,7 +346,7 @@ long BlockSizeForNotation(NotationController *controller) {
 		[openPanel setPrompt:NSLocalizedString(@"Select",nil)];
 		[openPanel setMessage:NSLocalizedString(@"Select a new location for your Notational Velocity notes.",nil)];
 		
-		if ([openPanel runModal] == NSOKButton) {
+		if ([openPanel runModal] == NSModalResponseOK) {
 			CFStringRef filename = (CFStringRef)[openPanel filename];
 			if (filename) {
 				

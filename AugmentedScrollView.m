@@ -29,7 +29,13 @@
 }
 
 - (void)drawRect:(NSRect)rect {
-	[dragImage compositeToPoint:rect.origin operation:NSCompositeCopy];
+	#pragma unused(rect)
+	[dragImage drawInRect:[self bounds]
+		fromRect:NSZeroRect
+		operation:NSCompositingOperationCopy
+		fraction:1.0
+		respectFlipped:YES
+		hints:nil];
 
 }
 

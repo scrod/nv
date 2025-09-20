@@ -134,7 +134,7 @@
 
 	if (!centerStyle) {
 		centerStyle = [[NSMutableParagraphStyle alloc] init];
-		[centerStyle setAlignment:NSCenterTextAlignment];
+		[centerStyle setAlignment:NSTextAlignmentCenter];
 	}
 
 	NSFont *font = [prefsController noteBodyFont];
@@ -502,22 +502,20 @@
     
 	[[NSFontPanel sharedFontPanel] close];
 	
-	//fix this math to convert between window and view coordinates for resolution independence
-	
-	float userSpaceScaleFactor = [window userSpaceScaleFactor];
-	
     //to stop flicker, we make a temp blank view.
 	
-	NSRect windowContentFrame = ScaleRectWithFactor([[window contentView] frame], userSpaceScaleFactor);
-    NSView *tempView = [[NSView alloc] initWithFrame:[[window contentView] frame]];
+	NSRect windowContentFrame = [[window contentView] frame];
+    NSView *tempView = [[NSView alloc] initWithFrame:windowContentFrame];
     [window setContentView:tempView];
     [tempView release];
     
     NSRect newFrame = [window frame];
-	NSRect viewFrameForWindow = ScaleRectWithFactor([prefsView frame], userSpaceScaleFactor);
-    newFrame.size.height = viewFrameForWindow.size.height + ([window frame].size.height - windowContentFrame.size.height);
-    newFrame.size.width = viewFrameForWindow.size.width;
-    newFrame.origin.y += (windowContentFrame.size.height - viewFrameForWindow.size.height);
+	NSRect viewFrameForWindow = [prefsView frame];
+    CGFloat heightDelta = viewFrameForWindow.size.height - windowContentFrame.size.height;
+    CGFloat widthDelta = viewFrameForWindow.size.width - windowContentFrame.size.width;
+    newFrame.size.height += heightDelta;
+    newFrame.size.width += widthDelta;
+    newFrame.origin.y -= heightDelta;
     	
     [window setShowsResizeIndicator:YES];
     [window setFrame:newFrame display:YES animate:YES];
@@ -528,18 +526,6 @@
 -(void)dealloc {
 	[prefsWindowTopLevelObjects release];
 	[super dealloc];
-}
-
-NSRect ScaleRectWithFactor(NSRect rect, float factor) {
-	NSRect newRect = rect;
-	newRect.size.width *= factor;
-	newRect.size.height *= factor;
-	newRect.origin.x *= factor;
-	newRect.origin.y *= factor;
-	
-	//these may still need to be rounded up
-	
-	return newRect;
 }
 
 @end

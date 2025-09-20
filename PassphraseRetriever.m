@@ -76,7 +76,7 @@
 	BOOL notationExists = [[GlobalPrefs defaultPrefs] notationPrefs] != nil;
 	
 	[cancelButton setKeyEquivalent: notationExists ? @"\033" : @"q"];
-	[cancelButton setKeyEquivalentModifierMask: notationExists ? 0 : NSCommandKeyMask];
+	[cancelButton setKeyEquivalentModifierMask: notationExists ? 0 : NSEventModifierFlagCommand];
 	[cancelButton setTitle: notationExists ? NSLocalizedString(@"Cancel",nil) : NSLocalizedString(@"Quit",nil)];
 	[cancelButton setTarget: notationExists ? self : NSApp];
 	[cancelButton setAction: notationExists ? @selector(cancelAction:) : @selector(terminate:)];

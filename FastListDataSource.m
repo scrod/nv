@@ -48,8 +48,6 @@
 	return NSNotFound;	
 }
 
-//NSArray has objectsAtIndexes--too bad it's only in 10.4.
-
 //figure out which notes are in the indexset
 - (NSArray*)objectsAtFilteredIndexes:(NSIndexSet*)indexSet {
 

@@ -30,9 +30,21 @@
 		delegate = aDelegate;
 		url = [aUrl retain];
 		userData = [someObj retain];
+		totalReceivedByteCount = 0;
+		didComplete = NO;
 		
-		downloader = [[NSURLDownload alloc] initWithRequest:[NSURLRequest requestWithURL:url] delegate:self];
-		
+		NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
+		NSURLSession *createdSession = [NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:[NSOperationQueue mainQueue]];
+		NSURLSessionDownloadTask *task = [createdSession downloadTaskWithURL:url];
+		if (!task) {
+			[createdSession invalidateAndCancel];
+			[self release];
+			return nil;
+		}
+		session = [createdSession retain];
+		downloadTask = [task retain];
+		[downloadTask resume];
+
 		[self startProgressIndication:self];
 	}
 	
@@ -40,7 +52,14 @@
 }
 
 - (void)dealloc {
-	[downloader release];
+	if (downloadTask) {
+		[downloadTask cancel];
+		[downloadTask release];
+	}
+	if (session) {
+		[session invalidateAndCancel];
+		[session release];
+	}
 	[downloadPath release];
 	[url release];
 	[userData release];
@@ -58,8 +77,9 @@
 }
 
 - (IBAction)cancelDownload:(id)sender {
-	[downloader cancel];
-
+	if (downloadTask) {
+		[downloadTask cancel];
+	}
 	[self endDownloadWithPath:nil];
 }
 
@@ -113,80 +133,140 @@
 	}
 }
 
-- (void)download:(NSURLDownload *)download didReceiveResponse:(NSURLResponse *)response {
-	maxExpectedByteCount = [response expectedContentLength];
-	//NSLog(@"max KB: %lld", maxExpectedByteCount/1024);
+
+- (void)URLSession:(NSURLSession *)unusedSession downloadTask:(NSURLSessionDownloadTask *)task didWriteData:(int64_t)bytesWritten totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
+	#pragma unused(unusedSession)
+	#pragma unused(bytesWritten)
+	if (task != downloadTask) {
+		return;
+	}
+	
+	totalReceivedByteCount = totalBytesWritten;
+	if (totalBytesExpectedToWrite != NSURLSessionTransferSizeUnknown) {
+		maxExpectedByteCount = totalBytesExpectedToWrite;
+	}
 	
 	[self updateProgress];
 }
 
-- (void)download:(NSURLDownload *)download didReceiveDataOfLength:(NSUInteger)length {
-	totalReceivedByteCount += length;
+- (void)URLSession:(NSURLSession *)unusedSession downloadTask:(NSURLSessionDownloadTask *)task didFinishDownloadingToURL:(NSURL *)location {
+	#pragma unused(unusedSession)
+	if (task != downloadTask) {
+		return;
+	}
 	
-	[self updateProgress];
-}
+	NSString *suggestedName = [[task response] suggestedFilename];
+	if (![suggestedName length]) {
+		suggestedName = [[url lastPathComponent] length] ? [url lastPathComponent] : @"download";
+	}
 
-- (void)download:(NSURLDownload *)download decideDestinationWithSuggestedFilename:(NSString *)name {
-	
 	[tempDirectory autorelease];
 	tempDirectory = [[NSTemporaryDirectory() stringByAppendingPathComponent:[[NSProcessInfo processInfo] globallyUniqueString]] retain];
 	NSError *mkErr = nil;
 	if (![[NSFileManager defaultManager] createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&mkErr]) {
 		NSLog(@"URLGetter: Couldn't create temporary directory! %@", mkErr.localizedDescription);
-		[download cancel];
-		NSBeep();
+		[self presentDownloadError:mkErr];
+		[self endDownloadWithPath:nil];
+		return;
 	}
-	
+
 	[downloadPath autorelease];
-	downloadPath = [[tempDirectory stringByAppendingPathComponent:name] retain];
-	[download setDestination:downloadPath allowOverwrite:YES];
-	
-	//need to delete this stuff eventually
+	downloadPath = [[tempDirectory stringByAppendingPathComponent:suggestedName] retain];
+	NSFileManager *fileMan = [NSFileManager defaultManager];
+	NSURL *destinationURL = [NSURL fileURLWithPath:downloadPath];
+	if ([fileMan fileExistsAtPath:downloadPath]) {
+		[fileMan removeItemAtPath:downloadPath error:NULL];
+	}
+
+	NSError *moveError = nil;
+	if (![fileMan moveItemAtURL:location toURL:destinationURL error:&moveError]) {
+		NSLog(@"URLGetter: Couldn't move downloaded file to %@: %@", downloadPath, moveError.localizedDescription);
+		[self presentDownloadError:moveError];
+		[self endDownloadWithPath:nil];
+		return;
+	}
+
+	[self endDownloadWithPath:downloadPath];
 }
 
-- (void)download:(NSURLDownload *)download didFailWithError:(NSError *)error {
+- (void)URLSession:(NSURLSession *)unusedSession task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
+	#pragma unused(unusedSession)
+	if ((NSURLSessionDownloadTask *)task != downloadTask) {
+		return;
+	}
 	
+	if (error) {
+		if ([error.domain isEqualToString:NSURLErrorDomain] && error.code == NSURLErrorCancelled) {
+			return;
+		}
+		[self presentDownloadError:error];
+		[self endDownloadWithPath:nil];
+	}
+}
+
+- (void)presentDownloadError:(NSError *)error {
 	NSString *reason = [error localizedDescription];
-	if (!reason) reason = NSLocalizedString(@"unknown error.", @"error description of last resort for why a URL couldn't be accessed");
+	if (!reason) {
+		reason = NSLocalizedString(@"unknown error.", @"error description of last resort for why a URL couldn't be accessed");
+	}
 	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 	[alert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"The URL quotemark%@quotemark could not be accessed: %@.", nil),
 		[url absoluteString], reason]];
 	[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
 	[alert setAlertStyle:NSAlertStyleWarning];
 	[alert runModal];
-	
-	
-	[self endDownloadWithPath:nil];
-}
-
-- (void)downloadDidFinish:(NSURLDownload *)download {
-	
-	[self endDownloadWithPath:downloadPath];
 }
 
 - (void)endDownloadWithPath:(NSString*)path {
+	if (didComplete) {
+		return;
+	}
+	didComplete = YES;
+
 	isImporting = YES;
 	[self updateProgress];
-	
+
 	[self retain];
 	[delegate URLGetter:self returnedDownloadedFile:path];
 	
 	//clean up after ourselves
 	NSFileManager *fileMan = [NSFileManager defaultManager];
 	if (downloadPath) {
-		[fileMan removeFileAtPath:downloadPath handler:NULL];
+		NSError *removeError = nil;
+		if (![fileMan removeItemAtPath:downloadPath error:&removeError] && removeError) {
+			NSLog(@"URLGetter: Couldn't remove downloaded file %@: %@", downloadPath, removeError.localizedDescription);
+		}
 		[downloadPath release];
 		downloadPath = nil;
 	}
-	
+
 	if (tempDirectory) {
 		//only remove temporary directory if there's nothing in it
-		if (![[fileMan directoryContentsAtPath:tempDirectory] count])
-			[fileMan removeFileAtPath:tempDirectory handler:NULL];
-		else
+		NSError *contentsError = nil;
+		NSArray *remainingItems = [fileMan contentsOfDirectoryAtPath:tempDirectory error:&contentsError];
+		if (!remainingItems && contentsError) {
+			NSLog(@"URLGetter: Couldn't inspect temporary directory %@: %@", tempDirectory, contentsError.localizedDescription);
+		}
+		if ([remainingItems count] == 0) {
+			NSError *removeDirError = nil;
+			if (![fileMan removeItemAtPath:tempDirectory error:&removeDirError] && removeDirError) {
+				NSLog(@"URLGetter: Couldn't remove temporary directory %@: %@", tempDirectory, removeDirError.localizedDescription);
+			}
+		} else {
 			NSLog(@"note removing %@ because it still contains files!", tempDirectory);
+		}
 		[tempDirectory release];
 		tempDirectory = nil;
+	}
+	
+	if (downloadTask) {
+		[downloadTask release];
+		downloadTask = nil;
+	}
+	if (session) {
+		[session invalidateAndCancel];
+		[session release];
+		session = nil;
 	}
 	
 	[self stopProgressIndication];

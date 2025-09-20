@@ -160,7 +160,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 - (BOOL)becomeFirstResponder {
 	[notesTableView setShouldUseSecondaryHighlightColor:YES];
 
-	if ([[[self window] currentEvent] type] == NSKeyDown && [[[self window] currentEvent] firstCharacter] == '\t') {
+	if ([[[self window] currentEvent] type] == NSEventTypeKeyDown && [[[self window] currentEvent] firstCharacter] == '\t') {
 		//"indicate" the current cursor/selection when moving focus to this field, but only if the user did not click here
 		NSRange range = [self selectedRange];
 		if (range.length) {
@@ -731,7 +731,7 @@ copyRTFType:
 	if (directionalAction) {
 		NSString *searchString = [controller fieldSearchString];
 		if (![searchString length]) {
-			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSPasteboardNameFind];
 			NSString *pboardString = [findPboard stringForType:NSStringPboardType];
 			if ([pboardString length])
 				[controller searchForString:pboardString];
@@ -791,7 +791,7 @@ copyRTFType:
 	// Keep the find string synced with the current global search query on first reuse.
 	NSString *searchString = [(AppController*)controller fieldSearchString];
 	if (![searchString length]) {
-		NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+		NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSPasteboardNameFind];
 		NSString *pboardString = [findPboard stringForType:NSStringPboardType];
 		if ([pboardString length])
 			searchString = pboardString;
@@ -801,7 +801,7 @@ copyRTFType:
 	if (!stringsEqual) {
 		self.lastFindSearchString = [searchString length] ? searchString : nil;
 		if ([searchString length]) {
-			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSFindPboard];
+			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSPasteboardNameFind];
 			if (findPboard) {
 				NSArray *types = [NSArray arrayWithObject:NSStringPboardType];
 				[findPboard declareTypes:types owner:nil];
@@ -872,7 +872,7 @@ copyRTFType:
 
 - (BOOL)performKeyEquivalent:(NSEvent *)anEvent {
 	
-	if ([anEvent modifierFlags] & NSCommandKeyMask) {
+	if ([anEvent modifierFlags] & NSEventModifierFlagCommand) {
 		
 		unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 		if (keyChar == NSCarriageReturnCharacter || keyChar == NSNewlineCharacter || keyChar == NSEnterCharacter) {
@@ -899,8 +899,6 @@ copyRTFType:
 	unichar keyChar = [anEvent firstCharacterIgnoringModifiers];
 
 	if (keyChar == NSBackTabCharacter) {
-		//apparently interpretKeyEvents: on 10.3 does not call insertBacktab
-		//maybe it works on someone else's 10.3 Mac
 		[self doCommandBySelector:@selector(insertBacktab:)];
 		return;
 	}
@@ -909,7 +907,7 @@ copyRTFType:
 
 - (BOOL)jumpToRenaming {
 	NSEvent *event = [[self window] currentEvent];
-	if ([event type] == NSKeyDown && ![event isARepeat] && NSEqualRanges([self selectedRange], NSMakeRange(0, 0))) {
+	if ([event type] == NSEventTypeKeyDown && ![event isARepeat] && NSEqualRanges([self selectedRange], NSMakeRange(0, 0))) {
 		//command-left at the beginning of the note--jump to editing the title!
 				[(AppController*)[NSApp delegate] renameNote:nil];
 		NSText *editor = [notesTableView currentEditor];
@@ -955,6 +953,18 @@ copyRTFType:
 	}
 }
 
+- (void)insertIntoTextStorage:(NSString*)stringToInsert {
+	if (!stringToInsert) {
+		return;
+	}
+
+	NSRange selectedRange = [self selectedRange];
+	if ([self shouldChangeTextInRange:selectedRange replacementString:stringToInsert]) {
+		[[self textStorage] replaceCharactersInRange:selectedRange withString:stringToInsert];
+		[self didChangeText];
+	}
+}
+
 - (void)insertTabIgnoringFieldEditor:(id)sender {
 	
 	NSRange range = [self selectedRange];
@@ -979,10 +989,10 @@ copyRTFType:
 			[spacesString appendString:@" "];
 		}
 		
-		[self insertText:spacesString];
+		[self insertIntoTextStorage:spacesString];
 		[spacesString release];
 	} else {
-		[self insertText:@"\t"];
+		[self insertIntoTextStorage:@"\t"];
 	}
 }
 
@@ -1223,7 +1233,7 @@ copyRTFType:
 - (void)clickedOnLink:(id)aLink atIndex:(NSUInteger)charIndex {
 	NSEvent *currentEvent = [[self window] currentEvent];
 	
-	if (![prefsController URLsAreClickable] && [currentEvent modifierFlags] & NSCommandKeyMask) {
+	if (![prefsController URLsAreClickable] && [currentEvent modifierFlags] & NSEventModifierFlagCommand) {
 		
 		[self highlightLinkAtIndex:charIndex];
 		
@@ -1490,7 +1500,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 				//so instead of inserting the extra space, delete both that previously-carried-bullet and the newline added by -super up there
 				[[self textStorage] deleteCharactersInRange:NSMakeRange(realBulletRange.location, realBulletRange.length + 1)];
 			} else {
-				[self insertText:previousLineWhitespaceString];
+				[self insertIntoTextStorage:previousLineWhitespaceString];
 				if (carriedBulletRange.length) {
 					[[self layoutManager] addTemporaryAttributes:[NSDictionary dictionaryWithObject:[NSNull null] forKey:NVHiddenBulletIndentAttributeName] 
 											   forCharacterRange:carriedBulletRange];
@@ -1576,7 +1586,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 #if PASSWORD_SUGGESTIONS
         [theMenuItem setAlternate:YES];
 #endif
-        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask|NSAlternateKeyMask];
+		[theMenuItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand|NSEventModifierFlagOption];
         [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
         [editMenu addItem:theMenuItem];
         [theMenuItem release];
@@ -1586,7 +1596,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (void)insertPassword:(NSString*)password
 {
-    [self insertText:password];
+	[self insertIntoTextStorage:password];
     @try {
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
     #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6

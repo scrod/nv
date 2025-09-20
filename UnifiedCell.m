@@ -165,7 +165,7 @@ NSAttributedString *AttributedStringForSelection(NSAttributedString *str, BOOL w
 	static NSMutableParagraphStyle *alignStyle = nil;
 	if (!alignStyle) {
 		alignStyle = [[NSMutableParagraphStyle alloc] init];
-		[alignStyle setAlignment:NSRightTextAlignment];
+		[alignStyle setAlignment:NSTextAlignmentRight];
 	}
 	return [NSMutableDictionary dictionaryWithObjectsAndKeys:alignStyle, NSParagraphStyleAttributeName, [self font], NSFontAttributeName, nil];
 }

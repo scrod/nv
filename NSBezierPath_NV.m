@@ -40,14 +40,33 @@
 
 + (NSBezierPath *)bezierPathWithLayoutManager:(NSLayoutManager*)layoutManager characterRange:(NSRange)charRange atPoint:(NSPoint)point {
 	NSRange range = [layoutManager glyphRangeForCharacterRange:charRange actualCharacterRange:NULL];
-	NSGlyph *glyphs = (NSGlyph *)malloc(sizeof(NSGlyph) * range.length * 2);
-	[layoutManager getGlyphs:glyphs range:range];
-		
+	CGGlyph *cgGlyphs = NULL;
+	NSGlyph *glyphs = NULL;
+	if (range.length > 0) {
+		cgGlyphs = (CGGlyph *)malloc(sizeof(CGGlyph) * range.length);
+		if (cgGlyphs) {
+			[layoutManager getGlyphsInRange:range glyphs:cgGlyphs properties:NULL characterIndexes:NULL bidiLevels:NULL];
+			glyphs = (NSGlyph *)malloc(sizeof(NSGlyph) * range.length);
+			if (glyphs) {
+				for (NSUInteger glyphIndex = 0; glyphIndex < range.length; glyphIndex++) {
+					glyphs[glyphIndex] = (NSGlyph)cgGlyphs[glyphIndex];
+				}
+			}
+		}
+	}
+	
 	NSBezierPath *path = [NSBezierPath bezierPath];
 	[path moveToPoint:point];
-	[path appendBezierPathWithGlyphs:glyphs count:range.length inFont:[[layoutManager textStorage] font]];
+	if (glyphs && range.length > 0) {
+		[path appendBezierPathWithGlyphs:glyphs count:range.length inFont:[[layoutManager textStorage] font]];
+	}
 	
-	free(glyphs);
+	if (glyphs) {
+		free(glyphs);
+	}
+	if (cgGlyphs) {
+		free(cgGlyphs);
+	}
 	
 	return path;
 }

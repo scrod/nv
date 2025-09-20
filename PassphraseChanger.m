@@ -22,7 +22,7 @@
 @implementation PassphraseChanger
 
 - (IBAction)cancelNewPassword:(id)sender {
-	[NSApp endSheet:changePassphraseWindow returnCode:0];
+	[NSApp endSheet:changePassphraseWindow returnCode:NSModalResponseCancel];
 	[changePassphraseWindow close];
 
 }
@@ -40,7 +40,7 @@
 								  inKeychain:[rememberChangeButton state] 
 							  withIterations:[keyDerivation hashIterationCount]];
 						
-			[NSApp endSheet:changePassphraseWindow returnCode:1];
+			[NSApp endSheet:changePassphraseWindow returnCode:NSModalResponseOK];
 			[changePassphraseWindow close];
 			
 		} else {
@@ -142,11 +142,17 @@
 	
 	[okChangeButton setEnabled:NO];
 		
-	[NSApp beginSheet:changePassphraseWindow modalForWindow:window modalDelegate:self 
-	   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+	if (window) {
+		[window beginSheet:changePassphraseWindow completionHandler:^(NSModalResponse response) {
+			[self sheetDidEnd:changePassphraseWindow returnCode:response contextInfo:NULL];
+		}];
+	} else {
+		NSBeep();
+		NSLog(@"PassphraseChanger: main window not available for sheet presentation");
+	}
 }
 
-- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
+- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSModalResponse)returnCode contextInfo:(void *)contextInfo {
 	[newPasswordField setStringValue:@""];
 	[verifyChangedPasswordField setStringValue:@""];
 	[currentPasswordField setStringValue:@""];

@@ -1040,21 +1040,32 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	if (![words count]) goto returnSizeIfNecessary;
 	
 	NSPoint nextBoxPoint = onRight ? NSMakePoint(NSMaxX(aRect), aRect.origin.y) : aRect.origin;
+	NSView *focusView = [NSView focusView];
+	BOOL focusIsFlipped = focusView ? [focusView isFlipped] : NO;
 	NSMutableArray *images = reqSize || !onRight ? nil : [NSMutableArray arrayWithCapacity:[words count]];
 	NSInteger i;
-	
+
 	for (i=0; i<(NSInteger)[words count]; i++) {
 		NSString *word = [words objectAtIndex:i];
 		if ([word length]) {
 			NSImage *img = [[delegate labelsListDataSource] cachedLabelImageForWord:word highlighted:isHighlighted];
 			
-			if (!reqSize) {
-				if (onRight) {
-					[images addObject:img];
-				} else {
-					[img compositeToPoint:nextBoxPoint operation:NSCompositeSourceOver];
-					nextBoxPoint.x += [img size].width + 4.0;
-				}
+				if (!reqSize) {
+					if (onRight) {
+						[images addObject:img];
+					} else {
+						NSRect drawRect = NSMakeRect(nextBoxPoint.x, nextBoxPoint.y, [img size].width, [img size].height);
+						if (focusIsFlipped) {
+							drawRect.origin.y -= [img size].height;
+						}
+						[img drawInRect:drawRect
+							fromRect:NSZeroRect
+							operation:NSCompositingOperationSourceOver
+							fraction:1.0
+							respectFlipped:YES
+							hints:nil];
+						nextBoxPoint.x += [img size].width + 4.0;
+					}
 			} else {
 				totalWidth += [img size].width + 4.0;
 				height = MAX(height, [img size].height);
@@ -1062,14 +1073,23 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		}
 	}
 	
-	if (!reqSize) {
-		if (onRight) {
-			//draw images in reverse instead
-			for (i = [images count] - 1; i>=0; i--) {
-				NSImage *img = [images objectAtIndex:i];
-				nextBoxPoint.x -= [img size].width + 4.0;
-				[img compositeToPoint:nextBoxPoint operation:NSCompositeSourceOver];
-			}
+		if (!reqSize) {
+			if (onRight) {
+				//draw images in reverse instead
+				for (i = [images count] - 1; i>=0; i--) {
+					NSImage *img = [images objectAtIndex:i];
+					nextBoxPoint.x -= [img size].width + 4.0;
+					NSRect drawRect = NSMakeRect(nextBoxPoint.x, nextBoxPoint.y, [img size].width, [img size].height);
+					if (focusIsFlipped) {
+						drawRect.origin.y -= [img size].height;
+					}
+					[img drawInRect:drawRect
+						fromRect:NSZeroRect
+						operation:NSCompositingOperationSourceOver
+						fraction:1.0
+						respectFlipped:YES
+						hints:nil];
+				}
 		}
 	} else {
 	returnSizeIfNecessary:

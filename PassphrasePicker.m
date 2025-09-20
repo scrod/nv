@@ -99,11 +99,17 @@
 	
 	[okNewButton setEnabled:NO];
 	
-	[NSApp beginSheet:newPassphraseWindow modalForWindow:mainWindow modalDelegate:self 
-	   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+	if (mainWindow) {
+		[mainWindow beginSheet:newPassphraseWindow completionHandler:^(NSModalResponse response) {
+			[self sheetDidEnd:newPassphraseWindow returnCode:response contextInfo:NULL];
+		}];
+	} else {
+		NSBeep();
+		NSLog(@"PassphrasePicker: main window not available for sheet presentation");
+	}
 }
 
-- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo {
+- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSModalResponse)returnCode contextInfo:(void *)contextInfo {
 	[newPasswordField setStringValue:@""];
 	[verifyNewPasswordField setStringValue:@""];
 		
@@ -113,7 +119,7 @@
 
 
 - (IBAction)cancelNewPassword:(id)sender {
-	[NSApp endSheet:newPassphraseWindow returnCode:0];
+	[NSApp endSheet:newPassphraseWindow returnCode:NSModalResponseCancel];
 	[newPassphraseWindow close];
 }
 
@@ -126,7 +132,7 @@
 							  inKeychain:[rememberNewButton state] 
 						  withIterations:[keyDerivation hashIterationCount]];
 		
-		[NSApp endSheet:newPassphraseWindow returnCode:1];
+		[NSApp endSheet:newPassphraseWindow returnCode:NSModalResponseOK];
 		[newPassphraseWindow close];
 		
 	} else {

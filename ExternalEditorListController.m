@@ -108,29 +108,46 @@ NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
 
 - (NSImage*)iconImage {
 	if (!iconImg) {
-		FSRef appRef;
-		if (CFURLGetFSRef((CFURLRef)[self resolvedURL], &appRef))
-			iconImg = [[NSImage smallIconForFSRef:&appRef] retain];
+		NSURL *appURL = [self resolvedURL];
+		if (appURL) {
+			NSImage *workspaceIcon = [[[NSWorkspace sharedWorkspace] iconForFile:[appURL path]] copy];
+			if (workspaceIcon) {
+				[workspaceIcon setSize:NSMakeSize(16.0f, 16.0f)];
+				iconImg = workspaceIcon;
+			}
+		}
 	}
 	return iconImg;
 }
 
 - (NSString*)displayName {
 	if (!displayName) {
-		LSCopyDisplayNameForURL((CFURLRef)[self resolvedURL], (CFStringRef*)&displayName);
+		NSURL *appURL = [self resolvedURL];
+		if (appURL) {
+			NSString *localizedName = nil;
+			NSError *nameError = nil;
+			if (![appURL getResourceValue:&localizedName forKey:NSURLLocalizedNameKey error:&nameError] || ![localizedName length]) {
+				localizedName = [[NSFileManager defaultManager] displayNameAtPath:[appURL path]];
+			}
+			if (![localizedName length]) {
+				localizedName = bundleIdentifier;
+			}
+			displayName = [localizedName copy];
+		} else {
+			displayName = [bundleIdentifier copy];
+		}
 	}
 	return displayName;
 }
 
 - (NSURL*)resolvedURL {
 	if (!resolvedURL && !installCheckFailed) {
-		
-		OSStatus err = LSFindApplicationForInfo(kLSUnknownCreator, (CFStringRef)bundleIdentifier, NULL, NULL, (CFURLRef*)&resolvedURL);
-		
-		if (kLSApplicationNotFoundErr == err) {
+		NSURL *appURL = [[NSWorkspace sharedWorkspace] URLForApplicationWithBundleIdentifier:bundleIdentifier];
+		if (appURL) {
+			resolvedURL = [appURL retain];
+		} else {
 			installCheckFailed = YES;
-		} else if (noErr != err) {
-			NSLog(@"LSFindApplicationForInfo error for bundle identifier '%@': %d", bundleIdentifier, err);
+			NSLog(@"Unable to locate application for bundle identifier '%@'", bundleIdentifier);
 		}
 	}
 	return resolvedURL;
@@ -375,7 +392,7 @@ errorReturn:
 			
 		if (!isPrefsMenu && [[self defaultExternalEditor] isEqual:ed]) {
 			[theMenuItem setKeyEquivalent:@"E"];
-			[theMenuItem setKeyEquivalentModifierMask: NSCommandKeyMask | NSShiftKeyMask];
+			[theMenuItem setKeyEquivalentModifierMask: NSEventModifierFlagCommand | NSEventModifierFlagShift];
 		}
 		//PrefsWindowController maintains default-editor selection by updating on ExternalEditorsChangedNotification
 			

@@ -168,15 +168,22 @@ static const NSStringEncoding AllowedEncodings[] = {
 		
 		//setup panel for given note
 		if ([self tryToUpdateTextForEncoding:currentEncoding]) {
-			[NSApp beginSheet:window modalForWindow:[(AppController*)[NSApp delegate] window] modalDelegate:self 
-			   didEndSelector:@selector(sheetDidEnd:returnCode:contextInfo:) contextInfo:NULL];
+			NSWindow *mainWindow = [(AppController *)[NSApp delegate] window];
+			if (mainWindow) {
+				[mainWindow beginSheet:window completionHandler:^(NSModalResponse response) {
+					[self sheetDidEnd:window returnCode:response contextInfo:NULL];
+				}];
+				} else {
+					NSBeep();
+					NSLog(@"EncodingsManager: main window not available for sheet presentation");
+				}
 		} else {
 			//this shouldn't happen
 		}
 	}
 }
 
-- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode  contextInfo:(void  *)contextInfo {
+- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSModalResponse)returnCode contextInfo:(void  *)contextInfo {
 	[note release];
 	note = nil;
 }
@@ -262,7 +269,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 }
 
 - (IBAction)cancelAction:(id)sender {
-	[NSApp endSheet:window returnCode:0];
+	[NSApp endSheet:window returnCode:NSModalResponseCancel];
 	[window close];
 }
 
@@ -316,7 +323,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 				[(AppController*)[NSApp delegate] contentsUpdatedForNote:note];
 	}
 	
-	[NSApp endSheet:window returnCode:1];
+	[NSApp endSheet:window returnCode:NSModalResponseOK];
 	[window close];
 }
 

@@ -150,8 +150,8 @@ typedef struct _NoteCatalogEntry {
 - (void)checkIfNotationIsTrashed;
 - (void)updateLinksToNote:(NoteObject*)aNoteObject fromOldName:(NSString*)oldname;
 - (void)updateTitlePrefixConnections;
-- (void)addNotes:(NSArray*)noteArray;
-- (void)addNotesFromSync:(NSArray*)noteArray;
+- (void)addNotes:(NSArray<NoteObject*>*)noteArray;
+- (void)addNotesFromSync:(NSArray<NoteObject*>*)noteArray;
 - (void)addNewNote:(NoteObject*)aNoteObject;
 - (void)_addNote:(NoteObject*)aNoteObject;
 - (void)removeNote:(NoteObject*)aNoteObject;

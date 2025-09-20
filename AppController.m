@@ -679,7 +679,7 @@ terminateApp:
 	if ([ed isKindOfClass:[ExternalEditor class]]) {
 		NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 
-		if (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & NSDeviceIndependentModifierFlagsMask)) {
+		if (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & NSEventModifierFlagDeviceIndependentFlagsMask)) {
 			//allow changing the default editor directly from Notes menu
 			[[ExternalEditorListController sharedInstance] setDefaultEditor:ed];
 		}
@@ -962,20 +962,6 @@ terminateApp:
 	
 	[NSApp replyToOpenOrPrint:[filenames count] ? NSApplicationDelegateReplySuccess : NSApplicationDelegateReplyFailure];
 }
-
-- (void)applicationWillBecomeActive:(NSNotification *)aNotification {
-	SpaceSwitchingContext thisSpaceSwitchCtx;
-	CurrentContextForWindowNumber([window windowNumber], &thisSpaceSwitchCtx);
-	//what if the app is switched-to in another way? then the last-stored spaceSwitchCtx will cause us to return to the wrong app
-	//unfortunately this notification occurs only after NV has become the front process, but we can still verify the space number
-	
-	if (thisSpaceSwitchCtx.userSpace != spaceSwitchCtx.userSpace || 
-		thisSpaceSwitchCtx.windowSpace != spaceSwitchCtx.windowSpace) {
-		//forget the last space-switch info if it's effectively different from how we're switching into the app now
-		bzero(&spaceSwitchCtx, sizeof(SpaceSwitchingContext));
-	}
-}
-
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {
 	[notationController checkJournalExistence];
 	
@@ -1104,7 +1090,7 @@ terminateApp:
 		if (command == @selector(noop:)) {
 			//control-U is not set to anything by default, so we have to check the event itself for noops
 			NSEvent *event = [window currentEvent];
-			if ([event modifierFlags] & NSControlKeyMask) {
+			if ([event modifierFlags] & NSEventModifierFlagControl) {
 				if ([event firstCharacterIgnoringModifiers] == 'u') {
 					//in 1.1.1 this deleted the entire line, like tcsh. this is more in-line with bash
 					[aTextView deleteToBeginningOfLine:nil];
@@ -1293,9 +1279,9 @@ terminateApp:
     
 	NSEventType type = [event type];
 	//do not allow drag-selections unless a modifier is pressed
-	if (type == NSLeftMouseDragged || type == NSLeftMouseDown) {
+	if (type == NSEventTypeLeftMouseDragged || type == NSEventTypeLeftMouseDown) {
 		NSEventModifierFlags flags = [event modifierFlags];
-		if ((flags & NSShiftKeyMask) || (flags & NSCommandKeyMask)) {
+		if ((flags & NSEventModifierFlagShift) || (flags & NSEventModifierFlagCommand)) {
 			allowMultipleSelection = YES;
 		}
 	}
@@ -1326,7 +1312,7 @@ terminateApp:
 
 - (void)tableViewSelectionDidChange:(NSNotification *)aNotification {
 	NSEventType type = [[window currentEvent] type];
-	if (type != NSKeyDown && type != NSKeyUp) {
+	if (type != NSEventTypeKeyDown && type != NSEventTypeKeyUp) {
 		[self performSelector:@selector(setTableAllowsMultipleSelection) withObject:nil afterDelay:0];
 	}
 	
@@ -1635,7 +1621,6 @@ terminateApp:
 		if (opts & NVOrderFrontWindow) {
 			//for external url-handling, often the app will already have been brought to the foreground
 			if (![NSApp isActive]) {
-				CurrentContextForWindowNumber([window windowNumber], &spaceSwitchCtx);
 				[NSApp activateIgnoringOtherApps:YES];
 			}
 			if (![window isKeyWindow])
@@ -2019,16 +2004,7 @@ terminateApp:
 - (IBAction)toggleNVActivation:(id)sender {
 	
 	if ([NSApp isActive] && [window isMainWindow]) {
-		
-		SpaceSwitchingContext laterSpaceSwitchCtx;
-		CurrentContextForWindowNumber([window windowNumber], &laterSpaceSwitchCtx);
-		
-		if (!CompareContextsAndSwitch(&spaceSwitchCtx, &laterSpaceSwitchCtx)) {
-			//hide only if we didn't need to or weren't able to switch spaces
-			[NSApp hide:sender];
-		}
-		//clear the space-switch context that we just looked at, to ensure it's not reused inadvertently
-		bzero(&spaceSwitchCtx, sizeof(SpaceSwitchingContext));
+		[NSApp hide:sender];
 		return;
 	}
 	[self bringFocusToControlField:sender];
@@ -2040,7 +2016,6 @@ terminateApp:
 	[field selectText:sender];
 	
 	if (![NSApp isActive]) {
-		CurrentContextForWindowNumber([window windowNumber], &spaceSwitchCtx);
 		[NSApp activateIgnoringOtherApps:YES];
 	}
 	if (![window isMainWindow]) [window makeKeyAndOrderFront:sender];

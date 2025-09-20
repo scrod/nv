@@ -138,7 +138,7 @@
 		[(isHighlighted ? [NSColor whiteColor] : [NSColor colorWithCalibratedWhite:0.55 alpha:1.0]) setFill];
 		[backgroundPath fill];
 		
-		[[NSGraphicsContext currentContext] setCompositingOperation:NSCompositeSourceOut];
+		[[NSGraphicsContext currentContext] setCompositingOperation:NSCompositingOperationSourceOut];
 		[aWord drawWithRect:(NSRect){{2.0, 3.0}, wordRect.size} options:NSStringDrawingUsesFontLeading attributes:attrs];
 		
 		CGContextEndTransparencyLayer(context);

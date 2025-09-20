@@ -736,7 +736,7 @@ bail:
 - (void)closeAllResources {
 	[allNotes makeObjectsPerformSelector:@selector(abortEditingInExternalEditor)];
 	
-	[deletionManager cancelPanelReturningCode:NSRunStoppedResponse];
+	[deletionManager cancelPanelReturningCode:NSModalResponseStop];
 	[self stopSyncServices];
 	[self stopFileNotifications];
 	if ([self flushAllNoteChanges])
@@ -850,7 +850,7 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	return newNote;
 }
 
-- (void)addNotesFromSync:(NSArray*)noteArray {
+- (void)addNotesFromSync:(NSArray<NoteObject*>*)noteArray {
 	
 	if (![noteArray count]) return; 
 	
@@ -879,7 +879,7 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	[self refilterNotes];
 }
 
-- (void)addNotes:(NSArray*)noteArray {
+- (void)addNotes:(NSArray<NoteObject*>*)noteArray {
 	
 	if (![noteArray count]) return; 
 	
@@ -1442,9 +1442,12 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	NSMutableIndexSet *noteIndexes = [[NSMutableIndexSet alloc] init];
 	
 	NSUInteger i, noteCount = [noteArray count];
-	
-	id *notes = (id*)malloc(noteCount * sizeof(id));
-	[noteArray getObjects:notes];
+
+	id *notes = NULL;
+	if (noteCount > 0) {
+		notes = (id *)malloc(noteCount * sizeof(id));
+		[noteArray getObjects:notes range:NSMakeRange(0, noteCount)];
+	}
 	
 	for (i=0; i<noteCount; i++) {
 		NSUInteger noteIndex = [notesListDataSource indexOfObjectIdenticalTo:notes[i]];
@@ -1453,7 +1456,9 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 			[noteIndexes addIndex:noteIndex];
 	}
 	
-	free(notes);
+	if (notes != NULL) {
+		free(notes);
+	}
 	
 	return [noteIndexes autorelease];
 }
@@ -1530,8 +1535,9 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 }
 
 - (void)regeneratePreviewsForColumn:(NSTableColumn*)col visibleFilteredRows:(NSRange)rows forceUpdate:(BOOL)force {
-	
-	float width = [col width] - [NSScroller scrollerWidthForControlSize:NSRegularControlSize];
+
+	CGFloat scrollerWidth = [NSScroller scrollerWidthForControlSize:NSControlSizeRegular scrollerStyle:[NSScroller preferredScrollerStyle]];
+	float width = [col width] - (float)scrollerWidth;
 	
 	if (force || roundf(width) != roundf(titleColumnWidth)) {
 		titleColumnWidth = width;
@@ -1597,6 +1603,7 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	[deletedNotes release];
 	[notationPrefs release];
 	[unwrittenNotes release];
+	[_filterString release];
     
     [super dealloc];
 }

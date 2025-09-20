@@ -31,8 +31,8 @@
 		[self setNumberOfTickMarks:10];
 		[self setMinValue:0.05];
 		[self setMaxValue:4.0];
-		[self setSliderType:NSLinearSlider];
-		[self setTickMarkPosition:NSTickMarkBelow];
+		[self setSliderType:NSSliderTypeLinear];
+		[self setTickMarkPosition:NSTickMarkPositionBelow];
 		[self setAllowsTickMarkValuesOnly:NO];
 		[self setContinuous:YES];
 

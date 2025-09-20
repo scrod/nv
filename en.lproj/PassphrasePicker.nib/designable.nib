@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <deployment version="1060" identifier="macosx"/>
+        <deployment version="101300" identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -31,7 +31,7 @@
                 <outlet property="_verifyPassword" destination="358" id="371"/>
             </connections>
         </customObject>
-        <window title="Choose a Passphrase" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="343" userLabel="Select a passphrase" customClass="NSPanel" propertyAccessControl="all">
+        <window title="Choose a Passphrase" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" releasedWhenClosed="NO" visibleAtLaunch="NO" animationBehavior="default" id="343" userLabel="Select a passphrase" customClass="NSPanel">
             <windowStyleMask key="styleMask" titled="YES" closable="YES"/>
             <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
             <rect key="contentRect" x="378" y="572" width="474" height="243"/>
@@ -49,15 +49,6 @@
                                 <rect key="frame" x="41" y="0.0" width="413" height="74"/>
                                 <autoresizingMask key="autoresizingMask"/>
                             </customView>
-                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="124" translatesAutoresizingMaskIntoConstraints="NO" id="375" propertyAccessControl="nonLocalizable">
-                                <rect key="frame" x="38" y="82" width="128" height="17"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="More Security Options" id="409">
-                                    <font key="font" metaFont="smallSystem"/>
-                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                            </textField>
                             <button horizontalHuggingPriority="750" verticalHuggingPriority="750" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="374">
                                 <rect key="frame" x="20" y="85" width="13" height="13"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
@@ -78,7 +69,7 @@
                                 </buttonCell>
                             </button>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="358" customClass="NSSecureTextField">
-                                <rect key="frame" x="101" y="147" width="353" height="22"/>
+                                <rect key="frame" x="101" y="147" width="353" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="406">
                                     <font key="font" metaFont="system"/>
@@ -90,7 +81,7 @@
                                 </connections>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="357" customClass="NSSecureTextField">
-                                <rect key="frame" x="101" y="177" width="326" height="22"/>
+                                <rect key="frame" x="101" y="177" width="326" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="405">
                                     <font key="font" metaFont="system"/>
@@ -112,8 +103,8 @@
                                     <action selector="showPasswordAssistantPanel:" target="342" id="361"/>
                                 </connections>
                             </button>
-                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="41" translatesAutoresizingMaskIntoConstraints="NO" id="353" propertyAccessControl="nonLocalizable">
-                                <rect key="frame" x="51" y="144" width="45" height="22"/>
+                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="41" translatesAutoresizingMaskIntoConstraints="NO" id="353">
+                                <rect key="frame" x="52" y="150" width="43" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Verify:" id="403">
                                     <font key="font" metaFont="system"/>
@@ -121,8 +112,8 @@
                                     <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                             </textField>
-                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="75" translatesAutoresizingMaskIntoConstraints="NO" id="351" propertyAccessControl="nonLocalizable">
-                                <rect key="frame" x="17" y="174" width="79" height="22"/>
+                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="75" translatesAutoresizingMaskIntoConstraints="NO" id="351">
+                                <rect key="frame" x="17" y="180" width="78" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Passphrase:" id="402">
                                     <font key="font" metaFont="system"/>
@@ -134,8 +125,8 @@
                                 <rect key="frame" x="20" y="236" width="434" height="5"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                             </box>
-                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="436" translatesAutoresizingMaskIntoConstraints="NO" id="347" propertyAccessControl="nonLocalizable">
-                                <rect key="frame" x="17" y="207" width="440" height="23"/>
+                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="436" translatesAutoresizingMaskIntoConstraints="NO" id="347">
+                                <rect key="frame" x="18" y="214" width="413" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="Your passphrase can contain any characters and can be any length." id="401">
                                     <font key="font" metaFont="system"/>
@@ -143,8 +134,17 @@
                                     <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                             </textField>
-                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="436" translatesAutoresizingMaskIntoConstraints="NO" id="346" propertyAccessControl="nonLocalizable">
-                                <rect key="frame" x="17" y="247" width="440" height="41"/>
+                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="124" translatesAutoresizingMaskIntoConstraints="NO" id="375">
+                                <rect key="frame" x="39" y="85" width="122" height="14"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMinY="YES"/>
+                                <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="More Security Options" id="409">
+                                    <font key="font" metaFont="smallSystem"/>
+                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                    <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                                </textFieldCell>
+                            </textField>
+                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="436" translatesAutoresizingMaskIntoConstraints="NO" id="346">
+                                <rect key="frame" x="18" y="256" width="417" height="32"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="Please choose a passphrase to protect your notes. If you forget this passphrase, however, it may be impossible to recover them." id="400">
                                     <font key="font" metaFont="system"/>
@@ -193,11 +193,12 @@ DQ
             <connections>
                 <outlet property="initialFirstResponder" destination="357" id="394"/>
             </connections>
-            <point key="canvasLocation" x="139" y="105"/>
+            <point key="canvasLocation" x="139" y="104.5"/>
         </window>
         <view id="349">
             <rect key="frame" x="0.0" y="0.0" width="125" height="1"/>
             <autoresizingMask key="autoresizingMask"/>
+            <point key="canvasLocation" x="140" y="-114"/>
         </view>
     </objects>
     <resources>

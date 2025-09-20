@@ -52,11 +52,10 @@
 	
 	// ok, we have some data 
 	NSPropertyListFormat formatFound;
-	NSString* errorString = nil;
-id outObject = [NSPropertyListSerialization propertyListFromData:nsData mutabilityOption:NSPropertyListImmutable format:&formatFound errorDescription:&errorString];
-	if (errorString) {
-			NSLog(@"%@: error deserializing labels: %@", NSStringFromSelector(_cmd), errorString);
-		[errorString autorelease];
+	NSError *plistError = nil;
+	id outObject = [NSPropertyListSerialization propertyListWithData:nsData options:NSPropertyListImmutable format:&formatFound error:&plistError];
+	if (plistError) {
+			NSLog(@"%@: error deserializing labels: %@", NSStringFromSelector(_cmd), plistError);
 		return nil;
 	}
 	
@@ -77,11 +76,10 @@ id outObject = [NSPropertyListSerialization propertyListFromData:nsData mutabili
 	// always set data as binary plist.
 	NSData* dataToSendNS = nil;
 	if (plistObject) {
-		NSString *errorString = nil;
-dataToSendNS = [NSPropertyListSerialization dataFromPropertyList:plistObject format:NSPropertyListBinaryFormat_v1_0 errorDescription:&errorString];
-		if (errorString) {
-				NSLog(@"%@: error serializing labels: %@", NSStringFromSelector(_cmd), errorString);
-			[errorString autorelease];
+		NSError *serializationError = nil;
+		dataToSendNS = [NSPropertyListSerialization dataWithPropertyList:plistObject format:NSPropertyListBinaryFormat_v1_0 options:0 error:&serializationError];
+		if (serializationError) {
+				NSLog(@"%@: error serializing labels: %@", NSStringFromSelector(_cmd), serializationError);
 			return NO;
 		}
 	}

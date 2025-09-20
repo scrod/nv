@@ -19,25 +19,24 @@
 
 #import <Cocoa/Cocoa.h>
 
-@protocol NSURLDownloadDelegate;
-
-@interface URLGetter : NSObject <NSURLDownloadDelegate>
+@interface URLGetter : NSObject <NSURLSessionDownloadDelegate>
 {
     IBOutlet NSButton *cancelButton;
     IBOutlet NSTextField *objectURLStatus;
     IBOutlet NSProgressIndicator *progress;
     IBOutlet NSTextField *progressStatus;
     IBOutlet NSPanel *window;
-	
+
 	NSURL *url;
-	NSURLDownload *downloader;
+	NSURLSession *session;
+	NSURLSessionDownloadTask *downloadTask;
 	NSString *downloadPath, *tempDirectory;
-	
+
 	id userData;
-	
+
 	id delegate;
 
-	BOOL isIndicating, isImporting;
+	BOOL isIndicating, isImporting, didComplete;
 
 	long long totalReceivedByteCount, maxExpectedByteCount;
 	NSArray *urlGetterTopLevelObjects;

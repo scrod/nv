@@ -533,7 +533,7 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 	static NSAttributedString *approxCharStr = nil;
 	if (!approxCharStr) {
 		NSMutableParagraphStyle *centerStyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
-		[centerStyle setAlignment:NSCenterTextAlignment];
+		[centerStyle setAlignment:NSTextAlignmentCenter];
 
 		approxCharStr = [[NSAttributedString alloc] initWithString:[NSString stringWithCharacters:&ch length:1] attributes:
 						 [NSDictionary dictionaryWithObjectsAndKeys:[NSFont fontWithName:@"Symbol" size:16.0f], NSFontAttributeName, centerStyle, NSParagraphStyleAttributeName, nil]];
