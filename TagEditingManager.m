@@ -37,7 +37,6 @@
 - (void)dealloc {
     [tagFieldString release];
     [commonTags release];
-    [tagPanel release];
     [tagNibTopLevelObjects release];
     [tagField release];
     [super dealloc];
