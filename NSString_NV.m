@@ -520,12 +520,25 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 }
 
 - (NSString *)stringByReplacingPercentEscapes {
-    return [(NSString*) CFURLCreateStringByReplacingPercentEscapes(NULL, (CFStringRef) self, CFSTR("")) autorelease];
+	NSString *decoded = [self stringByRemovingPercentEncoding];
+	if (!decoded) {
+		decoded = [[self copy] autorelease];
+	}
+	return decoded;
 }
 
+
 - (NSString*)stringWithPercentEscapes {
-	return [(NSString *) CFURLCreateStringByAddingPercentEscapes(NULL, (CFStringRef)[[self mutableCopy] autorelease], NULL, CFSTR("=,!$&'()*+;@?\n\"<>#\t :/"),kCFStringEncodingUTF8) autorelease];
+	static NSString *charactersToForceEscape = @"=,!$&'()*+;@?\n\"<>#\t :/";
+	NSMutableCharacterSet *allowed = [[[NSCharacterSet URLQueryAllowedCharacterSet] mutableCopy] autorelease];
+	[allowed removeCharactersInString:charactersToForceEscape];
+	NSString *encoded = [self stringByAddingPercentEncodingWithAllowedCharacters:allowed];
+	if (!encoded) {
+		encoded = [[self copy] autorelease];
+	}
+	return encoded;
 }
+
 
 + (NSString*)reasonStringFromCarbonFSError:(OSStatus)err {
 	static NSDictionary *reasons = nil;

@@ -399,7 +399,9 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
 	NSAssert(allNotesBuffer != NULL, @"sorting buffer not initialized");
 	
     NoteObject **currentNotes = allNotesBuffer;
-    [allNotes getObjects:(id*)currentNotes];
+    if (aSize > 0) {
+        [allNotes getObjects:(id *)currentNotes range:NSMakeRange(0, aSize)];
+    }
 	
     mergesort((void *)allNotesBuffer, (size_t)aSize, sizeof(id), (int (*)(const void *, const void *))compareFilename);
     mergesort((void *)catEntriesPtrs, (size_t)bSize, sizeof(NoteCatalogEntry*), (int (*)(const void *, const void *))compareCatalogEntryName);
