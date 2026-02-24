@@ -269,7 +269,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 }
 
 - (IBAction)cancelAction:(id)sender {
-	[NSApp endSheet:window returnCode:NSModalResponseCancel];
+	[[window sheetParent] endSheet:window returnCode:NSModalResponseCancel];
 	[window close];
 }
 
@@ -323,7 +323,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 				[(AppController*)[NSApp delegate] contentsUpdatedForNote:note];
 	}
 	
-	[NSApp endSheet:window returnCode:NSModalResponseOK];
+	[[window sheetParent] endSheet:window returnCode:NSModalResponseOK];
 	[window close];
 }
 

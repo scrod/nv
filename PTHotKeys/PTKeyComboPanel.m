@@ -159,16 +159,20 @@ static id _sharedKeyComboPanel = nil;
 - (IBAction)ok: (id)sender {
 	if ([[self window] isModalPanel])
 		[NSApp stopModalWithCode:NSModalResponseOK];
-	else
-		[NSApp endSheet:[self window] returnCode:NSModalResponseOK];
+	else {
+		NSWindow *sheetWindow = [self window];
+		[[sheetWindow sheetParent] endSheet:sheetWindow returnCode:NSModalResponseOK];
+	}
 		
 }
 
 - (IBAction)cancel: (id)sender {
 	if ([[self window] isModalPanel])
 		[NSApp stopModalWithCode:NSModalResponseCancel];
-	else
-		[NSApp endSheet:[self window] returnCode:NSModalResponseCancel];
+	else {
+		NSWindow *sheetWindow = [self window];
+		[[sheetWindow sheetParent] endSheet:sheetWindow returnCode:NSModalResponseCancel];
+	}
 }
 
 - (IBAction)clear: (id)sender

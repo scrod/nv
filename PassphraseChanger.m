@@ -22,7 +22,7 @@
 @implementation PassphraseChanger
 
 - (IBAction)cancelNewPassword:(id)sender {
-	[NSApp endSheet:changePassphraseWindow returnCode:NSModalResponseCancel];
+	[[changePassphraseWindow sheetParent] endSheet:changePassphraseWindow returnCode:NSModalResponseCancel];
 	[changePassphraseWindow close];
 
 }
@@ -40,7 +40,7 @@
 								  inKeychain:[rememberChangeButton state] 
 							  withIterations:[keyDerivation hashIterationCount]];
 						
-			[NSApp endSheet:changePassphraseWindow returnCode:NSModalResponseOK];
+			[[changePassphraseWindow sheetParent] endSheet:changePassphraseWindow returnCode:NSModalResponseOK];
 			[changePassphraseWindow close];
 			
 		} else {

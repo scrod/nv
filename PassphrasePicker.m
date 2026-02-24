@@ -119,7 +119,7 @@
 
 
 - (IBAction)cancelNewPassword:(id)sender {
-	[NSApp endSheet:newPassphraseWindow returnCode:NSModalResponseCancel];
+	[[newPassphraseWindow sheetParent] endSheet:newPassphraseWindow returnCode:NSModalResponseCancel];
 	[newPassphraseWindow close];
 }
 
@@ -132,7 +132,7 @@
 							  inKeychain:[rememberNewButton state] 
 						  withIterations:[keyDerivation hashIterationCount]];
 		
-		[NSApp endSheet:newPassphraseWindow returnCode:NSModalResponseOK];
+		[[newPassphraseWindow sheetParent] endSheet:newPassphraseWindow returnCode:NSModalResponseOK];
 		[newPassphraseWindow close];
 		
 	} else {
