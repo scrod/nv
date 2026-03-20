@@ -222,6 +222,11 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 
 
 - (void)addLinkAttributesForRange:(NSRange)changedRange {
+	NSString *string = [self string];
+	NSUInteger stringLength = [string length];
+	if (changedRange.location > stringLength)
+		return;
+	changedRange.length = MIN(changedRange.length, stringLength - changedRange.location);
 	
 	if (!changedRange.length)
 			return;
@@ -233,7 +238,7 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 			return;
 	}
 
-	NSString *substring = [[self string] substringWithRange:changedRange];
+	NSString *substring = [string substringWithRange:changedRange];
 	NSArray *matches = [detector matchesInString:substring options:0 range:NSMakeRange(0, [substring length])];
 	for (NSTextCheckingResult *result in matches) {
 			if ([result resultType] != NSTextCheckingTypeLink)

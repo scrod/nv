@@ -1305,8 +1305,12 @@ cancelCompetion:
 
 - (void)didChangeText {
 	
-	//if the text storage was somehow shortened since changedRange was set in -shouldChangeText, at least avoid an out of bounds exception
-	changedRange = NSMakeRange(changedRange.location, (MIN(NSMaxRange(changedRange), [[self string] length]) - changedRange.location));
+	//if the text storage was somehow shortened since changedRange was set in -shouldChangeText, avoid unsigned underflow and stale offsets
+	NSUInteger stringLength = [[self string] length];
+	if (changedRange.location > stringLength)
+		changedRange = NSMakeRange(stringLength, 0);
+	else
+		changedRange = NSMakeRange(changedRange.location, MIN(changedRange.length, stringLength - changedRange.location));
 
 
 	//-removeAttribute:range: seems slow for some reason; try checking with -attributesAtIndex:effectiveRange: first
