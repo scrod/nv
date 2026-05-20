@@ -46,8 +46,8 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 	
 	BOOL backgroundIsDark, mouseInside;
 	
-    id (*defaultIBeamCursorIMP)(Class, SEL);
-    id (*whiteIBeamCursorIMP)(Class, SEL);
+    IMP defaultIBeamCursorIMP;
+    IMP whiteIBeamCursorIMP;
 };
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor;

@@ -1856,14 +1856,14 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				LD_GENERATE_MAP_FILE = YES;
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = "2.0 β7";
 				OTHER_CFLAGS = (
 					"-I/usr/local/opt/openssl/include",
 					"-I/opt/homebrew/opt/openssl/include",
 				);
 				OTHER_LDFLAGS = (
-					"-whatsloaded",
 					"-weak_framework",
 					PDFKit,
 					"-L/usr/local/opt/openssl/lib",
@@ -1928,8 +1928,9 @@
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
-				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.13;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = "2.0 β7";
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = (
@@ -2004,7 +2005,8 @@
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = "$(HOME)/Applications";
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				MARKETING_VERSION = "2.0 β7";
 				OTHER_CFLAGS = (
 					"-I/usr/local/opt/openssl/include",
@@ -2062,11 +2064,12 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
-				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.13;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				"SDKROOT[arch=x86_64]" = macosx;
 			};
 			name = Development;
 		};
@@ -2108,10 +2111,11 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
-				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.13;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				SDKROOT = macosx;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				"SDKROOT[arch=x86_64]" = macosx;
 			};
 			name = Deployment;
 		};
@@ -2153,10 +2157,11 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VALUE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
-				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.5;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				"MACOSX_DEPLOYMENT_TARGET[arch=x86_64]" = 10.13;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = x86_64;
 				SDKROOT = macosx;
-				"SDKROOT[arch=x86_64]" = macosx10.5;
+				"SDKROOT[arch=x86_64]" = macosx;
 			};
 			name = Default;
 		};

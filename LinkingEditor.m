@@ -91,8 +91,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 	
 	[[self window] setAcceptsMouseMovedEvents:YES];
 	if (IsLeopardOrLater) {
-        defaultIBeamCursorIMP = (id(*)(Class, SEL))method_getImplementation(class_getClassMethod([NSCursor class], @selector(IBeamCursor)));
-        whiteIBeamCursorIMP = (id(*)(Class, SEL))method_getImplementation(class_getClassMethod([NSCursor class], @selector(whiteIBeamCursor)));
+        defaultIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(IBeamCursor)));
+        whiteIBeamCursorIMP = method_getImplementation(class_getClassMethod([NSCursor class], @selector(whiteIBeamCursor)));
 	}
 
 	didRenderFully = NO;
@@ -980,8 +980,8 @@ copyRTFType:
 		method_setImplementation(defaultIBeamCursorMethod, shouldBeWhite ? whiteIBeamCursorIMP : defaultIBeamCursorIMP);
 		
 		NSCursor *currentCursor = [NSCursor currentCursor];
-		NSCursor *whiteCursor = whiteIBeamCursorIMP(class, @selector(whiteIBeamCursor));
-		NSCursor *defaultCursor = defaultIBeamCursorIMP(class, @selector(IBeamCursor));
+		NSCursor *whiteCursor = ((NSCursor* (*)(Class, SEL))whiteIBeamCursorIMP)(class, @selector(whiteIBeamCursor));
+		NSCursor *defaultCursor = ((NSCursor* (*)(Class, SEL))defaultIBeamCursorIMP)(class, @selector(IBeamCursor));
 		
 		//if the current cursor is set incorrectly, and and it's not a non-IBeam cursor, then update it (IBeamCursor points to our recently-set implementation)
 		if ((currentCursor == whiteCursor) != shouldBeWhite && (currentCursor == whiteCursor || currentCursor == defaultCursor)) {
