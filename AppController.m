@@ -138,25 +138,20 @@
 		// Add a little horizontal padding
 		CGFloat padX = 4.0;
 		NSView *container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, labelSize.width + padX * 2, labelSize.height)];
+		[[container.widthAnchor constraintEqualToConstant:labelSize.width + padX * 2] setActive:YES];
+		[[container.heightAnchor constraintEqualToConstant:labelSize.height] setActive:YES];
 		[titleLabel setFrameOrigin:NSMakePoint(padX, 0)];
 		[container addSubview:titleLabel];
 
 		[appTitleItem setView:container];
 		[appTitleItem setLabel:NSLocalizedString(@"Notation", @"App name")];
-		[appTitleItem setMinSize:NSMakeSize(container.frame.size.width, container.frame.size.height)];
-		[appTitleItem setMaxSize:NSMakeSize(container.frame.size.width, container.frame.size.height)];
 	}
 
 	window.titleVisibility = NSWindowTitleHidden;
 
-	if (@available(macOS 11, *)) {
-			// Keep the title visible and push it to the left by centering our field
-		window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleLine;
-		window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
-	} else {
-		[dualFieldItem setMaxSize:NSMakeSize(FLT_MAX, [dualSV frame].size.height)];
-		[dualFieldItem setMinSize:NSMakeSize(50.0f, [dualSV frame].size.height)];
-	}
+	// Keep the title visible and push it to the left by centering our field
+	window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleLine;
+	window.toolbarStyle = NSWindowToolbarStyleUnifiedCompact;
     [dualFieldItem setLabel:NSLocalizedString(@"Search or Create", @"placeholder text in search/create field")];
 
 	toolbar = [[NSToolbar alloc] initWithIdentifier:@"NVToolbar"];
@@ -287,7 +282,7 @@ void outletObjectAwoke(id sender) {
 
 	NSString *subMessage = @"";
 
-	BOOL skipDefaultInitialization = (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & NSEventModifierFlagDeviceIndependentFlagsMask));
+	BOOL skipDefaultInitialization = (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & (CGEventFlags)NSEventModifierFlagDeviceIndependentFlagsMask));
 
 	if (!skipDefaultInitialization) {
 		if (aliasData) {
@@ -632,7 +627,7 @@ terminateApp:
 					} else if ([deleteObj isKindOfClass:[NoteObject class]]) {
 						[notationController removeNote:deleteObj];
 					}
-					if ([[alert suppressionButton] state] == NSOnState) {
+					if ([[alert suppressionButton] state] == NSControlStateValueOn) {
 						[prefsController setConfirmNoteDeletion:NO sender:self];
 					}
 				}
@@ -679,7 +674,7 @@ terminateApp:
 	if ([ed isKindOfClass:[ExternalEditor class]]) {
 		NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 
-		if (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & NSEventModifierFlagDeviceIndependentFlagsMask)) {
+		if (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & (CGEventFlags)NSEventModifierFlagDeviceIndependentFlagsMask)) {
 			//allow changing the default editor directly from Notes menu
 			[[ExternalEditorListController sharedInstance] setDefaultEditor:ed];
 		}
@@ -939,8 +934,12 @@ terminateApp:
 			path = [[NSBundle mainBundle] pathForResource:NSLocalizedString(@"Excruciatingly Useful Shortcuts", nil) ofType:@"nvhelp" inDirectory:nil];
 		case 2:		//acknowledgments
 			if (!path) path = [[NSBundle mainBundle] pathForResource:@"Acknowledgments" ofType:@"txt" inDirectory:nil];
-			[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]] withAppBundleIdentifier:@"com.apple.TextEdit"
-											options:NSWorkspaceLaunchDefault additionalEventParamDescriptor:nil launchIdentifiers:NULL];
+			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+			NSURL *textEditURL = [workspace URLForApplicationWithBundleIdentifier:@"com.apple.TextEdit"];
+			if (textEditURL) {
+				[workspace openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]] withApplicationAtURL:textEditURL
+					configuration:[NSWorkspaceOpenConfiguration configuration] completionHandler:nil];
+			}
 			break;
 		case 3:		//product site
 			[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:NSLocalizedString(@"SiteURL", nil)]];

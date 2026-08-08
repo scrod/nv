@@ -59,7 +59,6 @@
 	static NSString *whiteImages[] = { nil, @"TBDownArrowWhite", @"TBSynchronizingWhite", @"TBAlertWhite" };
 
 	NSImage *img = [NSImage imageNamed: isHovering ? whiteImages[iconType] : normalImages[iconType] ];
-	[img setFlipped:YES];
 	
 	if (SynchronizingIcon == iconType) {
 		
@@ -77,7 +76,8 @@
 	
 	NSRect imgRect = NSMakeRect(0, 0, [img size].width, [img size].height);
 	[img drawInRect:imgRect fromRect:NSZeroRect operation:NSCompositingOperationSourceOver 
-		   fraction:isHovering ? 1.0 : ([[controlView window] isMainWindow] ? 0.83 : 0.5)];
+		   fraction:isHovering ? 1.0 : ([[controlView window] isMainWindow] ? 0.83 : 0.5)
+	 respectFlipped:YES hints:nil];
 
 	
 	if (SynchronizingIcon == iconType) {
@@ -188,7 +188,7 @@
 
 		if (0 <= _initialDragPoint.x && 0 <= _initialDragPoint.y) {
 			NSWindow *win = [self window];
-			NSPoint p = [win convertBaseToScreen:[event locationInWindow]];
+			NSPoint p = [win convertPointToScreen:[event locationInWindow]];
 			NSRect sr = [[win screen] frame];
 			NSRect wr = [win frame];
 			
@@ -208,7 +208,7 @@
 - (void)mouseDown:(NSEvent *)theEvent {
 		
 	NSRect frame = [[self window] frame];
-    _initialDragPoint = [[self window] convertBaseToScreen:[theEvent locationInWindow]];
+	_initialDragPoint = [[self window] convertPointToScreen:[theEvent locationInWindow]];
     _initialDragPoint.x -= frame.origin.x;
     _initialDragPoint.y -= frame.origin.y;
 	

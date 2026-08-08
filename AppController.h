@@ -34,7 +34,7 @@
 @class LinearDividerShader;
 @class TagEditingManager;
 
-@interface AppController : NSObject <NSToolbarDelegate, NSTableViewDelegate, NSWindowDelegate, NSTextFieldDelegate, NSTextViewDelegate>
+@interface AppController : NSObject <NSToolbarDelegate, NSTableViewDelegate, NSWindowDelegate, NSTextFieldDelegate, NSTextViewDelegate, NSMenuItemValidation>
 {
     // Multitagging support
     TagEditingManager *tagEditor;

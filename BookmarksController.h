@@ -67,7 +67,7 @@
 
 @class GlobalPrefs;
 
-@interface BookmarksController : NSObject <NSWindowDelegate, NSTableViewDelegate, NSTableViewDataSource>
+@interface BookmarksController : NSObject <NSWindowDelegate, NSTableViewDelegate, NSTableViewDataSource, NSMenuItemValidation>
 {
 	//model
 	NSMutableArray *bookmarks;

@@ -136,7 +136,7 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 @end
 
 
-#define MovedBookmarksType @"NVMovedBookmarksType"
+#define MovedBookmarksType @"net.notational.velocity.moved-bookmarks"
 
 @implementation BookmarksController
 
@@ -377,13 +377,10 @@ static NSString *BMNoteUUIDStringKey = @"NoteUUIDString";
 	}
 }
 
-- (BOOL)tableView:(NSTableView *)tv writeRows:(NSArray*)rows toPasteboard:(NSPasteboard*)pboard {
-    NSArray *typesArray = [NSArray arrayWithObject:MovedBookmarksType];
-	
-	[pboard declareTypes:typesArray owner:self];
-    [pboard setPropertyList:rows forType:MovedBookmarksType];
-	
-    return YES;
+- (id <NSPasteboardWriting>)tableView:(NSTableView *)tableView pasteboardWriterForRow:(NSInteger)row {
+	NSPasteboardItem *item = [[[NSPasteboardItem alloc] init] autorelease];
+	[item setPropertyList:[NSArray arrayWithObject:[NSNumber numberWithInteger:row]] forType:MovedBookmarksType];
+	return item;
 }
 
 - (NSDragOperation)tableView:(NSTableView*)tv validateDrop:(id <NSDraggingInfo>)info proposedRow:(NSInteger)row

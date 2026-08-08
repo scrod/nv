@@ -129,7 +129,7 @@
 		img = [[NSImage alloc] initWithSize:wordRect.size];
 		[img lockFocus];
 
-		CGContextRef context = (CGContextRef)([[NSGraphicsContext currentContext] graphicsPort]);
+		CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
 		CGContextBeginTransparencyLayer(context, NULL);
 
 		CGContextClipToRect(context, NSRectToCGRect(wordRect));

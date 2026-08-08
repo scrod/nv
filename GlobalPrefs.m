@@ -423,7 +423,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		if (isRaw) return color;
 		if (color) {
 			//nslayoutmanager temporary attributes don't seem to like alpha components, so synthesize translucency using the bg color
-			NSColor *fauxAlphaSTHC = [[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace] colorWithAlphaComponent:1.0];
+			NSColor *fauxAlphaSTHC = [[color colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]] colorWithAlphaComponent:1.0];
 			return [fauxAlphaSTHC blendedColorWithFraction:(1.0 - [color alphaComponent]) ofColor:[self backgroundTextColor]];
 		}
 	}
@@ -459,8 +459,8 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	//sometimes floating point numbers really don't like to be compared to each other
 
 	CGFloat pRed, pGreen, pBlue, gRed, gGreen, gBlue, pAlpha, gAlpha;
-	[[c1 colorUsingColorSpaceName:NSCalibratedRGBColorSpace] getRed:&pRed green:&pGreen blue:&pBlue alpha:&pAlpha];
-	[[c2 colorUsingColorSpaceName:NSCalibratedRGBColorSpace] getRed:&gRed green:&gGreen blue:&gBlue alpha:&gAlpha];
+	[[c1 colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]] getRed:&pRed green:&pGreen blue:&pBlue alpha:&pAlpha];
+	[[c2 colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]] getRed:&gRed green:&gGreen blue:&gBlue alpha:&gAlpha];
 	
 #define SCR(__ch) ((int)roundf(((__ch) * 255.0)))
 	
