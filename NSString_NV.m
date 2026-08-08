@@ -26,6 +26,7 @@
 #import "NoteObject.h"
 #import "GlobalPrefs.h"
 #import "LabelObject.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 // Ensure proper prototypes are visible in this translation unit
 unsigned int hoursFromAbsoluteTime(CFAbsoluteTime absTime);
@@ -299,9 +300,9 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 - (void)copyItemToPasteboard:(id)sender {
 	
 	NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-	[pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
+	[pasteboard declareTypes:[NSArray arrayWithObject:NSPasteboardTypeString] owner:nil];
 	[pasteboard setString:[sender isKindOfClass:[NSMenuItem class]] ? [sender representedObject] : self
-				  forType:NSStringPboardType];
+				  forType:NSPasteboardTypeString];
 }
 
 
@@ -554,19 +555,12 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 }
 
 - (BOOL)UTIOfFileConformsToType:(NSString*)type {
-	
-	CFStringRef fileUTI = NULL;
-	FSRef fileRef;
-	if (FSPathMakeRef((const UInt8 *)[self fileSystemRepresentation], &fileRef, NULL) == noErr) {
-		if (LSCopyItemAttribute(&fileRef, kLSRolesAll, kLSItemContentType, (CFTypeRef*)&fileUTI) == noErr) {
-			if (fileUTI) {
-				BOOL conforms = UTTypeConformsTo(fileUTI, (CFStringRef)type);
-				CFRelease(fileUTI);
-				return conforms;
-			}
-		}
-	}
-	return NO;
+	UTType *fileType = nil;
+	UTType *expectedType = [UTType typeWithIdentifier:type];
+	// The legacy lookup followed symlinks; lookup failures remain non-matches as before.
+	NSURL *fileURL = [[NSURL fileURLWithPath:self] URLByResolvingSymlinksInPath];
+	return expectedType && [fileURL getResourceValue:&fileType forKey:NSURLContentTypeKey error:nil] &&
+		[fileType conformsToType:expectedType];
 }
 
 - (CFUUIDBytes)uuidBytes {

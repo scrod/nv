@@ -44,6 +44,7 @@ static NSString *TableSortColumnKey = @"TableSortColumn";
 static NSString *TableIsReverseSortedKey = @"TableIsReverseSorted";
 static NSString *TableColumnsHaveBodyPreviewKey = @"TableColumnsHaveBodyPreview";
 static NSString *NoteBodyFontKey = @"NoteBodyFont";
+static NSString *NoteBodyFontKeyedArchiveKey = @"NoteBodyFontKeyedArchive";
 static NSString *ConfirmNoteDeletionKey = @"ConfirmNoteDeletion";
 static NSString *CheckSpellingInNoteBodyKey = @"CheckSpellingInNoteBody";
 static NSString *TextReplacementInNoteBodyKey = @"TextReplacementInNoteBody";
@@ -59,6 +60,9 @@ static NSString *HighlightSearchTermsKey = @"HighlightSearchTerms";
 static NSString *SearchTermHighlightColorKey = @"SearchTermHighlightColor";
 static NSString *ForegroundTextColorKey = @"ForegroundTextColor";
 static NSString *BackgroundTextColorKey = @"BackgroundTextColor";
+static NSString *SearchTermHighlightColorKeyedArchiveKey = @"SearchTermHighlightColorKeyedArchive";
+static NSString *ForegroundTextColorKeyedArchiveKey = @"ForegroundTextColorKeyedArchive";
+static NSString *BackgroundTextColorKeyedArchiveKey = @"BackgroundTextColorKeyedArchive";
 static NSString *UseSoftTabsKey = @"UseSoftTabs";
 static NSString *NumberOfSpacesInTabKey = @"NumberOfSpacesInTab";
 static NSString *MakeURLsClickableKey = @"MakeURLsClickable";
@@ -84,6 +88,53 @@ NSString *NotePreviewString = @"Note Preview";
 NSString *NVPTFPboardType = @"Notational Velocity Poor Text Format";
 
 NSString *HotKeyAppToFrontName = @"bring Notational Velocity to the foreground";
+
+static NSData *ArchivePreference(id object) {
+	NSError *error = nil;
+	NSData *data = [NSKeyedArchiver archivedDataWithRootObject:object requiringSecureCoding:YES error:&error];
+	if (!data) NSLog(@"Error archiving preference: %@", error);
+	return data;
+}
+
+// Legacy keys remain read-only so older app versions retain their last settings.
+static id UnarchiveLegacyPreference(NSData *data, Class expectedClass) {
+	if (!data) return nil;
+	id object = nil;
+	@try {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+		object = [NSUnarchiver unarchiveObjectWithData:data];
+#pragma clang diagnostic pop
+	} @catch (NSException *exception) {
+		return nil;
+	}
+	return [object isKindOfClass:expectedClass] ? object : nil;
+}
+
+// Legacy or invalid values repair the keyed archive; wholly absent values use defaults without writing.
+static id ArchivedPreference(NSUserDefaults *defaults, NSString *keyedArchiveKey, NSString *legacyKey, Class expectedClass, id defaultObject) {
+	id storedValue = [defaults objectForKey:keyedArchiveKey];
+	BOOL shouldArchive = storedValue != nil;
+	NSData *data = [storedValue isKindOfClass:[NSData class]] ? storedValue : nil;
+	id object = data ? [NSKeyedUnarchiver unarchivedObjectOfClass:expectedClass fromData:data error:nil] : nil;
+	if (object) return object;
+
+	storedValue = [defaults objectForKey:legacyKey];
+	if (storedValue) shouldArchive = YES;
+	data = [storedValue isKindOfClass:[NSData class]] ? storedValue : nil;
+	object = UnarchiveLegacyPreference(data, expectedClass);
+	if (!object) object = defaultObject;
+	if (object && shouldArchive) {
+		data = ArchivePreference(object);
+		if (data) [defaults setObject:data forKey:keyedArchiveKey];
+	}
+	return object;
+}
+
+static void SetArchivedPreference(NSUserDefaults *defaults, NSString *key, id object) {
+	NSData *data = ArchivePreference(object);
+	if (data) [defaults setObject:data forKey:key];
+}
 
 
 @implementation GlobalPrefs
@@ -129,15 +180,6 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
 			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
 			@"General", LastSelectedPreferencesPaneKey, 
-			
-			[NSArchiver archivedDataWithRootObject:
-			 [NSFont fontWithName:@"Helvetica" size:12.0f]], NoteBodyFontKey,
-			
-			[NSArchiver archivedDataWithRootObject:[NSColor textColor]], ForegroundTextColorKey,
-			[NSArchiver archivedDataWithRootObject:[NSColor textBackgroundColor]], BackgroundTextColorKey,
-			
-			[NSArchiver archivedDataWithRootObject:
-			 [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f]], SearchTermHighlightColorKey,
 			
 			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
 			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], NoteAttributesVisibleKey,
@@ -409,7 +451,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		[searchTermHighlightAttributes release];
 		searchTermHighlightAttributes = nil;
 		
-		[defaults setObject:[NSArchiver archivedDataWithRootObject:color] forKey:SearchTermHighlightColorKey];
+		SetArchivedPreference(defaults, SearchTermHighlightColorKeyedArchiveKey, color);
 		
 		SEND_CALLBACKS();
 	}
@@ -417,18 +459,12 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 
 - (NSColor*)searchTermHighlightColorRaw:(BOOL)isRaw {
 	
-	NSData *theData = [defaults dataForKey:SearchTermHighlightColorKey];
-	if (theData) {
-		NSColor *color = (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
-		if (isRaw) return color;
-		if (color) {
-			//nslayoutmanager temporary attributes don't seem to like alpha components, so synthesize translucency using the bg color
-			NSColor *fauxAlphaSTHC = [[color colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]] colorWithAlphaComponent:1.0];
-			return [fauxAlphaSTHC blendedColorWithFraction:(1.0 - [color alphaComponent]) ofColor:[self backgroundTextColor]];
-		}
-	}
-
-	return nil;
+	NSColor *defaultColor = [NSColor colorWithCalibratedRed:0.945 green:0.702 blue:0.702 alpha:1.0f];
+	NSColor *color = ArchivedPreference(defaults, SearchTermHighlightColorKeyedArchiveKey, SearchTermHighlightColorKey, [NSColor class], defaultColor);
+	if (isRaw) return color;
+	//nslayoutmanager temporary attributes don't seem to like alpha components, so synthesize translucency using the bg color
+	NSColor *fauxAlphaSTHC = [[color colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]] colorWithAlphaComponent:1.0];
+	return [fauxAlphaSTHC blendedColorWithFraction:(1.0 - [color alphaComponent]) ofColor:[self backgroundTextColor]];
 }
 
 - (NSDictionary*)searchTermHighlightAttributes {
@@ -494,7 +530,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	[noteBodyAttributes release];
 	noteBodyAttributes = nil; //cause method to re-update
 	
-	[defaults setObject:[NSArchiver archivedDataWithRootObject:noteBodyFont] forKey:NoteBodyFontKey]; 
+	SetArchivedPreference(defaults, NoteBodyFontKeyedArchiveKey, noteBodyFont);
 	
 	//restyle any PTF data on the clipboard to the new font
 	NSData *ptfData = [[NSPasteboard generalPasteboard] dataForType:NVPTFPboardType];
@@ -521,21 +557,9 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 }
 
 - (NSFont*)noteBodyFont {
-	BOOL triedOnce = NO;
-	
 	if (!noteBodyFont) {
-		retry:
-		@try {
-			noteBodyFont = [[NSUnarchiver unarchiveObjectWithData:[defaults objectForKey:NoteBodyFontKey]] retain];
-		} @catch (NSException *e) {
-			NSLog(@"Error trying to unarchive default note body font (%@, %@)", [e name], [e reason]);
-		}
-		
-		if ((!noteBodyFont || ![noteBodyFont isKindOfClass:[NSFont class]]) && !triedOnce) {
-			triedOnce = YES;
-			[defaults removeObjectForKey:NoteBodyFontKey];
-			goto retry;
-		}
+		NSFont *defaultFont = [NSFont fontWithName:@"Helvetica" size:12.0f];
+		noteBodyFont = [ArchivedPreference(defaults, NoteBodyFontKeyedArchiveKey, NoteBodyFontKey, [NSFont class], defaultFont) retain];
 	}
 	
     return noteBodyFont;
@@ -606,16 +630,14 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		[noteBodyAttributes release];
 		noteBodyAttributes = nil;
 		
-		[defaults setObject:[NSArchiver archivedDataWithRootObject:aColor] forKey:ForegroundTextColorKey];
+		SetArchivedPreference(defaults, ForegroundTextColorKeyedArchiveKey, aColor);
 		
 		SEND_CALLBACKS();
 	}	
 }
 
 - (NSColor*)foregroundTextColor {
-	NSData *theData = [defaults dataForKey:ForegroundTextColorKey];
-	if (theData) return (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
-	return nil;
+	return ArchivedPreference(defaults, ForegroundTextColorKeyedArchiveKey, ForegroundTextColorKey, [NSColor class], [NSColor textColor]);
 }
 
 - (void)setBackgroundTextColor:(NSColor*)aColor sender:(id)sender {
@@ -627,7 +649,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		[searchTermHighlightAttributes release];
 		searchTermHighlightAttributes = nil;
 
-		[defaults setObject:[NSArchiver archivedDataWithRootObject:aColor] forKey:BackgroundTextColorKey];
+		SetArchivedPreference(defaults, BackgroundTextColorKeyedArchiveKey, aColor);
 	
 		SEND_CALLBACKS();
 	}
@@ -636,10 +658,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 - (NSColor*)backgroundTextColor {
 	//don't need to cache the unarchived color, as it's not used in a random-access pattern
 	
-	NSData *theData = [defaults dataForKey:BackgroundTextColorKey];
-	if (theData) return (NSColor *)[NSUnarchiver unarchiveObjectWithData:theData];
-
-	return nil;	
+	return ArchivedPreference(defaults, BackgroundTextColorKeyedArchiveKey, BackgroundTextColorKey, [NSColor class], [NSColor textBackgroundColor]);
 }
 
 - (BOOL)tableColumnsShowPreview {
