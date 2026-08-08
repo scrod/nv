@@ -172,8 +172,8 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 					dstFont = currentFont;
 				}
 			} else {
-				// “Foreign” text (no base): try to map source to the target family; fall back to currentFont.
-				dstFont = srcFont ? [fm convertFont:srcFont toFamily:[currentFont familyName]] : currentFont;
+				// Imported text keeps only bold/italic traits, applied below.
+				dstFont = currentFont;
 			}
 			
 			// Normalize point size to the current font’s size.
