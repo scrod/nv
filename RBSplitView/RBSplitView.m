@@ -947,10 +947,14 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 		}
 		dividers = NULL;
 		if (data) {
-			NSBitmapImageRep* rep = [NSBitmapImageRep imageRepWithData:data];
-			NSImage* image = [[[NSImage alloc] initWithSize:[rep size]] autorelease];
-			[image setFlipped:YES];
-			[image addRepresentation:rep];
+			NSImage* image = [[[NSImage alloc] initWithData:data] autorelease];
+			if (!image) {
+				NSBitmapImageRep* rep = [NSBitmapImageRep imageRepWithData:data];
+				if (rep) {
+					image = [[[NSImage alloc] initWithSize:[rep size]] autorelease];
+					[image addRepresentation:rep];
+				}
+			}
 			[self setDivider:image];
 		} else {
 			[self setDivider:nil];
