@@ -30,8 +30,8 @@
 #import "NotationSyncServiceManager.h"
 #import "NotationDirectoryManager.h"
 #import "AlienNoteImporter.h"
+#import "ImportingUtils.h"
 #import "NSString_NV.h"
-#import <WebKit/WebArchive.h>
 #import "GlobalPrefs.h"
 #import "NSData_transformations.h"
 #import "AttributedPlainText.h"
@@ -46,20 +46,18 @@
 	NSArray *types = [pasteboard types];
 	NSMutableAttributedString *newString = nil;
 	NSData *data = nil;
-	BOOL pbHasPlainText = [types containsObject:NSStringPboardType];
+	BOOL pbHasPlainText = [types containsObject:NSPasteboardTypeString];
 	
-	if ([types containsObject:NSFilenamesPboardType]) {
-		NSArray *files = [pasteboard propertyListForType:NSFilenamesPboardType];
-		if ([files isKindOfClass:[NSArray class]]) {
-			if ([notationController openFiles:files]) return YES;
-		}
+	NSArray *files = NVFilePathsFromPasteboard(pasteboard);
+	if ([files count]) {
+		if ([notationController openFiles:files]) return YES;
 	}
 	
 	NSString *sourceIdentifierString = nil;
 	
 	//webkit URL!
-	if ([types containsObject:WebArchivePboardType]) {
-		sourceIdentifierString = [[pasteboard dataForType:WebArchivePboardType] pathURLFromWebArchive];
+	if ([types containsObject:NVWebArchivePasteboardType]) {
+		sourceIdentifierString = [[pasteboard dataForType:NVWebArchivePasteboardType] pathURLFromWebArchive];
 		//gecko URL!
 	} else if ([types containsObject:[NSString customPasteboardTypeOfCode:0x4D5A0003]]) {
 		//lazilly use syntheticTitle to get first line, even though that's not how our API is documented
@@ -69,14 +67,14 @@
 								  [NSString stringWithCharacters:&nullChar length:1] withString:@""];
 	}
 	
-	if ([types containsObject:NSURLPboardType] || (pbHasPlainText && [[pasteboard stringForType:NSStringPboardType] superficiallyResemblesAnHTTPURL])) {
+	if ([types containsObject:NSPasteboardTypeURL] || (pbHasPlainText && [[pasteboard stringForType:NSPasteboardTypeString] superficiallyResemblesAnHTTPURL])) {
 		NSURL *url = [NSURL URLFromPasteboard:pasteboard];
-		if (!url) url = [NSURL URLWithString:[pasteboard stringForType:NSStringPboardType]];
+		if (!url) url = [NSURL URLWithString:[pasteboard stringForType:NSPasteboardTypeString]];
 		
-		NSString *potentialURLString = pbHasPlainText ? [pasteboard stringForType:NSStringPboardType] : nil;
+		NSString *potentialURLString = pbHasPlainText ? [pasteboard stringForType:NSPasteboardTypeString] : nil;
 		if (potentialURLString && [[url absoluteString] isEqualToString:potentialURLString]) {
 			//only begin downloading if we know that there's no other useful string data
-			//because we've already checked NSFilenamesPboardType
+			//because we've already checked file URLs
 			
 			if ([[url scheme] caseInsensitiveCompare:@"http"] == NSOrderedSame || 
 				[[url scheme] caseInsensitiveCompare:@"https"] == NSOrderedSame ||
@@ -98,34 +96,35 @@
 	//should fall-back to plain text if 1) user doesn't want styles and 2) plain text is actually available
 	BOOL shallUsePlainTextFallback = pbHasPlainText && ![prefsController pastePreservesStyle];
 	BOOL hasRTFData = NO;
+	NSPasteboardType contentType = NVPreferredNotePasteboardType(types, NVPTFPboardType, shallUsePlainTextFallback);
 	
-	if ([types containsObject:NVPTFPboardType]) {
+	if ([contentType isEqualToString:NVPTFPboardType]) {
 		if ((data = [pasteboard dataForType:NVPTFPboardType]))
 			newString = [[NSMutableAttributedString alloc] initWithRTF:data documentAttributes:NULL];
 		
-	} else if ([types containsObject:NSRTFPboardType] && !shallUsePlainTextFallback) {
-		if ((data = [pasteboard dataForType:NSRTFPboardType]))
+	} else if ([contentType isEqualToString:NSPasteboardTypeRTF]) {
+		if ((data = [pasteboard dataForType:NSPasteboardTypeRTF]))
 			newString = [[NSMutableAttributedString alloc] initWithRTF:data documentAttributes:NULL];
 		hasRTFData = YES;
-	} else if ([types containsObject:NSRTFDPboardType] && !shallUsePlainTextFallback) {
-		if ((data = [pasteboard dataForType:NSRTFDPboardType]))
+	} else if ([contentType isEqualToString:NSPasteboardTypeRTFD]) {
+		if ((data = [pasteboard dataForType:NSPasteboardTypeRTFD]))
 			newString = [[NSMutableAttributedString alloc] initWithRTFD:data documentAttributes:NULL];
 		hasRTFData = YES;
-	} else if ([types containsObject:WebArchivePboardType] && !shallUsePlainTextFallback) {
-		if ((data = [pasteboard dataForType:WebArchivePboardType])) {
+	} else if ([contentType isEqualToString:NVWebArchivePasteboardType]) {
+		if ((data = [pasteboard dataForType:NVWebArchivePasteboardType])) {
 			//set a timeout because -[NSHTMLReader _loadUsingWebKit] can sometimes hang
 			newString = [[NSMutableAttributedString alloc] initWithData:data options:[NSDictionary optionsDictionaryWithTimeout:10.0] 
 													 documentAttributes:NULL error:NULL];
 		}
 		hasRTFData = YES;
 		
-	} else if ([types containsObject:NSHTMLPboardType] && !shallUsePlainTextFallback) {
-		if ((data = [pasteboard dataForType:NSHTMLPboardType]))
+	} else if ([contentType isEqualToString:NSPasteboardTypeHTML]) {
+		if ((data = [pasteboard dataForType:NSPasteboardTypeHTML]))
 			newString = [[NSMutableAttributedString alloc] initWithHTML:data documentAttributes:NULL];
 		hasRTFData = YES;
-	} else if (pbHasPlainText) {
+	} else if ([contentType isEqualToString:NSPasteboardTypeString]) {
 		
-		NSString *pboardString = [pasteboard stringForType:NSStringPboardType];
+		NSString *pboardString = [pasteboard stringForType:NSPasteboardTypeString];
 		if (pboardString) newString = [[NSMutableAttributedString alloc] initWithString:pboardString];
 	}
 	
@@ -243,11 +242,11 @@
 		} else if (txtBody || htmlBody) {
 			NSPasteboard *pboard = [NSPasteboard pasteboardWithUniqueName];
 			NSData *data = [htmlBody dataUsingEncoding:NSUTF8StringEncoding];
-			[pboard declareTypes:[NSArray arrayWithObject: data ? NSHTMLPboardType : NSStringPboardType] owner:nil];
+			[pboard declareTypes:[NSArray arrayWithObject: data ? NSPasteboardTypeHTML : NSPasteboardTypeString] owner:nil];
 			if (data) {
-				[pboard setData:data forType:NSHTMLPboardType];
+				[pboard setData:data forType:NSPasteboardTypeHTML];
 			} else if (txtBody) {
-				[pboard setString:txtBody forType:NSStringPboardType];
+				[pboard setString:txtBody forType:NSPasteboardTypeString];
 			} else {
 				NSLog(@"no txt or html to add to pboard");
 				return NO;
@@ -271,7 +270,7 @@
 	
 	NSMutableString *allURLsString = [NSMutableString string];
 	
-	NSArray *files = [pboard propertyListForType:NSFilenamesPboardType];
+	NSArray *files = NVFilePathsFromPasteboard(pboard);
 	if ([files isKindOfClass:[NSArray class]]) {
 		NSArray *unknownPaths = files;
 		NSUInteger i;

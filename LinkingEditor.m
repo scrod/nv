@@ -19,6 +19,7 @@
 #import "GlobalPrefs.h"
 #import "AppController.h"
 #import "AppController_Importing.h"
+#import "ImportingUtils.h"
 #import "NotesTableView.h"
 #import "LinkingEditor_Indentation.h"
 #import "NSCollection_utils.h"
@@ -194,7 +195,7 @@ CGFloat _perceptualDarkness(NSColor*a);
 }
 
 - (void)setBackgroundColor:(NSColor*)aColor {
-	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace]) > 0.5);
+	backgroundIsDark = (_perceptualDarkness([aColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]]) > 0.5);
 	[super setBackgroundColor:aColor];
 }
 
@@ -230,8 +231,8 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 - (NSColor*)_linkColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
 	//if fgColor is black, choose blue; otherwise, rotate hue (keeping the same sat.) until color is different enough
 	
-	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
-	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	fgColor = [fgColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
+	bgColor = [bgColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
 	
 	CGFloat hue, brightness, saturation, alpha, diffInc = 0.5;
 	NSUInteger rotationsLeft = 25;
@@ -263,11 +264,11 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 }
 
 - (NSColor*)_selectionColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
-	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
-	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	fgColor = [fgColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
+	bgColor = [bgColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
 
 	NSColor *proposedBlend = [fgColor blendedColorWithFraction:0.5 ofColor:bgColor];
-	NSColor *defaultColor = [[NSColor selectedTextBackgroundColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	NSColor *defaultColor = [[NSColor selectedTextBackgroundColor] colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
 	
 	float fgDiff = _perceptualColorDifference(proposedBlend, fgColor);
 	float fgSelDiff = _perceptualColorDifference(defaultColor, fgColor);
@@ -288,8 +289,8 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 
 
 - (NSColor*)_insertionPointColorForForegroundColor:(NSColor*)fgColor backgroundColor:(NSColor*)bgColor {
-	fgColor = [fgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
-	bgColor = [bgColor colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+	fgColor = [fgColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
+	bgColor = [bgColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
 
 	CGFloat hue, brightness, saturation;
 	[fgColor getHue:&hue saturation:&saturation brightness:&brightness alpha:NULL];
@@ -353,7 +354,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 - (BOOL)readSelectionFromPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
 	//NSLog(@"readSelectionFromPasteboard: %@ (total %@)", type, [[pboard types] description]);
 	
-	if ([type isEqualToString:NSFilenamesPboardType]) {
+	if ([type isEqualToString:NSPasteboardTypeFileURL] || [type isEqualToString:NVLegacyFilenamesPasteboardType]) {
 		//paste as a file:// URL, so that it can be linked
 			NSString *allURLsString = [(AppController*)[NSApp delegate] stringWithNoteURLsOnPasteboard:pboard];
 		
@@ -368,10 +369,10 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 		}
 	}
 	
-	if ([type isEqualToString:NSRTFPboardType] || [type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSHTMLPboardType]) {
+	if ([type isEqualToString:NSPasteboardTypeRTF] || [type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSPasteboardTypeHTML]) {
 		//strip formatting if RTF and stick it into a new pboard
 		
-		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] performSelector:[type isEqualToString:NSHTMLPboardType] ? 
+		NSMutableAttributedString *newString = [[[NSMutableAttributedString alloc] performSelector:[type isEqualToString:NSPasteboardTypeHTML] ?
 												 @selector(initWithHTML:documentAttributes:) : @selector(initWithRTF:documentAttributes:) 
 																						withObject:[pboard dataForType:type] withObject:nil] autorelease];
 		if ([newString length]) {
@@ -407,11 +408,11 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 }
 
 - (NSArray *)readablePasteboardTypes {
-	NSMutableArray *types = [NSMutableArray arrayWithObjects:NSFilenamesPboardType, NVPTFPboardType, NSStringPboardType, nil];
+	NSMutableArray *types = [NSMutableArray arrayWithObjects:NSPasteboardTypeFileURL, NVLegacyFilenamesPasteboardType, NVPTFPboardType, NSPasteboardTypeString, nil];
 	
 	if ([prefsController pastePreservesStyle]) {
-		[types insertObject:NSRTFPboardType atIndex:2];
-		[types insertObject:NSHTMLPboardType atIndex:3];
+		[types insertObject:NSPasteboardTypeRTF atIndex:3];
+		[types insertObject:NSPasteboardTypeHTML atIndex:4];
 	}
 	
 	return types;
@@ -419,7 +420,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 
 - (BOOL)writeSelectionToPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
 	
-	if ([type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSRTFPboardType]) {
+	if ([type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSPasteboardTypeRTF]) {
 		//always preserve RTF to allow pasting into ourselves; prejudice against external sources
 		
 		NSMutableAttributedString *newString = [[[self textStorage] attributedSubstringFromRange:[self selectedRange]] mutableCopy];
@@ -439,7 +440,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 #define COPY_PASTE_DEBUG 0
 
 - (NSArray *)writablePasteboardTypes {
-	NSMutableArray *types = [NSMutableArray arrayWithObjects:NVPTFPboardType, NSStringPboardType, nil];
+	NSMutableArray *types = [NSMutableArray arrayWithObjects:NVPTFPboardType, NSPasteboardTypeString, nil];
 	
 	NSRange selectedRange = [self selectedRange];
 	if (selectedRange.length) {
@@ -482,7 +483,7 @@ copyRTFType:
 			NSLog(@"copying RTF due to multiple attributes");
 			[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:effectiveRange];
 #endif
-			[types insertObject:NSRTFPboardType atIndex:1];
+			[types insertObject:NSPasteboardTypeRTF atIndex:1];
 		}
 	}
 	
@@ -732,7 +733,7 @@ copyRTFType:
 		NSString *searchString = [controller fieldSearchString];
 		if (![searchString length]) {
 			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSPasteboardNameFind];
-			NSString *pboardString = [findPboard stringForType:NSStringPboardType];
+			NSString *pboardString = [findPboard stringForType:NSPasteboardTypeString];
 			if ([pboardString length])
 				[controller searchForString:pboardString];
 		}
@@ -792,7 +793,7 @@ copyRTFType:
 	NSString *searchString = [(AppController*)controller fieldSearchString];
 	if (![searchString length]) {
 		NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSPasteboardNameFind];
-		NSString *pboardString = [findPboard stringForType:NSStringPboardType];
+		NSString *pboardString = [findPboard stringForType:NSPasteboardTypeString];
 		if ([pboardString length])
 			searchString = pboardString;
 	}
@@ -803,9 +804,9 @@ copyRTFType:
 		if ([searchString length]) {
 			NSPasteboard *findPboard = [NSPasteboard pasteboardWithName:NSPasteboardNameFind];
 			if (findPboard) {
-				NSArray *types = [NSArray arrayWithObject:NSStringPboardType];
+				NSArray *types = [NSArray arrayWithObject:NSPasteboardTypeString];
 				[findPboard declareTypes:types owner:nil];
-				[findPboard setString:searchString forType:NSStringPboardType];
+				[findPboard setString:searchString forType:NSPasteboardTypeString];
 			}
 			//NSTextFinder must be programmatically triggered with the show-find-panel action to register the initial find string
 			NSMenuItem *menuSender = [sender isKindOfClass:[NSMenuItem class]] ? sender : nil;
@@ -1181,7 +1182,7 @@ copyRTFType:
 		}
 		
 		if (menuItemState && multipleAttributes)
-			menuItemState = NSMixedState;
+			menuItemState = NSControlStateValueMixed;
 		[menuItem setState:menuItemState];
 
 		return YES;
@@ -1579,7 +1580,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 #if PASSWORD_SUGGESTIONS
         theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"New Password...", "new password command in the edit menu")
 												 action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
-        [theMenuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
+        [theMenuItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
         [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
         [editMenu addItem:theMenuItem];
         [theMenuItem release];
@@ -1608,8 +1609,8 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
     [pbitem setData:[password dataUsingEncoding:NSUTF8StringEncoding] forType:@"public.plain-text"];
     [pb writeObjects:[NSArray arrayWithObject:pbitem]];
     #else
-    [pb declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-    [pb setString:password forType:NSStringPboardType];
+    [pb declareTypes:[NSArray arrayWithObject:NSPasteboardTypeString] owner:nil];
+    [pb setString:password forType:NSPasteboardTypeString];
     #endif
     } @catch (NSException *e) {}
 }

@@ -155,8 +155,14 @@ static ODBEditor	*_sharedODBEditor;
 	//let's first see if we can avoid this whole ODB protocol rigmarole altogether, and ideally even allow non-plain-text editors to be used		
 	if ([ed canEditNoteDirectly:aNote]) {
 		NSString *path = [aNote noteFilePath];
-		
-		[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]] withAppBundleIdentifier:[ed bundleIdentifier] options:NSWorkspaceLaunchDefault additionalEventParamDescriptor:nil launchIdentifiers:NULL];
+		NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+		NSURL *applicationURL = [workspace URLForApplicationWithBundleIdentifier:[ed bundleIdentifier]];
+		if (applicationURL) {
+			[workspace openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]]
+				withApplicationAtURL:applicationURL
+				configuration:[NSWorkspaceOpenConfiguration configuration]
+				completionHandler:nil];
+		}
 		return YES;
 	}
 
@@ -207,27 +213,19 @@ beepReturn:
 
 - (BOOL)_launchExternalEditor:(ExternalEditor*)ed {
 	BOOL success = NO;
-	BOOL running = NO;
 	NSWorkspace	*workspace = [NSWorkspace sharedWorkspace];
-	NSArray	*runningApplications = [workspace launchedApplications];
-	NSEnumerator *enumerator = [runningApplications objectEnumerator];
-	NSDictionary *applicationInfo;
-	
 	NSString *editorBundleIdentifier = [ed bundleIdentifier];
-	
-	while (nil != (applicationInfo = [enumerator nextObject])) {
-		NSString *bundleIdentifier = [applicationInfo objectForKey: @"NSApplicationBundleIdentifier"];
-		
-		if ([bundleIdentifier isEqualToString: editorBundleIdentifier]) {
-			running = YES;
-			// bring the app forward
-			success = [workspace launchApplication: [applicationInfo objectForKey: @"NSApplicationPath"]];
-			break;
+	NSArray *runningApplications = [NSRunningApplication runningApplicationsWithBundleIdentifier:editorBundleIdentifier];
+	if ([runningApplications count]) {
+		success = [[runningApplications objectAtIndex:0] activateWithOptions:NSApplicationActivateAllWindows];
+	} else {
+		NSURL *applicationURL = [workspace URLForApplicationWithBundleIdentifier:editorBundleIdentifier];
+		if (applicationURL) {
+			[workspace openApplicationAtURL:applicationURL
+				configuration:[NSWorkspaceOpenConfiguration configuration]
+				completionHandler:nil];
+			success = YES;
 		}
-	}
-	
-	if (running == NO) {
-		success = [workspace launchAppWithBundleIdentifier: editorBundleIdentifier options:NSWorkspaceLaunchDefault additionalEventParamDescriptor: nil launchIdentifier:NULL];
 	}
 	
 	return success;
@@ -395,4 +393,3 @@ beepReturn:
 }
 
 @end
-

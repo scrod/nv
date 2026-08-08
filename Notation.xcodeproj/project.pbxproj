@@ -23,6 +23,7 @@
 		2114C23E095883A600614E74 /* NSData_transformations.m in Sources */ = {isa = PBXBuildFile; fileRef = 2114C23C095883A600614E74 /* NSData_transformations.m */; };
 		2114C25B095885C800614E74 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2114C259095885C800614E74 /* Localizable.strings */; };
 		212089B10B0C24F500A15A69 /* AlienNoteImporter.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089B00B0C24F500A15A69 /* AlienNoteImporter.m */; };
+		C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = C0D3A1002F00000100000003 /* ImportingUtils.m */; };
 		212089D80B0C2CA500A15A69 /* StickiesDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089D70B0C2CA500A15A69 /* StickiesDocument.m */; };
 		212850880B56E549005F6E34 /* CarbonErrorStrings.plist in Resources */ = {isa = PBXBuildFile; fileRef = 212850860B56E549005F6E34 /* CarbonErrorStrings.plist */; };
 		2128651E1278AF220013820A /* ServicesMenu.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2128651C1278AF220013820A /* ServicesMenu.strings */; };
@@ -251,6 +252,8 @@
 		2114C23C095883A600614E74 /* NSData_transformations.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = NSData_transformations.m; sourceTree = "<group>"; };
 		212089AF0B0C24F500A15A69 /* AlienNoteImporter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AlienNoteImporter.h; sourceTree = "<group>"; };
 		212089B00B0C24F500A15A69 /* AlienNoteImporter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AlienNoteImporter.m; sourceTree = "<group>"; };
+		C0D3A1002F00000100000002 /* ImportingUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImportingUtils.h; sourceTree = "<group>"; };
+		C0D3A1002F00000100000003 /* ImportingUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImportingUtils.m; sourceTree = "<group>"; };
 		212089D60B0C2CA500A15A69 /* StickiesDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StickiesDocument.h; sourceTree = "<group>"; };
 		212089D70B0C2CA500A15A69 /* StickiesDocument.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StickiesDocument.m; sourceTree = "<group>"; };
 		212897E11330030100380B64 /* ODBEditorSuite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ODBEditorSuite.h; path = ODBEditor/ODBEditorSuite.h; sourceTree = "<group>"; };
@@ -744,6 +747,8 @@
 				212089D70B0C2CA500A15A69 /* StickiesDocument.m */,
 				212089AF0B0C24F500A15A69 /* AlienNoteImporter.h */,
 				212089B00B0C24F500A15A69 /* AlienNoteImporter.m */,
+				C0D3A1002F00000100000002 /* ImportingUtils.h */,
+				C0D3A1002F00000100000003 /* ImportingUtils.m */,
 				219FD63C0B309B69004E132B /* BlorPasswordRetriever.h */,
 				219FD63D0B309B69004E132B /* BlorPasswordRetriever.m */,
 				21E6B09E0B6E6D18001ABEDC /* URLGetter.h */,
@@ -1281,6 +1286,7 @@
 				21DB3D0F12D4FBDD0057F52B /* SecureTextEntryManager.m in Sources */,
 				21DB4BE612DE4E3D0057F52B /* NSString_CustomTruncation.m in Sources */,
 				21D6F7EF12E0C751005C2DA5 /* AppController_Importing.m in Sources */,
+				C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */,
 				21D6FB4912E104D6005C2DA5 /* NSBezierPath_NV.m in Sources */,
 				215309F412E4E92300AF2739 /* DiskUUIDEntry.m in Sources */,
 				21B64A2612E61FA700D87EFC /* LabelColumnCell.m in Sources */,

@@ -29,6 +29,7 @@
 #import "HeaderViewWIthMenu.h"
 #import "NSString_NV.h"
 #import "LinkingEditor.h"
+#import "ImportingUtils.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
 #define SET_DUAL_HIGHLIGHTS 0
@@ -162,7 +163,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	 @selector(setTableFontSize:sender:),
 	 @selector(setHorizontalLayout:sender:), nil];
 	
-	[self registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType, NSRTFPboardType, NSRTFDPboardType, NSStringPboardType, nil]];
+	[self registerForDraggedTypes:[NSArray arrayWithObjects:NSPasteboardTypeFileURL, NVLegacyFilenamesPasteboardType,
+		NSPasteboardTypeRTF, NSPasteboardTypeRTFD, NSPasteboardTypeString, nil]];
 	
 	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
 	
@@ -695,8 +697,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 #endif
 
 
-- (NSDragOperation)draggingSourceOperationMaskForLocal:(BOOL)isLocal {
-	return isLocal ? NSDragOperationNone : NSDragOperationCopy;
+- (NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context {
+	return NVDragOperationForContext(context);
 }
 
 - (void)mouseDown:(NSEvent*)event {
@@ -736,14 +738,16 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 			}
 		}
 		if ([paths count] > 0) {
-			NSImage *image = [[NSWorkspace sharedWorkspace] iconForFile:[paths lastObject]];
-			
-			NSPasteboard *pboard = [NSPasteboard pasteboardWithName:NSPasteboardNameDrag];
-			[pboard declareTypes:[NSArray arrayWithObject:NSFilenamesPboardType] owner:nil];
-			[pboard setPropertyList:paths forType:NSFilenamesPboardType];			
-			
+			NSMutableArray *draggingItems = [NSMutableArray arrayWithCapacity:[paths count]];
+			for (NSString *path in paths) {
+				NSImage *image = [[NSWorkspace sharedWorkspace] iconForFile:path];
+				NSDraggingItem *item = [[[NSDraggingItem alloc] initWithPasteboardWriter:[NSURL fileURLWithPath:path]] autorelease];
+				[item setDraggingFrame:NSMakeRect(dragPoint.x, dragPoint.y, [image size].width, [image size].height) contents:image];
+				[draggingItems addObject:item];
+			}
+
 			[NSApp preventWindowOrdering]; 
-			[self dragImage:image at:dragPoint offset:NSZeroSize event:event pasteboard:pboard source:self slideBack:YES]; 
+			[self beginDraggingSessionWithItems:draggingItems event:event source:self];
 			return;
 		} else {
 			NSBeep();
@@ -1116,6 +1120,8 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 	}	
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (void)textDidEndEditing:(NSNotification *)aNotification {
 	[super textDidEndEditing:aNotification];
 	[self updateTitleDereferencorState];
@@ -1147,6 +1153,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		}
 	}
 }
+#pragma clang diagnostic pop
 
 - (void)viewWillStartLiveResize {
 	[self noteFirstVisibleRow];

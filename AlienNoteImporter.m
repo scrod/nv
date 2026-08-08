@@ -34,6 +34,7 @@
 #import "NotationPrefs.h"
 #import "NotationController.h"
 #import "NoteObject.h"
+#import "ImportingUtils.h"
 
 NSString *PasswordWasRetrievedFromKeychainKey = @"PasswordRetrievedFromKeychain";
 NSString *RetrievedPasswordKey = @"RetrievedPassword";
@@ -198,7 +199,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	if (delegate && [delegate respondsToSelector:@selector(noteImporter:importedNotes:)]) {
 		
 		if (returnCode == NSModalResponseOK) {
-			shouldGrabCreationDates = [grabCreationDatesButton state] == NSOnState;
+			shouldGrabCreationDates = [grabCreationDatesButton state] == NSControlStateValueOn;
 			[[NSUserDefaults standardUserDefaults] setBool:shouldGrabCreationDates forKey:ShouldImportCreationDates];
 			NSArray *urls = [panel URLs];
 			NSMutableArray *selectedPaths = [NSMutableArray arrayWithCapacity:[urls count]];
@@ -497,7 +498,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		NSString *itemPath = [filename stringByAppendingPathComponent:curObject];
 			
 		NSDictionary *itemAttributes = [self _attributesForPath:itemPath];
-		if ([[itemAttributes objectForKey:NSFileType] isEqualToString:NSFileTypeRegular]) {
+		if (NVPathIsImportableNote(itemPath, itemAttributes)) {
 			NSArray *notes = [self notesInFile:itemPath];
 			if (notes)
 				[array addObjectsFromArray:notes];
@@ -563,7 +564,10 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	NSMutableArray *stickyNotes = nil;
 	NS_DURING
 		NSData *stickyData = [NSData uncachedDataFromFile:filename];
+		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 		NSUnarchiver *unarchiver = [[NSUnarchiver alloc] initForReadingWithData:stickyData];
+		#pragma clang diagnostic pop
 		[unarchiver decodeClassName:@"Document" asClassName:@"StickiesDocument"];
 		stickyNotes = [[unarchiver decodeObject] retain];
 		[unarchiver release];

@@ -112,14 +112,18 @@ static const NSStringEncoding AllowedEncodings[] = {
 				NSLocalizedString(@"OK", nil), NSLocalizedString(@"Open in TextEdit", @"title of button for opening the current note in text edit"), nil, NSAlertStyleWarning);
 		if (unicodeResponse != NSAlertFirstButtonReturn) {
 
-			NSString *textEditPath = [[NSWorkspace sharedWorkspace] absolutePathForAppBundleWithIdentifier:@"com.apple.TextEdit"];
-			if (textEditPath) {
+			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+			NSURL *textEditURL = [workspace URLForApplicationWithBundleIdentifier:@"com.apple.TextEdit"];
+			if (textEditURL) {
 				NSString *resolvedPath = [note noteFilePath];
 				if (!resolvedPath) {
 					NVRunAlert(NSLocalizedString(@"Could not locate the note file.", nil), NSLocalizedString(@"Does it still exist?", nil),
 					NSLocalizedString(@"I'll Go See", @"... if it exists"), nil, nil, NSAlertStyleWarning);
 				} else {
-					[[NSWorkspace sharedWorkspace] openFile:resolvedPath withApplication:textEditPath];
+					[workspace openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:resolvedPath]]
+						withApplicationAtURL:textEditURL
+						configuration:[NSWorkspaceOpenConfiguration configuration]
+						completionHandler:nil];
 				}
 			} else {
 				NVRunAlert(NSLocalizedString(@"Could not find the application TextEdit.", nil),
@@ -205,7 +209,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 		menuItem = [[[NSMenuItem alloc] initWithTitle:[NSString localizedNameOfStringEncoding:thisEncoding] 
 											   action:@selector(setFileEncodingFromMenu:) keyEquivalent:@""] autorelease];
 		if (currentEncoding == thisEncoding)
-			[menuItem setState:NSOnState];
+			[menuItem setState:NSControlStateValueOn];
 		
 		NSString *noteString = (NSString*)CFStringCreateFromExternalRepresentation(kCFAllocatorDefault, (CFDataRef)noteData, 
 																				   CFStringConvertNSStringEncodingToEncoding(thisEncoding));
