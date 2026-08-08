@@ -33,12 +33,11 @@
 #import <CoreServices/CoreServices.h>
 #import <Security/Security.h>
 #import <ApplicationServices/ApplicationServices.h>
-#include <string.h>
 
 #define DEFAULT_HASH_ITERATIONS 8000
 #define DEFAULT_KEY_LENGTH 256
 
-#define KEYCHAIN_SERVICENAME "Notational Velocity"
+#define KEYCHAIN_SERVICENAME @"Notational Velocity"
 
 #define INIT_DICT_ACCT() NSMutableDictionary *accountDict = ServiceAccountDictInit(self, serviceName)
 
@@ -293,6 +292,60 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return [syncServiceAccounts objectForKey:serviceName];
 }
 
+- (NSDictionary *)_keychainQueryForAccount:(NSString *)account {
+	return [NSDictionary dictionaryWithObjectsAndKeys:
+		(id)kSecClassGenericPassword, (id)kSecClass,
+		KEYCHAIN_SERVICENAME, (id)kSecAttrService,
+		account, (id)kSecAttrAccount,
+		nil];
+}
+
+- (NSData *)_keychainDataForAccount:(NSString *)account status:(OSStatus *)status {
+	NSMutableDictionary *query = [NSMutableDictionary dictionaryWithDictionary:[self _keychainQueryForAccount:account]];
+	[query setObject:(id)kCFBooleanTrue forKey:(id)kSecReturnData];
+	[query setObject:(id)kSecMatchLimitOne forKey:(id)kSecMatchLimit];
+
+	CFTypeRef result = NULL;
+	*status = SecItemCopyMatching((CFDictionaryRef)query, &result);
+	return *status == noErr ? [(NSData *)result autorelease] : nil;
+}
+
+- (SecKeychainItemRef)_keychainItemForAccount:(NSString *)account {
+	NSMutableDictionary *query = [NSMutableDictionary dictionaryWithDictionary:[self _keychainQueryForAccount:account]];
+	[query setObject:(id)kCFBooleanTrue forKey:(id)kSecReturnRef];
+	[query setObject:(id)kSecMatchLimitOne forKey:(id)kSecMatchLimit];
+
+	CFTypeRef result = NULL;
+	return SecItemCopyMatching((CFDictionaryRef)query, &result) == noErr ? (SecKeychainItemRef)result : NULL;
+}
+
+- (NSDictionary *)_keychainQueryForFirstItemInAccount:(NSString *)account {
+	SecKeychainItemRef item = [self _keychainItemForAccount:account];
+	if (!item) return nil;
+
+	NSMutableDictionary *query = [NSMutableDictionary dictionaryWithDictionary:[self _keychainQueryForAccount:account]];
+	[query setObject:[NSArray arrayWithObject:(id)item] forKey:(id)kSecMatchItemList];
+	CFRelease(item);
+	return query;
+}
+
+- (OSStatus)_setKeychainData:(NSData *)data forAccount:(NSString *)account {
+	NSDictionary *query = [self _keychainQueryForFirstItemInAccount:account];
+	NSDictionary *attributes = [NSDictionary dictionaryWithObject:data forKey:(id)kSecValueData];
+	OSStatus status = query ? SecItemUpdate((CFDictionaryRef)query, (CFDictionaryRef)attributes) : errSecItemNotFound;
+	if (!query) {
+		NSMutableDictionary *newItem = [NSMutableDictionary dictionaryWithDictionary:[self _keychainQueryForAccount:account]];
+		[newItem setObject:data forKey:(id)kSecValueData];
+		status = SecItemAdd((CFDictionaryRef)newItem, NULL);
+	}
+	return status;
+}
+
+- (OSStatus)_removeKeychainDataForAccount:(NSString *)account {
+	NSDictionary *query = [self _keychainQueryForFirstItemInAccount:account];
+	return query ? SecItemDelete((CFDictionaryRef)query) : errSecItemNotFound;
+}
+
 - (NSString*)syncPasswordForServiceName:(NSString*)serviceName {
 	//if non-existing, fetch from keychain and cache
 	
@@ -301,26 +354,19 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	NSString *password = [accountDict objectForKey:@"password"];
 	if (password) return password;
 	
-	//fetch keychain
-	void *passwordData = NULL;
-	UInt32 passwordLength = 0;
-	SecKeychainItemRef returnedItem = NULL;	
-	
 	const char *kcSyncAccountName = [self keychainSyncAccountNameForService:serviceName];
 	if (!kcSyncAccountName) return nil;
-	
-    OSStatus err = SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-                                                  (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, &passwordLength, &passwordData, &returnedItem);
+
+	OSStatus err;
+	NSData *passwordData = [self _keychainDataForAccount:[NSString stringWithUTF8String:kcSyncAccountName] status:&err];
 	if (err != noErr) {
 		NSLog(@"Error finding keychain password for service account %@: %d\n", serviceName, (int)err);
 		return nil;
 	}
-	password = [[[NSString alloc] initWithBytes:passwordData length:passwordLength encoding:NSUTF8StringEncoding] autorelease];
+	password = [[[NSString alloc] initWithData:passwordData encoding:NSUTF8StringEncoding] autorelease];
 	
 	//cache password found in keychain
 	[accountDict setObject:password forKey:@"password"];
-	
-	SecKeychainItemFreeContent(NULL, passwordData);
 	return password;
 }
 
@@ -420,85 +466,30 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 }
 
 - (SecKeychainItemRef)currentKeychainItem {
-	SecKeychainItemRef returnedItem = NULL;
-	
-	const char *accountName = [self setKeychainIdentifier];
-	
-    OSStatus err = SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-                                                 (UInt32)strlen(accountName), accountName, NULL, NULL, &returnedItem);
-	if (err != noErr)
-		return NULL;
-	
-	return returnedItem;
+	return [self _keychainItemForAccount:[NSString stringWithUTF8String:[self setKeychainIdentifier]]];
 }
 
 - (void)removeKeychainData {
-	SecKeychainItemRef itemRef = [self currentKeychainItem];
-	if (itemRef) {
-		OSStatus err = SecKeychainItemDelete(itemRef);
-		if (err != noErr)
-			NSLog(@"Error deleting keychain item: %d", (int)err);
-		CFRelease(itemRef);
-	}
+	OSStatus err = [self _removeKeychainDataForAccount:[NSString stringWithUTF8String:[self setKeychainIdentifier]]];
+	if (err != noErr && err != errSecItemNotFound)
+		NSLog(@"Error deleting keychain item: %d", (int)err);
 }
 
 - (NSData*)passwordDataFromKeychain {
-	void *passwordData = NULL;
-	UInt32 passwordLength = 0;
 	const char *accountName = [self setKeychainIdentifier];
-	SecKeychainItemRef returnedItem = NULL;	
-	
-    OSStatus err = SecKeychainFindGenericPassword(NULL,
-                                                  (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-                                                  (UInt32)strlen(accountName), accountName,
-                                                  &passwordLength, &passwordData,
-                                                  &returnedItem);
+	OSStatus err;
+	NSData *data = [self _keychainDataForAccount:[NSString stringWithUTF8String:accountName] status:&err];
 	if (err != noErr) {
 		NSLog(@"Error finding keychain password for account %s: %d\n", accountName, (int)err);
 		return nil;
 	}
-	NSData *data = [NSData dataWithBytes:passwordData length:passwordLength];
-	
-	if (passwordData && passwordLength > 0) {
-		memset_s(passwordData, passwordLength, 0, passwordLength);
-	}
-	
-	SecKeychainItemFreeContent(NULL, passwordData);
-	
 	return data;
 }
 
 - (void)setKeychainData:(NSData*)data {
-	
-	OSStatus status = noErr;
-	
-	SecKeychainItemRef itemRef = [self currentKeychainItem];
-	if (itemRef) {
-		//modify existing data; item already exists
-		
-		const char *accountName = [self setKeychainIdentifier];
-		
-        SecKeychainAttribute attrs[] = {
-        { kSecAccountItemAttr, (UInt32)strlen(accountName), (char*)accountName },
-        { kSecServiceItemAttr, (UInt32)strlen(KEYCHAIN_SERVICENAME), (char*)KEYCHAIN_SERVICENAME } };
-		
-		const SecKeychainAttributeList attributes = { sizeof(attrs) / sizeof(attrs[0]), attrs };
-		
-        if (noErr != (status = SecKeychainItemModifyAttributesAndData(itemRef, &attributes, (UInt32)[data length], [data bytes]))) {
-			NSLog(@"Error modifying keychain data with new passphrase-data: %d", status);
-		}
-		
-		CFRelease(itemRef);
-		
-	} else {
-		const char *accountName = [self setKeychainIdentifier];
-		
-		//add new data; item does not exist
-        if (noErr != (status = SecKeychainAddGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-                                                             (UInt32)strlen(accountName), accountName, (UInt32)[data length], [data bytes], NULL))) {
-			NSLog(@"Error adding new passphrase item to keychain: %d", status);
-		}
-	}
+	OSStatus status = [self _setKeychainData:data forAccount:[NSString stringWithUTF8String:[self setKeychainIdentifier]]];
+	if (status != noErr)
+		NSLog(@"Error storing passphrase item in keychain: %d", status);
 }
 
 - (void)setStoresPasswordInKeychain:(BOOL)value {
@@ -767,32 +758,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		const char *kcSyncAccountName = [self keychainSyncAccountNameForService:serviceName];
 		if (kcSyncAccountName) {
-			//insert this password into the keychain for this service
-			SecKeychainItemRef itemRef = NULL;
-        if (SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME, (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, NULL, NULL, &itemRef) != noErr) {
-				itemRef = NULL;
-			}
-			if (itemRef) {
-				//modify existing data; item already exists
-                SecKeychainAttribute attrs[] = {
-                    { kSecAccountItemAttr, (UInt32)strlen(kcSyncAccountName), (char*)kcSyncAccountName },
-                    { kSecServiceItemAttr, (UInt32)strlen(KEYCHAIN_SERVICENAME), (char*)KEYCHAIN_SERVICENAME } };
-				
-				const SecKeychainAttributeList attributes = { sizeof(attrs) / sizeof(attrs[0]), attrs };
-				
-				OSStatus status = noErr;
-                if (noErr != (status = SecKeychainItemModifyAttributesAndData(itemRef, &attributes, (UInt32)[passwordData length], [passwordData bytes]))) {
-					NSLog(@"Error modifying keychain data with different service password: %d", status);
-				}
-				CFRelease(itemRef);
-			} else {
-				//add new data; item does not exist
-				OSStatus status = noErr;
-                if (noErr != (status = SecKeychainAddGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME,
-                                                                     (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, (UInt32)[passwordData length], [passwordData bytes], NULL))) {
-					NSLog(@"Error adding new service password to keychain: %d", status);
-				}
-			}
+			OSStatus status = [self _setKeychainData:passwordData forAccount:[NSString stringWithUTF8String:kcSyncAccountName]];
+			if (status != noErr)
+				NSLog(@"Error storing service password in keychain: %d", status);
 		} else {
 			NSLog(@"not storing password in keychain for %@ because a sync account name couldn't be created", serviceName);
 		}
@@ -810,15 +778,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		const char *kcSyncAccountName = [self keychainSyncAccountNameForService:serviceName];
 		if (kcSyncAccountName) {
-			SecKeychainItemRef itemRef = NULL;
-            if (SecKeychainFindGenericPassword(NULL, (UInt32)strlen(KEYCHAIN_SERVICENAME), KEYCHAIN_SERVICENAME, (UInt32)strlen(kcSyncAccountName), kcSyncAccountName, NULL, NULL, &itemRef) != noErr) {
-				itemRef = NULL;
-			}	
-			if (itemRef) {
-				OSStatus err = SecKeychainItemDelete(itemRef);
-				if (err != noErr) NSLog(@"Error deleting keychain item for service %@: %d", serviceName, (int)err);
-				CFRelease(itemRef);
-			}
+			OSStatus err = [self _removeKeychainDataForAccount:[NSString stringWithUTF8String:kcSyncAccountName]];
+			if (err != noErr && err != errSecItemNotFound)
+				NSLog(@"Error deleting keychain item for service %@: %d", serviceName, (int)err);
 		} else {
 			NSLog(@"not removing password for %@ because a keychain sync account name couldn't be created", serviceName);
 		}
