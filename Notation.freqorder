@@ -304,15 +304,10 @@ _main
 -[NotesTableView scrollRowToVisiblewithVerticalOffset]
 -[RBSplitView setBackground]
 -[LinkingEditor awakeFromNib]
-_FSRefReadData
 -[NotationController checkIfNotationIsTrashed]
-_FSRefMakeInDirectoryWithString
--[NotationController aliasNeedsUpdating]
-_FSCreateFileIfNotPresentInDirectory
 -[LinkingEditor becomeFirstResponder]
 -[LinkingEditor resignFirstResponder]
 -[NotesTableView setViewingLocation]
--[NotationController(NotationFileManager) createFileIfNotPresentInNotesDirectoryforFilenamefileWasCreated]
 -[LinkingEditor preferredLinkAttributes]
 -[BookmarksController setDelegate]
 +[PTKeyCombo keyComboWithKeyCodemodifiers]

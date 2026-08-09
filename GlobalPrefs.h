@@ -174,8 +174,11 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 
 - (void)setAliasDataForDefaultDirectory:(NSData*)alias sender:(id)sender;
 - (NSData*)aliasDataForDefaultDirectory;
+- (BOOL)setDefaultDirectoryURL:(NSURL*)url sender:(id)sender error:(NSError**)error;
+- (NSURL*)defaultDirectoryURLResolvingBookmark:(BOOL*)stale error:(NSError**)error;
+- (NSData*)bookmarkDataForDefaultDirectory;
 
-- (NSString*)displayNameForDefaultDirectoryWithFSRef:(FSRef*)fsRef;
+- (NSString*)displayNameForDefaultDirectoryURL:(NSURL*)url;
 - (NSString*)humanViewablePathForDefaultDirectory;
 
 - (void)setBlorImportAttempted:(BOOL)value;
@@ -188,5 +191,3 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 @interface NSObject (GlobalPrefsDelegate)
 	- (void)settingChangedForSelectorString:(NSString*)selectorString;
 @end
-
-

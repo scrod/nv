@@ -32,6 +32,8 @@
 #import "NSCollection_utils.h"
 #import "NSString_NV.h"
 
+static const char NVJournalFilename[] = "Interim Note-Changes";
+
 /*
  CFHashBytes from http://www.opensource.apple.com/source/CF/CF-1153.18/CFUtilities.c
  */
@@ -69,18 +71,16 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 @implementation WALController
 
-- (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key {
     self = [super init];
     if (self) {
 		logFD = -1;
-		
-		char filename[] = "Interim Note-Changes";
-		size_t newPathLength = sizeof(filename) + strlen(path) + 2;
-		
-		journalFile = (char*)malloc(newPathLength);
-		strlcpy(journalFile, path, newPathLength);
-		strlcat(journalFile, "/", newPathLength);
-		strlcat(journalFile, filename, newPathLength);
+		directoryFD = -1;
+		directoryFD = dup(fileDescriptor);
+		if (directoryFD < 0) {
+			[self release];
+			return nil;
+		}
 		
 		//for simplicity's sake the log file is always compressed and encrypted with the key for the current database
 		//if the database has no encryption, it should have passed some constant known key to us instead
@@ -100,34 +100,27 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 //called frequently--each time the app comes to the foreground?
 - (BOOL)logFileStillExists {
-    struct stat sb;
+    struct stat openFileInfo, namedFileInfo;
     
     //but really we shouldn't just fstat the fd because the file shouldn't be renamed or moved, either
     //on the other hand, what if another app deleted and re-created it? then any changes would be lost upon closing the fd
-    if (fstat(logFD, &sb) < 0) {
+	if (fstat(logFD, &openFileInfo) < 0 ||
+		fstatat(directoryFD, NVJournalFilename, &namedFileInfo, AT_SYMLINK_NOFOLLOW) < 0) {
 	NSLog(@"logFileStillExists: fstat error: %s", strerror(errno));
 	
 	return NO;
     }
     
-    return (sb.st_nlink > 0);
+	return openFileInfo.st_nlink > 0 && openFileInfo.st_dev == namedFileInfo.st_dev &&
+		openFileInfo.st_ino == namedFileInfo.st_ino;
 }
 
 - (BOOL)destroyLogFile {
-
-	journalFile = (char*)realloc(journalFile, 4096 * sizeof(char));
-    intptr_t pathIntPtr = (intptr_t)journalFile;
-	
-	//get current path of file descriptor in case the directory was moved
-	if (fcntl(logFD, F_GETPATH, pathIntPtr) < 0) {
-		NSLog(@"destroyLogFile: fcntl F_GETPATH error: %s", strerror(errno));
-	}
-	
-	if (close(logFD) < 0) {
+	if (logFD >= 0 && close(logFD) < 0) {
 		NSLog(@"destroyLogFile: close error: %s:", strerror(errno));
 	}
-	
-	if (unlink(journalFile) < 0) {
+	logFD = -1;
+	if (unlinkat(directoryFD, NVJournalFilename, 0) < 0) {
 		NSLog(@"destroyLogFile: unlink error: %s", strerror(errno));
 		return NO;
 	}
@@ -135,8 +128,8 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 }
 
 - (void)dealloc {
-	if (journalFile)
-		free(journalFile);
+	if (logFD >= 0) close(logFD);
+	if (directoryFD >= 0) close(directoryFD);
 	[logSessionKey release];
 	
 	[super dealloc];
@@ -157,8 +150,8 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 //if these operations are all successful, log file is removed
 
 
-- (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
-    self = [super initWithParentFSRep:path encryptionKey:key];
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key {
+    self = [super initWithDirectoryFileDescriptor:fileDescriptor encryptionKey:key];
     if (self) {
 	
 	//we could make parent dir writable just in case, but that might be a security hazard depending on ownership
@@ -166,11 +159,12 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	
 	//attempt to open/create the file exclusively with write-only and append access
 	
-	if ((logFD = open(journalFile, O_CREAT | O_EXCL | O_WRONLY | O_APPEND, S_IRUSR | S_IWUSR)) < 0) {
+	if ((logFD = openat(directoryFD, NVJournalFilename,
+		O_CREAT | O_EXCL | O_WRONLY | O_APPEND | O_CLOEXEC | O_NOFOLLOW, S_IRUSR | S_IWUSR)) < 0) {
 	    //if this fails, the file probably still exists, or we don't have write permission
 	    //either way, we shouldn't continue
 	    
-	    NSLog(@"WALStorageController: open error for file %s: %s", journalFile, strerror(errno));
+	    NSLog(@"WALStorageController: open error: %s", strerror(errno));
 	    
 	    return nil;
 	}
@@ -249,7 +243,7 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 				memmove(bytes, bytes + bytesWritten, newLength);
 			[unwrittenData setLength:newLength];
 		} else {
-			NSLog(@"Unable to empty out unwritten data to journal %s: %s", journalFile, strerror(errno));
+			NSLog(@"Unable to empty out unwritten journal data: %s", strerror(errno));
 		}
     }
     
@@ -324,7 +318,7 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     }
     
     if (bytesWritten < 0) {
-		NSLog(@"Unable to write new data to journal %s: %s", journalFile, strerror(errno));
+		NSLog(@"Unable to write new journal data: %s", strerror(errno));
 		bytesWritten = 0;
     }
 	
@@ -374,23 +368,21 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 //if that works, then remove the log file
 
-- (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key {
-    self = [super initWithParentFSRep:path encryptionKey:key];
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key {
+    self = [super initWithDirectoryFileDescriptor:fileDescriptor encryptionKey:key];
     if (self) {
 	fileLength = totalBytesRead = 0;
 	
-	//make file readable just in case
-	chmod(journalFile, S_IRUSR);
-	
 	//attempt to open file read-only
-	if ((logFD = open(journalFile, O_EXCL | O_RDONLY)) < 0) {
-	    NSLog(@"WALRecoveryController: open error for file %s: %s", journalFile, strerror(errno));
+	if ((logFD = openat(directoryFD, NVJournalFilename, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)) < 0) {
+	    NSLog(@"WALRecoveryController: open error: %s", strerror(errno));
 	    return nil;
 	}
+	(void)fchmod(logFD, S_IRUSR);
 	
 	struct stat sb;
 	if (fstat(logFD, &sb) < 0) {
-	    NSLog(@"WALRecoveryController: fstat error for file %s: %s", journalFile, strerror(errno));
+	    NSLog(@"WALRecoveryController: fstat error: %s", strerror(errno));
 	    return nil;
 	}
 	

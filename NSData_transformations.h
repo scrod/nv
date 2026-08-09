@@ -18,8 +18,8 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform);
 
 - (NSString*)pathURLFromWebArchive;
 
-- (BOOL)fsRefAsAlias:(FSRef*)fsRef;
-+ (NSData*)aliasDataForFSRef:(FSRef*)fsRef;
+- (NSData*)bookmarkDataFromLegacyAliasRecord;
++ (NSData*)legacyAliasDataForFileReferenceURL:(NSURL*)url;
 - (NSMutableString*)newStringUsingBOMReturningEncoding:(NSStringEncoding*)encoding;
 + (NSData*)uncachedDataFromFile:(NSString*)filename;
 

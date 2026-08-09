@@ -11,6 +11,7 @@
 /* NSData_transformations.m */
 
 #import "NSData_transformations.h"
+#import "NSFileManager_NV.h"
 #import <CommonCrypto/CommonKeyDerivation.h>
 #include "broken_md5.h"
 
@@ -226,17 +227,14 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 	return [url absoluteString];
 }
 
-- (BOOL)fsRefAsAlias:(FSRef*)fsRef {
-    AliasHandle aliasHandle;
-    Boolean changedThrownAway;
-    
-    if (self && PtrToHand([self bytes], (Handle*)&aliasHandle, [self length]) == noErr) {
-		
-		if (FSResolveAliasWithMountFlags(NULL, aliasHandle, fsRef, &changedThrownAway, kResolveAliasFileNoUI) == noErr)
-			return YES;
-    }
-	
-    return NO;
+- (NSData*)bookmarkDataFromLegacyAliasRecord {
+	if (![self length]) return nil;
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+	CFDataRef bookmarkData = CFURLCreateBookmarkDataFromAliasRecord(kCFAllocatorDefault, (CFDataRef)self);
+#pragma clang diagnostic pop
+	return [(NSData*)bookmarkData autorelease];
 }
 
 + (NSData*)uncachedDataFromFile:(NSString*)filename {
@@ -244,27 +242,31 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 	return [NSData dataWithContentsOfFile:filename options:NSUncachedRead error:NULL];
 }
 
-+ (NSData*)aliasDataForFSRef:(FSRef*)fsRef {
-    
-    FSRef userHomeFoundRef, *relativeRef = &userHomeFoundRef;
-    
-    OSErr err = FSFindFolder(kUserDomain, kCurrentUserFolderType, kCreateFolder, &userHomeFoundRef);
-    if (err != noErr) {
-		relativeRef = NULL;
-		NSLog(@"FSFindFolder error: %d", err);
-    }
-    
-    AliasHandle aliasHandle;
-    NSData *theData = nil;
-    
-    //fill handle from fsref, storing path relative to user directory
-    if (FSNewAlias(relativeRef, fsRef, &aliasHandle) == noErr && aliasHandle != NULL) {
++ (NSData*)legacyAliasDataForFileReferenceURL:(NSURL*)url {
+	if (![url isFileReferenceURL]) return nil;
+
+	NSURL *homeURL = [[NSFileManager defaultManager] homeDirectoryForCurrentUser];
+	homeURL = [[NSFileManager defaultManager] fileReferenceURLForURL:homeURL error:NULL];
+	if (!homeURL) return nil;
+
+	FSRef targetRef;
+	FSRef homeRef;
+	AliasHandle aliasHandle = NULL;
+	NSData *aliasData = nil;
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+	if (CFURLGetFSRef((CFURLRef)url, &targetRef) &&
+		CFURLGetFSRef((CFURLRef)homeURL, &homeRef) &&
+		FSNewAlias(&homeRef, &targetRef, &aliasHandle) == noErr && aliasHandle) {
 		HLock((Handle)aliasHandle);
-		theData = [NSData dataWithBytes:*aliasHandle length:GetHandleSize((Handle) aliasHandle)];
+		aliasData = [NSData dataWithBytes:*aliasHandle length:GetHandleSize((Handle)aliasHandle)];
 		HUnlock((Handle)aliasHandle);
-    }
-    
-    return theData;
+		DisposeHandle((Handle)aliasHandle);
+	}
+#pragma clang diagnostic pop
+
+	return aliasData;
 }
 
 //yes, to do the same encoding detection we could use something like initWithContentsOfFile: or 

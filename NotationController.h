@@ -36,8 +36,6 @@ typedef struct _NoteCatalogEntry {
     UInt32 logicalSize;
     OSType fileType;
     UInt32 nodeID;
-    unsigned int filenameCharCount;
-    UniChar *filenameChars;
 	CFMutableStringRef filename;
 } NoteCatalogEntry;
 
@@ -76,14 +74,6 @@ typedef struct _NoteCatalogEntry {
 	
 	NSMutableSet *deletedNotes;
     
-	int volumeSupportsExchangeObjects;
-    FSCatalogInfo *fsCatInfoArray;
-    HFSUniStr255 *HFSUniNameArray;
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-	FNSubscriptionUPP subscriptionCallback;
-    FNSubscriptionRef noteDirSubscription;	
-#endif
 	FSEventStreamRef noteDirEventStreamRef;
 	BOOL eventStreamStarted;
 	    
@@ -95,10 +85,10 @@ typedef struct _NoteCatalogEntry {
     long blockSize;
 	struct statfs *statfsInfo;
 	unsigned int diskUUIDIndex;
-	CFUUIDRef diskUUID;
-    FSRef noteDirectoryRef, noteDatabaseRef;
-    AliasHandle aliasHandle;
-    BOOL aliasNeedsUpdating;
+    CFUUIDRef diskUUID;
+    NSURL *noteDirectoryURL;
+    NSData *noteDirectoryBookmarkData;
+    int noteDirectoryFileDescriptor;
     OSStatus lastWriteError;
     
     WALStorageController *walWriter;
@@ -113,10 +103,9 @@ typedef struct _NoteCatalogEntry {
 - (id)init;
 - (id)initWithAliasData:(NSData*)data error:(OSStatus*)err;
 - (id)initWithDefaultDirectoryReturningError:(OSStatus*)err;
-- (id)initWithDirectoryRef:(FSRef*)directoryRef error:(OSStatus*)err;
-- (void)setAliasNeedsUpdating:(BOOL)needsUpdate;
-- (BOOL)aliasNeedsUpdating;
-- (NSData*)aliasDataForNoteDirectory;
+- (id)initWithDirectoryURL:(NSURL*)directoryURL error:(OSStatus*)err;
+- (NSURL*)noteDirectoryURL;
+- (int)noteDirectoryFileDescriptor;
 - (OSStatus)_readAndInitializeSerializedNotes;
 - (void)processRecoveredNotes:(NSDictionary*)dict;
 - (BOOL)initializeJournaling;

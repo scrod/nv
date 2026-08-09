@@ -68,9 +68,6 @@ typedef struct _NoteFilterContext {
 	//for storing in write-ahead-log
 	unsigned int logSequenceNumber;
 	
-	//not determined until it's time to read to or write from a text file
-	FSRef *noteFileRef;
-
 	//the first for syncing w/ NV server, as the ID cannot be encrypted
 	CFUUIDBytes uniqueNoteIDBytes;
 	
@@ -171,20 +168,19 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)updateWithSyncBody:(NSString*)newBody andTitle:(NSString*)newTitle;
 - (void)registerModificationWithOwnedServices;
 
-- (OSStatus)writeCurrentFileEncodingToFSRef:(FSRef*)fsRef;
+- (BOOL)writeCurrentFileEncoding;
 - (void)_setFileEncoding:(NSStringEncoding)encoding;
 - (BOOL)setFileEncodingAndReinterpret:(NSStringEncoding)encoding;
 - (BOOL)upgradeToUTF8IfUsingSystemEncoding;
 - (BOOL)upgradeEncodingToUTF8;
 - (BOOL)updateFromFile;
 - (BOOL)updateFromCatalogEntry:(NoteCatalogEntry*)catEntry;
-- (BOOL)updateFromData:(NSMutableData*)data inFormat:(int)fmt;
+- (BOOL)updateFromData:(NSData*)data inFormat:(int)fmt;
 
 - (OSStatus)writeFileDatesAndUpdateTrackingInfo;
 
 - (NSURL*)uniqueNoteLink;
-- (NSString*)noteFilePath;
-- (void)invalidateFSRef;
+- (NSURL*)noteFileURL;
 
 - (BOOL)writeUsingJournal:(WALStorageController*)wal;
 
@@ -197,7 +193,7 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)removeFileFromDirectory;
 - (BOOL)removeUsingJournal:(WALStorageController*)wal;
 
-- (OSStatus)exportToDirectoryRef:(FSRef*)directoryRef withFilename:(NSString*)userFilename usingFormat:(int)storageFormat overwrite:(BOOL)overwrite;
+- (OSStatus)exportToDirectoryURL:(NSURL*)directoryURL withFilename:(NSString*)userFilename usingFormat:(int)storageFormat overwrite:(BOOL)overwrite;
 - (NSRange)nextRangeForWords:(NSArray*)words options:(unsigned)opts range:(NSRange)inRange;
 - (void)editExternallyUsingEditor:(ExternalEditor*)ed;
 - (void)abortEditingInExternalEditor;
@@ -235,4 +231,3 @@ NSInteger compareFileSize(id *a, id *b);
 - (void)note:(NoteObject*)note didRemoveLabelSet:(NSSet*)labelSet;
 - (void)note:(NoteObject*)note attributeChanged:(NSString*)attribute;
 @end
-

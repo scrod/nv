@@ -38,7 +38,7 @@
 - (id)initWithNotationController:(NotationController*)aNotationController {
 	self = [self init];
 	if (self) {
-		notationController = [aNotationController retain];
+		notationController = aNotationController;
 	}
 	return self;
 }
@@ -54,7 +54,6 @@
 
 - (void)dealloc {
 
-	[notationController release];
 	notationController = nil;
 	[deletedNotes release];
 	[deletionManagerTopLevelObjects release];
@@ -99,8 +98,6 @@
 			}
 		}
 		
-		[array makeObjectsPerformSelector:@selector(invalidateFSRef)];
-		
 		if (didAddDeletedNote) {
 			[self _updatePanelForNotes];
 		}
@@ -121,9 +118,6 @@
 			[self _updatePanelForNotes];
 		}
 		
-		//clear fsref to ensure that files are re-created if they are restored
-		//if they are to be deleted, we don't care about them, anyway--they should already be gone
-		[aNote invalidateFSRef];
 	}
 	hasDeletedNotes = [deletedNotes count] != 0;
 }

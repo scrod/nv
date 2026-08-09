@@ -20,6 +20,7 @@
 #import "NotationPrefs.h"
 #import "NSString_NV.h"
 #import "GlobalPrefs.h"
+#import "NSFileManager_NV.h"
 
 @implementation ExporterManager
 
@@ -55,11 +56,12 @@
 	//write notes in chosen format
 	NSUInteger i;
 	NSInteger storageFormat = [[formatSelectorPopup selectedItem] tag];
-	NSString *directory = nil, *filename = nil;
+	NSURL *directoryURL = nil;
+	NSString *filename = nil;
 	BOOL overwriteNotes = NO;
 
 	if ([panel isKindOfClass:[NSOpenPanel class]]) {
-		directory = [[[(NSOpenPanel *)panel URLs] firstObject] path];
+		directoryURL = [[(NSOpenPanel *)panel URLs] firstObject];
 	} else {
 		NSURL *fileURL = [panel URL];
 		if (!fileURL) {
@@ -67,30 +69,17 @@
 			return;
 		}
 		filename = [fileURL lastPathComponent];
-		directory = [[fileURL URLByDeletingLastPathComponent] path];
+		directoryURL = [fileURL URLByDeletingLastPathComponent];
 		NSAssert([notes count] == 1, @"We returned from a save panel with more than one note?!");
-		if ([[NSFileManager defaultManager] fileExistsAtPath:[fileURL path]]) overwriteNotes = YES;
+		overwriteNotes = [fileURL checkResourceIsReachableAndReturnError:NULL];
 		if ([filename compare:filenameOfNote([notes lastObject]) options:NSCaseInsensitiveSearch] != NSOrderedSame) {
 			filename = [filename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
 		}
 	}
 
-	if (![directory length]) {
+	NSURL *directoryReferenceURL = [[NSFileManager defaultManager] fileReferenceURLForURL:directoryURL error:NULL];
+	if (!directoryReferenceURL) {
 		NSBeep();
-		return;
-	}
-	
-	FSRef directoryRef;
-	CFURLRef url = CFURLCreateWithFileSystemPath(kCFAllocatorDefault, (CFStringRef)directory, kCFURLPOSIXPathStyle, true);
-	[(id)url autorelease];
-	if (!url || !CFURLGetFSRef(url, &directoryRef)) {
-		NSString *messageText = [NSString stringWithFormat:NSLocalizedString(@"The notes couldn't be exported because the directory quotemark%@quotemark couldn't be accessed.", nil),
-			[directory stringByAbbreviatingWithTildeInPath]];
-		NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-		[alert setMessageText:messageText];
-		[alert setInformativeText:@""];
-		[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
-		[alert runModal];
 		return;
 	}
 
@@ -100,7 +89,7 @@
 		BOOL lastNote = i != [notes count] - 1;
 		NoteObject *note = [notes objectAtIndex:i];
 			
-		OSStatus err = [note exportToDirectoryRef:&directoryRef withFilename:filename usingFormat:(int)storageFormat overwrite:overwriteNotes];
+		OSStatus err = [note exportToDirectoryURL:directoryReferenceURL withFilename:filename usingFormat:(int)storageFormat overwrite:overwriteNotes];
 			
 		if (err == dupFNErr) {
 			//ask about overwriting
@@ -117,7 +106,7 @@
 			NSModalResponse response = [alert runModal];
 			if (response == NSAlertFirstButtonReturn || response == NSAlertThirdButtonReturn) {
 				if (response == NSAlertThirdButtonReturn) overwriteNotes = YES;
-				err = [note exportToDirectoryRef:&directoryRef withFilename:filename usingFormat:(int)storageFormat overwrite:YES];
+				err = [note exportToDirectoryURL:directoryReferenceURL withFilename:filename usingFormat:(int)storageFormat overwrite:YES];
 			} else {
 				continue;
 			}
@@ -141,8 +130,6 @@
 				if (continueResponse != NSAlertFirstButtonReturn) break;
 			}
 		}
-		
-		FNNotify(&directoryRef, kFNDirectoryModifiedMessage, kFNNoImplicitAllSubscription);
 		
 	}
 }
@@ -174,7 +161,7 @@
         filename = [filename stringByDeletingPathExtension];
         filename = [filename stringByAppendingPathExtension:[NotationPrefs pathExtensionForFormat:(int)[[formatSelectorPopup selectedItem] tag]]];
 
-        [savePanel setDirectoryURL:[NSURL fileURLWithPath:NSHomeDirectory()]];
+		[savePanel setDirectoryURL:[[NSFileManager defaultManager] homeDirectoryForCurrentUser]];
         [savePanel setNameFieldStringValue:filename];
 
         NSArray *retainedNotes = [notes retain];

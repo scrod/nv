@@ -29,6 +29,13 @@
 #import "NoteObject.h"
 #import "DeletionManager.h"
 #import "NSCollection_utils.h"
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/attr.h>
+#include <sys/stat.h>
+#include <sys/vnode.h>
+#include <unistd.h>
 
 #define kMaxFileIteratorCount 100
 
@@ -128,7 +135,13 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 		[self _destroyDirEventStream];
 	}
 	
-	NSString *path = [[NSFileManager defaultManager] pathWithFSRef:&noteDirectoryRef];
+	NSURL *eventURL = [NSURL URLByResolvingBookmarkData:noteDirectoryBookmarkData
+		options:NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:NULL error:NULL];
+	NSString *path = [eventURL path];
+	if (!path) {
+		NSLog(@"Could not resolve notes directory for FSEvents");
+		return;
+	}
 	
 	FSEventStreamContext context = { 0, self, CFRetain, CFRelease, CFCopyDescription };
 	
@@ -155,17 +168,6 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 
 - (void)startFileNotifications {
 	eventStreamStarted = YES;
-	
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5				
-	if (IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
-		
-		OSStatus err = FNSubscribe(&noteDirectoryRef, subscriptionCallback, self, kFNNoImplicitAllSubscription | kFNNotifyInBackground, &noteDirSubscription);
-		if (err != noErr) {
-			NSLog(@"Could not subscribe to changes in notes directory!");
-			//just check modification time of directory?
-		}
-	}
-#endif
 	[self _configureDirEventStream];
 }
 
@@ -173,39 +175,10 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	
 	if (!eventStreamStarted) return;
 	
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-	OSStatus err = noErr;
-    if (!IsZeros(&noteDirSubscription, sizeof(FNSubscriptionRef))) {
-		
-		if ((err = FNUnsubscribe(noteDirSubscription)) != noErr) {
-			NSLog(@"Could not unsubscribe from note changes callback: %d", err);
-		} else {
-			bzero(&noteDirSubscription, sizeof(FNSubscriptionRef));
-		}
-		
-		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNotesFromDirectory) object:nil];
-    }
-#endif
 	[self _destroyDirEventStream];
 	
 	eventStreamStarted = NO;
 }
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription) {
-    //this only works for the Finder and perhaps the navigation manager right now
-	if (kFNDirectoryModifiedMessage == message) {
-		//NSLog(@"note directory changed");
-		if (refcon) {
-			[NSObject cancelPreviousPerformRequestsWithTarget:(id)refcon selector:@selector(synchronizeNotesFromDirectory) object:nil];
-			[(id)refcon performSelector:@selector(synchronizeNotesFromDirectory) withObject:nil afterDelay:0.0];
-		}
-		
-    } else {
-		NSLog(@"we received an FNSubscr. callback and the directory didn't actually change?");
-    }
-}
-#endif
 
 - (BOOL)synchronizeNotesFromDirectory {
     if ([self currentNoteStorageFormat] == SingleDatabaseFormat) {
@@ -251,92 +224,190 @@ void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refc
     return NO;
 }
 
+static UTCDateTime NVUTCDateTimeFromDirectoryTimespec(struct timespec value) {
+	UTCDateTime date = { 0 };
+	CFAbsoluteTime absoluteTime = (CFAbsoluteTime)value.tv_sec +
+		((CFAbsoluteTime)value.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
+	UCConvertCFAbsoluteTimeToUTCDateTime(absoluteTime, &date);
+	return date;
+}
+
+static void NVCopyAttribute(const char **field, void *value, size_t size) {
+	memcpy(value, *field, size);
+	*field += size;
+}
+
+- (void)_resetCatalogEntries {
+	for (size_t i = 0; i < catEntriesCount; i++) {
+		if (catalogEntries[i].filename) {
+			CFRelease(catalogEntries[i].filename);
+			catalogEntries[i].filename = NULL;
+		}
+	}
+	catEntriesCount = 0;
+}
+
+- (BOOL)_appendCatalogEntryNamed:(NSString*)filename finderInfo:(const uint8_t*)finderInfo
+						logicalSize:(uint64_t)logicalSize fileID:(uint64_t)fileID
+				 modificationTime:(struct timespec)modificationTime
+			 attributeChangeTime:(struct timespec)changeTime {
+	if (catEntriesCount == totalCatEntriesCount) {
+		size_t oldCapacity = totalCatEntriesCount;
+		size_t newCapacity = MAX((size_t)32, oldCapacity * 2);
+		NoteCatalogEntry *newEntries = realloc(catalogEntries, newCapacity * sizeof(*catalogEntries));
+		if (!newEntries) return NO;
+		catalogEntries = newEntries;
+		NoteCatalogEntry **newSortedEntries = realloc(sortedCatalogEntries,
+			newCapacity * sizeof(*sortedCatalogEntries));
+		if (!newSortedEntries) return NO;
+		sortedCatalogEntries = newSortedEntries;
+		bzero(catalogEntries + oldCapacity, (newCapacity - oldCapacity) * sizeof(*catalogEntries));
+		totalCatEntriesCount = newCapacity;
+	}
+
+	NoteCatalogEntry *entry = &catalogEntries[catEntriesCount++];
+	entry->filename = (CFMutableStringRef)[[filename precomposedStringWithCanonicalMapping] mutableCopy];
+	entry->fileType = 0;
+	if (finderInfo) memcpy(&entry->fileType, finderInfo, sizeof(entry->fileType));
+	entry->logicalSize = (UInt32)(logicalSize & 0xFFFFFFFF);
+	entry->nodeID = (UInt32)(fileID & 0xFFFFFFFF);
+	entry->lastModified = NVUTCDateTimeFromDirectoryTimespec(modificationTime);
+	entry->lastAttrModified = NVUTCDateTimeFromDirectoryTimespec(changeTime);
+	return YES;
+}
+
+- (BOOL)_readFilesUsingDirectoryStream {
+	int directoryFD = openat(noteDirectoryFileDescriptor, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (directoryFD < 0) return NO;
+	DIR *directory = fdopendir(directoryFD);
+	if (!directory) {
+		close(directoryFD);
+		return NO;
+	}
+
+	BOOL succeeded = YES;
+	struct dirent *item = NULL;
+	for (;;) {
+		errno = 0;
+		item = readdir(directory);
+		if (!item) {
+			if (errno) succeeded = NO;
+			break;
+		}
+		if (item->d_name[0] == '.' &&
+			(item->d_name[1] == '\0' || (item->d_name[1] == '.' && item->d_name[2] == '\0')))
+			continue;
+		struct stat status;
+		if (fstatat(directoryFD, item->d_name, &status, AT_SYMLINK_NOFOLLOW) < 0 ||
+			!S_ISREG(status.st_mode))
+			continue;
+
+		NSString *filename = [[NSFileManager defaultManager]
+			stringWithFileSystemRepresentation:item->d_name length:item->d_namlen];
+		if (!filename) continue;
+		struct attrlist requested;
+		bzero(&requested, sizeof(requested));
+		requested.bitmapcount = ATTR_BIT_MAP_COUNT;
+		requested.commonattr = ATTR_CMN_FNDRINFO;
+		struct {
+			uint32_t length;
+			uint8_t finderInfo[32];
+		} attributes = { 0 };
+		const uint8_t *finderInfo = getattrlistat(directoryFD, item->d_name, &requested,
+			&attributes, sizeof(attributes), 0) == 0 ? attributes.finderInfo : NULL;
+		if (![self _appendCatalogEntryNamed:filename finderInfo:finderInfo
+			logicalSize:(uint64_t)status.st_size fileID:(uint64_t)status.st_ino
+			modificationTime:status.st_mtimespec attributeChangeTime:status.st_ctimespec]) {
+			succeeded = NO;
+			break;
+		}
+	}
+	closedir(directory);
+	return succeeded;
+}
+
 //scour the notes directory for fresh meat
 - (BOOL)_readFilesInDirectory {
-    
-    OSStatus status = noErr;
-    FSIterator dirIterator;
-    ItemCount totalObjects = 0, dirObjectCount = 0;
-    unsigned int i = 0, catIndex = 0;
-    
-    //something like 16 VM pages used here?
-    if (!fsCatInfoArray) fsCatInfoArray = (FSCatalogInfo *)calloc(kMaxFileIteratorCount, sizeof(FSCatalogInfo));
-    if (!HFSUniNameArray) HFSUniNameArray = (HFSUniStr255 *)calloc(kMaxFileIteratorCount, sizeof(HFSUniStr255));
-	
-    if ((status = FSOpenIterator(&noteDirectoryRef, kFSIterateFlat, &dirIterator)) == noErr) {
-		//catEntriesCount = 0;
-		
-        do {
-            // Grab a batch of source files to process from the source directory
-            status = FSGetCatalogInfoBulk(dirIterator, kMaxFileIteratorCount, &dirObjectCount, NULL,
-										  kFSCatInfoNodeFlags | kFSCatInfoFinderInfo | kFSCatInfoContentMod | 
-										  kFSCatInfoAttrMod | kFSCatInfoDataSizes | kFSCatInfoNodeID,
-										  fsCatInfoArray, NULL, NULL, HFSUniNameArray);
-			
-            if ((status == errFSNoMoreItems || status == noErr) && dirObjectCount) {
-                status = noErr;
-				
-				totalObjects += dirObjectCount;
-				if (totalObjects > totalCatEntriesCount) {
-						size_t oldCatEntriesCount = totalCatEntriesCount;
-					
-					totalCatEntriesCount = totalObjects;
-					catalogEntries = (NoteCatalogEntry *)realloc(catalogEntries, totalObjects * sizeof(NoteCatalogEntry));
-					sortedCatalogEntries = (NoteCatalogEntry **)realloc(sortedCatalogEntries, totalObjects * sizeof(NoteCatalogEntry*));
-					
-					//clear unused memory to make filename and filenameChars null
-					
-					size_t newSpace = (totalCatEntriesCount - oldCatEntriesCount) * sizeof(NoteCatalogEntry);
-					bzero(catalogEntries + oldCatEntriesCount, newSpace);
-				}
-				
-				for (i = 0; i < dirObjectCount; i++) {
-					// Only read files, not directories
-					if (!(fsCatInfoArray[i].nodeFlags & kFSNodeIsDirectoryMask)) { 
-						//filter these only for files that will be added
-						//that way we can catch changes in files whose format is still being lazily updated
-						
-						NoteCatalogEntry *entry = &catalogEntries[catIndex];
-						HFSUniStr255 *filename = &HFSUniNameArray[i];
-						
-						entry->fileType = ((FileInfo *)fsCatInfoArray[i].finderInfo)->fileType;
-						entry->logicalSize = (UInt32)(fsCatInfoArray[i].dataLogicalSize & 0xFFFFFFFF);
-						entry->nodeID = (UInt32)fsCatInfoArray[i].nodeID;
-						entry->lastModified = fsCatInfoArray[i].contentModDate;
-						entry->lastAttrModified = fsCatInfoArray[i].attributeModDate;
+	[self _resetCatalogEntries];
 
-						ResizeArray(&(entry->filenameChars), filename->length, &(entry->filenameCharCount));
-						memcpy(entry->filenameChars, filename->unicode, filename->length * sizeof(UniChar));
-						
-						if (!entry->filename)
-							entry->filename = CFStringCreateMutableWithExternalCharactersNoCopy(NULL, entry->filenameChars, filename->length, entry->filenameCharCount, kCFAllocatorNull);
-						else
-							CFStringSetExternalCharactersNoCopy(entry->filename, entry->filenameChars, filename->length, entry->filenameCharCount);
-						
-						// mipe: Normalize the filename to make sure that it will be found regardless of international characters
-						CFStringNormalize(entry->filename, kCFStringNormalizationFormC);
+	int directoryFD = openat(noteDirectoryFileDescriptor, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (directoryFD < 0) {
+		NSLog(@"Could not open notes directory for enumeration: %s", strerror(errno));
+		return NO;
+	}
 
-						catIndex++;
-                    }
-                }
-				
-				catEntriesCount = catIndex;
-            }
-            
-        } while (status == noErr);
-		
-		FSCloseIterator(dirIterator);
-		
-		for (i=0; i<catEntriesCount; i++) {
-			sortedCatalogEntries[i] = &catalogEntries[i];
+	struct attrlist requested;
+	bzero(&requested, sizeof(requested));
+	requested.bitmapcount = ATTR_BIT_MAP_COUNT;
+	requested.commonattr = ATTR_CMN_RETURNED_ATTRS | ATTR_CMN_ERROR | ATTR_CMN_NAME |
+		ATTR_CMN_OBJTYPE | ATTR_CMN_MODTIME | ATTR_CMN_CHGTIME | ATTR_CMN_FNDRINFO | ATTR_CMN_FILEID;
+	requested.fileattr = ATTR_FILE_DATALENGTH;
+
+	char buffer[64 * 1024];
+	BOOL succeeded = YES;
+	for (;;) {
+		int count = getattrlistbulk(directoryFD, &requested, buffer, sizeof(buffer), 0);
+		if (count < 0) {
+			NSLog(@"Bulk directory enumeration unavailable (%s); using directory stream", strerror(errno));
+			close(directoryFD);
+			[self _resetCatalogEntries];
+			succeeded = [self _readFilesUsingDirectoryStream];
+			directoryFD = -1;
+			break;
 		}
-		
-		return YES;
-    }
-    
-    NSLog(@"Error opening FSIterator: %d", status);
-    
-    return NO;
+		if (!count) break;
+
+		const char *record = buffer;
+		for (int index = 0; index < count; index++) {
+			uint32_t recordLength = 0;
+			NVCopyAttribute(&record, &recordLength, sizeof(recordLength));
+			const char *nextRecord = record - sizeof(recordLength) + recordLength;
+			attribute_set_t returned;
+			NVCopyAttribute(&record, &returned, sizeof(returned));
+			uint32_t entryError = 0;
+			if (returned.commonattr & ATTR_CMN_ERROR)
+				NVCopyAttribute(&record, &entryError, sizeof(entryError));
+
+			attrreference_t nameReference = { 0 };
+			const char *nameField = record;
+			if (returned.commonattr & ATTR_CMN_NAME)
+				NVCopyAttribute(&record, &nameReference, sizeof(nameReference));
+			fsobj_type_t objectType = VNON;
+			if (returned.commonattr & ATTR_CMN_OBJTYPE)
+				NVCopyAttribute(&record, &objectType, sizeof(objectType));
+			struct timespec modificationTime = { 0 };
+			if (returned.commonattr & ATTR_CMN_MODTIME)
+				NVCopyAttribute(&record, &modificationTime, sizeof(modificationTime));
+			struct timespec changeTime = { 0 };
+			if (returned.commonattr & ATTR_CMN_CHGTIME)
+				NVCopyAttribute(&record, &changeTime, sizeof(changeTime));
+			uint8_t finderInfo[32] = { 0 };
+			if (returned.commonattr & ATTR_CMN_FNDRINFO)
+				NVCopyAttribute(&record, finderInfo, sizeof(finderInfo));
+			uint64_t fileID = 0;
+			if (returned.commonattr & ATTR_CMN_FILEID)
+				NVCopyAttribute(&record, &fileID, sizeof(fileID));
+			off_t dataLength = 0;
+			if (returned.fileattr & ATTR_FILE_DATALENGTH)
+				NVCopyAttribute(&record, &dataLength, sizeof(dataLength));
+
+			if (!entryError && objectType == VREG && nameReference.attr_length) {
+				const char *name = nameField + nameReference.attr_dataoffset;
+				NSString *filename = [NSString stringWithUTF8String:name];
+				if (filename && ![self _appendCatalogEntryNamed:filename finderInfo:finderInfo
+					logicalSize:(uint64_t)dataLength fileID:fileID modificationTime:modificationTime
+					attributeChangeTime:changeTime]) {
+					succeeded = NO;
+					break;
+				}
+			}
+			record = nextRecord;
+		}
+		if (!succeeded) break;
+	}
+	if (directoryFD >= 0) close(directoryFD);
+	for (size_t i = 0; i < catEntriesCount; i++) sortedCatalogEntries[i] = &catalogEntries[i];
+	return succeeded;
 }
 
 - (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry {

@@ -32,11 +32,15 @@
 #import "PTKeyCombo.h"
 #import "PTHotKeyCenter.h"
 #import "NSString_NV.h"
+#import "NSFileManager_NV.h"
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #define SEND_CALLBACKS() sendCallbacksForGlobalPrefs(self, _cmd, sender)
 
 static NSString *TriedToImportBlorKey = @"TriedToImportBlor";
 static NSString *DirectoryAliasKey = @"DirectoryAlias";
+static NSString *DirectoryBookmarkKey = @"DirectoryBookmark";
 static NSString *AutoCompleteSearchesKey = @"AutoCompleteSearches";
 static NSString *NoteAttributesVisibleKey = @"NoteAttributesVisible";
 static NSString *TableFontSizeKey = @"TableFontPointSize";
@@ -826,55 +830,94 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
     return [defaults dataForKey:DirectoryAliasKey];
 }
 
-- (NSString*)displayNameForDefaultDirectoryWithFSRef:(FSRef*)fsRef {
+- (NSData*)bookmarkDataForDefaultDirectory {
+	return [defaults dataForKey:DirectoryBookmarkKey];
+}
 
-    if (!fsRef)
-	return nil;
-    
-    if (IsZeros(fsRef, sizeof(FSRef))) {
-	if (![[self aliasDataForDefaultDirectory] fsRefAsAlias:fsRef])
-	    return nil;
-    }
-    CFStringRef displayName = NULL;
-    if (LSCopyDisplayNameForRef(fsRef, &displayName) == noErr) {
-	return [(NSString*)displayName autorelease];
-    }
-    return nil;
+static BOOL NVURLsReferToSameDirectory(NSURL *one, NSURL *two) {
+	if (!one || !two) return NO;
+	int oneFD = open([one fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	int twoFD = open([two fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	struct stat oneStat;
+	struct stat twoStat;
+	BOOL same = oneFD >= 0 && twoFD >= 0 && fstat(oneFD, &oneStat) == 0 &&
+		fstat(twoFD, &twoStat) == 0 && oneStat.st_dev == twoStat.st_dev && oneStat.st_ino == twoStat.st_ino;
+	if (oneFD >= 0) close(oneFD);
+	if (twoFD >= 0) close(twoFD);
+	return same;
+}
+
+- (BOOL)setDefaultDirectoryURL:(NSURL*)url sender:(id)sender error:(NSError**)error {
+	NSFileManager *manager = [NSFileManager defaultManager];
+	NSURL *referenceURL = [manager fileReferenceURLForURL:url error:error];
+	if (!referenceURL) return NO;
+	NSData *bookmarkData = [manager bookmarkDataForFileReferenceURL:referenceURL error:error];
+	NSData *aliasData = [NSData legacyAliasDataForFileReferenceURL:referenceURL];
+	if (!bookmarkData || !aliasData) {
+		if (error && !*error)
+			*error = [NSError errorWithDomain:@"NVFileReferenceErrorDomain" code:EIO
+				userInfo:[NSDictionary dictionaryWithObject:@"Unable to create compatible directory identity data."
+														forKey:NSLocalizedDescriptionKey]];
+		return NO;
+	}
+	[defaults setObject:bookmarkData forKey:DirectoryBookmarkKey];
+	[defaults setObject:aliasData forKey:DirectoryAliasKey];
+	SEND_CALLBACKS();
+	return YES;
+}
+
+- (NSURL*)defaultDirectoryURLResolvingBookmark:(BOOL*)stale error:(NSError**)error {
+	NSFileManager *manager = [NSFileManager defaultManager];
+	NSData *bookmarkData = [self bookmarkDataForDefaultDirectory];
+	NSData *aliasData = [self aliasDataForDefaultDirectory];
+	BOOL bookmarkStale = NO;
+	NSURL *bookmarkURL = bookmarkData ? [manager fileReferenceURLFromBookmarkData:bookmarkData
+		stale:&bookmarkStale error:NULL] : nil;
+	NSData *convertedAliasBookmark = [aliasData bookmarkDataFromLegacyAliasRecord];
+	NSURL *aliasURL = convertedAliasBookmark ? [manager fileReferenceURLFromBookmarkData:convertedAliasBookmark
+		stale:NULL error:NULL] : nil;
+
+	NSURL *chosenURL = nil;
+	if (bookmarkURL && aliasURL)
+		chosenURL = NVURLsReferToSameDirectory(bookmarkURL, aliasURL) ? bookmarkURL : aliasURL;
+	else
+		chosenURL = bookmarkURL ? bookmarkURL : aliasURL;
+
+	if (!chosenURL) {
+		if (error) *error = [NSError errorWithDomain:@"NVFileReferenceErrorDomain" code:ENOENT
+			userInfo:[NSDictionary dictionaryWithObject:@"The saved notes directory could not be located."
+														forKey:NSLocalizedDescriptionKey]];
+		return nil;
+	}
+
+	BOOL needsRepair = bookmarkStale || !bookmarkURL || !aliasURL ||
+		(bookmarkURL && aliasURL && !NVURLsReferToSameDirectory(bookmarkURL, aliasURL));
+	if (needsRepair) {
+		NSData *freshBookmark = [manager bookmarkDataForFileReferenceURL:chosenURL error:error];
+		NSData *freshAlias = [NSData legacyAliasDataForFileReferenceURL:chosenURL];
+		if (!freshBookmark || !freshAlias) return nil;
+		[defaults setObject:freshBookmark forKey:DirectoryBookmarkKey];
+		[defaults setObject:freshAlias forKey:DirectoryAliasKey];
+	}
+	if (stale) *stale = needsRepair;
+	return chosenURL;
+}
+
+- (NSString*)displayNameForDefaultDirectoryURL:(NSURL*)url {
+	if (!url) url = [self defaultDirectoryURLResolvingBookmark:NULL error:NULL];
+	NSString *displayName = nil;
+	[url getResourceValue:&displayName forKey:NSURLLocalizedNameKey error:NULL];
+	return displayName;
 }
 
 - (NSString*)humanViewablePathForDefaultDirectory {
-    //resolve alias to fsref
-    FSRef targetRef;
-    if ([[self aliasDataForDefaultDirectory] fsRefAsAlias:&targetRef]) {	    
-	//follow the parent fsrefs up the tree, calling LSCopyDisplayNameForRef, hoping that the root is a drive name
-	
-	NSMutableArray *directoryNames = [NSMutableArray arrayWithCapacity:4];
-	FSRef parentRef, *currentRef = &targetRef;
-	
-	OSStatus err = noErr;
-	
-	do {
-	    
-	    if ((err = FSGetCatalogInfo(currentRef, kFSCatInfoNone, NULL, NULL, NULL, &parentRef)) == noErr) {
-		
-		CFStringRef displayName = NULL;
-		if ((err = LSCopyDisplayNameForRef(currentRef, &displayName)) == noErr) {
-		    
-		    if (displayName) {
-			[directoryNames insertObject:(id)displayName atIndex:0];
-			CFRelease(displayName);
-		    }
-		}
-		
-		currentRef = &parentRef;
-	    }
-	} while (err == noErr);
-	
-	//build new string delimited by triangles like pages in its recent items menu
-	return [directoryNames componentsJoinedByString:@" : "];
-	
-    }
-    
+	NSURL *url = [self defaultDirectoryURLResolvingBookmark:NULL error:NULL];
+	if (url) {
+		NSURL *displayURL = [NSURL URLByResolvingBookmarkData:[self bookmarkDataForDefaultDirectory]
+			options:NSURLBookmarkResolutionWithoutUI relativeToURL:nil
+			bookmarkDataIsStale:NULL error:NULL];
+		return [[displayURL path] stringByAbbreviatingWithTildeInPath];
+	}
     return nil;
 }
 

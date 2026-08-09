@@ -633,13 +633,15 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 }
 
 + (NSMutableString*)newShortLivedStringFromFile:(NSString*)filename {
-	NSStringEncoding anEncoding = NSMacOSRomanStringEncoding; //won't use this, doesn't matter
+	NSStringEncoding anEncoding = [[NSFileManager defaultManager]
+		textEncodingAttributeOfFSPath:[filename fileSystemRepresentation]];
+	if (!anEncoding) anEncoding = NSMacOSRomanStringEncoding;
 	
-	return [self newShortLivedStringFromData:[NSMutableData dataWithContentsOfFile:filename options:NSUncachedRead error:NULL] 
-						   ofGuessedEncoding:&anEncoding withPath:[filename fileSystemRepresentation] orWithFSRef:NULL];
+	return [self newShortLivedStringFromData:[NSData dataWithContentsOfFile:filename options:NSUncachedRead error:NULL]
+						   ofGuessedEncoding:&anEncoding];
 }
 
-+ (NSMutableString*)newShortLivedStringFromData:(NSMutableData*)data ofGuessedEncoding:(NSStringEncoding*)encoding withPath:(const char*)aPath orWithFSRef:(const FSRef*)fsRef{
++ (NSMutableString*)newShortLivedStringFromData:(NSData*)data ofGuessedEncoding:(NSStringEncoding*)encoding {
 	//this will fail if data lacks a BOM, but try it first as it's the fastest check
 	NSMutableString* stringFromData = [data newStringUsingBOMReturningEncoding:encoding];
 	if (stringFromData) {
@@ -660,18 +662,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	
 	AddIfUnique(firstEncodingToTry);
 	
-	if (hasHighASCII) {
-		//check the file on disk for extended attributes only if absolutely necessary
-		NSStringEncoding extendedAttrsEncoding = 0;
-		if (!aPath && fsRef && !IsZeros(fsRef, sizeof(FSRef))) {
-			NSMutableData *pathData = [NSMutableData dataWithLength:4 * 1024];
-        if (FSRefMakePath(fsRef, [pathData mutableBytes], (UInt32)[pathData length]) == noErr)
-				extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:[pathData bytes]];
-		} else if (aPath) {
-			extendedAttrsEncoding = [[NSFileManager defaultManager] textEncodingAttributeOfFSPath:aPath];
-		}
-		if (extendedAttrsEncoding) AddIfUnique(extendedAttrsEncoding);
-	}
 	AddIfUnique(*encoding);
 	NSStringEncoding systemEncoding = CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
 	AddIfUnique(systemEncoding);
@@ -679,8 +669,8 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	
 	encodingIndex = 0;
 	do {
-		stringFromData = [[NSMutableString alloc] initWithBytesNoCopy:[data mutableBytes] length:[data length] 
-															 encoding:encodingsToTry[encodingIndex] freeWhenDone:NO];
+		stringFromData = [[NSMutableString alloc] initWithBytes:[data bytes] length:[data length]
+															 encoding:encodingsToTry[encodingIndex]];
 	} while (!stringFromData && ++encodingIndex < 5);
 		
 	if (stringFromData) {

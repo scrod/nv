@@ -727,21 +727,23 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		}
 		
         NSArray *notes = [(FastListDataSource*)[self dataSource] objectsAtFilteredIndexes:selectedRows];
-		NSMutableArray *paths = [NSMutableArray arrayWithCapacity:[notes count]];
+		NSMutableArray *fileURLs = [NSMutableArray arrayWithCapacity:[notes count]];
 			NSUInteger i;
 			for (i=0;i<[notes count]; i++) {
 			NoteObject *note = [notes objectAtIndex:i];
 			//for now, allow option-dragging-out only for notes with separate file-backing stores
 			if (storageFormatOfNote(note) != SingleDatabaseFormat) {
-				NSString *aPath = [note noteFilePath];
-				if (aPath) [paths addObject:aPath];
+				NSURL *fileURL = [note noteFileURL];
+				if (fileURL) [fileURLs addObject:fileURL];
 			}
 		}
-		if ([paths count] > 0) {
-			NSMutableArray *draggingItems = [NSMutableArray arrayWithCapacity:[paths count]];
-			for (NSString *path in paths) {
-				NSImage *image = [[NSWorkspace sharedWorkspace] iconForFile:path];
-				NSDraggingItem *item = [[[NSDraggingItem alloc] initWithPasteboardWriter:[NSURL fileURLWithPath:path]] autorelease];
+		if ([fileURLs count] > 0) {
+			NSMutableArray *draggingItems = [NSMutableArray arrayWithCapacity:[fileURLs count]];
+			for (NSURL *fileURL in fileURLs) {
+				NSImage *image = nil;
+				[fileURL getResourceValue:&image forKey:NSURLEffectiveIconKey error:NULL];
+				if (!image) image = [NSImage imageNamed:NSImageNameMultipleDocuments];
+				NSDraggingItem *item = [[[NSDraggingItem alloc] initWithPasteboardWriter:fileURL] autorelease];
 				[item setDraggingFrame:NSMakeRect(dragPoint.x, dragPoint.y, [image size].width, [image size].height) contents:image];
 				[draggingItems addObject:item];
 			}

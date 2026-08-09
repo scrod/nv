@@ -256,15 +256,12 @@
 
 - (NSMenu*)directorySelectionMenu {
     NSMenu *theMenu = [[[NSMenu alloc] initWithTitle:@"Note Directory Menu"] autorelease];
-    
-    FSRef targetRef = {{0}};
-    NSString *name = [prefsController displayNameForDefaultDirectoryWithFSRef:&targetRef];
+	NSURL *directoryURL = [prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
+    NSString *name = [prefsController displayNameForDefaultDirectoryURL:directoryURL];
     if (!name)
 		name = NSLocalizedString(@"<Directory unknown>", nil);
 	
-	NSImage *iconImage = nil;
-	if (!IsZeros(&targetRef, sizeof(FSRef)) || [[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&targetRef])
-		iconImage = [NSImage smallIconForFSRef:&targetRef];
+	NSImage *iconImage = [NSImage smallIconForFileURL:directoryURL];
 	
     NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:name action:nil keyEquivalent:@""] autorelease];
     
@@ -284,21 +281,21 @@
 }
 
 - (void)changeDefaultDirectory {
-	FSRef notesDirectoryRef;
-	NSData *aliasData = nil;
+	NSURL *notesDirectoryURL = nil;
 	NSString *directoryPath = nil;
 
-	if ([self getNewNotesRefFromOpenPanel:&notesDirectoryRef returnedPath:&directoryPath]) {
+	if ([self getNewNotesURLFromOpenPanel:&notesDirectoryURL returnedPath:&directoryPath]) {
 		
 		//make sure we're not choosing the same folder as what we started with, because:
 		//-[NotationController initWithAliasData:] might attempt to initialize journaling, which will already be in use
-		FSRef currentNotesDirectoryRef;
-		[[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&currentNotesDirectoryRef];
-		if (FSCompareFSRefs(&notesDirectoryRef, &currentNotesDirectoryRef) != noErr) {
-			
-			if ((aliasData = [NSData aliasDataForFSRef:&notesDirectoryRef])) {
-				[prefsController setAliasDataForDefaultDirectory:aliasData sender:self];				
-			}
+		NSURL *currentDirectoryURL = [prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
+		id selectedIdentifier = nil, currentIdentifier = nil;
+		[notesDirectoryURL getResourceValue:&selectedIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL];
+		[currentDirectoryURL getResourceValue:&currentIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL];
+		if (!selectedIdentifier || ![selectedIdentifier isEqual:currentIdentifier]) {
+			NSError *error = nil;
+			if (![prefsController setDefaultDirectoryURL:notesDirectoryURL sender:self error:&error])
+				NSLog(@"Could not save selected notes directory: %@", error);
 		} else {
 			NSLog(@"This folder is already chosen!");
 		}
@@ -311,20 +308,13 @@
 		[folderLocationsMenuButton selectItemAtIndex:0];
 }
 
-- (BOOL)getNewNotesRefFromOpenPanel:(FSRef*)notesDirectoryRef returnedPath:(NSString**)path {
-    NSString *startingDirectory = nil;
-	
-    if (!notesDirectoryRef) {
-		NSLog(@"notesDirectoryRef is NULL!");
+- (BOOL)getNewNotesURLFromOpenPanel:(NSURL**)notesDirectoryURL returnedPath:(NSString**)path {
+	if (!notesDirectoryURL) {
+		NSLog(@"notesDirectoryURL is NULL!");
 		return NO;
-    }
-    
-    FSRef currentNotesDirectoryRef;
-    //resolve alias to fsref; get path from fsref
-    if ([[prefsController aliasDataForDefaultDirectory] fsRefAsAlias:&currentNotesDirectoryRef]) {
-		NSString *resolvedPath = [[NSFileManager defaultManager] pathWithFSRef:&currentNotesDirectoryRef];
-		if (resolvedPath) startingDirectory = resolvedPath;
-    }
+	}
+	NSURL *startingURL = [NSURL URLByResolvingBookmarkData:[prefsController bookmarkDataForDefaultDirectory]
+		options:NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:NULL error:NULL];
     
     NSOpenPanel *openPanel = [NSOpenPanel openPanel];
     [openPanel setCanCreateDirectories:YES];
@@ -337,12 +327,7 @@
     [openPanel setPrompt:NSLocalizedString(@"Select", @"title of open panel button to select a folder")];
     [openPanel setMessage:NSLocalizedString(@"Select the folder that Notational Velocity should use for reading and storing notes.",nil)];
     
-    if (startingDirectory) {
-		NSURL *startingURL = [NSURL fileURLWithPath:startingDirectory isDirectory:YES];
-		if (startingURL) {
-			[openPanel setDirectoryURL:startingURL];
-		}
-    }
+	if (startingURL) [openPanel setDirectoryURL:startingURL];
     [openPanel setNameFieldStringValue:@"Notational Data"];
 
     if ([openPanel runModal] == NSModalResponseOK) {
@@ -353,9 +338,8 @@
 		if (path) {
 			*path = [[[selectedURL path] copy] autorelease];
 		}
-		if (!CFURLGetFSRef((CFURLRef)selectedURL, notesDirectoryRef)) {
-			return NO;
-		}
+		*notesDirectoryURL = [[NSFileManager defaultManager] fileReferenceURLForURL:selectedURL error:NULL];
+		if (!*notesDirectoryURL) return NO;
 		return YES;
     }
 

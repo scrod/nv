@@ -41,14 +41,14 @@ typedef union {
 
 @interface WALController : NSObject {
 	int logFD;
-	char *journalFile;
+	int directoryFD;
 	NSData *logSessionKey;
 	id delegate;
 	
 	z_stream compressionStream;
 }
 
-- (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key;
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
 - (id)delegate;
 - (void)setDelegate:(id)aDelegate;
 - (BOOL)logFileStillExists;
@@ -59,7 +59,7 @@ typedef union {
 @interface WALStorageController : WALController {
     NSMutableData *unwrittenData;
 }
-- (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key;
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
 - (BOOL)writeEstablishedNote:(id<SynchronizedNote>)aNoteObject;
 - (BOOL)writeRemovalForNote:(id<SynchronizedNote>)aNoteObject;
 - (BOOL)writeNoteObject:(id<SynchronizedNote>)aNoteObject;
@@ -78,7 +78,7 @@ typedef union {
     //than there exists data in what we have yet to read
 }
 
-- (id)initWithParentFSRep:(const char*)path encryptionKey:(NSData*)key;
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
 - (id <SynchronizedNote>)recoverNextObject;
 - (NSDictionary*)recoveredNotes;
 

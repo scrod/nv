@@ -33,10 +33,17 @@
 - (id)getOpenMetaTagsAtFSPath:(const char*)path;
 - (BOOL)setOpenMetaTags:(id)plistObject atFSPath:(const char*)path;
 
-- (NSString*)pathCopiedFromAliasData:(NSData*)aliasData;
 - (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path;
 - (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path;
-- (NSString*)pathFromFSPath:(char*)path;
-- (NSString*)pathWithFSRef:(FSRef*)fsRef;
+
+- (NSURL*)fileReferenceURLForURL:(NSURL*)url error:(NSError**)error;
+- (NSURL*)fileReferenceURLForFilename:(NSString*)filename
+				 inDirectoryURL:(NSURL*)directoryURL
+						error:(NSError**)error;
+- (int)openFileDescriptorForDirectoryReferenceURL:(NSURL*)directoryURL error:(NSError**)error;
+- (NSData*)bookmarkDataForFileReferenceURL:(NSURL*)url error:(NSError**)error;
+- (NSURL*)fileReferenceURLFromBookmarkData:(NSData*)bookmarkData
+								 stale:(BOOL*)stale
+								 error:(NSError**)error;
 
 @end

@@ -22,9 +22,25 @@
 
 
 #import "NSFileManager_NV.h"
+#import <CoreFoundation/CFURLEnumerator.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 
 @implementation NSFileManager (NV)
+
+static NSError *NVFileReferenceError(NSInteger code, NSString *description) {
+	return [NSError errorWithDomain:@"NVFileReferenceErrorDomain" code:code
+						 userInfo:[NSDictionary dictionaryWithObject:description
+															 forKey:NSLocalizedDescriptionKey]];
+}
+
+static BOOL NVErrorContainsPOSIXCode(NSError *error, NSInteger code) {
+	if (!error) return NO;
+	if ([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == code) return YES;
+	return NVErrorContainsPOSIXCode([[error userInfo] objectForKey:NSUnderlyingErrorKey], code);
+}
 
 #define kMaxDataSize 4096
 
@@ -101,7 +117,6 @@
 	return YES;
 }
 
-//TODO: use volumeCapabilities in FSExchangeObjectsCompat.c to skip some work on volumes for which we know we would receive ENOTSUP
 //for +setTextEncodingAttribute:atFSPath: and +textEncodingAttributeOfFSPath: (test against VOL_CAP_INT_EXTENDED_ATTR)
 
 - (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path {
@@ -156,36 +171,192 @@ errorReturn:
 	return 0;
 }
 
-- (NSString*)pathCopiedFromAliasData:(NSData*)aliasData {
-    AliasHandle inAlias;
-    CFStringRef path = NULL;
-	FSAliasInfoBitmap whichInfo = kFSAliasInfoNone;
-	FSAliasInfo info;
-    if (aliasData && PtrToHand([aliasData bytes], (Handle*)&inAlias, [aliasData length]) == noErr && 
-		FSCopyAliasInfo(inAlias, NULL, NULL, &path, &whichInfo, &info) == noErr) {
-		//this method doesn't always seem to work	
-		return [(NSString*)path autorelease];
-    }
-    
-    return nil;
-}
-
-- (NSString*)pathFromFSPath:(char*)path {
-	DebugPath(path);
-	return [self stringWithFileSystemRepresentation:path length:strlen(path)];
-}
-
-- (NSString*)pathWithFSRef:(FSRef*)fsRef {
-	NSString *path = nil;
-	
-	const UInt32 maxPathSize = 4 * 1024;
-	UInt8 *convertedPath = (UInt8*)malloc(maxPathSize * sizeof(UInt8));
-	if (FSRefMakePath(fsRef, convertedPath, maxPathSize) == noErr) {
-		path = [self stringWithFileSystemRepresentation:(char*)convertedPath length:strlen((char*)convertedPath)];
+- (NSURL*)fileReferenceURLForURL:(NSURL*)url error:(NSError**)error {
+	if (!url || ![url isFileURL]) {
+		if (error) *error = NVFileReferenceError(EINVAL, @"The selected item is not a file URL.");
+		return nil;
 	}
-	free(convertedPath);
-	
-	return path;
+
+	CFErrorRef conversionError = NULL;
+	NSURL *referenceURL = (NSURL*)CFURLCreateFileReferenceURL(kCFAllocatorDefault,
+													(CFURLRef)url, &conversionError);
+	if (!referenceURL || ![referenceURL isFileReferenceURL]) {
+		[referenceURL release];
+		if (error) *error = conversionError ? [(NSError*)conversionError autorelease] :
+			NVFileReferenceError(ENOTSUP, @"This location does not support file-reference URLs.");
+		else if (conversionError) CFRelease(conversionError);
+		return nil;
+	}
+	if (conversionError) CFRelease(conversionError);
+
+	return [referenceURL autorelease];
+}
+
+- (NSURL*)fileReferenceURLForFilename:(NSString*)filename
+				 inDirectoryURL:(NSURL*)directoryURL
+						error:(NSError**)error {
+	if (![directoryURL isFileReferenceURL] || ![filename length] ||
+		[filename isEqualToString:@"."] || [filename isEqualToString:@".."] ||
+		[filename rangeOfString:@"/"].location != NSNotFound) {
+		if (error) *error = NVFileReferenceError(EINVAL, @"The filename is not a single valid path component.");
+		return nil;
+	}
+
+	NSUInteger bufferSize = [filename maximumLengthOfBytesUsingEncoding:NSUTF8StringEncoding] + 1;
+	char *fileSystemName = malloc(bufferSize);
+	if (!fileSystemName) {
+		if (error) *error = NVFileReferenceError(ENOMEM, @"Unable to allocate storage for the filename.");
+		return nil;
+	}
+	if (![filename getFileSystemRepresentation:fileSystemName maxLength:bufferSize]) {
+		free(fileSystemName);
+		if (error) *error = NVFileReferenceError(ENAMETOOLONG, @"The filename cannot be represented by this file system.");
+		return nil;
+	}
+
+	CFURLRef relativeURL = CFURLCreateFromFileSystemRepresentationRelativeToBase(kCFAllocatorDefault,
+		(const UInt8*)fileSystemName, (CFIndex)strlen(fileSystemName), false, (CFURLRef)directoryURL);
+	free(fileSystemName);
+	if (!relativeURL) {
+		if (error) *error = NVFileReferenceError(EINVAL, @"Unable to create a reference-relative file URL.");
+		return nil;
+	}
+
+	CFErrorRef conversionError = NULL;
+	NSURL *referenceURL = (NSURL*)CFURLCreateFileReferenceURL(kCFAllocatorDefault, relativeURL,
+													&conversionError);
+	if (referenceURL && [referenceURL isFileReferenceURL]) {
+		CFRelease(relativeURL);
+		if (conversionError) CFRelease(conversionError);
+		return [referenceURL autorelease];
+	}
+	[referenceURL release];
+
+	// CFURL's direct conversion resolves the complete path and can fail beyond PATH_MAX.
+	// A directory enumerator rooted at a file-reference URL returns file-reference children.
+	CFURLEnumeratorRef enumerator = CFURLEnumeratorCreateForDirectoryURL(kCFAllocatorDefault,
+		(CFURLRef)directoryURL, kCFURLEnumeratorDefaultBehavior,
+		(CFArrayRef)[NSArray arrayWithObject:NSURLNameKey]);
+	CFErrorRef enumerationError = NULL;
+	if (enumerator) {
+		for (;;) {
+			CFURLRef childURL = NULL;
+			CFURLEnumeratorResult result = CFURLEnumeratorGetNextURL(enumerator, &childURL,
+				&enumerationError);
+			if (result == kCFURLEnumeratorEnd) break;
+			if (result == kCFURLEnumeratorError) break;
+			if (result == kCFURLEnumeratorSuccess) {
+				NSString *childName = nil;
+				if ([(NSURL*)childURL getResourceValue:&childName forKey:NSURLNameKey error:NULL] &&
+					[childName isEqualToString:filename]) {
+					referenceURL = [(NSURL*)childURL retain];
+					break;
+				}
+			}
+		}
+		CFRelease(enumerator);
+	}
+	if (referenceURL) {
+		CFRelease(relativeURL);
+		if (conversionError) CFRelease(conversionError);
+		if (enumerationError) CFRelease(enumerationError);
+		return [referenceURL autorelease];
+	}
+	BOOL exceededPathLimit = NVErrorContainsPOSIXCode((NSError*)conversionError, ENAMETOOLONG) ||
+		NVErrorContainsPOSIXCode((NSError*)enumerationError, ENAMETOOLONG);
+	if (conversionError) CFRelease(conversionError);
+	if (exceededPathLimit) {
+		if (enumerationError) CFRelease(enumerationError);
+		return [(NSURL*)relativeURL autorelease];
+	}
+	CFRelease(relativeURL);
+	if (error) *error = enumerationError ? [(NSError*)enumerationError autorelease] :
+		NVFileReferenceError(ENOENT, @"The file does not exist or cannot be represented by reference.");
+	else if (enumerationError) CFRelease(enumerationError);
+	return nil;
+}
+
+- (int)openFileDescriptorForDirectoryReferenceURL:(NSURL*)directoryURL error:(NSError**)error {
+	if (![directoryURL isFileReferenceURL]) {
+		if (error) *error = NVFileReferenceError(EINVAL, @"The directory is not a file-reference URL.");
+		return -1;
+	}
+
+	NSMutableArray *components = [NSMutableArray array];
+	NSURL *currentURL = directoryURL;
+	int directoryFD = -1;
+	for (;;) {
+		const char *fileSystemPath = [currentURL fileSystemRepresentation];
+		directoryFD = fileSystemPath ? open(fileSystemPath, O_RDONLY | O_DIRECTORY | O_CLOEXEC) : -1;
+		if (directoryFD >= 0) break;
+		int openError = fileSystemPath ? errno : ENAMETOOLONG;
+		if (openError != ENAMETOOLONG && openError != ENOENT) {
+			if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:openError userInfo:nil];
+			return -1;
+		}
+		if (openError == ENOENT) [currentURL removeAllCachedResourceValues];
+
+		NSString *name = nil;
+		NSURL *parentURL = nil;
+		id identifier = nil;
+		id parentIdentifier = nil;
+		NSError *resourceError = nil;
+		if (![currentURL getResourceValue:&name forKey:NSURLNameKey error:&resourceError] ||
+			![currentURL getResourceValue:&parentURL forKey:NSURLParentDirectoryURLKey error:&resourceError] ||
+			![currentURL getResourceValue:&identifier forKey:NSURLFileResourceIdentifierKey error:&resourceError] ||
+			![parentURL getResourceValue:&parentIdentifier forKey:NSURLFileResourceIdentifierKey error:&resourceError] ||
+			![name length] || ![parentURL isFileReferenceURL] || [identifier isEqual:parentIdentifier]) {
+			if (error) *error = resourceError ? resourceError :
+				NVFileReferenceError(ENAMETOOLONG, @"Unable to open the deeply nested directory by reference.");
+			return -1;
+		}
+		[components addObject:name];
+		currentURL = parentURL;
+	}
+
+	for (NSString *name in [components reverseObjectEnumerator]) {
+		const char *fileSystemName = [name fileSystemRepresentation];
+		int childFD = fileSystemName ? openat(directoryFD, fileSystemName,
+			O_RDONLY | O_DIRECTORY | O_CLOEXEC) : -1;
+		if (childFD < 0) {
+			int openError = fileSystemName ? errno : EINVAL;
+			close(directoryFD);
+			if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:openError
+				userInfo:[NSDictionary dictionaryWithObject:
+					[NSString stringWithFormat:@"Unable to open reference component '%@'.", name]
+					forKey:NSLocalizedDescriptionKey]];
+			return -1;
+		}
+		close(directoryFD);
+		directoryFD = childFD;
+	}
+	return directoryFD;
+}
+
+- (NSData*)bookmarkDataForFileReferenceURL:(NSURL*)url error:(NSError**)error {
+	if (![url isFileReferenceURL]) {
+		if (error) *error = NVFileReferenceError(EINVAL, @"Bookmarks may only be created from file-reference URLs.");
+		return nil;
+	}
+	return [url bookmarkDataWithOptions:NSURLBookmarkCreationWithoutImplicitSecurityScope
+		includingResourceValuesForKeys:nil relativeToURL:nil error:error];
+}
+
+- (NSURL*)fileReferenceURLFromBookmarkData:(NSData*)bookmarkData
+								 stale:(BOOL*)stale
+								 error:(NSError**)error {
+	if (![bookmarkData length]) {
+		if (error) *error = NVFileReferenceError(EINVAL, @"The bookmark data is empty.");
+		return nil;
+	}
+	BOOL localStale = NO;
+	NSURL *resolvedURL = [NSURL URLByResolvingBookmarkData:bookmarkData
+		options:NSURLBookmarkResolutionWithoutUI relativeToURL:nil
+		bookmarkDataIsStale:&localStale error:error];
+	if (!resolvedURL) return nil;
+	NSURL *referenceURL = [self fileReferenceURLForURL:resolvedURL error:error];
+	if (referenceURL && stale) *stale = localStale;
+	return referenceURL;
 }
 
 

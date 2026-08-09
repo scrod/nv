@@ -115,12 +115,12 @@ static const NSStringEncoding AllowedEncodings[] = {
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 			NSURL *textEditURL = [workspace URLForApplicationWithBundleIdentifier:@"com.apple.TextEdit"];
 			if (textEditURL) {
-				NSString *resolvedPath = [note noteFilePath];
-				if (!resolvedPath) {
+				NSURL *noteURL = [note noteFileURL];
+				if (!noteURL) {
 					NVRunAlert(NSLocalizedString(@"Could not locate the note file.", nil), NSLocalizedString(@"Does it still exist?", nil),
 					NSLocalizedString(@"I'll Go See", @"... if it exists"), nil, nil, NSAlertStyleWarning);
 				} else {
-					[workspace openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:resolvedPath]]
+					[workspace openURLs:[NSArray arrayWithObject:noteURL]
 						withApplicationAtURL:textEditURL
 						configuration:[NSWorkspaceOpenConfiguration configuration]
 						completionHandler:nil];
@@ -144,10 +144,8 @@ static const NSStringEncoding AllowedEncodings[] = {
 	[note release];
 	note = [aNote retain];
 	
-	bzero(&fsRef, sizeof(FSRef));
-	
 	[noteData release];
-	if (!(noteData = [[[note delegate] dataFromFileInNotesDirectory:&fsRef forFilename:filenameOfNote(note)] retain])) {
+	if (!(noteData = [[[note delegate] dataFromNoteNamed:filenameOfNote(note) error:NULL] retain])) {
 		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: unable to read the contents of the file quotemark%@.quotemark", nil), filenameOfNote(aNote)],
 				NSLocalizedString(@"The file may no longer exist or has incorrect permissions.", nil),
 				NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
@@ -281,11 +279,11 @@ static const NSStringEncoding AllowedEncodings[] = {
 }
 
 - (BOOL)shouldUpdateNoteFromDisk {
-	FSCatalogInfo info;
-	OSStatus err = noErr;
-	if ((err = [[note delegate] fileInNotesDirectory:&fsRef isOwnedByUs:NULL hasCatalogInfo:&info]) != noErr) {
+	NVFileInfo info;
+	NSError *error = nil;
+	if (![[note delegate] getFileInfo:&info forNoteNamed:filenameOfNote(note) error:&error]) {
 		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be determined because %@", nil),
-			filenameOfNote(note), [NSString reasonStringFromCarbonFSError:err]],
+			filenameOfNote(note), [error localizedDescription]],
 			NSLocalizedString(@"The file may no longer exist or has incorrect permissions.", nil),
 			NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
 		return NO;
@@ -293,8 +291,9 @@ static const NSStringEncoding AllowedEncodings[] = {
 	
 	UTCDateTime fileModifiedDate = fileModifiedDateOfNote(note);
 	CFAbsoluteTime timeOnDisk, lastTime;
-    if ((err = (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModifiedDate, &lastTime) == noErr)) &&
-		(err = (UCConvertUTCDateTimeToCFAbsoluteTime(&info.contentModDate, &timeOnDisk) == noErr))) {
+	timeOnDisk = (CFAbsoluteTime)info.modificationTime.tv_sec +
+		((CFAbsoluteTime)info.modificationTime.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
+    if (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModifiedDate, &lastTime) == noErr) {
 		
 		if (lastTime > timeOnDisk) {
 			NSModalResponse result = NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark is newer than its file on disk.", nil), titleOfNote(note)],
@@ -308,9 +307,9 @@ static const NSStringEncoding AllowedEncodings[] = {
 				NSLog(@"user wants to update");
 			}
 		}
-    } else {
-		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be compared because %@", nil),
-			filenameOfNote(note), [NSString reasonStringFromCarbonFSError:err]],
+	} else {
+		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be compared.", nil),
+			filenameOfNote(note)],
 			NSLocalizedString(@"This may be due to an error in the program or operating system.", nil),
 			NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
 		return NO;

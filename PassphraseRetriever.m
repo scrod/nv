@@ -63,12 +63,8 @@
 	}
 	
 	NSString *startingDirectory = NSLocalizedString(@"the current notes directory",nil);
-	FSRef notesDirectoryRef;
-	
-	if ([[[notationPrefs delegate] aliasDataForNoteDirectory] fsRefAsAlias:&notesDirectoryRef]) {
-		NSString *resolvedPath = [[NSFileManager defaultManager] pathWithFSRef:&notesDirectoryRef];
-		if (resolvedPath) startingDirectory = resolvedPath;
-    }
+	NSURL *directoryURL = [[notationPrefs delegate] noteDirectoryURL];
+	if ([directoryURL path]) startingDirectory = [directoryURL path];
 	[helpStringField setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Please enter the passphrase to access notes in %@.",nil), 
 		[startingDirectory stringByAbbreviatingWithTildeInPath]]];	
 	

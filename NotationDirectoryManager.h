@@ -30,10 +30,6 @@
 NSInteger compareCatalogEntryName(const void *one, const void *two);
 NSInteger compareCatalogValueNodeID(id *a, id *b);
 NSInteger compareCatalogValueFileSize(id *a, id *b);
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-void NotesDirFNSubscriptionProc(FNMessage message, OptionBits flags, void * refcon, FNSubscriptionRef subscription);
-#endif
-
 - (NSSet*)notesWithFilenames:(NSArray*)filenames unknownFiles:(NSArray**)unknownFiles;
 
 - (BOOL)_readFilesInDirectory;

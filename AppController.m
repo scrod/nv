@@ -278,15 +278,18 @@ void outletObjectAwoke(id sender) {
 
 	OSStatus err = noErr;
 	NotationController *newNotation = nil;
-	NSData *aliasData = [prefsController aliasDataForDefaultDirectory];
+	BOOL hasSavedDirectory = [prefsController bookmarkDataForDefaultDirectory] != nil ||
+		[prefsController aliasDataForDefaultDirectory] != nil;
+	NSURL *savedDirectoryURL = [prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
 
 	NSString *subMessage = @"";
 
 	BOOL skipDefaultInitialization = (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & (CGEventFlags)NSEventModifierFlagDeviceIndependentFlagsMask));
 
 	if (!skipDefaultInitialization) {
-		if (aliasData) {
-		    newNotation = [[NotationController alloc] initWithAliasData:aliasData error:&err];
+		if (hasSavedDirectory) {
+		    newNotation = savedDirectoryURL ? [[NotationController alloc] initWithDirectoryURL:savedDirectoryURL error:&err] : nil;
+			if (!savedDirectoryURL) err = fnfErr;
 		    subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.",nil);
 		} else {
 		    newNotation = [[NotationController alloc] initWithDefaultDirectoryReturningError:&err];
@@ -294,31 +297,23 @@ void outletObjectAwoke(id sender) {
 		}
 	}
 
-	NSString *location = (aliasData ? [[NSFileManager defaultManager] pathCopiedFromAliasData:aliasData] : NSLocalizedString(@"your Application Support directory",nil));
-	if (!location) { //fscopyaliasinfo sucks
-		FSRef locationRef;
-		if ([aliasData fsRefAsAlias:&locationRef] && LSCopyDisplayNameForRef(&locationRef, (CFStringRef*)&location) == noErr) {
-			[location autorelease];
-		} else {
-			location = NSLocalizedString(@"its current location",nil);
-		}
-	}
+	NSURL *displayDirectoryURL = [NSURL URLByResolvingBookmarkData:[prefsController bookmarkDataForDefaultDirectory]
+		options:NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:NULL error:NULL];
+	NSString *location = hasSavedDirectory ? [displayDirectoryURL path] : NSLocalizedString(@"your Application Support directory",nil);
+	if (!location) location = NSLocalizedString(@"its current location",nil);
 
-	FSRef notesDirectoryRef;
-	bzero(&notesDirectoryRef, sizeof(notesDirectoryRef));
+	NSURL *notesDirectoryURL = nil;
 	BOOL shouldShowOpenPanel = skipDefaultInitialization || (newNotation == nil && err == kPassCanceledErr);
 
 	while (!newNotation) {
 		if (shouldShowOpenPanel) {
-			if (![prefsWindowController getNewNotesRefFromOpenPanel:&notesDirectoryRef returnedPath:&location]) {
-				//they cancelled the open panel, or it was unable to get the path/FSRef of the file
+			if (![prefsWindowController getNewNotesURLFromOpenPanel:&notesDirectoryURL returnedPath:&location]) {
+				//they cancelled the open panel, or it was unable to reference the directory
 				goto terminateApp;
 			}
-			newNotation = [[NotationController alloc] initWithDirectoryRef:&notesDirectoryRef error:&err];
-			if (newNotation) {
-				//have to make sure alias data is saved from setNotationController
-				[newNotation setAliasNeedsUpdating:YES];
-				break;
+				newNotation = [[NotationController alloc] initWithDirectoryURL:notesDirectoryURL error:&err];
+				if (newNotation) {
+					break;
 			}
 			shouldShowOpenPanel = NO;
 			continue;
@@ -363,7 +358,7 @@ void outletObjectAwoke(id sender) {
 
 	//tell us..
 	[prefsController registerWithTarget:self forChangesInSettings:
-	 @selector(setAliasDataForDefaultDirectory:sender:),  //when someone wants to load a new database
+	 @selector(setDefaultDirectoryURL:sender:error:),  //when someone wants to load a new database
 	 @selector(setSortedTableColumnKey:reversed:sender:),  //when sorting prefs changed
 	 @selector(setNoteBodyFont:sender:),  //when to tell notationcontroller to restyle its notes
 	 @selector(setForegroundTextColor:sender:),  //ditto
@@ -427,9 +422,7 @@ terminateApp:
 		[[window undoManager] removeAllActions];
 		[notationController setUndoManager:[window undoManager]];
 
-		if ([notationController aliasNeedsUpdating]) {
-			[prefsController setAliasDataForDefaultDirectory:[notationController aliasDataForNoteDirectory] sender:self];
-		}
+			[prefsController setDefaultDirectoryURL:[notationController noteDirectoryURL] sender:self error:NULL];
 		if ([prefsController tableColumnsShowPreview] || [prefsController horizontalLayout]) {
 			[self _forceRegeneratePreviewsForTitleColumn];
 			[notesTableView setNeedsDisplay:YES];
@@ -660,13 +653,13 @@ terminateApp:
 
 - (IBAction)revealNote:(id)sender {
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
-	NSString *path = nil;
+	NSURL *fileURL = nil;
 
-	if ([indexes count] != 1 || !(path = [[notationController noteObjectAtFilteredIndex:(int)[indexes lastIndex]] noteFilePath])) {
+	if ([indexes count] != 1 || !(fileURL = [[notationController noteObjectAtFilteredIndex:(int)[indexes lastIndex]] noteFileURL])) {
 		NSBeep();
 		return;
 	}
-	[[NSWorkspace sharedWorkspace] selectFile:path inFileViewerRootedAtPath:@""];
+	[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:[NSArray arrayWithObject:fileURL]];
 }
 
 - (IBAction)editNoteExternally:(id)sender {
@@ -723,26 +716,26 @@ terminateApp:
 }
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
-    if ([selectorString isEqualToString:SEL_STR(setAliasDataForDefaultDirectory:sender:)]) {
+    if ([selectorString isEqualToString:SEL_STR(setDefaultDirectoryURL:sender:error:)]) {
 		//defaults changed for the database location -- load the new one!
 
 		OSStatus err = noErr;
 		NotationController *newNotation = nil;
-		NSData *newData = [prefsController aliasDataForDefaultDirectory];
-		if (newData) {
-			if ((newNotation = [[NotationController alloc] initWithAliasData:newData error:&err])) {
+		NSURL *newURL = [prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
+		if (newURL) {
+			if ((newNotation = [[NotationController alloc] initWithDirectoryURL:newURL error:&err])) {
 				[self setNotationController:newNotation];
 				[newNotation release];
 
 			} else {
 
-				//set alias data back
-				NSData *oldData = [notationController aliasDataForNoteDirectory];
-				[prefsController setAliasDataForDefaultDirectory:oldData sender:self];
+				//set directory identity data back
+				NSURL *oldURL = [notationController noteDirectoryURL];
+				[prefsController setDefaultDirectoryURL:oldURL sender:self error:NULL];
 
 				//display alert with err--could not set notation directory
-				NSString *location = [[[NSFileManager defaultManager] pathCopiedFromAliasData:newData] stringByAbbreviatingWithTildeInPath];
-				NSString *oldLocation = [[[NSFileManager defaultManager] pathCopiedFromAliasData:oldData] stringByAbbreviatingWithTildeInPath];
+				NSString *location = [[newURL path] stringByAbbreviatingWithTildeInPath];
+				NSString *oldLocation = [[oldURL path] stringByAbbreviatingWithTildeInPath];
 				NSString *reason = [NSString reasonStringFromCarbonFSError:err];
 				NSAlert *revertAlert = [[[NSAlert alloc] init] autorelease];
 				[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
