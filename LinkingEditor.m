@@ -419,6 +419,8 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 }
 
 - (BOOL)writeSelectionToPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
+	if ([type isEqualToString:NSPasteboardTypeString])
+		return [pboard setString:[[self string] substringWithRange:[self selectedRange]] forType:type];
 	
 	if ([type isEqualToString:NVPTFPboardType] || [type isEqualToString:NSPasteboardTypeRTF]) {
 		//always preserve RTF to allow pasting into ourselves; prejudice against external sources
