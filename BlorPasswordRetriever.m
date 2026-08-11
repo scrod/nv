@@ -44,8 +44,10 @@
 		
 		[handle closeFile];
 		
-		if (!hashData || [hashData length] < 20)
+		if (!hashData || [hashData length] < 20) {
+			[self release];
 			return nil;
+		}
 	}
 	
 	return self;
@@ -188,14 +190,19 @@
 	if (self) {
 		path = [blorPath retain];
 		
-		if (!(keyData = [passwordHashData retain]))
+		if (!(keyData = [passwordHashData retain])) {
+			[self release];
 			return nil;
+		}
 		
-		if (!(blorData = [[NSMutableData dataWithContentsOfFile:path] retain]))
+		if (!(blorData = [[NSMutableData dataWithContentsOfFile:path] retain])) {
+			[self release];
 			return nil;
+		}
 			
 		if ([blorData length] < 28) {
 			NSLog(@"read data is too small (%lu) to hold any notes!", (unsigned long)[blorData length]);
+			[self release];
 			return nil;
 		}
 		
@@ -293,7 +300,7 @@
 	[attributedBody release];
 	[titleString release];
 	
-	successfullyReadNoteCount++;
+	if (note) successfullyReadNoteCount++;
 	
 	return [note autorelease];
 }

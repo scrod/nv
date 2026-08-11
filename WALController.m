@@ -26,20 +26,50 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #import "NSData_transformations.h"
 #import "WALController.h"
 #import "DeletedNoteObject.h"
 #import "NSCollection_utils.h"
 #import "NSString_NV.h"
 
+#define RECORD_SALT_LEN 32
+
+//each note will have its own key--the "LogSessionKey" salt of master key + per-record salt
+typedef union {
+    struct {
+		u_int32_t originalDataLength;
+		u_int32_t dataLength;
+		u_int32_t checksum;
+		char saltBuffer[RECORD_SALT_LEN];
+	};
+	char recordBuffer[(sizeof(u_int32_t) * 3) + RECORD_SALT_LEN];
+} WALRecordHeader;
+
 static const char NVJournalFilename[] = "Interim Note-Changes";
+
+@interface WALController ()
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
+- (int)_flockJournalFile;
+- (BOOL)_acquireJournalLock;
+@end
+
+@interface WALStorageController ()
+- (BOOL)writeNoteObject:(id<SynchronizedNote>)aNoteObject;
+- (BOOL)_attemptToWriteUnwrittenData;
+- (BOOL)_encryptAndWriteData:(NSMutableData*)data;
+@end
+
+@interface WALRecoveryController ()
+- (id<SynchronizedNote>)recoverNextObject;
+@end
 
 /*
  CFHashBytes from http://www.opensource.apple.com/source/CF/CF-1153.18/CFUtilities.c
  */
 #define ELF_STEP(B) T1 = (H << 4) + B; T2 = T1 & 0xF0000000; if (T2) T1 ^= (T2 >> 24); T1 &= (~T2); H = T1;
 
-CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
+static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     /* The ELF hash algorithm, used in the ELF object file format */
     UInt32 H = 0, T1, T2;
     SInt32 rem = (SInt32)length;
@@ -71,6 +101,26 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 @implementation WALController
 
+- (int)_flockJournalFile {
+	return flock(logFD, LOCK_EX | LOCK_NB);
+}
+
+- (BOOL)_acquireJournalLock {
+	if ([self _flockJournalFile] == 0) return YES;
+	int lockError = errno;
+	struct stat info;
+	BOOL regularFile = fstat(logFD, &info) == 0 && S_ISREG(info.st_mode);
+	if (lockError == ENOTSUP || (lockError == EINVAL && regularFile)) {
+		/* unsupported filesystems run without advisory exclusion;
+		 * O_EXCL still excludes a second writer, but recovery cannot distinguish
+		 * a live journal until the filesystem provides a reliable lock primitive. */
+		NSLog(@"Journal locking is unsupported; continuing without an advisory lock");
+		return YES;
+	}
+	errno = lockError;
+	return NO;
+}
+
 - (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key {
     self = [super init];
     if (self) {
@@ -88,14 +138,6 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 		
     }
     return self;
-}
-
-- (id)delegate {
-	return delegate;
-}
-
-- (void)setDelegate:(id)aDelegate {
-	delegate = aDelegate;
 }
 
 //called frequently--each time the app comes to the foreground?
@@ -116,14 +158,14 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 }
 
 - (BOOL)destroyLogFile {
-	if (logFD >= 0 && close(logFD) < 0) {
-		NSLog(@"destroyLogFile: close error: %s:", strerror(errno));
-	}
-	logFD = -1;
 	if (unlinkat(directoryFD, NVJournalFilename, 0) < 0) {
 		NSLog(@"destroyLogFile: unlink error: %s", strerror(errno));
 		return NO;
 	}
+	if (logFD >= 0 && close(logFD) < 0) {
+		NSLog(@"destroyLogFile: close error: %s:", strerror(errno));
+	}
+	logFD = -1;
     return YES;
 }
 
@@ -165,8 +207,13 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	    //either way, we shouldn't continue
 	    
 	    NSLog(@"WALStorageController: open error: %s", strerror(errno));
-	    
+	    [self release];
 	    return nil;
+	}
+	if (![self _acquireJournalLock]) {
+		NSLog(@"WALStorageController: lock error: %s", strerror(errno));
+		[self release];
+		return nil;
 	}
 	if (fcntl(logFD, F_NOCACHE, 1) < 0) {
 		NSLog(@"Unable to disable disk caching for writing: %s", strerror(errno));
@@ -184,6 +231,8 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 		if (deflateInit2(&compressionStream, 5, Z_DEFLATED, MAX_WBITS, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY) != Z_OK) {
 			NSLog(@"deflateInit2 returned error: %s", compressionStream.msg);
+			[self destroyLogFile];
+			[self release];
 			return nil;
 		}
 		
@@ -329,7 +378,10 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     
     free(dataChunk);
     
-    return ((size_t)bytesWritten == dataChunkSize);
+	/* Once appended here, the WAL owns every remaining byte in unwrittenData.
+	 * The controller may therefore retire the note-level journal obligation;
+	 * -synchronize remains responsible for draining and fsyncing this byte outbox. */
+	return YES;
 }
 
 - (BOOL)synchronize {
@@ -346,6 +398,7 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 }
 
 - (void)dealloc {
+	if (compressionStream.state) deflateEnd(&compressionStream);
     [unwrittenData release];
     [super dealloc];
 }
@@ -376,18 +429,26 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	//attempt to open file read-only
 	if ((logFD = openat(directoryFD, NVJournalFilename, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)) < 0) {
 	    NSLog(@"WALRecoveryController: open error: %s", strerror(errno));
+	    [self release];
 	    return nil;
+	}
+	if (![self _acquireJournalLock]) {
+		NSLog(@"WALRecoveryController: journal is in use: %s", strerror(errno));
+		[self release];
+		return nil;
 	}
 	(void)fchmod(logFD, S_IRUSR);
 	
 	struct stat sb;
 	if (fstat(logFD, &sb) < 0) {
 	    NSLog(@"WALRecoveryController: fstat error: %s", strerror(errno));
+	    [self release];
 	    return nil;
 	}
 	
 	if (S_ISDIR(sb.st_mode)) {
 	    NSLog(@"WALRecoveryController: log file is actually a directory! Don't play games with me!");
+	    [self release];
 	    return nil;
 	}
 	
@@ -402,6 +463,7 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	
 	if (inflateInit2(&compressionStream, MAX_WBITS) != Z_OK) {
 		NSLog(@"inflateInit2 error: %s", compressionStream.msg);
+		[self release];
 		return nil;
 	}
 	
@@ -426,10 +488,15 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     ssize_t readBytes = read(logFD, &record, sizeof(WALRecordHeader));
     totalBytesRead += MAX(0, readBytes);
 	
-    if (readBytes < (int)sizeof(WALRecordHeader)) {
-		NSLog(@"recoverNextObject can't even read (entire) log record header: %s", strerror(errno));
+	if (readBytes == 0)
 		return nil;
-    }
+	if (readBytes < (int)sizeof(WALRecordHeader)) {
+		if (readBytes < 0)
+			NSLog(@"recoverNextObject can't read the log record header: %s", strerror(errno));
+		else
+			NSLog(@"recoverNextObject found a truncated log record header");
+		return nil;
+	}
 	
 	record.originalDataLength = CFSwapInt32BigToHost(record.originalDataLength);
 	record.dataLength = CFSwapInt32BigToHost(record.dataLength);
@@ -510,7 +577,12 @@ CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     
     [presumablySerializedData release];
     
-    return object;
+	return object;
+}
+
+- (void)dealloc {
+	if (compressionStream.state) inflateEnd(&compressionStream);
+	[super dealloc];
 }
 
 static CFStringRef SynchronizedNoteKeyDescription(const void *value) {

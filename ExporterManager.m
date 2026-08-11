@@ -72,9 +72,6 @@
 		directoryURL = [fileURL URLByDeletingLastPathComponent];
 		NSAssert([notes count] == 1, @"We returned from a save panel with more than one note?!");
 		overwriteNotes = [fileURL checkResourceIsReachableAndReturnError:NULL];
-		if ([filename compare:filenameOfNote([notes lastObject]) options:NSCaseInsensitiveSearch] != NSOrderedSame) {
-			filename = [filename stringByReplacingOccurrencesOfString:@":" withString:@"/"];
-		}
 	}
 
 	NSURL *directoryReferenceURL = [[NSFileManager defaultManager] fileReferenceURLForURL:directoryURL error:NULL];
@@ -89,9 +86,12 @@
 		BOOL lastNote = i != [notes count] - 1;
 		NoteObject *note = [notes objectAtIndex:i];
 			
-		OSStatus err = [note exportToDirectoryURL:directoryReferenceURL withFilename:filename usingFormat:(int)storageFormat overwrite:overwriteNotes];
+		NSError *exportError = nil;
+		BOOL exported = [note exportToDirectoryURL:directoryReferenceURL withFilename:filename
+			usingFormat:(int)storageFormat overwrite:overwriteNotes error:&exportError];
 			
-		if (err == dupFNErr) {
+		if (!exported && [[exportError domain] isEqualToString:NSCocoaErrorDomain] &&
+			[exportError code] == NSFileWriteFileExistsError) {
 			//ask about overwriting
 			NSString *existingName = filename ? filename : filenameOfNote(note);
 			existingName = [[existingName stringByDeletingPathExtension] stringByAppendingPathExtension:[NotationPrefs pathExtensionForFormat:(int)storageFormat]];
@@ -106,14 +106,16 @@
 			NSModalResponse response = [alert runModal];
 			if (response == NSAlertFirstButtonReturn || response == NSAlertThirdButtonReturn) {
 				if (response == NSAlertThirdButtonReturn) overwriteNotes = YES;
-				err = [note exportToDirectoryURL:directoryReferenceURL withFilename:filename usingFormat:(int)storageFormat overwrite:YES];
+				exportError = nil;
+				exported = [note exportToDirectoryURL:directoryReferenceURL withFilename:filename
+					usingFormat:(int)storageFormat overwrite:YES error:&exportError];
 			} else {
 				continue;
 			}
-			}
-		if (err != noErr) {
+		}
+		if (!exported) {
 			NSString *exportErrorTitleString = [NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark couldn't be exported because %@.",nil), 
-				titleOfNote(note), [NSString reasonStringFromCarbonFSError:err]];
+				titleOfNote(note), [exportError localizedDescription]];
 			if (!lastNote) {
 				NSAlert *errorAlert = [[[NSAlert alloc] init] autorelease];
 				[errorAlert setMessageText:exportErrorTitleString];

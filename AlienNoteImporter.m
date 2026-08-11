@@ -109,6 +109,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		
 			importerSelector = @selector(notesWithPaths:);
 		} else {
+			[self release];
 			return nil;
 		}
 	}
@@ -132,6 +133,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				importerSelector = @selector(notesInFile:);
 			}
 		} else {
+			[self release];
 			return nil;
 		}
 	}
@@ -286,8 +288,10 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 				NoteObject *noteObject = [[NoteObject alloc] initWithNoteBody:newString title:[getter userData] ? [getter userData] : urlString
 																	 delegate:nil format:SingleDatabaseFormat labels:nil];
 				
-				[receptionDelegate noteImporter:self importedNotes:[NSArray arrayWithObject:noteObject]];
-				[noteObject autorelease];
+				if (noteObject) {
+					[receptionDelegate noteImporter:self importedNotes:[NSArray arrayWithObject:noteObject]];
+					[noteObject autorelease];
+				}
 			}
 		}			
 		
@@ -344,26 +348,25 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	return nil;
 }
 
-//auto-detect based on file type/extension/header
+//auto-detect based on extension/header
 //if unable to find, revert to spotlight importer
 - (NoteObject*)noteWithFile:(NSString*)filename {
 	//RTF, Text, Word, HTML, and anything else we can do without too much effort
 	NSString *extension = [[filename pathExtension] lowercaseString];
 	NSDictionary *attributes = [self _attributesForPath:filename];
-	unsigned long fileType = [[attributes objectForKey:NSFileHFSTypeCode] unsignedLongValue];
 	NSString *sourceIdentifierString = nil;
 	
 	NSMutableAttributedString *attributedStringFromData = nil;
 	
-	if (fileType == HTML_TYPE_ID || [extension isEqualToString:@"htm"] || [extension isEqualToString:@"html"] || [extension isEqualToString:@"shtml"]) {
+	if ([extension isEqualToString:@"htm"] || [extension isEqualToString:@"html"] || [extension isEqualToString:@"shtml"]) {
 		//should convert to text with markdown here
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithHTML:[NSData uncachedDataFromFile:filename] 
 																		   options:[NSDictionary optionsDictionaryWithTimeout:10.0] documentAttributes:NULL];
 		
-	} else if (fileType == RTF_TYPE_ID || [extension isEqualToString:@"rtf"] || [extension isEqualToString:@"nvhelp"] || [extension isEqualToString:@"rtx"]) {
+	} else if ([extension isEqualToString:@"rtf"] || [extension isEqualToString:@"nvhelp"] || [extension isEqualToString:@"rtx"]) {
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTF:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
-	} else if (fileType == RTFD_TYPE_ID || [extension isEqualToString:@"rtfd"]) {
+	} else if ([extension isEqualToString:@"rtfd"]) {
 		NSURL *fileURL = [NSURL fileURLWithPath:filename];
 		NSError *wrapperError = nil;
 		NSFileWrapper *wrapper = [[[NSFileWrapper alloc] initWithURL:fileURL options:0 error:&wrapperError] autorelease];
@@ -377,7 +380,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		} else
 			attributedStringFromData = [[NSMutableAttributedString alloc] initWithRTFD:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
-	} else if (fileType == WORD_DOC_TYPE_ID || [extension isEqualToString:@"doc"]) {
+	} else if ([extension isEqualToString:@"doc"]) {
 		attributedStringFromData = [[NSMutableAttributedString alloc] initWithDocFormat:[NSData uncachedDataFromFile:filename] documentAttributes:NULL];
 		
 	} else if ([extension isEqualToString:@"docx"] || [extension isEqualToString:@"webarchive"]) {
@@ -388,7 +391,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		
 		if ([path length] > 0 && [attributedStringFromData length] > 0)
 			sourceIdentifierString = path;
-	} else if (fileType == PDF_TYPE_ID || [extension isEqualToString:@"pdf"]) {
+	} else if ([extension isEqualToString:@"pdf"]) {
 		//try PDFKit loading lazily
 		@try {
 			Class PdfDocClass = [[self class] PDFDocClass];
@@ -414,7 +417,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		} @catch (NSException *e) {
 			NSLog(@"Error importing PDF %@ (%@, %@)", filename, [e name], [e reason]);
 		}
-	} else if (fileType == TEXT_TYPE_ID || [extension isEqualToString:@"txt"] || [extension isEqualToString:@"text"] ||
+	} else if ([extension isEqualToString:@"txt"] || [extension isEqualToString:@"text"] ||
 			   [filename UTIOfFileConformsToType:@"public.plain-text"]) {
 		
 		NSMutableString *stringFromData = [NSMutableString newShortLivedStringFromFile:filename];

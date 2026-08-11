@@ -41,9 +41,6 @@
 #import "BookmarksController.h"
 #import "DeletionManager.h"
 #import "NSData_transformations.h"
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 @implementation NotationController
@@ -51,7 +48,7 @@
 - (id)init {
     self = [super init];
     if (self) {
-		directoryChangesFound = notesChanged = NO;
+		notesChanged = NO;
 		
 		allNotes = [[NSMutableArray alloc] init]; //<--the authoritative list of all memory-accessible notes
 		deletedNotes = [[NSMutableSet alloc] init];
@@ -74,10 +71,9 @@
 		
 		lastLayoutStyleGenerated = -1;
 		lastCheckedDateInHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
-		blockSize = 0;
 		
-		lastWriteError = noErr;
-		unwrittenNotes = [[NSMutableSet alloc] init];
+		pendingFileWrites = [[NSMutableSet alloc] init];
+		pendingJournalWrites = [[NSMutableSet alloc] init];
     }
     return self;
 }
@@ -100,19 +96,17 @@
 	NSFileManager *manager = [NSFileManager defaultManager];
 	NSURL *applicationSupportURL = [manager URLForDirectory:NSApplicationSupportDirectory
 		inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:&urlError];
-	NSURL *applicationSupportReferenceURL = [manager fileReferenceURLForURL:applicationSupportURL error:&urlError];
-	int applicationSupportFD = applicationSupportReferenceURL ?
-		[manager openFileDescriptorForDirectoryReferenceURL:applicationSupportReferenceURL error:&urlError] : -1;
-	if (applicationSupportFD < 0 ||
-		(mkdirat(applicationSupportFD, "Notational Data", 0700) < 0 && errno != EEXIST)) {
-		if (applicationSupportFD >= 0) close(applicationSupportFD);
+	NSURL *directoryURL = [applicationSupportURL URLByAppendingPathComponent:@"Notational Data"
+		isDirectory:YES];
+	if (!applicationSupportURL || ![manager createDirectoryAtURL:directoryURL
+		withIntermediateDirectories:NO
+		attributes:[NSDictionary dictionaryWithObject:@0700 forKey:NSFilePosixPermissions]
+		error:&urlError]) {
 		if (err) *err = ioErr;
 		[self release];
 		return nil;
 	}
-	close(applicationSupportFD);
-	NSURL *directoryURL = [manager fileReferenceURLForFilename:@"Notational Data"
-		inDirectoryURL:applicationSupportReferenceURL error:&urlError];
+	directoryURL = [manager fileReferenceURLForURL:directoryURL error:&urlError];
 	if (!directoryURL) {
 		if (err) *err = fnfErr;
 		[self release];
@@ -178,10 +172,6 @@
 	return noteDirectoryURL;
 }
 
-- (int)noteDirectoryFileDescriptor {
-	return noteDirectoryFileDescriptor;
-}
-
 - (id)delegate {
 	return delegate;
 }
@@ -203,7 +193,7 @@
 			NSLog(@"trying to upgrade note encodings");
 			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
 			//move aside the old database as the new format breaks compatibility
-			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)"];
+			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)" error:NULL];
 		}
 		if (epochIteration < 3) {
 			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
@@ -294,11 +284,8 @@ returnResult:
 
     OSStatus err = noErr;
 	NSError *readError = nil;
-	if (![self createEmptyFileIfMissingNamed:NotesDatabaseFileName error:&readError]) {
-		NSLog(@"Could not create notes database: %@", readError);
-		return ioErr;
-	}
-	NSData *notesData = [self dataFromNoteNamed:NotesDatabaseFileName error:&readError];
+	NSData *notesData = [self dataFromNoteNamed:NotesDatabaseFileName
+		creatingIfMissing:YES error:&readError];
 	if (!notesData) {
 		NSLog(@"Could not read notes database: %@", readError);
 		return ioErr;
@@ -323,9 +310,7 @@ returnResult:
 		notationPrefs = [[NotationPrefs alloc] init];
 	[notationPrefs setDelegate:self];
 
-	//notationPrefs will have the index of the current disk UUID (or we will add it otherwise) 
-	//which will be used to determine which attr-mod-time to use for each note after decoding
-	[self initializeDiskUUIDIfNecessary];
+	[self initializeFileMetadataVolumeUUID];
 	
 	[allNotes release];
 	
@@ -340,7 +325,9 @@ returnResult:
 		
 		allNotes = [[NSMutableArray alloc] init];
 	} else {
-		[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:self];
+		[allNotes makeObjectsPerformSelector:@selector(attachToDelegate:) withObject:self];
+		if (![self archivedFileMetadataIsForCurrentVolume])
+			[allNotes makeObjectsPerformSelector:@selector(invalidateFileMetadata)];
 	}
 	
 	[deletedNotes release];
@@ -411,8 +398,6 @@ returnResult:
 				goto bail;
 			}
 		}
-		[walWriter setDelegate:self];
-		
 		return YES;
     
 bail:
@@ -424,6 +409,9 @@ bail:
     const unsigned int vListBufCount = 16;
     void* keysBuffer[vListBufCount], *valuesBuffer[vListBufCount];
     NSUInteger i, count = [dict count];
+	// TODO: When WAL recovery queues a recovered separate-file note, preserve a
+	// stable disk/base snapshot and use diff-match-patch to merge any external
+	// edits instead of allowing the recovered in-memory version to overwrite them.
     
     void **keys = (count <= vListBufCount) ? keysBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
     void **values = (count <= vListBufCount) ? valuesBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
@@ -465,9 +453,13 @@ bail:
 				if ([[allNotes objectAtIndex:existingNoteIndex] youngerThanLogObject:obj]) {
 					// NSLog(@"replacing old note with new: %@", [[(NoteObject*)obj contentString] string]);
 					
-					[(NoteObject*)obj setDelegate:self];
-					[(NoteObject*)obj updateLabelConnectionsAfterDecoding];
+					[(NoteObject*)[allNotes objectAtIndex:existingNoteIndex] disconnectLabels];
+					[(NoteObject*)obj attachToDelegate:self];
 					[allNotes replaceObjectAtIndex:existingNoteIndex withObject:obj];
+					if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
+						[(NoteObject*)obj requireFileWrite];
+						[pendingFileWrites addObject:obj];
+					}
 					notesChanged = YES;
 				} else {
 					// NSLog(@"note %@ is not being replaced because its LSN is %u, while the old note's LSN is %u", 
@@ -477,7 +469,10 @@ bail:
 				//NSLog(@"Found new note: %@", [(NoteObject*)obj contentString]);
 				
 				[self _addNote:obj];
-				[(NoteObject*)obj updateLabelConnectionsAfterDecoding];
+				if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
+					[(NoteObject*)obj requireFileWrite];
+					[pendingFileWrites addObject:obj];
+				}
 			}
 		}
 		
@@ -522,21 +517,24 @@ bail:
 
 - (BOOL)flushAllNoteChanges {
     //write only if preferences or notes have been changed
-    if (notesChanged || [notationPrefs preferencesChanged]) {
+	if (notesChanged || [notationPrefs preferencesChanged] || [pendingFileWrites count] ||
+		[pendingJournalWrites count]) {
 		
 		//finish writing notes and/or db journal entries
 		[self synchronizeNoteChanges:changeWritingTimer];	
 		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(synchronizeNoteChanges:) object:nil];
+		if ([pendingFileWrites count] || [pendingJournalWrites count]) return NO;
 		
 		if (walWriter) {
-			if (![walWriter synchronize])
-				NSLog(@"Couldn't sync wal file--is this an error for note flushing?");
-			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
+			if (![walWriter synchronize]) {
+				NSLog(@"Couldn't sync wal file");
+				writeRetryPending = YES;
+				[self _scheduleFilesystemRetryTimer];
+				return NO;
+			}
+			[NSObject cancelPreviousPerformRequestsWithTarget:self
+				selector:@selector(_synchronizeJournalOutbox) object:nil];
 		}
-		
-		//purge attr-mod-times for old disk uuids here
-		[self purgeOldPerDiskInfoFromNotes];
-		
 		
 		NSData *serializedData = [FrozenNotation frozenDataWithExistingNotes:allNotes deletedNotes:deletedNotes prefs:notationPrefs];
 		if (!serializedData) {
@@ -556,7 +554,15 @@ bail:
 		notesChanged = NO;
 		
     }
-	
+	if (![pendingFileWrites count] && ![pendingJournalWrites count]) {
+		writeRetryPending = NO;
+		if (!directoryRetryPending && directoryRetryTimer) {
+			[directoryRetryTimer invalidate];
+			[directoryRetryTimer release];
+			directoryRetryTimer = nil;
+			directoryRetryAttempt = 0;
+		}
+	}
     return YES;
 }
 
@@ -613,9 +619,18 @@ bail:
 		//write to disk any unwritten notes; do this before flushing database to make sure that when it is flushed, it gets the new file mod. dates
 		//otherwise it would be necessary to set notesChanged = YES; after this method
 		
-		//also make sure not to write new notes unless changing to a different format; don't rewrite deleted notes upon launch
-		if (currentStorageFormat != oldFormat)
-			[allNotes makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNonExistingOrChanged)];
+		/* Changing to a separate-file format makes the live model authoritative.
+		 * Queue every note before scanning so an existing external file cannot win
+		 * through a racy existence/mtime preflight. */
+		if (currentStorageFormat != oldFormat) {
+			// TODO: Preserve stable disk/base snapshots during this transition and use
+			// diff-match-patch to merge on-disk contents with the in-memory notes before
+			// queueing replacements, rather than unconditionally making memory win.
+			for (NoteObject *note in allNotes) {
+				[note requireFileWrite];
+				[pendingFileWrites addObject:note];
+			}
+		}
 
 		//flush and close the journal if necessary
 		/*if (walWriter) {
@@ -636,43 +651,49 @@ bail:
     return [notationPrefs notesStorageFormat];
 }
 
-- (void)noteDidNotWrite:(NoteObject*)note errorCode:(OSStatus)error {
-    [unwrittenNotes addObject:note];
-    
-    if (error != lastWriteError) {
+- (void)noteDidNotWrite:(NoteObject*)note error:(NSError*)error {
+	(void)note;
+	if (!error) return;
+    if (![lastWriteError isEqual:error]) {
 		NSAlert *writeAlert = [[[NSAlert alloc] init] autorelease];
 		[writeAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Changed notes could not be saved because %@.", @"alert title appearing when notes couldn't be written"),
-			[NSString reasonStringFromCarbonFSError:error]]];
+			[error localizedDescription]]];
 		[writeAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
 		[writeAlert setAlertStyle:NSAlertStyleWarning];
 		[writeAlert runModal];
 		
-		lastWriteError = error;
+		[lastWriteError release];
+		lastWriteError = [error retain];
     }
 }
 
 - (void)synchronizeNoteChanges:(NSTimer*)timer {
-    
-    if ([unwrittenNotes count] > 0) {
-		lastWriteError = noErr;
+	BOOL attemptedWrites = [pendingFileWrites count] || [pendingJournalWrites count];
+	if (attemptedWrites) {
+		[lastWriteError release];
+		lastWriteError = nil;
 		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
-			//to avoid mutation enumeration if writing this file triggers a filename change which then triggers another makeNoteDirty which then triggers another scheduleWriteForNote:
-			//loose-coupling? what?
-			[[[unwrittenNotes copy] autorelease] makeObjectsPerformSelector:@selector(writeUsingCurrentFileFormatIfNecessary)];
-			
+			for (NoteObject *note in [[pendingFileWrites copy] autorelease])
+				if ([note writeUsingCurrentFileFormatIfNecessary]) [pendingFileWrites removeObject:note];
+		} else {
+			[pendingFileWrites removeAllObjects];
 		}
 		if (walWriter) {
-			//append unwrittenNotes to journal, if one exists
-			[unwrittenNotes makeObjectsPerformSelector:@selector(writeUsingJournal:) withObject:walWriter];
+			for (NoteObject *note in [[pendingJournalWrites copy] autorelease])
+				if ([note writeUsingJournal:walWriter]) [pendingJournalWrites removeObject:note];
 		}
-				
-		//NSLog(@"wrote %d unwritten notes", [unwrittenNotes count]);
-		
-		[unwrittenNotes removeAllObjects];
-		
 		[self scheduleUpdateListForAttribute:NoteDateModifiedColumnString];
-
-    }
+		BOOL noteObligationsRemain = [pendingFileWrites count] || [pendingJournalWrites count];
+		if (noteObligationsRemain) {
+			writeRetryPending = YES;
+			[self _scheduleFilesystemRetryTimer];
+		} else if (!writeRetryPending && !directoryRetryPending && directoryRetryTimer) {
+			[directoryRetryTimer invalidate];
+			[directoryRetryTimer release];
+			directoryRetryTimer = nil;
+			directoryRetryAttempt = 0;
+		}
+	}
     
     if (changeWritingTimer) {
 		[changeWritingTimer invalidate];
@@ -681,13 +702,34 @@ bail:
     }
 }
 
+- (void)_synchronizeJournalOutbox {
+	if (walWriter && ![walWriter synchronize]) {
+		writeRetryPending = YES;
+		[self _scheduleFilesystemRetryTimer];
+	} else if (![pendingFileWrites count] && ![pendingJournalWrites count]) {
+		writeRetryPending = NO;
+		if (!directoryRetryPending && directoryRetryTimer) {
+			[directoryRetryTimer invalidate];
+			[directoryRetryTimer release];
+			directoryRetryTimer = nil;
+			directoryRetryAttempt = 0;
+		}
+	}
+}
+
 - (void)closeAllResources {
 	[allNotes makeObjectsPerformSelector:@selector(abortEditingInExternalEditor)];
 	
 	[deletionManager cancelPanelReturningCode:NSModalResponseStop];
 	[self stopSyncServices];
 	[self stopFileNotifications];
-	if ([self flushAllNoteChanges])
+	BOOL flushed = [self flushAllNoteChanges];
+	/* A failed final flush normally schedules another filesystem retry.  During
+	 * shutdown that timer would retain this controller forever, so retire only
+	 * the scheduling obligation; the pending note/WAL state remains intact. */
+	writeRetryPending = NO;
+	[self _cancelDirectoryRetry];
+	if (flushed)
 		[self closeJournal];
 	[allNotes makeObjectsPerformSelector:@selector(disconnectLabels)];
 }
@@ -755,6 +797,7 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 }
 
 - (void)addNewNote:(NoteObject*)note {
+	if (!note) return;
     [self _addNote:note];
 	
 	//clear aNoteObject's syncServicesMD to facilitate sync recreation upon undoing of deletion
@@ -782,19 +825,6 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
     [self refilterNotes];
     
     [delegate notation:self revealNote:note options:NVEditNoteToReveal | NVOrderFrontWindow];	
-}
-
-//do not update the view here (why not?)
-- (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry {
-	NoteObject *newNote = [[NoteObject alloc] initWithCatalogEntry:catEntry delegate:self];
-	[self _addNote:newNote];
-	[newNote release];
-	
-	[self schedulePushToAllSyncServicesForNote:newNote];
-	
-	directoryChangesFound = YES;
-	
-	return newNote;
 }
 
 - (void)addNotesFromSync:(NSArray<NoteObject*>*)noteArray {
@@ -905,11 +935,10 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 		NSSet *existingNotes = [self notesWithFilenames:filenames unknownFiles:&unknownPaths];
 		if ([existingNotes count] > 1) {
 			[delegate notation:self revealNotes:[existingNotes allObjects]];
-			return YES;
 		} else if ([existingNotes count] == 1) {
 			[delegate notation:self revealNote:[existingNotes anyObject] options:NVEditNoteToReveal];
-			return YES;
 		}
+		if (![unknownPaths count]) return [existingNotes count] > 0;
 	}
 	//NSLog(@"paths not found in DB: %@", unknownPaths);
 	NSArray *createdNotes = [[[[AlienNoteImporter alloc] initWithStoragePaths:unknownPaths] autorelease] importedNotes];
@@ -961,7 +990,9 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 		BOOL immediately = NO;
 		notesChanged = YES;
 		
-		[unwrittenNotes addObject:note];
+		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat)
+			[pendingFileWrites addObject:note];
+		if (walWriter) [pendingJournalWrites addObject:note];
 		
 		//always synchronize absolutely no matter what 15 seconds after any change
 		if (!changeWritingTimer)
@@ -975,9 +1006,10 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 		
 		if (walWriter) {
 			//perhaps a more general user interface activity timer would be better for this? update process syncs every 30 secs, anyway...
-			[NSObject cancelPreviousPerformRequestsWithTarget:walWriter selector:@selector(synchronize) object:nil];
+			[NSObject cancelPreviousPerformRequestsWithTarget:self
+				selector:@selector(_synchronizeJournalOutbox) object:nil];
 			//fsyncing WAL to disk can cause noticeable interruption when run from main thread
-			[walWriter performSelector:@selector(synchronize) withObject:nil afterDelay:15.0];
+			[self performSelector:@selector(_synchronizeJournalOutbox) withObject:nil afterDelay:15.0];
 		}
 		
 		if (!immediately) {
@@ -992,7 +1024,8 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 
 //the gatekeepers!
 - (void)_addNote:(NoteObject*)aNoteObject {
-    [aNoteObject setDelegate:self];	
+	if (!aNoteObject) return;
+	[aNoteObject attachToDelegate:self];
 	
     [allNotes addObject:aNoteObject];
 	[deletedNotes removeObject:aNoteObject];
@@ -1019,6 +1052,14 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
     //reset linking labels and their notes
     
 	[aNoteObject retain];
+	//Retire older file/journal writes before the deletion is recorded or the file is moved.
+	//make sure that their LSNs are smaller than this deleted note's LSN
+	[self synchronizeNoteChanges:nil];
+	if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat &&
+		![aNoteObject moveFileToTrash]) {
+		[aNoteObject release];
+		return;
+	}
 	
 	[aNoteObject disconnectLabels];
 	[aNoteObject abortEditingInExternalEditor];
@@ -1030,13 +1071,6 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
     
     notesChanged = YES;
 	
-	//force-write any cached note changes to make sure that their LSNs are smaller than this deleted note's LSN
-	[self synchronizeNoteChanges:nil];
-    
-    //we do this after removing it from the array to avoid re-discovering a removed file
-    if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
-		[aNoteObject removeFileFromDirectory];
-    }
 	//add journal removal event
 	if (walWriter && ![walWriter writeRemovalForNote:aNoteObject]) {
 		NSLog(@"Couldn't log note removal");
@@ -1522,8 +1556,9 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 }
 
 - (void)dealloc {
- 
-	[walWriter setDelegate:nil];
+	[directoryRetryTimer invalidate];
+	[directoryRetryTimer release];
+	[walWriter release];
 	[notationPrefs setDelegate:nil];
 	[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
 
@@ -1533,9 +1568,10 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 		free(catalogEntries);
     if (sortedCatalogEntries)
 		free(sortedCatalogEntries);
-    if (allNotesBuffer)
+	if (allNotesBuffer)
 		free(allNotesBuffer);
-	
+	free(currentFilterStr);
+	free(manglingString);
     [undoManager release];
     [notesListDataSource release];
     [labelsListController release];
@@ -1544,10 +1580,13 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
     [allNotes release];
 	[deletedNotes release];
 	[notationPrefs release];
-	[unwrittenNotes release];
+	[pendingFileWrites release];
+	[pendingJournalWrites release];
 	[_filterString release];
 	[noteDirectoryURL release];
 	[noteDirectoryBookmarkData release];
+	[currentFileMetadataVolumeUUID release];
+	[lastWriteError release];
 	if (noteDirectoryFileDescriptor >= 0) close(noteDirectoryFileDescriptor);
     
     [super dealloc];

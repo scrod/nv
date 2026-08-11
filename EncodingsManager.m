@@ -289,12 +289,13 @@ static const NSStringEncoding AllowedEncodings[] = {
 		return NO;
 	}
 	
-	UTCDateTime fileModifiedDate = fileModifiedDateOfNote(note);
+	struct timespec fileModificationTime = fileModificationTimeOfNote(note);
 	CFAbsoluteTime timeOnDisk, lastTime;
 	timeOnDisk = (CFAbsoluteTime)info.modificationTime.tv_sec +
 		((CFAbsoluteTime)info.modificationTime.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
-    if (UCConvertUTCDateTimeToCFAbsoluteTime(&fileModifiedDate, &lastTime) == noErr) {
-		
+	lastTime = (CFAbsoluteTime)fileModificationTime.tv_sec +
+		((CFAbsoluteTime)fileModificationTime.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
+	if (fileMetadataIsValidForNote(note)) {
 		if (lastTime > timeOnDisk) {
 			NSModalResponse result = NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark is newer than its file on disk.", nil), titleOfNote(note)],
 				NSLocalizedString(@"If you update this note with re-interpreted data from the file, you may overwrite your changes.", nil),
@@ -322,8 +323,8 @@ static const NSStringEncoding AllowedEncodings[] = {
 	
 	//check whether file mod. date of note is older than mod. date on disk
 	if ([self shouldUpdateNoteFromDisk]) {
-		[note setFileEncodingAndReinterpret:currentEncoding];
-				[(AppController*)[NSApp delegate] contentsUpdatedForNote:note];
+		if ([note setFileEncodingAndReinterpret:currentEncoding])
+			[(AppController*)[NSApp delegate] contentsUpdatedForNote:note];
 	}
 	
 	[[window sheetParent] endSheet:window returnCode:NSModalResponseOK];

@@ -22,25 +22,10 @@
     along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
 
-#include <Carbon/Carbon.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <objc/NSObjCRuntime.h>
 
 #define ResizeArray(__DirectBuffer, __objCount, __bufObjCount)	_ResizeBuffer((void***)(__DirectBuffer), (__objCount), (__bufObjCount), sizeof(typeof(**(__DirectBuffer))))
-
-#define UTCDateTimeIsEmpty(__UTCDT) (*(int64_t*)&((__UTCDT)) == 0LL)
-
-typedef struct _PerDiskInfo {
-	
-	//index in a table of disk UUIDs; should be the disk from which this time was gathered
-	//the disk UUIDs table is tracked separately in NotationPrefs; it should only ever be appended-to
-	UInt32 diskIDIndex;
-	
-	//catalog node ID of a file
-	UInt32 nodeID;
-	
-	//the attribute modification time of a file
-	UTCDateTime attrTime;
-	
-} PerDiskInfo;
 
 char *replaceString(char *oldString, const char *newString);
 void _ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize, unsigned int elemSize);
@@ -55,9 +40,3 @@ unsigned DumbWordCount(const void *s1, size_t len);
 NSInteger genericSortContextFirst(int (*context) (void*, void*), void* one, void* two);
 NSInteger genericSortContextLast(void* one, void* two, int (*context) (void*, void*));
 void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const void *, const void *));
-
-void RemovePerDiskInfoWithTableIndex(UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount);
-unsigned int SetPerDiskInfoWithTableIndex(UTCDateTime *dateTime, UInt32 *nodeID, UInt32 diskIndex, PerDiskInfo **perDiskGroups, unsigned int *groupCount);
-void CopyPerDiskInfoGroupsToOrder(PerDiskInfo **flippedGroups, unsigned int *existingCount, PerDiskInfo *perDiskGroups, size_t bufferSize, int toHostOrder);
-
-CFStringRef CopyReasonFromFSErr(OSStatus err);

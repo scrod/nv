@@ -122,6 +122,26 @@
 	hasDeletedNotes = [deletedNotes count] != 0;
 }
 
+- (void)reconcileVerifiedExistingNotes:(NSSet*)existingNotes deletedNotes:(NSArray*)missingNotes {
+	/* A directory transaction publishes its complete decision once.  Updating the
+	 * candidate array in one batch avoids transient panels and repeated table
+	 * reloads while a successful scan is committing. */
+	NSArray *oldNotes = [[deletedNotes copy] autorelease];
+	for (NoteObject *note in existingNotes)
+		[deletedNotes removeObjectIdenticalTo:note];
+	for (NoteObject *note in missingNotes)
+		if (![self noteFileIsAlreadyDeleted:note]) [deletedNotes addObject:note];
+	hasDeletedNotes = [deletedNotes count] != 0;
+	if (![deletedNotes isEqualToArray:oldNotes]) {
+		[self _updatePanelForNotes];
+		if (!hasDeletedNotes) [self cancelPanelReturningCode:1];
+	}
+	if (![oldNotes count] && [deletedNotes count]) {
+		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(processDeletedNotes) object:nil];
+		[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
+	}
+}
+
 - (void)_updatePanelForNotes {
 	[tableView reloadData];
 	[window setFrame:[self windowSizeForNotesFromSender:window] display:NO];
@@ -252,7 +272,6 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 	
 	//force-synchronize directory to get notationcontroller to tell DeletionManager that the file now exists via updateForVerifiedExistingNote
 	//if restoring the file did not result in the dialog being dismissed, then it was not actually restored
-	[NSObject cancelPreviousPerformRequestsWithTarget:notationController selector:@selector(synchronizeNotesFromDirectory) object:nil];
 	[notationController synchronizeNotesFromDirectory];
 }
 

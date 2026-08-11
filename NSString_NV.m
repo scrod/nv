@@ -280,15 +280,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 }
 #endif
 
-- (NSString*)fourCharTypeString {
-	if ([[self dataUsingEncoding:NSMacOSRomanStringEncoding allowLossyConversion:YES] length] >= 4) {
-		//only truncate; don't return a string containing null characters for the last few bytes
-		OSType type = UTGetOSTypeFromString((CFStringRef)self);
-		return [(id)UTCreateStringForOSType(type) autorelease];
-	}
-	return self;
-}
-
 - (BOOL)superficiallyResemblesAnHTTPURL {
 	//has the right protocol and contains no whitespace or line breaks
 	

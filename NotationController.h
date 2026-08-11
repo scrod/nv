@@ -26,17 +26,14 @@
 #import "LabelsListController.h"
 #import "WALController.h"
 
-#import <CoreServices/CoreServices.h>
-
 //enum { kUISearch, kUINewNote, kUIDeleteNote, kUIRenameNote, kUILabelOperation };
 
 typedef struct _NoteCatalogEntry {
-    UTCDateTime lastModified;
-	UTCDateTime lastAttrModified;
-    UInt32 logicalSize;
-    OSType fileType;
-    UInt32 nodeID;
-	CFMutableStringRef filename;
+	struct timespec attributeChangeTime;
+	uint64_t fileID;
+	CFStringRef filename;
+	uint32_t documentID;
+	uint32_t generationCount;
 } NoteCatalogEntry;
 
 @class NoteObject;
@@ -47,6 +44,7 @@ typedef struct _NoteCatalogEntry {
 @class NoteBookmark;
 @class DeletionManager;
 @class GlobalPrefs;
+@class NVDirectoryTransaction;
 
 @interface NotationController : NSObject {
     NSMutableArray *allNotes;
@@ -68,7 +66,12 @@ typedef struct _NoteCatalogEntry {
     char *currentFilterStr, *manglingString;
     int lastWordInFilterStr;
     
-	BOOL directoryChangesFound;
+	NVDirectoryTransaction *directoryTransaction;
+	BOOL directoryScanScheduled, directoryScanRunning;
+	BOOL directoryStreamNeedsReconfiguration;
+	NSTimer *directoryRetryTimer;
+	NSUInteger directoryRetryAttempt;
+	BOOL directoryRetryPending, writeRetryPending;
     
     NotationPrefs *notationPrefs;
 	
@@ -82,17 +85,16 @@ typedef struct _NoteCatalogEntry {
     
 	unsigned int lastCheckedDateInHours;
 	int lastLayoutStyleGenerated;
-    long blockSize;
+	long blockSize;
 	struct statfs *statfsInfo;
-	unsigned int diskUUIDIndex;
-    CFUUIDRef diskUUID;
+	NSString *currentFileMetadataVolumeUUID;
     NSURL *noteDirectoryURL;
     NSData *noteDirectoryBookmarkData;
     int noteDirectoryFileDescriptor;
-    OSStatus lastWriteError;
+	NSError *lastWriteError;
     
     WALStorageController *walWriter;
-    NSMutableSet *unwrittenNotes;
+	NSMutableSet *pendingFileWrites, *pendingJournalWrites;
 	BOOL notesChanged;
 	NSTimer *changeWritingTimer;
 	NSUndoManager *undoManager;
@@ -132,7 +134,7 @@ typedef struct _NoteCatalogEntry {
 - (void)restyleAllNotes;
 - (void)setUndoManager:(NSUndoManager*)anUndoManager;
 - (NSUndoManager*)undoManager;
-- (void)noteDidNotWrite:(NoteObject*)note errorCode:(OSStatus)error;
+- (void)noteDidNotWrite:(NoteObject*)note error:(NSError*)error;
 - (void)scheduleWriteForNote:(NoteObject*)note;
 - (void)closeAllResources;
 - (void)trashRemainingNoteFilesInDirectory;
@@ -149,7 +151,6 @@ typedef struct _NoteCatalogEntry {
 - (void)removeSyncMDFromDeletedNotesInSet:(NSSet*)notesToOrphan forService:(NSString*)serviceName;
 - (DeletedNoteObject*)_addDeletedNote:(id<SynchronizedNote>)aNote;
 - (void)_registerDeletionUndoForNote:(NoteObject*)aNote;
-- (NoteObject*)addNoteFromCatalogEntry:(NoteCatalogEntry*)catEntry;
 
 - (BOOL)openFiles:(NSArray*)filenames;
 

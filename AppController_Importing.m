@@ -144,7 +144,8 @@
 		[newString santizeForeignStylesForImporting];
 		
 		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:newString title:noteTitle delegate:notationController
-														  format:[notationController currentNoteStorageFormat] labels:nil] autorelease];
+												  format:[notationController currentNoteStorageFormat] labels:nil] autorelease];
+		if (!note) return NO;
 		if (bodyLoc > 0 && [newString length] >= bodyLoc + prefixedSourceLength) [note setSelectedRange:NSMakeRange(prefixedSourceLength, bodyLoc)];
 		[notationController addNewNote:note];
 		
@@ -236,9 +237,9 @@
 			[attributedContents santizeForeignStylesForImporting];
 			
 			NoteObject *note = [[[NoteObject alloc] initWithNoteBody:[attributedContents autorelease] title:title delegate:notationController
-															  format:[notationController currentNoteStorageFormat] labels:tags] autorelease];
+													  format:[notationController currentNoteStorageFormat] labels:tags] autorelease];
 			[notationController addNewNote:note];
-			return YES;
+			return note != nil;
 		} else if (txtBody || htmlBody) {
 			NSPasteboard *pboard = [NSPasteboard pasteboardWithUniqueName];
 			NSData *data = [htmlBody dataUsingEncoding:NSUTF8StringEncoding];

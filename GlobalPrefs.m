@@ -33,8 +33,6 @@
 #import "PTHotKeyCenter.h"
 #import "NSString_NV.h"
 #import "NSFileManager_NV.h"
-#include <fcntl.h>
-#include <sys/stat.h>
 
 #define SEND_CALLBACKS() sendCallbacksForGlobalPrefs(self, _cmd, sender)
 
@@ -836,15 +834,11 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 
 static BOOL NVURLsReferToSameDirectory(NSURL *one, NSURL *two) {
 	if (!one || !two) return NO;
-	int oneFD = open([one fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-	int twoFD = open([two fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-	struct stat oneStat;
-	struct stat twoStat;
-	BOOL same = oneFD >= 0 && twoFD >= 0 && fstat(oneFD, &oneStat) == 0 &&
-		fstat(twoFD, &twoStat) == 0 && oneStat.st_dev == twoStat.st_dev && oneStat.st_ino == twoStat.st_ino;
-	if (oneFD >= 0) close(oneFD);
-	if (twoFD >= 0) close(twoFD);
-	return same;
+	id oneIdentifier = nil;
+	id twoIdentifier = nil;
+	return [one getResourceValue:&oneIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL] &&
+		[two getResourceValue:&twoIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL] &&
+		[oneIdentifier isEqual:twoIdentifier];
 }
 
 - (BOOL)setDefaultDirectoryURL:(NSURL*)url sender:(id)sender error:(NSError**)error {

@@ -1,0 +1,108 @@
+## Integration tests
+
+Run test commands from the repository root. The test Makefile builds the Deployment app objects without code signing, links standalone test executables into `/tmp/notation-integration-tests`, and then runs them. A successful test is silent or exits with status 0; many deliberately injected failure cases write expected diagnostics to stderr.
+
+### Common commands
+
+- `make -C tests` builds every test executable without running it.
+- `make -C tests run-core` runs the headless/default integration suite.
+- `make -C tests run-platform` runs tests that depend on live macOS services such as WebKit/AppKit, FSEvents, or Trash.
+- `make -C tests run` runs `run-core` followed by `run-platform`.
+- `make -C tests stress` runs the concurrency, packed-record fuzzing, xattr, and ambiguous-matching stress cases.
+- `make -C tests leak-check` runs the resource lifecycle scenario under `/usr/bin/leaks`.
+- `make -C tests filesystem-image-stress` creates test-owned 192 MiB sparse disk images and runs the APFS, case-sensitive APFS, HFS+, case-sensitive HFS+, ExFAT, ENOSPC, bookmark-remount, live-detach, filesystem-metadata, and system-tag matrix. It uses `hdiutil`, mounts and detaches images, and may require running outside a restrictive sandbox. SMB/NFS and real iCloud/Finder process coordination remain manual.
+- `make -C tests clean` removes the executables from `/tmp/notation-integration-tests`.
+- `./build.sh` must still be run after significant source changes, even when the tests pass.
+
+For a normal change, run the narrowest relevant scenario first, then `make -C tests run-core` and `./build.sh`. Run `run-platform`, `stress`, `leak-check`, or `filesystem-image-stress` when the touched behavior falls in those areas. A sandbox denial involving Trash, FSEvents, `leaks`, or `hdiutil` should be rerun in a normal logged-in macOS session before being treated as a product failure.
+
+To run one scenario:
+
+```sh
+make -C tests /tmp/notation-integration-tests/NVIntegrationTest
+/tmp/notation-integration-tests/NVIntegrationTest <scenario-name>
+```
+
+To run one standalone test, build its `/tmp/notation-integration-tests/<TestName>` Make target and execute that path directly.
+
+### Standalone test executables
+
+- `NVIntegrationTest`: scenario-driven full-stack controller, directory, storage, reconciliation, lifecycle, and recovery tests listed below.
+
+### `NVIntegrationTest` scenarios
+
+Enumeration and filesystem metadata:
+
+- `bulk-parser`: valid, unavailable, transient, malformed, overlapping-name, embedded-NUL, document-ID, file-ID, and generation-count packed records.
+- `bulk-parser-fuzz`: guard-page truncation checks and 50,000 deterministic packed-record mutations.
+- `file-metadata`: case collisions, ctime/generation detection, document and session file identity, rename matching, tags, and content fallback.
+- `coarse-ctime-observation`: records the accepted degraded same-vnode detection behavior on HFS+ with coarse ctime; the image harness treats this as an open-contract observation.
+- `partial-bulk-fallback`: partial `getattrlistbulk` output is discarded before Foundation fallback; persistent transient failures do not commit partial catalogs.
+- `filesystem-capabilities`: verifies expected filesystem type/case sensitivity, xattrs, bulk enumeration, document/file IDs, generation count, and stable snapshots. Normally run by the disk-image harness with `NV_TEST_VOLUME_ROOT`, `NV_EXPECT_FSTYPE`, and `NV_EXPECT_CASE_SENSITIVE`.
+- `benchmark`: warm medians for raw bulk enumeration and complete unchanged-directory scans at 1,000 and 10,000 files; enforces the bulk performance gates.
+
+Stable snapshots, xattrs, and concurrent writers:
+
+- `snapshot-stress`: repeatedly safe-saves content, encoding, and tags from a child process and rejects mixed-vnode snapshots.
+- `snapshot-boundary-races`: deterministic replacement at final identity and Cocoa-tag fallback boundaries; verifies retry to a coherent snapshot.
+- `snapshot-in-place-observation`: races same-vnode content/encoding/tag mutation and reports coherent versus rejected/mixed observations.
+- `snapshot-failures`: injected data, xattr, decode, identity, and constructor failures propagate without mutating live state.
+- `xattr-interoperability`: Finder/OpenMeta tag plists and named/numeric `com.apple.TextEncoding` values, including absent xattrs.
+- `system-tag-producer`: a separate process writes `NSURLTagNamesKey`; verifies Cocoa/OpenMeta reads, import, and dual-format tag writes. The filesystem-image harness runs it on APFS.
+- `system-tag-writer-child`: helper subprocess for `system-tag-producer`; do not normally invoke directly (`NV_SYSTEM_TAG_PATH` is required).
+
+Transactional directory reconciliation:
+
+- `directory-reconciliation`: imports, metadata/content/tag changes, Unicode names, case collisions, bulk/Foundation recovery, rename identity, deletions, and content matching.
+- `ambiguous-content`: 1:2, 2:1, identical empty-note, hard-link, case-only, and mutation ambiguity falls through without unsafe rename matching.
+- `ambiguity-stress`: larger repeated ambiguous-content groups and concurrent mutation stress.
+- `scan-atomicity-contract`: failures at the first, middle, and last update/import leave the entire scan uncommitted.
+- `failed-scan-retry-contract`: transient scan failures retry and converge without another event; stopping notifications cancels retries.
+- `catalog-fence-contract`: mutation between preparation and the exact second catalog pass discards the first transaction and converges on retry.
+- `directory-fence-modes`: every scan uses two exact catalog passes; FSEvents is invalidation-only, and failed stream reconfiguration remains a retry obligation.
+- `unsaved-write-recovery-contract`: memory-wins conflicts, independent file/WAL outbox obligations, failed writes, and later recovery.
+- `storage-transition-memory-wins`: switching from a single database to separate files queues authoritative in-memory notes even when a newer external file exists.
+- `open-files-workflow`: mixed known and external paths reveal owned notes while importing the remaining files.
+- `deletion-contracts`: restored external deletions, batched confirmation-free deletion, and failed Trash moves.
+- `fsevents-live`: live service delivery drives create, rename, edit, and delete reconciliation without a manual scan; belongs to the platform suite.
+- `rename-without-preflight`: note renames do not widen the race with a separate existence check.
+- `rename-enoent-source-proof`: ENOENT is accepted only when the source is truly absent; a disappearing destination with a surviving source returns `EAGAIN`.
+
+Storage formats, archives, and recovery:
+
+- `epoch-five-archive`: epoch-5 additive metadata keys and removal of obsolete serialized caches/types.
+- `single-database`, `plain-text`, `rtf`, `html`: CRUD, persistence, reload, and format-specific serialization for each storage format. `html` belongs to the platform suite.
+- `storage-transitions`: plain-text to RTF to single-database persistence, including optional separate-file cleanup.
+- `plain-text-encodings`: ISO-8859-1 and malformed-declared-UTF-8 fallback import, save, byte preservation, encoding metadata, and reload.
+- `filesystem-crud`: separate-file create, external move, save, and reload on the selected volume; the disk-image harness runs it on ExFAT and native formats.
+- `filename-collisions`: slash-bearing titles, untracked destination files, and case-only internal renames remain distinct and reloadable.
+- `concurrent-controllers`: a live controller keeps exclusive ownership of its WAL while a second controller fails closed; crash recovery remains separately covered.
+- `unsupported-journal-locks`: bookmark-resolved controller launches and WAL recovery tolerate unsupported advisory locking (`ENOTSUP` and regular-file `EINVAL`) while lock contention still fails closed.
+- `legacy-fixtures`: reads legacy keyed/non-keyed database fixtures and upgrades metadata safely.
+- `encryption`: encrypted database persistence and reload.
+- `wal-crash-recovery`: child-process WAL crash and relaunch recovery on the selected volume; normally run by the disk-image harness.
+- `wal-crash-child`: helper subprocess for `wal-crash-recovery`; do not normally invoke directly (`NV_WAL_CRASH_DIRECTORY` is required).
+- `wal-history-recovery`: bookmark-resolved child crashes after interleaved updates and deletion; recovery keeps each UUID's newest state without resurrecting the deleted note.
+- `wal-damaged-tail-recovery`: truncates the last synchronized record and verifies complete preceding records recover while the partial tail is ignored.
+- `wal-recovery-retry-idempotence`: forces the database flush after WAL recovery to fail, crashes again, and verifies the re-journaled state recovers identically on repeated bookmark-based launches.
+- `wal-database-ordering`: verifies stale WAL records cannot replace a newer database, while newer WAL updates and deletions supersede it.
+- `wal-durability-boundaries`: crashes before journal synchronization, after journal synchronization, and after database persistence but before WAL cleanup to lock the durability contract.
+- `file-outbox-crash-recovery`: WAL success plus note-file failure survives relaunch and rewrites stale disk content before reconciliation.
+- `file-outbox-crash-child`: helper subprocess for the outbox crash test; do not normally invoke directly (`NV_FILE_OUTBOX_CRASH_DIRECTORY` is required).
+- `disk-full-recovery-contract`: fills a fixed-size image, verifies ENOSPC keeps the write pending, frees reserve space, and converges. Requires `NV_TEST_REQUIRE_DISK_IMAGE=1` and is normally harness-only.
+- `atomic-rollback`: content, xattr, rename, verification, and post-install identity failures preserve the correct installed/pending state.
+- `failures`: corrupt database, invalid notes directory, read-only writes, and related error propagation.
+
+Directory identity, bookmarks, and lifecycle:
+
+- `lifecycle`: detached-note construction/attachment, delegate clearing, label registration, notifications, and constructor/encoding failure behavior.
+- `resource-lifecycle`: repeated success/failure/abort/controller teardown cycles, timer/outbox cleanup, deallocation, and file-descriptor baseline; also used by `leak-check`.
+- `directory-identity`: file-reference/bookmark and directory-FD identity survive directory movement.
+- `directory-relocation-races`: moves the directory during atomic installation, scanning, and repeated root-relative note renames.
+- `location-migration`: legacy notes-location state migrates to the current bookmark/reference representation.
+- `preferences-migration`: legacy preference archive migration and modern values.
+- `deep-directory`: long/deep paths remain accessible through directory-relative operations.
+- `reference-edges`: Unicode normalization, symlinks, missing references, same-file identity, and related URL/FD edge cases.
+- `bookmark-create`, `bookmark-resolve`: helper pair used by the filesystem-image harness to verify resolution after detach/remount (`NV_BOOKMARK_DIRECTORY` and `NV_BOOKMARK_FILE` are required; resolve optionally uses `NV_BOOKMARK_EXPECTED_CONTENT`).
+- `live-detach-child`: harness-controlled process that keeps controller descriptors open across forced detach and validates in-memory safety/remount recovery; requires the `NV_LIVE_DETACH_*` variables.
+- `trash`: moves a note through the real macOS Trash API and belongs to the platform suite.

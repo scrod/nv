@@ -27,7 +27,7 @@
 /* this class is responsible for managing all preferences specific to a notational database,
 including encryption, file formats, synchronization, passwords management, and others */
 
-#define EPOC_ITERATION 4
+#define EPOC_ITERATION 5
 
 enum { SingleDatabaseFormat = 0, PlainTextFormat, RTFTextFormat, HTMLFormat, WordDocFormat, WordXMLFormat };
 
@@ -48,12 +48,11 @@ extern NSString *NotationPrefsDidChangeNotification;
 	BOOL confirmFileDeletion;
 	
 	unsigned int chosenExtIndices[4];
-    NSMutableArray *typeStrings[4], *pathExtensions[4];
-    OSType *allowedTypes;
+    NSMutableArray *pathExtensions[4];
 	
 	NSData *masterSalt, *dataSessionSalt, *verifierKey;
 	
-	NSMutableArray *seenDiskUUIDEntries;
+	NSString *fileMetadataVolumeUUID;
 	
 	UInt32 epochIteration;
 	BOOL firstTimeUsed;
@@ -68,7 +67,6 @@ extern NSString *NotationPrefsDidChangeNotification;
 NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serviceName);
 
 + (int)appVersion;
-+ (NSMutableArray*)defaultTypeStringsForFormat:(int)formatID;
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID;
 - (BOOL)preferencesChanged;
 - (void)setForegroundTextColor:(NSColor*)aColor;
@@ -125,31 +123,26 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 
-- (NSUInteger)tableIndexOfDiskUUID:(CFUUIDRef)UUIDRef;
+- (NSString*)fileMetadataVolumeUUID;
+- (void)setFileMetadataVolumeUUID:(NSString*)volumeUUID;
 
 + (NSString*)pathExtensionForFormat:(int)format;
 
 //used to view tableviews
-- (NSString*)typeStringAtIndex:(int)typeIndex;
 - (NSString*)pathExtensionAtIndex:(int)pathIndex;
 - (unsigned int)indexOfChosenPathExtension;
 - (NSString*)chosenPathExtensionForFormat:(int)format;
-- (int)typeStringsCount;
 - (int)pathExtensionsCount;
 
 //used to edit tableviews
 - (void)addAllowedPathExtension:(NSString*)extension;
 - (BOOL)removeAllowedPathExtensionAtIndex:(unsigned int)extensionIndex;
 - (BOOL)setChosenPathExtensionAtIndex:(unsigned int)extensionIndex;
-- (BOOL)addAllowedType:(NSString*)type;
-- (void)removeAllowedTypeAtIndex:(unsigned int)index;
 - (BOOL)setExtension:(NSString*)newExtension atIndex:(unsigned int)oldIndex;
-- (BOOL)setType:(NSString*)newType atIndex:(unsigned int)oldIndex;
 
 - (BOOL)pathExtensionAllowed:(NSString*)anExtension forFormat:(int)formatID;
 
 //actually used while searching for files
-- (void)updateOSTypesArray;
 - (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry;
 
 - (id)delegate;

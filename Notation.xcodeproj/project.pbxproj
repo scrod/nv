@@ -67,7 +67,6 @@
 		214495870ADCC07E00E2A2B6 /* PassphraseChanger.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495810ADCC07E00E2A2B6 /* PassphraseChanger.nib */; };
 		21469C8C0BEBA6A10094835F /* TemporaryFileCachePreparer.m in Sources */ = {isa = PBXBuildFile; fileRef = 21469C8A0BEBA6A10094835F /* TemporaryFileCachePreparer.m */; };
 		2147D82C131EC86100C65006 /* COPYING.txt in Resources */ = {isa = PBXBuildFile; fileRef = 2147D82B131EC86100C65006 /* COPYING.txt */; };
-		215309F412E4E92300AF2739 /* DiskUUIDEntry.m in Sources */ = {isa = PBXBuildFile; fileRef = 215309F312E4E92300AF2739 /* DiskUUIDEntry.m */; };
 		21544FBE0B06331800C0D1D5 /* KeyDerivationManager.nib in Resources */ = {isa = PBXBuildFile; fileRef = 21544FB80B06331800C0D1D5 /* KeyDerivationManager.nib */; };
 		21544FC10B06332600C0D1D5 /* KeyDerivationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */; };
 		215452080B06541800C0D1D5 /* PassphraseChanger.m in Sources */ = {isa = PBXBuildFile; fileRef = 215450F80B06509600C0D1D5 /* PassphraseChanger.m */; };
@@ -295,8 +294,6 @@
 		21469C890BEBA6A10094835F /* TemporaryFileCachePreparer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TemporaryFileCachePreparer.h; sourceTree = "<group>"; };
 		21469C8A0BEBA6A10094835F /* TemporaryFileCachePreparer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TemporaryFileCachePreparer.m; sourceTree = "<group>"; };
 		2147D82B131EC86100C65006 /* COPYING.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING.txt; sourceTree = "<group>"; };
-		215309F212E4E92300AF2739 /* DiskUUIDEntry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DiskUUIDEntry.h; sourceTree = "<group>"; };
-		215309F312E4E92300AF2739 /* DiskUUIDEntry.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DiskUUIDEntry.m; sourceTree = "<group>"; };
 		21544FBF0B06332600C0D1D5 /* KeyDerivationManager.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = KeyDerivationManager.h; sourceTree = "<group>"; };
 		21544FC00B06332600C0D1D5 /* KeyDerivationManager.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = KeyDerivationManager.m; sourceTree = "<group>"; };
 		215450F80B06509600C0D1D5 /* PassphraseChanger.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = PassphraseChanger.m; sourceTree = "<group>"; };
@@ -680,8 +677,6 @@
 				21B1BC351104D20E0004A7D0 /* InvocationRecorder.m */,
 				21D6FB4712E104D6005C2DA5 /* NSBezierPath_NV.h */,
 				21D6FB4812E104D6005C2DA5 /* NSBezierPath_NV.m */,
-				215309F212E4E92300AF2739 /* DiskUUIDEntry.h */,
-				215309F312E4E92300AF2739 /* DiskUUIDEntry.m */,
 				21DEA4AC2E7356FA009413FF /* TagEditingManager.h */,
 				21DEA4AB2E7356FA009413FF /* TagEditingManager.m */,
 				21F0793710EC5E21004FE56F /* Sync Services */,
@@ -1286,7 +1281,6 @@
 				21D6F7EF12E0C751005C2DA5 /* AppController_Importing.m in Sources */,
 				C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */,
 				21D6FB4912E104D6005C2DA5 /* NSBezierPath_NV.m in Sources */,
-				215309F412E4E92300AF2739 /* DiskUUIDEntry.m in Sources */,
 				21B64A2612E61FA700D87EFC /* LabelColumnCell.m in Sources */,
 				21B64C4E12E62A5700D87EFC /* UnifiedCell.m in Sources */,
 				212897E61330030100380B64 /* ODBEditor.m in Sources */,

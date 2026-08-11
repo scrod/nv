@@ -31,9 +31,7 @@
 
 
 - (id)getOpenMetaTagsAtFSPath:(const char*)path;
-- (BOOL)setOpenMetaTags:(id)plistObject atFSPath:(const char*)path;
 
-- (BOOL)setTextEncodingAttribute:(NSStringEncoding)encoding atFSPath:(const char*)path;
 - (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path;
 
 - (NSURL*)fileReferenceURLForURL:(NSURL*)url error:(NSError**)error;

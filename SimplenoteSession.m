@@ -227,6 +227,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 - (id)initWithNotationPrefs:(NotationPrefs*)prefs {
 	if (![prefs syncServiceIsEnabled:SimplenoteServiceName]) {
 		NSLog(@"notationPrefs says this service is disabled--stop it!");
+		[self release];
 		return nil;
 	}
 	
@@ -251,9 +252,11 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 
 		if (![(emailAddress = [aUserString retain]) length]) {
 			NSLog(@"%@: empty email address", NSStringFromSelector(_cmd));
+			[self release];
 			return nil;
 		}
 		if (![(password = [aPassString retain]) length]) {
+			[self release];
 			return nil;
 		}
 		notesToSuppressPushing = [[NSCountedSet alloc] init];

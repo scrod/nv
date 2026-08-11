@@ -238,7 +238,6 @@ void outletObjectAwoke(id sender) {
 	[self updateNoteMenus];
 	[textView setupFontMenu];
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(toggleNVActivation:)];
-	[notationController updateLabelConnectionsAfterDecoding];
 	[notationController checkIfNotationIsTrashed];
 	[[SecureTextEntryManager sharedInstance] checkForIncompatibleApps];
 

@@ -47,6 +47,13 @@ static NSString *TempDirectoryPathForEditing(void);
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	[cachePath release];
+	[notationPrefs release];
+	[attachTask release];
+	[newfsTask release];
+	[mountTask release];
+	[deviceName release];
+	[preparedCachePath release];
 	[super dealloc];
 }
 
@@ -234,9 +241,10 @@ static NSString *TempDirectoryPathForEditing(void) {
 			if (outData) {
 				NSString *outString = [[[NSString alloc] initWithData:outData encoding:NSUTF8StringEncoding] autorelease];
 				
-				[[NSScanner scannerWithString:outString] scanUpToCharactersFromSet:
-				 [NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:&deviceName];
-				if (!deviceName) deviceName = [outString retain];
+					NSString *scannedDeviceName = nil;
+					[[NSScanner scannerWithString:outString] scanUpToCharactersFromSet:
+					 [NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:&scannedDeviceName];
+					deviceName = [(scannedDeviceName ? scannedDeviceName : outString) retain];
 			}
 			if (![deviceName length]) {
 				NSLog(@"couldn't get device name from hdiutil attach");

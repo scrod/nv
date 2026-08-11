@@ -88,9 +88,10 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (void)awakeFromNib {
     didAwakeFromNib = YES;
     [allowedExtensionsTable setDataSource:self];
-    [allowedTypesTable setDataSource:self];
     [allowedExtensionsTable setDelegate:self];
-    [allowedTypesTable setDelegate:self];
+	[[allowedTypesTable enclosingScrollView] setHidden:YES];
+	[newTypeButton setHidden:YES];
+	[removeTypeButton setHidden:YES];
 	
 	
 	//this additional management for sync prefs, plus the need for per-service settings and externally triggering updates really demands its own class
@@ -113,8 +114,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	if (tv == allowedExtensionsTable) {
 		[removeExtensionButton setEnabled:isRowSelected];
 		[makeDefaultExtensionButton setEnabled:isRowSelected];
-	} else if (tv == allowedTypesTable) {
-		[removeTypeButton setEnabled:isRowSelected];
 	}
 }
 
@@ -147,7 +146,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 		[confirmFileDeletionButton setState:[notationPrefs confirmFileDeletion]];
 		[secureTextEntryButton setState:[notationPrefs secureTextEntry]];
 		
-		[allowedTypesTable reloadData];
 		[allowedExtensionsTable reloadData];
     }
 }
@@ -168,10 +166,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	[newExtensionButton setEnabled:separateFileControlsState];
 	[removeExtensionButton setEnabled:separateFileControlsState && [allowedExtensionsTable selectedRow] > -1];
 	[makeDefaultExtensionButton setEnabled:separateFileControlsState && [allowedExtensionsTable selectedRow] > -1];
-	[newTypeButton setEnabled:separateFileControlsState];
-	[removeTypeButton setEnabled:separateFileControlsState && [allowedTypesTable selectedRow] > -1];
-	
-	[allowedTypesTable setEnabled:separateFileControlsState];
 	[allowedExtensionsTable setEnabled:separateFileControlsState];
 	
 	[confirmFileDeletionButton setEnabled:separateFileControlsState];
@@ -199,9 +193,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	if (aTableView == allowedExtensionsTable) {
 		if (![notationPrefs setExtension:anObject atIndex:(unsigned int)rowIndex])
 			[self removedExtension:self];
-	} else if (aTableView == allowedTypesTable) {
-		if (![notationPrefs setType:anObject atIndex:(unsigned int)rowIndex])
-			[self removedType:self];
 	}
 }
 
@@ -218,9 +209,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 		}
 		return extension;
 			
-	} else if (aTableView == allowedTypesTable) {
-		
-			return [notationPrefs typeStringAtIndex:(int)rowIndex];
 	}
 	return 0;
 }
@@ -228,9 +216,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)aTableView {
 	if (aTableView == allowedExtensionsTable)
 		return [notationPrefs pathExtensionsCount];
-	else if (aTableView == allowedTypesTable)
-		return [notationPrefs typeStringsCount];
-	
 	return 0;
 }
 
@@ -243,12 +228,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (IBAction)addedType:(id)sender {
-    [notationPrefs addAllowedType:@""];
-	[allowedTypesTable reloadData];
-	
-	[allowedTypesTable selectRowIndexes:[NSIndexSet indexSetWithIndex:[notationPrefs typeStringsCount]-1] byExtendingSelection:NO];
-	[allowedTypesTable editColumn:0 row:[notationPrefs typeStringsCount]-1 withEvent:nil select:YES];
-
+	(void)sender;
 }
 
 - (IBAction)changedKeyLength:(id)sender {
@@ -292,7 +272,6 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	[self setSeparateFileControlsState:notesStorageFormatInProgress];
 	
     [allowedExtensionsTable reloadData];
-    [allowedTypesTable reloadData];
 }
 
 - (IBAction)changedFileStorageFormat:(id)sender {
@@ -375,13 +354,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (IBAction)removedType:(id)sender {
-	[allowedTypesTable abortEditing];
-	
-	NSInteger selectedRow = [allowedTypesTable selectedRow];
-	if (selectedRow > -1)
-		[notationPrefs removeAllowedTypeAtIndex:(unsigned int)selectedRow];
-	
-	[allowedTypesTable reloadData];
+	(void)sender;
 }
 
 - (void)passphrasePicker:(PassphrasePicker*)picker choseAPassphrase:(BOOL)success {

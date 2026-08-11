@@ -39,7 +39,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString;
 #endif
-- (NSString*)fourCharTypeString;
 - (BOOL)isAMachineDirective;
 - (void)copyItemToPasteboard:(id)sender;
 - (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc maxTitleLen:(NSUInteger)maxTitleLen;

@@ -39,6 +39,7 @@
 - (BOOL)noteFileIsAlreadyDeleted:(NoteObject*)aNote;
 - (void)addDeletedNotes:(NSArray*)array;
 - (void)addDeletedNote:(NoteObject*)aNote;
+- (void)reconcileVerifiedExistingNotes:(NSSet*)existingNotes deletedNotes:(NSArray*)missingNotes;
 - (NSRect)windowSizeForNotesFromSender:(id)sender;
 void updateForVerifiedDeletedNote(DeletionManager *self, NoteObject *missingNote);
 void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote);
