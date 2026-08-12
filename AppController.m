@@ -418,8 +418,8 @@ terminateApp:
 		[self restoreListStateUsingPreferences];
 
 		//window's undomanager could be referencing actions from the old notation object
-		[[window undoManager] removeAllActions];
-		[notationController setUndoManager:[window undoManager]];
+		[windowUndoManager removeAllActions];
+		[notationController setUndoManager:windowUndoManager];
 
 			[prefsController setDefaultDirectoryURL:[notationController noteDirectoryURL] sender:self error:NULL];
 		if ([prefsController tableColumnsShowPreview] || [prefsController horizontalLayout]) {
@@ -588,6 +588,7 @@ terminateApp:
 }
 
 - (IBAction)deleteNote:(id)sender {
+	if ([window attachedSheet]) return;
 
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 	if ([indexes count] > 0) {
@@ -2016,6 +2017,10 @@ terminateApp:
 
 - (NSWindow*)window {
 	return window;
+}
+
+- (BOOL)applicationSupportsSecureRestorableState:(NSApplication *)application {
+	return YES;
 }
 
 @end

@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 
 #import "../FrozenNotation.h"
+#import "../AppController.h"
 #import "../GlobalPrefs.h"
 #import "../NotationController.h"
 #import "../NotationDirectoryManager.h"
@@ -179,6 +180,61 @@ static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding
 	return [super fileReferenceURLForURL:URL error:error];
 }
 - (NSUInteger)referenceConversionCount { return referenceConversionCount; }
+@end
+
+@interface NVAppControllerWindow : NSObject {
+	NSUndoManager *routedUndoManager;
+}
+- (id)initWithUndoManager:(NSUndoManager*)undoManager;
+@end
+
+@implementation NVAppControllerWindow
+- (id)initWithUndoManager:(NSUndoManager*)undoManager {
+	self = [super init];
+	if (self) routedUndoManager = [undoManager retain];
+	return self;
+}
+- (id)attachedSheet { return self; }
+- (NSUndoManager*)undoManager { return routedUndoManager; }
+- (void)dealloc {
+	[routedUndoManager release];
+	[super dealloc];
+}
+@end
+
+@interface NVDeleteNotesTableView : NSObject {
+	NSUInteger selectedRowIndexesCallCount;
+}
+- (NSUInteger)selectedRowIndexesCallCount;
+@end
+
+@implementation NVDeleteNotesTableView
+- (NSIndexSet*)selectedRowIndexes {
+	selectedRowIndexesCallCount++;
+	return [NSIndexSet indexSet];
+}
+- (NSUInteger)selectedRowIndexesCallCount { return selectedRowIndexesCallCount; }
+@end
+
+@interface NVDeletionAppController : AppController
+- (id)initWithWindow:(id)aWindow notesTableView:(id)aNotesTableView;
+@end
+
+@implementation NVDeletionAppController
+- (id)initWithWindow:(id)aWindow notesTableView:(id)aNotesTableView {
+	self = [super init];
+	if (self) {
+		window = aWindow;
+		notesTableView = aNotesTableView;
+	}
+	return self;
+}
+- (void)dealloc {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+	[notationController release];
+	notationController = nil;
+	[super dealloc];
+}
 @end
 
 static char NVPreparedNoteDeallocationProbeKey;
@@ -4438,6 +4494,13 @@ static void TestOpenFilesWorkflow(void) {
 }
 
 static void TestDeletionContracts(void) {
+	NVAppControllerWindow *window = [[[NVAppControllerWindow alloc] init] autorelease];
+	NVDeleteNotesTableView *tableView = [[[NVDeleteNotesTableView alloc] init] autorelease];
+	NVDeletionAppController *appController = [[[NVDeletionAppController alloc]
+		initWithWindow:window notesTableView:tableView] autorelease];
+	[appController deleteNote:nil];
+	REQUIRE([tableView selectedRowIndexesCallCount] == 0);
+
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
@@ -4445,6 +4508,31 @@ static void TestDeletionContracts(void) {
 		controller = CreateController(directoryPath, delegate);
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];
+		NSUndoManager *routedUndoManager = [[[NSUndoManager alloc] init] autorelease];
+		NVAppControllerWindow *routingWindow = [[[NVAppControllerWindow alloc]
+			initWithUndoManager:routedUndoManager] autorelease];
+		NVDeletionAppController *undoAppController = [[NVDeletionAppController alloc]
+			initWithWindow:routingWindow notesTableView:nil];
+		[undoAppController setNotationController:controller];
+		REQUIRE([controller undoManager] == [undoAppController valueForKey:@"windowUndoManager"]);
+		[NSObject cancelPreviousPerformRequestsWithTarget:controller];
+		[controller setDelegate:delegate];
+		[undoAppController release];
+
+		[controller setUseTestTrash:YES];
+		NSUndoManager *undoManager = [controller undoManager];
+		NoteObject *undoNote = AddTestNote(controller, @"Undo Deletion", @"undo deletion body");
+		REQUIRE([controller flushAllNoteChanges]);
+		[undoManager beginUndoGrouping];
+		[controller removeNote:undoNote];
+		[undoManager endUndoGrouping];
+		REQUIRE([controller totalNoteCount] == 0 && [undoManager canUndo]);
+		[undoManager undo];
+		REQUIRE([controller totalNoteCount] == 1 && [AllNotes(controller) containsObject:undoNote]);
+		[undoManager removeAllActions];
+		[controller removeNote:undoNote];
+		[undoManager removeAllActions];
+
 		NoteObject *first = AddTestNote(controller, @"Restore First", @"restore first body");
 		REQUIRE([controller flushAllNoteChanges]);
 		NSString *firstPath = [[first noteFileURL] path];
