@@ -147,7 +147,7 @@ static SecureTextEntryManager *sharedInstance = nil;
 			[alert setAlertStyle:NSAlertStyleWarning];
 			[alert setShowsSuppressionButton:YES];
 			[alert runModal];
-			if ([[alert suppressionButton] state] == NSOnState) {
+			if ([[alert suppressionButton] state] == NSControlStateValueOn) {
 				[[NSUserDefaults standardUserDefaults] setBool:YES forKey:ShouldHideSecureTextEntryWarningKey];
 			}
 			break;

@@ -243,10 +243,10 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 - (BOOL)writeNoteObject:(id<SynchronizedNote>)aNoteObject {
 	//this method serializes a note object, encrypts it, and writes it to the log
-    NSMutableData *noteData = [NSMutableData data];
-	NSKeyedArchiver *archiver = [[[NSKeyedArchiver alloc] initForWritingWithMutableData:noteData] autorelease];
+	NSKeyedArchiver *archiver = [[[NSKeyedArchiver alloc] initRequiringSecureCoding:NO] autorelease];
 	[archiver encodeObject:aNoteObject forKey:@"aNote"];
 	[archiver finishEncoding];
+	NSMutableData *noteData = [[[archiver encodedData] mutableCopy] autorelease];
 	
     if ([noteData length])
 		return [self _encryptAndWriteData:noteData];
@@ -567,13 +567,17 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     
     id <SynchronizedNote> object = nil;
 	@try {
-		NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:presumablySerializedData];
-		object = [unarchiver decodeObjectForKey:@"aNote"];
-		[unarchiver release];	
+		NSError *unarchiveError = nil;
+		NSKeyedUnarchiver *unarchiver = [[[NSKeyedUnarchiver alloc] initForReadingFromData:presumablySerializedData error:&unarchiveError] autorelease];
+		[unarchiver setRequiresSecureCoding:NO];
+		object = [unarchiver decodeTopLevelObjectForKey:@"aNote" error:&unarchiveError];
+		[unarchiver finishDecoding];
+		if (!object)
+			NSLog(@"recoverNextObject could not unarchive object: %@; returning NSNull to skip", unarchiveError);
     } @catch (NSException *e) {
 		NSLog(@"recoverNextObject got an exception while unarchiving object: %@; returning NSNull to skip", [e reason]);
-		object = (id<SynchronizedNote>)[NSNull null];
     }
+	if (!object) object = (id<SynchronizedNote>)[NSNull null];
     
     [presumablySerializedData release];
     

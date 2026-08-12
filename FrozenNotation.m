@@ -26,6 +26,16 @@
 #import "NSData_transformations.h"
 #import "NotationPrefs.h"
 
+static id UnarchiveObject(NSData *data, NSString *key, NSError **error) {
+	NSError *unarchiveError = nil;
+	NSKeyedUnarchiver *unarchiver = [[[NSKeyedUnarchiver alloc] initForReadingFromData:data error:&unarchiveError] autorelease];
+	[unarchiver setRequiresSecureCoding:NO];
+	id object = [unarchiver decodeTopLevelObjectForKey:key error:&unarchiveError];
+	[unarchiver finishDecoding];
+	if (error) *error = unarchiveError;
+	return object;
+}
+
 @implementation FrozenNotation
 
 - (id)initWithCoder:(NSCoder*)decoder {
@@ -61,10 +71,10 @@
 	self = [super init];
 	if (self) {
 
-		notesData = [[NSMutableData alloc] init];
-		NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initForWritingWithMutableData:notesData];
+		NSKeyedArchiver *archiver = [[NSKeyedArchiver alloc] initRequiringSecureCoding:NO];
 		[archiver encodeObject:notes forKey:@"notes"];
         [archiver finishEncoding];
+		notesData = [[archiver encodedData] mutableCopy];
 		[archiver release];
 		
 		prefs = [somePrefs retain];
@@ -113,7 +123,10 @@
 	if (!frozenNotation)
 		return nil;
 	
-	NSData *encodedNotationData = [NSKeyedArchiver archivedDataWithRootObject:frozenNotation];
+	NSError *archiveError = nil;
+	NSData *encodedNotationData = [NSKeyedArchiver archivedDataWithRootObject:frozenNotation
+		requiringSecureCoding:NO error:&archiveError];
+	if (!encodedNotationData) NSLog(@"Error archiving notes and preferences: %@", archiveError);
 	[frozenNotation autorelease];
 	
 	return encodedNotationData;
@@ -143,9 +156,13 @@
 			NSLog(@"Error decompressing data");
 			return nil;
 		}
-		NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:notesData];
-		allNotes = [[unarchiver decodeObjectForKey:@"notes"] retain];
-		[unarchiver autorelease];
+		NSError *unarchiveError = nil;
+		allNotes = [UnarchiveObject(notesData, @"notes", &unarchiveError) retain];
+		if (!allNotes) {
+			*err = kCoderErr;
+			NSLog(@"(VERIFY) Error unarchiving notes from data: %@", unarchiveError);
+			return nil;
+		}
 		
 	} @catch (NSException *e) {
 		*err = kCoderErr;
@@ -203,15 +220,17 @@
 			}
             BOOL keyedArchiveFailed = NO;
             @try {
-                NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:notesData];
-                allNotes = [[unarchiver decodeObjectForKey:@"notes"] retain];
-                [unarchiver autorelease];
+                NSError *unarchiveError = nil;
+                allNotes = [UnarchiveObject(notesData, @"notes", &unarchiveError) retain];
+                keyedArchiveFailed = allNotes == nil;
             } @catch (NSException *e) {
                 keyedArchiveFailed = YES;
             }
-            
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             if (keyedArchiveFailed)
                 allNotes = [[NSUnarchiver unarchiveObjectWithData:notesData] retain];
+#pragma pop
 		} @catch (NSException *e) {
 			*err = kCoderErr;
 			NSLog(@"Error unarchiving notes from data (%@, %@)", [e name], [e reason]);

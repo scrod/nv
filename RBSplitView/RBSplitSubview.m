@@ -359,7 +359,7 @@ static animationData* currentAnimation = NULL;
 	NSColor* bg = [sv background];
 	if (bg) {
 		[bg set];
-		NSRectFillUsingOperation(rect,NSCompositeSourceOver);
+		NSRectFillUsingOperation(rect,NSCompositingOperationSourceOver);
 	}
 	id del = [sv delegate];
 	if ([del respondsToSelector:@selector(splitView:willDrawSubview:inRect:)]) {
@@ -500,10 +500,9 @@ static animationData* currentAnimation = NULL;
 		BOOL ishor = [sv isHorizontal];
 		[sv RB___setDragging:YES];
 // Loop while the button is down.
-		while ((theEvent = [NSApp nextEventMatchingMask:NSLeftMouseDownMask|NSLeftMouseDraggedMask|NSLeftMouseUpMask untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES])&&([theEvent type]!=NSLeftMouseUp)) {
+		while ((theEvent = [NSApp nextEventMatchingMask:NSEventMaskLeftMouseDown|NSEventMaskLeftMouseDragged|NSEventMaskLeftMouseUp untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES])&&([theEvent type]!=NSEventTypeLeftMouseUp)) {
 // Set up a local autorelease pool for the loop to prevent buildup of temporary objects.
 			NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-			NSDisableScreenUpdates();
 // This does the actual movement.
 			[sv RB___trackMouseEvent:theEvent from:point withBase:base inDivider:actDivider];
 			if ([sv mustAdjust]) {
@@ -515,7 +514,6 @@ static animationData* currentAnimation = NULL;
 			CGFloat newc = [sv RB___dividerOrigin:actDivider];
 			DIM(point) += newc-divc;
 			divc = newc;
-			NSEnableScreenUpdates();
 			[pool release];
 		}
 		[sv RB___setDragging:NO];
@@ -528,13 +526,13 @@ static animationData* currentAnimation = NULL;
 // of the subview, and our RBSplitView has a transparent background. RBSplitView returns NO to
 // mouseDownCanMoveWindow, but the window should move here - after all, the window background
 // is visible right here! So we fake it and move the window as intended. Mwahahaha!
-		where =  [window convertBaseToScreen:where];
+		where = [window convertPointToScreen:where];
 		NSPoint origin = [window frame].origin;
 // Now we loop handling mouse events until we get a mouse up event.
-		while ((theEvent = [NSApp nextEventMatchingMask:NSLeftMouseDownMask|NSLeftMouseDraggedMask|NSLeftMouseUpMask untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES])&&([theEvent type]!=NSLeftMouseUp)) {
+		while ((theEvent = [NSApp nextEventMatchingMask:NSEventMaskLeftMouseDown|NSEventMaskLeftMouseDragged|NSEventMaskLeftMouseUp untilDate:[NSDate distantFuture] inMode:NSEventTrackingRunLoopMode dequeue:YES])&&([theEvent type]!=NSEventTypeLeftMouseUp)) {
 // Set up a local autorelease pool for the loop to prevent buildup of temporary objects.
 			NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-			NSPoint now = [window convertBaseToScreen:[theEvent locationInWindow]];
+			NSPoint now = [window convertPointToScreen:[theEvent locationInWindow]];
 			origin.x += now.x-where.x;
 			origin.y += now.y-where.y;
 // Move the window by the mouse displacement since the last event.

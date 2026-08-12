@@ -85,8 +85,6 @@ typedef struct _NoteCatalogEntry {
     
 	unsigned int lastCheckedDateInHours;
 	int lastLayoutStyleGenerated;
-	long blockSize;
-	struct statfs *statfsInfo;
 	NSString *currentFileMetadataVolumeUUID;
     NSURL *noteDirectoryURL;
     NSData *noteDirectoryBookmarkData;
@@ -107,7 +105,6 @@ typedef struct _NoteCatalogEntry {
 - (id)initWithDefaultDirectoryReturningError:(OSStatus*)err;
 - (id)initWithDirectoryURL:(NSURL*)directoryURL error:(OSStatus*)err;
 - (NSURL*)noteDirectoryURL;
-- (int)noteDirectoryFileDescriptor;
 - (OSStatus)_readAndInitializeSerializedNotes;
 - (void)processRecoveredNotes:(NSDictionary*)dict;
 - (BOOL)initializeJournaling;

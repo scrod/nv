@@ -43,6 +43,16 @@
 #import "NSData_transformations.h"
 #include <unistd.h>
 
+static id UnarchiveRootObject(NSData *data, NSError **error) {
+	NSError *unarchiveError = nil;
+	NSKeyedUnarchiver *unarchiver = [[[NSKeyedUnarchiver alloc] initForReadingFromData:data error:&unarchiveError] autorelease];
+	[unarchiver setRequiresSecureCoding:NO];
+	id object = [unarchiver decodeTopLevelObjectForKey:NSKeyedArchiveRootObjectKey error:&unarchiveError];
+	[unarchiver finishDecoding];
+	if (error) *error = unarchiveError;
+	return object;
+}
+
 @implementation NotationController
 
 - (id)init {
@@ -244,7 +254,13 @@
 		goto returnResult;
 	}
 	@try {
-		frozenNotation = [NSKeyedUnarchiver unarchiveObjectWithData:archivedNotation];
+		NSError *unarchiveError = nil;
+		frozenNotation = UnarchiveRootObject(archivedNotation, &unarchiveError);
+		if (!frozenNotation) {
+			NSLog(@"(VERIFY) Error unarchiving notes and preferences from data: %@", unarchiveError);
+			result = kCoderErr;
+			goto returnResult;
+		}
 	} @catch (NSException *e) {
 		NSLog(@"(VERIFY) Error unarchiving notes and preferences from data (%@, %@)", [e name], [e reason]);
 		result = kCoderErr;
@@ -295,7 +311,12 @@ returnResult:
 	
 	if ([notesData length] > 0) {
 		@try {
-			frozenNotation = [NSKeyedUnarchiver unarchiveObjectWithData:notesData];
+			NSError *unarchiveError = nil;
+			frozenNotation = UnarchiveRootObject(notesData, &unarchiveError);
+			if (!frozenNotation) {
+				NSLog(@"Error unarchiving notes and preferences from data: %@", unarchiveError);
+				return kCoderErr;
+			}
 		} @catch (NSException *e) {
 			NSLog(@"Error unarchiving notes and preferences from data (%@, %@)", [e name], [e reason]);
 			//perhaps this shouldn't be an error, but the user should instead have the option of overwriting the DB with a new one?

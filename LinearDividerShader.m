@@ -28,10 +28,10 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 
 		colorSpaceRef = CGColorSpaceCreateDeviceRGB();
 		
-		[[start colorUsingColorSpaceName:NSDeviceRGBColorSpace] getRed: &colors.firstColor.redComp green:&colors.firstColor.greenComp
+		[[start colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]] getRed: &colors.firstColor.redComp green:&colors.firstColor.greenComp
 																  blue:&colors.firstColor.blueComp alpha:&colors.firstColor.alphaComp];
 		
-		[[end colorUsingColorSpaceName:NSDeviceRGBColorSpace] getRed: &colors.secondColor.redComp green:&colors.secondColor.greenComp
+		[[end colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]] getRed: &colors.secondColor.redComp green:&colors.secondColor.greenComp
 																blue:&colors.secondColor.blueComp alpha:&colors.secondColor.alphaComp];
 		
 		static const CGFloat validIntervals[8] = { 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0 };
@@ -59,7 +59,7 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 	CGShadingRef cgShading = CGShadingCreateAxial(colorSpaceRef, CGPointMake(aRect.origin.x, aRect.origin.y), 
 												  CGPointMake(v ? NSMinX(aRect) : NSMaxX(aRect), v ? NSMaxY(aRect) : NSMinY(aRect)), 
 												  axialShadingFunction, NO, NO);	
-	CGContextDrawShading((CGContextRef)[[NSGraphicsContext currentContext] graphicsPort], cgShading);
+	CGContextDrawShading([[NSGraphicsContext currentContext] CGContext], cgShading);
 	
 	CGShadingRelease(cgShading);
 	

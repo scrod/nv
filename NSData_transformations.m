@@ -203,12 +203,15 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 }
 
 - (NSData*)MD5Digest {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 	CC_MD5_CTX ctx;
 	CC_MD5_Init(&ctx);
 	CC_MD5_Update(&ctx, self.bytes, (CC_LONG)self.length);
 
 	unsigned char md[CC_MD5_DIGEST_LENGTH];
 	CC_MD5_Final(md, &ctx);
+#pragma clang diagnostic pop
 
 	return [NSData dataWithBytes:md length:CC_MD5_DIGEST_LENGTH];
 }

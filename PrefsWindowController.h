@@ -22,7 +22,7 @@
 @class NotationPrefsViewController;
 @class GlobalPrefs;
 
-@interface PrefsWindowController : NSObject <NSWindowDelegate, NSToolbarDelegate>
+@interface PrefsWindowController : NSObject <NSWindowDelegate, NSToolbarDelegate, NSFontChanging>
 {
     IBOutlet NSPopUpButton *folderLocationsMenuButton;
     IBOutlet NSTextField *bodyTextFontField;
