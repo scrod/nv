@@ -63,6 +63,7 @@ static long (*GetGetScriptManagerVariablePointer())(short);
 	searchForward:(BOOL)searchForward
 	movedToDifferentNote:(BOOL)movedToDifferentNote
 	noteCount:(NSInteger)noteCount;
+- (NSArray*)_displayColorsForForegroundColor:(NSColor*)foregroundColor backgroundColor:(NSColor*)backgroundColor;
 @end
 
 
@@ -98,7 +99,6 @@ CGFloat _perceptualDarkness(NSColor*a);
 	[self setUsesRuler:NO];
 	[self setUsesFontPanel:NO];
 	[self setDrawsBackground:YES];
-	[self setBackgroundColor:[prefsController backgroundTextColor]];
 	[self updateTextColors];
 	
 	[[self window] setAcceptsMouseMovedEvents:YES];
@@ -137,13 +137,11 @@ CGFloat _perceptualDarkness(NSColor*a);
 	} else if ([selectorString isEqualToString:SEL_STR(setBackgroundTextColor:sender:)]) {
 		
 		//link-color is derived both from foreground and background colors
-		[self setBackgroundColor:[prefsController backgroundTextColor]];
 		[self updateTextColors];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setForegroundTextColor:sender:)]) {
 		
 		[self updateTextColors];
-		[self setTypingAttributes:[prefsController noteBodyAttributes]];
 		
 	} else if ([selectorString isEqualToString:SEL_STR(setSearchTermHighlightColor:sender:)] || 
 			   [selectorString isEqualToString:SEL_STR(setShouldHighlightSearchTerms:sender:)]) {
@@ -200,15 +198,41 @@ CGFloat _perceptualDarkness(NSColor*a);
 }
 
 - (void)updateTextColors {
-	NSColor *fgColor = [prefsController foregroundTextColor];
-	NSColor *bgColor = [prefsController backgroundTextColor];
-	
+	NSArray *colors = [self _displayColorsForForegroundColor:[prefsController foregroundTextColor]
+		backgroundColor:[prefsController backgroundTextColor]];
+	NSColor *fgColor = [colors objectAtIndex:0];
+	NSColor *bgColor = [colors objectAtIndex:1];
+
+	if (screenForegroundColor != fgColor) {
+		[screenForegroundColor release];
+		screenForegroundColor = [fgColor retain];
+	}
+	[self setBackgroundColor:bgColor];
 	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:fgColor backgroundColor:bgColor]];
 	[self setLinkTextAttributes:[self preferredLinkAttributes]];
 	[self setSelectedTextAttributes:[NSDictionary dictionaryWithObject:[self _selectionColorForForegroundColor:fgColor backgroundColor:bgColor] 
-																forKey:NSBackgroundColorAttributeName]];
+														forKey:NSBackgroundColorAttributeName]];
+	[self setNeedsDisplay:YES];
 }
 
+- (void)viewDidChangeEffectiveAppearance {
+	[super viewDidChangeEffectiveAppearance];
+	if (prefsController) {
+		[self updateTextColors];
+	}
+}
+
+- (NSArray*)_displayColorsForForegroundColor:(NSColor*)foregroundColor backgroundColor:(NSColor*)backgroundColor {
+	BOOL dark = [[self.effectiveAppearance bestMatchFromAppearancesWithNames:
+				  [NSArray arrayWithObjects:NSAppearanceNameAqua, NSAppearanceNameDarkAqua, nil]] isEqualToString:NSAppearanceNameDarkAqua];
+	BOOL customized = [foregroundColor type] == NSColorTypeComponentBased || [backgroundColor type] == NSColorTypeComponentBased;
+	if (dark && customized) {
+		NSColor *originalForegroundColor = foregroundColor;
+		foregroundColor = backgroundColor;
+		backgroundColor = originalForegroundColor;
+	}
+	return [NSArray arrayWithObjects:foregroundColor, backgroundColor, nil];
+}
 #define _CM(__ch) ((__ch) * 255.0)
 CGFloat _perceptualDarkness(NSColor*a) {
 	//0 to 1; the higher the darker
@@ -309,7 +333,7 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	return [NSDictionary dictionaryWithObjectsAndKeys:
 			[NSCursor pointingHandCursor], NSCursorAttributeName,
 			[NSNumber numberWithInt:NSUnderlineStyleSingle], NSUnderlineStyleAttributeName,
-			[self _linkColorForForegroundColor:[prefsController foregroundTextColor] backgroundColor:[prefsController backgroundTextColor]],
+			[self _linkColorForForegroundColor:screenForegroundColor backgroundColor:[self backgroundColor]],
 			NSForegroundColorAttributeName, nil];
 }
 
@@ -349,6 +373,16 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 }
 - (void)layoutManagerDidInvalidateLayout:(NSLayoutManager *)aLayoutManager {
 	didRenderFully = NO;	
+}
+
+- (NSDictionary*)layoutManager:(NSLayoutManager *)layoutManager shouldUseTemporaryAttributes:(NSDictionary*)attributes
+			 forDrawingToScreen:(BOOL)drawingToScreen atCharacterIndex:(NSUInteger)charIndex effectiveRange:(NSRangePointer)effectiveRange {
+	if (!drawingToScreen) return nil;
+	if (!screenForegroundColor || [attributes objectForKey:NSForegroundColorAttributeName]) return attributes;
+
+	NSMutableDictionary *displayAttributes = attributes ? [[attributes mutableCopy] autorelease] : [NSMutableDictionary dictionary];
+	[displayAttributes setObject:screenForegroundColor forKey:NSForegroundColorAttributeName];
+	return displayAttributes;
 }
 
 - (BOOL)readSelectionFromPasteboard:(NSPasteboard *)pboard type:(NSString *)type {
@@ -1636,6 +1670,7 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver: self];
+	[screenForegroundColor release];
 	[_lastFindSearchString release];
 	[super dealloc];
 }

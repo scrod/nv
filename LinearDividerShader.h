@@ -17,31 +17,16 @@
 
 #import <Cocoa/Cocoa.h>
 
-typedef struct {
-
-	union {
-		struct {
-			CGFloat redComp;
-			CGFloat greenComp;
-			CGFloat blueComp;
-			CGFloat alphaComp;
-		};
-		CGFloat channels[4];
-	} firstColor, secondColor;
-	
-} ColorSet;
-
 NSRect centeredRectInRect(NSRect rect, NSSize size);
 
 @interface LinearDividerShader : NSObject  {
 	CGColorSpaceRef	colorSpaceRef;
-	CGFunctionRef axialShadingFunction;
-	
-	ColorSet colors;
+	NSColor *startColor, *endColor, *darkStartColor, *darkEndColor;
 	NSImage *dimpleImage;
 }
 
 - (id)initWithStartColor:(NSColor*)start endColor:(NSColor*)end;
+- (id)initWithStartColor:(NSColor*)start endColor:(NSColor*)end darkStartColor:(NSColor*)darkStart darkEndColor:(NSColor*)darkEnd;
 
 - (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect blendVertically:(BOOL)v;
 
@@ -51,5 +36,6 @@ NSRect centeredRectInRect(NSRect rect, NSSize size);
 
 - (void)drawCenteredInRect:(NSRect)aRect;
 - (void)drawCenteredInRect:(NSRect)aRect fraction:(float)aFraction;
+- (void)drawTemplateCenteredInRect:(NSRect)aRect color:(NSColor*)color fraction:(float)aFraction;
 
 @end

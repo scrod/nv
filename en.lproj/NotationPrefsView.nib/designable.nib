@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24765" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <deployment version="101300" identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24765"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <objects>
@@ -30,33 +30,33 @@
             </connections>
         </customObject>
         <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
-        <customObject id="-3" userLabel="Application"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
         <customView id="5" userLabel="View">
             <rect key="frame" x="0.0" y="0.0" width="368" height="346"/>
             <autoresizingMask key="autoresizingMask"/>
             <subviews>
                 <tabView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="6">
-                    <rect key="frame" x="-12" y="-10" width="393" height="362"/>
-                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                    <rect key="frame" x="-12" y="-10" width="392" height="362"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                     <font key="font" metaFont="system"/>
                     <tabViewItems>
                         <tabViewItem label="Storage" identifier="storage" id="7">
                             <view key="view" id="8">
-                                <rect key="frame" x="10" y="33" width="373" height="316"/>
+                                <rect key="frame" x="10" y="33" width="372" height="316"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <subviews>
                                     <scrollView fixedFrame="YES" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="9">
                                         <rect key="frame" x="80" y="73" width="90" height="92"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <clipView key="contentView" id="0zM-Rf-7ka">
                                             <rect key="frame" x="1" y="1" width="77" height="90"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <subviews>
                                                 <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" columnReordering="NO" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" rowHeight="14" headerView="253" id="10" customClass="FileKindListView">
                                                     <rect key="frame" x="0.0" y="0.0" width="86" height="62"/>
-                                                    <autoresizingMask key="autoresizingMask"/>
+                                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                     <size key="intercellSpacing" width="3" height="2"/>
-                                                    <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                                    <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                                     <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                                     <tableColumns>
                                                         <tableColumn width="74" minWidth="60.147950000000002" maxWidth="77" id="11">
@@ -81,7 +81,7 @@
                                             <rect key="frame" x="-100" y="-100" width="128" height="15"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                         </scroller>
-                                        <scroller key="verticalScroller" verticalHuggingPriority="750" controlSize="small" horizontal="NO" id="251">
+                                        <scroller key="verticalScroller" verticalHuggingPriority="750" doubleValue="1" controlSize="small" horizontal="NO" id="251">
                                             <rect key="frame" x="78" y="29" width="11" height="62"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                         </scroller>
@@ -91,17 +91,17 @@
                                         </tableHeaderView>
                                     </scrollView>
                                     <scrollView fixedFrame="YES" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="12">
-                                        <rect key="frame" x="199" y="73" width="90" height="92"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <rect key="frame" x="199" y="73" width="89" height="92"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <clipView key="contentView" id="w50-Wb-Khs">
-                                            <rect key="frame" x="1" y="1" width="77" height="90"/>
+                                            <rect key="frame" x="1" y="1" width="76" height="90"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <subviews>
                                                 <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" columnReordering="NO" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" rowHeight="14" headerView="256" id="13" customClass="FileKindListView">
-                                                    <rect key="frame" x="0.0" y="0.0" width="85.5" height="62"/>
-                                                    <autoresizingMask key="autoresizingMask"/>
+                                                    <rect key="frame" x="0.0" y="0.0" width="86" height="62"/>
+                                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                     <size key="intercellSpacing" width="3" height="2"/>
-                                                    <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                                    <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                                     <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                                     <tableColumns>
                                                         <tableColumn width="73.5" minWidth="55.62012" maxWidth="74" id="14">
@@ -126,27 +126,27 @@
                                             <rect key="frame" x="-100" y="-100" width="128" height="15"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                         </scroller>
-                                        <scroller key="verticalScroller" verticalHuggingPriority="750" controlSize="small" horizontal="NO" id="254">
-                                            <rect key="frame" x="78" y="29" width="11" height="62"/>
+                                        <scroller key="verticalScroller" verticalHuggingPriority="750" doubleValue="1" controlSize="small" horizontal="NO" id="254">
+                                            <rect key="frame" x="77" y="29" width="11" height="62"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                         </scroller>
                                         <tableHeaderView key="headerView" wantsLayer="YES" id="256">
-                                            <rect key="frame" x="0.0" y="0.0" width="85.5" height="28"/>
+                                            <rect key="frame" x="0.0" y="0.0" width="86" height="28"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                         </tableHeaderView>
                                     </scrollView>
-                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="301" translatesAutoresizingMaskIntoConstraints="NO" id="15">
-                                        <rect key="frame" x="43" y="215" width="290" height="28"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="301" translatesAutoresizingMaskIntoConstraints="NO" id="15">
+                                        <rect key="frame" x="40" y="215" width="292" height="28"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="* Using separate files allows Spotlight integration, but wastes disk space." id="216">
                                             <font key="font" metaFont="smallSystem"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <button toolTip="Add new file extension" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="20">
+                                    <button toolTip="Add new file extension" imageHugsTitle="YES" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="20">
                                         <rect key="frame" x="80" y="42" width="23" height="22"/>
-                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="Add" imagePosition="only" alignment="center" alternateImage="Add_Pressed" enabled="NO" inset="2" id="220">
                                             <behavior key="behavior" lightByContents="YES"/>
                                             <font key="font" metaFont="smallSystem"/>
@@ -156,9 +156,9 @@
                                             <outlet property="nextKeyView" destination="19" id="54"/>
                                         </connections>
                                     </button>
-                                    <button toolTip="Remove file extension" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="19">
+                                    <button toolTip="Remove file extension" imageHugsTitle="YES" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="19">
                                         <rect key="frame" x="102" y="42" width="23" height="22"/>
-                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="Remove" imagePosition="only" alignment="center" alternateImage="Remove_Pressed" enabled="NO" inset="2" id="219">
                                             <behavior key="behavior" lightByContents="YES"/>
                                             <font key="font" metaFont="smallSystem"/>
@@ -167,9 +167,9 @@
                                             <action selector="removedExtension:" target="-2" id="76"/>
                                         </connections>
                                     </button>
-                                    <button toolTip="Set as default file extension for new notes" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="263">
+                                    <button toolTip="Set as default file extension for new notes" imageHugsTitle="YES" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="263">
                                         <rect key="frame" x="124" y="42" width="23" height="22"/>
-                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="MakeDefault" imagePosition="only" alignment="center" alternateImage="MakeDefault_Pressed" enabled="NO" inset="2" id="264">
                                             <behavior key="behavior" lightByContents="YES"/>
                                             <font key="font" metaFont="smallSystem"/>
@@ -178,9 +178,9 @@
                                             <action selector="makeDefaultExtension:" target="-2" id="267"/>
                                         </connections>
                                     </button>
-                                    <button toolTip="Add new file type" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="16">
+                                    <button toolTip="Add new file type" imageHugsTitle="YES" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="16">
                                         <rect key="frame" x="199" y="43" width="23" height="22"/>
-                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="Add" imagePosition="only" alignment="center" alternateImage="Add_Pressed" enabled="NO" inset="2" id="217">
                                             <behavior key="behavior" lightByContents="YES"/>
                                             <font key="font" metaFont="smallSystem"/>
@@ -190,9 +190,9 @@
                                             <outlet property="nextKeyView" destination="21" id="51"/>
                                         </connections>
                                     </button>
-                                    <button toolTip="Remove file type" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="21">
+                                    <button toolTip="Remove file type" imageHugsTitle="YES" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="21">
                                         <rect key="frame" x="221" y="43" width="23" height="22"/>
-                                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="Remove" imagePosition="only" alignment="center" alternateImage="Remove_Pressed" enabled="NO" inset="2" id="221">
                                             <behavior key="behavior" lightByContents="YES"/>
                                             <font key="font" metaFont="smallSystem"/>
@@ -201,18 +201,18 @@
                                             <action selector="removedType:" target="-2" id="78"/>
                                         </connections>
                                     </button>
-                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="204" translatesAutoresizingMaskIntoConstraints="NO" id="92">
+                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="204" translatesAutoresizingMaskIntoConstraints="NO" id="92">
                                         <rect key="frame" x="51" y="279" width="199" height="16"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Store and read notes on disk as:" id="222">
                                             <font key="font" metaFont="system"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <button fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="93">
-                                        <rect key="frame" x="43" y="13" width="312" height="18"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                    <button imageHugsTitle="YES" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="93">
+                                        <rect key="frame" x="43" y="13" width="311" height="18"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="check" title="Confirm note files removed in the Finder" bezelStyle="regularSquare" imagePosition="leading" alignment="left" enabled="NO" inset="2" id="223">
                                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                                             <font key="font" metaFont="system"/>
@@ -221,12 +221,12 @@
                                             <action selector="changedFileDeletionWarningSettings:" target="-2" id="95"/>
                                         </connections>
                                     </button>
-                                    <popUpButton verticalHuggingPriority="750" fixedFrame="YES" tag="4" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="98">
-                                        <rect key="frame" x="42" y="247" width="282" height="26"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                    <popUpButton tag="4" imageHugsTitle="YES" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="98">
+                                        <rect key="frame" x="42" y="247" width="281" height="26"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <popUpButtonCell key="cell" type="push" title="Single Database (Allow Encryption)" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" inset="2" arrowPosition="arrowAtCenter" preferredEdge="maxY" selectedItem="100" id="224">
                                             <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                            <font key="font" metaFont="system"/>
+                                            <font key="font" metaFont="message"/>
                                             <menu key="menu" title="OtherViews" id="99">
                                                 <items>
                                                     <menuItem title="Single Database (Allow Encryption)" state="on" id="100"/>
@@ -243,9 +243,9 @@
                                             <action selector="changedFileStorageFormat:" target="-2" id="105"/>
                                         </connections>
                                     </popUpButton>
-                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="261" translatesAutoresizingMaskIntoConstraints="NO" id="18">
+                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="261" translatesAutoresizingMaskIntoConstraints="NO" id="18">
                                         <rect key="frame" x="43" y="173" width="252" height="16"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Recognize individual files with attributes:" id="218">
                                             <font key="font" metaFont="system"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -257,21 +257,21 @@
                         </tabViewItem>
                         <tabViewItem label="Security" identifier="security" id="22">
                             <view key="view" id="23">
-                                <rect key="frame" x="10" y="33" width="373" height="316"/>
+                                <rect key="frame" x="10" y="33" width="372" height="316"/>
                                 <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                 <subviews>
-                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="71" translatesAutoresizingMaskIntoConstraints="NO" id="32">
+                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" preferredMaxLayoutWidth="71" translatesAutoresizingMaskIntoConstraints="NO" id="32">
                                         <rect key="frame" x="45" y="278" width="73" height="16"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Encryption:" id="227">
                                             <font key="font" metaFont="system"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <matrix verticalHuggingPriority="750" fixedFrame="YES" allowsEmptySelection="NO" autosizesCells="NO" translatesAutoresizingMaskIntoConstraints="NO" id="24">
+                                    <matrix verticalHuggingPriority="750" allowsEmptySelection="NO" autosizesCells="NO" translatesAutoresizingMaskIntoConstraints="NO" id="24">
                                         <rect key="frame" x="121" y="170" width="172" height="38"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         <size key="cellSize" width="172" height="18"/>
                                         <size key="intercellSpacing" width="4" height="2"/>
@@ -295,9 +295,9 @@
                                             <action selector="changedKeychainSettings:" target="-2" id="81"/>
                                         </connections>
                                     </matrix>
-                                    <button verticalHuggingPriority="750" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="34">
+                                    <button imageHugsTitle="YES" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="34">
                                         <rect key="frame" x="117" y="268" width="211" height="32"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="push" title="Turn On Note Encryption…" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="228">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                             <font key="font" metaFont="system"/>
@@ -306,9 +306,9 @@
                                             <action selector="toggledEncryption:" target="-2" id="79"/>
                                         </connections>
                                     </button>
-                                    <button verticalHuggingPriority="750" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="29">
-                                        <rect key="frame" x="117" y="219" width="101" height="32"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                    <button imageHugsTitle="YES" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="29">
+                                        <rect key="frame" x="117" y="219" width="91" height="32"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="push" title="Change…" bezelStyle="rounded" alignment="center" enabled="NO" borderStyle="border" inset="2" id="225">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                             <font key="font" metaFont="system"/>
@@ -317,53 +317,53 @@
                                             <action selector="changePassphrase:" target="-2" id="80"/>
                                         </connections>
                                     </button>
-                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="95" translatesAutoresizingMaskIntoConstraints="NO" id="30">
+                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" preferredMaxLayoutWidth="95" translatesAutoresizingMaskIntoConstraints="NO" id="30">
                                         <rect key="frame" x="40" y="229" width="78" height="16"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Passphrase:" id="226">
                                             <font key="font" metaFont="system"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <textField hidden="YES" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="71" translatesAutoresizingMaskIntoConstraints="NO" id="110">
+                                    <textField hidden="YES" focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" preferredMaxLayoutWidth="71" translatesAutoresizingMaskIntoConstraints="NO" id="110">
                                         <rect key="frame" x="48" y="11" width="70" height="16"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Bits in key:" id="229">
                                             <font key="font" metaFont="system"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <stepper hidden="YES" horizontalHuggingPriority="750" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="111">
-                                        <rect key="frame" x="190" y="5" width="19" height="27"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                    <stepper hidden="YES" horizontalHuggingPriority="750" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="111">
+                                        <rect key="frame" x="190" y="5" width="19" height="28"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <stepperCell key="cell" continuous="YES" enabled="NO" alignment="left" increment="64" minValue="64" maxValue="2048" doubleValue="256" id="230"/>
                                         <connections>
                                             <action selector="changedKeyLength:" target="-2" id="116"/>
                                         </connections>
                                     </stepper>
-                                    <textField hidden="YES" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="112">
-                                        <rect key="frame" x="123" y="8" width="67" height="22"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                    <textField hidden="YES" focusRingType="none" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="112">
+                                        <rect key="frame" x="123" y="8" width="32" height="22"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" enabled="NO" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="256" drawsBackground="YES" id="231">
                                             <font key="font" metaFont="system"/>
                                             <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="95" translatesAutoresizingMaskIntoConstraints="NO" id="128">
+                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" preferredMaxLayoutWidth="95" translatesAutoresizingMaskIntoConstraints="NO" id="128">
                                         <rect key="frame" x="52" y="135" width="66" height="16"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="right" title="Keyboard:" id="232">
                                             <font key="font" metaFont="system"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <button fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="129">
+                                    <button imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="129">
                                         <rect key="frame" x="121" y="133" width="133" height="18"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="check" title="Secure Text Entry" bezelStyle="regularSquare" imagePosition="leading" alignment="left" inset="2" id="233">
                                             <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                                             <font key="font" metaFont="system"/>
@@ -372,18 +372,18 @@
                                             <action selector="changedSecureTextEntry:" target="-2" id="132"/>
                                         </connections>
                                     </button>
-                                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="212" translatesAutoresizingMaskIntoConstraints="NO" id="130">
+                                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" preferredMaxLayoutWidth="212" translatesAutoresizingMaskIntoConstraints="NO" id="130">
                                         <rect key="frame" x="120" y="108" width="207" height="14"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="Can impede keystroke logging utilities." id="234">
                                             <font key="font" metaFont="smallSystem"/>
                                             <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                             <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
                                         </textFieldCell>
                                     </textField>
-                                    <button hidden="YES" verticalHuggingPriority="750" fixedFrame="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="133">
-                                        <rect key="frame" x="117" y="42" width="149" height="32"/>
-                                        <autoresizingMask key="autoresizingMask"/>
+                                    <button hidden="YES" imageHugsTitle="YES" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="133">
+                                        <rect key="frame" x="117" y="42" width="139" height="32"/>
+                                        <autoresizingMask key="autoresizingMask" flexibleMinY="YES" flexibleMaxY="YES"/>
                                         <buttonCell key="cell" type="push" title="Clear in Keychain" bezelStyle="rounded" alignment="center" enabled="NO" borderStyle="border" inset="2" id="235">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                             <font key="font" metaFont="system"/>
@@ -410,7 +410,7 @@
                 <rect key="frame" x="0.0" y="0.0" width="360" height="240"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="322" translatesAutoresizingMaskIntoConstraints="NO" id="125">
+                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="322" translatesAutoresizingMaskIntoConstraints="NO" id="125">
                         <rect key="frame" x="17" y="20" width="326" height="200"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" id="247">

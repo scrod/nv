@@ -34,5 +34,6 @@
 
 @interface NSImage (NV)
 
++ (void)nv_registerLegacySystemSymbolImages;
 + (NSImage*)smallIconForFileURL:(NSURL*)url;
 @end

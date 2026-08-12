@@ -30,7 +30,13 @@
 }
 
 - (void)awakeFromNib {
+	[labelText setTextColor:[NSColor secondaryLabelColor]];
 	outletObjectAwoke(self);
+}
+
+- (void)viewDidChangeEffectiveAppearance {
+	[super viewDidChangeEffectiveAppearance];
+	[self setNeedsDisplay:YES];
 }
 
 - (void)mouseDown:(NSEvent*)anEvent {
@@ -64,10 +70,10 @@
 - (void)drawRect:(NSRect)rect {
 	NSRect bounds = [self bounds];
 	
-	[[NSColor whiteColor] set];
+	[[NSColor textBackgroundColor] set];
     NSRectFill(bounds);
 	
-	[[NSColor lightGrayColor] set];
+	[[NSColor separatorColor] set];
     NSFrameRect(bounds);
 }
 

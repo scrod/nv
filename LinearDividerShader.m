@@ -18,26 +18,21 @@
 #import "LinearDividerShader.h"
 
 
-static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
-
 @implementation LinearDividerShader
 
 - (id)initWithStartColor:(NSColor*)start endColor:(NSColor*)end {
+	return [self initWithStartColor:start endColor:end darkStartColor:start darkEndColor:end];
+}
+
+- (id)initWithStartColor:(NSColor*)start endColor:(NSColor*)end darkStartColor:(NSColor*)darkStart darkEndColor:(NSColor*)darkEnd {
     
     if ((self = [super init])) {
 
 		colorSpaceRef = CGColorSpaceCreateDeviceRGB();
-		
-		[[start colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]] getRed: &colors.firstColor.redComp green:&colors.firstColor.greenComp
-																  blue:&colors.firstColor.blueComp alpha:&colors.firstColor.alphaComp];
-		
-		[[end colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]] getRed: &colors.secondColor.redComp green:&colors.secondColor.greenComp
-																blue:&colors.secondColor.blueComp alpha:&colors.secondColor.alphaComp];
-		
-		static const CGFloat validIntervals[8] = { 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0 };
-		static const CGFunctionCallbacks cgFunctionCallbacks = { 0, &ColorBlendFunction, nil };
-		
-		axialShadingFunction = CGFunctionCreate(&colors, 1, validIntervals, 4, validIntervals, &cgFunctionCallbacks);
+		startColor = [start retain];
+		endColor = [end retain];
+		darkStartColor = [darkStart retain];
+		darkEndColor = [darkEnd retain];
 		
 		dimpleImage = [[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForImageResource:@"SplitViewDimple.tif"]];
     }
@@ -47,24 +42,35 @@ static void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out);
 
 - (void)dealloc {
 
-	CGFunctionRelease(axialShadingFunction);
 	CGColorSpaceRelease(colorSpaceRef);
+	[startColor release];
+	[endColor release];
+	[darkStartColor release];
+	[darkEndColor release];
 	[dimpleImage release];
 	
 	[super dealloc];
 }
 
 - (void)drawDividerInRect:(NSRect)aRect withDimpleRect:(NSRect)dimpleRect blendVertically:(BOOL)v {
+	BOOL dark = [[[NSAppearance currentDrawingAppearance] bestMatchFromAppearancesWithNames:
+				  [NSArray arrayWithObjects:NSAppearanceNameAqua, NSAppearanceNameDarkAqua, nil]] isEqualToString:NSAppearanceNameDarkAqua];
+	NSColor *resolvedStartColor = dark ? darkStartColor : startColor;
+	NSColor *resolvedEndColor = dark ? darkEndColor : endColor;
+	CGFloat components[8];
+	[[resolvedStartColor colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]]
+	 getRed:&components[0] green:&components[1] blue:&components[2] alpha:&components[3]];
+	[[resolvedEndColor colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]]
+	 getRed:&components[4] green:&components[5] blue:&components[6] alpha:&components[7]];
 
-	CGShadingRef cgShading = CGShadingCreateAxial(colorSpaceRef, CGPointMake(aRect.origin.x, aRect.origin.y), 
-												  CGPointMake(v ? NSMinX(aRect) : NSMaxX(aRect), v ? NSMaxY(aRect) : NSMinY(aRect)), 
-												  axialShadingFunction, NO, NO);	
-	CGContextDrawShading([[NSGraphicsContext currentContext] CGContext], cgShading);
-	
-	CGShadingRelease(cgShading);
+	CGGradientRef gradient = CGGradientCreateWithColorComponents(colorSpaceRef, components, NULL, 2);
+	CGContextDrawLinearGradient([[NSGraphicsContext currentContext] CGContext], gradient,
+		CGPointMake(aRect.origin.x, aRect.origin.y),
+		CGPointMake(v ? NSMinX(aRect) : NSMaxX(aRect), v ? NSMaxY(aRect) : NSMinY(aRect)), 0);
+	CGGradientRelease(gradient);
 	
 	if (!NSIsEmptyRect(dimpleRect)) {
-		[dimpleImage drawCenteredInRect:dimpleRect];
+		[dimpleImage drawTemplateCenteredInRect:dimpleRect color:[NSColor tertiaryLabelColor] fraction:1.0];
 	}
 }
 
@@ -77,16 +83,6 @@ NSRect centeredRectInRect(NSRect rect, NSSize size) {
 									(rect.size.height - size.height) / 2.0);
 	centerRect.origin = NSMakePoint(rect.origin.x + centerRect.origin.x, rect.origin.y + centerRect.origin.y);
 	return centerRect;
-}
-
-
-void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out) {
-	ColorSet* colors = (ColorSet *)info;
-	
-	float inVal = in[0];
-	
-	unsigned int i;
-	for (i=0; i<4; i++) out[i] = (1.0 - inVal) * colors->firstColor.channels[i] + inVal * colors->secondColor.channels[i];
 }
 
 
@@ -104,6 +100,17 @@ void ColorBlendFunction(void *info, const CGFloat *in, CGFloat *out) {
 		fraction:aFraction
 		respectFlipped:YES
 		hints:nil];
+}
+
+- (void)drawTemplateCenteredInRect:(NSRect)aRect color:(NSColor*)color fraction:(float)aFraction {
+	NSImage *tintedImage = [NSImage imageWithSize:[self size] flipped:NO drawingHandler:^BOOL(NSRect dstRect) {
+		[self drawInRect:dstRect fromRect:NSZeroRect operation:NSCompositingOperationSourceOver
+			 fraction:1.0 respectFlipped:YES hints:nil];
+		[color set];
+		NSRectFillUsingOperation(dstRect, NSCompositingOperationSourceAtop);
+		return YES;
+	}];
+	[tintedImage drawCenteredInRect:aRect fraction:aFraction];
 }
 
 @end

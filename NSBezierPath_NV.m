@@ -67,6 +67,70 @@
 
 @implementation NSImage (NV)
 
++ (void)nv_registerLegacySystemSymbolImages {
+	static BOOL registered = NO;
+	if (registered) return;
+	registered = YES;
+
+	typedef struct {
+		NSString *legacyName;
+		NSString *symbolName;
+		NSString *accessibilityDescription;
+		CGFloat pointSize;
+		BOOL semibold;
+	} NVLegacySymbol;
+
+	static const NVLegacySymbol symbols[] = {
+		{@"Add", @"plus", @"Add", 13.0, NO},
+		{@"Add_Pressed", @"plus", @"Add", 13.0, NO},
+		{@"Remove", @"minus", @"Remove", 13.0, NO},
+		{@"Remove_Pressed", @"minus", @"Remove", 13.0, NO},
+		{@"MakeDefault", @"checkmark", @"Make Default", 13.0, YES},
+		{@"MakeDefault_Pressed", @"checkmark", @"Make Default", 13.0, YES},
+		{@"PasswordAssistantButton", @"key.fill", @"Password Assistant", 13.0, NO},
+		{@"PasswordAssistantButtonPressed", @"key.fill", @"Password Assistant", 13.0, NO},
+		{@"PTKeyboardIcon", @"keyboard", @"Keyboard Shortcut", 20.0, NO},
+
+		{@"General", @"gearshape", @"General", 24.0, NO},
+		{@"Notes", @"note.text", @"Notes", 24.0, NO},
+		{@"Editing", @"square.and.pencil", @"Editing", 24.0, NO},
+		{@"Fonts & Colors", @"textformat", @"Fonts & Colors", 24.0, NO},
+
+		{@"Clear", @"xmark", @"Clear Search", 10.0, YES},
+		{@"ClearPressed", @"xmark", @"Clear Search", 10.0, YES},
+		{@"SnapBack", @"arrow.uturn.backward", @"Return to All Notes", 11.0, YES},
+		{@"SnapBackPressed", @"arrow.uturn.backward", @"Return to All Notes", 11.0, YES},
+		{@"LinkBack", @"arrow.left", @"Back", 11.0, YES},
+		{@"LinkBackPressed", @"arrow.left", @"Back", 11.0, YES},
+		{@"Pencil", @"pencil", @"Editing Note", 13.0, NO},
+		{@"Search", @"magnifyingglass", @"Search", 13.0, NO},
+
+		{@"TBDownArrow", @"chevron.down", @"Show Sync Status", 10.0, YES},
+		{@"TBDownArrowWhite", @"chevron.down", @"Show Sync Status", 10.0, YES},
+		{@"TBSynchronizing", @"arrow.triangle.2.circlepath", @"Synchronizing", 10.0, YES},
+		{@"TBSynchronizingWhite", @"arrow.triangle.2.circlepath", @"Synchronizing", 10.0, YES},
+		{@"TBAlert", @"exclamationmark.triangle.fill", @"Sync Error", 10.0, NO},
+		{@"TBAlertWhite", @"exclamationmark.triangle.fill", @"Sync Error", 10.0, NO},
+
+		{@"TinyAlert", @"exclamationmark.triangle.fill", @"Warning", 13.0, NO},
+		{@"statusValidated", @"checkmark.circle.fill", @"Validated", 12.0, NO},
+		{@"statusInProgress", @"hourglass", @"In Progress", 12.0, NO},
+		{@"statusError", @"xmark.circle.fill", @"Error", 12.0, NO},
+	};
+
+	for (NSUInteger i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
+		const NVLegacySymbol symbol = symbols[i];
+		NSImage *image = [NSImage imageWithSystemSymbolName:symbol.symbolName
+								 accessibilityDescription:NSLocalizedString(symbol.accessibilityDescription, nil)];
+		image = [image imageWithSymbolConfiguration:
+				 [NSImageSymbolConfiguration configurationWithPointSize:symbol.pointSize
+												 weight:symbol.semibold ? NSFontWeightSemibold : NSFontWeightRegular]];
+		NSCAssert(image != nil, @"Missing SF Symbol %@", symbol.symbolName);
+		BOOL didRegister = [image setName:symbol.legacyName];
+		NSCAssert(didRegister, @"Could not register image %@", symbol.legacyName);
+	}
+}
+
 + (NSImage*)smallIconForFileURL:(NSURL*)url {
 	if (!url) return nil;
 	NSImage *image = [[NSWorkspace sharedWorkspace] iconForFile:[url path]];

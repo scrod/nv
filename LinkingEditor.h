@@ -43,6 +43,7 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 	BOOL isAutocompleting, wasDeleting;
 
 	BOOL backgroundIsDark, mouseInside;
+	NSColor *screenForegroundColor;
 	NSString *_lastFindSearchString;
 
     id (*defaultIBeamCursorIMP)(Class, SEL);
@@ -85,4 +86,3 @@ enum {LAST_FIND_UNKNOWN, LAST_FIND_NO, LAST_FIND_YES};
 
 @property (nonatomic, copy) NSString *lastFindSearchString;
 @end
-

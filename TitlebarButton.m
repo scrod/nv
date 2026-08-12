@@ -64,7 +64,7 @@
 		
 		//use animation steps from 1 to 8 (rotationStep)
 		
-		NSPoint center = NSMakePoint([img size].width/2.0, [img size].height/2.0);
+		NSPoint center = NSMakePoint(NSMidX(cellFrame), NSMidY(cellFrame));
 		NSAffineTransform *translateTransform = [NSAffineTransform transform];
 		[translateTransform translateXBy:center.x yBy:center.y];
 		[translateTransform rotateByRadians:((float)rotationStep / 16.0) * M_PI];
@@ -74,10 +74,9 @@
 		[translateTransform concat];
 	}
 	
-	NSRect imgRect = NSMakeRect(0, 0, [img size].width, [img size].height);
-	[img drawInRect:imgRect fromRect:NSZeroRect operation:NSCompositingOperationSourceOver 
-		   fraction:isHovering ? 1.0 : ([[controlView window] isMainWindow] ? 0.83 : 0.5)
-	 respectFlipped:YES hints:nil];
+	[img drawTemplateCenteredInRect:cellFrame
+							color:(isHovering ? [NSColor whiteColor] : [NSColor secondaryLabelColor])
+						  fraction:isHovering ? 1.0 : ([[controlView window] isMainWindow] ? 0.83 : 0.5)];
 
 	
 	if (SynchronizingIcon == iconType) {

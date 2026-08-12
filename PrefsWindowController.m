@@ -139,7 +139,7 @@
 
 	NSFont *font = [prefsController noteBodyFont];
 	NSDictionary *attributes = [NSDictionary dictionaryWithObjectsAndKeys:font ? font : [NSFont systemFontOfSize:12.0],
-		NSFontAttributeName, [NSColor blackColor], NSForegroundColorAttributeName, centerStyle, NSParagraphStyleAttributeName, nil];
+		NSFontAttributeName, [NSColor textColor], NSForegroundColorAttributeName, centerStyle, NSParagraphStyleAttributeName, nil];
 
 	NSString *fontNameAndSize = font ? [NSString stringWithFormat:@"%@ %g", [font fontName], [font pointSize]] : @"Unknown";
 	NSAttributedString *attributedString = [[NSAttributedString alloc] initWithString:fontNameAndSize attributes:attributes];
@@ -367,7 +367,7 @@
     [item setPaletteLabel:localizedTitle];
     [item setLabel:localizedTitle];
     //[item setToolTip:@"General settings: appearance and behavior"];
-    [item setImage:[[[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForResource:name ofType:@"tiff"]] autorelease]];
+    [item setImage:[NSImage imageNamed:name]];
     [item setTarget:self];
     [item setAction:@selector(switchViews:)];
     [items setObject:item forKey:name];

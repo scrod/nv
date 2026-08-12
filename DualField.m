@@ -166,7 +166,9 @@
 	
 	if (BUTTON_HIDDEN != clearButtonState) {
 		NSImage *clearImg = [NSImage imageNamed:(clearButtonState == BUTTON_NORMAL ? @"Clear" : @"ClearPressed") ];
-		[clearImg drawCenteredInRect:[self clearButtonRectForBounds:cellFrame]];
+		[clearImg drawTemplateCenteredInRect:[self clearButtonRectForBounds:cellFrame]
+								 color:(clearButtonState == BUTTON_PRESSED ? [NSColor controlAccentColor] : [NSColor secondaryLabelColor])
+							  fraction:1.0];
 	}
 	if (BUTTON_HIDDEN != snapbackButtonState) {
 		NSRect snRect = [self snapbackButtonRectForBounds:cellFrame];
@@ -174,7 +176,9 @@
 		NSImage *snapImg = [NSImage imageNamed:
 							[(DualField *)controlView hasFollowedLinks] ? (snapbackButtonState == BUTTON_NORMAL ? @"LinkBack" : @"LinkBackPressed") :
 							(snapbackButtonState == BUTTON_NORMAL ? @"SnapBack" : @"SnapBackPressed") ];
-		[snapImg drawCenteredInRect:snRect];
+		[snapImg drawTemplateCenteredInRect:snRect
+								 color:(snapbackButtonState == BUTTON_PRESSED ? [NSColor controlAccentColor] : [NSColor secondaryLabelColor])
+							  fraction:1.0];
 	}
 }
 
@@ -440,12 +444,7 @@
 	if(![self.cell snapbackButtonIsVisible]){
 		NSImage *docIcon = [NSImage imageNamed: showsDocumentIcon ? @"Pencil" : @"Search" ];
 		NSRect docImageRect = NSMakeRect(BORDER_LEFT_OFFSET, BORDER_TOP_OFFSET, [docIcon size].width, [docIcon size].height);
-		[docIcon drawInRect:docImageRect
-			fromRect:NSZeroRect
-			operation:NSCompositingOperationSourceOver
-			fraction:1.0
-			respectFlipped:YES
-			hints:nil];
+		[docIcon drawTemplateCenteredInRect:docImageRect color:[NSColor secondaryLabelColor] fraction:1.0];
 	}
 }
 

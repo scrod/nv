@@ -21,8 +21,12 @@
     along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
 #import <Cocoa/Cocoa.h>
+#import "NSBezierPath_NV.h"
 
 int main(int argc, char *argv[])
 {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	[NSImage nv_registerLegacySystemSymbolImages];
+	[pool drain];
     return NSApplicationMain(argc,  (const char **) argv);
 }

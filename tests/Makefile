@@ -7,6 +7,7 @@ APP_OBJECT_DIR := $(DERIVED_DATA)/Build/Intermediates.noindex/ArchiveIntermediat
 APP_OBJECTS = $(filter-out $(APP_OBJECT_DIR)/main.o,$(wildcard $(APP_OBJECT_DIR)/*.o))
 APP_FRAMEWORKS := -F.. -Wl,-rpath,$(abspath ..) -Wl,-sectcreate,__TEXT,__info_plist,../Info.plist -framework Sparkle -framework Cocoa -framework Carbon -framework CoreServices -framework SecurityInterface -framework Security -framework WebKit -framework ApplicationServices -framework SystemConfiguration -framework IOKit -framework UniformTypeIdentifiers -lz
 TARGETS := \
+	$(BUILD_DIR)/AppearanceColorTest \
 	$(BUILD_DIR)/GlobalPrefsArchiveMigrationTest \
 	$(BUILD_DIR)/ModernStickiesImportTest \
 	$(BUILD_DIR)/WebArchiveImportIntegrationTest \
@@ -20,6 +21,9 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/GlobalPrefsArchiveMigrationTest: GlobalPrefsArchiveMigrationTest.m Makefile app-objects | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
+
+$(BUILD_DIR)/AppearanceColorTest: AppearanceColorTest.m Makefile app-objects | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
 app-objects:
@@ -37,6 +41,7 @@ $(BUILD_DIR)/NVIntegrationTest: NVIntegrationTest.m Makefile app-objects | $(BUI
 run: run-core run-platform
 
 run-core: all
+	$(BUILD_DIR)/AppearanceColorTest
 	$(BUILD_DIR)/GlobalPrefsArchiveMigrationTest
 	$(BUILD_DIR)/WebArchiveImportIntegrationTest
 	$(BUILD_DIR)/NVIntegrationTest lifecycle

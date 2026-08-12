@@ -81,8 +81,10 @@
 		NSAppleEventManager *appleEventManager = [NSAppleEventManager sharedAppleEventManager];
 		[appleEventManager setEventHandler:self andSelector:@selector(handleGetURLEvent:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
 
-		dividerShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithCalibratedWhite:0.988 alpha:1.0]
-															   endColor:[NSColor colorWithCalibratedWhite:0.875 alpha:1.0]];
+		dividerShader = [[LinearDividerShader alloc] initWithStartColor:[NSColor colorWithWhite:0.988 alpha:1.0]
+																   endColor:[NSColor colorWithWhite:0.875 alpha:1.0]
+														 darkStartColor:[NSColor colorWithWhite:0.20 alpha:1.0]
+														   darkEndColor:[NSColor colorWithWhite:0.12 alpha:1.0]];
 
 		isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
 		typedString = @"";
@@ -1467,6 +1469,8 @@ terminateApp:
 		//select and scroll
 		[textView setAutomaticallySelectedRange:noteSelectionRange];
 		[textView scrollRangeToVisible:noteSelectionRange];
+		
+		[textView setNeedsDisplay:YES]; //forces more pixels to draw but fixes missing paragraphs
 
 		//NSString *words = noteIndex != [notationController preferredSelectedNoteIndex] ? typedString : nil;
 		//[textView setFutureSelectionRange:noteSelectionRange highlightingWords:words];
