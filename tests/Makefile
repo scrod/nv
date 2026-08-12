@@ -58,6 +58,7 @@ run-core: all
 	$(BUILD_DIR)/NVIntegrationTest catalog-fence-contract
 	$(BUILD_DIR)/NVIntegrationTest directory-fence-modes
 	$(BUILD_DIR)/NVIntegrationTest unsaved-write-recovery-contract
+	$(BUILD_DIR)/NVIntegrationTest external-editing-text-merge
 	$(BUILD_DIR)/NVIntegrationTest epoch-five-archive
 	$(BUILD_DIR)/NVIntegrationTest single-database
 	$(BUILD_DIR)/NVIntegrationTest plain-text

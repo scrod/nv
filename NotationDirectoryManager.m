@@ -870,9 +870,8 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 	 * mismatch.  If NV has unwritten edits, memory wins and the scheduled write
 	 * will replace the external version; identity is still refreshed so a rename
 	 * in that interval continues to follow the correct file.
-	 * TODO: Preserve the stable external and base contents in this conflict path
-	 * and use diff-match-patch to merge them into the unwritten in-memory note
-	 * before its pending write is allowed to replace the file.
+	 * Pending notes retain their transient merge base; the shared atomic writer
+	 * reads and merges this stable external version before replacement.
 	 */
 	struct timespec previousChangeTime = fileAttributeChangeTimeOfNote(aNoteObject);
 	BOOL metadataChanged = !fileMetadataIsValidForNote(aNoteObject) ||

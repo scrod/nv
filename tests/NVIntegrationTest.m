@@ -10,6 +10,7 @@
 #import "../NotationSyncServiceManager.h"
 #import "../DeletionManager.h"
 #import "../NoteObject.h"
+#import "../ExternalEditingSession/ExternalEditingSession.h"
 #import "../WALController.h"
 #import "../NSFileManager_NV.h"
 #import "../NSData_transformations.h"
@@ -21,6 +22,7 @@
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
@@ -28,6 +30,48 @@
 #import <objc/runtime.h>
 
 extern char **environ;
+
+@interface ExternalEditingSession (NVTesting)
+- (NSString*)createScratchFileNamed:(NSString*)filename data:(NSData*)data;
+- (BOOL)processScratchFileAtPath:(NSString*)path endingSession:(BOOL)endingSession;
+- (void)stopScratchWatcher;
+- (void)openDidCompleteForSessionPath:(NSString*)path application:(NSRunningApplication*)application;
+- (void)checkFinishRequests;
+@end
+
+@interface NVScratchRaceNote : NoteObject {
+	NSData *raceReplacementData;
+}
+- (void)replaceScratchDuringNextMergeWithData:(NSData*)data;
+@end
+
+@implementation NVScratchRaceNote
+- (void)dealloc {
+	[raceReplacementData release];
+	[super dealloc];
+}
+- (void)replaceScratchDuringNextMergeWithData:(NSData*)data {
+	[data retain];
+	[raceReplacementData release];
+	raceReplacementData = data;
+}
+- (BOOL)externalEditingSession:(ExternalEditingSession*)editor didModifyFileData:(NSData*)data
+	baseData:(NSData*)baseData path:(NSString*)path context:(NSDictionary*)context {
+	BOOL accepted = [super externalEditingSession:editor didModifyFileData:data
+		baseData:baseData path:path context:context];
+	if (raceReplacementData) {
+		NSData *replacement = [[raceReplacementData retain] autorelease];
+		[raceReplacementData release];
+		raceReplacementData = nil;
+		if (![replacement writeToFile:path options:NSDataWritingAtomic error:NULL])
+			[NSException raise:NSInternalInconsistencyException
+				format:@"Could not inject scratch-file save race at %@", path];
+	}
+	return accepted;
+}
+@end
+
+extern NSString *NVMergedText(NSString *base, NSString *local, NSString *external);
 
 void FSEventsCallback(ConstFSEventStreamRef stream, void *info, size_t numEvents,
 	void *eventPaths, const FSEventStreamEventFlags flags[],
@@ -237,6 +281,126 @@ static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding
 }
 @end
 
+@interface NVSelectionAppController : AppController
+- (id)initForTestingWithCurrentNote:(NoteObject*)note;
+@end
+
+@implementation NVSelectionAppController
+- (id)initForTestingWithCurrentNote:(NoteObject*)note {
+	currentNote = [note retain];
+	return self;
+}
+- (void)dealloc {
+	[currentNote release];
+	currentNote = nil;
+	[super dealloc];
+}
+@end
+
+@interface NVTestRunningApplication : NSObject {
+	BOOL terminated;
+	pid_t processIdentifier;
+}
+@property(nonatomic, getter=isTerminated) BOOL terminated;
+- (id)initWithProcessIdentifier:(pid_t)identifier;
+- (pid_t)processIdentifier;
+@end
+
+@implementation NVTestRunningApplication
+- (id)initWithProcessIdentifier:(pid_t)identifier {
+	self = [super init];
+	if (self) processIdentifier = identifier;
+	return self;
+}
+- (BOOL)isTerminated { return terminated; }
+- (void)setTerminated:(BOOL)value {
+	if (terminated == value) return;
+	terminated = value;
+	if (value) [[[NSWorkspace sharedWorkspace] notificationCenter]
+		postNotificationName:NSWorkspaceDidTerminateApplicationNotification object:nil
+		userInfo:@{ NSWorkspaceApplicationKey: self }];
+}
+- (pid_t)processIdentifier { return processIdentifier; }
+- (BOOL)isEqual:(id)object {
+	return object == self || ([object isKindOfClass:[NVTestRunningApplication class]] &&
+		[(NVTestRunningApplication*)object processIdentifier] == processIdentifier);
+}
+- (NSUInteger)hash { return (NSUInteger)processIdentifier; }
+@end
+
+@interface NVTerminationAppController : AppController {
+	BOOL confirmsExternalEditingTermination;
+	NSUInteger teardownFailures;
+}
+- (id)initForTestingWithNotationController:(NotationController*)controller;
+- (void)setConfirmsExternalEditingTermination:(BOOL)confirms;
+- (NSUInteger)teardownFailures;
+@end
+
+@interface AppController (NVTerminationTesting)
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication*)application;
+- (BOOL)windowShouldClose:(id)sender;
+- (BOOL)_externalEditingQuitResponseShouldTerminate:(NSModalResponse)response;
+- (void)_confirmQuittingExternalEditingWithCompletionHandler:
+	(void (^)(BOOL shouldQuit))completionHandler;
+@end
+
+@implementation NVTerminationAppController
+- (id)initForTestingWithNotationController:(NotationController*)controller {
+	notationController = [controller retain];
+	waitedForUncommittedChanges = YES;
+	return self;
+}
+- (void)setConfirmsExternalEditingTermination:(BOOL)confirms {
+	confirmsExternalEditingTermination = confirms;
+}
+- (void)externalEditingSessionTeardownFailed { teardownFailures++; }
+- (NSUInteger)teardownFailures { return teardownFailures; }
+- (void)_confirmQuittingExternalEditingWithCompletionHandler:
+	(void (^)(BOOL shouldQuit))completionHandler {
+	BOOL shouldQuit = confirmsExternalEditingTermination;
+	dispatch_async(dispatch_get_main_queue(), ^{ completionHandler(shouldQuit); });
+}
+- (void)dealloc {
+	[notationController release];
+	notationController = nil;
+	[super dealloc];
+}
+@end
+
+@interface NVTerminationApplication : NSObject {
+	BOOL receivedReply;
+	BOOL terminationReply;
+	ExternalEditingSession *editor;
+	id client;
+	BOOL sessionActiveAtReply;
+}
+- (id)initWithEditor:(ExternalEditingSession*)anEditor client:(id)aClient;
+- (void)replyToApplicationShouldTerminate:(BOOL)shouldTerminate;
+- (BOOL)receivedReply;
+- (BOOL)terminationReply;
+- (BOOL)sessionActiveAtReply;
+@end
+
+@implementation NVTerminationApplication
+- (id)initWithEditor:(ExternalEditingSession*)anEditor client:(id)aClient {
+	self = [super init];
+	if (self) {
+		editor = anEditor;
+		client = aClient;
+	}
+	return self;
+}
+- (void)replyToApplicationShouldTerminate:(BOOL)shouldTerminate {
+	sessionActiveAtReply = editor && [editor hasActiveScratchEditingSessionForClient:client];
+	receivedReply = YES;
+	terminationReply = shouldTerminate;
+}
+- (BOOL)receivedReply { return receivedReply; }
+- (BOOL)terminationReply { return terminationReply; }
+- (BOOL)sessionActiveAtReply { return sessionActiveAtReply; }
+@end
+
 static char NVPreparedNoteDeallocationProbeKey;
 
 @interface NVTestNotationController : NotationController {
@@ -293,6 +457,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 	BOOL forceTrashFailure;
 	BOOL useTestTrash;
 	NSUInteger trashMoveCount;
+	NSUInteger externalEditingDurabilityFailures;
 }
 - (OSStatus)recordedWriteError;
 - (void)setAtomicVerificationResult:(OSStatus)result;
@@ -357,6 +522,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)setForceTrashFailure:(BOOL)force;
 - (void)setUseTestTrash:(BOOL)use;
 - (NSUInteger)trashMoveCount;
+- (void)setExternalEditingDurabilityFailures:(NSUInteger)failures;
 - (void)restoreDeletionCandidates;
 - (void)processDeletionCandidates;
 - (int)testNoteDirectoryFileDescriptor;
@@ -440,6 +606,16 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)setForceTrashFailure:(BOOL)force { forceTrashFailure = force; }
 - (void)setUseTestTrash:(BOOL)use { useTestTrash = use; }
 - (NSUInteger)trashMoveCount { return trashMoveCount; }
+- (void)setExternalEditingDurabilityFailures:(NSUInteger)failures {
+	externalEditingDurabilityFailures = failures;
+}
+- (BOOL)makeNoteDurableForExternalEditing:(NoteObject*)note {
+	if (externalEditingDurabilityFailures) {
+		externalEditingDurabilityFailures--;
+		return NO;
+	}
+	return [super makeNoteDurableForExternalEditing:note];
+}
 - (void)restoreDeletionCandidates { [deletionManager restoreAction:nil]; }
 - (void)processDeletionCandidates { [deletionManager processDeletedNotes]; }
 
@@ -1246,6 +1422,19 @@ static NoteObject *NoteContaining(NotationController *controller, NSString *text
 	return nil;
 }
 
+static NSString *FileContainingText(NSString *directoryPath, NSString *text,
+	NSString *excludingFilename) {
+	for (NSString *name in [[NSFileManager defaultManager]
+		contentsOfDirectoryAtPath:directoryPath error:NULL]) {
+		if ([name isEqualToString:excludingFilename]) continue;
+		NSString *path = [directoryPath stringByAppendingPathComponent:name];
+		NSString *contents = [NSString stringWithContentsOfFile:path
+			encoding:NSUTF8StringEncoding error:NULL];
+		if ([contents isEqualToString:text]) return path;
+	}
+	return nil;
+}
+
 static NoteObject *AddTestNote(NotationController *controller, NSString *title, NSString *body) {
 	NoteObject *note = [[[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:body] autorelease]
@@ -1377,6 +1566,19 @@ static void WaitForNoteCount(NotationController *controller, NSUInteger expected
 		[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
 			beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.005]];
 	REQUIRE([controller totalNoteCount] == expectedCount);
+}
+
+static void WaitForFileText(NSString *path, NSString *expectedText) {
+	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+	while ([deadline timeIntervalSinceNow] > 0.0) {
+		NSString *text = [NSString stringWithContentsOfFile:path
+			encoding:NSUTF8StringEncoding error:NULL];
+		if ([text isEqualToString:expectedText]) return;
+		[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+			beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.005]];
+	}
+	REQUIRE([[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding
+		error:NULL] isEqualToString:expectedText]);
 }
 
 static NVTestBulkRecord TestBulkRecord(uint32_t documentID) {
@@ -1912,6 +2114,29 @@ static void TestFilesystemCapabilities(void) {
 			REQUIRE(supportsXattrs);
 			if ([expectedFilesystem isEqualToString:@"apfs"]) REQUIRE(generationAvailable);
 			if ([expectedFilesystem isEqualToString:@"exfat"]) REQUIRE(!generationAvailable);
+		}
+		if ([expectedFilesystem isEqualToString:@"hfs"]) {
+			NSString *conditionalName = @"Conditional Replacement.txt";
+			NSString *conditionalPath = [directoryPath stringByAppendingPathComponent:conditionalName];
+			NSData *initial = [@"initial scratch bytes" dataUsingEncoding:NSUTF8StringEncoding];
+			NSData *replacement = [@"replacement scratch bytes" dataUsingEncoding:NSUTF8StringEncoding];
+			REQUIRE([initial writeToFile:conditionalPath options:0 error:NULL]);
+			int directoryFD = open([directoryPath fileSystemRepresentation],
+				O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+			REQUIRE(directoryFD >= 0);
+			NSError *replacementError = nil;
+			REQUIRE(NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
+				replacement, conditionalName, initial, &replacementError));
+			REQUIRE(replacementError == nil &&
+				[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
+			replacementError = nil;
+			REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
+				initial, conditionalName, initial, &replacementError));
+			REQUIRE([[replacementError domain] isEqualToString:NSPOSIXErrorDomain] &&
+				[replacementError code] == EAGAIN &&
+				[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
+			REQUIRE(close(directoryFD) == 0);
+			RequireNoTemporaryFiles(directoryPath);
 		}
 
 		NSLog(@"filesystem capabilities: fs=%s case-sensitive=%@ xattrs=%@ enumeration=%@ "
@@ -3201,6 +3426,10 @@ static void TestDirectoryReconciliation(void) {
 		NSString *flushedText = [NSString stringWithContentsOfFile:importedPath
 			encoding:NSUTF8StringEncoding error:NULL];
 		REQUIRE([flushedText isEqualToString:@"unsaved memory wins"]);
+		NSString *conflictPath = FileContainingText(directoryPath,
+			@"conflicting disk edit", filenameOfNote(importedNote));
+		REQUIRE([[conflictPath lastPathComponent] rangeOfString:@"(conflict)"].location != NSNotFound);
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:conflictPath error:NULL]);
 
 		NSString *renamedFilename = @"Renamed And Edited.txt";
 		NSString *renamedPath = [directoryPath stringByAppendingPathComponent:renamedFilename];
@@ -3821,6 +4050,10 @@ static void TestUnsavedWriteRecoveryContract(void) {
 		NSLog(@"unsaved recovery: failed-flush=%@ recovery-flush=%@ disk=%@",
 			failedFlush ? @"yes" : @"no", recoveryFlush ? @"yes" : @"no", diskContent);
 		REQUIRE(failedFlush && recoveryFlush && [diskContent isEqualToString:@"memory wins"]);
+		NSString *conflictPath = FileContainingText(directoryPath,
+			@"external conflict", filename);
+		REQUIRE(conflictPath != nil);
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:conflictPath error:NULL]);
 
 		[note setContentString:[[[NSAttributedString alloc]
 			initWithString:@"file sink succeeds independently"] autorelease]];
@@ -4456,6 +4689,9 @@ static void TestStorageTransitionMemoryWins(void) {
 			encoding:NSUTF8StringEncoding error:NULL];
 		REQUIRE([storedText isEqualToString:memoryText]);
 		REQUIRE([[[note contentString] string] isEqualToString:memoryText]);
+		NSString *conflictPath = FileContainingText(directoryPath,
+			@"newer external file", filenameOfNote(note));
+		REQUIRE([[conflictPath lastPathComponent] rangeOfString:@"(conflict)"].location != NSNotFound);
 	} @finally {
 		[note release];
 		CloseController(&controller);
@@ -4633,10 +4869,54 @@ static void TestLiveFSEvents(void) {
 	NVTestNotationController *controller = nil;
 	pid_t child = -1;
 	NoteObject *note = nil;
+	NSString *backupProbePath = nil;
 	@try {
 		controller = CreateController(directoryPath, delegate);
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[[controller notationPrefs] setConfirmsFileDeletion:NO];
+		ExternalEditingSession *scratchEditor = [ExternalEditingSession sharedExternalEditingSession];
+		[scratchEditor initializeDatabase:[controller notationPrefs]];
+		backupProbePath = [scratchEditor createScratchFileNamed:@"Backup Exclusion Probe"
+			data:[@"scratch" dataUsingEncoding:NSUTF8StringEncoding]];
+		REQUIRE(backupProbePath != nil);
+		NSString *backupRootPath = [backupProbePath stringByDeletingLastPathComponent];
+		const char *backupExclusionName = "com.apple.metadata:com_apple_backup_excludeItem";
+		ssize_t backupExclusionLength = getxattr([backupRootPath fileSystemRepresentation],
+			backupExclusionName, NULL, 0, 0, 0);
+		REQUIRE(backupExclusionLength > 0);
+		NSMutableData *backupExclusionValue = [NSMutableData dataWithLength:(NSUInteger)backupExclusionLength];
+		REQUIRE(getxattr([backupRootPath fileSystemRepresentation], backupExclusionName,
+			[backupExclusionValue mutableBytes], (size_t)backupExclusionLength, 0, 0) == backupExclusionLength);
+		NSData *expectedBackupExclusionValue = [NSPropertyListSerialization
+			dataWithPropertyList:@"com.apple.backupd" format:NSPropertyListBinaryFormat_v1_0
+			options:0 error:NULL];
+		REQUIRE([backupExclusionValue isEqualToData:expectedBackupExclusionValue]);
+		errno = 0;
+		REQUIRE(getxattr([backupProbePath fileSystemRepresentation], backupExclusionName,
+			NULL, 0, 0, 0) < 0 && errno == ENOATTR);
+
+		NoteObject *scratchNote = AddTestNote(controller, @"Live Scratch Event", @"scratch");
+		NSMutableDictionary *scratchSessions = [scratchEditor valueForKey:@"_filePathsBeingEdited"];
+		NSData *scratchBase = [@"scratch" dataUsingEncoding:NSUTF8StringEncoding];
+		[scratchSessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			scratchNote, @"client", backupProbePath, @"path", scratchBase, @"data", nil]
+			forKey:backupProbePath];
+		REQUIRE([@"changed through the live scratch watcher" writeToFile:backupProbePath
+			atomically:YES encoding:NSUTF8StringEncoding error:NULL]);
+		NSDate *scratchDeadline = [NSDate dateWithTimeIntervalSinceNow:3.0];
+		while (![[[scratchNote contentString] string]
+			isEqualToString:@"changed through the live scratch watcher"] &&
+			[scratchDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([[[scratchNote contentString] string]
+			isEqualToString:@"changed through the live scratch watcher"]);
+		[scratchEditor abortAllEditingSessionsForClient:scratchNote];
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:backupProbePath]);
+		[controller removeNote:scratchNote];
+		REQUIRE([controller totalNoteCount] == 0);
+		backupProbePath = nil;
+		[scratchEditor stopScratchWatcher];
 		const char *oldValue = getenv("NV_FSEVENTS_DIRECTORY");
 		NSString *savedValue = oldValue ? [NSString stringWithUTF8String:oldValue] : nil;
 		REQUIRE(setenv("NV_FSEVENTS_DIRECTORY", [directoryPath fileSystemRepresentation], 1) == 0);
@@ -4669,6 +4949,8 @@ static void TestLiveFSEvents(void) {
 		REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
 	} @finally {
 		[note release];
+		if (backupProbePath) [[NSFileManager defaultManager] removeItemAtPath:backupProbePath error:NULL];
+		[[ExternalEditingSession sharedExternalEditingSession] stopScratchWatcher];
 		if (child > 0) {
 			kill(child, SIGTERM);
 			waitpid(child, NULL, 0);
@@ -5286,37 +5568,47 @@ static void TestAtomicRollback(void) {
 		RequireNoTemporaryFiles(directoryPath);
 
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		NSString *boundaryBase = @"abcdefghijklmnopqrstuvwxyz--------------------1234567890";
+		NSString *boundaryLocal = @"ABCDEFGHIJKLMNOPQRSTUVWXYZ--------------------1234567890";
+		NSString *boundaryExternal = @"abcXXXXXXXXXXdefghijklmnopqrstuvwxyz--------------------1234567YYYYYYYYYY890";
+		NSMutableString *boundaryTagLocal = [[boundaryLocal mutableCopy] autorelease];
+		while ([boundaryTagLocal length] < [boundaryExternal length])
+			[boundaryTagLocal appendString:@"_"];
+		REQUIRE([boundaryTagLocal length] == [boundaryExternal length]);
+		REQUIRE(NVMergedText(boundaryBase, boundaryTagLocal, boundaryExternal) == nil);
 		NoteObject *boundaryNote = [[NoteObject alloc] initWithNoteBody:
-			[[[NSAttributedString alloc] initWithString:@"installed baseline"] autorelease]
+			[[[NSAttributedString alloc] initWithString:boundaryBase] autorelease]
 			title:@"Installed Boundary" delegate:controller format:PlainTextFormat labels:@"tag"];
 		[controller addNewNote:boundaryNote];
 		REQUIRE([controller flushAllNoteChanges]);
 		NSString *boundaryFilename = [[filenameOfNote(boundaryNote) copy] autorelease];
-		NSData *externalReplacement = [@"external replacement at installed boundary"
-			dataUsingEncoding:NSUTF8StringEncoding];
+		NSData *externalReplacement = [boundaryExternal dataUsingEncoding:NSUTF8StringEncoding];
 		[controller replaceInstalledNoteNamed:boundaryFilename withData:externalReplacement];
 		[boundaryNote setContentString:[[[NSAttributedString alloc]
-			initWithString:@"our pending replacement"] autorelease]];
+			initWithString:boundaryLocal] autorelease]];
 		REQUIRE([controller pendingFileWriteCount] == 1);
 		REQUIRE(![boundaryNote writeUsingCurrentFileFormat]);
 		REQUIRE([controller pendingFileWriteCount] == 1);
 		NSString *externalDisk = [[[NSString alloc]
 			initWithData:[controller dataFromNoteNamed:boundaryFilename error:NULL]
 			encoding:NSUTF8StringEncoding] autorelease];
-		REQUIRE([externalDisk isEqualToString:@"external replacement at installed boundary"]);
+		REQUIRE([externalDisk isEqualToString:boundaryExternal]);
 		REQUIRE([boundaryNote writeUsingCurrentFileFormat]);
 		REQUIRE([controller flushAllNoteChanges]);
 		REQUIRE([controller pendingFileWriteCount] == 0);
 		NSString *boundaryDisk = [[[NSString alloc]
 			initWithData:[controller dataFromNoteNamed:boundaryFilename error:NULL]
 			encoding:NSUTF8StringEncoding] autorelease];
-		REQUIRE([boundaryDisk isEqualToString:@"our pending replacement"]);
+		REQUIRE([boundaryDisk isEqualToString:boundaryLocal]);
 
-		NSData *tagRaceReplacement = [@"evil-tag-race" dataUsingEncoding:NSUTF8StringEncoding];
+		[boundaryNote setContentString:[[[NSAttributedString alloc]
+			initWithString:boundaryBase] autorelease]];
+		REQUIRE([controller flushAllNoteChanges]);
+		NSData *tagRaceReplacement = [boundaryExternal dataUsingEncoding:NSUTF8StringEncoding];
 		[controller mutateNoteNamed:boundaryFilename withData:tagRaceReplacement
 			duringTagSynchronization:YES];
 		[boundaryNote setContentString:[[[NSAttributedString alloc]
-			initWithString:@"ours-tag-race"] autorelease]];
+			initWithString:boundaryTagLocal] autorelease]];
 		REQUIRE([controller pendingFileWriteCount] == 1);
 		REQUIRE(![boundaryNote writeUsingCurrentFileFormat]);
 		REQUIRE([controller pendingFileWriteCount] == 1);
@@ -5629,6 +5921,580 @@ static void TestFailures(void) {
 	}
 }
 
+static void TestExternalEditingTextMerge(void) {
+	NSString *base = @"first line\nsecond line\nthird line\n";
+	NSString *local = @"FIRST LINE\nsecond line\nthird line\n";
+	NSString *external = @"first line\nsecond line\nTHIRD LINE\n";
+	REQUIRE([NVMergedText(base, local, external)
+		isEqualToString:@"FIRST LINE\nsecond line\nTHIRD LINE\n"]);
+	REQUIRE([NVMergedText(base, base, external) isEqualToString:external]);
+	REQUIRE([NVMergedText(base, local, base) isEqualToString:local]);
+
+	NSString *partialBase = @"abcdefghijklmnopqrstuvwxyz--------------------1234567890";
+	NSString *partialLocal = @"ABCDEFGHIJKLMNOPQRSTUVWXYZ--------------------1234567890";
+	NSString *partialExternal = @"abcXXXXXXXXXXdefghijklmnopqrstuvwxyz--------------------1234567YYYYYYYYYY890";
+	REQUIRE(NVMergedText(partialBase, partialLocal, partialExternal) == nil);
+
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		NoteObject *note = AddTestNote(controller, @"External Merge", base);
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *filename = [[filenameOfNote(note) copy] autorelease];
+		NSString *path = [directoryPath stringByAppendingPathComponent:filename];
+
+		[note setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
+		REQUIRE([note.fileMergeBaseText isEqualToString:base]);
+		id archive = ArchivePropertyList(note);
+		REQUIRE(!PropertyListContainsKey(archive, @"fileMergeBaseText"));
+		REQUIRE(!PropertyListContainsKey(archive, @"fileMergeBaseLabels"));
+		REQUIRE(!PropertyListContainsKey(archive, @"fileMergeBaseData"));
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+		NoteObject *roundTripped = [NSKeyedUnarchiver unarchiveObjectWithData:
+			[NSKeyedArchiver archivedDataWithRootObject:note]];
+#pragma clang diagnostic pop
+		REQUIRE(roundTripped.fileMergeBaseText == nil &&
+			roundTripped.fileMergeBaseLabels == nil && roundTripped.fileMergeBaseData == nil);
+
+		WriteExternalFile(PlainTextFormat, external, path);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([[[note contentString] string]
+			isEqualToString:@"FIRST LINE\nsecond line\nTHIRD LINE\n"]);
+		REQUIRE([[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:[[note contentString] string]]);
+
+		[note setContentString:[[[NSAttributedString alloc]
+			initWithString:partialBase] autorelease]];
+		REQUIRE([controller flushAllNoteChanges]);
+		[note setContentString:[[[NSAttributedString alloc]
+			initWithString:partialLocal] autorelease]];
+		WriteExternalFile(PlainTextFormat, partialExternal, path);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:partialLocal]);
+		NSString *conflictPath = FileContainingText(directoryPath, partialExternal, filename);
+		REQUIRE([[conflictPath lastPathComponent] rangeOfString:@"(conflict)"].location != NSNotFound);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	controller = nil;
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
+		NoteObject *note = AddTestNote(controller, @"Rich External Conflict", @"rich base");
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *filename = [[filenameOfNote(note) copy] autorelease];
+		NSString *path = [directoryPath stringByAppendingPathComponent:filename];
+		NSData *externalData = DataForExternalFile(RTFTextFormat, @"rich external");
+		REQUIRE([externalData writeToFile:path options:NSDataWritingAtomic error:NULL]);
+		[note setContentString:[[[NSAttributedString alloc]
+			initWithString:@"rich local"] autorelease]];
+		REQUIRE(note.fileMergeBaseData == nil);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([[[note contentString] string] isEqualToString:@"rich local"]);
+		NSString *conflictPath = nil;
+		for (NSString *name in [[NSFileManager defaultManager]
+			contentsOfDirectoryAtPath:directoryPath error:NULL]) {
+			if ([name isEqualToString:filename]) continue;
+			NSString *candidate = [directoryPath stringByAppendingPathComponent:name];
+			if ([[NSData dataWithContentsOfFile:candidate] isEqualToData:externalData]) {
+				conflictPath = candidate;
+				break;
+			}
+		}
+		REQUIRE([[conflictPath lastPathComponent] rangeOfString:@"(conflict)"].location != NSNotFound);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	controller = nil;
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE([controller currentNoteStorageFormat] == SingleDatabaseFormat);
+		NoteObject *note = AddTestNote(controller, @"Scratch Merge", base);
+		[note setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
+		[note externalEditingSession:nil didModifyFileData:[external dataUsingEncoding:NSUTF8StringEncoding]
+			baseData:[base dataUsingEncoding:NSUTF8StringEncoding] path:@"scratch" context:nil];
+		REQUIRE([[[note contentString] string]
+			isEqualToString:@"FIRST LINE\nsecond line\nTHIRD LINE\n"]);
+		[note setContentString:[[[NSAttributedString alloc]
+			initWithString:partialLocal] autorelease]];
+		[note externalEditingSession:nil
+			didModifyFileData:[partialExternal dataUsingEncoding:NSUTF8StringEncoding]
+			baseData:[partialBase dataUsingEncoding:NSUTF8StringEncoding]
+			path:@"scratch" context:nil];
+		REQUIRE([[[note contentString] string] isEqualToString:partialLocal]);
+		NoteObject *conflict = NoteContaining(controller, partialExternal);
+		REQUIRE(conflict != nil &&
+			[titleOfNote(conflict) isEqualToString:@"Scratch Merge (conflict)"]);
+
+		NoteObject *drainedNote = AddTestNote(controller, @"Scratch Final Drain", base);
+		NSString *scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-drain.txt"];
+		NSData *scratchBase = [base dataUsingEncoding:NSUTF8StringEncoding];
+		NSData *scratchExternal = [external dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([scratchExternal writeToFile:scratchPath atomically:NO]);
+		ExternalEditingSession *scratchEditor = [ExternalEditingSession sharedExternalEditingSession];
+		[NSObject cancelPreviousPerformRequestsWithTarget:scratchEditor];
+		NSMutableDictionary *sessions = [scratchEditor valueForKey:@"_filePathsBeingEdited"];
+		NoteObject *backgroundNote = AddTestNote(controller, @"Scratch Background", base);
+		NoteObject *selectedNote = AddTestNote(controller, @"Scratch Selected", @"selected");
+		NSString *backgroundPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-background.txt"];
+		NSString *unrelatedPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-unrelated.txt"];
+		REQUIRE([scratchBase writeToFile:backgroundPath atomically:NO]);
+		REQUIRE([scratchBase writeToFile:unrelatedPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			backgroundNote, @"client", backgroundPath, @"path", scratchBase, @"data", nil]
+			forKey:backgroundPath];
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			selectedNote, @"client", unrelatedPath, @"path", scratchBase, @"data", nil]
+			forKey:unrelatedPath];
+		NVSelectionAppController *selectionController = class_createInstance(
+			[NVSelectionAppController class], 0);
+		[selectionController initForTestingWithCurrentNote:backgroundNote];
+		[selectionController _setCurrentNote:selectedNote];
+		REQUIRE([scratchEditor activeScratchEditingSessionCount] == 2);
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:backgroundNote]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:backgroundPath]);
+		[backgroundNote setContentString:[[[NSAttributedString alloc]
+			initWithString:local] autorelease]];
+		NSDate *localBackgroundDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (![[NSString stringWithContentsOfFile:backgroundPath
+			encoding:NSUTF8StringEncoding error:NULL] isEqualToString:local] &&
+			[localBackgroundDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([[NSString stringWithContentsOfFile:backgroundPath
+			encoding:NSUTF8StringEncoding error:NULL] isEqualToString:local]);
+		REQUIRE([scratchExternal writeToFile:backgroundPath options:NSDataWritingAtomic error:NULL]);
+		[controller setExternalEditingDurabilityFailures:1];
+		__block NSUInteger backgroundFinishCalls = 0;
+		__block BOOL backgroundFinishSucceeded = NO;
+		[scratchEditor finishScratchEditingSessionsForClients:@[ backgroundNote ]
+			completionHandler:^(BOOL success) {
+				backgroundFinishCalls++;
+				backgroundFinishSucceeded = success;
+			}];
+		REQUIRE(backgroundFinishCalls == 0);
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:backgroundNote]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:backgroundPath]);
+		NSDate *backgroundDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (!backgroundFinishCalls && [backgroundDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE(backgroundFinishCalls == 1 && backgroundFinishSucceeded);
+		REQUIRE([[[backgroundNote contentString] string] isEqualToString:external]);
+		REQUIRE([scratchEditor activeScratchEditingSessionCount] == 1);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:backgroundPath]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:unrelatedPath]);
+		[scratchEditor finishScratchEditingSessionsForClients:@[ selectedNote ]
+			completionHandler:nil];
+		NSDate *unrelatedDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while ([scratchEditor activeScratchEditingSessionCount] &&
+			[unrelatedDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([scratchEditor activeScratchEditingSessionCount] == 0);
+		[selectionController release];
+
+		NoteObject *deletionNote = AddTestNote(controller, @"Scratch Delete", base);
+		NSString *deletionPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-delete.txt"];
+		REQUIRE([scratchExternal writeToFile:deletionPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			deletionNote, @"client", deletionPath, @"path", scratchBase, @"data", nil]
+			forKey:deletionPath];
+		[controller setExternalEditingDurabilityFailures:1];
+		[controller removeNote:deletionNote];
+		REQUIRE([AllNotes(controller) indexOfObjectIdenticalTo:deletionNote] != NSNotFound);
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:deletionNote]);
+		NSDate *deletionDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while ([AllNotes(controller) indexOfObjectIdenticalTo:deletionNote] != NSNotFound &&
+			[deletionDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([AllNotes(controller) indexOfObjectIdenticalTo:deletionNote] == NSNotFound);
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:deletionNote]);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:deletionPath]);
+
+		NoteObject *terminationNote = AddTestNote(controller, @"Scratch Termination", base);
+		NSString *terminationPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-termination.txt"];
+		NoteObject *sharedTerminationNote = AddTestNote(controller,
+			@"Scratch Shared Termination", base);
+		NSString *sharedTerminationPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-shared-termination.txt"];
+		REQUIRE([scratchExternal writeToFile:terminationPath atomically:NO]);
+		REQUIRE([scratchExternal writeToFile:sharedTerminationPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			terminationNote, @"client", terminationPath, @"path", scratchBase, @"data", nil]
+			forKey:terminationPath];
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			sharedTerminationNote, @"client", sharedTerminationPath, @"path", scratchBase,
+			@"data", nil] forKey:sharedTerminationPath];
+		NVTestRunningApplication *firstTestApplication = [[[NVTestRunningApplication alloc]
+			initWithProcessIdentifier:4242] autorelease];
+		NVTestRunningApplication *lastTestApplication = [[[NVTestRunningApplication alloc]
+			initWithProcessIdentifier:4243] autorelease];
+		NVTestRunningApplication *equivalentLastTestApplication =
+			[[[NVTestRunningApplication alloc] initWithProcessIdentifier:4243] autorelease];
+		[scratchEditor openDidCompleteForSessionPath:terminationPath
+			application:(NSRunningApplication*)firstTestApplication];
+		[scratchEditor openDidCompleteForSessionPath:terminationPath
+			application:(NSRunningApplication*)lastTestApplication];
+		[scratchEditor openDidCompleteForSessionPath:sharedTerminationPath
+			application:(NSRunningApplication*)equivalentLastTestApplication];
+		firstTestApplication.terminated = YES;
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:terminationNote]);
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:sharedTerminationNote]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:terminationPath]);
+		lastTestApplication.terminated = YES;
+		NSDate *terminationDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while ([scratchEditor hasActiveScratchEditingSessionForClient:terminationNote] &&
+			[terminationDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:terminationNote]);
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:sharedTerminationNote]);
+		REQUIRE([[[terminationNote contentString] string] isEqualToString:external]);
+		REQUIRE([[[sharedTerminationNote contentString] string] isEqualToString:external]);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:terminationPath]);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:sharedTerminationPath]);
+
+		NoteObject *failedLaunchNote = AddTestNote(controller, @"Scratch Launch Failure", base);
+		NSString *failedLaunchPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-launch-failure.txt"];
+		REQUIRE([scratchBase writeToFile:failedLaunchPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			failedLaunchNote, @"client", failedLaunchPath, @"path", scratchBase, @"data",
+			@2, @"pendingOpenCount", nil] forKey:failedLaunchPath];
+		[scratchEditor openDidCompleteForSessionPath:failedLaunchPath application:nil];
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:failedLaunchNote]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:failedLaunchPath]);
+		[scratchEditor openDidCompleteForSessionPath:failedLaunchPath application:nil];
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:failedLaunchNote]);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:failedLaunchPath]);
+
+		NoteObject *modalFinishNote = AddTestNote(controller, @"Scratch Modal Finish", base);
+		NSString *modalFinishPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-modal-finish.txt"];
+		REQUIRE([scratchExternal writeToFile:modalFinishPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			modalFinishNote, @"client", modalFinishPath, @"path", scratchBase, @"data", nil]
+			forKey:modalFinishPath];
+		[controller setExternalEditingDurabilityFailures:1];
+		__block BOOL modalFinishDelivered = NO;
+		[scratchEditor finishScratchEditingSessionsForClients:@[ modalFinishNote ]
+			completionHandler:^(BOOL success) { modalFinishDelivered = success; }];
+		REQUIRE(!modalFinishDelivered);
+		CFRunLoopAddCommonMode(CFRunLoopGetCurrent(),
+			(CFStringRef)NSModalPanelRunLoopMode);
+		NSDate *modalFinishDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (!modalFinishDelivered && [modalFinishDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSModalPanelRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE(modalFinishDelivered);
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:modalFinishNote]);
+		REQUIRE([scratchEditor activeScratchEditingSessionCount] == 0);
+		NVTerminationAppController *terminationController = class_createInstance(
+			[NVTerminationAppController class], 0);
+		[terminationController initForTestingWithNotationController:controller];
+		NVTerminationApplication *directFileTerminationApplication =
+			[[[NVTerminationApplication alloc] init] autorelease];
+		REQUIRE([terminationController applicationShouldTerminate:
+			(NSApplication*)directFileTerminationApplication] == NSTerminateNow);
+		REQUIRE(![directFileTerminationApplication receivedReply]);
+
+		NoteObject *quitNote = AddTestNote(controller, @"Scratch Quit", base);
+		NSString *quitPath = [directoryPath stringByAppendingPathComponent:@"scratch-quit.txt"];
+		REQUIRE([scratchExternal writeToFile:quitPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			quitNote, @"client", quitPath, @"path", scratchBase, @"data", nil]
+			forKey:quitPath];
+		NVTerminationApplication *terminationApplication = [[[NVTerminationApplication alloc]
+			init] autorelease];
+		REQUIRE([terminationController _externalEditingQuitResponseShouldTerminate:
+			NSAlertFirstButtonReturn]);
+		REQUIRE(![terminationController _externalEditingQuitResponseShouldTerminate:
+			NSAlertSecondButtonReturn]);
+		[terminationController setConfirmsExternalEditingTermination:NO];
+		REQUIRE([terminationController applicationShouldTerminate:
+			(NSApplication*)terminationApplication] == NSTerminateLater);
+		REQUIRE(![terminationApplication receivedReply]);
+		REQUIRE(![terminationController windowShouldClose:nil]);
+		REQUIRE([[scratchEditor valueForKey:@"_scratchEditingSuspensionCount"]
+			unsignedIntegerValue] == 1);
+		NSDate *cancelDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (![terminationApplication receivedReply] &&
+			[cancelDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([terminationApplication receivedReply] &&
+			![terminationApplication terminationReply]);
+		REQUIRE([terminationController windowShouldClose:nil]);
+		REQUIRE(![[terminationController valueForKey:@"waitedForUncommittedChanges"]
+			boolValue]);
+		REQUIRE([[scratchEditor valueForKey:@"_scratchEditingSuspensionCount"]
+			unsignedIntegerValue] == 0);
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:quitNote]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:quitPath]);
+		[terminationController setConfirmsExternalEditingTermination:YES];
+		NVTerminationApplication *quitTerminationApplication =
+			[[[NVTerminationApplication alloc] initWithEditor:scratchEditor client:quitNote]
+				autorelease];
+		REQUIRE([terminationController applicationShouldTerminate:
+			(NSApplication*)quitTerminationApplication] == NSTerminateLater);
+		REQUIRE(![quitTerminationApplication receivedReply]);
+		NSDate *quitDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (![quitTerminationApplication receivedReply] &&
+			[quitDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([quitTerminationApplication receivedReply] &&
+			[quitTerminationApplication terminationReply]);
+		REQUIRE(![quitTerminationApplication sessionActiveAtReply]);
+		REQUIRE([[scratchEditor valueForKey:@"_scratchEditingSuspensionCount"]
+			unsignedIntegerValue] == 0);
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:quitNote]);
+		REQUIRE([[[quitNote contentString] string] isEqualToString:external]);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:quitPath]);
+		NoteObject *failedFinishNote = AddTestNote(controller, @"Scratch Finish Failure", base);
+		NSString *failedFinishPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-finish-failure.txt"];
+		REQUIRE([scratchExternal writeToFile:failedFinishPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			failedFinishNote, @"client", failedFinishPath, @"path", scratchBase, @"data", nil]
+			forKey:failedFinishPath];
+		NoteObject *failedFinishWithAppNote = AddTestNote(controller,
+			@"Scratch Finish Failure With App", base);
+		NSString *failedFinishWithAppPath = [directoryPath stringByAppendingPathComponent:
+			@"scratch-finish-failure-with-app.txt"];
+		REQUIRE([scratchExternal writeToFile:failedFinishWithAppPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			failedFinishWithAppNote, @"client", failedFinishWithAppPath, @"path", scratchBase,
+			@"data", nil] forKey:failedFinishWithAppPath];
+		NVTestRunningApplication *failedFinishApplication =
+			[[[NVTestRunningApplication alloc] initWithProcessIdentifier:4244] autorelease];
+		[scratchEditor openDidCompleteForSessionPath:failedFinishWithAppPath
+			application:(NSRunningApplication*)failedFinishApplication];
+		[controller setExternalEditingDurabilityFailures:100];
+		NVTerminationApplication *failedTerminationApplication =
+			[[[NVTerminationApplication alloc] init] autorelease];
+		REQUIRE([terminationController applicationShouldTerminate:
+			(NSApplication*)failedTerminationApplication] == NSTerminateLater);
+		NSMutableArray *finishRequests = [scratchEditor valueForKey:@"_finishRequests"];
+		NSDate *finishRequestDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (![finishRequests count] && [finishRequestDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([finishRequests count] == 1);
+		[[finishRequests objectAtIndex:0] setValue:[NSDate distantPast] forKey:@"deadline"];
+		[scratchEditor checkFinishRequests];
+		REQUIRE(![failedTerminationApplication receivedReply]);
+		NSDate *failedFinishDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (![failedTerminationApplication receivedReply] &&
+			[failedFinishDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([failedTerminationApplication receivedReply] &&
+			![failedTerminationApplication terminationReply]);
+		REQUIRE([terminationController teardownFailures] == 1);
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:failedFinishNote]);
+		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:failedFinishWithAppNote]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:failedFinishPath]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:failedFinishWithAppPath]);
+		REQUIRE(![[sessions objectForKey:failedFinishPath] objectForKey:@"pendingEnd"]);
+		REQUIRE(![[sessions objectForKey:failedFinishWithAppPath] objectForKey:@"pendingEnd"]);
+		[controller setExternalEditingDurabilityFailures:0];
+		NVTerminationApplication *retryTerminationApplication =
+			[[[NVTerminationApplication alloc] init] autorelease];
+		REQUIRE([terminationController applicationShouldTerminate:
+			(NSApplication*)retryTerminationApplication] == NSTerminateLater);
+		NSDate *failedFinishCleanupDeadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+		while (![retryTerminationApplication receivedReply] &&
+			[failedFinishCleanupDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([retryTerminationApplication receivedReply] &&
+			[retryTerminationApplication terminationReply]);
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:failedFinishNote]);
+		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:failedFinishWithAppNote]);
+		[terminationController release];
+
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			drainedNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+			forKey:scratchPath];
+		[scratchEditor abortAllEditingSessionsForClient:drainedNote];
+		REQUIRE([[[drainedNote contentString] string] isEqualToString:external]);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:scratchPath]);
+		REQUIRE([sessions objectForKey:scratchPath] == nil);
+		[NSObject cancelPreviousPerformRequestsWithTarget:scratchEditor];
+
+		NSString *roundTripBase = @"one\ntwo\nthree\n";
+		NSString *roundTripFour = [roundTripBase stringByAppendingString:@"four\n"];
+		NSString *roundTripFive = [roundTripFour stringByAppendingString:@"five\n"];
+		NSString *roundTripSix = [roundTripFive stringByAppendingString:@"six\n"];
+		NSData *roundTripBaseData = [roundTripBase dataUsingEncoding:NSUTF8StringEncoding];
+		NoteObject *roundTripNote = AddTestNote(controller, @"Scratch Round Trip", roundTripBase);
+		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-round-trip.txt"];
+		REQUIRE([roundTripBaseData writeToFile:scratchPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			roundTripNote, @"client", scratchPath, @"path", roundTripBaseData, @"data", nil]
+			forKey:scratchPath];
+		REQUIRE([[roundTripFour dataUsingEncoding:NSUTF8StringEncoding]
+			writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
+		REQUIRE([scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([[[roundTripNote contentString] string] isEqualToString:roundTripFour]);
+		[roundTripNote setContentString:[[[NSAttributedString alloc]
+			initWithString:roundTripFive] autorelease]];
+		WaitForFileText(scratchPath, roundTripFive);
+		struct stat afterLocalWrite = { 0 }, afterNoOp = { 0 };
+		REQUIRE(stat([scratchPath fileSystemRepresentation], &afterLocalWrite) == 0);
+		REQUIRE([scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE(stat([scratchPath fileSystemRepresentation], &afterNoOp) == 0 &&
+			afterLocalWrite.st_ino == afterNoOp.st_ino);
+		REQUIRE([[roundTripSix dataUsingEncoding:NSUTF8StringEncoding]
+			writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
+		REQUIRE([scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([[[roundTripNote contentString] string] isEqualToString:roundTripSix]);
+		REQUIRE([[NSString stringWithContentsOfFile:scratchPath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:roundTripSix]);
+		[scratchEditor abortAllEditingSessionsForClient:roundTripNote];
+
+		NoteObject *externalNote = AddTestNote(controller, @"Scratch External Write", base);
+		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-external.txt"];
+		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			externalNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+			forKey:scratchPath];
+		REQUIRE([scratchExternal writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
+		struct stat beforeExternalRead = { 0 }, afterExternalRead = { 0 };
+		REQUIRE(stat([scratchPath fileSystemRepresentation], &beforeExternalRead) == 0);
+		REQUIRE([scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([[[externalNote contentString] string] isEqualToString:external]);
+		REQUIRE(stat([scratchPath fileSystemRepresentation], &afterExternalRead) == 0 &&
+			beforeExternalRead.st_ino == afterExternalRead.st_ino);
+		[scratchEditor abortAllEditingSessionsForClient:externalNote];
+
+		NoteObject *concurrentNote = AddTestNote(controller, @"Scratch Concurrent Write", base);
+		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-concurrent.txt"];
+		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			concurrentNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+			forKey:scratchPath];
+		REQUIRE([scratchExternal writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
+		[concurrentNote setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
+		NSString *merged = @"FIRST LINE\nsecond line\nTHIRD LINE\n";
+		WaitForFileText(scratchPath, merged);
+		REQUIRE([[[concurrentNote contentString] string] isEqualToString:merged]);
+		[scratchEditor abortAllEditingSessionsForClient:concurrentNote];
+
+		NVScratchRaceNote *raceNote = [[[NVScratchRaceNote alloc] initWithNoteBody:
+			[[[NSAttributedString alloc] initWithString:base] autorelease]
+			title:@"Scratch Save Race" delegate:controller format:SingleDatabaseFormat labels:@""]
+			autorelease];
+		[controller addNewNote:raceNote];
+		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-race.txt"];
+		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			raceNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+			forKey:scratchPath];
+		REQUIRE([scratchExternal writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
+		[raceNote setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
+		NSString *secondExternal = @"first line\nSECOND LINE\nTHIRD LINE\n";
+		[raceNote replaceScratchDuringNextMergeWithData:
+			[secondExternal dataUsingEncoding:NSUTF8StringEncoding]];
+		REQUIRE(![scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([[NSString stringWithContentsOfFile:scratchPath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:secondExternal]);
+		REQUIRE([scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([[[raceNote contentString] string] isEqualToString:secondExternal]);
+		REQUIRE([[NSString stringWithContentsOfFile:scratchPath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:secondExternal]);
+		[scratchEditor abortAllEditingSessionsForClient:raceNote];
+
+		NoteObject *conflictingNote = AddTestNote(controller, @"Scratch Write Conflict", partialBase);
+		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-conflict.txt"];
+		NSData *partialBaseData = [partialBase dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([partialBaseData writeToFile:scratchPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			conflictingNote, @"client", scratchPath, @"path", partialBaseData, @"data", nil]
+			forKey:scratchPath];
+		NSUInteger beforeConflictCount = [controller totalNoteCount];
+		REQUIRE([[partialExternal dataUsingEncoding:NSUTF8StringEncoding]
+			writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
+		[conflictingNote setContentString:[[[NSAttributedString alloc]
+			initWithString:partialLocal] autorelease]];
+		[NSObject cancelPreviousPerformRequestsWithTarget:scratchEditor];
+		[controller setExternalEditingDurabilityFailures:1];
+		REQUIRE(![scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([[NSString stringWithContentsOfFile:scratchPath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:partialExternal]);
+		REQUIRE([controller totalNoteCount] == beforeConflictCount + 1);
+		REQUIRE([scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		WaitForFileText(scratchPath, partialLocal);
+		REQUIRE([[[conflictingNote contentString] string] isEqualToString:partialLocal]);
+		REQUIRE([controller totalNoteCount] == beforeConflictCount + 1);
+		NoteObject *writeConflict = nil;
+		for (NoteObject *candidate in AllNotes(controller))
+			if ([titleOfNote(candidate) isEqualToString:@"Scratch Write Conflict (conflict)"])
+				writeConflict = candidate;
+		REQUIRE(writeConflict != nil &&
+			[[[writeConflict contentString] string] isEqualToString:partialExternal]);
+		[scratchEditor abortAllEditingSessionsForClient:conflictingNote];
+
+		NoteObject *invalidNote = AddTestNote(controller, @"Scratch Invalid UTF-8", base);
+		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-invalid.txt"];
+		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
+		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
+			invalidNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+			forKey:scratchPath];
+		const unsigned char invalidByte = 0xff;
+		NSData *invalidData = [NSData dataWithBytes:&invalidByte length:1];
+		REQUIRE([invalidData writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
+		REQUIRE([scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([[NSString stringWithContentsOfFile:scratchPath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:base]);
+		NoteObject *invalidConflict = nil;
+		for (NoteObject *candidate in AllNotes(controller))
+			if ([titleOfNote(candidate) isEqualToString:
+				@"Scratch Invalid UTF-8 (conflict - undecodable data)"])
+				invalidConflict = candidate;
+		REQUIRE(invalidConflict != nil && [[[[invalidConflict contentString] string]
+			componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]
+			containsObject:@"/w=="]);
+
+		NSString *movedScratchPath = [scratchPath stringByAppendingString:@".saving"];
+		REQUIRE(rename([scratchPath fileSystemRepresentation],
+			[movedScratchPath fileSystemRepresentation]) == 0);
+		REQUIRE(![scratchEditor processScratchFileAtPath:scratchPath endingSession:NO]);
+		REQUIRE([sessions objectForKey:scratchPath] != nil);
+		REQUIRE(rename([movedScratchPath fileSystemRepresentation],
+			[scratchPath fileSystemRepresentation]) == 0);
+		[scratchEditor abortAllEditingSessionsForClient:invalidNote];
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
 static void ConfigureDefaults(void) {
 	[[NSUserDefaults standardUserDefaults] setVolatileDomain:@{
 		@"AutoCompleteSearches": @NO,
@@ -5797,6 +6663,8 @@ int main(int argc, const char *argv[]) {
 			TestTrash();
 		else if ([scenario isEqualToString:@"failures"])
 			TestFailures();
+		else if ([scenario isEqualToString:@"external-editing-text-merge"])
+			TestExternalEditingTextMerge();
 		else
 			REQUIRE(!"unknown integration-test scenario");
 	} @catch (NSException *exception) {

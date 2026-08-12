@@ -124,6 +124,7 @@ typedef struct _NoteCatalogEntry {
 
 - (int)currentNoteStorageFormat;
 - (void)synchronizeNoteChanges:(NSTimer*)timer;
+- (BOOL)makeNoteDurableForExternalEditing:(NoteObject*)note;
 
 - (void)updateDateStringsIfNecessary;
 - (void)makeForegroundTextColorMatchGlobalPrefs;
@@ -203,5 +204,6 @@ enum { NVDefaultReveal = 0, NVDoNotChangeScrollPosition = 1, NVOrderFrontWindow 
 - (void)contentsUpdatedForNote:(NoteObject*)aNoteObject;
 - (void)titleUpdatedForNote:(NoteObject*)aNoteObject;
 - (void)rowShouldUpdate:(NSInteger)affectedRow;
+- (void)externalEditingSessionTeardownFailed;
 
 @end

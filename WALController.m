@@ -433,6 +433,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	    return nil;
 	}
 	if (![self _acquireJournalLock]) {
+		//TODO: define "another NV is already open" in CaronbErrorStrings.plist and ensure this error bubbles up to the dialog rather than just returning kJournalingError
 		NSLog(@"WALRecoveryController: journal is in use: %s", strerror(errno));
 		[self release];
 		return nil;

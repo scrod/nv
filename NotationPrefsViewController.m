@@ -30,6 +30,13 @@
 #import "SyncResponseFetcher.h"
 #import "PassphrasePicker.h"
 #import "PassphraseChanger.h"
+#import "ExternalEditingSession/ExternalEditingSession.h"
+
+@interface NotationPrefsViewController ()
+- (void)_finishExternalEditingForAction:(NSString*)action
+	informativeText:(NSString*)informativeText continuation:(void (^)(void))continuation;
+- (void)_changedFileStorageFormat:(id)sender skipEncryptionWarning:(BOOL)skipWarning;
+@end
 
 @implementation FileKindListView 
 
@@ -262,7 +269,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (void)runQueuedStorageFormatChangeInvocation {
-	[postStorageFormatInvocation performSelector:@selector(invoke) withObject:nil afterDelay:0.0];
+	[postStorageFormatInvocation invoke];
 	[postStorageFormatInvocation release];
 	postStorageFormatInvocation = nil;
 }
@@ -275,9 +282,29 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (IBAction)changedFileStorageFormat:(id)sender {
+	[self _changedFileStorageFormat:sender skipEncryptionWarning:NO];
+}
+
+- (void)_changedFileStorageFormat:(id)sender skipEncryptionWarning:(BOOL)skipWarning {
 	    NSInteger storageTag = [storageFormatPopupButton selectedTag];
+	if ([[ExternalEditingSession sharedExternalEditingSession] activeScratchEditingSessionCount]) {
+		NSString *additionalWarning = storageTag != SingleDatabaseFormat &&
+			[notationPrefs doesEncryption] ? NSLocalizedString(
+			@" Encryption will also be disabled and notes will be written to disk in clear text.", nil) : @"";
+		NSString *information = [NSLocalizedString(
+			@"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered.", nil)
+			stringByAppendingString:additionalWarning];
+		[self _finishExternalEditingForAction:NSLocalizedString(@"Change Storage Format", nil)
+			informativeText:information continuation:^{
+				[self _changedFileStorageFormat:sender skipEncryptionWarning:YES];
+			}];
+		return;
+	}
 	
 	if (storageTag != SingleDatabaseFormat && [notationPrefs doesEncryption]) {
+		if (skipWarning) {
+			[self _disableEncryption];
+		} else {
 		NSAlert *encryptionAlert = [[[NSAlert alloc] init] autorelease];
 		[encryptionAlert setMessageText:NSLocalizedString(@"Encryption is currently on, but storing notes individually requires it to be off. Disable encryption?", nil)];
 		[encryptionAlert setInformativeText:NSLocalizedString(@"Warning: Your notes will be written to disk in clear text.", nil)];
@@ -291,6 +318,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 			//cancelled
 			[self notesStorageFormatDidChange];
 			return;
+		}
 		}
 	}
 	
@@ -328,6 +356,11 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 - (IBAction)changePassphrase:(id)sender {
 	
 	NSAssert([notationPrefs doesEncryption], @"Encryption must be on before the password can be changed.");
+	if ([[ExternalEditingSession sharedExternalEditingSession] activeScratchEditingSessionCount]) {
+		[self _finishExternalEditingForAction:NSLocalizedString(@"Change Passphrase", nil)
+			informativeText:nil continuation:^{ [self changePassphrase:sender]; }];
+		return;
+	}
 	
 	if (!changer) changer = [[PassphraseChanger alloc] initWithNotationPrefs:notationPrefs];
 	[changer showAroundWindow:[view window]];
@@ -369,7 +402,7 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 		//switching to single DB
 		[storageFormatPopupButton selectItemWithTag:SingleDatabaseFormat];
 		
-		[self performSelector:@selector(changedFileStorageFormat:) withObject:storageFormatPopupButton afterDelay:0.0];
+		[self changedFileStorageFormat:storageFormatPopupButton];
 		
 		//need to show PW picker dialog after this ->
 		
@@ -385,6 +418,11 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (void)enableEncryption {
+	if ([[ExternalEditingSession sharedExternalEditingSession] activeScratchEditingSessionCount]) {
+		[self _finishExternalEditingForAction:NSLocalizedString(@"Enable Encryption", nil)
+			informativeText:nil continuation:^{ [self enableEncryption]; }];
+		return;
+	}
 	if (!passphrasePicker) passphrasePicker = [[PassphrasePicker alloc] initWithNotationPrefs:notationPrefs];
 	
 	int format = [notationPrefs notesStorageFormat];
@@ -423,6 +461,13 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 
 - (void)disableEncryptionWithWarning:(BOOL)warning {
 	if ([notationPrefs doesEncryption]) {
+		if ([[ExternalEditingSession sharedExternalEditingSession] activeScratchEditingSessionCount]) {
+			NSString *information = NSLocalizedString(
+				@"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered. Notes will then be written to disk in clear text.", nil);
+			[self _finishExternalEditingForAction:NSLocalizedString(@"Disable Encryption", nil)
+				informativeText:information continuation:^{ [self _disableEncryption]; }];
+			return;
+		}
 		if (warning) {
 			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 			[alert setMessageText:NSLocalizedString(@"Disable note encryption now?", nil)];
@@ -442,6 +487,37 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	} else {
 		NSLog(@"Not disabling encryption because it is already off.");
 	}
+}
+
+- (void)_finishExternalEditingForAction:(NSString*)action
+	informativeText:(NSString*)informativeText continuation:(void (^)(void))continuation {
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:[NSString stringWithFormat:NSLocalizedString(
+		@"%@ and end external editing?", nil), action]];
+	[alert setInformativeText:informativeText ?: NSLocalizedString(
+		@"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered.", nil)];
+	[alert addButtonWithTitle:NSLocalizedString(@"Continue", nil)];
+	[alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+	[alert setAlertStyle:NSAlertStyleWarning];
+	if ([alert runModal] != NSAlertFirstButtonReturn) return;
+	void (^next)(void) = [continuation copy];
+	ExternalEditingSession *editor = [ExternalEditingSession sharedExternalEditingSession];
+	[editor beginScratchEditingSuspension];
+	[editor finishAllScratchEditingSessionsWithCompletionHandler:
+		^(BOOL success) {
+			if (success) next();
+			else {
+				NSAlert *failure = [[[NSAlert alloc] init] autorelease];
+				[failure setMessageText:NSLocalizedString(@"External editing could not be finished.", nil)];
+				[failure setInformativeText:NSLocalizedString(
+					@"The settings change was canceled. The temporary file and external-editing session remain available; save again and retry.", nil)];
+				[failure addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+				[failure setAlertStyle:NSAlertStyleCritical];
+				[failure runModal];
+			}
+			[next release];
+			[editor endScratchEditingSuspension];
+		}];
 }
 
 - (IBAction)toggledEncryption:(id)sender {

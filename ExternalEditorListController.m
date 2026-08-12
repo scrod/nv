@@ -6,17 +6,17 @@
 
 /*Copyright (c) 2010, Zachary Schneirov. All rights reserved.
  This file is part of Notational Velocity.
- 
+
  Notational Velocity is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  Notational Velocity is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
@@ -27,6 +27,7 @@
 #import "NotationController.h"
 #import "NotationPrefs.h"
 #import "NSBezierPath_NV.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 static NSString *UserEEIdentifiersKey = @"UserEEIdentifiers";
 static NSString *DefaultEEIdentifierKey = @"DefaultEEIdentifier";
@@ -36,15 +37,21 @@ NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
 - (void)_updateMenuForEEListController:(ExternalEditorListController*)controller;
 @end
 
+@interface ExternalEditorListController ()
+- (NSArray*)_editorsForNotes:(NSArray*)notes;
+@end
+
 
 @implementation ExternalEditor
+
+@synthesize bundleIdentifier;
 
 - (id)initWithBundleID:(NSString*)aBundleIdentifier resolvedURL:(NSURL*)aURL {
 	self = [self init];
 	if (self) {
 		bundleIdentifier = [aBundleIdentifier retain];
 		resolvedURL = [aURL retain];
-		
+
 		NSAssert(resolvedURL || bundleIdentifier, @"the bundle identifier and URL cannot both be nil");
 		if (!bundleIdentifier) {
 			if (!(bundleIdentifier = [[[NSBundle bundleWithPath:[aURL path]] bundleIdentifier] copy])) {
@@ -59,48 +66,41 @@ NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
 - (BOOL)canEditNoteDirectly:(NoteObject*)aNote {
 	NSAssert(aNote != nil, @"aNote is nil");
 
-	//for determining whether this potentially non-ODB-editor can open a non-plain-text file
+	//for determining whether this external editor can open a non-plain-text file
 	//process: does pathExtension key exist in knownPathExtensions dict?
 	//if not, check this path extension w/ launch services
 	//then add a corresponding YES/NO NSNumber value to the knownPathExtensions dict
 
 	//but first, this editor can't handle any path if it's not actually installed
 	if (![self isInstalled]) return NO;
-	
+
 	//and if this note isn't actually stored in a separate file, then obviously it can't be opened directly
 	if ([[aNote delegate] currentNoteStorageFormat] == SingleDatabaseFormat) return NO;
-	
-	//and if aNote is in plaintext format and this editor is ODB-capable, then it should also be a general-purpose texteditor
-	//conversely ODB editors should never be allowed to open non-plain-text documents; for some reason LSCanURLAcceptURL claims they can do that
-	//one exception known: writeroom can edit rich-text documents
-	if ([self isODBEditor] && ![bundleIdentifier hasPrefix:@"com.hogbaysoftware.WriteRoom"]) {
-		return storageFormatOfNote(aNote) == PlainTextFormat;
-	}
-		
+
 	if (!knownPathExtensions) knownPathExtensions = [NSMutableDictionary new];
 	NSString *extension = [[filenameOfNote(aNote) pathExtension] lowercaseString];
 	NSNumber *canHandleNumber = [knownPathExtensions objectForKey:extension];
-	
+
 	if (!canHandleNumber) {
 		NSURL *noteURL = [aNote noteFileURL];
-	
+
 		Boolean canAccept = false;
 		OSStatus err = noteURL ? LSCanURLAcceptURL((CFURLRef)noteURL, (CFURLRef)[self resolvedURL], kLSRolesEditor, kLSAcceptAllowLoginUI, &canAccept) : fnfErr;
 		if (noErr != err) {
 			NSLog(@"LSCanURLAcceptURL '%@' err: %d", noteURL, err);
 		}
 		[knownPathExtensions setObject:[NSNumber numberWithBool:(BOOL)canAccept] forKey:extension];
-		
+
 		return (BOOL)canAccept;
 	}
-	
+
 	return [canHandleNumber boolValue];
 }
 
 - (BOOL)canEditAllNotes:(NSArray*)notes {
-	NSUInteger i = 0;
-	for (i=0; i<[notes count]; i++) {
-		if (![self isODBEditor] && ![self canEditNoteDirectly:[notes objectAtIndex:i]])
+	for (NoteObject *note in notes) {
+		if ([[note delegate] currentNoteStorageFormat] != SingleDatabaseFormat &&
+			![self canEditNoteDirectly:note])
 			return NO;
 	}
 	return YES;
@@ -157,14 +157,6 @@ NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
 	return [self resolvedURL] != nil;
 }
 
-- (BOOL)isODBEditor {
-	return [[ExternalEditorListController ODBAppIdentifiers] containsObject:bundleIdentifier];
-}
-
-- (NSString*)bundleIdentifier {
-	return bundleIdentifier;
-}
-
 - (NSString*)description {
 	return [bundleIdentifier stringByAppendingFormat:@" (URL: %@)", resolvedURL];
 }
@@ -196,7 +188,7 @@ NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
 
 static ExternalEditorListController* sharedInstance = nil;
 
-+ (ExternalEditorListController*)sharedInstance {	
++ (ExternalEditorListController*)sharedInstance {
 	if (sharedInstance == nil)
 		sharedInstance = [[ExternalEditorListController alloc] initWithUserDefaults];
     return sharedInstance;
@@ -213,10 +205,10 @@ static ExternalEditorListController* sharedInstance = nil;
 - (id)initWithUserDefaults {
 	self = [self init];
 	if (self) {
-		//TextEdit is not an ODB editor, but can be used to open files directly
+		//TextEdit is always present
 		[[NSUserDefaults standardUserDefaults] registerDefaults:
 		 [NSDictionary dictionaryWithObject:[NSArray arrayWithObject:@"com.apple.TextEdit"] forKey:UserEEIdentifiersKey]];
-	
+
 		[self _initDefaults];
 	}
 	return self;
@@ -225,77 +217,46 @@ static ExternalEditorListController* sharedInstance = nil;
 - (id)init {
 	self = [super init];
 	if (self) {
-		
-		userEditorList = [[NSMutableArray alloc] init];		
+
+		userEditorList = [[NSMutableArray alloc] init];
 	}
 	return self;
 }
 
 - (void)_initDefaults {
 	NSArray *userIdentifiers = [[NSUserDefaults standardUserDefaults] arrayForKey:UserEEIdentifiersKey];
-	
-	NSUInteger i = 0;
-	for (i=0; i<[userIdentifiers count]; i++) {
-		ExternalEditor *ed = [[ExternalEditor alloc] initWithBundleID:[userIdentifiers objectAtIndex:i] resolvedURL:nil];
+
+	for (NSString *identifier in userIdentifiers) {
+		ExternalEditor *ed = [[ExternalEditor alloc] initWithBundleID:identifier resolvedURL:nil];
 		[userEditorList addObject:ed];
 		[ed release];
 	}
-	
+
 	//initialize the default editor if one has not already been set or if the identifier was somehow lost from the list
-	if (![self editorIsMember:[self defaultExternalEditor]] || ![[self defaultExternalEditor] isInstalled]) {
-		if ([[self _installedODBEditors] count]) {
-			[self setDefaultEditor:[[self _installedODBEditors] lastObject]];
-		}
+	if (![[self defaultExternalEditor] isInstalled]) {
+		ExternalEditor *textEdit = [[[ExternalEditor alloc]
+			initWithBundleID:@"com.apple.TextEdit" resolvedURL:nil] autorelease];
+		if ([textEdit isInstalled]) [self setDefaultEditor:textEdit];
 	}
-}
-
-- (NSArray*)_installedODBEditors {
-	if (!_installedODBEditors) {
-		_installedODBEditors = [[NSMutableArray alloc] initWithCapacity:5];
-		
-		NSArray *ODBApps = [[[self class] ODBAppIdentifiers] allObjects];
-		NSUInteger i = 0;
-		for (i=0; i<[ODBApps count]; i++) {
-			ExternalEditor *ed = [[ExternalEditor alloc] initWithBundleID:[ODBApps objectAtIndex:i] resolvedURL:nil];
-			if ([ed isInstalled]) {
-				[_installedODBEditors addObject:ed];
-			}
-			[ed release];
-		}
-		[_installedODBEditors sortUsingSelector:@selector(compareDisplayName:)];
-	}
-	return _installedODBEditors;
-}
-
-+ (NSSet*)ODBAppIdentifiers {
-	static NSSet *_ODBAppIdentifiers = nil;
-	if (!_ODBAppIdentifiers) 
-		_ODBAppIdentifiers = [[NSSet alloc] initWithObjects:
-							  @"de.codingmonkeys.SubEthaEdit", @"com.barebones.bbedit", @"com.barebones.textwrangler", 
-							  @"com.macromates.textmate", @"com.transtex.texeditplus", @"jp.co.artman21.JeditX", @"org.gnu.Aquamacs", 
-							  @"org.smultron.Smultron", @"com.peterborgapps.Smultron", @"org.fraise.Fraise", @"com.aynimac.CotEditor", @"com.macrabbit.cssedit", 
-							  @"com.talacia.Tag", @"org.skti.skEdit", @"com.cgerdes.ji", @"com.optima.PageSpinner", @"com.hogbaysoftware.WriteRoom", 
-							  @"com.hogbaysoftware.WriteRoom.mac", @"org.vim.MacVim", @"com.forgedit.ForgEdit", @"com.tacosw.TacoHTMLEdit", @"com.macrabbit.espresso", @"com.sublimetext.2", @"com.sublimetext.3", @"com.sublimetext.4", @"com.metaclassy.byword", @"jp.informationarchitects.WriterForMacOSX", @"com.chocolatapp.Chocolat", @"org.gnu.Emacs", @"com.panic.Coda2", @"com.panic.Nova", nil];
-	return _ODBAppIdentifiers;
 }
 
 - (void)addUserEditorFromDialog:(id)sender {
-	
-	//always send menuChanged notification because this class is the target of its menus, 
+
+	//always send menuChanged notification because this class is the target of its menus,
 	//so the notification is the only way to maintain a consistent selected item in PrefsWindowController
 	[self performSelector:@selector(menusChanged) withObject:nil afterDelay:0.0];
-	
+
 	NSOpenPanel *openPanel = [NSOpenPanel openPanel];
     [openPanel setResolvesAliases:YES];
     [openPanel setAllowsMultipleSelection:NO];
     [openPanel setDirectoryURL:[NSURL fileURLWithPath:@"/Applications"]];
     [openPanel setAllowedFileTypes:@[@"app"]];
-    
+
     if ([openPanel runModal] == NSModalResponseOK) {
 		if (![[openPanel URL] path]) goto errorReturn;
 		NSURL *appURL = [openPanel URL];
 		if (!appURL) goto errorReturn;
-		
+
 		ExternalEditor *ed = [[ExternalEditor alloc] initWithBundleID:nil resolvedURL:appURL];
 		if (!ed) goto errorReturn;
 
@@ -304,7 +265,7 @@ static ExternalEditorListController* sharedInstance = nil;
 			[userEditorList addObject:ed];
 			[[NSUserDefaults standardUserDefaults] setObject:[self userEditorIdentifiers] forKey:UserEEIdentifiersKey];
 		}
-		
+
 		[self setDefaultEditor:ed];
 		[ed release];
     }
@@ -316,22 +277,21 @@ errorReturn:
 
 - (void)resetUserEditors:(id)sender {
 	[userEditorList removeAllObjects];
-	
+
 	[[NSUserDefaults standardUserDefaults] removeObjectForKey:UserEEIdentifiersKey];
-	
+
 	[self _initDefaults];
-	
+
 	[self menusChanged];
 }
 
 - (NSArray*)userEditorIdentifiers {
 	//for storing in nsuserdefaults
 	//extract bundle identifiers
-	
+
 	NSMutableArray *array = [NSMutableArray arrayWithCapacity:[userEditorList count]];
-	NSUInteger i = 0;
-	for (i=0; i<[userEditorList count]; i++) {
-		[array addObject:[[userEditorList objectAtIndex:i] bundleIdentifier]];
+	for (ExternalEditor *editor in userEditorList) {
+		[array addObject:editor.bundleIdentifier];
 	}
 
 	return array;
@@ -339,8 +299,7 @@ errorReturn:
 
 
 - (BOOL)editorIsMember:(ExternalEditor*)anEditor {
-	//does the editor exist in any of the lists?
-	return [userEditorList containsObject:anEditor] || [[ExternalEditorListController ODBAppIdentifiers] containsObject:[anEditor bundleIdentifier]];
+	return [userEditorList containsObject:anEditor];
 }
 
 - (NSMenu*)addEditorPrefsMenu {
@@ -370,39 +329,101 @@ errorReturn:
 	[[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:ExternalEditorsChangedNotification object:self]];
 }
 
+- (NSArray*)_applicationURLsForNote:(NoteObject*)note {
+	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+	if (note && [[note delegate] currentNoteStorageFormat] != SingleDatabaseFormat) {
+		NSURL *URL = [note noteFileURL];
+		if (!URL) return [NSArray array];
+		if (@available(macOS 12.0, *))
+			return [workspace URLsForApplicationsToOpenURL:URL];
+		CFArrayRef URLs = LSCopyApplicationURLsForURL((CFURLRef)URL, kLSRolesEditor);
+		return [(NSArray*)URLs autorelease];
+	}
+	if (@available(macOS 12.0, *)) {
+		NSMutableOrderedSet *URLs = [NSMutableOrderedSet orderedSet];
+		NSArray *types = note ? @[ UTTypePlainText ] : @[ UTTypePlainText, UTTypeRTF, UTTypeHTML ];
+		for (UTType *type in types)
+			[URLs addObjectsFromArray:[workspace URLsForApplicationsToOpenContentType:type]];
+		return [URLs array];
+	}
+	NSMutableSet *identifiers = [NSMutableSet set];
+	NSArray *types = note ? @[ (NSString*)kUTTypePlainText ] :
+		@[ (NSString*)kUTTypePlainText, (NSString*)kUTTypeRTF, (NSString*)kUTTypeHTML ];
+	for (NSString *type in types) {
+		CFArrayRef handlers = LSCopyAllRoleHandlersForContentType((CFStringRef)type, kLSRolesEditor);
+		if (handlers) {
+			[identifiers addObjectsFromArray:(NSArray*)handlers];
+			CFRelease(handlers);
+		}
+	}
+	NSMutableArray *URLs = [NSMutableArray array];
+	for (NSString *identifier in identifiers) {
+		NSURL *URL = [workspace URLForApplicationWithBundleIdentifier:identifier];
+		if (URL) [URLs addObject:URL];
+	}
+	return URLs;
+}
+
+- (NSArray*)_editorsForNotes:(NSArray*)notes {
+	NSArray *probeNotes = [notes count] ? notes : [NSArray arrayWithObject:[NSNull null]];
+	NSMutableDictionary *common = nil;
+	for (id value in probeNotes) {
+		NoteObject *note = value == [NSNull null] ? nil : value;
+		NSMutableDictionary *applications = [NSMutableDictionary dictionary];
+		for (NSURL *URL in [self _applicationURLsForNote:note]) {
+			NSString *identifier = [[NSBundle bundleWithURL:URL] bundleIdentifier];
+			if (![identifier length] || [identifier isEqualToString:[[NSBundle mainBundle] bundleIdentifier]])
+				continue;
+			ExternalEditor *editor = [[[ExternalEditor alloc]
+				initWithBundleID:identifier resolvedURL:URL] autorelease];
+			[applications setObject:editor forKey:identifier];
+		}
+		if (!common) common = [applications mutableCopy];
+		else for (NSString *identifier in [[[common allKeys] copy] autorelease]) {
+			if (![applications objectForKey:identifier]) [common removeObjectForKey:identifier];
+		}
+	}
+	if (!common) common = [[NSMutableDictionary alloc] init];
+	for (ExternalEditor *editor in userEditorList)
+		if ([editor isInstalled] && (![notes count] || [editor canEditAllNotes:notes]))
+			[common setObject:editor forKey:[editor bundleIdentifier]];
+	NSArray *result = [[common allValues] sortedArrayUsingSelector:@selector(compareDisplayName:)];
+	[common release];
+	return result;
+}
+
 - (void)_updateMenu:(NSMenu*)theMenu {
 	//for allowing the user to configure external editors in the preferences window
 
 	[theMenu removeAllItems];
-	
+
 	BOOL isPrefsMenu = [editorPrefsMenus containsObject:theMenu];
 	BOOL didAddItem = NO;
-	NSMutableArray *editors = [NSMutableArray arrayWithArray:[self _installedODBEditors]];
-	[editors addObjectsFromArray:[userEditorList filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"isInstalled == YES"]]];
-	[editors sortUsingSelector:@selector(compareDisplayName:)];
-	
-	NSUInteger i = 0;
-	for (i=0; i<[editors count]; i++) {
-		ExternalEditor *ed = [editors objectAtIndex:i];
-		
+	NSArray *selectedNotes = nil;
+	if (!isPrefsMenu && [[NSApp delegate] respondsToSelector:@selector(selectedNotes)])
+		selectedNotes = [(AppController*)[NSApp delegate] selectedNotes];
+	NSArray *editors = [self _editorsForNotes:selectedNotes];
+
+	for (ExternalEditor *ed in editors) {
+
 		//change action SEL based on whether this is coming from Notes menu or preferences window
-		NSMenuItem *theMenuItem = isPrefsMenu ? 
-			[[[NSMenuItem alloc] initWithTitle:[ed displayName] action:@selector(setDefaultEditor:) keyEquivalent:@""] autorelease] : 
+		NSMenuItem *theMenuItem = isPrefsMenu ?
+			[[[NSMenuItem alloc] initWithTitle:[ed displayName] action:@selector(setDefaultEditor:) keyEquivalent:@""] autorelease] :
 			[[[NSMenuItem alloc] initWithTitle:[ed displayName] action:@selector(editNoteExternally:) keyEquivalent:@""] autorelease];
-			
+
 		if (!isPrefsMenu && [[self defaultExternalEditor] isEqual:ed]) {
 			[theMenuItem setKeyEquivalent:@"E"];
 			[theMenuItem setKeyEquivalentModifierMask: NSEventModifierFlagCommand | NSEventModifierFlagShift];
 		}
 		//PrefsWindowController maintains default-editor selection by updating on ExternalEditorsChangedNotification
-			
+
 		[theMenuItem setTarget: isPrefsMenu ? (id)self : (id)[NSApp delegate]];
-		
+
 		[theMenuItem setRepresentedObject:ed];
-		
+
 		if ([ed iconImage])
 			[theMenuItem setImage:[ed iconImage]];
-		
+
 		[theMenu addItem:theMenuItem];
 		didAddItem = YES;
 	}
@@ -416,7 +437,7 @@ errorReturn:
 	if ([userEditorList count] > 1 && isPrefsMenu) {
 		//if the user added at least one editor (in addition to the default TextEdit item), then allow items to be reset to their default
 		[theMenu addItem:[NSMenuItem separatorItem]];
-		
+
 		NSMenuItem *theMenuItem = [[[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Reset", @"menu command to clear out custom external editors")
 															  action:@selector(resetUserEditors:) keyEquivalent:@""] autorelease];
 		[theMenuItem setTarget:self];
@@ -428,6 +449,10 @@ errorReturn:
 														  action:@selector(addUserEditorFromDialog:) keyEquivalent:@""] autorelease];
 	[theMenuItem setTarget:self];
 	[theMenu addItem:theMenuItem];
+}
+
+- (void)menuNeedsUpdate:(NSMenu*)menu {
+	[self _updateMenu:menu];
 }
 
 - (ExternalEditor*)defaultExternalEditor {
@@ -445,7 +470,7 @@ errorReturn:
 		defaultEditor = [anEditor retain];
 
 		[[NSUserDefaults standardUserDefaults] setObject:[defaultEditor bundleIdentifier] forKey:DefaultEEIdentifierKey];
-		
+
 		[self menusChanged];
 	}
 }

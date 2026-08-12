@@ -31,6 +31,7 @@
 #import "EncodingsManager.h"
 #import "ExporterManager.h"
 #import "ExternalEditorListController.h"
+#import "ExternalEditingSession/ExternalEditingSession.h"
 #import "NSData_transformations.h"
 #import "BufferUtils.h"
 #import "LinkingEditor.h"
@@ -55,6 +56,16 @@
 // Dummy declaration to silence undeclared-selector warning for @selector(noop:)
 @interface NSObject (NVNoop)
 - (void)noop:(id)sender;
+@end
+
+@interface AppController ()
+- (void)_loadNotationAtURL:(NSURL*)URL;
+- (BOOL)_confirmEndingExternalEditingForAction:(NSString*)action
+	continueButtonTitle:(NSString*)continueButtonTitle;
+- (BOOL)_externalEditingQuitResponseShouldTerminate:(NSModalResponse)response;
+- (void)_confirmQuittingExternalEditingWithCompletionHandler:
+	(void (^)(BOOL shouldQuit))completionHandler;
+- (void)_restoreWindowAfterCanceledTermination;
 @end
 #import "AugmentedScrollView.h"
 #import "BookmarksController.h"
@@ -172,6 +183,7 @@
 
 //	[window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces];
 
+	[NSWindow setAllowsAutomaticWindowTabbing:NO];
 
 	[NSApp setDelegate:self];
 	[notesTableView setDelegate:self];
@@ -596,7 +608,15 @@ terminateApp:
 	if ([indexes count] > 0) {
 	id deleteObj = [indexes count] > 1 ? (id)([notationController notesAtIndexes:indexes]) : (id)([notationController noteObjectAtFilteredIndex:(int)[indexes firstIndex]]);
 
-		if ([prefsController confirmNoteDeletion]) {
+		BOOL hasExternalEditingSession = NO;
+		NSArray *notesToDelete = [deleteObj isKindOfClass:[NSArray class]] ? deleteObj : @[ deleteObj ];
+		for (NoteObject *note in notesToDelete)
+			if ([[ExternalEditingSession sharedExternalEditingSession] hasActiveScratchEditingSessionForClient:note]) {
+				hasExternalEditingSession = YES;
+				break;
+			}
+
+		if ([prefsController confirmNoteDeletion] || hasExternalEditingSession) {
 			[deleteObj retain];
 			NSString *warningSingleFormatString = NSLocalizedString(@"Delete the note titled quotemark%@quotemark?", @"alert title when asked to delete a note");
 			NSString *warningMultipleFormatString = NSLocalizedString(@"Delete %d notes?", @"alert title when asked to delete multiple notes");
@@ -605,10 +625,12 @@ terminateApp:
 
 			NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 			[alert setMessageText:warnString];
-			[alert setInformativeText:NSLocalizedString(@"Press Command-Z to undo this action later.", @"informational delete-this-note? text")];
+			[alert setInformativeText:hasExternalEditingSession ? NSLocalizedString(
+				@"External editing will end. Notational Velocity will preserve changes saved so far, then remove the temporary file. Later changes made in the external editor's remaining buffer cannot be recovered.", nil) :
+				NSLocalizedString(@"Press Command-Z to undo this action later.", @"informational delete-this-note? text")];
 			[alert addButtonWithTitle:NSLocalizedString(@"Delete", @"name of delete button")];
 			[alert addButtonWithTitle:NSLocalizedString(@"Cancel", @"name of cancel button")];
-			[alert setShowsSuppressionButton:YES];
+			[alert setShowsSuppressionButton:!hasExternalEditingSession];
 
 			[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
 				if (response == NSAlertFirstButtonReturn) {
@@ -622,7 +644,8 @@ terminateApp:
 					} else if ([deleteObj isKindOfClass:[NoteObject class]]) {
 						[notationController removeNote:deleteObj];
 					}
-					if ([[alert suppressionButton] state] == NSControlStateValueOn) {
+					if (!hasExternalEditingSession &&
+						[[alert suppressionButton] state] == NSControlStateValueOn) {
 						[prefsController setConfirmNoteDeletion:NO sender:self];
 					}
 				}
@@ -720,32 +743,27 @@ terminateApp:
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
     if ([selectorString isEqualToString:SEL_STR(setDefaultDirectoryURL:sender:error:)]) {
 		//defaults changed for the database location -- load the new one!
-
-		OSStatus err = noErr;
-		NotationController *newNotation = nil;
 		NSURL *newURL = [prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
-		if (newURL) {
-			if ((newNotation = [[NotationController alloc] initWithDirectoryURL:newURL error:&err])) {
-				[self setNotationController:newNotation];
-				[newNotation release];
-
-			} else {
-
-				//set directory identity data back
-				NSURL *oldURL = [notationController noteDirectoryURL];
+		ExternalEditingSession *editor = [ExternalEditingSession sharedExternalEditingSession];
+		if (newURL && [editor activeScratchEditingSessionCount]) {
+			NSURL *oldURL = [notationController noteDirectoryURL];
+			if (![self _confirmEndingExternalEditingForAction:NSLocalizedString(@"Change Database", nil)
+				continueButtonTitle:NSLocalizedString(@"Continue", nil)]) {
 				[prefsController setDefaultDirectoryURL:oldURL sender:self error:NULL];
-
-				//display alert with err--could not set notation directory
-				NSString *location = [[newURL path] stringByAbbreviatingWithTildeInPath];
-				NSString *oldLocation = [[oldURL path] stringByAbbreviatingWithTildeInPath];
-				NSString *reason = [NSString reasonStringFromCarbonFSError:err];
-				NSAlert *revertAlert = [[[NSAlert alloc] init] autorelease];
-				[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
-				[revertAlert setInformativeText:[NSString stringWithFormat:NSLocalizedString(@"Reverting to current location of %@.", nil), oldLocation]];
-				[revertAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
-				[revertAlert runModal];
+				return;
 			}
+			[editor beginScratchEditingSuspension];
+			[editor finishAllScratchEditingSessionsWithCompletionHandler:^(BOOL success) {
+				if (success) [self _loadNotationAtURL:newURL];
+				else {
+					[prefsController setDefaultDirectoryURL:oldURL sender:self error:NULL];
+					[self externalEditingSessionTeardownFailed];
+				}
+				[editor endScratchEditingSuspension];
+			}];
+			return;
 		}
+		if (newURL) [self _loadNotationAtURL:newURL];
     } else if ([selectorString isEqualToString:SEL_STR(setSortedTableColumnKey:reversed:sender:)]) {
 		NoteAttributeColumn *oldSortCol = [notationController sortColumn];
 		NoteAttributeColumn *newSortCol = [notesTableView noteAttributeColumnForIdentifier:[prefsController sortedTableColumnKey]];
@@ -796,6 +814,75 @@ terminateApp:
 			[notationController updateTitlePrefixConnections];
 	}
 
+}
+
+- (BOOL)_confirmEndingExternalEditingForAction:(NSString*)action
+	continueButtonTitle:(NSString*)continueButtonTitle {
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:[NSString stringWithFormat:
+		NSLocalizedString(@"%@ and end external editing?", nil), action]];
+	[alert setInformativeText:NSLocalizedString(
+		@"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered.", nil)];
+	[alert addButtonWithTitle:continueButtonTitle];
+	[alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+	[alert setAlertStyle:NSAlertStyleWarning];
+	return [alert runModal] == NSAlertFirstButtonReturn;
+}
+
+- (void)_restoreWindowAfterCanceledTermination {
+	[syncWaitSpinner stopAnimation:nil];
+	[syncWaitPanel orderOut:nil];
+	waitedForUncommittedChanges = NO;
+	[window makeKeyAndOrderFront:nil];
+	[NSApp activateIgnoringOtherApps:YES];
+}
+
+- (void)_confirmQuittingExternalEditingWithCompletionHandler:
+	(void (^)(BOOL shouldQuit))completionHandler {
+	NSAlert *alert = [[NSAlert alloc] init];
+	[alert setMessageText:[NSString stringWithFormat:NSLocalizedString(
+		@"%@ and end external editing?", nil), NSLocalizedString(@"Quit", nil)]];
+	[alert setInformativeText:NSLocalizedString(
+		@"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered.", nil)];
+	NSButton *quitButton = [alert addButtonWithTitle:NSLocalizedString(@"Quit Anyway", nil)];
+	[quitButton setKeyEquivalent:@"\r"];
+	NSButton *cancelButton = [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+	[cancelButton setKeyEquivalent:@"\e"];
+	[alert setAlertStyle:NSAlertStyleWarning];
+	/* AppKit is already deciding whether to terminate here. Present the choice on
+	 * the next run-loop turn, after applicationShouldTerminate: has returned
+	 * NSTerminateLater, so either button can finish that decision exactly once. */
+	dispatch_async(dispatch_get_main_queue(), ^{
+		completionHandler([self _externalEditingQuitResponseShouldTerminate:[alert runModal]]);
+	});
+	[alert release];
+}
+
+- (BOOL)_externalEditingQuitResponseShouldTerminate:(NSModalResponse)response {
+	return response == NSAlertFirstButtonReturn;
+}
+
+- (void)_loadNotationAtURL:(NSURL*)newURL {
+	OSStatus err = noErr;
+	NotationController *newNotation = [[NotationController alloc]
+		initWithDirectoryURL:newURL error:&err];
+	if (newNotation) {
+		[self setNotationController:newNotation];
+		[newNotation release];
+		return;
+	}
+	NSURL *oldURL = [notationController noteDirectoryURL];
+	[prefsController setDefaultDirectoryURL:oldURL sender:self error:NULL];
+	NSString *location = [[newURL path] stringByAbbreviatingWithTildeInPath];
+	NSString *oldLocation = [[oldURL path] stringByAbbreviatingWithTildeInPath];
+	NSString *reason = [NSString reasonStringFromCarbonFSError:err];
+	NSAlert *revertAlert = [[[NSAlert alloc] init] autorelease];
+	[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(
+		@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
+	[revertAlert setInformativeText:[NSString stringWithFormat:NSLocalizedString(
+		@"Reverting to current location of %@.", nil), oldLocation]];
+	[revertAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+	[revertAlert runModal];
 }
 
 #pragma mark - Multitagging
@@ -1141,6 +1228,10 @@ terminateApp:
 
 - (NoteObject*)selectedNoteObject {
 	return currentNote;
+}
+
+- (NSArray*)selectedNotes {
+	return [notationController notesAtIndexes:[notesTableView selectedRowIndexes]];
 }
 
 - (NSString*)fieldSearchString {
@@ -1911,8 +2002,13 @@ terminateApp:
 }
 
 - (void)windowWillClose:(NSNotification *)aNotification {
-    if ([prefsController quitWhenClosingWindow])
+	if ([prefsController quitWhenClosingWindow] && !externalEditingTerminationInProgress)
 		[NSApp terminate:nil];
+}
+
+- (BOOL)windowShouldClose:(id)sender {
+	(void)sender;
+	return !externalEditingTerminationInProgress;
 }
 
 - (void)_finishSyncWait {
@@ -1954,7 +2050,45 @@ terminateApp:
 		//use NSTerminateCancel instead of NSTerminateLater because we need the runloop functioning in order to receive start/stop sync notifications
 		return NSTerminateCancel;
 	}
+	ExternalEditingSession *editor = [ExternalEditingSession sharedExternalEditingSession];
+	/* Opening a separately stored note edits its real file and creates no scratch
+	 * session. Only temporary handoffs need the warning and final drain below. */
+	if ([editor activeScratchEditingSessionCount]) {
+		if (externalEditingTerminationInProgress) return NSTerminateLater;
+		externalEditingTerminationInProgress = YES;
+		[editor beginScratchEditingSuspension];
+		[self _confirmQuittingExternalEditingWithCompletionHandler:^(BOOL shouldQuit) {
+			if (!shouldQuit) {
+				externalEditingTerminationInProgress = NO;
+				[self _restoreWindowAfterCanceledTermination];
+				[editor endScratchEditingSuspension];
+				[sender replyToApplicationShouldTerminate:NO];
+				return;
+			}
+			[editor finishAllScratchEditingSessionsWithCompletionHandler:^(BOOL success) {
+				externalEditingTerminationInProgress = NO;
+				if (!success) {
+					[self _restoreWindowAfterCanceledTermination];
+					[self externalEditingSessionTeardownFailed];
+				}
+				[editor endScratchEditingSuspension];
+				[sender replyToApplicationShouldTerminate:success];
+			}];
+		}];
+		return NSTerminateLater;
+	}
 	return NSTerminateNow;
+}
+
+- (void)externalEditingSessionTeardownFailed {
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:NSLocalizedString(@"External editing could not be finished.", nil)];
+	[alert setInformativeText:NSLocalizedString(
+		@"The operation was canceled. The temporary file and its external-editing session remain available; save again and retry.", nil)];
+	[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+	[alert setAlertStyle:NSAlertStyleCritical];
+	if (window) [alert beginSheetModalForWindow:window completionHandler:nil];
+	else [alert runModal];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification {

@@ -2673,7 +2673,7 @@ SW5jLiwgMjAwNQAAAAA</bytes>
 					<string key="className">NSObject</string>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
-						<string key="minorKey">ODBEditor/ODBEditor.h</string>
+						<string key="minorKey">ExternalEditingSession/ExternalEditingSession.h</string>
 					</object>
 				</object>
 				<object class="IBPartialClassDescription">

@@ -40,8 +40,6 @@
 - (IBAction)cancelAction:(id)sender;
 - (IBAction)importAction:(id)sender;
 
-//get from the keychain or from the user, verifying with the SHA-1 hash in the .blor file
-- (NSData*)keychainPasswordData;
 - (NSData*)validPasswordHashData;
 - (NSString*)originalPasswordString;
 

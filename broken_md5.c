@@ -148,7 +148,7 @@ void BrokenMD5Final(byte digest[16], struct BrokenMD5Context *ctx)
     BrokenMD5Transform(ctx->buf, (word32 *) ctx->in);
     byteReverse((unsigned char *) ctx->buf, 4);
     memcpy(digest, ctx->buf, 16);
-    memset(ctx, 0, sizeof(ctx));	/* In case it's sensitive */
+    memset(ctx, 0, sizeof(*ctx));	/* In case it's sensitive */
 }
 
 #ifndef ASM_MD5

@@ -23,6 +23,9 @@
 #import "TemporaryFileCachePreparer.h"
 #import "NotationPrefs.h"
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <sys/xattr.h>
+#include <unistd.h>
 
 //used to mount a RAM disk for temporary file editing
 //instances of this class are probably not useful for more than one preparation
@@ -30,9 +33,24 @@
 
 @implementation TemporaryFileCachePreparer
 
-static BOOL MountPointExists(const char *expectedMountPath);
+static NSInteger RAMDiskMountState(const char *expectedMountPath);
 static NSString *RAMDiskMountPath(void);
 static NSString *TempDirectoryPathForEditing(void);
+static BOOL DeviceIsRAMBacked(const char *devicePath);
+
+/* Time Machine recognizes this binary plist on a directory and excludes that
+ * directory and its contents. Set it once on the editing root (including the
+ * RAM-backed NVProtectedEditingSpace volume) before any scratch file exists. */
+static const unsigned char NVBackupExclusionBplist[] = {
+	0x62, 0x70, 0x6c, 0x69, 0x73, 0x74, 0x30, 0x30,
+	0x5f, 0x10, 0x11, 0x63, 0x6f, 0x6d, 0x2e, 0x61,
+	0x70, 0x70, 0x6c, 0x65, 0x2e, 0x62, 0x61, 0x63,
+	0x6b, 0x75, 0x70, 0x64, 0x08, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x1c
+};
 
 - (id)init {
 	self = [super init];
@@ -57,25 +75,62 @@ static NSString *TempDirectoryPathForEditing(void);
 	[super dealloc];
 }
 
-static BOOL MountPointExists(const char *expectedMountPath) {
+static BOOL DeviceIsRAMBacked(const char *devicePath) {
+	NSTask *task = [[[NSTask alloc] init] autorelease];
+	NSPipe *output = [NSPipe pipe];
+	[task setLaunchPath:@"/usr/bin/hdiutil"];
+	[task setArguments:@[ @"info", @"-plist" ]];
+	[task setStandardOutput:output];
+	[task setStandardError:[NSFileHandle fileHandleWithNullDevice]];
+	@try {
+		[task launch];
+	} @catch (NSException *exception) {
+		NSLog(@"Could not verify RAM disk backing: %@", exception);
+		return NO;
+	}
+	NSData *data = [[[output fileHandleForReading] readDataToEndOfFile] retain];
+	[task waitUntilExit];
+	if ([task terminationStatus] != 0) {
+		[data release];
+		return NO;
+	}
+	NSDictionary *info = [NSPropertyListSerialization propertyListWithData:data
+		options:NSPropertyListImmutable format:NULL error:NULL];
+	[data release];
+	NSString *device = [NSString stringWithUTF8String:devicePath];
+	for (NSDictionary *image in [info objectForKey:@"images"]) {
+		NSString *imagePath = [image objectForKey:@"image-path"];
+		NSNumber *owner = [image objectForKey:@"owner-uid"];
+		if (![imagePath hasPrefix:@"ram://"] || (owner && [owner unsignedIntValue] != getuid()))
+			continue;
+		for (NSDictionary *entity in [image objectForKey:@"system-entities"])
+			if ([[entity objectForKey:@"dev-entry"] isEqualToString:device]) return YES;
+	}
+	return NO;
+}
+
+static NSInteger RAMDiskMountState(const char *expectedMountPath) {
 	struct statfs *buf;
+	struct stat pathStatus;
+	if (lstat(expectedMountPath, &pathStatus) < 0) return errno == ENOENT ? 0 : -1;
 	
 	int i, numMounts = getmntinfo(&buf, MNT_NOWAIT);
-	if (!numMounts) return NO;
+	if (!numMounts) return 0;
 	
 	char absExpectedMountPath[PATH_MAX];	
 	if (!realpath(expectedMountPath, absExpectedMountPath)) {
 		NSLog(@"error getting realpath from path '%s': %d", expectedMountPath, errno);
-		return NO;
+		return 0;
 	}
 	
 	for (i=0; i<numMounts; ++i) {
 		if (!strcmp(absExpectedMountPath, buf[i].f_mntonname)) {
-			return YES;
+			return !strcmp(buf[i].f_fstypename, "hfs") &&
+				DeviceIsRAMBacked(buf[i].f_mntfromname) ? 1 : -1;
 		}
 	}
 	
-	return NO;
+	return 0;
 }
 
 static NSString *RAMDiskMountPath(void) {
@@ -105,12 +160,11 @@ static NSString *TempDirectoryPathForEditing(void) {
 		rich text files: use temp directory
 		HTML files: use temp directory
 	
-		ODBEditor will decide based on each specific file whether to open it directly
+		ExternalEditingSession will decide based on each specific file whether to open it directly
 		e.g., if it's a plain text file in plain-text-mode, or if the editor supports RTF/HTML
 	*/
 	
-	if ([prefs notesStorageFormat] != SingleDatabaseFormat || ![prefs doesEncryption] || 
-		[[NSUserDefaults standardUserDefaults] boolForKey:@"UseInsecureTempEditing"]) {
+	if ([prefs notesStorageFormat] != SingleDatabaseFormat || ![prefs doesEncryption]) {
 		if ([self _createFolderAtPath:TempDirectoryPathForEditing()]) {
 			[self _finishPreparationWithPath:TempDirectoryPathForEditing()];
 		} else {
@@ -119,9 +173,15 @@ static NSString *TempDirectoryPathForEditing(void) {
 		return;
 	}
 	
-	if (MountPointExists([RAMDiskMountPath() fileSystemRepresentation])) {
+	NSInteger mountState = RAMDiskMountState([RAMDiskMountPath() fileSystemRepresentation]);
+	if (mountState > 0) {
 		//NSLog(@"mount point already exists; giving path directly");
 		[self _finishPreparationWithPath:RAMDiskMountPath()];
+		return;
+	}
+	if (mountState < 0) {
+		NSLog(@"Refusing unrecognized mount at private external-editing path");
+		[self _stopPreparation];
 		return;
 	}
 		
@@ -175,8 +235,25 @@ static NSString *TempDirectoryPathForEditing(void) {
 
 - (void)_finishPreparationWithPath:(NSString*)aPath {
 	//funnel for the success delegate method
-	
-	NSAssert(preparedCachePath == nil, @"preparedCachePath already set?");
+	if (preparedCachePath) {
+		if (![preparedCachePath isEqualToString:aPath]) {
+			NSLog(@"External-editing storage was already prepared at a different path");
+			[self _stopPreparation];
+		}
+		return;
+	}
+	struct stat status = { 0 };
+	if (lstat([aPath fileSystemRepresentation], &status) < 0 ||
+		!S_ISDIR(status.st_mode) || S_ISLNK(status.st_mode) ||
+		chmod([aPath fileSystemRepresentation], 0700) < 0) {
+		NSLog(@"External-editing storage is not a private directory: %@", aPath);
+		[self _stopPreparation];
+		return;
+	}
+	/* Best effort: an unsupported directory xattr must not prevent editing. */
+	(void)setxattr([aPath fileSystemRepresentation],
+		"com.apple.metadata:com_apple_backup_excludeItem",
+		NVBackupExclusionBplist, sizeof(NVBackupExclusionBplist), 0, 0);
 	preparedCachePath = [aPath retain];
 	
 	startedPreparing = NO;
@@ -269,7 +346,7 @@ static NSString *TempDirectoryPathForEditing(void) {
 			//return newly initialized path to delegate, after verifying
 			
 			NSString *path = RAMDiskMountPath();
-			if (MountPointExists([path fileSystemRepresentation])) {
+			if (RAMDiskMountState([path fileSystemRepresentation]) > 0) {
 				[self _finishPreparationWithPath:path];
 			} else {
 				NSLog(@"the RAM disk somehow does not exist!");

@@ -54,9 +54,11 @@
 - (NSUInteger)hash {
 	//XOR successive native-WORDs of CFUUIDBytes
 	NSUInteger finalHash = 0;
-	NSUInteger i, *noteIDBytesPtr = (NSUInteger *)&uniqueNoteIDBytes;
-	for (i = 0; i<sizeof(CFUUIDBytes) / sizeof(NSUInteger); i++) {
-		finalHash ^= *noteIDBytesPtr++;
+	const uint8_t *noteIDBytesPtr = (const uint8_t *)&uniqueNoteIDBytes;
+	for (NSUInteger i = 0; i < sizeof(CFUUIDBytes); i += sizeof(NSUInteger)) {
+		NSUInteger word;
+		memcpy(&word, noteIDBytesPtr + i, sizeof(word));
+		finalHash ^= word;
 	}
 	return finalHash;
 }

@@ -31,9 +31,11 @@
 @class ExternalEditor;
 
 extern NSString *NVNoteStorageErrorDomain;
+NSString *NVMergedText(NSString *base, NSString *local, NSString *external);
 typedef NS_ENUM(NSInteger, NVNoteStorageErrorCode) {
 	NVNoteStorageJournalError = 1,
-	NVNoteStorageFormattingError = 2
+	NVNoteStorageFormattingError = 2,
+	NVNoteStorageAtomicRecoveryError = 3
 };
 
 typedef struct _NoteFilterContext {
@@ -68,6 +70,11 @@ typedef struct _NoteFilterContext {
 	int currentFormatID;
 	NSStringEncoding fileEncoding;
 	BOOL shouldWriteToFile, didUnarchive;
+	/* Runtime-only three-way-merge state. Deliberately absent from NSCoding. */
+	NSString *fileMergeBaseText, *fileMergeBaseLabels;
+	NSData *fileMergeBaseData;
+	NoteObject *externalEditingConflictNote;
+	NSData *externalEditingConflictData;
 	
 	//for storing in write-ahead-log
 	unsigned int logSequenceNumber;
@@ -84,6 +91,13 @@ typedef struct _NoteFilterContext {
 	//each note has its own undo manager--isn't that nice?
 	NSUndoManager *undoManager;
 }
+
+// Runtime-only merge state. These values are never encoded with the note.
+@property (nonatomic, copy) NSString *fileMergeBaseText;
+@property (nonatomic, copy) NSString *fileMergeBaseLabels;
+@property (nonatomic, retain) NSData *fileMergeBaseData;
+@property (nonatomic, retain) NoteObject *externalEditingConflictNote;
+@property (nonatomic, retain) NSData *externalEditingConflictData;
 
 
 NSInteger compareDateModified(id *a, id *b);
@@ -195,6 +209,7 @@ NSInteger compareFileSize(id *a, id *b);
 - (BOOL)writeUsingCurrentFileFormatIfNecessary;
 - (BOOL)writeUsingCurrentFileFormat;
 - (void)requireFileWrite;
+- (void)setFileMergeBaseFromNote:(NoteObject*)note;
 - (void)makeNoteDirtyUpdateTime:(BOOL)updateTime updateFile:(BOOL)updateFile;
 
 - (BOOL)moveFileToTrash;

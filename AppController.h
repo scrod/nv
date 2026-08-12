@@ -56,6 +56,7 @@
 	TitlebarButton *titleBarButton;
 	
 	BOOL waitedForUncommittedChanges;
+	BOOL externalEditingTerminationInProgress;
 	
 	NSImage *verticalDividerImg;
 	LinearDividerShader *dividerShader;
@@ -115,6 +116,7 @@ void outletObjectAwoke(id sender);
 - (void)_forceRegeneratePreviewsForTitleColumn;
 - (void)_configureDividerForCurrentLayout;
 - (NoteObject*)selectedNoteObject;
+- (NSArray*)selectedNotes;
 
 - (void)restoreListStateUsingPreferences;
 

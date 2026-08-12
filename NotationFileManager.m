@@ -82,6 +82,30 @@ static BOOL NVFileSystemName(NSString *filename, char **name, NSError **error) {
 	return YES;
 }
 
+static int NVExchangeDataAtDirectoryFileDescriptor(int directoryFileDescriptor,
+	const char *firstName, const char *secondName) {
+	char directoryPath[PATH_MAX];
+	if (fcntl(directoryFileDescriptor, F_GETPATH, directoryPath) < 0) return -1;
+	size_t directoryLength = strlen(directoryPath);
+	size_t firstLength = strlen(firstName), secondLength = strlen(secondName);
+	if (directoryLength + 1 + MAX(firstLength, secondLength) + 1 > PATH_MAX) {
+		errno = ENAMETOOLONG;
+		return -1;
+	}
+	char firstPath[PATH_MAX], secondPath[PATH_MAX];
+	memcpy(firstPath, directoryPath, directoryLength);
+	firstPath[directoryLength] = '/';
+	memcpy(firstPath + directoryLength + 1, firstName, firstLength + 1);
+	memcpy(secondPath, directoryPath, directoryLength);
+	secondPath[directoryLength] = '/';
+	memcpy(secondPath + directoryLength + 1, secondName, secondLength + 1);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+	int result = exchangedata(firstPath, secondPath, FSOPT_NOFOLLOW_ANY | FSOPT_UNIQUE);
+#pragma clang diagnostic pop
+	return result;
+}
+
 static NSData *NVReadDataFromFileDescriptor(int fileDescriptor, NSError **error) {
 	struct stat info;
 	if (fstat(fileDescriptor, &info) < 0) {
@@ -740,6 +764,7 @@ static NSString *NVTextEncodingAttributeValue(NSStringEncoding encoding) {
 static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescriptor,
 	NSData *data, NSString *filename, BOOL replaceExisting, BOOL preserveDestinationMetadata,
 	NVFilePreparationBlock preparationBlock, NVFileVerificationBlock verificationBlock,
+	NSData *expectedDestinationData,
 	NVFileInfo *resultingFileInfo, int *resultingFileDescriptor, NSError **error) {
 	if (resultingFileDescriptor) *resultingFileDescriptor = -1;
 	if (!data) {
@@ -765,6 +790,7 @@ static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDesc
 	}
 
 	BOOL installed = NO;
+	BOOL removeTemporaryOnFailure = YES;
 	BOOL success = NVWriteDataToFileDescriptor(data, temporaryFD, error);
 	if (success && verificationBlock) {
 		NSData *readBack = NVReadDataFromFileDescriptor(temporaryFD, error);
@@ -786,6 +812,17 @@ static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDesc
 			code:NSFileWriteFileExistsError userInfo:[NSDictionary dictionaryWithObject:filename
 				forKey:NSFilePathErrorKey]];
 		success = NO;
+	}
+	if (success && expectedDestinationData && !destinationExists) {
+		if (error) *error = NVErrorFromErrno(EAGAIN, @"Replace changing file", filename);
+		success = NO;
+	}
+	if (success && expectedDestinationData && destinationExists) {
+		NSData *destinationData = NVReadDataFromFileDescriptor(destinationFD, NULL);
+		if (![destinationData isEqualToData:expectedDestinationData]) {
+			if (error) *error = NVErrorFromErrno(EAGAIN, @"Replace changing file", filename);
+			success = NO;
+		}
 	}
 	if (success && destinationExists && preserveDestinationMetadata) {
 		struct stat temporaryInfo;
@@ -813,9 +850,49 @@ static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDesc
 		if (renameatx_np(directoryFileDescriptor, temporaryName,
 			directoryFileDescriptor, destinationName, RENAME_SWAP) == 0) {
 			installed = YES;
-			if (unlinkat(directoryFileDescriptor, temporaryName, 0) < 0)
+		} else if (expectedDestinationData && !preparationBlock && !verificationBlock &&
+			!resultingFileInfo && !resultingFileDescriptor &&
+			(errno == ENOTSUP || errno == EINVAL) &&
+			NVExchangeDataAtDirectoryFileDescriptor(directoryFileDescriptor,
+				temporaryName, destinationName) == 0) {
+			installed = YES;
+		}
+		if (installed) {
+			if (expectedDestinationData) {
+				int displacedFD = openat(directoryFileDescriptor, temporaryName,
+					O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+				NSData *displacedData = displacedFD >= 0 ?
+					NVReadDataFromFileDescriptor(displacedFD, NULL) : nil;
+				if (displacedFD >= 0) close(displacedFD);
+				if (![displacedData isEqualToData:expectedDestinationData]) {
+					NSString *extension = [filename pathExtension];
+					NSString *recoveryFilename = [NSString stringWithFormat:
+						@"%@ (conflict recovery %@)%@%@", [filename stringByDeletingPathExtension],
+						[[NSUUID UUID] UUIDString], [extension length] ? @"." : @"", extension];
+					char *recoveryName = NULL;
+					BOOL recovered = NVFileSystemName(recoveryFilename, &recoveryName, NULL) &&
+						renameatx_np(directoryFileDescriptor, temporaryName,
+							directoryFileDescriptor, recoveryName, RENAME_EXCL) == 0;
+					free(recoveryName);
+					(void)fsync(directoryFileDescriptor);
+					NSLog(@"Destination '%@' changed during replacement. %@", filename, recovered ?
+						[NSString stringWithFormat:@"Recovered displaced contents as '%@'", recoveryFilename] :
+						@"Displaced contents remain in an emergency .nv-write file");
+					removeTemporaryOnFailure = NO;
+					if (error) *error = [NSError errorWithDomain:NVNoteStorageErrorDomain
+						code:NVNoteStorageAtomicRecoveryError userInfo:@{
+							NSLocalizedDescriptionKey: recovered ?
+								[NSString stringWithFormat:NSLocalizedString(
+									@"a changing file's displaced contents were recovered as %@", nil),
+									recoveryFilename] :
+								NSLocalizedString(@"a changing file's displaced contents remain in emergency recovery storage", nil)
+						}];
+					installed = NO;
+				}
+			}
+			if (installed && unlinkat(directoryFileDescriptor, temporaryName, 0) < 0)
 				NSLog(@"Unable to remove replaced file '%@': %s", temporaryFilename, strerror(errno));
-		} else if ((errno == ENOTSUP || errno == EINVAL) &&
+		} else if (!expectedDestinationData && (errno == ENOTSUP || errno == EINVAL) &&
 			renameat(directoryFileDescriptor, temporaryName,
 				directoryFileDescriptor, destinationName) == 0) {
 			installed = YES;
@@ -874,7 +951,8 @@ static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDesc
 		else if (error && !*error)
 			*error = NVErrorFromErrno(EAGAIN, @"Inspect installed file", filename);
 	}
-	if (!installed) (void)unlinkat(directoryFileDescriptor, temporaryName, 0);
+	if (!installed && removeTemporaryOnFailure)
+		(void)unlinkat(directoryFileDescriptor, temporaryName, 0);
 	if (installed && resultingFileDescriptor) *resultingFileDescriptor = temporaryFD;
 	else close(temporaryFD);
 	free(destinationName);
@@ -882,16 +960,23 @@ static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDesc
 	return installed;
 }
 
+BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescriptor,
+	NSData *data, NSString *filename, NSData *expectedData, NSError **error) {
+	return NVStoreDataAtomicallyAtDirectoryFileDescriptor(directoryFileDescriptor,
+		data, filename, YES, YES, NULL, NULL, expectedData, NULL, NULL, error);
+}
+
 - (BOOL)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename
 	preparationBlock:(NVFilePreparationBlock)preparationBlock
 	verificationBlock:(NVFileVerificationBlock)verificationBlock error:(NSError**)error {
 	return NVStoreDataAtomicallyAtDirectoryFileDescriptor(noteDirectoryFileDescriptor,
-		data, filename, YES, YES, preparationBlock, verificationBlock, NULL, NULL, error);
+		data, filename, YES, YES, preparationBlock, verificationBlock, nil, NULL, NULL, error);
 }
 
 - (BOOL)storeNoteDataAtomically:(NSData*)data withName:(NSString*)filename
 	encoding:(NSStringEncoding)encoding tags:(NSArray*)tags
 	creationTime:(CFAbsoluteTime)creationTime modificationTime:(CFAbsoluteTime)modificationTime
+	expectedData:(NSData*)expectedData
 	resultingFileInfo:(NVFileInfo*)resultingFileInfo error:(NSError**)error {
 	if (!resultingFileInfo) {
 		if (error) *error = NVErrorFromErrno(EINVAL, @"Store note", filename);
@@ -935,7 +1020,7 @@ static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDesc
 				return NO;
 			}
 			return YES;
-		}, NULL, &installedInfo, &installedFD, error);
+		}, NULL, expectedData, &installedInfo, &installedFD, error);
 	if (!installed) return NO;
 	[self _didInstallNoteFileNamed:filename];
 	BOOL synchronized = NVSynchronizeOpenMetaAndCocoaTagsInternal(noteDirectoryFileDescriptor,

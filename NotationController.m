@@ -33,7 +33,7 @@
 #import "NoteAttributeColumn.h"
 #import "FrozenNotation.h"
 #import "AlienNoteImporter.h"
-#import "ODBEditor.h"
+#import "ExternalEditingSession.h"
 #import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
 #import "NotationDirectoryManager.h"
@@ -52,6 +52,12 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 	if (error) *error = unarchiveError;
 	return object;
 }
+
+@interface NotationController ()
+- (void)_removeNoteAfterExternalEditing:(NoteObject*)note;
+- (void)_removeNotesAfterExternalEditing:(NSArray*)notes;
+- (void)_externalEditingTeardownFailed;
+@end
 
 @implementation NotationController
 
@@ -427,12 +433,9 @@ bail:
 
 //stick the newest unique recovered notes into allNotes
 - (void)processRecoveredNotes:(NSDictionary*)dict {
-    const unsigned int vListBufCount = 16;
+    enum { vListBufCount = 16 };
     void* keysBuffer[vListBufCount], *valuesBuffer[vListBufCount];
     NSUInteger i, count = [dict count];
-	// TODO: When WAL recovery queues a recovered separate-file note, preserve a
-	// stable disk/base snapshot and use diff-match-patch to merge any external
-	// edits instead of allowing the recovered in-memory version to overwrite them.
     
     void **keys = (count <= vListBufCount) ? keysBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
     void **values = (count <= vListBufCount) ? valuesBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
@@ -474,7 +477,10 @@ bail:
 				if ([[allNotes objectAtIndex:existingNoteIndex] youngerThanLogObject:obj]) {
 					// NSLog(@"replacing old note with new: %@", [[(NoteObject*)obj contentString] string]);
 					
-					[(NoteObject*)[allNotes objectAtIndex:existingNoteIndex] disconnectLabels];
+					NoteObject *existingNote = [allNotes objectAtIndex:existingNoteIndex];
+					if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat)
+						[(NoteObject*)obj setFileMergeBaseFromNote:existingNote];
+					[existingNote disconnectLabels];
 					[(NoteObject*)obj attachToDelegate:self];
 					[allNotes replaceObjectAtIndex:existingNoteIndex withObject:obj];
 					if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
@@ -617,7 +623,7 @@ bail:
 	[self flushEverything];
 	
 	//called whenever note-storage format or encryption-activation changes
-	[[ODBEditor sharedODBEditor] initializeDatabase:notationPrefs];
+	[[ExternalEditingSession sharedExternalEditingSession] initializeDatabase:notationPrefs];
 }
 
 //notation prefs delegate method
@@ -644,9 +650,8 @@ bail:
 		 * Queue every note before scanning so an existing external file cannot win
 		 * through a racy existence/mtime preflight. */
 		if (currentStorageFormat != oldFormat) {
-			// TODO: Preserve stable disk/base snapshots during this transition and use
-			// diff-match-patch to merge on-disk contents with the in-memory notes before
-			// queueing replacements, rather than unconditionally making memory win.
+			/* These writes intentionally have no merge base. The shared note writer
+			 * preserves any different destination as a conflict copy before replacement. */
 			for (NoteObject *note in allNotes) {
 				[note requireFileWrite];
 				[pendingFileWrites addObject:note];
@@ -665,7 +670,7 @@ bail:
 		[self synchronizeNotesFromDirectory];		
     }
 	//perform after delay because this could trigger the mounting of a RAM disk in a background  NSTask
-	[[ODBEditor sharedODBEditor] performSelector:@selector(initializeDatabase:) withObject:notationPrefs afterDelay:0.0];
+	[[ExternalEditingSession sharedExternalEditingSession] performSelector:@selector(initializeDatabase:) withObject:notationPrefs afterDelay:0.0];
 }
 
 - (int)currentNoteStorageFormat {
@@ -673,8 +678,13 @@ bail:
 }
 
 - (void)noteDidNotWrite:(NoteObject*)note error:(NSError*)error {
-	(void)note;
 	if (!error) return;
+	if ([[error domain] isEqualToString:NVNoteStorageErrorDomain] &&
+		[error code] == NVNoteStorageAtomicRecoveryError) {
+		[pendingFileWrites removeObject:note];
+		[self performSelector:@selector(synchronizeNotesFromDirectory)
+			withObject:nil afterDelay:0.0];
+	}
     if (![lastWriteError isEqual:error]) {
 		NSAlert *writeAlert = [[[NSAlert alloc] init] autorelease];
 		[writeAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Changed notes could not be saved because %@.", @"alert title appearing when notes couldn't be written"),
@@ -1004,6 +1014,19 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	}
 }
 
+- (BOOL)makeNoteDurableForExternalEditing:(NoteObject*)note {
+	/* The scratch file is the only other copy of an accepted external edit. Write
+	 * and fsync its note record before ExternalEditingSession replaces or removes that file. */
+	if (![allNotes containsObject:note]) return NO;
+	if (!walWriter) return [self flushAllNoteChanges];
+	if ([pendingJournalWrites containsObject:note]) {
+		if (![note writeUsingJournal:walWriter]) return NO;
+		[pendingJournalWrites removeObject:note];
+	}
+	if (walWriter && ![walWriter synchronize]) return NO;
+	return YES;
+}
+
 - (void)scheduleWriteForNote:(NoteObject*)note {
 
 	if ([allNotes containsObject:note]) {
@@ -1056,12 +1079,29 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 
 //the gateway methods must always show warnings, or else flash overlay window if show-warnings-pref is off
 - (void)removeNotes:(NSArray*)noteArray {
+	NSMutableArray *activeNotes = [NSMutableArray array];
+	ExternalEditingSession *editor = [ExternalEditingSession sharedExternalEditingSession];
+	for (NoteObject *note in noteArray)
+		if ([editor hasActiveScratchEditingSessionForClient:note]) [activeNotes addObject:note];
+	if ([activeNotes count]) {
+		NSArray *notes = [[noteArray copy] autorelease];
+		[editor finishScratchEditingSessionsForClients:activeNotes
+			completionHandler:^(BOOL success) {
+				if (success) [self _removeNotesAfterExternalEditing:notes];
+				else [self _externalEditingTeardownFailed];
+			}];
+		return;
+	}
+	[self _removeNotesAfterExternalEditing:noteArray];
+}
+
+- (void)_removeNotesAfterExternalEditing:(NSArray*)noteArray {
 	NSEnumerator *enumerator = [noteArray objectEnumerator];
 	NoteObject* note;
 	
 	[undoManager beginUndoGrouping];
 	while ((note = [enumerator nextObject])) {
-		[self removeNote:note];
+		[self _removeNoteAfterExternalEditing:note];
 	}
 	[undoManager endUndoGrouping];
 	if (! [[self undoManager] isUndoing] && ! [[self undoManager] isRedoing])
@@ -1070,7 +1110,28 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 }
 
 - (void)removeNote:(NoteObject*)aNoteObject {
+	ExternalEditingSession *editor = [ExternalEditingSession sharedExternalEditingSession];
+	if ([editor hasActiveScratchEditingSessionForClient:aNoteObject]) {
+		[editor finishScratchEditingSessionsForClients:@[ aNoteObject ]
+			completionHandler:^(BOOL success) {
+				if (success) [self _removeNoteAfterExternalEditing:aNoteObject];
+				else [self _externalEditingTeardownFailed];
+			}];
+		return;
+	}
+	[self _removeNoteAfterExternalEditing:aNoteObject];
+}
+
+- (void)_externalEditingTeardownFailed {
+	NSLog(@"Could not finish external editing; the requested operation was canceled");
+	NSBeep();
+	if ([delegate respondsToSelector:@selector(externalEditingSessionTeardownFailed)])
+		[delegate externalEditingSessionTeardownFailed];
+}
+
+- (void)_removeNoteAfterExternalEditing:(NoteObject*)aNoteObject {
     //reset linking labels and their notes
+	if ([allNotes indexOfObjectIdenticalTo:aNoteObject] == NSNotFound) return;
     
 	[aNoteObject retain];
 	//Retire older file/journal writes before the deletion is recorded or the file is moved.
@@ -1083,7 +1144,6 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	}
 	
 	[aNoteObject disconnectLabels];
-	[aNoteObject abortEditingInExternalEditor];
 	
     [allNotes removeObjectIdenticalTo:aNoteObject];
 	DeletedNoteObject *deletedNote = [self _addDeletedNote:aNoteObject];

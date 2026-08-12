@@ -651,3 +651,17 @@
 
 /* App name */
 "Notation" = "Notation";
+
+"External editing will end. Notational Velocity will preserve changes saved so far, then remove the temporary file. Later changes made in the external editor's remaining buffer cannot be recovered." = "L’édition externe va se terminer. Notational Velocity conservera les modifications enregistrées jusqu’à présent, puis supprimera le fichier temporaire. Les modifications ultérieures effectuées dans le tampon restant de l’éditeur externe ne pourront pas être récupérées.";
+"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered." = "Notational Velocity conservera les modifications enregistrées jusqu’à présent, puis supprimera ses fichiers temporaires. Les modifications ultérieures effectuées dans le tampon restant d’un éditeur externe ne pourront pas être récupérées.";
+" Encryption will also be disabled and notes will be written to disk in clear text." = " Le chiffrement sera également désactivé et les notes seront écrites sur le disque en clair.";
+"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered. Notes will then be written to disk in clear text." = "Notational Velocity conservera les modifications enregistrées jusqu’à présent, puis supprimera ses fichiers temporaires. Les modifications ultérieures effectuées dans le tampon restant d’un éditeur externe ne pourront pas être récupérées. Les notes seront ensuite écrites sur le disque en clair.";
+"%@ and end external editing?" = "%@ et terminer l’édition externe ?";
+"Change Database" = "Modifier la base de données";
+"Change Storage Format" = "Modifier le format de stockage";
+"Change Passphrase" = "Modifier la phrase secrète";
+"Enable Encryption" = "Activer le chiffrement";
+"Quit Anyway" = "Quitter quand même";
+"External editing could not be finished." = "L’édition externe n’a pas pu être terminée.";
+"The operation was canceled. The temporary file and its external-editing session remain available; save again and retry." = "L’opération a été annulée. Le fichier temporaire et sa session d’édition externe restent disponibles ; enregistrez à nouveau et réessayez.";
+"The settings change was canceled. The temporary file and external-editing session remain available; save again and retry." = "La modification des réglages a été annulée. Le fichier temporaire et la session d’édition externe restent disponibles ; enregistrez à nouveau et réessayez.";

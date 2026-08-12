@@ -652,3 +652,17 @@
 
 /* App name */
 "Notation" = "笔记列表";
+
+"External editing will end. Notational Velocity will preserve changes saved so far, then remove the temporary file. Later changes made in the external editor's remaining buffer cannot be recovered." = "外部编辑将结束。Notational Velocity 将保留目前已保存的更改，然后删除临时文件。外部编辑器剩余缓冲区中之后所做的更改将无法恢复。";
+"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered." = "Notational Velocity 将保留目前已保存的更改，然后删除临时文件。外部编辑器剩余缓冲区中之后所做的更改将无法恢复。";
+" Encryption will also be disabled and notes will be written to disk in clear text." = " 同时也会停用加密，并将笔记以明文写入磁盘。";
+"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered. Notes will then be written to disk in clear text." = "Notational Velocity 将保留目前已保存的更改，然后删除临时文件。外部编辑器剩余缓冲区中之后所做的更改将无法恢复。笔记随后将以明文写入磁盘。";
+"%@ and end external editing?" = "%@并结束外部编辑？";
+"Change Database" = "更改数据库";
+"Change Storage Format" = "更改存储格式";
+"Change Passphrase" = "更改密码短语";
+"Enable Encryption" = "启用加密";
+"Quit Anyway" = "仍然退出";
+"External editing could not be finished." = "无法完成外部编辑。";
+"The operation was canceled. The temporary file and its external-editing session remain available; save again and retry." = "操作已取消。临时文件及其外部编辑会话仍然可用；请再次保存并重试。";
+"The settings change was canceled. The temporary file and external-editing session remain available; save again and retry." = "设置更改已取消。临时文件及外部编辑会话仍然可用；请再次保存并重试。";

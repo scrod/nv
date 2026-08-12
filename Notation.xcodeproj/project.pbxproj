@@ -23,14 +23,12 @@
 		2114C23E095883A600614E74 /* NSData_transformations.m in Sources */ = {isa = PBXBuildFile; fileRef = 2114C23C095883A600614E74 /* NSData_transformations.m */; };
 		2114C25B095885C800614E74 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2114C259095885C800614E74 /* Localizable.strings */; };
 		212089B10B0C24F500A15A69 /* AlienNoteImporter.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089B00B0C24F500A15A69 /* AlienNoteImporter.m */; };
-		C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = C0D3A1002F00000100000003 /* ImportingUtils.m */; };
 		212089D80B0C2CA500A15A69 /* StickiesDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 212089D70B0C2CA500A15A69 /* StickiesDocument.m */; };
 		212850880B56E549005F6E34 /* CarbonErrorStrings.plist in Resources */ = {isa = PBXBuildFile; fileRef = 212850860B56E549005F6E34 /* CarbonErrorStrings.plist */; };
 		2128651E1278AF220013820A /* ServicesMenu.strings in Resources */ = {isa = PBXBuildFile; fileRef = 2128651C1278AF220013820A /* ServicesMenu.strings */; };
 		21286597128B14F10013820A /* Kontaktdaten.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21286591128B14F10013820A /* Kontaktdaten.nvhelp */; };
 		21286598128B14F10013820A /* Wie funktioniert dieses Programm?.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 21286593128B14F10013820A /* Wie funktioniert dieses Programm?.nvhelp */; };
-		212897E61330030100380B64 /* ODBEditor.m in Sources */ = {isa = PBXBuildFile; fileRef = 212897E31330030100380B64 /* ODBEditor.m */; };
-		212897E71330030100380B64 /* NSAppleEventDescriptor-Extensions.m in Sources */ = {isa = PBXBuildFile; fileRef = 212897E41330030100380B64 /* NSAppleEventDescriptor-Extensions.m */; };
+		212897E61330030100380B64 /* ExternalEditingSession.m in Sources */ = {isa = PBXBuildFile; fileRef = 212897E31330030100380B64 /* ExternalEditingSession.m */; };
 		212B84620978422300F3597F /* NSString_NV.m in Sources */ = {isa = PBXBuildFile; fileRef = 212B84610978422300F3597F /* NSString_NV.m */; };
 		212C6952110E1940004DD82C /* TitlebarButton.m in Sources */ = {isa = PBXBuildFile; fileRef = 212C6951110E1940004DD82C /* TitlebarButton.m */; };
 		212C6A2D110E371B004DD82C /* TBRolloverBG.png in Resources */ = {isa = PBXBuildFile; fileRef = 212C6A26110E371B004DD82C /* TBRolloverBG.png */; };
@@ -51,7 +49,6 @@
 		2143332012ECC4B2000F473B /* Moglicherweise nutzliche Tastenkurzel.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 2143331D12ECC4B2000F473B /* Moglicherweise nutzliche Tastenkurzel.nvhelp */; };
 		21447B6F133BFE1E00ACC1A7 /* ExternalEditorListController.m in Sources */ = {isa = PBXBuildFile; fileRef = 21447B6E133BFE1E00ACC1A7 /* ExternalEditorListController.m */; };
 		214493F60ADB892C00E2A2B6 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 214493E70ADB892C00E2A2B6 /* CoreServices.framework */; };
-		A17F00012F00000100000001 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */; };
 		214495030ADC7C8D00E2A2B6 /* SecurityInterface.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 214494F80ADC7C8D00E2A2B6 /* SecurityInterface.framework */; };
 		214495130ADC8A6600E2A2B6 /* PassphrasePicker.m in Sources */ = {isa = PBXBuildFile; fileRef = 214495120ADC8A6600E2A2B6 /* PassphrasePicker.m */; };
 		2144957A0ADCC06300E2A2B6 /* PassphrasePicker.nib in Resources */ = {isa = PBXBuildFile; fileRef = 214495740ADCC06300E2A2B6 /* PassphrasePicker.nib */; };
@@ -149,6 +146,14 @@
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		A17F00012F00000100000001 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */; };
+		C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = C0D3A1002F00000100000003 /* ImportingUtils.m */; };
+		D1FFB0000000000000000001 /* DiffMatchPatch.m in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000002 /* DiffMatchPatch.m */; };
+		D1FFB0000000000000000002 /* DiffMatchPatchCFUtilities.c in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000004 /* DiffMatchPatchCFUtilities.c */; };
+		D1FFB0000000000000000003 /* NSMutableDictionary+DMPExtensions.m in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000007 /* NSMutableDictionary+DMPExtensions.m */; };
+		D1FFB0000000000000000004 /* NSString+JavaSubstring.m in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000009 /* NSString+JavaSubstring.m */; };
+		D1FFB0000000000000000005 /* NSString+UnicharUtilities.m in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF000000000000000000B /* NSString+UnicharUtilities.m */; };
+		D1FFB0000000000000000006 /* NSString+UriCompatibility.m in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF000000000000000000D /* NSString+UriCompatibility.m */; };
 		D3EECA00106F66C70023D7F8 /* NVPasswordGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */; };
 /* End PBXBuildFile section */
 
@@ -208,15 +213,10 @@
 		2114C23C095883A600614E74 /* NSData_transformations.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = NSData_transformations.m; sourceTree = "<group>"; };
 		212089AF0B0C24F500A15A69 /* AlienNoteImporter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AlienNoteImporter.h; sourceTree = "<group>"; };
 		212089B00B0C24F500A15A69 /* AlienNoteImporter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AlienNoteImporter.m; sourceTree = "<group>"; };
-		C0D3A1002F00000100000002 /* ImportingUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImportingUtils.h; sourceTree = "<group>"; };
-		C0D3A1002F00000100000003 /* ImportingUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImportingUtils.m; sourceTree = "<group>"; };
 		212089D60B0C2CA500A15A69 /* StickiesDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StickiesDocument.h; sourceTree = "<group>"; };
 		212089D70B0C2CA500A15A69 /* StickiesDocument.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StickiesDocument.m; sourceTree = "<group>"; };
-		212897E11330030100380B64 /* ODBEditorSuite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ODBEditorSuite.h; path = ODBEditor/ODBEditorSuite.h; sourceTree = "<group>"; };
-		212897E21330030100380B64 /* ODBEditor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ODBEditor.h; path = ODBEditor/ODBEditor.h; sourceTree = "<group>"; };
-		212897E31330030100380B64 /* ODBEditor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ODBEditor.m; path = ODBEditor/ODBEditor.m; sourceTree = "<group>"; };
-		212897E41330030100380B64 /* NSAppleEventDescriptor-Extensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "NSAppleEventDescriptor-Extensions.m"; path = "ODBEditor/NSAppleEventDescriptor-Extensions.m"; sourceTree = "<group>"; };
-		212897E51330030100380B64 /* NSAppleEventDescriptor-Extensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "NSAppleEventDescriptor-Extensions.h"; path = "ODBEditor/NSAppleEventDescriptor-Extensions.h"; sourceTree = "<group>"; };
+		212897E21330030100380B64 /* ExternalEditingSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ExternalEditingSession.h; path = ExternalEditingSession/ExternalEditingSession.h; sourceTree = "<group>"; };
+		212897E31330030100380B64 /* ExternalEditingSession.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = ExternalEditingSession.m; path = ExternalEditingSession/ExternalEditingSession.m; sourceTree = "<group>"; };
 		212B84600978422300F3597F /* NSString_NV.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NSString_NV.h; sourceTree = "<group>"; };
 		212B84610978422300F3597F /* NSString_NV.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = NSString_NV.m; sourceTree = "<group>"; };
 		212C6950110E1940004DD82C /* TitlebarButton.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TitlebarButton.h; sourceTree = "<group>"; };
@@ -233,7 +233,6 @@
 		21447B6D133BFE1E00ACC1A7 /* ExternalEditorListController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ExternalEditorListController.h; sourceTree = "<group>"; };
 		21447B6E133BFE1E00ACC1A7 /* ExternalEditorListController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ExternalEditorListController.m; sourceTree = "<group>"; };
 		214493E70ADB892C00E2A2B6 /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = /System/Library/Frameworks/CoreServices.framework; sourceTree = "<absolute>"; };
-		A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = /System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = "<absolute>"; };
 		214494F80ADC7C8D00E2A2B6 /* SecurityInterface.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SecurityInterface.framework; path = /System/Library/Frameworks/SecurityInterface.framework; sourceTree = "<absolute>"; };
 		214495040ADC7F4F00E2A2B6 /* SFPasswordAssistantInspectorController.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = SFPasswordAssistantInspectorController.h; sourceTree = "<group>"; };
 		214495110ADC8A6600E2A2B6 /* PassphrasePicker.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = PassphrasePicker.h; sourceTree = "<group>"; };
@@ -502,6 +501,23 @@
 		6E6AFB7724DAE639005CFF74 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text; name = pt; path = "pt.lproj/Informações de Contato.nvhelp"; sourceTree = "<group>"; };
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Notational Velocity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Notational Velocity.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = /System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = "<absolute>"; };
+		C0D3A1002F00000100000002 /* ImportingUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImportingUtils.h; sourceTree = "<group>"; };
+		C0D3A1002F00000100000003 /* ImportingUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImportingUtils.m; sourceTree = "<group>"; };
+		D1FFF0000000000000000001 /* DiffMatchPatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DiffMatchPatch.h; sourceTree = "<group>"; };
+		D1FFF0000000000000000002 /* DiffMatchPatch.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DiffMatchPatch.m; sourceTree = "<group>"; };
+		D1FFF0000000000000000003 /* DiffMatchPatchCFUtilities.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DiffMatchPatchCFUtilities.h; sourceTree = "<group>"; };
+		D1FFF0000000000000000004 /* DiffMatchPatchCFUtilities.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = DiffMatchPatchCFUtilities.c; sourceTree = "<group>"; };
+		D1FFF0000000000000000005 /* MinMaxMacros.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MinMaxMacros.h; sourceTree = "<group>"; };
+		D1FFF0000000000000000006 /* NSMutableDictionary+DMPExtensions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSMutableDictionary+DMPExtensions.h"; sourceTree = "<group>"; };
+		D1FFF0000000000000000007 /* NSMutableDictionary+DMPExtensions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSMutableDictionary+DMPExtensions.m"; sourceTree = "<group>"; };
+		D1FFF0000000000000000008 /* NSString+JavaSubstring.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSString+JavaSubstring.h"; sourceTree = "<group>"; };
+		D1FFF0000000000000000009 /* NSString+JavaSubstring.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSString+JavaSubstring.m"; sourceTree = "<group>"; };
+		D1FFF000000000000000000A /* NSString+UnicharUtilities.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSString+UnicharUtilities.h"; sourceTree = "<group>"; };
+		D1FFF000000000000000000B /* NSString+UnicharUtilities.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSString+UnicharUtilities.m"; sourceTree = "<group>"; };
+		D1FFF000000000000000000C /* NSString+UriCompatibility.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSString+UriCompatibility.h"; sourceTree = "<group>"; };
+		D1FFF000000000000000000D /* NSString+UriCompatibility.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSString+UriCompatibility.m"; sourceTree = "<group>"; };
+		D1FFF000000000000000000E /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		D3EEC9FE106F66C70023D7F8 /* NVPasswordGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NVPasswordGenerator.m; sourceTree = "<group>"; };
 		D3EEC9FF106F66C70023D7F8 /* NVPasswordGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVPasswordGenerator.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -667,16 +683,13 @@
 			name = "Note Importing";
 			sourceTree = "<group>";
 		};
-		212897BF133002C600380B64 /* ODBEditor */ = {
+		212897BF133002C600380B64 /* ExternalEditingSession */ = {
 			isa = PBXGroup;
 			children = (
-				212897E21330030100380B64 /* ODBEditor.h */,
-				212897E11330030100380B64 /* ODBEditorSuite.h */,
-				212897E31330030100380B64 /* ODBEditor.m */,
-				212897E41330030100380B64 /* NSAppleEventDescriptor-Extensions.m */,
-				212897E51330030100380B64 /* NSAppleEventDescriptor-Extensions.h */,
+				212897E21330030100380B64 /* ExternalEditingSession.h */,
+				212897E31330030100380B64 /* ExternalEditingSession.m */,
 			);
-			name = ODBEditor;
+			name = ExternalEditingSession;
 			sourceTree = "<group>";
 		};
 		21395BA90B7FDB5E007BCFAA /* Supporting Files */ = {
@@ -853,7 +866,8 @@
 		29B97315FDCFA39411CA2CEA /* Other Sources */ = {
 			isa = PBXGroup;
 			children = (
-				212897BF133002C600380B64 /* ODBEditor */,
+				212897BF133002C600380B64 /* ExternalEditingSession */,
+				D1FF00000000000000000001 /* DiffMatchPatch */,
 				2182B38E106B2286008641E4 /* RBSplitView */,
 				21F1CD490B3A38CB001FB5F6 /* HotKeys */,
 				211345A10B35D8340081B064 /* Crypto */,
@@ -911,6 +925,27 @@
 				1058C7A2FEA54F0111CA2CBB /* Other Frameworks */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D1FF00000000000000000001 /* DiffMatchPatch */ = {
+			isa = PBXGroup;
+			children = (
+				D1FFF0000000000000000001 /* DiffMatchPatch.h */,
+				D1FFF0000000000000000002 /* DiffMatchPatch.m */,
+				D1FFF0000000000000000003 /* DiffMatchPatchCFUtilities.h */,
+				D1FFF0000000000000000004 /* DiffMatchPatchCFUtilities.c */,
+				D1FFF0000000000000000005 /* MinMaxMacros.h */,
+				D1FFF0000000000000000006 /* NSMutableDictionary+DMPExtensions.h */,
+				D1FFF0000000000000000007 /* NSMutableDictionary+DMPExtensions.m */,
+				D1FFF0000000000000000008 /* NSString+JavaSubstring.h */,
+				D1FFF0000000000000000009 /* NSString+JavaSubstring.m */,
+				D1FFF000000000000000000A /* NSString+UnicharUtilities.h */,
+				D1FFF000000000000000000B /* NSString+UnicharUtilities.m */,
+				D1FFF000000000000000000C /* NSString+UriCompatibility.h */,
+				D1FFF000000000000000000D /* NSString+UriCompatibility.m */,
+				D1FFF000000000000000000E /* LICENSE */,
+			);
+			path = DiffMatchPatch;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -1111,8 +1146,13 @@
 				21D6FB4912E104D6005C2DA5 /* NSBezierPath_NV.m in Sources */,
 				21B64A2612E61FA700D87EFC /* LabelColumnCell.m in Sources */,
 				21B64C4E12E62A5700D87EFC /* UnifiedCell.m in Sources */,
-				212897E61330030100380B64 /* ODBEditor.m in Sources */,
-				212897E71330030100380B64 /* NSAppleEventDescriptor-Extensions.m in Sources */,
+				212897E61330030100380B64 /* ExternalEditingSession.m in Sources */,
+				D1FFB0000000000000000001 /* DiffMatchPatch.m in Sources */,
+				D1FFB0000000000000000002 /* DiffMatchPatchCFUtilities.c in Sources */,
+				D1FFB0000000000000000003 /* NSMutableDictionary+DMPExtensions.m in Sources */,
+				D1FFB0000000000000000004 /* NSString+JavaSubstring.m in Sources */,
+				D1FFB0000000000000000005 /* NSString+UnicharUtilities.m in Sources */,
+				D1FFB0000000000000000006 /* NSString+UriCompatibility.m in Sources */,
 				21447B6F133BFE1E00ACC1A7 /* ExternalEditorListController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1594,7 +1634,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = NO;
 				DEVELOPMENT_TEAM = 9K9U9HCS3F;
 				ENABLE_STRICT_OBJC_MSGSEND = NO;
@@ -1637,7 +1677,7 @@
 				LD_GENERATE_MAP_FILE = YES;
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = net.notational.velocity;
 				PRODUCT_NAME = "Notational Velocity";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1654,7 +1694,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_TEAM = 9K9U9HCS3F;
@@ -1693,7 +1733,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 2.5;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = net.notational.velocity;
 				PRODUCT_NAME = "Notational Velocity";
@@ -1719,7 +1759,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 9K9U9HCS3F;
 				ENABLE_STRICT_OBJC_MSGSEND = NO;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -1755,7 +1795,7 @@
 				INSTALL_PATH = "$(HOME)/Applications";
 				LIBRARY_SEARCH_PATHS = "$(LIBRARY_SEARCH_PATHS)";
 				MACOSX_DEPLOYMENT_TARGET = 11.5;
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 2.5;
 				PRODUCT_BUNDLE_IDENTIFIER = net.notational.velocity;
 				PRODUCT_NAME = "Notational Velocity";
 				PROVISIONING_PROFILE_SPECIFIER = "";

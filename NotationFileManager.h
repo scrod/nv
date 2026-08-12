@@ -51,6 +51,9 @@ typedef struct _NVNoteFileSnapshot {
 	NVFileInfo info;
 } NVNoteFileSnapshot;
 
+BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescriptor,
+	NSData *data, NSString *filename, NSData *expectedData, NSError **error);
+
 
 @interface NotationController (NotationFileManager)
 
@@ -86,5 +89,6 @@ typedef struct _NVNoteFileSnapshot {
 - (BOOL)storeNoteDataAtomically:(NSData*)data withName:(NSString*)filename
 	encoding:(NSStringEncoding)encoding tags:(NSArray*)tags
 	creationTime:(CFAbsoluteTime)creationTime modificationTime:(CFAbsoluteTime)modificationTime
+	expectedData:(NSData*)expectedData
 	resultingFileInfo:(NVFileInfo*)resultingFileInfo error:(NSError**)error;
 @end

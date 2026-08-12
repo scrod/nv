@@ -86,38 +86,11 @@
 	
 }
 
-- (NSData*)keychainPasswordData {
-	
-	NSString *keychainAccountString = [[path stringByAbbreviatingWithTildeInPath] lowercaseString];
-    if ([keychainAccountString length] > 255) keychainAccountString = [keychainAccountString substringToIndex:255];
-	
-    const char *keychainAccountCString = [[keychainAccountString dataUsingEncoding:
-				[NSString defaultCStringEncoding] allowLossyConversion:YES] bytes];
-	
-	UInt32 len;
-	void *p = (void *)calloc(256, sizeof(char));
-	if (kcfindgenericpassword("NV", keychainAccountCString, 255, p, &len, NULL) != noErr) {
-		free(p);
-		return NULL;
-	}
-	
-	return [NSData dataWithBytesNoCopy:p length:len freeWhenDone:YES];
-}
-
 - (NSData*)validPasswordHashData {
 	
 	[originalPasswordString release];
 	originalPasswordString = nil;
-	
-	//try to get PW from keychain. if that fails, request from user
-	NSData *passwordData = [self keychainPasswordData];
-	if (passwordData && [[passwordData SHA1Digest] isEqualToData:hashData]) {
-		couldRetrieveFromKeychain = YES;
-		originalPasswordString = [[NSString alloc] initWithData:passwordData encoding:[NSString defaultCStringEncoding]];
 		
-		return [passwordData BrokenMD5Digest];
-	}
-	
 	//run dialog and grab PW
 	
 	if (!window) {
@@ -137,7 +110,7 @@
 	NSInteger result = [NSApp runModalForWindow:window];
 	
 	NSString *passwordString = [passphraseField stringValue];
-	passwordData = [passwordString dataUsingEncoding:[NSString defaultCStringEncoding] allowLossyConversion:NO];
+	NSData *passwordData = [passwordString dataUsingEncoding:[NSString defaultCStringEncoding] allowLossyConversion:NO];
 	
 	if (result && [[passwordData SHA1Digest] isEqualToData:hashData]) {
 		originalPasswordString = [passwordString copy];

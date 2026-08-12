@@ -654,3 +654,17 @@
 
 /* App name */
 "Notation" = "Notation";
+
+"External editing will end. Notational Velocity will preserve changes saved so far, then remove the temporary file. Later changes made in the external editor's remaining buffer cannot be recovered." = "Die Bearbeitung in einem externen Editor wird beendet. Notational Velocity bewahrt die bisher gespeicherten Änderungen und entfernt anschließend die temporäre Datei. Spätere Änderungen im verbleibenden Puffer des externen Editors können nicht wiederhergestellt werden.";
+"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered." = "Notational Velocity bewahrt die bisher gespeicherten Änderungen und entfernt anschließend die temporären Dateien. Spätere Änderungen im verbleibenden Puffer eines externen Editors können nicht wiederhergestellt werden.";
+" Encryption will also be disabled and notes will be written to disk in clear text." = " Die Verschlüsselung wird ebenfalls deaktiviert und die Notizen werden unverschlüsselt auf der Festplatte gespeichert.";
+"Notational Velocity will preserve changes saved so far, then remove its temporary files. Later changes made in an external editor's remaining buffer cannot be recovered. Notes will then be written to disk in clear text." = "Notational Velocity bewahrt die bisher gespeicherten Änderungen und entfernt anschließend die temporären Dateien. Spätere Änderungen im verbleibenden Puffer eines externen Editors können nicht wiederhergestellt werden. Die Notizen werden anschließend unverschlüsselt auf der Festplatte gespeichert.";
+"%@ and end external editing?" = "%@ und externe Bearbeitung beenden?";
+"Change Database" = "Datenbank ändern";
+"Change Storage Format" = "Speicherformat ändern";
+"Change Passphrase" = "Passwort ändern";
+"Enable Encryption" = "Verschlüsselung aktivieren";
+"Quit Anyway" = "Trotzdem beenden";
+"External editing could not be finished." = "Externe Bearbeitung konnte nicht beendet werden.";
+"The operation was canceled. The temporary file and its external-editing session remain available; save again and retry." = "Der Vorgang wurde abgebrochen. Die temporäre Datei und die Sitzung zur externen Bearbeitung bleiben verfügbar; speichere erneut und versuche es noch einmal.";
+"The settings change was canceled. The temporary file and external-editing session remain available; save again and retry." = "Die Änderung der Einstellungen wurde abgebrochen. Die temporäre Datei und die Sitzung zur externen Bearbeitung bleiben verfügbar; speichere erneut und versuche es noch einmal.";

@@ -41,12 +41,30 @@
 #import "NotesTableView.h"
 #import "UnifiedCell.h"
 #import "LabelColumnCell.h"
-#import "ODBEditor.h"
+#import "ExternalEditingSession.h"
+#import "NotationDirectoryManager.h"
+#import "DiffMatchPatch/DiffMatchPatch.h"
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
 
 NSString *NVNoteStorageErrorDomain = @"NVNoteStorageErrorDomain";
+
+NSString *NVMergedText(NSString *base, NSString *local, NSString *external) {
+	if (!base || !local || !external) return nil;
+	if ([local isEqualToString:external]) return local;
+	if ([local isEqualToString:base]) return external;
+	if ([external isEqualToString:base]) return local;
+
+	DiffMatchPatch *dmp = [[DiffMatchPatch alloc] init];
+	NSArray *result = [dmp patch_apply:[dmp patch_makeFromOldString:base andNewString:external]
+		toString:local];
+	[dmp release];
+	if ([result count] != 2) return nil;
+	for (NSNumber *applied in [result objectAtIndex:1])
+		if (![applied boolValue]) return nil;
+	return [result objectAtIndex:0];
+}
 
 #if __LP64__
 // Needed for compatability with data created by 32bit app
@@ -63,9 +81,19 @@ typedef NSRange NSRange32;
 	format:(int)format fallbackLabels:(NSString*)fallbackLabels
 	fallbackEncoding:(NSStringEncoding)fallbackEncoding
 	fallbackCreatedDate:(CFAbsoluteTime)fallbackCreatedDate error:(NSError**)error;
+- (void)captureFileMergeBaseIfNecessary;
+- (void)clearFileMergeBase;
+- (BOOL)preserveExternalSnapshot:(const NVNoteFileSnapshot*)snapshot format:(int)format
+	error:(NSError**)error;
 @end
 
 @implementation NoteObject
+
+@synthesize fileMergeBaseText;
+@synthesize fileMergeBaseLabels;
+@synthesize fileMergeBaseData;
+@synthesize externalEditingConflictNote;
+@synthesize externalEditingConflictData;
 
 static CFAbsoluteTime NVAbsoluteTimeFromTimespec(struct timespec value) {
 	return (CFAbsoluteTime)value.tv_sec + ((CFAbsoluteTime)value.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
@@ -88,9 +116,50 @@ static void NVSetFileInfo(NoteObject *note, const NVFileInfo *info) {
 	note->fileMetadataIsValid = YES;
 }
 
+static BOOL NVTimespecsEqual(struct timespec one, struct timespec two) {
+	return one.tv_sec == two.tv_sec && one.tv_nsec == two.tv_nsec;
+}
+
+static BOOL NVSnapshotMatchesNote(const NVNoteFileSnapshot *snapshot, NoteObject *note) {
+	return note->fileMetadataIsValid &&
+		note->logicalSize == snapshot->info.logicalSize &&
+		(!note->sessionFileID || !snapshot->info.fileID ||
+			note->sessionFileID == snapshot->info.fileID) &&
+		(!note->sessionFileGeneration || !snapshot->info.generationCount ||
+			note->sessionFileGeneration == snapshot->info.generationCount) &&
+		NVTimespecsEqual(note->fileModificationTime, snapshot->info.modificationTime) &&
+		NVTimespecsEqual(note->fileAttributeChangeTime,
+			snapshot->info.attributeModificationTime);
+}
+
+static NSString *NVTriviallyMergedString(NSString *base, NSString *local, NSString *external) {
+	if (!base || !local || !external) return nil;
+	if ([local isEqualToString:external]) return local;
+	if ([local isEqualToString:base]) return external;
+	if ([external isEqualToString:base]) return local;
+	return nil;
+}
+
 static NSError *NVNoteStorageError(NVNoteStorageErrorCode code, NSString *description) {
 	return [NSError errorWithDomain:NVNoteStorageErrorDomain code:code
 		userInfo:[NSDictionary dictionaryWithObject:description forKey:NSLocalizedDescriptionKey]];
+}
+
+static NSData *NVCreateRichFileData(NSAttributedString *content, int format, NSError **error) {
+	if (format == RTFTextFormat) {
+		NSMutableAttributedString *withoutColor = [content mutableCopy];
+		[withoutColor removeAttribute:NSForegroundColorAttributeName
+			range:NSMakeRange(0, [withoutColor length])];
+		NSData *data = [withoutColor RTFFromRange:NSMakeRange(0, [withoutColor length])
+			documentAttributes:@{}];
+		[withoutColor release];
+		return data;
+	}
+	if (format == HTMLFormat)
+		return [content dataFromRange:NSMakeRange(0, [content length])
+			documentAttributes:@{ NSDocumentTypeDocumentAttribute: NSHTMLTextDocumentType }
+			error:error];
+	return nil;
 }
 
 static NSMutableAttributedString *NVCreateDecodedContent(NSData *data, int format,
@@ -149,6 +218,11 @@ static NSMutableAttributedString *NVCreateDecodedContent(NSData *data, int forma
 	[dateCreatedString release];
 	[prefixParentNotes release];
 	[syncServicesMD release];
+	self.fileMergeBaseText = nil;
+	self.fileMergeBaseLabels = nil;
+	self.fileMergeBaseData = nil;
+	self.externalEditingConflictNote = nil;
+	self.externalEditingConflictData = nil;
 	
 	if (cTitle)
 		free(cTitle);
@@ -599,6 +673,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	fileEncoding = preparedNote->fileEncoding;
 	modifiedDate = preparedNote->modifiedDate;
 	createdDate = preparedNote->createdDate;
+	self.fileMergeBaseText = nil;
+	self.fileMergeBaseLabels = nil;
+	self.fileMergeBaseData = nil;
 	[undoManager removeAllActions];
 }
 
@@ -615,6 +692,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 //assume any changes have been synchronized with undomanager
 - (void)setContentString:(NSAttributedString*)attributedString {
 	if (attributedString) {
+		[self captureFileMergeBaseIfNecessary];
 		[contentString setAttributedString:attributedString];
 		
 		[self updateTablePreviewString];
@@ -624,6 +702,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[delegate note:self attributeChanged:NotePreviewString];
 	
 		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
+		// Active scratch sessions mirror this change after the current callback;
+		// this call only schedules reconciliation and never performs file I/O here.
+		[[ExternalEditingSession sharedExternalEditingSession] noteContentsDidChange:self];
 	}
 }
 - (NSAttributedString*)contentString {
@@ -755,6 +836,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 - (void)setTitleString:(NSString*)aNewTitle {
 	
 	NSString *oldTitle = [titleString retain];
+	if (aNewTitle && ![aNewTitle isEqualToString:titleString])
+		[self captureFileMergeBaseIfNecessary];
 	
     if ([self _setTitleString:aNewTitle]) {
 		//do you really want to do this when the format is a single DB and the file on disk hasn't been removed?
@@ -999,7 +1082,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (void)setLabelString:(NSString*)newLabelString {
-	
+	if (newLabelString && ![newLabelString isEqualToString:labelString])
+		[self captureFileMergeBaseIfNecessary];
 	if ([self _setLabelString:newLabelString]) {
 	
 		if ([[GlobalPrefs defaultPrefs] horizontalLayout]) {
@@ -1154,6 +1238,42 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	shouldWriteToFile = YES;
 }
 
+- (void)captureFileMergeBaseIfNecessary {
+	if (self.fileMergeBaseText || shouldWriteToFile || !delegate || !filename ||
+		[delegate currentNoteStorageFormat] == SingleDatabaseFormat) return;
+	self.fileMergeBaseText = [contentString string];
+	self.fileMergeBaseLabels = labelString;
+	if (currentFormatID == RTFTextFormat || currentFormatID == HTMLFormat) {
+		NVNoteFileSnapshot snapshot = { 0 };
+		if ([delegate readNoteFileSnapshot:&snapshot forNoteNamed:filename error:NULL] &&
+			(NVSnapshotMatchesNote(&snapshot, self) ||
+			 [snapshot.data isEqualToData:NVCreateRichFileData(contentString, currentFormatID, NULL)]))
+			self.fileMergeBaseData = snapshot.data;
+	}
+}
+
+- (void)setFileMergeBaseFromNote:(NoteObject*)note {
+	self.fileMergeBaseText = [[note contentString] string];
+	self.fileMergeBaseLabels = labelsOfNote(note);
+	self.fileMergeBaseData = nil;
+	if (storageFormatOfNote(note) == RTFTextFormat || storageFormatOfNote(note) == HTMLFormat) {
+		NVNoteFileSnapshot snapshot = { 0 };
+		id noteDelegate = [note delegate];
+		if ([noteDelegate readNoteFileSnapshot:&snapshot
+			forNoteNamed:filenameOfNote(note) error:NULL] &&
+			(NVSnapshotMatchesNote(&snapshot, note) ||
+			 [snapshot.data isEqualToData:NVCreateRichFileData([note contentString],
+				storageFormatOfNote(note), NULL)]))
+			self.fileMergeBaseData = snapshot.data;
+	}
+}
+
+- (void)clearFileMergeBase {
+	self.fileMergeBaseText = nil;
+	self.fileMergeBaseLabels = nil;
+	self.fileMergeBaseData = nil;
+}
+
 - (BOOL)writeUsingJournal:(WALStorageController*)wal {
     BOOL wroteAllOfNote = [wal writeEstablishedNote:self];
 	
@@ -1168,11 +1288,39 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     return wroteAllOfNote;
 }
 
+- (BOOL)preserveExternalSnapshot:(const NVNoteFileSnapshot*)snapshot format:(int)format
+	error:(NSError**)error {
+	NSString *conflictTitle = [titleString stringByAppendingString:@" (conflict)"];
+	NSString *conflictFilename = [delegate uniqueFilenameForTitle:conflictTitle fromNote:nil];
+	NSArray *tags = snapshot->tags ? snapshot->tags : [self orderedLabelTitles];
+	NVFileInfo ignoredInfo = { 0 };
+	BOOL stored = [delegate storeNoteDataAtomically:snapshot->data withName:conflictFilename
+		encoding:(format == PlainTextFormat ? snapshot->encoding : 0)
+		tags:tags creationTime:NVAbsoluteTimeFromTimespec(snapshot->info.creationTime)
+		modificationTime:NVAbsoluteTimeFromTimespec(snapshot->info.modificationTime)
+		expectedData:nil resultingFileInfo:&ignoredInfo error:error];
+	if (stored)
+		[delegate performSelector:@selector(synchronizeNotesFromDirectory)
+			withObject:nil afterDelay:0.0];
+	return stored;
+}
+
 - (BOOL)writeUsingCurrentFileFormat {
+	/*
+	 * Theory of operation: first turn the note in memory into the bytes that
+	 * belong in its file. Then read the existing file and its metadata together;
+	 * that consistent reading is the "snapshot" used for the rest of this method.
+	 * If another program edited the file while we were editing the note, plain
+	 * text is combined with the saved starting text by diff-match-patch (our text
+	 * merging algorithm). RTF and HTML are treated more conservatively: if their
+	 * serialized bytes differ, the other program's version is saved as a conflict
+	 * note instead of guessing how to merge formatting. The final replacement is
+	 * allowed only if the file still matches the snapshot, so a later save cannot
+	 * be silently overwritten.
+	 */
 
     NSData *formattedData = nil;
     NSError *error = nil;
-	NSMutableAttributedString *contentMinusColor = nil;
 	
     int formatID = [delegate currentNoteStorageFormat];
     switch (formatID) {
@@ -1195,25 +1343,15 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			}
 			break;
 		case RTFTextFormat:
-			contentMinusColor = [contentString mutableCopy];
-			[contentMinusColor removeAttribute:NSForegroundColorAttributeName range:NSMakeRange(0, [contentMinusColor length])];
-			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:@{}];
-			[contentMinusColor release];
-			
-			break;
 		case HTMLFormat:
-			//export to HTML document here using NSHTMLTextDocumentType;
-			formattedData = [contentString dataFromRange:NSMakeRange(0, [contentString length]) 
-									  documentAttributes:[NSDictionary dictionaryWithObject:NSHTMLTextDocumentType 
-																					 forKey:NSDocumentTypeDocumentAttribute] error:&error];
-			//our links will always be to filenames, so hopefully we shouldn't have to change anything
+			formattedData = NVCreateRichFileData(contentString, formatID, &error);
 			break;
 		default:
 			NSLog(@"Attempted to write using unknown format ID: %d", formatID);
 			//return NO;
     }
     
-    if (formattedData) {
+	if (formattedData) {
 		BOOL resetFilename = NO;
 		if (!filename || currentFormatID != formatID) {
 			//file will (probably) be renamed
@@ -1223,18 +1361,90 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		}
 		
 		currentFormatID = formatID;
-		
-		// TODO: This is the final replacement point for every pending note-file
-		// write. Carry a stable disk/base snapshot through the outbox and use
-		// diff-match-patch to merge intervening on-disk edits with this in-memory
-		// content before atomically installing the result.
+
+		NVNoteFileSnapshot snapshot = { 0 };
+		NSError *snapshotError = nil;
+		BOOL destinationExists = [delegate readNoteFileSnapshot:&snapshot
+			forNoteNamed:filename error:&snapshotError];
+		if (!destinationExists && !([[snapshotError domain] isEqualToString:NSPOSIXErrorDomain] &&
+			[snapshotError code] == ENOENT)) {
+			[delegate noteDidNotWrite:self error:snapshotError];
+			return NO;
+		}
+
+		if (destinationExists) {
+			// Decide what to do before writing. We merge only when the external
+			// version can be related to the version the user started editing; if
+			// not, preserve that version as a separate conflict note.
+			BOOL conflict = NO;
+			NSString *externalLabels = snapshot.tags ?
+				[snapshot.tags componentsJoinedByString:@" "] :
+				(self.fileMergeBaseLabels ? self.fileMergeBaseLabels : labelString);
+			NSString *mergedLabels = self.fileMergeBaseLabels ?
+				NVTriviallyMergedString(self.fileMergeBaseLabels, labelString, externalLabels) :
+				([externalLabels isEqualToString:labelString] ? labelString : nil);
+
+			if (formatID == PlainTextFormat) {
+				NSStringEncoding externalEncoding = snapshot.encoding ? snapshot.encoding : fileEncoding;
+				NSMutableAttributedString *externalContent =
+					NVCreateDecodedContent(snapshot.data, PlainTextFormat, &externalEncoding);
+				if (!externalContent) {
+					[delegate noteDidNotWrite:self error:NVNoteStorageError(
+						NVNoteStorageFormattingError,
+						NSLocalizedString(@"the externally edited note could not be decoded", nil))];
+					return NO;
+				}
+				NSString *localText = [contentString string];
+				NSString *externalText = [externalContent string];
+				NSString *mergedText = self.fileMergeBaseText ?
+					NVMergedText(self.fileMergeBaseText, localText, externalText) :
+					([localText isEqualToString:externalText] ? localText : nil);
+				conflict = !mergedText || !mergedLabels;
+				if (!conflict) {
+					if (![mergedText isEqualToString:localText]) {
+						[contentString replaceCharactersInRange:NSMakeRange(0, [contentString length])
+							withString:mergedText];
+						contentCacheNeedsUpdate = YES;
+						[self updateTablePreviewString];
+						[delegate note:self attributeChanged:NotePreviewString];
+						[[delegate delegate] contentsUpdatedForNote:self];
+					}
+					fileEncoding = externalEncoding;
+					formattedData = [[contentString string] dataUsingEncoding:fileEncoding
+						allowLossyConversion:NO];
+				}
+				[externalContent release];
+			} else {
+				BOOL externalContentChanged = self.fileMergeBaseData ?
+					![snapshot.data isEqualToData:self.fileMergeBaseData] :
+					(!self.fileMergeBaseText || !NVSnapshotMatchesNote(&snapshot, self));
+				conflict = (externalContentChanged &&
+					![snapshot.data isEqualToData:formattedData]) || !mergedLabels;
+			}
+
+			if (conflict) {
+				NSError *conflictError = nil;
+				if (![self preserveExternalSnapshot:&snapshot format:formatID error:&conflictError]) {
+					[delegate noteDidNotWrite:self error:conflictError];
+					return NO;
+				}
+			} else if (![mergedLabels isEqualToString:labelString]) {
+				[self _setLabelString:mergedLabels];
+				[delegate note:self attributeChanged:NoteLabelsColumnString];
+			}
+		}
 		
 		NSError *writeError = nil;
 		NVFileInfo info = { 0 };
+		// expectedData tells the file writer, "replace this only if the destination
+		// is still exactly the file we just read." This closes the small race
+		// between checking for a conflict and installing our replacement.
 		if (![delegate storeNoteDataAtomically:formattedData withName:filename
 			encoding:(PlainTextFormat == formatID ? fileEncoding : 0)
 			tags:[self orderedLabelTitles] creationTime:createdDate
-			modificationTime:modifiedDate resultingFileInfo:&info error:&writeError]) {
+			modificationTime:modifiedDate
+			expectedData:(destinationExists ? snapshot.data : nil)
+			resultingFileInfo:&info error:&writeError]) {
 			NSLog(@"Unable to save note file %@", filename);
 			
 			[delegate noteDidNotWrite:self error:writeError];
@@ -1249,6 +1459,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		//finished writing to file successfully
 		shouldWriteToFile = NO;
+		// The starting text is kept only while this edit is in progress. It is
+		// deliberately not archived with the NoteObject, because doing so would
+		// duplicate note content and make archived notes slower to load.
+		[self clearFileMergeBase];
 		
 		
 		//tell any external editors that we've changed
@@ -1451,9 +1665,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 
 - (void)makeNoteDirtyUpdateTime:(BOOL)updateTime updateFile:(BOOL)updateFile {
-	
-	if (updateFile)
+	if (updateFile) {
+		[self captureFileMergeBaseIfNecessary];
 		shouldWriteToFile = YES;
+	}
 	//else we don't turn file updating off--we might be overwriting the state of a previous note-dirty message
 	
 	if (updateTime) {
@@ -1597,37 +1812,74 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (void)editExternallyUsingEditor:(ExternalEditor*)ed {
-	[[ODBEditor sharedODBEditor] editNote:self inEditor:ed context:nil];
+	[[ExternalEditingSession sharedExternalEditingSession] editNote:self inEditor:ed context:nil];
 }
 
 - (void)abortEditingInExternalEditor {
-	[[ODBEditor sharedODBEditor] abortAllEditingSessionsForClient:self];
+	[[ExternalEditingSession sharedExternalEditingSession] abortAllEditingSessionsForClient:self];
 }
 
--(void)odbEditor:(ODBEditor *)editor didModifyFile:(NSString *)path newFileLocation:(NSString *)newPath  context:(NSDictionary *)context {
-
-	//read path/newPath into NSData and update note contents
-	
-	//The editor path is a temporary file, not a name in the notes root, so decode only.
-	
-	if ([self updateFromData:[NSMutableData dataWithContentsOfFile:path options:NSUncachedRead error:NULL] inFormat:PlainTextFormat]) {
-		//reflect the temp file's changes directly back to the backing-store-file, database, and sync services
-		[self makeNoteDirtyUpdateTime:YES updateFile:YES];
-		
-		[delegate note:self attributeChanged:NotePreviewString];
-		[[delegate delegate] contentsUpdatedForNote:self];
-	} else {
+- (BOOL)externalEditingSession:(ExternalEditingSession*)editor didModifyFileData:(NSData*)data
+	baseData:(NSData*)baseData path:(NSString*)path context:(NSDictionary*)context {
+	(void)editor; (void)path; (void)context;
+	if (self.externalEditingConflictNote) {
+		if (![delegate makeNoteDurableForExternalEditing:self.externalEditingConflictNote]) return NO;
+		BOOL sameData = [self.externalEditingConflictData isEqualToData:data];
+		self.externalEditingConflictNote = nil;
+		self.externalEditingConflictData = nil;
+		if (sameData) return YES;
+	}
+	NSString *base = [[[NSString alloc] initWithData:baseData
+		encoding:NSUTF8StringEncoding] autorelease];
+	NSString *external = [[[NSString alloc] initWithData:data
+		encoding:NSUTF8StringEncoding] autorelease];
+	NSString *merged = NVMergedText(base, [contentString string], external);
+	if (merged) {
+		if (![merged isEqualToString:[contentString string]]) {
+			NSAttributedString *value = [[[NSAttributedString alloc] initWithString:merged
+				attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
+			[self setContentString:value];
+			[delegate note:self attributeChanged:NotePreviewString];
+			[[delegate delegate] contentsUpdatedForNote:self];
+		}
+		return YES;
+	}
+	if (!external) {
+		/* Keep bytes that cannot be interpreted as UTF-8 inside the database before
+		 * the scratch file is replaced or removed. Base64 is deliberately used so
+		 * every original byte remains recoverable without writing another plaintext
+		 * file outside the protected editing space. */
+		NSString *encoded = [data base64EncodedStringWithOptions:
+			NSDataBase64Encoding64CharacterLineLength | NSDataBase64EncodingEndLineWithLineFeed];
+		NSString *recovery = [NSString stringWithFormat:NSLocalizedString(
+			@"The external editor saved data that was not valid UTF-8. The exact bytes follow as Base64:\n\n%@", nil),
+			encoded];
+		NSAttributedString *body = [[[NSAttributedString alloc] initWithString:recovery
+			attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
+		NoteObject *conflict = [[[NoteObject alloc] initWithNoteBody:body
+			title:[titleString stringByAppendingString:@" (conflict - undecodable data)"]
+			delegate:nil format:SingleDatabaseFormat labels:labelString] autorelease];
+		[delegate addNotes:[NSArray arrayWithObject:conflict]];
+		self.externalEditingConflictNote = conflict;
+		self.externalEditingConflictData = data;
+		if (![delegate makeNoteDurableForExternalEditing:conflict]) return NO;
+		self.externalEditingConflictNote = nil;
+		self.externalEditingConflictData = nil;
 		NSBeep();
-		NSLog(@"odbEditor:didModifyFile: unable to get data from %@", path);
-	}	
-}
--(void)odbEditor:(ODBEditor *)editor didClosefile:(NSString *)path context:(NSDictionary *)context {
-	//remove the temp file	
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
-	[[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
-#else
-	[[NSFileManager defaultManager] removeFileAtPath:path handler:nil];
-#endif
+		return YES;
+	}
+	NSAttributedString *body = [[[NSAttributedString alloc] initWithString:external
+		attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
+	NoteObject *conflict = [[[NoteObject alloc] initWithNoteBody:body
+		title:[titleString stringByAppendingString:@" (conflict)"] delegate:nil
+		format:SingleDatabaseFormat labels:labelString] autorelease];
+	[delegate addNotes:[NSArray arrayWithObject:conflict]];
+	self.externalEditingConflictNote = conflict;
+	self.externalEditingConflictData = data;
+	if (![delegate makeNoteDurableForExternalEditing:conflict]) return NO;
+	self.externalEditingConflictNote = nil;
+	self.externalEditingConflictData = nil;
+	return YES;
 }
 
 - (NSRange)nextRangeForWords:(NSArray*)words options:(unsigned)opts range:(NSRange)inRange {
