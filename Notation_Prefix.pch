@@ -8,27 +8,6 @@
 #import <Cocoa/Cocoa.h>
 #endif
 
-#ifndef NSINTEGER_DEFINED
-#if __LP64__ || NS_BUILD_32_LIKE_64
-typedef long NSInteger;
-typedef unsigned long NSUInteger;
-#else
-typedef int NSInteger;
-typedef unsigned int NSUInteger;
-#endif
-
-#define NSIntegerMax    LONG_MAX
-#define NSIntegerMin    LONG_MIN
-#define NSUIntegerMax   ULONG_MAX
-
-#define NSINTEGER_DEFINED 1
-#endif
-#define DebugPath(__p) (__p = ((!(__p)) ? __FILE__ : (__p)))
-#define _COMPILE_ASSERT_SYMBOL_INNER(line, msg) __COMPILE_ASSERT_ ## line ## __ ## msg
-#define _COMPILE_ASSERT_SYMBOL(line, msg) _COMPILE_ASSERT_SYMBOL_INNER(line, msg)
-#define COMPILE_ASSERT(test, msg) \
-typedef char _COMPILE_ASSERT_SYMBOL(__LINE__, msg) [ ((test) ? 1 : -1) ]
-
 #define GCC_VERSION (__GNUC__ * 10000 \
 + __GNUC_MINOR__ * 100 \
 + __GNUC_PATCHLEVEL__)
@@ -38,14 +17,6 @@ typedef char _COMPILE_ASSERT_SYMBOL(__LINE__, msg) [ ((test) ? 1 : -1) ]
 #define SEL_STR(name) NSStringFromSelector(@selector(name))
 
 #define force_inline __attribute__((always_inline))
-
-#define UTXT_TYPE_ID 0x75747874
-#define TEXT_TYPE_ID 0x54455854
-#define HTML_TYPE_ID 0x48544D4C
-#define RTF_TYPE_ID 0x52544620
-#define RTFD_TYPE_ID 0x52544644
-#define WORD_DOC_TYPE_ID 0x5738424E
-#define PDF_TYPE_ID 0x50444620
 
 //faux carbon errors
 #define kCoderErr -818

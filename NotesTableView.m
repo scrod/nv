@@ -32,7 +32,6 @@
 #import "ImportingUtils.h"
 
 #define STATUS_STRING_FONT_SIZE 16.0f
-#define SET_DUAL_HIGHLIGHTS 0
 
 #define SYNTHETIC_TAGS_COLUMN_INDEX 200
 
@@ -47,16 +46,17 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	globalPrefs = [GlobalPrefs defaultPrefs];
 
 	userDefaults = [NSUserDefaults standardUserDefaults];
-	[userDefaults registerDefaults: [NSDictionary dictionaryWithObjectsAndKeys: [NSNumber numberWithBool: YES], @"UseCtrlForSwitchingNotes", nil]];
+	[userDefaults registerDefaults:@{ @"UseCtrlForSwitchingNotes": @YES }];
 		
 	loadStatusString = NSLocalizedString(@"Loading Notes...",nil);
-	loadStatusAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:
-		[NSFont fontWithName:@"Helvetica" size:STATUS_STRING_FONT_SIZE], NSFontAttributeName,
-		[[NSColor controlTextColor] colorWithAlphaComponent:0.5f], NSForegroundColorAttributeName, nil] retain];
+	loadStatusAttributes = [@{
+		NSFontAttributeName: [NSFont fontWithName:@"Helvetica" size:STATUS_STRING_FONT_SIZE],
+		NSForegroundColorAttributeName: [[NSColor controlTextColor] colorWithAlphaComponent:0.5f]
+	} retain];
 	loadStatusStringWidth = [loadStatusString sizeWithAttributes:loadStatusAttributes].width;
 	
 	affinity = 0;
-	shouldUseSecondaryHighlightColor = viewMenusValid = NO;
+	viewMenusValid = NO;
 	firstRowIndexBeforeSplitResize = NSNotFound;
 	
 	headerView = [[HeaderViewWithMenu alloc] init];
@@ -129,20 +129,17 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 
 //extracted from initialization to run in a safe way
 - (void)restoreColumns {
-	unsigned int i;
-	
 	//if columns currently exist, then remove them first, so that nstableview's autosave/restore works properly
 	if ([[self tableColumns] count]) {
-		for (i=0; i<[allColumns count]; i++) {
-			[self removeTableColumn:[allColumns objectAtIndex:i]];
+		for (NoteAttributeColumn *column in allColumns) {
+			[self removeTableColumn:column];
 		}
 	}
 	
 	//horizontal view has only a single column; store column widths separately for it
-	NSArray *columnsToDisplay = [globalPrefs horizontalLayout] ? [NSArray arrayWithObject:NoteTitleColumnString] : [globalPrefs visibleTableColumns];
+	NSArray *columnsToDisplay = [globalPrefs horizontalLayout] ? @[ NoteTitleColumnString ] : [globalPrefs visibleTableColumns];
 	
-	for (i=0; i<[allColumns count]; i++) {
-		NoteAttributeColumn *column = [allColumns objectAtIndex:i];
+	for (NoteAttributeColumn *column in allColumns) {
 		if ([columnsToDisplay containsObject:[column identifier]])
 			[self addTableColumn:column];
 		
@@ -163,8 +160,8 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	 @selector(setTableFontSize:sender:),
 	 @selector(setHorizontalLayout:sender:), nil];
 	
-	[self registerForDraggedTypes:[NSArray arrayWithObjects:NSPasteboardTypeFileURL, NVLegacyFilenamesPasteboardType,
-		NSPasteboardTypeRTF, NSPasteboardTypeRTFD, NSPasteboardTypeString, nil]];
+	[self registerForDraggedTypes:@[ NSPasteboardTypeFileURL, NVLegacyFilenamesPasteboardType,
+		NSPasteboardTypeRTF, NSPasteboardTypeRTFD, NSPasteboardTypeString ]];
 	
 	NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
 	
@@ -215,9 +212,6 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 
 - (void)_setActiveStyleState:(BOOL)activeStyle {
 	NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
-#if SET_DUAL_HIGHLIGHTS
-	activeStyle = YES;
-#endif
 	isActiveStyle = activeStyle;
 	[col setDereferencingFunction: [globalPrefs horizontalLayout] ? ([globalPrefs tableColumnsShowPreview] ? unifiedCellForNote : unifiedCellSingleLineForNote) : 
 	 ([globalPrefs tableColumnsShowPreview] ? (activeStyle ? properlyHighlightingTableTitleOfNote : tableTitleOfNote) : titleOfNote2)];
@@ -289,7 +283,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 	[self setIntercellSpacing:NSMakeSize(12, 2)];
 	
 	[self setGridStyleMask:isOneRow ? NSTableViewGridNone : NSTableViewSolidHorizontalGridLineMask];
-	[self setGridColor:[NSColor colorWithCalibratedWhite:0.882 alpha:1.0]];
+//	[self setGridColor:[NSColor colorWithCalibratedWhite:0.882 alpha:1.0]];
 }
 
 - (void)settingChangedForSelectorString:(NSString*)selectorString {
@@ -460,12 +454,7 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 		[self setCornerView:newHeader ? cornerView : nil];
 	
 		if ([self respondsToSelector:@selector(_sizeRowHeaderToFitIfNecessary)]) {
-			//hopefully 10.5 has this
 			[self _sizeRowHeaderToFitIfNecessary];
-		} else if ([self respondsToSelector:@selector(_sizeToFitIfNecessary)]) {
-			//probably only on 10.3.x
-			[self _sizeToFitIfNecessary];
-			[[self enclosingScrollView] setNeedsDisplay:YES];
 		} else {
 			//anything else
 			NSWindow *win = [self window];
@@ -666,36 +655,12 @@ static void _CopyItemWithSelectorFromMenu(NSMenu *destMenu, NSMenu *sourceMenu, 
 }
 
 - (void)windowDidBecomeMain:(NSNotification *)aNotification  {
-	[self setShouldUseSecondaryHighlightColor:hadHighlightInForeground];
 	[self updateTitleDereferencorState];
 }
 
 - (void)windowDidResignMain:(NSNotification *)aNotification {
-	BOOL highlightBefore = shouldUseSecondaryHighlightColor;
-	[self setShouldUseSecondaryHighlightColor:YES];
-	hadHighlightInForeground = highlightBefore;
 	[self updateTitleDereferencorState];
 }
-
-- (void)setShouldUseSecondaryHighlightColor:(BOOL)value {
-#if SET_DUAL_HIGHLIGHTS
-	if (![[self window] isKeyWindow]) {
-		hadHighlightInForeground = value;
-		value = YES;
-	}		
-	shouldUseSecondaryHighlightColor = value;
-	
-	[self setNeedsDisplay:YES];
-#endif
-}
-
-#if SET_DUAL_HIGHLIGHTS
-- (BOOL)_shouldUseSecondaryHighlightColor {
-
-	return shouldUseSecondaryHighlightColor;
-}
-#endif
-
 
 - (NSDragOperation)draggingSession:(NSDraggingSession *)session sourceOperationMaskForDraggingContext:(NSDraggingContext)context {
 	return NVDragOperationForContext(context);
@@ -1009,7 +974,7 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 // Shared completions logic for multitag panel (raw string input)
 - (NSArray *)labelCompletionsForString:(NSString *)fieldString index:(NSInteger)index{
     NSRange charRange = [fieldString rangeOfString:fieldString];
-    NSArray *tags = [NSArray arrayWithObject:@""];
+	NSArray *tags = @[ @"" ];
     if (charRange.location != NSNotFound) {
         NSCharacterSet *set = [NSCharacterSet labelSeparatorCharacterSet];
         NSString *str = fieldString;
@@ -1105,18 +1070,6 @@ enum { kNext_Tag = 'j', kPrev_Tag = 'k' };
 		[editor setString: tagsInTitleColumn ? labelsOfNote(note) : titleOfNote(note)];
 		
 		NSRange range = NSMakeRange(0, [[editor string] length]);
-#if 0
-		NoteAttributeColumn *col = [self noteAttributeColumnForIdentifier:NoteTitleColumnString];
-		if (tagsInTitleColumn && dereferencingFunction(col) != unifiedCellSingleLineForNote) {
-			//the textview will comply! when editing tags, use a smaller font, right-aligned
-			[editor setAlignment:NSRightTextAlignment range:range];
-			NSFont *smallerFont = [NSFont systemFontOfSize:[globalPrefs tableFontSize] - 1.0];
-			[editor setFont:smallerFont range:range];
-			NSMutableParagraphStyle *pstyle = [[[NSMutableParagraphStyle alloc] init] autorelease];
-			[pstyle setAlignment:NSRightTextAlignment];
-			[editor setTypingAttributes:[NSDictionary dictionaryWithObjectsAndKeys:pstyle, NSParagraphStyleAttributeName, smallerFont, NSFontAttributeName, nil]];
-		}
-#endif
 		
 		if (flag) [editor setSelectedRange:range];
 	}	

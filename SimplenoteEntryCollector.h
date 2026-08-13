@@ -44,14 +44,14 @@
 
 - (id)initWithEntriesToCollect:(NSArray*)wantedEntries authToken:(NSString*)anAuthToken email:(NSString*)anEmail;
 
-- (NSArray*)entriesToCollect;
-- (NSArray*)entriesCollected;
-- (NSArray*)entriesInError;
+@property (nonatomic, readonly) NSArray *entriesToCollect;
+@property (nonatomic, readonly) NSArray *entriesCollected;
+@property (nonatomic, readonly) NSArray *entriesInError;
 
 - (void)stop;
 - (BOOL)collectionStarted;
 
-- (BOOL)collectionStoppedPrematurely;
+@property (nonatomic, readonly) BOOL collectionStoppedPrematurely;
 
 - (NSString*)localizedActionDescription;
 
@@ -61,8 +61,7 @@
 
 - (NSDictionary*)preparedDictionaryWithFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data;
 
-- (void)setRepresentedObject:(id)anObject;
-- (id)representedObject;
+@property (nonatomic, retain) id representedObject;
 
 @end
 

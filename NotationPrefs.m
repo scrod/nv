@@ -41,7 +41,17 @@
 
 NSString *NotationPrefsDidChangeNotification = @"NotationPrefsDidChangeNotification";
 
+@interface NotationPrefs ()
+@property (nonatomic, retain) NSData *masterSalt, *dataSessionSalt, *verifierKey, *masterKey;
+@end
+
 @implementation NotationPrefs
+
+@synthesize preferencesChanged, foregroundColor, baseBodyFont,
+	storesPasswordInKeychain, notesStorageFormat, confirmFileDeletion,
+	doesEncryption, syncServiceAccounts, keyLengthInBits, hashIterationCount,
+	epochIteration, firstTimeUsed, secureTextEntry, fileMetadataVolumeUUID, delegate,
+	masterSalt, dataSessionSalt, verifierKey, masterKey;
 
 NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serviceName) {
 	NSMutableDictionary *accountDict = [prefs->syncServiceAccounts objectForKey:serviceName];
@@ -230,33 +240,6 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
     return [NSMutableArray arrayWithCapacity:0];
 }
 
-- (BOOL)preferencesChanged {
-	return preferencesChanged;
-}
-
-- (BOOL)storesPasswordInKeychain {
-	return storesPasswordInKeychain;
-}
-
-- (int)notesStorageFormat {
-	return notesStorageFormat;
-}
-- (BOOL)confirmFileDeletion {
-    return confirmFileDeletion;
-}
-
-- (BOOL)doesEncryption {
-	return doesEncryption;
-}
-
-- (BOOL)secureTextEntry {
-	return secureTextEntry;
-}
-
-- (NSDictionary*)syncServiceAccounts {
-	return syncServiceAccounts;
-}
-
 - (NSDictionary*)syncAccountForServiceName:(NSString*)serviceName {
 	return [syncServiceAccounts objectForKey:serviceName];
 }
@@ -293,14 +276,14 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if (!item) return nil;
 
 	NSMutableDictionary *query = [NSMutableDictionary dictionaryWithDictionary:[self _keychainQueryForAccount:account]];
-	[query setObject:[NSArray arrayWithObject:(id)item] forKey:(id)kSecMatchItemList];
+	[query setObject:@[ (id)item ] forKey:(id)kSecMatchItemList];
 	CFRelease(item);
 	return query;
 }
 
 - (OSStatus)_setKeychainData:(NSData *)data forAccount:(NSString *)account {
 	NSDictionary *query = [self _keychainQueryForFirstItemInAccount:account];
-	NSDictionary *attributes = [NSDictionary dictionaryWithObject:data forKey:(id)kSecValueData];
+	NSDictionary *attributes = @{ (id)kSecValueData: data };
 	OSStatus status = query ? SecItemUpdate((CFDictionaryRef)query, (CFDictionaryRef)attributes) : errSecItemNotFound;
 	if (!query) {
 		NSMutableDictionary *newItem = [NSMutableDictionary dictionaryWithDictionary:[self _keychainQueryForAccount:account]];
@@ -371,24 +354,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return [[[self syncAccountForServiceName:serviceName] objectForKey:@"enabled"] boolValue];
 }
 
-- (unsigned int)keyLengthInBits {
-    return keyLengthInBits;
-}
-
-- (unsigned int)hashIterationCount {
-	return hashIterationCount;
-}
-
 - (void)setPreferencesAreStored {
 	preferencesChanged = NO;
-}
-
-- (UInt32)epochIteration {
-	return epochIteration;
-}
-
-- (BOOL)firstTimeUsed {
-	return firstTimeUsed;
 }
 
 - (void)setForegroundTextColor:(NSColor*)aColor {
@@ -398,20 +365,11 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	preferencesChanged = YES;
 }
 
-- (NSColor*)foregroundColor {
-	return foregroundColor;
-}
-
 - (void)setBaseBodyFont:(NSFont*)aFont {
 	[baseBodyFont autorelease];
 	baseBodyFont = [aFont retain];
 		
 	preferencesChanged = YES;
-}
-
-- (NSFont*)baseBodyFont {
-	
-	return baseBodyFont;
 }
 
 - (void)forgetKeychainIdentifier {
@@ -484,7 +442,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if ([computedVerifyKey isEqualToData:verifierKey]) {
 		//if computedMasterKey is good, and we don't already have a master key, then this is it
 		if (!masterKey)
-			masterKey = [computedMasterKey retain];
+			self.masterKey = computedMasterKey;
 		
 		return YES;
 	}
@@ -502,8 +460,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	//and scale beyond with triplets, quintuplets, and septuplets--but key is not currently user-settable
 
 	//create new dataSessionSalt and key here
-	[dataSessionSalt release];
-	dataSessionSalt = [[NSData randomDataOfLength:256] retain];
+	self.dataSessionSalt = [NSData randomDataOfLength:256];
 	
 	NSData *dataSessionKey = [masterKey derivedKeyOfLength:keyLengthInBits/8 salt:dataSessionSalt iterations:1];
 	
@@ -526,17 +483,14 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	int keyLength = keyLengthInBits/8;
 	
 	//generate and set random salt
-	[masterSalt release];
-	masterSalt = [[NSData randomDataOfLength:256] retain];
+	self.masterSalt = [NSData randomDataOfLength:256];
 
 	//compute and set master key given salt and # of iterations
-	[masterKey release];
-	masterKey = [[passData derivedKeyOfLength:keyLength salt:masterSalt iterations:hashIterationCount] retain];
+	self.masterKey = [passData derivedKeyOfLength:keyLength salt:masterSalt iterations:hashIterationCount];
 	
 	//compute and set verify key from master key
-	[verifierKey release];
 	NSData *verifySalt = [NSData dataWithBytesNoCopy:VERIFY_SALT length:sizeof(VERIFY_SALT) freeWhenDone:NO];
-	verifierKey = [[masterKey derivedKeyOfLength:keyLength salt:verifySalt iterations:1] retain];
+	self.verifierKey = [masterKey derivedKeyOfLength:keyLength salt:verifySalt iterations:1];
 
 	//update keychain
 	[self setStoresPasswordInKeychain:inKeychain];
@@ -628,8 +582,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		[self removeKeychainData];
 	
 		//clear out the verifier key and salt?
-		[verifierKey release]; verifierKey = nil;
-		[masterKey release]; masterKey = nil;
+		self.verifierKey = nil;
+		self.masterKey = nil;
 	}
 	
 	if (oldValue != value) {
@@ -660,7 +614,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	INIT_DICT_ACCT();
 	
 	if ([self syncServiceIsEnabled:serviceName] != isEnabled) {
-		[accountDict setObject:[NSNumber numberWithBool:isEnabled] forKey:@"enabled"];
+		[accountDict setObject:@(isEnabled) forKey:@"enabled"];
 		
 		preferencesChanged = YES;
 		[delegate syncSettingsChangedForService:serviceName];
@@ -671,7 +625,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	INIT_DICT_ACCT();
 	
 	if ([self syncFrequencyInMinutesForServiceName:serviceName] != frequencyInMinutes) {
-		[accountDict setObject:[NSNumber numberWithUnsignedInteger:frequencyInMinutes] forKey:@"frequency"];
+		[accountDict setObject:@(frequencyInMinutes) forKey:@"frequency"];
 		preferencesChanged = YES;
 		[delegate syncSettingsChangedForService:serviceName];
 	}
@@ -754,10 +708,6 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		
 		[delegate syncSettingsChangedForService:serviceName];
 	}
-}
-
-- (NSString*)fileMetadataVolumeUUID {
-	return fileMetadataVolumeUUID;
 }
 
 - (void)setFileMetadataVolumeUUID:(NSString*)volumeUUID {
@@ -899,14 +849,5 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return [self pathExtensionAllowed:[filename pathExtension] forFormat:notesStorageFormat];
     
 }
-
-- (id)delegate {
-	return delegate;
-}
-
-- (void)setDelegate:(id)aDelegate {
-	delegate = aDelegate;
-}
-
 
 @end

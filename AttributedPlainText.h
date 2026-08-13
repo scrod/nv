@@ -23,8 +23,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-#define SEPARATE_ATTRS 0
-
 extern NSString *NVHiddenDoneTagAttributeName;
 extern NSString *NVHiddenBulletIndentAttributeName;
 
@@ -37,9 +35,6 @@ extern NSString *NVHiddenBulletIndentAttributeName;
 
 - (NSString*)trimLeadingSyntheticTitle;
 
-#if SEPARATE_ATTRS
-+ (NSMutableAttributedString*)attributedStringWithString:(NSString*)text attributesByRange:(NSDictionary*)attributes font:(NSFont*)font;
-#endif
 - (void)santizeForeignStylesForImporting;
 - (void)addLinkAttributesForRange:(NSRange)changedRange;
 - (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange;
@@ -56,11 +51,6 @@ extern NSString *NVHiddenBulletIndentAttributeName;
 
 - (NSArray*)allLinks;
 - (id)findNextLinkAtIndex:(NSUInteger)startIndex effectiveRange:(NSRange *)range;
-#if SEPARATE_ATTRS
-//extract the attributes using their ranges as keys
-- (NSDictionary*)attributesByRange;
-#endif
-
 + (NSAttributedString*)timeDelayStringWithNumberOfSeconds:(double)seconds;
 
 @end

@@ -138,8 +138,8 @@
 	}
 
 	NSFont *font = [prefsController noteBodyFont];
-	NSDictionary *attributes = [NSDictionary dictionaryWithObjectsAndKeys:font ? font : [NSFont systemFontOfSize:12.0],
-		NSFontAttributeName, [NSColor textColor], NSForegroundColorAttributeName, centerStyle, NSParagraphStyleAttributeName, nil];
+	NSDictionary *attributes = @{ NSFontAttributeName: font ? font : [NSFont systemFontOfSize:12.0],
+		NSForegroundColorAttributeName: [NSColor textColor], NSParagraphStyleAttributeName: centerStyle };
 
 	NSString *fontNameAndSize = font ? [NSString stringWithFormat:@"%@ %g", [font fontName], [font pointSize]] : @"Unknown";
 	NSAttributedString *attributedString = [[NSAttributedString alloc] initWithString:fontNameAndSize attributes:attributes];
@@ -374,9 +374,7 @@
 - (void)awakeFromNib {
 	
 	[window setDelegate:self];
-	if (@available(macOS 11.0, *)) {
-		[window setToolbarStyle:NSWindowToolbarStylePreference];
-	}
+	[window setToolbarStyle:NSWindowToolbarStylePreference];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changedTableText:)
 												 name:NSControlTextDidEndEditingNotification object:tableTextSizeField];
     
@@ -441,7 +439,7 @@
 }
 
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
-    return [NSArray arrayWithObjects:@"General", @"Notes", @"Editing", @"Fonts & Colors", nil];
+	return @[ @"General", @"Notes", @"Editing", @"Fonts & Colors" ];
 }
 
 - (NSArray *)toolbarSelectableItemIdentifiers: (NSToolbar *)toolbar {

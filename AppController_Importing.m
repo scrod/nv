@@ -311,7 +311,7 @@
 		} else if (txtBody || htmlBody) {
 			NSPasteboard *pboard = [NSPasteboard pasteboardWithUniqueName];
 			NSData *data = [htmlBody dataUsingEncoding:NSUTF8StringEncoding];
-			[pboard declareTypes:[NSArray arrayWithObject: data ? NSPasteboardTypeHTML : NSPasteboardTypeString] owner:nil];
+			[pboard declareTypes:@[ data ? NSPasteboardTypeHTML : NSPasteboardTypeString ] owner:nil];
 			if (data) {
 				[pboard setData:data forType:NSPasteboardTypeHTML];
 			} else if (txtBody) {

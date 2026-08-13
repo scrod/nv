@@ -30,8 +30,8 @@
 }
 
 + (id)invocationRecorder;
-- (id)target;
-- (NSInvocation *)invocation;
+@property (nonatomic, retain, readonly) id target;
+@property (nonatomic, retain, readonly) NSInvocation *invocation;
 - (id)prepareWithInvocationTarget:(id)aTarget;
 
 @end
@@ -40,7 +40,7 @@
     NSInvocation *innerInvocation;
 }
 - (id)initWithInvocation:(NSInvocation*)anInvocation;
-- (NSInvocation*)invocation;
+@property (nonatomic, retain, readonly) NSInvocation *invocation;
 - (void)invoke;
 
 @end

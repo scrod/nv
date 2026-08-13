@@ -42,7 +42,15 @@ NSString *SimplenoteServiceName = @"SN";
 NSString *SimplenoteSeparatorKey = @"SepStr";
 #define kSimplenoteSessionIndexBatchSize 100
 
+@interface SimplenoteSession ()
+@property (nonatomic, retain) NSString *authToken;
+@property (nonatomic, copy) NSString *lastError;
+@property (nonatomic, copy) NSString *indexMark;
+@end
+
 @implementation SimplenoteSession
+
+@synthesize authToken, lastError = lastErrorString, indexMark;
 
 static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkConnectionFlags flags, void * info);
 
@@ -323,11 +331,11 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	//current status (logging-in, getting index, etc.) minus any info. about collectorsInProgress
 	//one line only
 		
-	if ([listFetcher isRunning]) {
+	if (listFetcher.running) {
 		
 		return NSLocalizedString(@"Getting the list of notes...", nil);
 		
-	} else if ([loginFetcher isRunning]) {
+	} else if (loginFetcher.running) {
 		
 		return NSLocalizedString(@"Logging in...", nil);
 		
@@ -355,8 +363,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 
 
 - (void)_stoppedWithErrorString:(NSString*)aString {
-	[lastErrorString autorelease];
-	lastErrorString = [aString copy];
+	self.lastError = aString;
 	
 	if (!aString) {
 		[self _updateSyncTime];
@@ -364,12 +371,8 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	[delegate syncSession:self didStopWithError:lastErrorString];
 }
 
-- (NSString*)lastError {
-	return lastErrorString;
-}
-
 - (BOOL)isRunning {
-	return [loginFetcher isRunning] || [listFetcher isRunning] || [collectorsInProgress count];
+	return loginFetcher.running || listFetcher.running || [collectorsInProgress count];
 }
 
 - (NSSet*)activeTasks {
@@ -388,8 +391,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	[listFetcher cancel];
 	[indexEntryBuffer release];
 	indexEntryBuffer = nil;
-	[indexMark release];
-	indexMark = nil;
+	self.indexMark = nil;
 }
 
 //these two methods and probably more are general enough to be abstracted into NotationSyncServiceManager
@@ -416,10 +418,9 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	//our changes are unsynced if there are notes we haven't yet updated on the server or notes still updating on the server
 	if ([unsyncedServiceNotes count] > 0) return YES;
 	
-	NSUInteger i = 0;
 	NSArray *cols = [collectorsInProgress allObjects];
-	for (i=0; i<[cols count]; i++) {
-		if ([[cols objectAtIndex:i] isKindOfClass:[SimplenoteEntryModifier class]]) {
+	for (id collector in cols) {
+		if ([collector isKindOfClass:[SimplenoteEntryModifier class]]) {
 			return YES;
 		}
 	}
@@ -437,7 +438,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	
 	if ([unsyncedServiceNotes count] > 0) {
 		
-		if ([listFetcher isRunning]) {
+		if (listFetcher.running) {
 			NSLog(@"%@: not pushing because a full sync index is in progress", NSStringFromSelector(_cmd));
 			return NO;
 		}
@@ -450,9 +451,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		NSMutableArray *notesToDelete = [NSMutableArray array];
 		
 		NSArray *notes = [unsyncedServiceNotes allObjects];
-		NSUInteger i = 0;
-		for (i = 0; i<[notes count]; i++) {
-			id <SynchronizedNote> aNote = [notes objectAtIndex:i];
+		for (id <SynchronizedNote> aNote in notes) {
 			
 			if ([[aNote syncServicesMD] objectForKey:SimplenoteServiceName]) {
 				//this note has already been synced; if it is a deleted note, queue it to be deleted; 
@@ -501,15 +500,13 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 - (void)_clearAuthTokenAndDependencies {
 	[listFetcher autorelease];
 	listFetcher = nil;
-	[authToken autorelease];
-	authToken = nil;	
+	self.authToken = nil;
 }
 
 - (void)clearErrors {
 	//effectively reset what the session knows about itself, in preparation for another sync
 	lastIndexAuthFailed = NO;
-	[lastErrorString autorelease];
-	lastErrorString = nil;
+	self.lastError = nil;
 	lastSyncedTime = 0.0;
 }
 
@@ -533,7 +530,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		[[invRecorder prepareWithInvocationTarget:self] startFetchingListForFullSync];
 		didStart = [[self loginFetcher] startWithSuccessInvocation:[invRecorder invocation]];
 		
-	} else if (![notesBeingModified count] && ![listFetcher isRunning] && ![collectorsInProgress count]) {
+	} else if (![notesBeingModified count] && !listFetcher.running && ![collectorsInProgress count]) {
 		
 		//token already exists; just fetch the list directly
 		didStart = [[self listFetcher] start];
@@ -580,7 +577,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 }
 
 - (void)addedEntryCollectorDidFinish:(SimplenoteEntryCollector *)collector {
-	NSArray *newNotes = [self _notesWithEntries:[collector entriesCollected]];
+	NSArray *newNotes = [self _notesWithEntries:collector.entriesCollected];
 	
 	if ([newNotes count]) {
 		[delegate syncSession:self receivedAddedNotes:newNotes];		
@@ -609,13 +606,11 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	
 	//use the corresponding "NoteObject" keys to modify the original notes appropriately,
 	//building a new array that documents our efforts
-	
-	NSArray *entries = [collector entriesCollected];
+
+	NSArray *entries = collector.entriesCollected;
 	NSMutableArray *changedNotes = [NSMutableArray arrayWithCapacity:[entries count]];
-		
-	NSUInteger i = 0;
-	for (i=0; i<[entries count]; i++) {
-		NSDictionary *info = [entries objectAtIndex:i];
+
+	for (NSDictionary *info in entries) {
 		if ([[info objectForKey:@"deleted"] intValue]) {
 			//entry was deleted between getting the index and getting the note! it will be handled in the next sync.
 			continue;
@@ -666,10 +661,8 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 
 - (NSMutableDictionary*)_invertedContentHashesOfNotes:(NSArray*)notes withSeparator:(NSString*)sep {
 	NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithCapacity:[notes count]];
-	NSUInteger i = 0;
 	//build two kinds of dicts:
-	for (i=0; i<[notes count]; i++) {
-		NoteObject *aNote = [notes objectAtIndex:i];
+	for (NoteObject *aNote in notes) {
 		NSMutableString *combined = [[NSMutableString alloc] initWithCapacity:[[aNote contentString] length] + [titleOfNote(aNote) length] + [sep length]];
 		[combined appendString:titleOfNote(aNote)];
 		[combined appendString:sep];
@@ -691,14 +684,14 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	//if collectionStoppedPrematurely, we cannot perform a merge without risking duplicates
 	//because there could be many notes missing
 	//although notes that encountered errors normally (entriesInError w/o stopping) will potentially be duplicated anyway.
-	if ([collector collectionStoppedPrematurely]) {
+	if (collector.collectionStoppedPrematurely) {
 		NSLog(@"%@: not merging notes because collection was cancelled", NSStringFromSelector(_cmd));
 		return;
 	}
 	
 	//serverNotes and entriesCollected should be parallel arrays
-	NSArray *serverNotes = [self _notesWithEntries:[collector entriesCollected]];
-	NSArray *localNotes = [collector representedObject];
+	NSArray *serverNotes = [self _notesWithEntries:collector.entriesCollected];
+	NSArray *localNotes = collector.representedObject;
 	NSAssert([localNotes isKindOfClass:[NSArray class]], @"list of locally-added notes must be an array!");
 	
 	//localnotes have no keys, servernotes have keys; match them together by building a dictionary of content-hashes -> notes
@@ -713,7 +706,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	NSUInteger i = 0;
 	for (i=0; i<[serverNotes count]; i++) {
 		NoteObject *serverNote = [serverNotes objectAtIndex:i];
-		NSDictionary *info = [[collector entriesCollected] objectAtIndex:i];
+		NSDictionary *info = [collector.entriesCollected objectAtIndex:i];
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
 		NSNumber *contentHashNum = [NSNumber numberWithUnsignedInteger:[[info objectForKey:@"content"] hash]];
 #else
@@ -738,15 +731,13 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	
 	//release these notes from being "modified"; those that will actually be created will be subsequently added back to the set by startCreatingNotes:
 	[notesBeingModified minusSet:localNotesToUpload];
-	
+
 	NSArray *dblLocalNoteHashes = [doubleNewlineLocalNotes allKeys];
-	for (i=0; i<[dblLocalNoteHashes count]; i++) {
-		NSNumber *hashNum = [dblLocalNoteHashes objectAtIndex:i];
+	for (NSNumber *hashNum in dblLocalNoteHashes) {
 		if ([serverContentNotes objectForKey:hashNum]) [localNotesToUpload removeObject:[doubleNewlineLocalNotes objectForKey:hashNum]];
 	}
 	NSArray *sngLocalNoteHashes = [singleNewlineLocalNotes allKeys];
-	for (i=0; i<[sngLocalNoteHashes count]; i++) {
-		NSNumber *hashNum = [sngLocalNoteHashes objectAtIndex:i];
+	for (NSNumber *hashNum in sngLocalNoteHashes) {
 		if ([serverContentNotes objectForKey:hashNum]) [localNotesToUpload removeObject:[singleNewlineLocalNotes objectForKey:hashNum]];
 	}
 		
@@ -758,7 +749,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		NSLog(@"%@: found %u duplicate notes on the server", NSStringFromSelector(_cmd), (unsigned)[notesToReportModified count]);
 		[delegate syncSession:self didModifyNotes:notesToReportModified];
 	}
-	if ([localNotesToUpload count] && ![collector collectionStoppedPrematurely]) {
+	if ([localNotesToUpload count] && !collector.collectionStoppedPrematurely) {
 		NSLog(@"%@: found %u locally unique notes", NSStringFromSelector(_cmd), (unsigned)[localNotesToUpload count]);
 		//automatically upload the rest of the unique notes using -startCreatingNotes:
 		[self startCreatingNotes:[localNotesToUpload allObjects]];
@@ -770,9 +761,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 
 - (NSArray*)_notesWithEntries:(NSArray*)entries {
 	NSMutableArray *newNotes = [NSMutableArray arrayWithCapacity:[entries count]];
-	NSUInteger i = 0;
-	for (i=0; i<[entries count]; i++) {
-		NSDictionary *info = [entries objectAtIndex:i];
+	for (NSDictionary *info in entries) {
 		NSAssert(![info objectForKey:@"NoteObject"], @"this note is supposed to be new!");
 		
 		NSString *fullContent = [info objectForKey:@"content"];
@@ -813,10 +802,10 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	
 	[collectorsInProgress removeObject:[[collector retain] autorelease]];
 	
-	if (![collector collectionStoppedPrematurely] && [[collector entriesInError] count] && ![[collector entriesCollected] count]) {
+	if (!collector.collectionStoppedPrematurely && [collector.entriesInError count] && ![collector.entriesCollected count]) {
 		//failed! all failed!
 		[self _stoppedWithErrorString:[NSString stringWithFormat:NSLocalizedString(@"%@ %u note(s) failed", @"e.g., Downloading 2 note(s) failed"), 
-									   [collector localizedActionDescription], (unsigned)[[collector entriesToCollect] count]]];
+									   [collector localizedActionDescription], (unsigned)[collector.entriesToCollect count]]];
 	} else {
 		reachabilityFailed = NO;
 		
@@ -939,11 +928,10 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	
 	[notesBeingModified minusSet:[NSSet setWithArray:finishedNotes]];
 	
-	NSUInteger i = 0;
-	for (i=0; i<[finishedNotes count]; i++) {
+	for (NoteObject *note in finishedNotes) {
 		//start any subsequently queued invocations for the notes that just finished being remotely modified
-		NSInvocation *invocation = [self _popNextInvocationForNote:[finishedNotes objectAtIndex:i]];
-		//if (invocation) NSLog(@"popped invocation %@ for %@", invocation, [finishedNotes objectAtIndex:i]);
+		NSInvocation *invocation = [self _popNextInvocationForNote:note];
+		//if (invocation) NSLog(@"popped invocation %@ for %@", invocation, note);
 		[invocation invoke];
 	}
 	
@@ -979,9 +967,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 	//and thus that the note wasn't deleted because it didn't need be, so these deleted notes should also have their syncserviceMD removed 
 	//to avoid repeated unsuccessful attempts at deletion. if a deletednoteobject was improperly removed, at the worst it will return on the next sync, 
 	//and the user will have another opportunity to remove the note
-	NSUInteger i = 0;
-	for (i = 0; i<[[modifier entriesInError] count]; i++) {
-		NSDictionary *info = [[modifier entriesInError] objectAtIndex:i];
+	for (NSDictionary *info in [modifier entriesInError]) {
 		if ([[info objectForKey:@"StatusCode"] intValue] == 404) {
 			NSAssert([[info objectForKey:@"NoteObject"] isKindOfClass:[DeletedNoteObject class]], @"a deleted note that generated an error is not actually a deleted note");
 			[[info objectForKey:@"NoteObject"] removeAllSyncMDForService:SimplenoteServiceName];
@@ -995,7 +981,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 - (void)syncResponseFetcher:(SyncResponseFetcher*)fetcher receivedData:(NSData*)data returningError:(NSString*)errString {
 	
 	if (errString) {
-		if (fetcher == listFetcher && [fetcher statusCode] == 401 && !lastIndexAuthFailed) {
+		if (fetcher == listFetcher && fetcher.statusCode == 401 && !lastIndexAuthFailed) {
 			//token might have expired, and the only reason we would be asked to fetch the list would be if it were for a full sync
 			//trying again should not cause a loop, unless the login method consistently returns an incorrect token
 			lastIndexAuthFailed = YES;
@@ -1006,15 +992,14 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 			NSLog(@"%@ returned %@", fetcher, errString);
 		
 		//report error to delegate
-		[self _stoppedWithErrorString:[fetcher didCancel] ? nil : errString];
+		[self _stoppedWithErrorString:fetcher.didCancel ? nil : errString];
 		return;
 	}
 	NSString *bodyString = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
 	
 	if (fetcher == loginFetcher) {
 		if ([bodyString length]) {
-			[authToken autorelease];
-			authToken = [bodyString retain];
+			self.authToken = bodyString;
 		} else {
 			[self _stoppedWithErrorString:NSLocalizedString(@"No authorization token", @"Simplenote-specific error")];
 		}
@@ -1035,9 +1020,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
         }
 		//convert syncnum, dates and "deleted" indicator into NSNumbers
 		NSMutableArray *entries = [NSMutableArray arrayWithCapacity:[rawEntries count]];
-		NSUInteger i = 0;
-		for (i=0; i<[rawEntries count]; i++) {
-			NSDictionary *rawEntry = [rawEntries objectAtIndex:i];
+		for (NSDictionary *rawEntry in rawEntries) {
 			
 			NSString *noteKey = [rawEntry objectForKey:@"key"];
 			NSNumber *syncnum = [NSNumber numberWithInt:[[rawEntry objectForKey:@"syncnum"] intValue]];
@@ -1064,8 +1047,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 			}
 		}
 		
-		[lastErrorString autorelease];
-		lastErrorString = nil;
+		self.lastError = nil;
 		
 		reachabilityFailed = NO;
 		
@@ -1087,8 +1069,7 @@ static void SNReachabilityCallback(SCNetworkReachabilityRef	target, SCNetworkCon
 		//dynamic URLS instead)
 		[listFetcher autorelease];
 		listFetcher = nil;
-		[indexMark release];
-		indexMark = [[responseDictionary objectForKey:@"mark"] copy];
+		self.indexMark = [responseDictionary objectForKey:@"mark"];
 		if (indexMark) {
 			[[self listFetcher] start];
 		} else {

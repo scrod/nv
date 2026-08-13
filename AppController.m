@@ -59,6 +59,8 @@
 @end
 
 @interface AppController ()
+@property (nonatomic, retain) TagEditingManager *tagEditor;
+@property (nonatomic, retain) NSArray *savedSelectedNotes;
 - (void)_loadNotationAtURL:(NSURL*)URL;
 - (BOOL)_confirmEndingExternalEditingForAction:(NSString*)action
 	continueButtonTitle:(NSString*)continueButtonTitle;
@@ -79,6 +81,8 @@
 
 
 @implementation AppController
+
+@synthesize tagEditor, savedSelectedNotes;
 
 //an instance of this class is designated in the nib as the delegate of the window, nstextfield and two nstextviews
 
@@ -123,26 +127,11 @@
 		[titleLabel setEditable:NO];
 		[titleLabel setSelectable:NO];
 		// Explicitly set bold font via attributed string to avoid toolbar overrides
-		CGFloat fontSize = [NSFont systemFontSize];
-		if (@available(macOS 11, *)) {
-			fontSize = [NSFont systemFontSizeForControlSize:NSControlSizeRegular];
-		}
-		NSFont *font = nil;
-		if (@available(macOS 10.11, *)) {
-			font = [NSFont systemFontOfSize:fontSize weight:NSFontWeightBold];
-		} else {
-			font = [NSFont boldSystemFontOfSize:fontSize];
-		}
-		NSColor *fg = nil;
-		if (@available(macOS 10.10, *)) {
-			fg = [NSColor labelColor];
-		} else {
-			fg = [NSColor controlTextColor];
-		}
-		NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
-			font, NSFontAttributeName,
-			fg, NSForegroundColorAttributeName,
-			nil];
+		CGFloat fontSize = [NSFont systemFontSizeForControlSize:NSControlSizeRegular];
+		NSFont *font = [NSFont systemFontOfSize:fontSize weight:NSFontWeightBold];
+		NSColor *fg = [NSColor labelColor];
+		NSDictionary *attrs = @{ NSFontAttributeName: font,
+			NSForegroundColorAttributeName: fg };
 		NSAttributedString *as = [[[NSAttributedString alloc] initWithString:NSLocalizedString(@"Notation", @"App name") attributes:attrs] autorelease];
 		[titleLabel setAttributedStringValue:as];
 		[titleLabel sizeToFit];
@@ -481,7 +470,7 @@ terminateApp:
 }
 
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar*)theToolbar {
-	return [NSArray arrayWithObjects:@"AppTitleLabel", @"DualField", nil];
+	return @[ @"AppTitleLabel", @"DualField" ];
 }
 
 
@@ -685,7 +674,7 @@ terminateApp:
 		NSBeep();
 		return;
 	}
-	[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:[NSArray arrayWithObject:fileURL]];
+	[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[ fileURL ]];
 }
 
 - (IBAction)editNoteExternally:(id)sender {
@@ -721,11 +710,10 @@ terminateApp:
         NSRect wFrame = [[self window] frame];
         NSPoint cPoint = NSMakePoint(NSMidX(wFrame), NSMaxY(wFrame));
         if (tagEditor) {
-            [tagEditor release];
-            tagEditor = nil;
+			self.tagEditor = nil;
         }
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(releaseTagEditor:) name:@"TagEditorShouldRelease" object:nil];
-        tagEditor = [[TagEditingManager alloc] initWithDelegate:self commonTags:[self commonLabelsForNotesAtIndexes:indexes] atPoint:cPoint];
+		self.tagEditor = [[[TagEditingManager alloc] initWithDelegate:self commonTags:[self commonLabelsForNotesAtIndexes:indexes] atPoint:cPoint] autorelease];
     } else if ([indexes count] == 1) {
         [notesTableView editRowAtColumnWithIdentifier:NoteLabelsColumnString];
     }
@@ -991,8 +979,7 @@ terminateApp:
 
 - (void)releaseTagEditor:(NSNotification *)note {
     if (tagEditor) {
-        [tagEditor release];
-        tagEditor = nil;
+		self.tagEditor = nil;
         [[NSNotificationCenter defaultCenter] removeObserver:self name:@"TagEditorShouldRelease" object:nil];
     }
 }
@@ -1020,7 +1007,7 @@ terminateApp:
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 			NSURL *textEditURL = [workspace URLForApplicationWithBundleIdentifier:@"com.apple.TextEdit"];
 			if (textEditURL) {
-				[workspace openURLs:[NSArray arrayWithObject:[NSURL fileURLWithPath:path]] withApplicationAtURL:textEditURL
+				[workspace openURLs:@[ [NSURL fileURLWithPath:path] ] withApplicationAtURL:textEditURL
 					configuration:[NSWorkspaceOpenConfiguration configuration] completionHandler:nil];
 			}
 			break;
@@ -1490,8 +1477,7 @@ terminateApp:
 					//savedSelectedNotes needs to be empty after de-selecting all notes,
 					//to ensure that any delayed list-resorting does not re-select savedSelectedNotes
 
-					[savedSelectedNotes release];
-					savedSelectedNotes = nil;
+					self.savedSelectedNotes = nil;
 				}
 				[notesTableView setNeedsDisplay:YES]; //edge case of deselecting a note at row 0 with no other changes
 			}
@@ -1814,9 +1800,7 @@ terminateApp:
 
 - (void)_expandToolbar {
 	if (![toolbar isVisible]) {
-		if (@available(macOS 10.10, *)) {
-			window.titleVisibility = NSWindowTitleHidden;
-		}
+		window.titleVisibility = NSWindowTitleHidden;
 		[window setTitle:NSLocalizedString(@"Notation", @"App name")];
 		if (currentNote)
 			[field setStringValue:titleOfNote(currentNote)];
@@ -1832,9 +1816,7 @@ terminateApp:
 
 - (void)_collapseToolbar {
 	if ([toolbar isVisible]) {
-		if (@available(macOS 10.10, *)) {
-			window.titleVisibility = NSWindowTitleVisible;
-		}
+		window.titleVisibility = NSWindowTitleVisible;
 		if (currentNote)
 			[window setTitle:titleOfNote(currentNote)];
 		[window toggleToolbarShown:nil];
@@ -1924,8 +1906,7 @@ terminateApp:
 			if ([notesTableView numberOfSelectedRows] > 0) {
 				NSIndexSet *indexSet = [notesTableView selectedRowIndexes];
 
-				[savedSelectedNotes release];
-				savedSelectedNotes = [[someNotation notesAtIndexes:indexSet] retain];
+				self.savedSelectedNotes = [someNotation notesAtIndexes:indexSet];
 			}
 
 			listUpdateViewCtx = [notesTableView viewingLocation];
@@ -1944,8 +1925,7 @@ terminateApp:
 		if (!isFilteringFromTyping) {
 			if (savedSelectedNotes) {
 				NSIndexSet *indexes = [someNotation indexesOfNotes:savedSelectedNotes];
-				[savedSelectedNotes release];
-				savedSelectedNotes = nil;
+				self.savedSelectedNotes = nil;
 
 				[notesTableView selectRowIndexes:indexes byExtendingSelection:NO];
 			}
@@ -2121,6 +2101,8 @@ terminateApp:
 }
 
 - (void)dealloc {
+	[tagEditor release];
+	[savedSelectedNotes release];
 	[windowUndoManager release];
 	[dividerShader release];
 	[sparkleController release];

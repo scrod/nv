@@ -30,11 +30,9 @@
 
 
 - (NSDictionary*)invertedDictionaryOfEntries:(NSArray*)entries keyedBy:(NSString*)keyName {
-	NSUInteger i = 0;
 	NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithCapacity:[entries count]];
 	
-	for (i=0; i<[entries count]; i++) {
-		NSDictionary *entry = [entries objectAtIndex:i];
+	for (NSDictionary *entry in entries) {
 		NSString *keyForService = [entry objectForKey:keyName];
 		if (keyForService) {
 			[dict setObject:entry forKey:keyForService];
@@ -46,13 +44,11 @@
 }
 
 - (NSDictionary*)invertedDictionaryOfNotes:(NSArray*)someNotes forSession:(id<SyncServiceSession>)aSession {
-	NSUInteger i = 0;
 	NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithCapacity:[someNotes count]];
 	NSString *keyElement = [[aSession class] nameOfKeyElement];
 	NSString *serviceName = [[aSession class] serviceName];
 	
-	for (i=0; i<[someNotes count]; i++) {
-		NoteObject *note = [someNotes objectAtIndex:i];
+	for (NoteObject *note in someNotes) {
 		NSDictionary *serviceDict = [[note syncServicesMD] objectForKey:serviceName];
 		if (serviceDict) {
 			[dict setObject:note forKey:[serviceDict objectForKey:keyElement]];
@@ -64,9 +60,7 @@
 }
 
 - (NoteObject*)noteForKey:(NSString*)key ofServiceClass:(Class<SyncServiceSession>)serviceClass {
-	NSUInteger i = 0;
-	for (i=0; i<[allNotes count]; i++) {
-		NoteObject *note = [allNotes objectAtIndex:i];
+	for (NoteObject *note in allNotes) {
 		if ([[[[note syncServicesMD] objectForKey:[serviceClass serviceName]] 
 			  objectForKey:[serviceClass nameOfKeyElement]] isEqualToString:key])
 			return note;
@@ -108,9 +102,8 @@
 - (void)syncSession:(id <SyncServiceSession>)syncSession didModifyNotes:(NSArray*)changedNotes {
 	//update the list of notes and the views as necessary
 	notesChanged = YES;
-	NSUInteger i = 0;
-	for (i = 0; i<[changedNotes count]; i++) {
-		[delegate contentsUpdatedForNote:[changedNotes objectAtIndex:i]];
+	for (NoteObject *note in changedNotes) {
+		[delegate contentsUpdatedForNote:note];
 	}
 	[self resortAllNotes];
 	[self refilterNotes];
@@ -128,7 +121,6 @@
 - (void)makeNotesMatchList:(NSArray*)MDEntries fromSyncSession:(id <SyncServiceSession>)syncSession {
 	NSString *keyName = [[syncSession class] nameOfKeyElement];
 	NSString *serviceName = [[syncSession class] serviceName];
-	NSUInteger i = 0;
 
 	NSDictionary *remoteDict = [self invertedDictionaryOfEntries:MDEntries keyedBy:keyName];
 	//NSLog(@"%s: got inverted dict of entries: %@", _cmd, remoteDict);
@@ -144,8 +136,7 @@
 	NSMutableArray *remotelyDeletedNotes = [NSMutableArray array];
 	NSMutableArray *remotelyMissingNotes = [NSMutableArray array];
 	
-	for (i=0; i<[allNotes count]; i++) {
-		id <SynchronizedNote>note = [allNotes objectAtIndex:i];
+	for (id <SynchronizedNote> note in allNotes) {
 		NSDictionary *thisServiceInfo = [[note syncServicesMD] objectForKey:serviceName];
 		if (thisServiceInfo) {
 			//get corresponding note on server
@@ -193,8 +184,7 @@
 	//*** get the notes that need to be deleted from the server (deletedNotes set) (removed-locally/already-synced)
 	NSMutableArray *locallyDeletedNotes = [NSMutableArray arrayWithCapacity:[deletedNotes count]];
 	NSArray *deletedNotesArray = [deletedNotes allObjects];
-	for (i=0; i<[deletedNotesArray count]; i++) {
-		id <SynchronizedNote>note = [deletedNotesArray objectAtIndex:i];
+	for (id <SynchronizedNote> note in deletedNotesArray) {
 		NSDictionary *thisServiceInfo = [[note syncServicesMD] objectForKey:serviceName];
 		if (thisServiceInfo) {
 			//find deleted notes of which this service hasn't yet been notified (e.g., deleted notes that still have an entry for this service)
@@ -209,8 +199,7 @@
 	NSDictionary *localNotesDict = [self invertedDictionaryOfNotes:allNotes forSession:syncSession];
 	NSDictionary *localDeletedNotesDict = [self invertedDictionaryOfNotes:locallyDeletedNotes forSession:syncSession];
 	
-	for (i=0; i<[MDEntries count]; i++) {
-		NSDictionary *remoteEntry = [MDEntries objectAtIndex:i];
+	for (NSDictionary *remoteEntry in MDEntries) {
 		//a note with this sync-key for this service does not exist
 		NSString *remoteKey = [remoteEntry objectForKey:keyName];
 		if ([remoteKey length]) {

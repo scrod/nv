@@ -35,6 +35,8 @@
 	NSArray *encodingsTopLevelObjects;
 }
 
+@property (nonatomic, retain) NoteObject *note;
+
 + (EncodingsManager *)sharedManager;
 - (BOOL)checkUnicode;
 - (BOOL)tryToUpdateTextForEncoding:(NSStringEncoding)encoding;

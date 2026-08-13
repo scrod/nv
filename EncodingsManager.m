@@ -37,6 +37,8 @@ static NSModalResponse NVRunAlert(NSString *message, NSString *informative, NSSt
 
 @implementation EncodingsManager
 
+@synthesize note;
+
 static const NSStringEncoding AllowedEncodings[] = {
 	/* Western */
 	NSISOLatin1StringEncoding,			// ISO Latin 1
@@ -120,7 +122,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 					NVRunAlert(NSLocalizedString(@"Could not locate the note file.", nil), NSLocalizedString(@"Does it still exist?", nil),
 					NSLocalizedString(@"I'll Go See", @"... if it exists"), nil, nil, NSAlertStyleWarning);
 				} else {
-					[workspace openURLs:[NSArray arrayWithObject:noteURL]
+					[workspace openURLs:@[ noteURL ]
 						withApplicationAtURL:textEditURL
 						configuration:[NSWorkspaceOpenConfiguration configuration]
 						completionHandler:nil];
@@ -141,8 +143,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 - (void)showPanelForNote:(NoteObject*)aNote {
 	currentEncoding = fileEncodingOfNote(aNote);
 	
-	[note release];
-	note = [aNote retain];
+	self.note = aNote;
 	
 	[noteData release];
 	if (!(noteData = [[[note delegate] dataFromNoteNamed:filenameOfNote(note) error:NULL] retain])) {
@@ -186,8 +187,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 }
 
 - (void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSModalResponse)returnCode contextInfo:(void  *)contextInfo {
-	[note release];
-	note = nil;
+	self.note = nil;
 }
 
 

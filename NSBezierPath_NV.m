@@ -104,6 +104,7 @@
 		{@"LinkBackPressed", @"arrow.left", @"Back", 11.0, YES},
 		{@"Pencil", @"pencil", @"Editing Note", 13.0, NO},
 		{@"Search", @"magnifyingglass", @"Search", 13.0, NO},
+		{@"ListDividerDrag", @"arrow.left.and.right", @"Resize Notes List", 10.0, NO},
 
 		{@"TBDownArrow", @"chevron.down", @"Show Sync Status", 10.0, YES},
 		{@"TBDownArrowWhite", @"chevron.down", @"Show Sync Status", 10.0, YES},

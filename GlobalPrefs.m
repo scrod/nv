@@ -138,8 +138,14 @@ static void SetArchivedPreference(NSUserDefaults *defaults, NSString *key, id ob
 	if (data) [defaults setObject:data forKey:key];
 }
 
+@interface GlobalPrefs ()
+@property (nonatomic, retain, readwrite) NSDictionary *noteBodyAttributes;
+@property (nonatomic, retain, readwrite) NSDictionary *searchTermHighlightAttributes;
+@end
 
 @implementation GlobalPrefs
+
+@synthesize noteBodyAttributes;
 
 static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id originalSender) {
 	
@@ -160,33 +166,32 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 		
 		tableColumns = nil;
 		
-		[defaults registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:
-			[NSNumber numberWithBool:YES], AutoSuggestLinksKey,
-			[NSNumber numberWithBool:YES], AutoFormatsDoneTagKey,
-			[NSNumber numberWithBool:YES], AutoFormatsMarkdownHeadingsKey,
-			[NSNumber numberWithBool:YES], AutoIndentsNewLinesKey, 
-			[NSNumber numberWithBool:YES], AutoFormatsListBulletsKey,
-			[NSNumber numberWithBool:NO], UseSoftTabsKey,
-			[NSNumber numberWithInt:4], NumberOfSpacesInTabKey,
-			[NSNumber numberWithBool:YES], PastePreservesStyleKey,
-			[NSNumber numberWithBool:YES], TabKeyIndentsKey,
-			[NSNumber numberWithBool:YES], ConfirmNoteDeletionKey,
-			[NSNumber numberWithBool:YES], CheckSpellingInNoteBodyKey, 
-			[NSNumber numberWithBool:NO], TextReplacementInNoteBodyKey, 
-			[NSNumber numberWithBool:YES], AutoCompleteSearchesKey, 
-			[NSNumber numberWithBool:YES], QuitWhenClosingMainWindowKey, 
-			[NSNumber numberWithBool:NO], TriedToImportBlorKey,
-			[NSNumber numberWithBool:NO], HorizontalLayoutKey,
-			[NSNumber numberWithBool:YES], MakeURLsClickableKey,
-			[NSNumber numberWithBool:YES], HighlightSearchTermsKey, 
-			[NSNumber numberWithBool:YES], TableColumnsHaveBodyPreviewKey, 
-			[NSNumber numberWithDouble:0.0], LastScrollOffsetKey,
-			@"General", LastSelectedPreferencesPaneKey, 
-			
-			[NSNumber numberWithFloat:[NSFont smallSystemFontSize]], TableFontSizeKey, 
-			[NSArray arrayWithObjects:NoteTitleColumnString, NoteDateModifiedColumnString, nil], NoteAttributesVisibleKey,
-			NoteDateModifiedColumnString, TableSortColumnKey,
-			[NSNumber numberWithBool:YES], TableIsReverseSortedKey, nil]];
+		[defaults registerDefaults:@{
+			AutoSuggestLinksKey: @YES,
+			AutoFormatsDoneTagKey: @YES,
+			AutoFormatsMarkdownHeadingsKey: @YES,
+			AutoIndentsNewLinesKey: @YES,
+			AutoFormatsListBulletsKey: @YES,
+			UseSoftTabsKey: @NO,
+			NumberOfSpacesInTabKey: @4,
+			PastePreservesStyleKey: @YES,
+			TabKeyIndentsKey: @YES,
+			ConfirmNoteDeletionKey: @YES,
+			CheckSpellingInNoteBodyKey: @YES,
+			TextReplacementInNoteBodyKey: @NO,
+			AutoCompleteSearchesKey: @YES,
+			QuitWhenClosingMainWindowKey: @YES,
+			TriedToImportBlorKey: @NO,
+			HorizontalLayoutKey: @NO,
+			MakeURLsClickableKey: @YES,
+			HighlightSearchTermsKey: @YES,
+			TableColumnsHaveBodyPreviewKey: @YES,
+			LastScrollOffsetKey: @0.0,
+			LastSelectedPreferencesPaneKey: @"General",
+			TableFontSizeKey: @((float)[NSFont smallSystemFontSize]),
+			NoteAttributesVisibleKey: @[ NoteTitleColumnString, NoteDateModifiedColumnString ],
+			TableSortColumnKey: NoteDateModifiedColumnString,
+			TableIsReverseSortedKey: @YES }];
 		
 		autoCompleteSearches = [defaults boolForKey:AutoCompleteSearchesKey];
 	}
@@ -450,8 +455,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender {
 	if (color) {
 		
-		[searchTermHighlightAttributes release];
-		searchTermHighlightAttributes = nil;
+		self.searchTermHighlightAttributes = nil;
 		
 		SetArchivedPreference(defaults, SearchTermHighlightColorKeyedArchiveKey, color);
 		
@@ -473,10 +477,15 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 	NSColor *highlightColor = nil;
 	
 	if (!searchTermHighlightAttributes && (highlightColor = [self searchTermHighlightColorRaw:NO])) {
-		searchTermHighlightAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:highlightColor, NSBackgroundColorAttributeName, nil] retain];
+		self.searchTermHighlightAttributes = @{ NSBackgroundColorAttributeName: highlightColor };
 	}
 	return searchTermHighlightAttributes;
 	
+}
+
+- (void)setSearchTermHighlightAttributes:(NSDictionary *)attributes {
+	[searchTermHighlightAttributes release];
+	searchTermHighlightAttributes = [attributes retain];
 }
 
 - (void)setSoftTabs:(BOOL)value sender:(id)sender {
@@ -529,8 +538,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	[noteBodyParagraphStyle release];
 	noteBodyParagraphStyle = nil;
 	
-	[noteBodyAttributes release];
-	noteBodyAttributes = nil; //cause method to re-update
+	self.noteBodyAttributes = nil; //cause method to re-update
 	
 	SetArchivedPreference(defaults, NoteBodyFontKeyedArchiveKey, noteBodyFont);
 	
@@ -572,7 +580,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	
 	if (!noteBodyAttributes && bodyFont) {
 		
-		NSMutableDictionary *attrs = [[NSMutableDictionary dictionaryWithObjectsAndKeys:bodyFont, NSFontAttributeName, nil] retain];
+		NSMutableDictionary *attrs = [@{ NSFontAttributeName: bodyFont } mutableCopy];
 		
 		//not storing the foreground color in each note will make the database smaller, and black is assumed when drawing text
 		NSColor *fgColor = [self foregroundTextColor];
@@ -587,7 +595,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		}
 	   /*NSTextWritingDirectionEmbedding*/
 		//[NSArray arrayWithObjects:[NSNumber numberWithInt:0], [NSNumber numberWithInt:0], nil], @"NSWritingDirection", //for auto-LTR-RTL text
-		noteBodyAttributes = attrs;
+		self.noteBodyAttributes = [attrs autorelease];
 	}
 	return noteBodyAttributes;
 }
@@ -629,8 +637,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 
 - (void)setForegroundTextColor:(NSColor*)aColor sender:(id)sender {
 	if (aColor) {
-		[noteBodyAttributes release];
-		noteBodyAttributes = nil;
+		self.noteBodyAttributes = nil;
 		
 		SetArchivedPreference(defaults, ForegroundTextColorKeyedArchiveKey, aColor);
 		
@@ -648,8 +655,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 		//highlight color is based on blended-alpha version of background color
 		//(because nslayoutmanager temporary attributes don't seem to like alpha components)
 		//so it's necessary to invalidate the effective cache of that computed highlight color
-		[searchTermHighlightAttributes release];
-		searchTermHighlightAttributes = nil;
+		self.searchTermHighlightAttributes = nil;
 
 		SetArchivedPreference(defaults, BackgroundTextColorKeyedArchiveKey, aColor);
 	
@@ -841,8 +847,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	if (!bookmarkData || !aliasData) {
 		if (error && !*error)
 			*error = [NSError errorWithDomain:@"NVFileReferenceErrorDomain" code:EIO
-				userInfo:[NSDictionary dictionaryWithObject:@"Unable to create compatible directory identity data."
-														forKey:NSLocalizedDescriptionKey]];
+				userInfo:@{ NSLocalizedDescriptionKey: @"Unable to create compatible directory identity data." }];
 		return NO;
 	}
 	[defaults setObject:bookmarkData forKey:DirectoryBookmarkKey];
@@ -870,8 +875,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 
 	if (!chosenURL) {
 		if (error) *error = [NSError errorWithDomain:@"NVFileReferenceErrorDomain" code:ENOENT
-			userInfo:[NSDictionary dictionaryWithObject:@"The saved notes directory could not be located."
-														forKey:NSLocalizedDescriptionKey]];
+				userInfo:@{ NSLocalizedDescriptionKey: @"The saved notes directory could not be located." }];
 		return nil;
 	}
 

@@ -61,6 +61,8 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 
 @implementation NotationController
 
+@synthesize filterString, directoryRetryTimer, changeWritingTimer, lastWriteError;
+
 - (id)init {
     self = [super init];
     if (self) {
@@ -116,7 +118,7 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 		isDirectory:YES];
 	if (!applicationSupportURL || ![manager createDirectoryAtURL:directoryURL
 		withIntermediateDirectories:NO
-		attributes:[NSDictionary dictionaryWithObject:@0700 forKey:NSFilePosixPermissions]
+		attributes:@{ NSFilePosixPermissions: @0700 }
 		error:&urlError]) {
 		if (err) *err = ioErr;
 		[self release];
@@ -585,8 +587,7 @@ bail:
 		writeRetryPending = NO;
 		if (!directoryRetryPending && directoryRetryTimer) {
 			[directoryRetryTimer invalidate];
-			[directoryRetryTimer release];
-			directoryRetryTimer = nil;
+			self.directoryRetryTimer = nil;
 			directoryRetryAttempt = 0;
 		}
 	}
@@ -693,16 +694,14 @@ bail:
 		[writeAlert setAlertStyle:NSAlertStyleWarning];
 		[writeAlert runModal];
 		
-		[lastWriteError release];
-		lastWriteError = [error retain];
+		self.lastWriteError = error;
     }
 }
 
 - (void)synchronizeNoteChanges:(NSTimer*)timer {
 	BOOL attemptedWrites = [pendingFileWrites count] || [pendingJournalWrites count];
 	if (attemptedWrites) {
-		[lastWriteError release];
-		lastWriteError = nil;
+		self.lastWriteError = nil;
 		if ([notationPrefs notesStorageFormat] != SingleDatabaseFormat) {
 			for (NoteObject *note in [[pendingFileWrites copy] autorelease])
 				if ([note writeUsingCurrentFileFormatIfNecessary]) [pendingFileWrites removeObject:note];
@@ -720,16 +719,14 @@ bail:
 			[self _scheduleFilesystemRetryTimer];
 		} else if (!writeRetryPending && !directoryRetryPending && directoryRetryTimer) {
 			[directoryRetryTimer invalidate];
-			[directoryRetryTimer release];
-			directoryRetryTimer = nil;
+			self.directoryRetryTimer = nil;
 			directoryRetryAttempt = 0;
 		}
 	}
     
-    if (changeWritingTimer) {
+	if (changeWritingTimer) {
 		[changeWritingTimer invalidate];
-		[changeWritingTimer release];
-		changeWritingTimer = nil;
+		self.changeWritingTimer = nil;
     }
 }
 
@@ -741,8 +738,7 @@ bail:
 		writeRetryPending = NO;
 		if (!directoryRetryPending && directoryRetryTimer) {
 			[directoryRetryTimer invalidate];
-			[directoryRetryTimer release];
-			directoryRetryTimer = nil;
+			self.directoryRetryTimer = nil;
 			directoryRetryAttempt = 0;
 		}
 	}
@@ -862,12 +858,8 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	
 	if (![noteArray count]) return; 
 	
-	unsigned int i;
-	
 	if ([[self undoManager] isUndoing]) [undoManager beginUndoGrouping];
-	for (i=0; i<[noteArray count]; i++) {
-		NoteObject * note = [noteArray objectAtIndex:i];
-		
+	for (NoteObject *note in noteArray) {
 		[self _addNote:note];
 		
 		[note makeNoteDirtyUpdateTime:NO updateFile:YES];
@@ -891,12 +883,8 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	
 	if (![noteArray count]) return; 
 	
-	unsigned int i;
-	
 	if ([[self undoManager] isUndoing]) [undoManager beginUndoGrouping];
-	for (i=0; i<[noteArray count]; i++) {
-		NoteObject * note = [noteArray objectAtIndex:i];
-		
+	for (NoteObject *note in noteArray) {
 		[self _addNote:note];
 		
 		[note makeNoteDirtyUpdateTime:YES updateFile:YES];
@@ -1040,9 +1028,9 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 		
 		//always synchronize absolutely no matter what 15 seconds after any change
 		if (!changeWritingTimer)
-			changeWritingTimer = [[NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self 
+			self.changeWritingTimer = [NSTimer scheduledTimerWithTimeInterval:(immediately ? 0.0 : 15.0) target:self
 									 selector:@selector(synchronizeNoteChanges:)
-									 userInfo:nil repeats:NO] retain];
+									 userInfo:nil repeats:NO];
 		
 		//next user change always invalidates queued write from performSelector, but not queued write from timer
 		//this avoids excessive writing and any potential and unnecessary disk access while user types

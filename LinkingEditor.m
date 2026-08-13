@@ -28,15 +28,7 @@
 #import "NVPasswordGenerator.h"
 
 #include <CoreServices/CoreServices.h>
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
 #include <Carbon/Carbon.h>
-#endif
-
-#define PASSWORD_SUGGESTIONS 0
-
-#ifdef notyet
-static long (*GetGetScriptManagerVariablePointer())(short);
-#endif
 
 @interface NSCursor (WhiteIBeamCursor)
 + (NSCursor*)whiteIBeamCursor;
@@ -157,8 +149,6 @@ CGFloat _perceptualDarkness(NSColor*a);
 }
 
 - (BOOL)becomeFirstResponder {
-	[notesTableView setShouldUseSecondaryHighlightColor:YES];
-
 	if ([[[self window] currentEvent] type] == NSEventTypeKeyDown && [[[self window] currentEvent] firstCharacter] == '\t') {
 		//"indicate" the current cursor/selection when moving focus to this field, but only if the user did not click here
 		NSRange range = [self selectedRange];
@@ -180,8 +170,6 @@ CGFloat _perceptualDarkness(NSColor*a);
 }
 
 - (BOOL)resignFirstResponder {
-	[notesTableView setShouldUseSecondaryHighlightColor:NO];
-	
 	[self performSelector:@selector(_fixCursorForBackgroundUpdatingMouseInside:) withObject:[NSNumber numberWithBool:YES] afterDelay:0.0];
 	
 	return [super resignFirstResponder];
@@ -473,8 +461,6 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 	return [super writeSelectionToPasteboard:pboard type:type];
 }
 
-#define COPY_PASTE_DEBUG 0
-
 - (NSArray *)writablePasteboardTypes {
 	NSMutableArray *types = [NSMutableArray arrayWithObjects:NVPTFPboardType, NSPasteboardTypeString, nil];
 	
@@ -502,23 +488,11 @@ CGFloat _perceptualColorDifference(NSColor*a, NSColor*b) {
 				if ([attributes attributesHaveFontTrait:0 orAttribute:NSStrikethroughStyleAttributeName])
 					goto copyRTFType;
 			}
-#if COPY_PASTE_DEBUG
-			NSLog(@"false alarm: no real styles");
-#endif
-			
-		} else {
-#if COPY_PASTE_DEBUG
-			NSLog(@"homogeneous style");
-#endif
 		}
-		
+
 		if (0) {
 copyRTFType:
 			//we have more than a single styling segment within the selection--grudgingly allow regular RTF copying
-#if COPY_PASTE_DEBUG
-			NSLog(@"copying RTF due to multiple attributes");
-			[[self layoutManager] addTemporaryAttributes:[prefsController searchTermHighlightAttributes] forCharacterRange:effectiveRange];
-#endif
 			[types insertObject:NSPasteboardTypeRTF atIndex:1];
 		}
 	}
@@ -1404,18 +1378,6 @@ cancelCompetion:
 	return [super shouldChangeTextInRange:affectedCharRange replacementString:replacementString];
 }
 
-#ifdef notyet
-static long (*GetGetScriptManagerVariablePointer())(short) {
-	static long (*_GetScriptManagerVariablePointer)(short) = NULL;
-	if (!_GetScriptManagerVariablePointer) {
-		NSLog(@"looking up");
-		CFBundleRef csBundle = CFBundleCreate(NULL, CFURLCreateWithFileSystemPath(NULL, CFSTR("/System/Library/Frameworks/CoreServices.framework"), kCFURLPOSIXPathStyle, TRUE));
-		if (csBundle) _GetScriptManagerVariablePointer = (long (*)(short))CFBundleGetDataPointerForName(csBundle, CFSTR("GetScriptManagerVariable"));
-	}
-	return _GetScriptManagerVariablePointer;
-}
-#endif
-
 - (void)fixTypingAttributesForSubstitutedFonts {
 	//fixes a problem with fonts substituted by non-system input languages that Apple should have fixed themselves
 	
@@ -1431,17 +1393,13 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	//because someone on a japanese-localized system could see their font changing around a lot if they didn't set their note body font to something suitable for their language
 	
 	BOOL currentKeyboardInputIsSystemLanguage = NO;
-	
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+
     TISInputSourceRef inputRef = TISCopyCurrentKeyboardInputSource();
     NSArray* inputLangs = [[(NSArray*)TISGetInputSourceProperty(inputRef, kTISPropertyInputSourceLanguages) retain] autorelease];
     CFRelease(inputRef);
     NSString *preferredLang = [[NSLocale autoupdatingCurrentLocale] objectForKey:NSLocaleLanguageCode];
     currentKeyboardInputIsSystemLanguage = nil != preferredLang && [inputLangs containsObject:preferredLang];
-#else
-	currentKeyboardInputIsSystemLanguage = GetScriptManagerVariable(smSysScript) == GetScriptManagerVariable(smKeyScript);
-#endif
-	
+
 	if (currentKeyboardInputIsSystemLanguage) {
 		//only attempt to restore fonts (with styles of course) if the current script is system default--that is, not using an input method that would change the font
 		//this check helps prevent NSTextView from being repeatedly punched in the face when it can't help it
@@ -1613,20 +1571,8 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 		
 		[editMenu addItem:[NSMenuItem separatorItem]];
         
-#if PASSWORD_SUGGESTIONS
-        theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"New Password...", "new password command in the edit menu")
-												 action:@selector(showGeneratedPasswords:) keyEquivalent:@"\\"];
-        [theMenuItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
-        [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
-        [editMenu addItem:theMenuItem];
-        [theMenuItem release];
-#endif
-        
         theMenuItem = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Insert New Password", "insert new password command in the edit menu")
 												 action:@selector(insertGeneratedPassword:) keyEquivalent:@"\\"];
-#if PASSWORD_SUGGESTIONS
-        [theMenuItem setAlternate:YES];
-#endif
 		[theMenuItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand|NSEventModifierFlagOption];
         [theMenuItem setTarget:nil]; // First Responder being the current Link Editor
         [editMenu addItem:theMenuItem];
@@ -1640,32 +1586,15 @@ static long (*GetGetScriptManagerVariablePointer())(short) {
 	[self insertIntoTextStorage:password];
     @try {
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
-    #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
-    NSPasteboardItem *pbitem = [[[NSPasteboardItem alloc] init] autorelease];
-    [pbitem setData:[password dataUsingEncoding:NSUTF8StringEncoding] forType:@"public.plain-text"];
-    [pb writeObjects:[NSArray arrayWithObject:pbitem]];
-    #else
-    [pb declareTypes:[NSArray arrayWithObject:NSPasteboardTypeString] owner:nil];
-    [pb setString:password forType:NSPasteboardTypeString];
-    #endif
+	NSPasteboardItem *pbitem = [[[NSPasteboardItem alloc] init] autorelease];
+	[pbitem setData:[password dataUsingEncoding:NSUTF8StringEncoding] forType:@"public.plain-text"];
+	[pb writeObjects:[NSArray arrayWithObject:pbitem]];
     } @catch (NSException *e) {}
 }
 
 - (void)insertGeneratedPassword:(id)sender {
     NSString *password = [NVPasswordGenerator strong];
     [self insertPassword:password];
-}
-
-- (void)showGeneratedPasswords:(id)sender {
-    #ifdef notyet
-    NSArray *suggestedPasswords = [NVPasswordGenerator suggestions];
-    
-    // display modal overlay, get user selection and insert it
-    // Nice to have:
-    // keep stats on the user's selection and then use the most frequent choice in [insertGeneratedPassword] (instead of just [strong])
-    #lse
-    [self insertGeneratedPassword:nil];
-    #endif
 }
 
 - (void)dealloc {

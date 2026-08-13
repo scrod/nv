@@ -29,7 +29,4 @@ typedef NSUInteger NVPasswordOptions;
 + (NSString*)medium;
 + (NSString*)strong;
 
-// ordered from strong to light
-+ (NSArray*)suggestions;
-
 @end

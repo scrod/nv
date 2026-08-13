@@ -31,19 +31,18 @@
 	CFUUIDBytes uuidBytes;
 	NoteObject *noteObject;
 
-	id delegate;
+	__weak id delegate;
 }
 
 - (id)initWithDictionary:(NSDictionary*)aDict;
 - (id)initWithNoteObject:(NoteObject*)aNote searchString:(NSString*)aString;
 - (id)initWithNoteUUIDBytes:(CFUUIDBytes)bytes searchString:(NSString*)aString;
 
-- (NSString*)searchString;
+@property (nonatomic, copy, readonly) NSString *searchString;
 - (NoteObject*)noteObject;
 - (void)validateNoteObject;
 - (NSDictionary*)dictionaryRep;
-- (void)setDelegate:(id)aDelegate;
-- (id)delegate;
+@property (nonatomic, weak) id delegate; // zeroing weak reference
 
 @end
 

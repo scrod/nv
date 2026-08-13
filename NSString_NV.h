@@ -36,9 +36,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 + (NSString*)customPasteboardTypeOfCode:(int)code;
 - (NSString*)stringAsSafePathExtension;
 - (NSString*)filenameExpectingAdditionalCharCount:(int)charCount;
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-- (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString;
-#endif
 - (BOOL)isAMachineDirective;
 - (void)copyItemToPasteboard:(id)sender;
 - (NSString*)syntheticTitleAndSeparatorWithContext:(NSString**)sepStr bodyLoc:(NSUInteger*)bodyLoc maxTitleLen:(NSUInteger)maxTitleLen;
@@ -83,10 +80,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision);
 
 + (NSCharacterSet*)labelSeparatorCharacterSet;
 + (NSCharacterSet*)listBulletsCharacterSet;
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-+ (id)newlineCharacterSet;
-#endif
 
 @end
 

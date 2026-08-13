@@ -40,26 +40,25 @@
 	NSInteger lastStatusCode;
 	
 	NSInvocation *successInvocation;
-	id delegate;
+	__weak id delegate;
 	BOOL isRunning, didCancel;
 }
 
 - (id)initWithURL:(NSURL*)aURL bodyStringAsUTF8B64:(NSString*)stringToEncode delegate:(id)aDelegate;
 - (id)initWithURL:(NSURL*)aURL POSTData:(NSData*)POSTData delegate:(id)aDelegate;
 - (id)initWithURL:(NSURL*)aURL POSTData:(NSData*)POSTData contentType:(NSString*)contentType delegate:(id)aDelegate;
-- (void)setRepresentedObject:(id)anObject;
-- (id)representedObject;
-- (NSInvocation*)successInvocation;
-- (NSURL*)requestURL;
-- (NSDictionary*)headers;
-- (NSInteger)statusCode;
-- (NSString*)errorMessage;
+@property (nonatomic, retain) id representedObject;
+@property (nonatomic, readonly) NSInvocation *successInvocation;
+@property (nonatomic, readonly) NSURL *requestURL;
+@property (nonatomic, readonly) NSDictionary *headers;
+@property (nonatomic, readonly) NSInteger statusCode;
+@property (nonatomic, readonly) NSString *errorMessage;
 - (void)_fetchDidFinishWithError:(NSString*)anErrString;
-- (id)delegate;
+@property (nonatomic, weak, readonly) id delegate; // zeroing weak reference
 - (BOOL)start;
 - (BOOL)startWithSuccessInvocation:(NSInvocation*)anInvocation;
-- (BOOL)isRunning;
-- (BOOL)didCancel;
+@property (nonatomic, readonly, getter=isRunning) BOOL running;
+@property (nonatomic, readonly) BOOL didCancel;
 - (void)cancel;
 @end
 

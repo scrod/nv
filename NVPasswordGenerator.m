@@ -8,10 +8,6 @@
 
 #include "NVPasswordGenerator.h"
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
-#include <dispatch/dispatch.h>
-#endif
-
 static const char nvDecimalSet[] = "0123456789";
 static const char nvLowerCaseSet[] = "abcdefghijklmnopqrstuvwxyz";
 static const char nvUpperCaseSet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -81,30 +77,6 @@ static const char nvSymbolSet[] = "!@#$%^&*()-+=?/<>";
 + (NSString*)strong
 {
     return ([self passwordWithOptions:knvPasswordNumeric|knvPasswordAlpha|knvPasswordMixedCase|knvPasswordSymbol length:10]);
-}
-
-+ (NSArray*)suggestions
-{
-    enum {numSuggestions = 4};
-    const SEL methods[numSuggestions] = {@selector(strong), @selector(medium), @selector(light), @selector(lightNumeric)};
-	const SEL* methodsPtr = methods;
-    
-    NSString* suggest[numSuggestions];
-	NSString** suggestPtr = suggest;
-    #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
-    dispatch_apply(numSuggestions, dispatch_get_global_queue(0, 0), ^(size_t i) {
-    #else
-    size_t i;
-    for (i = 0; i < numSuggestions; ++i) {
-    #endif
-        suggestPtr[i] = [self performSelector:methodsPtr[i]];
-    }
-    #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
-    );
-    #endif
-    
-    NSArray *a = [NSArray arrayWithObjects:suggest[0], suggest[1], suggest[2], suggest[3], nil];
-    return (a);
 }
 
 @end

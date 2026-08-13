@@ -42,10 +42,10 @@
 
 - (BOOL)_createFolderAtPath:(NSString*)path;
 
-- (BOOL)isPreparing;
+@property (nonatomic, readonly, getter=isPreparing) BOOL preparing;
 - (void)_finishPreparationWithPath:(NSString*)aPath;
 - (void)_stopPreparation;
-- (NSString*)preparedCachePath;
+@property (nonatomic, retain, readonly) NSString *preparedCachePath;
 - (void)setDelegate:(id)aDelegate;
 - (id)delegate;
 

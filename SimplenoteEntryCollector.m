@@ -33,6 +33,9 @@
 
 @implementation SimplenoteEntryCollector
 
+@synthesize entriesToCollect, entriesCollected, entriesInError,
+	collectionStoppedPrematurely = stopped, representedObject;
+
 //instances this short-lived class are intended to be started only once, and then deallocated
 
  - (id)initWithEntriesToCollect:(NSArray*)wantedEntries authToken:(NSString*)anAuthToken email:(NSString*)anEmail {
@@ -52,32 +55,8 @@
 	return self;
 }
 
-- (NSArray*)entriesToCollect {
-	return entriesToCollect;
-}
-
-- (NSArray*)entriesCollected {
-	return entriesCollected;
-}
-- (NSArray*)entriesInError {
-	return entriesInError;
-}
-
 - (BOOL)collectionStarted {
 	return entryFinishedCount != 0;
-}
-
-- (BOOL)collectionStoppedPrematurely {
-	return stopped;
-}
-
-- (void)setRepresentedObject:(id)anObject {
-	[representedObject autorelease];
-	representedObject = [anObject retain];
-}
-
-- (id)representedObject {
-	return representedObject;
 }
 
 - (void)dealloc {
@@ -169,7 +148,7 @@
 	}
 	[entry setObject:[rawObject objectForKey:@"systemtags"] forKey:@"systemtags"];
 	[entry setObject:[rawObject objectForKey:@"tags"] forKey:@"tags"];
-	if ([[fetcher representedObject] conformsToProtocol:@protocol(SynchronizedNote)]) [entry setObject:[fetcher representedObject] forKey:@"NoteObject"];
+	if ([fetcher.representedObject conformsToProtocol:@protocol(SynchronizedNote)]) [entry setObject:fetcher.representedObject forKey:@"NoteObject"];
 	[entry setObject:[rawObject objectForKey:@"content"] forKey:@"content"];
 
 	//NSLog(@"fetched entry %@" , entry);
@@ -181,19 +160,19 @@
 	
 	if (errString) {
 		NSLog(@"collector-%@ returned %@", fetcher, errString);
-		id obj = [fetcher representedObject];
+		id obj = fetcher.representedObject;
 		if (obj) {
 			[entriesInError addObject:[NSDictionary dictionaryWithObjectsAndKeys: obj, @"NoteObject", 
-								   [NSNumber numberWithInteger:[fetcher statusCode]], @"StatusCode", nil]];
+								   [NSNumber numberWithInteger:fetcher.statusCode], @"StatusCode", nil]];
 		}
 	} else {
 		NSDictionary *preparedDictionary = [self preparedDictionaryWithFetcher:fetcher receivedData:data];
 		if (!preparedDictionary) {
 			// Parsing JSON failed.  Is this the right way to handle the error?
-			id obj = [fetcher representedObject];
+			id obj = fetcher.representedObject;
 			if (obj) {
 				[entriesInError addObject: [NSDictionary dictionaryWithObjectsAndKeys: obj, @"NoteObject",
-											[NSNumber numberWithInteger:[fetcher statusCode]], @"StatusCode", nil]];
+										 [NSNumber numberWithInteger:fetcher.statusCode], @"StatusCode", nil]];
 			}
 		} else {
 			[entriesCollected addObject: preparedDictionary];
@@ -339,7 +318,7 @@
 - (NSString*)statusText {
 	NSString *opName = [self localizedActionDescription];
 	if ([entriesToCollect count] == 1) {
-		NoteObject *aNote = [currentFetcher representedObject];
+		NoteObject *aNote = currentFetcher.representedObject;
 		if ([aNote isKindOfClass:[NoteObject class]]) {
 			return [NSString stringWithFormat:NSLocalizedString(@"%@ quot%@quot...",@"example: Updating 'joe shmoe note'"), opName, titleOfNote(aNote)];
 		} else {
@@ -386,8 +365,8 @@
 	[syncMD setObject:[NSNumber numberWithInt:[[rawObject objectForKey:@"syncnum"] intValue]] forKey:@"syncnum"];
 	[syncMD setObject:[NSNumber numberWithBool:NO] forKey:@"dirty"];
 	
-	if ([fetcher representedObject]) {
-		id <SynchronizedNote> aNote = [fetcher representedObject];
+	if (fetcher.representedObject) {
+		id <SynchronizedNote> aNote = fetcher.representedObject;
 		[result setObject:aNote forKey:@"NoteObject"];
 		
 		if (@selector(fetcherForCreatingNote:) == fetcherOpSEL) {

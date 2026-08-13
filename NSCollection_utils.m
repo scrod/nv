@@ -150,35 +150,9 @@
 }
 
 
-#if 0
-- (NSRange)nextRangeForString:(NSString*)string activeNote:(NoteObject*)startNote options:(unsigned)opts range:(NSRange)inRange {
-	unsigned noteCount = [self count];
-	NSRange range = NSMakeRange(NSNotFound, 0);
-	
-	if (count > 0) {
-		unsigned noteIndex, startIndex = [self indexOfObjectIdenticalTo:startNote];
-		BOOL reversed = opts | NSBackwardsSearch;
-		if (startIndex == NSNotFound) startIndex = reversed ? count - 1 : 0;
-		noteIndex = startIndex;
-		
-		unsigned quoteIndex = [string rangeOfString:@"\"" options:NSLiteralSearch].location;
-		NSArray *words = [string componentsSeparatedByString:quoteIndex == NSNotFound ? @" " : @"\""];
-		
-		do {
-			NSRange range = [[self objectAtIndex:noteIndex] nextRangeForWords:words options:opts range:inRange];
-			noteIndex = noteIndex + reversed ? -1 : 1;
-		} while (range.location == NSNotFound && (reversed ? noteIndex > 0 : noteIndex < count - 1));
-	}
-	
-	return range;
-}
-#endif
-
 - (void)addMenuItemsForURLsInNotes:(NSMenu*)urlsMenu {
 	//iterate over notes in array
 	//accumulate links as NSMenuItems, with separators between them and disabled items being names of notes
-	unsigned int i;
-	
 	//while ([urlsMenu numberOfItems]) {
 	//	[urlsMenu removeItemAtIndex:0];
 	//}
@@ -190,8 +164,7 @@
 
 	BOOL didAddInitialSeparator = NO;
 	
-	for (i = 0; i<[self count]; i++) {
-		NoteObject *aNote = [self objectAtIndex:i];
+	for (NoteObject *aNote in self) {
 		NSArray *urls = [[aNote contentString] allLinks];
 		if ([urls count] > 0) {
 			if (!didAddInitialSeparator) {
@@ -199,9 +172,7 @@
 				didAddInitialSeparator = YES;
 			}
 			
-			unsigned int j;
-			for (j=0; j<[urls count]; j++) {
-				NSURL *url = [urls objectAtIndex:j];
+			for (NSURL *url in urls) {
 				NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy URL",@"contextual menu item title to copy urls")
 															  action:@selector(copyItemToPasteboard:) keyEquivalent:@""];
 				//_other_ people would use "_web_userVisibleString" here, but resourceSpecifier looks like it's good enough

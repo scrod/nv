@@ -200,8 +200,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	if (!writeRetryPending) {
 		if (directoryRetryTimer) {
 			[directoryRetryTimer invalidate];
-			[directoryRetryTimer release];
-			directoryRetryTimer = nil;
+			self.directoryRetryTimer = nil;
 		}
 		directoryRetryAttempt = 0;
 	}
@@ -233,8 +232,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	directoryRetryPending = NO;
 	if (directoryRetryTimer) {
 		[directoryRetryTimer invalidate];
-		[directoryRetryTimer release];
-		directoryRetryTimer = nil;
+		self.directoryRetryTimer = nil;
 	}
 	directoryRetryAttempt = 0;
 	if (writeRetryPending) [self _scheduleFilesystemRetryTimer];
@@ -246,8 +244,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	BOOL retryDirectory = directoryRetryPending;
 	BOOL retryWrites = writeRetryPending;
 	directoryRetryPending = writeRetryPending = NO;
-	[directoryRetryTimer release];
-	directoryRetryTimer = nil;
+	self.directoryRetryTimer = nil;
 	if (retryDirectory) [self _requestDirectoryScan];
 	if (retryWrites) [self flushAllNoteChanges];
 }
@@ -257,8 +254,9 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	static const NSTimeInterval delays[] = { 0.1, 0.5, 2.0, 10.0, 30.0 };
 	NSUInteger index = MIN(directoryRetryAttempt, sizeof(delays) / sizeof(delays[0]) - 1);
 	directoryRetryAttempt++;
-	directoryRetryTimer = [[NSTimer timerWithTimeInterval:delays[index] target:self
-		selector:@selector(_retryDirectoryScan:) userInfo:nil repeats:NO] retain];
+	self.directoryRetryTimer = [NSTimer timerWithTimeInterval:delays[index] target:self
+		selector:@selector(_retryDirectoryScan:) userInfo:nil repeats:NO];
+
 	[[NSRunLoop mainRunLoop] addTimer:directoryRetryTimer forMode:NSRunLoopCommonModes];
 }
 
@@ -294,7 +292,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	
 	FSEventStreamContext context = { 0, self, CFRetain, CFRelease, CFCopyDescription };
 	
-	noteDirEventStreamRef = FSEventStreamCreate(NULL, &FSEventsCallback, &context, (CFArrayRef)[NSArray arrayWithObject:path], kFSEventStreamEventIdSinceNow, 
+	noteDirEventStreamRef = FSEventStreamCreate(NULL, &FSEventsCallback, &context, (CFArrayRef)@[ path ], kFSEventStreamEventIdSinceNow,
 												1.0, kFSEventStreamCreateFlagWatchRoot | kFSEventStreamCreateFlagIgnoreSelf);
 	if (!noteDirEventStreamRef) {
 		NSLog(@"could not create the FSEvents stream!");
@@ -365,7 +363,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	if (!renamed && !metadataChanged) return;
 	NSData *entryData = [NSData dataWithBytes:entry length:sizeof(*entry)];
 	[directoryTransaction->identityUpdates addObject:@[ note, newFilename,
-		[newFilename stringByDeletingPathExtension], entryData, [NSNumber numberWithBool:renamed] ]];
+		[newFilename stringByDeletingPathExtension], entryData, @(renamed) ]];
 	directoryTransaction->hasChanges = YES;
 	if (renamed && ![directoryTransaction->changedNotes containsObject:note])
 		[directoryTransaction->changedNotes addObject:note];
@@ -504,8 +502,7 @@ finished:
 		if (!directoryStreamNeedsReconfiguration && !writeRetryPending) {
 			if (directoryRetryTimer) {
 				[directoryRetryTimer invalidate];
-				[directoryRetryTimer release];
-				directoryRetryTimer = nil;
+				self.directoryRetryTimer = nil;
 			}
 			directoryRetryAttempt = 0;
 		}
@@ -608,7 +605,7 @@ static BOOL NVErrorIsNoSuchFile(NSError *error) {
 	 * A child ENOENT restarts the complete enumeration once instead of being
 	 * omitted, because omission is indistinguishable from a user deletion.
 	 */
-	NSArray *keys = [NSArray arrayWithObject:NSURLIsRegularFileKey];
+	NSArray *keys = @[ NSURLIsRegularFileKey ];
 	for (NSUInteger attempt = 0; attempt < 2; attempt++) {
 		[self _resetCatalogEntries];
 		NSURL *directoryURL = [NSURL fileURLWithPath:[noteDirectoryURL path] isDirectory:YES];
@@ -1029,7 +1026,7 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 	for (NoteObject *note in removedEntries) {
 		uint64_t identifier = useDocumentIdentifiers ? documentIDOfNote(note) : sessionFileIDOfNote(note);
 		if (!identifier) continue;
-		NSNumber *key = [NSNumber numberWithUnsignedLongLong:identifier];
+		NSNumber *key = @((unsigned long long)identifier);
 		[removedByIdentifier setObject:[removedByIdentifier objectForKey:key] ? (id)[NSNull null] : note
 			forKey:key];
 	}
@@ -1038,14 +1035,13 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 		NoteCatalogEntry *entry = [value pointerValue];
 		uint64_t identifier = useDocumentIdentifiers ? entry->documentID : entry->fileID;
 		if (!identifier) continue;
-		NSNumber *key = [NSNumber numberWithUnsignedLongLong:identifier];
-		[addedCounts setObject:[NSNumber numberWithUnsignedInteger:
-			[[addedCounts objectForKey:key] unsignedIntegerValue] + 1] forKey:key];
+		NSNumber *key = @((unsigned long long)identifier);
+		[addedCounts setObject:@((NSUInteger)([[addedCounts objectForKey:key] unsignedIntegerValue] + 1)) forKey:key];
 	}
 	for (NSValue *value in [[addedEntries copy] autorelease]) {
 		NoteCatalogEntry *entry = [value pointerValue];
 		uint64_t identifier = useDocumentIdentifiers ? entry->documentID : entry->fileID;
-		NSNumber *key = [NSNumber numberWithUnsignedLongLong:identifier];
+		NSNumber *key = @((unsigned long long)identifier);
 		id note = identifier && [[addedCounts objectForKey:key] unsignedIntegerValue] == 1 ?
 			[removedByIdentifier objectForKey:key] : nil;
 		if (!note || note == [NSNull null]) continue;
@@ -1143,8 +1139,7 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 		NSArray *values = [addedByContent objectForKey:content];
 		NSArray *notes = [removedByContent objectForKey:content];
 		if ([values count] == 1 && [notes count] == 1)
-			[uniquePairs addObject:[NSArray arrayWithObjects:[values objectAtIndex:0],
-				[notes objectAtIndex:0], nil]];
+			[uniquePairs addObject:@[ [values objectAtIndex:0], [notes objectAtIndex:0] ]];
 	}
 	for (NSArray *pair in uniquePairs) {
 		NSValue *value = [pair objectAtIndex:0];

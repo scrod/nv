@@ -166,11 +166,11 @@
 		[savePanel setDirectoryURL:[[NSFileManager defaultManager] homeDirectoryForCurrentUser]];
         [savePanel setNameFieldStringValue:filename];
 
-        NSArray *retainedNotes = [notes retain];
-        [savePanel beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
-            [self exportPanelDidEnd:savePanel returnCode:response contextInfo:(void *)retainedNotes];
-            [retainedNotes release];
-            self.currentPanel = nil;
+		NSArray *retainedNotes = [notes retain];
+		[savePanel beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+			[self exportPanelDidEnd:savePanel returnCode:response contextInfo:(void *)retainedNotes];
+			[retainedNotes release];
+			self.currentPanel = nil;
         }];
 
     } else if ([notes count] > 1) {
@@ -184,11 +184,11 @@
         [openPanel setTitle:NSLocalizedString(@"Export Notes", @"title of export notes dialog")];
         [openPanel setMessage:[NSString stringWithFormat:NSLocalizedString(@"Choose a folder into which %lu notes will be exported",nil), (unsigned long)[notes count]]];
 
-        NSArray *retainedNotes = [notes retain];
-        [openPanel beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
-            [self exportPanelDidEnd:openPanel returnCode:response contextInfo:(void *)retainedNotes];
-            [retainedNotes release];
-            self.currentPanel = nil;
+		NSArray *retainedNotes = [notes retain];
+		[openPanel beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+			[self exportPanelDidEnd:openPanel returnCode:response contextInfo:(void *)retainedNotes];
+			[retainedNotes release];
+			self.currentPanel = nil;
         }];
     } else {
         NSAlert *alert = [[[NSAlert alloc] init] autorelease];

@@ -21,8 +21,14 @@
 
 #import "InvocationRecorder.h"
 
+@interface InvocationRecorder ()
+@property (nonatomic, retain, readwrite) id target;
+@property (nonatomic, retain, readwrite) NSInvocation *invocation;
+@end
 
 @implementation InvocationRecorder
+
+@synthesize target, invocation;
 
 + (id)invocationRecorder {
 	return [[[self alloc] init] autorelease];
@@ -34,13 +40,6 @@
 	[super dealloc];
 }
 
-- (id)target {
-	return target;
-}
-- (NSInvocation *)invocation {
-	return invocation; 
-}
-
 - (NSMethodSignature *)methodSignatureForSelector:(SEL)aSEL {
 	//check the superclass first
 	
@@ -50,8 +49,7 @@
 
 - (void)forwardInvocation:(NSInvocation *)anInvocation {
 	if (invocation != anInvocation) {
-		[invocation autorelease];
-		invocation = [anInvocation retain];
+		self.invocation = anInvocation;
 		
 		[anInvocation setTarget:target];
 		[invocation retainArguments];
@@ -60,8 +58,7 @@
 
 - (id)prepareWithInvocationTarget:(id)aTarget {
 	if (target != aTarget) {
-		[target autorelease];
-		target = [aTarget retain];
+		self.target = aTarget;
 	}
 	return self;
 }
@@ -69,6 +66,8 @@
 @end
 
 @implementation ComparableInvocation 
+
+@synthesize invocation = innerInvocation;
 
 - (id)initWithInvocation:(NSInvocation*)anInvocation {
 	self = [super init];
@@ -90,10 +89,6 @@
 - (NSUInteger)hash {
 	//this is alright for now
 	return [[innerInvocation methodSignature] hash];
-}
-
-- (NSInvocation*)invocation {
-	return innerInvocation;
 }
 
 - (BOOL)isEqual:(id)anObject {

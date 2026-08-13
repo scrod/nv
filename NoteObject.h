@@ -113,7 +113,6 @@ NSInteger compareLabelStringReverse(id *a, id *b);
 NSInteger compareTitleStringReverse(id *a, id *b);
 
 NSInteger compareFilename(id *a, id *b);
-NSInteger compareFileSize(id *a, id *b);
 
 //syncing w/ server and from journal
 - (CFUUIDBytes *)uniqueNoteIDBytes;

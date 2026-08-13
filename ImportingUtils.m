@@ -5,9 +5,8 @@ NSPasteboardType const NVLegacyFilenamesPasteboardType = @"NSFilenamesPboardType
 NSPasteboardType const NVWebArchivePasteboardType = @"Apple Web Archive pasteboard type";
 
 NSArray *NVFilePathsFromPasteboard(NSPasteboard *pasteboard) {
-	NSDictionary *options = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES]
-														 forKey:NSPasteboardURLReadingFileURLsOnlyKey];
-	NSArray *fileURLs = [pasteboard readObjectsForClasses:[NSArray arrayWithObject:[NSURL class]] options:options];
+	NSDictionary *options = @{ NSPasteboardURLReadingFileURLsOnlyKey: @YES };
+	NSArray *fileURLs = [pasteboard readObjectsForClasses:@[ [NSURL class] ] options:options];
 	if ([fileURLs count]) {
 		NSMutableArray *paths = [NSMutableArray arrayWithCapacity:[fileURLs count]];
 		for (NSURL *URL in fileURLs) {

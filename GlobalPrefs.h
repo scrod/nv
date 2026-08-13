@@ -92,7 +92,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 - (void)setNoteBodyFont:(NSFont*)aFont sender:(id)sender;
 - (void)_setNoteBodyFont:(NSFont*)aFont;
 - (NSFont*)noteBodyFont;
-- (NSDictionary*)noteBodyAttributes;
+@property (nonatomic, retain, readonly) NSDictionary *noteBodyAttributes;
 - (NSParagraphStyle*)noteBodyParagraphStyle;
 - (BOOL)_bodyFontIsMonospace;
 
@@ -144,7 +144,7 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2);
 - (void)setShouldHighlightSearchTerms:(BOOL)shouldHighlight sender:(id)sender;
 - (BOOL)highlightSearchTerms;
 - (void)setSearchTermHighlightColor:(NSColor*)color sender:(id)sender;
-- (NSDictionary*)searchTermHighlightAttributes;
+@property (nonatomic, retain, readonly) NSDictionary *searchTermHighlightAttributes;
 - (NSColor*)searchTermHighlightColorRaw:(BOOL)isRaw;
 
 - (void)setSoftTabs:(BOOL)value sender:(id)sender;

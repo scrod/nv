@@ -57,7 +57,7 @@ extern NSString *NotationPrefsDidChangeNotification;
 	UInt32 epochIteration;
 	BOOL firstTimeUsed;
 	BOOL preferencesChanged;
-	id delegate;
+	__weak id delegate;
 	
 	@private 
 	//masterKey is not to be stored anywhere
@@ -68,28 +68,28 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 + (int)appVersion;
 + (NSMutableArray*)defaultPathExtensionsForFormat:(int)formatID;
-- (BOOL)preferencesChanged;
+@property (nonatomic, readonly) BOOL preferencesChanged;
 - (void)setForegroundTextColor:(NSColor*)aColor;
-- (NSColor*)foregroundColor;
+@property (nonatomic, readonly) NSColor *foregroundColor;
 - (void)setBaseBodyFont:(NSFont*)aFont;
-- (NSFont*)baseBodyFont;
+@property (nonatomic, readonly) NSFont *baseBodyFont;
 
-- (BOOL)storesPasswordInKeychain;
-- (int)notesStorageFormat;
-- (BOOL)confirmFileDeletion;
-- (BOOL)doesEncryption;
-- (NSDictionary*)syncServiceAccounts;
+@property (nonatomic, readonly) BOOL storesPasswordInKeychain;
+@property (nonatomic, readonly) int notesStorageFormat;
+@property (nonatomic, readonly) BOOL confirmFileDeletion;
+@property (nonatomic, readonly) BOOL doesEncryption;
+@property (nonatomic, readonly) NSDictionary *syncServiceAccounts;
 - (NSDictionary*)syncServiceAccountsForArchiving;
 - (NSDictionary*)syncAccountForServiceName:(NSString*)serviceName;
 - (NSString*)syncPasswordForServiceName:(NSString*)serviceName;
 - (NSUInteger)syncFrequencyInMinutesForServiceName:(NSString*)serviceName;
 - (BOOL)syncNotesShouldMergeForServiceName:(NSString*)serviceName;
 - (BOOL)syncServiceIsEnabled:(NSString*)serviceName;
-- (unsigned int)keyLengthInBits;
-- (unsigned int)hashIterationCount;
-- (UInt32)epochIteration;
-- (BOOL)firstTimeUsed;
-- (BOOL)secureTextEntry;
+@property (nonatomic, readonly) unsigned int keyLengthInBits;
+@property (nonatomic, readonly) unsigned int hashIterationCount;
+@property (nonatomic, readonly) UInt32 epochIteration;
+@property (nonatomic, readonly) BOOL firstTimeUsed;
+@property (nonatomic, readonly) BOOL secureTextEntry;
 
 - (void)forgetKeychainIdentifier;
 - (const char *)setKeychainIdentifier;
@@ -123,7 +123,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)removeSyncPasswordForService:(NSString*)serviceName;
 - (void)setKeyLengthInBits:(unsigned int)newLength;
 
-- (NSString*)fileMetadataVolumeUUID;
+@property (nonatomic, readonly) NSString *fileMetadataVolumeUUID;
 - (void)setFileMetadataVolumeUUID:(NSString*)volumeUUID;
 
 + (NSString*)pathExtensionForFormat:(int)format;
@@ -145,8 +145,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 //actually used while searching for files
 - (BOOL)catalogEntryAllowed:(NoteCatalogEntry*)catEntry;
 
-- (id)delegate;
-- (void)setDelegate:(id)aDelegate;
+@property (nonatomic, weak) id delegate; // zeroing weak reference
 
 @end
 

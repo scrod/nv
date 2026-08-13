@@ -27,11 +27,18 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 
+@interface TemporaryFileCachePreparer ()
+@property (nonatomic, retain) NotationPrefs *notationPrefs;
+@property (nonatomic, retain, readwrite) NSString *preparedCachePath;
+@end
+
 //used to mount a RAM disk for temporary file editing
 //instances of this class are probably not useful for more than one preparation
 //(which probably wouldn't be necessary anyway as RAM disks can't be unmounted)
 
 @implementation TemporaryFileCachePreparer
+
+@synthesize preparing = startedPreparing, preparedCachePath, notationPrefs;
 
 static NSInteger RAMDiskMountState(const char *expectedMountPath);
 static NSString *RAMDiskMountPath(void);
@@ -150,8 +157,7 @@ static NSString *TempDirectoryPathForEditing(void) {
 		return;
 	}
 	
-	[notationPrefs release];
-	notationPrefs = [prefs retain];
+	self.notationPrefs = prefs;
 	
 	/*
 		single-DB with encryption: use a mounted RAM disk
@@ -200,7 +206,7 @@ static NSString *TempDirectoryPathForEditing(void) {
 
 	[self retain];
 	[(attachTask = [NSTask new]) setLaunchPath:@"/usr/bin/hdiutil"];
-	[attachTask setArguments:[NSArray arrayWithObjects:@"attach", @"-nomount", @"-nobrowse", [NSString stringWithFormat:@"ram://%lu", (unsigned long)(2 * 1024 * numberOfMegabytes)], nil]];
+	[attachTask setArguments:@[ @"attach", @"-nomount", @"-nobrowse", [NSString stringWithFormat:@"ram://%lu", (unsigned long)(2 * 1024 * numberOfMegabytes)] ]];
 	[attachTask setStandardOutput:[NSPipe pipe]];
 	[attachTask launch];
 }
@@ -211,7 +217,7 @@ static NSString *TempDirectoryPathForEditing(void) {
 	
 	[self retain];
 	[(newfsTask = [NSTask new]) setLaunchPath:@"/sbin/newfs_hfs"];
-	[newfsTask setArguments:[NSArray arrayWithObjects:@"-v", [RAMDiskMountPath() lastPathComponent], aDeviceName, nil]];
+	[newfsTask setArguments:@[ @"-v", [RAMDiskMountPath() lastPathComponent], aDeviceName ]];
 	[newfsTask launch];
 }
 
@@ -221,16 +227,8 @@ static NSString *TempDirectoryPathForEditing(void) {
 	
 	[self retain];
 	[(mountTask = [NSTask new]) setLaunchPath:@"/sbin/mount"];
-	[mountTask setArguments:[NSArray arrayWithObjects:@"-t", @"hfs", @"-o", @"nobrowse", aDeviceName, RAMDiskMountPath(), nil]];
+	[mountTask setArguments:@[ @"-t", @"hfs", @"-o", @"nobrowse", aDeviceName, RAMDiskMountPath() ]];
 	[mountTask launch];
-}
-
-- (BOOL)isPreparing {
-	return startedPreparing;
-}
-
-- (NSString*)preparedCachePath {
-	return preparedCachePath;
 }
 
 - (void)_finishPreparationWithPath:(NSString*)aPath {
@@ -254,7 +252,7 @@ static NSString *TempDirectoryPathForEditing(void) {
 	(void)setxattr([aPath fileSystemRepresentation],
 		"com.apple.metadata:com_apple_backup_excludeItem",
 		NVBackupExclusionBplist, sizeof(NVBackupExclusionBplist), 0, 0);
-	preparedCachePath = [aPath retain];
+	self.preparedCachePath = aPath;
 	
 	startedPreparing = NO;
 	
@@ -283,13 +281,8 @@ static NSString *TempDirectoryPathForEditing(void) {
 	NSError *err = nil;
 	NSFileManager *fileMan = [NSFileManager defaultManager];
 	BOOL isDirectory = NO, didCreate = ([fileMan fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) ? YES : 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
 	[fileMan createDirectoryAtPath:path withIntermediateDirectories:NO attributes:
-	 [NSDictionary dictionaryWithObject:[NSNumber numberWithUnsignedLong:0700] forKey:NSFilePosixPermissions] error:&err];
-#else
-	[fileMan createDirectoryAtPath:path attributes:
-	 [NSDictionary dictionaryWithObject:[NSNumber numberWithUnsignedLong:0700] forKey:NSFilePosixPermissions]];
-#endif
+		 @{ NSFilePosixPermissions: @((unsigned long)0700) } error:&err];
 	if (!didCreate) NSLog(@"couldn't create directory '%@': %@", path, (err ? [err localizedDescription] : @"(unknown error)"));
 	return didCreate;
 }

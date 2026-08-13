@@ -216,7 +216,7 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	if (![root length]) return;
 	FSEventStreamContext context = { 0, self, CFRetain, CFRelease, CFCopyDescription };
 	scratchEventStream = FSEventStreamCreate(NULL, NVScratchEventCallback, &context,
-		(CFArrayRef)[NSArray arrayWithObject:root], kFSEventStreamEventIdSinceNow, 0.2,
+		(CFArrayRef)@[ root ], kFSEventStreamEventIdSinceNow, 0.2,
 		kFSEventStreamCreateFlagWatchRoot | kFSEventStreamCreateFlagFileEvents);
 	if (!scratchEventStream) return;
 	FSEventStreamSetDispatchQueue(scratchEventStream, dispatch_get_main_queue());
@@ -289,13 +289,12 @@ static ExternalEditingSession *sharedExternalEditingSession;
 				}
 			}
 		}
-		NSArray *arguments = [NSArray arrayWithObjects:completion,
-			[NSNumber numberWithBool:finished], nil];
+		NSArray *arguments = @[ completion, @(finished) ];
 		/* Deferred application termination runs a modal loop. Common modes let this
 		 * completion deliver AppKit's final quit/cancel answer from that loop. */
 		[self performSelector:@selector(invokeFinishCompletion:)
 			withObject:arguments afterDelay:0.0
-			inModes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
+			inModes:@[ NSRunLoopCommonModes ]];
 		[completion release];
 	}
 }
@@ -313,9 +312,8 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	}
 	void (^completion)(BOOL) = completionHandler ? [completionHandler copy] :
 		[^(BOOL success) { (void)success; } copy];
-	NSDictionary *request = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-		paths, NVFinishRequestPathsKey, completion, NVFinishRequestCompletionKey,
-		[NSDate dateWithTimeIntervalSinceNow:5.0], NVFinishRequestDeadlineKey, nil];
+		NSDictionary *request = @{ NVFinishRequestPathsKey: paths, NVFinishRequestCompletionKey: completion,
+			NVFinishRequestDeadlineKey: [NSDate dateWithTimeIntervalSinceNow:5.0] };
 	[completion release];
 	[_finishRequests addObject:request];
 	for (NSString *path in paths) {
@@ -350,8 +348,7 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	NSUInteger pending = [[session objectForKey:NVExternalEditorPendingOpenCountKey]
 		unsignedIntegerValue];
 	if (pending > 1)
-		[session setObject:[NSNumber numberWithUnsignedInteger:pending - 1]
-			forKey:NVExternalEditorPendingOpenCountKey];
+		[session setObject:@(pending - 1) forKey:NVExternalEditorPendingOpenCountKey];
 	else [session removeObjectForKey:NVExternalEditorPendingOpenCountKey];
 	NSMutableSet *applications = [session objectForKey:NVExternalEditorApplicationsKey];
 	if (application) {
@@ -416,12 +413,11 @@ static ExternalEditingSession *sharedExternalEditingSession;
 		NSMutableDictionary *session = [_filePathsBeingEdited objectForKey:sessionPath];
 		NSUInteger pending = [[session objectForKey:NVExternalEditorPendingOpenCountKey]
 			unsignedIntegerValue] + 1;
-		[session setObject:[NSNumber numberWithUnsignedInteger:pending]
-			forKey:NVExternalEditorPendingOpenCountKey];
+		[session setObject:@(pending) forKey:NVExternalEditorPendingOpenCountKey];
 	}
 	NSWorkspaceOpenConfiguration *configuration = [NSWorkspaceOpenConfiguration configuration];
 	[configuration setAddsToRecentItems:NO];
-	[[NSWorkspace sharedWorkspace] openURLs:[NSArray arrayWithObject:URL]
+	[[NSWorkspace sharedWorkspace] openURLs:@[ URL ]
 		withApplicationAtURL:applicationURL configuration:configuration
 		completionHandler:^(NSRunningApplication *application, NSError *error) {
 			if (!application && error) NSLog(@"Could not open external editor: %@", error);
@@ -551,8 +547,7 @@ failed:
 					[self removeSessionAtPath:path];
 			} else {
 				[session setObject:@YES forKey:NVExternalEditorPendingEndKey];
-				[session setObject:[NSNumber numberWithUnsignedInteger:attempts]
-					forKey:NVExternalEditorFinalReadAttemptsKey];
+			[session setObject:@(attempts) forKey:NVExternalEditorFinalReadAttemptsKey];
 			}
 		}
 		[session release];
@@ -639,8 +634,7 @@ failed:
 					[path lastPathComponent], data, &writeError);
 			if (directoryFD >= 0) close(directoryFD);
 			else writeError = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno
-				userInfo:[NSDictionary dictionaryWithObject:directory
-					forKey:NSFilePathErrorKey]];
+				userInfo:@{ NSFilePathErrorKey: directory }];
 			if (wrote) {
 				if (![session objectForKey:NVExternalEditorMergeBaseDataKey])
 					[session setObject:data forKey:NVExternalEditorMergeBaseDataKey];
@@ -684,7 +678,7 @@ failed:
 	if ([_filePathsBeingEdited objectForKey:path])
 		/* Final-read retries must continue while the quit confirmation is modal. */
 		[self performSelector:@selector(abortEditingFile:) withObject:path afterDelay:0.1
-			inModes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
+			inModes:@[ NSRunLoopCommonModes ]];
 	[self checkFinishRequests];
 	if (![_filePathsBeingEdited count]) [self stopScratchWatcher];
 }

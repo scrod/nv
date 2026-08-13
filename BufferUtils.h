@@ -29,7 +29,6 @@
 
 char *replaceString(char *oldString, const char *newString);
 void _ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufSize, unsigned int elemSize);
-int IsZeros(const void *s1, size_t n);
 int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint);
 void modp_tolower_copy(char* dest, const char* str, int len);
 void replace_breaks_utf8(char *s, size_t up_to_len);
@@ -37,6 +36,4 @@ void replace_breaks(char *str, size_t up_to_len);
 int ContainsHighAscii(const void *s1, size_t n);
 CFStringRef CFStringFromBase10Integer(int quantity);
 unsigned DumbWordCount(const void *s1, size_t len);
-NSInteger genericSortContextFirst(int (*context) (void*, void*), void* one, void* two);
 NSInteger genericSortContextLast(void* one, void* two, int (*context) (void*, void*));
-void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const void *, const void *));

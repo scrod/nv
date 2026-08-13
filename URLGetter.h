@@ -34,7 +34,7 @@
 
 	id userData;
 
-	id delegate;
+	__weak id delegate;
 
 	BOOL isIndicating, isImporting, didComplete;
 
@@ -45,17 +45,14 @@
 - (IBAction)cancelDownload:(id)sender;
 - (id)initWithURL:(NSURL*)aUrl delegate:(id)aDelegate userData:(id)someObj;
 
-- (NSURL*)url;
-- (id)userData;
-
-- (id)delegate;
-- (void)setDelegate:(id)aDelegate;
+@property (nonatomic, retain, readonly) NSURL *url;
+@property (nonatomic, retain, readonly) id userData;
+@property (nonatomic, retain, readonly) NSString *downloadPath;
+@property (nonatomic, weak) id delegate; // zeroing weak reference
 
 - (void)stopProgressIndication;
 - (void)startProgressIndication:(id)sender;
 - (void)updateProgress;
-- (NSString*)downloadPath;
-
 - (void)endDownloadWithPath:(NSString*)path;
 
 @end

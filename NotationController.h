@@ -99,6 +99,9 @@ typedef struct _NoteCatalogEntry {
 }
 
 @property(retain,nonatomic) NSString *filterString;
+@property (nonatomic, retain) NSTimer *directoryRetryTimer;
+@property (nonatomic, retain) NSTimer *changeWritingTimer;
+@property (nonatomic, retain) NSError *lastWriteError;
 
 - (id)init;
 - (id)initWithAliasData:(NSData*)data error:(OSStatus*)err;

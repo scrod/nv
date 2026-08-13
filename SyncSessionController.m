@@ -36,6 +36,8 @@ NSString *SyncSessionsChangedVisibleStatusNotification = @"SSCVSN";
 
 @implementation SyncSessionController
 
+@synthesize syncDelegate;
+
 static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, void * messageArgument);
 
  - (id)initWithSyncDelegate:(id)aSyncDelegate notationPrefs:(NotationPrefs*)prefs {
@@ -76,13 +78,6 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	return [NSArray array];
 }
 #endif
-
-- (void)setSyncDelegate:(id)aDelegate {
-	syncDelegate = aDelegate;
-}
-- (id)syncDelegate {
-	return syncDelegate;
-}
 
 static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, void * messageArgument) {
 	
@@ -233,14 +228,12 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 
 - (void)invalidateAllServices {
 	NSArray *svcs = [[[syncServiceSessions allKeys] copy] autorelease];
-	NSUInteger i = 0;
-	for (i=0; i<[svcs count]; i++) [self invalidateSyncService:[svcs objectAtIndex:i]];
+	for (NSString *serviceName in svcs) [self invalidateSyncService:serviceName];
 }
 
 - (void)initializeAllServices {
 	NSArray *svcs = [[self class] allServiceNames];
-	NSUInteger i = 0;
-	for (i=0; i<[svcs count]; i++) [self initializeService:[svcs objectAtIndex:i]];
+	for (NSString *serviceName in svcs) [self initializeService:serviceName];
 }
 
 
@@ -283,9 +276,8 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 			NSArray *tasks = [[session activeTasks] allObjects];
 			if ([tasks count]) {
 				//one item per task
-				NSUInteger j = 0;
-				for (j=0; j<[tasks count]; j++) {
-					NSMenuItem *taskItem = [[[NSMenuItem alloc] initWithTitle:[[tasks objectAtIndex:j] statusText] action:NULL keyEquivalent:@""] autorelease];
+				for (id task in tasks) {
+					NSMenuItem *taskItem = [[[NSMenuItem alloc] initWithTitle:[task statusText] action:NULL keyEquivalent:@""] autorelease];
 					[taskItem setEnabled:NO];
 					[aMenu addItem:taskItem];
 				}
@@ -347,18 +339,15 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 
 - (BOOL)hasRunningSessions {
 	NSArray *sessions = [syncServiceSessions allValues];
-	NSUInteger i = 0;
-	for (i=0; i<[sessions count]; i++) {
-		if ([[sessions objectAtIndex:i] isRunning]) return YES;
+	for (id <SyncServiceSession> session in sessions) {
+		if ([session isRunning]) return YES;
 	}
 	return NO;
 }
 
 - (BOOL)hasErrors {
 	NSArray *svcs = [[self class] allServiceNames];
-	NSUInteger i = 0;
-	for (i=0; i<[svcs count]; i++) {
-		NSString *serviceName = [svcs objectAtIndex:i];
+	for (NSString *serviceName in svcs) {
 		if ([notationPrefs syncServiceIsEnabled:serviceName]) {
 			//only report errors for those services with which the user is expecting (or hoping) to sync
 			id <SyncServiceSession> session = [syncServiceSessions objectForKey:serviceName];
@@ -414,9 +403,7 @@ static void SleepCallBack(void *refcon, io_service_t y, natural_t messageType, v
 	
 	BOOL willNeedToWait = NO;
 	NSArray *sessions = [syncServiceSessions allValues];
-	NSUInteger i = 0;
-	for (i=0; i<[sessions count]; i++) {
-		id <SyncServiceSession> session = [sessions objectAtIndex:i];
+	for (id <SyncServiceSession> session in sessions) {
 		if ([session hasUnsyncedChanges]) {
 			
 			//if the session has an error, the last reachability status is bad, and nothing is currently in progress, then skip pushing for it

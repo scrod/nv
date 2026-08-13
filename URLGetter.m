@@ -17,7 +17,16 @@
 
 #import "URLGetter.h"
 
+@interface URLGetter ()
+@property (nonatomic, retain, readwrite) NSString *downloadPath;
+@property (nonatomic, retain) NSString *tempDirectory;
+@property (nonatomic, retain) NSURLSession *session;
+@property (nonatomic, retain) NSURLSessionDownloadTask *downloadTask;
+@end
+
 @implementation URLGetter
+
+@synthesize url, userData, downloadPath, delegate, tempDirectory, session, downloadTask;
 
 - (id)initWithURL:(NSURL*)aUrl delegate:(id)aDelegate userData:(id)someObj {
 	if (!aUrl || [aUrl isFileURL]) {
@@ -41,9 +50,9 @@
 			[self release];
 			return nil;
 		}
-		session = [createdSession retain];
-		downloadTask = [task retain];
-		[downloadTask resume];
+		self.session = createdSession;
+		self.downloadTask = task;
+		[self.downloadTask resume];
 
 		[self startProgressIndication:self];
 	}
@@ -66,14 +75,6 @@
 	[urlGetterTopLevelObjects release];
 	
 	[super dealloc];
-}
-
-- (NSURL*)url {
-	return url;
-}
-
-- (id)userData {
-	return userData;
 }
 
 - (IBAction)cancelDownload:(id)sender {
@@ -160,8 +161,7 @@
 		suggestedName = [[url lastPathComponent] length] ? [url lastPathComponent] : @"download";
 	}
 
-	[tempDirectory autorelease];
-	tempDirectory = [[NSTemporaryDirectory() stringByAppendingPathComponent:[[NSProcessInfo processInfo] globallyUniqueString]] retain];
+	self.tempDirectory = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSProcessInfo processInfo] globallyUniqueString]];
 	NSError *mkErr = nil;
 	if (![[NSFileManager defaultManager] createDirectoryAtPath:tempDirectory withIntermediateDirectories:YES attributes:nil error:&mkErr]) {
 		NSLog(@"URLGetter: Couldn't create temporary directory! %@", mkErr.localizedDescription);
@@ -170,8 +170,7 @@
 		return;
 	}
 
-	[downloadPath autorelease];
-	downloadPath = [[tempDirectory stringByAppendingPathComponent:suggestedName] retain];
+	self.downloadPath = [tempDirectory stringByAppendingPathComponent:suggestedName];
 	NSFileManager *fileMan = [NSFileManager defaultManager];
 	NSURL *destinationURL = [NSURL fileURLWithPath:downloadPath];
 	if ([fileMan fileExistsAtPath:downloadPath]) {
@@ -236,8 +235,7 @@
 		if (![fileMan removeItemAtPath:downloadPath error:&removeError] && removeError) {
 			NSLog(@"URLGetter: Couldn't remove downloaded file %@: %@", downloadPath, removeError.localizedDescription);
 		}
-		[downloadPath release];
-		downloadPath = nil;
+		self.downloadPath = nil;
 	}
 
 	if (tempDirectory) {
@@ -255,34 +253,20 @@
 		} else {
 			NSLog(@"note removing %@ because it still contains files!", tempDirectory);
 		}
-		[tempDirectory release];
-		tempDirectory = nil;
+		self.tempDirectory = nil;
 	}
 	
 	if (downloadTask) {
-		[downloadTask release];
-		downloadTask = nil;
+		self.downloadTask = nil;
 	}
 	if (session) {
 		[session invalidateAndCancel];
-		[session release];
-		session = nil;
+		self.session = nil;
 	}
 	
 	[self stopProgressIndication];
 	
 	[self release];
-}
-
-- (NSString*)downloadPath {
-	return downloadPath;
-}
-
-- (id)delegate {
-	return delegate;
-}
-- (void)setDelegate:(id)aDelegate {
-	delegate = aDelegate;
 }
 
 @end

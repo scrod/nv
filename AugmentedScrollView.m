@@ -23,20 +23,18 @@
 
 - (id)initWithFrame:(NSRect)frameRect {
 	if ((self = [super initWithFrame:frameRect]) != nil) {
-		dragImage = [[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForImageResource:@"ListDividerDrag.png"]];
+		[self setImage:[NSImage imageNamed:@"ListDividerDrag"]];
+		[self setImageAlignment:NSImageAlignCenter];
+		[self setImageScaling:NSImageScaleNone];
+		[self setContentTintColor:[NSColor secondaryLabelColor]];
 	}
 	return self;
 }
 
 - (void)drawRect:(NSRect)rect {
-	#pragma unused(rect)
-	[dragImage drawInRect:[self bounds]
-		fromRect:NSZeroRect
-		operation:NSCompositingOperationCopy
-		fraction:1.0
-		respectFlipped:YES
-		hints:nil];
-
+	[[NSColor controlBackgroundColor] setFill];
+	NSRectFill([self bounds]);
+	[super drawRect:rect];
 }
 
 - (void)resetCursorRects {
@@ -45,11 +43,6 @@
 
 - (BOOL)isOpaque {
 	return YES;
-}
-
-- (void)dealloc {
-	[dragImage release];
-	[super dealloc];
 }
 
 @end

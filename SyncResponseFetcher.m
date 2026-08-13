@@ -24,7 +24,16 @@
 #import "SyncResponseFetcher.h"
 #import "NSData_transformations.h"
 
+@interface SyncResponseFetcher ()
+@property (nonatomic, retain, readwrite) NSInvocation *successInvocation;
+@property (nonatomic, copy, readwrite) NSDictionary *headers;
+@property (nonatomic, retain, readwrite) NSString *errorMessage;
+@end
+
 @implementation SyncResponseFetcher
+
+@synthesize representedObject, successInvocation, requestURL, headers,
+	errorMessage = lastErrorMessage, delegate, running = isRunning, didCancel;
 
 + (void)initialize {
 	
@@ -64,22 +73,9 @@
 	return self;
 }
 
-- (NSInvocation*)successInvocation {
-	return successInvocation;
-}
-
-- (void)setRepresentedObject:(id)anObject {
-	[representedObject autorelease];
-	representedObject = [anObject retain];
-}
-
-- (id)representedObject {
-	return representedObject;
-}
-
 - (BOOL)startWithSuccessInvocation:(NSInvocation*)anInvocation {
 
-	successInvocation = [anInvocation retain];
+	self.successInvocation = anInvocation;
 	return [self start];
 }
 
@@ -124,14 +120,6 @@
 	return YES;
 }
 
-- (BOOL)isRunning {
-	return isRunning;
-}
-
-- (BOOL)didCancel {
-	return didCancel;
-}
-
 - (void)cancel {
 	if (!isRunning) return;
 	
@@ -155,26 +143,6 @@
 	[super dealloc];
 }
 
-- (id)delegate {
-	return delegate;
-}
-
-- (NSURL*)requestURL {
-	return requestURL;
-}
-
-- (NSDictionary*)headers {
-	return headers;
-}
-
-- (NSInteger)statusCode {
-	return lastStatusCode;
-}
-
-- (NSString*)errorMessage {
-	return lastErrorMessage;
-}
-
 - (NSString*)description {
 	return [NSString stringWithFormat:@"Fetcher(%p, %@)", self, requestURL];
 }
@@ -195,11 +163,9 @@
 	
 	if (!anErrString) [successInvocation invoke];
 	
-	[successInvocation autorelease];
-	successInvocation = nil;
+	self.successInvocation = nil;
 	
-	[lastErrorMessage autorelease];
-	lastErrorMessage = [anErrString retain];
+	self.errorMessage = anErrString;
 	
 	[receivedData setLength:0];
 	
@@ -221,8 +187,7 @@
 		[urlConnection cancel];
 		[self _fetchDidFinishWithError:[NSHTTPURLResponse localizedStringForStatusCode:lastStatusCode]];
 	} else if (responseValid) {
-		[headers autorelease];
-		headers = [[(NSHTTPURLResponse*)response allHeaderFields] copy];
+		self.headers = [(NSHTTPURLResponse*)response allHeaderFields];
 	}
 }
 

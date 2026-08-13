@@ -1180,14 +1180,12 @@ terminate:
     uniqueFilename = [uniqueFilename filenameExpectingAdditionalCharCount:(int)(3 + [extension length] + 2)];
 	
     unsigned int iteration = 0;
-    do {
+	do {
 		isUnique = YES;
-		unsigned int i;
 		
 		//this ought to just use an nsset, but then we'd have to maintain a parallel data structure for marginal benefit
 		//also, it won't quite work right for filenames with no (real) extensions and periods in their names
-		for (i=0; i<[allNotes count]; i++) {
-			NoteObject *aNote = [allNotes objectAtIndex:i];
+		for (NoteObject *aNote in allNotes) {
 			NSString *basefilename = [filenameOfNote(aNote) stringByDeletingPathExtension];
 			
 			if (note != aNote && [basefilename caseInsensitiveCompare:uniqueFilename] == NSOrderedSame) {

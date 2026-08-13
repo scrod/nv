@@ -49,11 +49,7 @@
 	
 	mRTFDData = [[decoder decodeObject] retain];
 	[decoder decodeValueOfObjCType:@encode(int) at:&mWindowFlags];
-#if __LP64__
 	[decoder decodeValueOfObjCType:"{_NSRect={_NSPoint=ff}{_NSSize=ff}}" at:&mWindowFrame];
-#else
-	[decoder decodeValueOfObjCType:@encode(NSRect) at:&mWindowFrame];
-#endif
 	[decoder decodeValueOfObjCType:@encode(int) at:&mWindowColor];
 	mCreationDate = [[decoder decodeObject] retain];
 	mModificationDate = [[decoder decodeObject] retain];

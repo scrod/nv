@@ -87,18 +87,6 @@ void _ResizeBuffer(void ***buffer, unsigned int objCount, unsigned int *bufObjCo
 	
 }
 
-int IsZeros(const void *s1, size_t n) {
-	if (n != 0) {
-		const unsigned char *p1 = s1;
-		
-		do {
-			if (*p1++ != 0)
-				return (0);
-		} while (--n != 0);
-	}
-	return (1);
-}
-
 void modp_tolower_copy(char* dest, const char* str, int len) {
     int i;
     const uint8_t* ustr = (const uint8_t*) str;
@@ -115,15 +103,9 @@ void modp_tolower_copy(char* dest, const char* str, int len) {
          * This is based on the algorithm by Paul Hsieh
          * http://www.azillionmonkeys.com/qed/asmexample.html
          */
-#if __LP64__ || NS_BUILD_32_LIKE_64
-        ebx = (0x7f7f7f7f7f7f7f7fllu & eax) + 0x2525252525252525llu;
-        ebx = (0x7f7f7f7f7f7f7f7fllu & ebx) + 0x1a1a1a1a1a1a1a1allu;
-        ebx = ((ebx & ~eax) >> 2)  & 0x2020202020202020llu;
-#else
-        ebx = (0x7f7f7f7fu & eax) + 0x25252525u;
-        ebx = (0x7f7f7f7fu & ebx) + 0x1a1a1a1au;
-        ebx = ((ebx & ~eax) >> 2)  & 0x20202020u;
-#endif
+		ebx = (0x7f7f7f7f7f7f7f7fllu & eax) + 0x2525252525252525llu;
+		ebx = (0x7f7f7f7f7f7f7f7fllu & ebx) + 0x1a1a1a1a1a1a1a1allu;
+		ebx = ((ebx & ~eax) >> 2)  & 0x2020202020202020llu;
         NSUInteger out = eax + ebx;
         memcpy(dp, &out, sizeof(NSUInteger));
         sp += sizeof(NSUInteger);
@@ -133,12 +115,10 @@ void modp_tolower_copy(char* dest, const char* str, int len) {
     i = imax * (int)sizeof(NSUInteger);
     dest = dp;
     switch (leftover) {
-#if __LP64__ || NS_BUILD_32_LIKE_64
-        case 7: *dest++ = (char) gsToLowerMap[ustr[i++]];
-        case 6: *dest++ = (char) gsToLowerMap[ustr[i++]];
-        case 5: *dest++ = (char) gsToLowerMap[ustr[i++]];
-        case 4: *dest++ = (char) gsToLowerMap[ustr[i++]];
-#endif
+		case 7: *dest++ = (char) gsToLowerMap[ustr[i++]];
+		case 6: *dest++ = (char) gsToLowerMap[ustr[i++]];
+		case 5: *dest++ = (char) gsToLowerMap[ustr[i++]];
+		case 4: *dest++ = (char) gsToLowerMap[ustr[i++]];
         case 3: *dest++ = (char) gsToLowerMap[ustr[i++]];
         case 2: *dest++ = (char) gsToLowerMap[ustr[i++]];
         case 1: *dest++ = (char) gsToLowerMap[ustr[i]];
@@ -234,12 +214,7 @@ int ContainsUInteger(const NSUInteger *uintArray, size_t count, NSUInteger auint
 int ContainsHighAscii(const void *s1, size_t n) {
     // Check in word-sized chunks without requiring alignment
     register NSUInteger i, integerCount = n/sizeof(NSUInteger);
-    register NSUInteger pattern =
-#if __LP64__ || NS_BUILD_32_LIKE_64
-    0x8080808080808080;
-#else
-    0x80808080;
-#endif
+	register NSUInteger pattern = 0x8080808080808080;
     const unsigned char* base = (const unsigned char*)s1;
     for (i = 0; i < integerCount; i++) {
         NSUInteger chunk;
@@ -283,18 +258,9 @@ unsigned DumbWordCount(const void *s1, size_t len) {
 	return count;
 }
 
-NSInteger genericSortContextFirst(int (*context) (void*, void*), void* one, void* two) {
-	
-	return context(one, two);
-}
-
 NSInteger genericSortContextLast(void* one, void* two, int (*context) (void*, void*)) {
 	
 	return context(&one, &two);
-}
-
-void QuickSortBuffer(void **buffer, unsigned int objCount, int (*compar)(const void *, const void *)) {
-	qsort_r((void *)buffer, (size_t)objCount, sizeof(void*), compar, (int (*)(void *, const void *, const void *))genericSortContextFirst);
 }
 
 #if 0

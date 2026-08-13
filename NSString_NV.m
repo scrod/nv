@@ -270,16 +270,6 @@ CFDateFormatterRef simplenoteDateFormatter(int lowPrecision) {
 	
 }
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-- (NSString*)stringByReplacingOccurrencesOfString:(NSString*)stringToReplace withString:(NSString*)replacementString {
-	//NSLog(@"NSString_NV: %s", _cmd);
-	NSMutableString *sanitizedName = [[self mutableCopy] autorelease];
-	[sanitizedName replaceOccurrencesOfString:stringToReplace withString:replacementString options:NSLiteralSearch range:NSMakeRange(0, [sanitizedName length])];
-
-	return sanitizedName;
-}
-#endif
-
 - (BOOL)superficiallyResemblesAnHTTPURL {
 	//has the right protocol and contains no whitespace or line breaks
 	
@@ -734,12 +724,6 @@ BOOL IsHardLineBreakUnichar(unichar uchar, NSString *str, unsigned charIndex) {
 	return charSet;
 	
 }
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-+ (id)newlineCharacterSet {
-	return [NSCharacterSet characterSetWithCharactersInString:[NSString stringWithFormat:@"%C%C%C",0x000A,0x000D,0x0085]];
-}
-#endif
 
 @end
 

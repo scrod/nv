@@ -66,15 +66,11 @@ NSString *NVMergedText(NSString *base, NSString *local, NSString *external) {
 	return [result objectAtIndex:0];
 }
 
-#if __LP64__
 // Needed for compatability with data created by 32bit app
 typedef struct NSRange32 {
     unsigned int location;
     unsigned int length;
 } NSRange32;
-#else
-typedef NSRange NSRange32;
-#endif
 
 @interface NoteObject ()
 - (id)initWithCatalogEntry:(NoteCatalogEntry*)entry snapshot:(const NVNoteFileSnapshot*)snapshot
@@ -318,13 +314,6 @@ NSInteger compareTitleStringReverse(id *a, id *b) {
 	return (NSInteger)stringResult;	
 }
 
-NSInteger compareFileSize(id *a, id *b) {
-	uint64_t one = (*(NoteObject**)a)->logicalSize;
-	uint64_t two = (*(NoteObject**)b)->logicalSize;
-	return one < two ? -1 : one > two;
-}
-
-
 #include "SynchronizedNoteMixIns.h"
 
 //syncing w/ server and from journal;
@@ -457,42 +446,24 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			unsigned short legacyHighSeconds = 0, legacyFraction = 0;
 			unsigned int legacyLowSeconds = 0;
 			float scrolledProportion = 0.0;
-            #if __LP64__
-            unsigned long longTemp;
-            #endif
+			unsigned long longTemp;
 #if DECODE_INDIVIDUALLY
 			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&modifiedDate];
 			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&createdDate];
-            #if __LP64__
 			[decoder decodeValueOfObjCType:"{_NSRange=II}" at:&range32];
-            #else
-            [decoder decodeValueOfObjCType:@encode(NSRange) at:&range32];
-            #endif
 			[decoder decodeValueOfObjCType:@encode(float) at:&scrolledProportion];
 			
 			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
 			
 			[decoder decodeValueOfObjCType:@encode(int) at:&currentFormatID];
-            #if __LP64__
 			[decoder decodeValueOfObjCType:"L" at:&longTemp];
             legacyNodeID = (unsigned int)longTemp;
-            #else
-			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&legacyNodeID];
-            #endif
 			[decoder decodeValueOfObjCType:@encode(unsigned short) at:&legacyHighSeconds];
-            #if __LP64__
 			[decoder decodeValueOfObjCType:"L" at:&longTemp];
             legacyLowSeconds = (unsigned int)longTemp;
-            #else
-            [decoder decodeValueOfObjCType:@encode(unsigned int) at:&legacyLowSeconds];
-            #endif
 			[decoder decodeValueOfObjCType:@encode(unsigned short) at:&legacyFraction];
             
-            #if __LP64__
             [decoder decodeValueOfObjCType:"I" at:&fileEncoding];
-            #else
-            [decoder decodeValueOfObjCType:@encode(NSStringEncoding) at:&fileEncoding];
-            #endif
 			
 			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
 			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
@@ -1102,10 +1073,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	NSArray *words = [self orderedLabelTitles];
 	NSMutableSet *newLabelSet = [NSMutableSet setWithCapacity:[words count]];
 	
-	unsigned int i;
-	for (i=0; i<[words count]; i++) {
-		NSString *aWord = [words objectAtIndex:i];
-		
+	for (NSString *aWord in words) {
 		if ([aWord length] > 0) {
 			LabelObject *aLabel = [[LabelObject alloc] initWithTitle:aWord];
 			[aLabel addNote:self];
@@ -1887,11 +1855,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	//return location of NSNotFound and length 0 if none of the words could be found inRange
 	
 	//an optimization would be to fall back on cached cString if contentsWere7Bit is true, but then we have to handle opts ourselves
-	unsigned int i;
 	NSString *haystack = [contentString string];
 	NSRange nextRange = NSMakeRange(NSNotFound, 0);
-	for (i=0; i<[words count]; i++) {
-		NSString *word = [words objectAtIndex:i];
+	for (NSString *word in words) {
 		if ([word length] > 0) {
 			nextRange = [haystack rangeOfString:word options:opts range:inRange];
 			if (nextRange.location != NSNotFound && nextRange.length)

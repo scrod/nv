@@ -453,6 +453,8 @@ errorReturn:
 
 - (void)menuNeedsUpdate:(NSMenu*)menu {
 	[self _updateMenu:menu];
+	if ([editorPrefsMenus containsObject:menu])
+		[[NSNotificationCenter defaultCenter] postNotificationName:ExternalEditorsChangedNotification object:self];
 }
 
 - (ExternalEditor*)defaultExternalEditor {

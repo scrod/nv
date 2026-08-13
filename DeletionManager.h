@@ -28,13 +28,13 @@
     IBOutlet NSPanel *window;
 	IBOutlet NSButton *confirmDeletionButton;
 	NSMutableArray *deletedNotes;
-	NotationController* notationController;
+	__weak NotationController* notationController;
 	BOOL hasDeletedNotes;
 	NSArray *deletionManagerTopLevelObjects;
 }
 
 - (id)initWithNotationController:(NotationController*)aNotationController;
-- (NotationController*)notationController;
+@property (nonatomic, weak, readonly) NotationController *notationController; // zeroing weak reference
 - (IBAction)changeConfirmDeletion:(id)sender;
 - (BOOL)noteFileIsAlreadyDeleted:(NoteObject*)aNote;
 - (void)addDeletedNotes:(NSArray*)array;

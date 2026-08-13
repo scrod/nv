@@ -19,10 +19,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface  DragSquareView : NSView
-{
-	NSImage *dragImage;
-}
+@interface DragSquareView : NSImageView
 
 @end
 

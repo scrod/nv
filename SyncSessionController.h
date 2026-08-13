@@ -34,7 +34,7 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 
 	NSMutableDictionary *syncServiceTimers;
 	NSMutableDictionary *syncServiceSessions;
-	id syncDelegate;
+	__weak id syncDelegate;
 	NSMenu *statusMenu;
 	
 	NotationPrefs *notationPrefs;
@@ -50,8 +50,7 @@ extern NSString *SyncSessionsChangedVisibleStatusNotification;
 + (NSArray*)allServiceNames;
 + (NSArray*)allServiceClasses;	
 
-- (void)setSyncDelegate:(id)aDelegate;
-- (id)syncDelegate;
+@property (nonatomic, weak) id syncDelegate; // zeroing weak reference
 
 - (id)initWithSyncDelegate:(id)aSyncDelegate notationPrefs:(NotationPrefs*)prefs;
 
