@@ -289,10 +289,7 @@
 		//make sure we're not choosing the same folder as what we started with, because:
 		//-[NotationController initWithAliasData:] might attempt to initialize journaling, which will already be in use
 		NSURL *currentDirectoryURL = [prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
-		id selectedIdentifier = nil, currentIdentifier = nil;
-		[notesDirectoryURL getResourceValue:&selectedIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL];
-		[currentDirectoryURL getResourceValue:&currentIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL];
-		if (!selectedIdentifier || ![selectedIdentifier isEqual:currentIdentifier]) {
+		if (!NVURLsReferToSameItem(notesDirectoryURL, currentDirectoryURL)) {
 			NSError *error = nil;
 			if (![prefsController setDefaultDirectoryURL:notesDirectoryURL sender:self error:&error])
 				NSLog(@"Could not save selected notes directory: %@", error);

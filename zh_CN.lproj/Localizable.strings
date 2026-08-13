@@ -666,3 +666,9 @@
 "External editing could not be finished." = "无法完成外部编辑。";
 "The operation was canceled. The temporary file and its external-editing session remain available; save again and retry." = "操作已取消。临时文件及其外部编辑会话仍然可用；请再次保存并重试。";
 "The settings change was canceled. The temporary file and external-editing session remain available; save again and retry." = "设置更改已取消。临时文件及外部编辑会话仍然可用；请再次保存并重试。";
+
+/* notes-folder import chooser */
+"Import Contents as New Notes" = "将内容导入为新笔记";
+"Set Default Notes Folder" = "设置默认笔记文件夹";
+"This folder contains a Notational Velocity database." = "此文件夹包含一个 Notational Velocity 数据库。";
+"Would you like to import its contents as new notes, or make it your default notes folder?" = "要将其内容导入为新笔记，还是将其设为默认笔记文件夹？";

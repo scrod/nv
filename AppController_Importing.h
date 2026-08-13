@@ -24,9 +24,12 @@
 #import <Cocoa/Cocoa.h>
 #import "AppController.h"
 
+@class AlienNoteImporter;
+
 @interface AppController (Importing)
 
 - (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard;
+- (BOOL)importFilePaths:(NSArray*)paths usingImporter:(AlienNoteImporter*)importer;
 - (BOOL)interpretNVURL:(NSURL*)aURL;
 - (NSString*)stringWithNoteURLsOnPasteboard:(NSPasteboard*)pboard;
 

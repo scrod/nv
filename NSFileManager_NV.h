@@ -26,6 +26,9 @@
 #import <Cocoa/Cocoa.h>
 #include <sys/xattr.h>
 
+BOOL NVURLsReferToSameItem(NSURL *one, NSURL *two);
+BOOL NVURLIsSameItemOrDescendantOfURL(NSURL *URL, NSURL *possibleAncestorURL);
+
 
 @interface NSFileManager (NV)
 

@@ -70,5 +70,6 @@ extern NSString *RetrievedPasswordKey;
 @end
 
 @interface AlienNoteImporter (DialogDelegate)
+- (void)noteImporter:(AlienNoteImporter*)importer importPaths:(NSArray*)paths;
 - (void)noteImporter:(AlienNoteImporter*)importer importedNotes:(NSArray*)notes;
 @end

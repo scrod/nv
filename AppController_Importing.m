@@ -36,10 +36,78 @@
 #import "NSData_transformations.h"
 #import "AttributedPlainText.h"
 #import "NSCollection_utils.h"
+#import "NSFileManager_NV.h"
 #import "NoteObject.h"
 #import "NotationPrefs.h"
 
+@interface AppController (ImportingPrivate)
+- (BOOL)_importFilePaths:(NSArray*)paths usingImporter:(AlienNoteImporter*)importer;
+- (void)_setDefaultNotesDirectoryPath:(NSString*)path sender:(id)sender;
+- (void)noteImporter:(AlienNoteImporter*)importer importedNotes:(NSArray*)notes;
+@end
+
 @implementation AppController (Importing)
+
+- (BOOL)_importFilePaths:(NSArray*)paths usingImporter:(AlienNoteImporter*)importer {
+	if (!importer) return [notationController openFiles:paths];
+
+	NSArray *notes = [importer notesWithPaths:paths];
+	if ([notes count]) {
+		[self noteImporter:importer importedNotes:notes];
+		return YES;
+	}
+
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:NSLocalizedString(@"None of the selected files could be imported.", nil)];
+	[alert setInformativeText:NSLocalizedString(@"Please choose other files.", nil)];
+	[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+	[alert setAlertStyle:NSAlertStyleWarning];
+	if (window) [alert beginSheetModalForWindow:window completionHandler:nil];
+	else [alert runModal];
+	return NO;
+}
+
+- (void)_setDefaultNotesDirectoryPath:(NSString*)path sender:(id)sender {
+	NSURL *URL = [NSURL fileURLWithPath:path isDirectory:YES];
+	if (NVURLsReferToSameItem(URL, [notationController noteDirectoryURL])) return;
+
+	NSError *error = nil;
+	if (![prefsController setDefaultDirectoryURL:URL sender:sender error:&error] && error)
+		[NSApp presentError:error];
+}
+
+- (BOOL)importFilePaths:(NSArray*)filePaths usingImporter:(AlienNoteImporter*)importer {
+	if (![filePaths count]) return NO;
+
+	NSArray *paths = [[NSArray alloc] initWithArray:filePaths copyItems:YES];
+	NSString *dataDirectoryPath = NVNotationalVelocityDataDirectoryPath(paths);
+	if (!dataDirectoryPath) {
+		BOOL imported = [self _importFilePaths:paths usingImporter:importer];
+		[paths release];
+		return imported;
+	}
+
+	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+	[alert setMessageText:NSLocalizedString(@"This folder contains a Notational Velocity database.", nil)];
+	[alert setInformativeText:NSLocalizedString(
+		@"Would you like to import its contents as new notes, or make it your default notes folder?", nil)];
+	[alert addButtonWithTitle:NSLocalizedString(@"Import Contents as New Notes", nil)];
+	[alert addButtonWithTitle:NSLocalizedString(@"Set Default Notes Folder", nil)];
+	NSButton *cancelButton = [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+	[cancelButton setKeyEquivalent:@"\e"];
+	[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+		if (response == NSAlertFirstButtonReturn)
+			[self _importFilePaths:paths usingImporter:importer];
+		else if (response == NSAlertSecondButtonReturn)
+			[self _setDefaultNotesDirectoryPath:dataDirectoryPath sender:alert];
+	}];
+	[paths release];
+	return YES;
+}
+
+- (void)noteImporter:(AlienNoteImporter*)importer importPaths:(NSArray*)paths {
+	[self importFilePaths:paths usingImporter:importer];
+}
 
 - (BOOL)addNotesFromPasteboard:(NSPasteboard*)pasteboard {
 	
@@ -50,7 +118,7 @@
 	
 	NSArray *files = NVFilePathsFromPasteboard(pasteboard);
 	if ([files count]) {
-		if ([notationController openFiles:files]) return YES;
+		if ([self importFilePaths:files usingImporter:nil]) return YES;
 	}
 	
 	NSString *sourceIdentifierString = nil;

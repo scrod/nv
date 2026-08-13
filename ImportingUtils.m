@@ -1,4 +1,5 @@
 #import "ImportingUtils.h"
+#import "NotationFileManager.h"
 
 NSPasteboardType const NVLegacyFilenamesPasteboardType = @"NSFilenamesPboardType";
 NSPasteboardType const NVWebArchivePasteboardType = @"Apple Web Archive pasteboard type";
@@ -17,6 +18,17 @@ NSArray *NVFilePathsFromPasteboard(NSPasteboard *pasteboard) {
 
 	id legacyPaths = [pasteboard propertyListForType:NVLegacyFilenamesPasteboardType];
 	return [legacyPaths isKindOfClass:[NSArray class]] ? legacyPaths : nil;
+}
+
+NSString *NVNotationalVelocityDataDirectoryPath(NSArray *paths) {
+	if ([paths count] != 1) return nil;
+	NSString *path = [paths objectAtIndex:0];
+	NSFileManager *manager = [NSFileManager defaultManager];
+	NSDictionary *directoryAttributes = [manager attributesOfItemAtPath:path error:NULL];
+	if (![[directoryAttributes objectForKey:NSFileType] isEqualToString:NSFileTypeDirectory]) return nil;
+	NSDictionary *databaseAttributes = [manager attributesOfItemAtPath:
+		[path stringByAppendingPathComponent:NotesDatabaseFileName] error:NULL];
+	return [[databaseAttributes objectForKey:NSFileType] isEqualToString:NSFileTypeRegular] ? path : nil;
 }
 
 BOOL NVPathIsImportableNote(NSString *path, NSDictionary *attributes) {

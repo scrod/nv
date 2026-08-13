@@ -14,6 +14,7 @@
 #import "../WALController.h"
 #import "../NSFileManager_NV.h"
 #import "../NSData_transformations.h"
+#import "../ImportingUtils.h"
 
 #include <sys/stat.h>
 #include <sys/attr.h>
@@ -4721,6 +4722,44 @@ static void TestOpenFilesWorkflow(void) {
 		REQUIRE(NoteContaining(controller, @"imported through openFiles") != nil);
 		REQUIRE([[NSString stringWithContentsOfFile:importPath
 			encoding:NSUTF8StringEncoding error:NULL] isEqualToString:@"imported through openFiles"]);
+
+		NSString *ordinaryDirectoryPath = [importDirectoryPath stringByAppendingPathComponent:@"Ordinary Folder"];
+		NSString *dataDirectoryPath = [importDirectoryPath stringByAppendingPathComponent:@"NV Data Folder"];
+		NSString *databaseDirectoryPath = [importDirectoryPath stringByAppendingPathComponent:@"Database Is A Directory"];
+		NSFileManager *manager = [NSFileManager defaultManager];
+		REQUIRE([manager createDirectoryAtPath:ordinaryDirectoryPath withIntermediateDirectories:NO
+			attributes:nil error:NULL]);
+		REQUIRE([manager createDirectoryAtPath:dataDirectoryPath withIntermediateDirectories:NO
+			attributes:nil error:NULL]);
+		REQUIRE([manager createDirectoryAtPath:databaseDirectoryPath withIntermediateDirectories:NO
+			attributes:nil error:NULL]);
+		REQUIRE([@"" writeToFile:[dataDirectoryPath stringByAppendingPathComponent:NotesDatabaseFileName]
+			atomically:NO encoding:NSUTF8StringEncoding error:NULL]);
+		REQUIRE([manager createDirectoryAtPath:
+			[databaseDirectoryPath stringByAppendingPathComponent:NotesDatabaseFileName]
+			withIntermediateDirectories:NO attributes:nil error:NULL]);
+
+		REQUIRE([NVNotationalVelocityDataDirectoryPath(@[ dataDirectoryPath ])
+			isEqualToString:dataDirectoryPath]);
+		REQUIRE(NVNotationalVelocityDataDirectoryPath(@[ ordinaryDirectoryPath ]) == nil);
+		REQUIRE(NVNotationalVelocityDataDirectoryPath(@[ databaseDirectoryPath ]) == nil);
+		REQUIRE(NVNotationalVelocityDataDirectoryPath(@[ dataDirectoryPath, importPath ]) == nil);
+
+		NSString *folderImportPath = [dataDirectoryPath stringByAppendingPathComponent:@"Folder Import.txt"];
+		WriteExternalFile(PlainTextFormat, @"imported from qualifying data folder", folderImportPath);
+		NSURL *originalDirectoryURL = [[controller noteDirectoryURL] retain];
+		NSData *originalBookmark = [[[GlobalPrefs defaultPrefs] bookmarkDataForDefaultDirectory] copy];
+		NSData *originalAlias = [[[GlobalPrefs defaultPrefs] aliasDataForDefaultDirectory] copy];
+		REQUIRE([controller openFiles:@[ dataDirectoryPath ]]);
+		REQUIRE(NoteContaining(controller, @"imported from qualifying data folder") != nil);
+		REQUIRE(URLsReferToSameItem(originalDirectoryURL, [controller noteDirectoryURL]));
+		REQUIRE((!originalBookmark && ![[GlobalPrefs defaultPrefs] bookmarkDataForDefaultDirectory]) ||
+			[originalBookmark isEqual:[[GlobalPrefs defaultPrefs] bookmarkDataForDefaultDirectory]]);
+		REQUIRE((!originalAlias && ![[GlobalPrefs defaultPrefs] aliasDataForDefaultDirectory]) ||
+			[originalAlias isEqual:[[GlobalPrefs defaultPrefs] aliasDataForDefaultDirectory]]);
+		[originalAlias release];
+		[originalBookmark release];
+		[originalDirectoryURL release];
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -5631,6 +5670,31 @@ static void TestReferenceEdges(void) {
 	NVTestNotationController *controller = nil;
 
 	@try {
+		NSString *identityParentPath = [directoryPath stringByAppendingPathComponent:@"Identity Parent"];
+		NSString *identityChildPath = [identityParentPath stringByAppendingPathComponent:@"Child"];
+		NSString *identityOtherPath = [directoryPath stringByAppendingPathComponent:@"Identity Other"];
+		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:identityChildPath
+			withIntermediateDirectories:YES attributes:nil error:NULL]);
+		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:identityOtherPath
+			withIntermediateDirectories:NO attributes:nil error:NULL]);
+		NSURL *identityParentURL = [NSURL fileURLWithPath:identityParentPath isDirectory:YES];
+		NSURL *identityParentReferenceURL = FileReferenceURLForPath(identityParentPath);
+		NSURL *identityChildURL = [NSURL fileURLWithPath:identityChildPath isDirectory:YES];
+		NSURL *identityOtherURL = [NSURL fileURLWithPath:identityOtherPath isDirectory:YES];
+		NSURL *missingURL = [NSURL fileURLWithPath:
+			[directoryPath stringByAppendingPathComponent:@"Missing Identity"] isDirectory:YES];
+		REQUIRE(NVURLsReferToSameItem(identityParentURL, identityParentReferenceURL));
+		REQUIRE(!NVURLsReferToSameItem(identityParentURL, identityOtherURL));
+		REQUIRE(!NVURLsReferToSameItem(nil, identityParentURL));
+		REQUIRE(!NVURLsReferToSameItem(identityParentURL, nil));
+		REQUIRE(!NVURLsReferToSameItem(missingURL, identityParentURL));
+		REQUIRE(NVURLIsSameItemOrDescendantOfURL(identityParentReferenceURL,
+			identityParentURL));
+		REQUIRE(NVURLIsSameItemOrDescendantOfURL(identityChildURL, identityParentURL));
+		REQUIRE(!NVURLIsSameItemOrDescendantOfURL(identityChildURL, identityOtherURL));
+		REQUIRE(!NVURLIsSameItemOrDescendantOfURL(missingURL, identityParentURL));
+		REQUIRE(!NVURLIsSameItemOrDescendantOfURL(identityChildURL, missingURL));
+
 		controller = CreateController(directoryPath, delegate);
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];

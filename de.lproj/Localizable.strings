@@ -668,3 +668,9 @@
 "External editing could not be finished." = "Externe Bearbeitung konnte nicht beendet werden.";
 "The operation was canceled. The temporary file and its external-editing session remain available; save again and retry." = "Der Vorgang wurde abgebrochen. Die temporäre Datei und die Sitzung zur externen Bearbeitung bleiben verfügbar; speichere erneut und versuche es noch einmal.";
 "The settings change was canceled. The temporary file and external-editing session remain available; save again and retry." = "Die Änderung der Einstellungen wurde abgebrochen. Die temporäre Datei und die Sitzung zur externen Bearbeitung bleiben verfügbar; speichere erneut und versuche es noch einmal.";
+
+/* notes-folder import chooser */
+"Import Contents as New Notes" = "Inhalte als neue Notizen importieren";
+"Set Default Notes Folder" = "Standardnotizordner festlegen";
+"This folder contains a Notational Velocity database." = "Dieser Ordner enthält eine Notational-Velocity-Datenbank.";
+"Would you like to import its contents as new notes, or make it your default notes folder?" = "Möchtest du den Inhalt als neue Notizen importieren oder diesen Ordner als Standardnotizordner festlegen?";

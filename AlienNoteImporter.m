@@ -211,16 +211,20 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 					[selectedPaths addObject:path];
 				}
 			}
-			NSArray *notes = [self notesWithPaths:selectedPaths];
-			if (notes && [notes count])
-				[delegate noteImporter:self importedNotes:notes];
-			else {
-				NSAlert *importAlert = [[[NSAlert alloc] init] autorelease];
-				[importAlert setMessageText:NSLocalizedString(@"None of the selected files could be imported.", nil)];
-				[importAlert setInformativeText:NSLocalizedString(@"Please choose other files.", nil)];
-				[importAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
-				[importAlert setAlertStyle:NSAlertStyleWarning];
-				[importAlert runModal];
+			if ([delegate respondsToSelector:@selector(noteImporter:importPaths:)]) {
+				[delegate noteImporter:self importPaths:selectedPaths];
+			} else {
+				NSArray *notes = [self notesWithPaths:selectedPaths];
+				if (notes && [notes count])
+					[delegate noteImporter:self importedNotes:notes];
+				else {
+					NSAlert *importAlert = [[[NSAlert alloc] init] autorelease];
+					[importAlert setMessageText:NSLocalizedString(@"None of the selected files could be imported.", nil)];
+					[importAlert setInformativeText:NSLocalizedString(@"Please choose other files.", nil)];
+					[importAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+					[importAlert setAlertStyle:NSAlertStyleWarning];
+					[importAlert runModal];
+				}
 			}
 		}
 	} else {
@@ -289,7 +293,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 																	 delegate:nil format:SingleDatabaseFormat labels:nil];
 				
 				if (noteObject) {
-					[receptionDelegate noteImporter:self importedNotes:[NSArray arrayWithObject:noteObject]];
+					[receptionDelegate noteImporter:self importedNotes:@[ noteObject ]];
 					[noteObject autorelease];
 				}
 			}
@@ -323,9 +327,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	if ([paths isKindOfClass:[NSArray class]]) {
 		
 		NSMutableArray *array = [NSMutableArray array];
-		unsigned int i;
-		for (i=0; i<[paths count]; i++) {
-			NSString *path = [paths objectAtIndex:i];
+		for (NSString *path in paths) {
 			NSArray *notes = nil;
 			
 			NSDictionary *pathAttributes = [self _attributesForPath:path];
@@ -526,7 +528,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	} else {
 		NoteObject *note = [self noteWithFile:filename];
 		if (note)
-			return [NSArray arrayWithObject:note];
+			return @[ note ];
 	}
 	return nil;
 }
@@ -582,9 +584,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 	if (stickyNotes && [stickyNotes isKindOfClass:[NSMutableArray class]]) {
 		NSMutableArray *notes = [NSMutableArray arrayWithCapacity:[stickyNotes count]];
 		
-		unsigned int i;
-		for (i=0; i<[stickyNotes count]; i++) {
-			StickiesDocument *doc = [stickyNotes objectAtIndex:i];
+		for (StickiesDocument *doc in stickyNotes) {
 			if ([doc isKindOfClass:[StickiesDocument class]]) {
 				NSMutableAttributedString *attributedString = [[[NSMutableAttributedString alloc] initWithRTFD:[doc RTFDData] documentAttributes:NULL] autorelease];
 				[attributedString removeAttachments];
@@ -625,7 +625,7 @@ NSString *ShouldImportCreationDates = @"ShouldImportCreationDates";
 		return nil;
 	}
 	
-	[documentSettings setObject:[NSNumber numberWithBool:[retriever canRetrieveFromKeychain]]
+	[documentSettings setObject:@([retriever canRetrieveFromKeychain])
 						 forKey:PasswordWasRetrievedFromKeychainKey];
 	[documentSettings setObject:[retriever originalPasswordString] forKey:RetrievedPasswordKey];
 	

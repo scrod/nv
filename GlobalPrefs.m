@@ -832,15 +832,6 @@ BOOL ColorsEqualWith8BitChannels(NSColor *c1, NSColor *c2) {
 	return [defaults dataForKey:DirectoryBookmarkKey];
 }
 
-static BOOL NVURLsReferToSameDirectory(NSURL *one, NSURL *two) {
-	if (!one || !two) return NO;
-	id oneIdentifier = nil;
-	id twoIdentifier = nil;
-	return [one getResourceValue:&oneIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL] &&
-		[two getResourceValue:&twoIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL] &&
-		[oneIdentifier isEqual:twoIdentifier];
-}
-
 - (BOOL)setDefaultDirectoryURL:(NSURL*)url sender:(id)sender error:(NSError**)error {
 	NSFileManager *manager = [NSFileManager defaultManager];
 	NSURL *referenceURL = [manager fileReferenceURLForURL:url error:error];
@@ -873,7 +864,7 @@ static BOOL NVURLsReferToSameDirectory(NSURL *one, NSURL *two) {
 
 	NSURL *chosenURL = nil;
 	if (bookmarkURL && aliasURL)
-		chosenURL = NVURLsReferToSameDirectory(bookmarkURL, aliasURL) ? bookmarkURL : aliasURL;
+		chosenURL = NVURLsReferToSameItem(bookmarkURL, aliasURL) ? bookmarkURL : aliasURL;
 	else
 		chosenURL = bookmarkURL ? bookmarkURL : aliasURL;
 
@@ -885,7 +876,7 @@ static BOOL NVURLsReferToSameDirectory(NSURL *one, NSURL *two) {
 	}
 
 	BOOL needsRepair = bookmarkStale || !bookmarkURL || !aliasURL ||
-		(bookmarkURL && aliasURL && !NVURLsReferToSameDirectory(bookmarkURL, aliasURL));
+		(bookmarkURL && aliasURL && !NVURLsReferToSameItem(bookmarkURL, aliasURL));
 	if (needsRepair) {
 		NSData *freshBookmark = [manager bookmarkDataForFileReferenceURL:chosenURL error:error];
 		NSData *freshAlias = [NSData legacyAliasDataForFileReferenceURL:chosenURL];

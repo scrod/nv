@@ -134,14 +134,9 @@ static NSData *NVReadDataFromFileDescriptor(int fileDescriptor, NSError **error)
 }
 
 static BOOL NVURLReferencesFileDescriptor(NSURL *URL, int fileDescriptor) {
-	id URLIdentifier = nil;
-	id descriptorIdentifier = nil;
 	NSURL *descriptorURL = [NSURL fileURLWithPath:
 		[NSString stringWithFormat:@"/dev/fd/%d", fileDescriptor]];
-	return [URL getResourceValue:&URLIdentifier forKey:NSURLFileResourceIdentifierKey error:NULL] &&
-		[descriptorURL getResourceValue:&descriptorIdentifier
-			forKey:NSURLFileResourceIdentifierKey error:NULL] &&
-		[URLIdentifier isEqual:descriptorIdentifier];
+	return NVURLsReferToSameItem(URL, descriptorURL);
 }
 
 typedef struct __attribute__((packed, aligned(4))) {
@@ -1057,24 +1052,7 @@ BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescripto
 - (BOOL)notesDirectoryIsTrashed {
 	NSURL *trashURL = [[NSFileManager defaultManager] URLForDirectory:NSTrashDirectory
 		inDomain:NSUserDomainMask appropriateForURL:noteDirectoryURL create:NO error:NULL];
-	id trashIdentifier = nil;
-	if (![trashURL getResourceValue:&trashIdentifier
-		forKey:NSURLFileResourceIdentifierKey error:NULL]) return NO;
-	NSURL *currentURL = noteDirectoryURL;
-	for (;;) {
-		id currentIdentifier = nil;
-		NSURL *parentURL = nil;
-		id parentIdentifier = nil;
-		if (![currentURL getResourceValue:&currentIdentifier
-				forKey:NSURLFileResourceIdentifierKey error:NULL] ||
-			![currentURL getResourceValue:&parentURL
-				forKey:NSURLParentDirectoryURLKey error:NULL]) return NO;
-		if ([currentIdentifier isEqual:trashIdentifier]) return YES;
-		if (![parentURL getResourceValue:&parentIdentifier
-			forKey:NSURLFileResourceIdentifierKey error:NULL] ||
-			[currentIdentifier isEqual:parentIdentifier]) return NO;
-		currentURL = parentURL;
-	}
+	return NVURLIsSameItemOrDescendantOfURL(noteDirectoryURL, trashURL);
 }
 
 - (BOOL)renameAndForgetNoteDatabaseFile:(NSString*)newfilename error:(NSError**)error {
@@ -1164,7 +1142,7 @@ BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescripto
 				}
 				
 				[[GlobalPrefs defaultPrefs] setDefaultDirectoryURL:noteDirectoryURL sender:self error:NULL];
-				[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:[NSArray arrayWithObject:noteDirectoryURL]];
+				[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[ noteDirectoryURL ]];
 				goto terminate;
 			} else {
 				goto terminate;
@@ -1216,7 +1194,7 @@ terminate:
 				isUnique = NO;
 				
 				uniqueFilename = [uniqueFilename stringByDeletingPathExtension];
-				NSString *numberPath = [[NSNumber numberWithInt:++iteration] stringValue];
+				NSString *numberPath = [@((int)++iteration) stringValue];
 				uniqueFilename = [uniqueFilename stringByAppendingPathExtension:numberPath];
 				break;
 			}
@@ -1228,7 +1206,7 @@ terminate:
 			isUnique = NO;
 			uniqueFilename = [uniqueFilename stringByDeletingPathExtension];
 			uniqueFilename = [uniqueFilename stringByAppendingPathExtension:
-				[[NSNumber numberWithInt:++iteration] stringValue]];
+				[@((int)++iteration) stringValue]];
 		}
     } while (!isUnique);
 	

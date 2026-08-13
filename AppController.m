@@ -359,11 +359,6 @@ void outletObjectAwoke(id sender) {
 	//import old database(s) here if necessary
 	[AlienNoteImporter importBlorOrHelpFilesIfNecessaryIntoNotation:newNotation];
 
-	if (pathsToOpenOnLaunch) {
-		[notationController openFiles:[pathsToOpenOnLaunch autorelease]];
-		pathsToOpenOnLaunch = nil;
-	}
-
 	if (URLToInterpretOnLaunch) {
 		[self interpretNVURL:[URLToInterpretOnLaunch autorelease]];
 		URLToInterpretOnLaunch = nil;
@@ -381,6 +376,12 @@ void outletObjectAwoke(id sender) {
 	 @selector(setTableColumnsShowPreview:sender:),  //when to tell notationcontroller to generate or disable note-body previews
 	 @selector(setConfirmNoteDeletion:sender:),  //whether "delete note" should have an ellipsis
 	 @selector(setAutoCompleteSearches:sender:), nil];   //when to tell notationcontroller to build its title-prefix connections
+
+	if (pathsToOpenOnLaunch) {
+		NSArray *launchPaths = [pathsToOpenOnLaunch autorelease];
+		pathsToOpenOnLaunch = nil;
+		[self importFilePaths:launchPaths usingImporter:nil];
+	}
 
 	[self performSelector:@selector(runDelayedUIActionsAfterLaunch) withObject:nil afterDelay:0.0];
 
@@ -1037,7 +1038,7 @@ terminateApp:
 - (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames {
 
 	if (notationController)
-		[notationController openFiles:filenames];
+		[self importFilePaths:filenames usingImporter:nil];
 	else
 		pathsToOpenOnLaunch = [filenames mutableCopyWithZone:nil];
 

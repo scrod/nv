@@ -28,6 +28,40 @@
 #include <sys/param.h>
 #include <unistd.h>
 
+static BOOL NVGetFileResourceIdentifier(NSURL *URL, id *identifier) {
+	if (!URL || !identifier) return NO;
+	*identifier = nil;
+	return [URL getResourceValue:identifier forKey:NSURLFileResourceIdentifierKey error:NULL];
+}
+
+BOOL NVURLsReferToSameItem(NSURL *one, NSURL *two) {
+	if (!one || !two) return NO;
+	id oneIdentifier = nil;
+	id twoIdentifier = nil;
+	return NVGetFileResourceIdentifier(one, &oneIdentifier) &&
+		NVGetFileResourceIdentifier(two, &twoIdentifier) &&
+		[oneIdentifier isEqual:twoIdentifier];
+}
+
+BOOL NVURLIsSameItemOrDescendantOfURL(NSURL *URL, NSURL *possibleAncestorURL) {
+	id ancestorIdentifier = nil;
+	if (!NVGetFileResourceIdentifier(possibleAncestorURL, &ancestorIdentifier)) return NO;
+
+	NSURL *currentURL = URL;
+	for (;;) {
+		id currentIdentifier = nil;
+		NSURL *parentURL = nil;
+		id parentIdentifier = nil;
+		if (!NVGetFileResourceIdentifier(currentURL, &currentIdentifier) ||
+			![currentURL getResourceValue:&parentURL
+				forKey:NSURLParentDirectoryURLKey error:NULL]) return NO;
+		if ([currentIdentifier isEqual:ancestorIdentifier]) return YES;
+		if (!NVGetFileResourceIdentifier(parentURL, &parentIdentifier) ||
+			[currentIdentifier isEqual:parentIdentifier]) return NO;
+		currentURL = parentURL;
+	}
+}
+
 
 @implementation NSFileManager (NV)
 
