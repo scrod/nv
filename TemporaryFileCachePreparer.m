@@ -22,13 +22,13 @@
 
 #import "TemporaryFileCachePreparer.h"
 #import "NotationPrefs.h"
+#include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
 #include <unistd.h>
 
 @interface TemporaryFileCachePreparer ()
-@property (nonatomic, retain) NotationPrefs *notationPrefs;
 @property (nonatomic, retain, readwrite) NSString *preparedCachePath;
 @end
 
@@ -38,12 +38,13 @@
 
 @implementation TemporaryFileCachePreparer
 
-@synthesize preparing = startedPreparing, preparedCachePath, notationPrefs;
+@synthesize preparing = startedPreparing, preparedCachePath;
 
 static NSInteger RAMDiskMountState(const char *expectedMountPath);
 static NSString *RAMDiskMountPath(void);
 static NSString *TempDirectoryPathForEditing(void);
 static BOOL DeviceIsRAMBacked(const char *devicePath);
+static void NVCleanStaleEditingFiles(int rootFD, NSString *rootPath);
 
 /* Time Machine recognizes this binary plist on a directory and excludes that
  * directory and its contents. Set it once on the editing root (including the
@@ -62,7 +63,7 @@ static const unsigned char NVBackupExclusionBplist[] = {
 - (id)init {
 	self = [super init];
 	if (self) {
-		
+		cacheLockFD = -1;
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(taskTerminated:) 
 													 name:NSTaskDidTerminateNotification object:nil];
 	}
@@ -72,13 +73,12 @@ static const unsigned char NVBackupExclusionBplist[] = {
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	[cachePath release];
-	[notationPrefs release];
 	[attachTask release];
 	[newfsTask release];
 	[mountTask release];
 	[deviceName release];
 	[preparedCachePath release];
+	if (cacheLockFD >= 0) close(cacheLockFD);
 	[super dealloc];
 }
 
@@ -95,15 +95,11 @@ static BOOL DeviceIsRAMBacked(const char *devicePath) {
 		NSLog(@"Could not verify RAM disk backing: %@", exception);
 		return NO;
 	}
-	NSData *data = [[[output fileHandleForReading] readDataToEndOfFile] retain];
+	NSData *data = [[output fileHandleForReading] readDataToEndOfFile];
 	[task waitUntilExit];
-	if ([task terminationStatus] != 0) {
-		[data release];
-		return NO;
-	}
+	if ([task terminationStatus] != 0) return NO;
 	NSDictionary *info = [NSPropertyListSerialization propertyListWithData:data
 		options:NSPropertyListImmutable format:NULL error:NULL];
-	[data release];
 	NSString *device = [NSString stringWithUTF8String:devicePath];
 	for (NSDictionary *image in [info objectForKey:@"images"]) {
 		NSString *imagePath = [image objectForKey:@"image-path"];
@@ -148,6 +144,38 @@ static NSString *TempDirectoryPathForEditing(void) {
 	return [NSTemporaryDirectory() stringByAppendingPathComponent:@"NVPlainTextEditingSpace"];
 }
 
+static void NVCleanStaleEditingFiles(int rootFD, NSString *rootPath) {
+	for (NSString *name in [[NSFileManager defaultManager]
+		contentsOfDirectoryAtPath:rootPath error:NULL]) {
+		struct stat entry = { 0 };
+		const char *fileName = [name fileSystemRepresentation];
+		if (fstatat(rootFD, fileName, &entry, AT_SYMLINK_NOFOLLOW) < 0) continue;
+		if (!S_ISDIR(entry.st_mode) || ![name hasPrefix:@"NVEditing-"]) continue;
+
+		int directoryFD = openat(rootFD, fileName,
+			O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+		int lockFD = directoryFD >= 0 ? openat(directoryFD,
+			".NVExternalEditing.lock", O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600) : -1;
+		if (lockFD < 0 || flock(lockFD, LOCK_EX | LOCK_NB) < 0) {
+			if (lockFD >= 0) close(lockFD);
+			if (directoryFD >= 0) close(directoryFD);
+			continue;
+		}
+		NSString *directoryPath = [rootPath stringByAppendingPathComponent:name];
+		for (NSString *child in [[NSFileManager defaultManager]
+			contentsOfDirectoryAtPath:directoryPath error:NULL]) {
+			struct stat childEntry = { 0 };
+			const char *childName = [child fileSystemRepresentation];
+			if (fstatat(directoryFD, childName, &childEntry, AT_SYMLINK_NOFOLLOW) == 0 &&
+				S_ISREG(childEntry.st_mode))
+				(void)unlinkat(directoryFD, childName, 0);
+		}
+		close(directoryFD);
+		(void)unlinkat(rootFD, fileName, AT_REMOVEDIR);
+		close(lockFD);
+	}
+}
+
 - (void)prepEditingSpaceIfNecessaryForNotationPrefs:(NotationPrefs*)prefs {
 	
 	NSAssert(prefs != nil, @"prefs are nil");
@@ -156,8 +184,6 @@ static NSString *TempDirectoryPathForEditing(void) {
 		NSLog(@"prepEditingSpaceIfNecessary: already preparing");
 		return;
 	}
-	
-	self.notationPrefs = prefs;
 	
 	/*
 		single-DB with encryption: use a mounted RAM disk
@@ -171,18 +197,19 @@ static NSString *TempDirectoryPathForEditing(void) {
 	*/
 	
 	if ([prefs notesStorageFormat] != SingleDatabaseFormat || ![prefs doesEncryption]) {
-		if ([self _createFolderAtPath:TempDirectoryPathForEditing()]) {
-			[self _finishPreparationWithPath:TempDirectoryPathForEditing()];
+		NSString *path = TempDirectoryPathForEditing();
+		if ([self _createFolderAtPath:path]) {
+			[self _finishPreparationWithPath:path];
 		} else {
 			[self _stopPreparation];
 		}
 		return;
 	}
 	
-	NSInteger mountState = RAMDiskMountState([RAMDiskMountPath() fileSystemRepresentation]);
+	NSString *path = RAMDiskMountPath();
+	NSInteger mountState = RAMDiskMountState([path fileSystemRepresentation]);
 	if (mountState > 0) {
-		//NSLog(@"mount point already exists; giving path directly");
-		[self _finishPreparationWithPath:RAMDiskMountPath()];
+		[self _finishPreparationWithPath:path];
 		return;
 	}
 	if (mountState < 0) {
@@ -234,7 +261,7 @@ static NSString *TempDirectoryPathForEditing(void) {
 - (void)_finishPreparationWithPath:(NSString*)aPath {
 	//funnel for the success delegate method
 	if (preparedCachePath) {
-		if (![preparedCachePath isEqualToString:aPath]) {
+		if (![[preparedCachePath stringByDeletingLastPathComponent] isEqualToString:aPath]) {
 			NSLog(@"External-editing storage was already prepared at a different path");
 			[self _stopPreparation];
 		}
@@ -242,17 +269,62 @@ static NSString *TempDirectoryPathForEditing(void) {
 	}
 	struct stat status = { 0 };
 	if (lstat([aPath fileSystemRepresentation], &status) < 0 ||
-		!S_ISDIR(status.st_mode) || S_ISLNK(status.st_mode) ||
+		!S_ISDIR(status.st_mode) ||
 		chmod([aPath fileSystemRepresentation], 0700) < 0) {
 		NSLog(@"External-editing storage is not a private directory: %@", aPath);
 		[self _stopPreparation];
 		return;
 	}
+	/* Hold the root lock only while collecting abandoned workspaces and creating
+	 * ours. Each live preparer then owns a separately locked directory, allowing
+	 * NV processes using unrelated databases to edit concurrently. */
+	int rootFD = open([aPath fileSystemRepresentation],
+		O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	int rootLockFD = rootFD >= 0 ? openat(rootFD, ".NVExternalEditing.lock",
+		O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600) : -1;
+	if (rootLockFD < 0 || flock(rootLockFD, LOCK_EX | LOCK_NB) < 0) {
+		if (rootLockFD >= 0) close(rootLockFD);
+		if (rootFD >= 0) close(rootFD);
+		NSLog(@"Could not coordinate external-editing storage cleanup");
+		[self _stopPreparation];
+		return;
+	}
+	NVCleanStaleEditingFiles(rootFD, aPath);
+
+	NSString *workspaceName = nil;
+	int workspaceFD = -1;
+	for (NSUInteger attempt = 0; attempt < 10 && workspaceFD < 0; attempt++) {
+		workspaceName = [@"NVEditing-" stringByAppendingString:[[NSUUID UUID] UUIDString]];
+		if (mkdirat(rootFD, [workspaceName fileSystemRepresentation], 0700) == 0)
+			workspaceFD = openat(rootFD, [workspaceName fileSystemRepresentation],
+				O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	}
+	int lockFD = workspaceFD >= 0 ? openat(workspaceFD, ".NVExternalEditing.lock",
+		O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600) : -1;
+	if (lockFD < 0 || flock(lockFD, LOCK_EX | LOCK_NB) < 0) {
+		if (lockFD >= 0) close(lockFD);
+		if (workspaceFD >= 0) close(workspaceFD);
+		if (workspaceName) (void)unlinkat(rootFD,
+			[workspaceName fileSystemRepresentation], AT_REMOVEDIR);
+		close(rootLockFD);
+		close(rootFD);
+		NSLog(@"Could not create private external-editing workspace");
+		[self _stopPreparation];
+		return;
+	}
+	close(workspaceFD);
+	close(rootLockFD);
+	close(rootFD);
+	cacheLockFD = lockFD;
 	/* Best effort: an unsupported directory xattr must not prevent editing. */
 	(void)setxattr([aPath fileSystemRepresentation],
 		"com.apple.metadata:com_apple_backup_excludeItem",
 		NVBackupExclusionBplist, sizeof(NVBackupExclusionBplist), 0, 0);
-	self.preparedCachePath = aPath;
+	NSString *workspacePath = [aPath stringByAppendingPathComponent:workspaceName];
+	(void)setxattr([workspacePath fileSystemRepresentation],
+		"com.apple.metadata:com_apple_backup_excludeItem",
+		NVBackupExclusionBplist, sizeof(NVBackupExclusionBplist), 0, 0);
+	self.preparedCachePath = workspacePath;
 	
 	startedPreparing = NO;
 	
@@ -280,75 +352,61 @@ static NSString *TempDirectoryPathForEditing(void) {
 - (BOOL)_createFolderAtPath:(NSString*)path {
 	NSError *err = nil;
 	NSFileManager *fileMan = [NSFileManager defaultManager];
-	BOOL isDirectory = NO, didCreate = ([fileMan fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) ? YES : 
-	[fileMan createDirectoryAtPath:path withIntermediateDirectories:NO attributes:
-		 @{ NSFilePosixPermissions: @((unsigned long)0700) } error:&err];
+	BOOL isDirectory = NO;
+	BOOL didCreate = [fileMan fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory;
+	if (!didCreate)
+		didCreate = [fileMan createDirectoryAtPath:path withIntermediateDirectories:NO
+			attributes:@{ NSFilePosixPermissions: @((unsigned long)0700) } error:&err];
 	if (!didCreate) NSLog(@"couldn't create directory '%@': %@", path, (err ? [err localizedDescription] : @"(unknown error)"));
 	return didCreate;
 }
 
 - (void)taskTerminated:(NSNotification *)aNotification {
+	if (!startedPreparing) return;
 
-	if (startedPreparing) {
-		NSTask *task = [aNotification object];
-		
-		if (task == attachTask || task == newfsTask || task == mountTask) {
-			//each launched task retains self, so as long as each task triggers this method, then each retain should be balanced with an autorelease
-			[self autorelease];
-			
-			if ([task terminationStatus]) {
-				//assume an exit status of 0 means success
-				[self _stopPreparation];
-				return;
-			}
+	NSTask *task = [aNotification object];
+	if (task != attachTask && task != newfsTask && task != mountTask) return;
+
+	// Each launched task retains self; its termination balances that ownership.
+	[self autorelease];
+	if ([task terminationStatus]) {
+		[self _stopPreparation];
+		return;
+	}
+
+	if (task == attachTask) {
+		NSData *outData = [[[attachTask standardOutput] fileHandleForReading] readDataToEndOfFile];
+		if (outData) {
+			NSString *outString = [[[NSString alloc] initWithData:outData
+				encoding:NSUTF8StringEncoding] autorelease];
+			NSString *scannedDeviceName = nil;
+			[[NSScanner scannerWithString:outString] scanUpToCharactersFromSet:
+				[NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:&scannedDeviceName];
+			deviceName = [(scannedDeviceName ? scannedDeviceName : outString) retain];
 		}
-		
-		if (task == attachTask) {
-			//read deviceName and store in ivar
-			//start newfs task
-			
-			NSData	*outData = [[[attachTask standardOutput] fileHandleForReading] readDataToEndOfFile];
-			if (outData) {
-				NSString *outString = [[[NSString alloc] initWithData:outData encoding:NSUTF8StringEncoding] autorelease];
-				
-					NSString *scannedDeviceName = nil;
-					[[NSScanner scannerWithString:outString] scanUpToCharactersFromSet:
-					 [NSCharacterSet whitespaceAndNewlineCharacterSet] intoString:&scannedDeviceName];
-					deviceName = [(scannedDeviceName ? scannedDeviceName : outString) retain];
-			}
-			if (![deviceName length]) {
-				NSLog(@"couldn't get device name from hdiutil attach");
-				[self _stopPreparation];
-			} else {
-//				NSLog(@"device name is '%@'", deviceName);
-				[self _buildHFSFileSystemOnDevice:deviceName];
-			}
+		if (![deviceName length]) {
+			NSLog(@"couldn't get device name from hdiutil attach");
+			[self _stopPreparation];
+		} else {
+			[self _buildHFSFileSystemOnDevice:deviceName];
 		}
-		
-		if (task == newfsTask) {
-			//make directory and set permissions
-			if (![self _createFolderAtPath:RAMDiskMountPath()]) {
-				[self _stopPreparation];
-			} else {
-				//start mount task
-				[self _mountHFSFileSystemOnDevice:deviceName];
-			}
-		}
-		
-		if (task == mountTask) {
-			//return newly initialized path to delegate, after verifying
-			
-			NSString *path = RAMDiskMountPath();
-			if (RAMDiskMountState([path fileSystemRepresentation]) > 0) {
-				[self _finishPreparationWithPath:path];
-			} else {
-				NSLog(@"the RAM disk somehow does not exist!");
-				[self _stopPreparation];
-			}
-		}
-		
+		return;
+	}
+
+	if (task == newfsTask) {
+		if ([self _createFolderAtPath:RAMDiskMountPath()])
+			[self _mountHFSFileSystemOnDevice:deviceName];
+		else
+			[self _stopPreparation];
+		return;
+	}
+
+	NSString *path = RAMDiskMountPath();
+	if (RAMDiskMountState([path fileSystemRepresentation]) > 0) {
+		[self _finishPreparationWithPath:path];
 	} else {
-		//don't bother doing anything unless we're actually expecting one of this instance's tasks to complete
+		NSLog(@"the RAM disk somehow does not exist!");
+		[self _stopPreparation];
 	}
 }
 

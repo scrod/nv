@@ -194,7 +194,7 @@
 "Select a folder" = "选择一个文件夹";
 
 /* title of open panel button to select a folder */
-"Select" = "Select";
+"Select" = "选择";
 
 /* No Comment */
 "Select the folder that Notational Velocity should use for reading and storing notes." = "选择 Notational Velocity 用于读取和存储笔记的文件夹。";
@@ -672,3 +672,56 @@
 "Set Default Notes Folder" = "设置默认笔记文件夹";
 "This folder contains a Notational Velocity database." = "此文件夹包含一个 Notational Velocity 数据库。";
 "Would you like to import its contents as new notes, or make it your default notes folder?" = "要将其内容导入为新笔记，还是将其设为默认笔记文件夹？";
+
+/* localization audit: user-facing fallback strings */
+"Another copy of Notational Velocity is already using this notes database." = "Notational Velocity 的另一个副本已在使用此笔记数据库。";
+"Quit the other copy before opening this folder, or choose another notes folder." = "请先退出另一个副本，再打开此文件夹，或选择其他笔记文件夹。";
+"Add %lu Notes" = "添加 %lu 条笔记";
+"Delete %lu Notes" = "删除 %lu 条笔记";
+"Choose a folder into which %lu notes will be exported" = "请选择一个要导出 %lu 条笔记的文件夹";
+"Add Notes" = "添加笔记";
+"If you make changes, some settings and metadata will be lost." = "如果您进行修改，部分设置和元数据将会丢失。";
+"Please enter the passphrase to import old notes at %@." = "请输入密码短语，以从 %@ 导入旧笔记。";
+"Error: the modification date of the file quotemark%@quotemark could not be compared." = "错误：无法比较文件 quotemark%@quotemark 的修改日期。";
+"Unable to access the chosen directory." = "无法访问所选文件夹。";
+"The external editor saved data that was not valid UTF-8. The exact bytes follow as Base64:\n\n%@" = "外部编辑器保存的数据不是有效的 UTF-8。确切字节将以 Base64 格式显示如下：\n\n%@";
+"a changing file's displaced contents remain in emergency recovery storage" = "发生更改的文件的原内容仍保留在紧急恢复存储中";
+"a changing file's displaced contents were recovered as %@" = "发生更改的文件的原内容已恢复为 %@";
+"the externally edited note could not be decoded" = "无法解码外部编辑的笔记";
+"the note could not be converted to its file format" = "无法将笔记转换为其文件格式";
+"the note could not be converted to the selected export format" = "无法将笔记转换为所选的导出格式";
+"the write-ahead journal could not be updated" = "无法更新预写日志";
+"Invalid character in diff_fromDelta: %@" = "diff_fromDelta 中包含无效字符：%@";
+"Invalid number in diff_fromDelta: %@" = "diff_fromDelta 中包含无效数字：%@";
+"Negative number in diff_fromDelta: %@" = "diff_fromDelta 中包含负数：%@";
+"Delta length (%lu) larger than source text length (%lu)." = "增量长度 (%lu) 大于源文本长度 (%lu)。";
+"Invalid diff operation in diff_fromDelta: %C" = "diff_fromDelta 中的 diff 操作无效：%C";
+"Delta length (%lu) smaller than source text length (%lu)." = "增量长度 (%lu) 小于源文本长度 (%lu)。";
+"Invalid patch string: %@" = "无效的补丁字符串：%@";
+"Invalid patch mode '%C' in: %@" = "无效的补丁模式“%C”：%@";
+"Add" = "添加";
+"Remove" = "移除";
+"Make Default" = "设为默认";
+"Password Assistant" = "密码助手";
+"Keyboard Shortcut" = "键盘快捷键";
+"Clear Search" = "清除搜索";
+"Return to All Notes" = "返回所有笔记";
+"Back" = "返回";
+"Editing Note" = "正在编辑笔记";
+"Search" = "搜索";
+"Resize Notes List" = "调整笔记列表大小";
+"Show Sync Status" = "显示同步状态";
+"Synchronizing" = "正在同步";
+"Sync Error" = "同步错误";
+"Warning" = "警告";
+"Validated" = "已验证";
+"In Progress" = "进行中";
+"Error" = "错误";
+"Recovery from Interim Note-Changes failed but a newer database file was found; attempt recovery from it instead?" = "从 Interim Note-Changes 恢复失败，但找到了较新的数据库文件。要改为尝试从该文件恢复吗？";
+"The unrecoverable database will be renamed." = "无法恢复的数据库将被重命名。";
+"Recover Database" = "恢复数据库";
+"Recovery from Interim Note-Changes failed." = "从 Interim Note-Changes 恢复失败。";
+"You can start from the older Notes & Settings database instead. The unrecoverable Interim Note-Changes file will be renamed and preserved." = "您可以改用较旧的 Notes & Settings 数据库启动。无法恢复的 Interim Note-Changes 文件将被重命名并保留。";
+"Start From Old Notes" = "从旧笔记开始";
+"Some changes could not be recovered." = "无法恢复部分更改。";
+"Notational Velocity recovered as many notes as possible. The original database and unrecoverable Interim Note-Changes files were renamed and preserved." = "Notational Velocity 已尽可能恢复笔记。原始数据库和无法恢复的 Interim Note-Changes 文件已被重命名并保留。";

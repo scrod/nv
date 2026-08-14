@@ -325,8 +325,13 @@ void outletObjectAwoke(id sender) {
 	    NSString *reason = [NSString reasonStringFromCarbonFSError:err];
 
 	    NSAlert *initializationAlert = [[[NSAlert alloc] init] autorelease];
-	    [initializationAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
-	    [initializationAlert setInformativeText:subMessage];
+		if (err == fBsyErr) {
+			[initializationAlert setMessageText:NSLocalizedString(@"Another copy of Notational Velocity is already using this notes database.", nil)];
+			[initializationAlert setInformativeText:NSLocalizedString(@"Quit the other copy before opening this folder, or choose another notes folder.", nil)];
+		} else {
+			[initializationAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
+			[initializationAlert setInformativeText:subMessage];
+		}
 	    [initializationAlert addButtonWithTitle:NSLocalizedString(@"Choose another folder", nil)];
 	    [initializationAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
 	    NSModalResponse initializationResponse = [initializationAlert runModal];
@@ -670,7 +675,7 @@ terminateApp:
 	NSIndexSet *indexes = [notesTableView selectedRowIndexes];
 	NSURL *fileURL = nil;
 
-	if ([indexes count] != 1 || !(fileURL = [[notationController noteObjectAtFilteredIndex:(int)[indexes lastIndex]] noteFileURL])) {
+	if ([indexes count] != 1 || !(fileURL = [[notationController noteObjectAtFilteredIndex:(int)[indexes lastIndex]] absoluteUNIXPath])) {
 		NSBeep();
 		return;
 	}
@@ -864,12 +869,19 @@ terminateApp:
 	[prefsController setDefaultDirectoryURL:oldURL sender:self error:NULL];
 	NSString *location = [[newURL path] stringByAbbreviatingWithTildeInPath];
 	NSString *oldLocation = [[oldURL path] stringByAbbreviatingWithTildeInPath];
-	NSString *reason = [NSString reasonStringFromCarbonFSError:err];
 	NSAlert *revertAlert = [[[NSAlert alloc] init] autorelease];
-	[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(
-		@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
-	[revertAlert setInformativeText:[NSString stringWithFormat:NSLocalizedString(
-		@"Reverting to current location of %@.", nil), oldLocation]];
+	if (err == fBsyErr) {
+		[revertAlert setMessageText:NSLocalizedString(
+			@"Another copy of Notational Velocity is already using this notes database.", nil)];
+		[revertAlert setInformativeText:NSLocalizedString(
+			@"Quit the other copy before opening this folder, or choose another notes folder.", nil)];
+	} else {
+		NSString *reason = [NSString reasonStringFromCarbonFSError:err];
+		[revertAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(
+			@"Unable to initialize notes database in \n%@ because %@.", nil), location, reason]];
+		[revertAlert setInformativeText:[NSString stringWithFormat:NSLocalizedString(
+			@"Reverting to current location of %@.", nil), oldLocation]];
+	}
 	[revertAlert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
 	[revertAlert runModal];
 }

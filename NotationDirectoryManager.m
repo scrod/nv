@@ -383,7 +383,10 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 
 - (void)_stageOrAddDeletedNotes:(NSArray*)notes {
 	for (NoteObject *note in notes)
-		if (![directoryTransaction->deletions containsObject:note])
+		/* A missing file is not an external deletion while the live model still
+		 * owes that file to disk (notably after replaying a WAL-only note). */
+		if (![pendingFileWrites containsObject:note] &&
+			![directoryTransaction->deletions containsObject:note])
 			[directoryTransaction->deletions addObject:note];
 }
 
@@ -475,7 +478,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 			}
 		}
 	} else if (!catEntriesCount) {
-		[transaction->deletions addObjectsFromArray:allNotes];
+		[self _stageOrAddDeletedNotes:allNotes];
 	}
 
 	/* _readFilesInDirectory replaces the controller's reusable hot buffers only

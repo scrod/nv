@@ -33,6 +33,33 @@
 #import "NSCollection_utils.h"
 #import "NSString_NV.h"
 
+/*
+ * Write-ahead log theory of operation
+ * -----------------------------------
+ * "Interim Note-Changes" is both the durability journal and the per-database
+ * ownership lock.  A writer creates it exclusively, takes flock(), and appends
+ * note versions to one continuous zlib stream.  Each append is independently
+ * archived and encrypted, then framed with its uncompressed length, encrypted
+ * length, checksum, and salt.  -synchronize drains short writes and fsyncs the
+ * journal before the corresponding in-memory changes may be considered safe.
+ * Once zlib advances, a failure to finish that record permanently stops this
+ * writer; later records would otherwise depend on compressed bytes never saved.
+ *
+ * A recovery reader opens the existing file and takes the same lock before it
+ * scans anything.  It captures the file length so a header or payload which
+ * ends exactly at that captured boundary can be treated as a benign interrupted
+ * final append.  Records share zlib state: an archive/type/declared-length error
+ * may be skipped only after all of that record's compressed bytes have been
+ * consumed.  Checksum, decryption, read, allocation, or zlib errors stop the
+ * scan because the stream position can no longer be trusted.
+ *
+ * Recovery always returns the valid prefix (coalesced to the newest LSN for
+ * each note UUID) plus an "incomplete" indication.  This file does not decide
+ * which database receives those notes or when the old journal is retired;
+ * StartupRecovery owns that policy and retains this reader, and therefore its
+ * flock(), until the journal has been safely preserved or replaced.
+ */
+
 #define RECORD_SALT_LEN 32
 
 //each note will have its own key--the "LogSessionKey" salt of master key + per-record salt
@@ -48,6 +75,33 @@ typedef union {
 
 static const char NVJournalFilename[] = "Interim Note-Changes";
 
+typedef NS_ENUM(NSUInteger, WALRecordRecoveryResult) {
+	WALRecordRecovered, //object and shared compression state are both valid
+	WALRecordSkipped,   //record is unusable, but the next record can be decoded
+	WALRecoveryEnded,   //clean EOF or an interrupted final append
+	WALRecoveryStopped  //later records cannot be decoded safely
+};
+
+static ssize_t NVReadWALBytes(int fileDescriptor, void *buffer, size_t length,
+	int *readError) {
+	/* A regular-file read may legally return short before EOF.  Fill the caller's
+	 * requested region unless read reaches EOF or produces a real error; the
+	 * caller compares the result with the captured journal boundary. */
+	size_t total = 0;
+	if (readError) *readError = 0;
+	while (total < length) {
+		ssize_t amount = read(fileDescriptor, (uint8_t*)buffer + total, length - total);
+		if (amount > 0) {
+			total += (size_t)amount;
+			continue;
+		}
+		if (amount < 0 && errno == EINTR) continue;
+		if (amount < 0 && readError) *readError = errno;
+		break;
+	}
+	return (ssize_t)total;
+}
+
 @interface WALController ()
 - (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
 - (int)_flockJournalFile;
@@ -61,7 +115,7 @@ static const char NVJournalFilename[] = "Interim Note-Changes";
 @end
 
 @interface WALRecoveryController ()
-- (id<SynchronizedNote>)recoverNextObject;
+- (WALRecordRecoveryResult)recoverNextObject:(id<SynchronizedNote>*)recoveredObject;
 @end
 
 /*
@@ -90,14 +144,6 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 }
 
 #undef ELF_STEP
-
-//file descriptor based for lower level access
-
-//also used as an ad-hoc lock file;
-//if it's removed, assume another application did it
-//so serialize notes to database file and quit
-//if the other app already recovered the journal and rewrote the database file then it won't matter
-//if it didn't, well at least the notes have been saved
 
 @implementation WALController
 
@@ -170,6 +216,8 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 }
 
 - (void)dealloc {
+	/* Closing logFD also releases flock; some recovery transitions require that
+	 * to happen synchronously when the controller's last owner releases it. */
 	if (logFD >= 0) close(logFD);
 	if (directoryFD >= 0) close(directoryFD);
 	[logSessionKey release];
@@ -301,11 +349,16 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 - (BOOL)_encryptAndWriteData:(NSMutableData*)data {
     WALRecordHeader record = {{0}};
+	if (cannotContinueWriting) return NO;
 	
 	record.originalDataLength = CFSwapInt32HostToBig((UInt32)[data length]);
 	
 	size_t compressedDataBufferSize = [data length] + (( [data length] + 99 ) / 100 ) + 12;
 	Bytef *compressedDataBuffer = (Bytef *)malloc(compressedDataBufferSize);
+	if (!compressedDataBuffer) {
+		NSLog(@"Unable to allocate the compressed WAL record buffer");
+		return NO;
+	}
 	
     //adapt nsdata to compression stream
 	compressionStream.next_in = (Bytef*)[data bytes];
@@ -315,6 +368,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	compressionStream.data_type = Z_BINARY;
 	
 	uLong previousOut = compressionStream.total_out;
+	cannotContinueWriting = YES;
 	/* Perform the compression here. */
 	int deflateResult = deflate(&compressionStream, Z_SYNC_FLUSH);
 	/*Find the total size of the resulting compressed data. */
@@ -322,10 +376,12 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 	if (deflateResult != Z_OK) {
 		NSLog(@"zlib deflation error: %s\n", compressionStream.msg);
+		free(compressedDataBuffer);
 		return NO;
 	}
 	if (zlibAfterBufLen > compressedDataBufferSize) {
 		NSLog(@"zlibAfterBufLen is larger than the allocated compressed buffer!");
+		free(compressedDataBuffer);
 		return NO;
 	}
 	
@@ -352,6 +408,10 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     //pack all the data to avoid multiple writes
     size_t dataChunkSize = sizeof(record) + (size_t)[data length];
     char *dataChunk = (char*)malloc(dataChunkSize);
+	if (!dataChunk) {
+		NSLog(@"Unable to allocate the complete WAL record buffer");
+		return NO;
+	}
     
     memcpy(dataChunk, record.recordBuffer, sizeof(record.recordBuffer));
     memcpy(dataChunk + sizeof(record.recordBuffer), [data bytes], (size_t)[data length]);
@@ -381,6 +441,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	/* Once appended here, the WAL owns every remaining byte in unwrittenData.
 	 * The controller may therefore retire the note-level journal obligation;
 	 * -synchronize remains responsible for draining and fsyncing this byte outbox. */
+	cannotContinueWriting = NO;
 	return YES;
 }
 
@@ -413,45 +474,51 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 //bytes from NSData
 
 //general operation for recovering log:
-//if walstoragecontroller couldn't be initialized, then the file probably already exists
-//so try to initialize it here
-//if that works, call recoverNextObject sequentially until it returns nil
+//The startup coordinator owns database persistence and WAL replacement. This
+//class only holds the existing journal lock and scans recoverable records.
 
-//re-serialize all the (now-recovered) notes to database
-
-//if that works, then remove the log file
-
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key {
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key
+	error:(int*)errorNumber journalInUse:(BOOL*)journalInUse {
+	if (errorNumber) *errorNumber = 0;
+	if (journalInUse) *journalInUse = NO;
     self = [super initWithDirectoryFileDescriptor:fileDescriptor encryptionKey:key];
     if (self) {
 	fileLength = totalBytesRead = 0;
 	
 	//attempt to open file read-only
-	if ((logFD = openat(directoryFD, NVJournalFilename, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)) < 0) {
+	if ((logFD = openat(directoryFD, NVJournalFilename,
+		O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW)) < 0) {
+		int openError = errno;
 	    NSLog(@"WALRecoveryController: open error: %s", strerror(errno));
+		if (errorNumber) *errorNumber = openError;
 	    [self release];
 	    return nil;
 	}
 	if (![self _acquireJournalLock]) {
-		//TODO: define "another NV is already open" in CaronbErrorStrings.plist and ensure this error bubbles up to the dialog rather than just returning kJournalingError
-		NSLog(@"WALRecoveryController: journal is in use: %s", strerror(errno));
+		int lockError = errno;
+		NSLog(@"WALRecoveryController: journal is in use: %s", strerror(lockError));
+		if (errorNumber) *errorNumber = lockError;
+		if (journalInUse)
+			*journalInUse = lockError == EWOULDBLOCK || lockError == EAGAIN;
 		[self release];
 		return nil;
 	}
-	(void)fchmod(logFD, S_IRUSR);
-	
 	struct stat sb;
 	if (fstat(logFD, &sb) < 0) {
+		int statError = errno;
 	    NSLog(@"WALRecoveryController: fstat error: %s", strerror(errno));
+		if (errorNumber) *errorNumber = statError;
 	    [self release];
 	    return nil;
 	}
 	
-	if (S_ISDIR(sb.st_mode)) {
-	    NSLog(@"WALRecoveryController: log file is actually a directory! Don't play games with me!");
+	if (!S_ISREG(sb.st_mode)) {
+	    NSLog(@"WALRecoveryController: log file is not a regular file");
+		if (errorNumber) *errorNumber = S_ISDIR(sb.st_mode) ? EISDIR : EINVAL;
 	    [self release];
 	    return nil;
 	}
+	(void)fchmod(logFD, S_IRUSR);
 	
 	fileLength = sb.st_size;
 	
@@ -464,6 +531,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	
 	if (inflateInit2(&compressionStream, MAX_WBITS) != Z_OK) {
 		NSLog(@"inflateInit2 error: %s", compressionStream.msg);
+		if (errorNumber) *errorNumber = EIO;
 		[self release];
 		return nil;
 	}
@@ -473,116 +541,169 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 }
 
 //log enumerating method
-- (id <SynchronizedNote>)recoverNextObject {
-    WALRecordHeader record = {{0}};
-    
-    //attempt to read size of log record and checksum
-    //if it's smaller than the remaining bytes to read
-    //allocate enough memory, try to read data in, and checksum it
-    //if checksum matches, attempt to deserialize
-    //if deserialization was successful, then return a new object!
-    
-    //if any of these fail, return nil
-	
-    //adapt reads to read from decompression stream
-    
-    ssize_t readBytes = read(logFD, &record, sizeof(WALRecordHeader));
-    totalBytesRead += MAX(0, readBytes);
-	
-	if (readBytes == 0)
-		return nil;
-	if (readBytes < (int)sizeof(WALRecordHeader)) {
-		if (readBytes < 0)
-			NSLog(@"recoverNextObject can't read the log record header: %s", strerror(errno));
-		else
-			NSLog(@"recoverNextObject found a truncated log record header");
-		return nil;
+- (WALRecordRecoveryResult)recoverNextObject:(id<SynchronizedNote>*)recoveredObject {
+	WALRecordHeader record = {{0}};
+	NSMutableData *serializedData = nil;
+	NSData *uncompressedData = nil;
+	Bytef *uncompressedBytes = NULL;
+	WALRecordRecoveryResult result = WALRecoveryStopped;
+	if (recoveredObject) *recoveredObject = nil;
+
+	/* Decide benign damaged-tail cases from the length captured while the file is
+	 * locked.  An unexpected short read inside that boundary is a hard stop. */
+	off_t bytesRemaining = fileLength - totalBytesRead;
+	if (bytesRemaining <= 0) return WALRecoveryEnded;
+	if (bytesRemaining < (off_t)sizeof(record)) {
+		NSLog(@"recoverNextObject found a truncated log record header");
+		return WALRecoveryEnded;
 	}
-	
+	int readError = 0;
+	ssize_t readBytes = NVReadWALBytes(logFD, &record, sizeof(record), &readError);
+	totalBytesRead += readBytes;
+	if (readError || readBytes != (ssize_t)sizeof(record)) {
+		NSLog(@"recoverNextObject can't read the complete log record header%@",
+			readError ? [NSString stringWithFormat:@": %s", strerror(readError)] : @"");
+		return WALRecoveryStopped;
+	}
+
 	record.originalDataLength = CFSwapInt32BigToHost(record.originalDataLength);
 	record.dataLength = CFSwapInt32BigToHost(record.dataLength);
 	record.checksum = CFSwapInt32BigToHost(record.checksum);
-    
-    if (record.dataLength > fileLength - totalBytesRead) {
-		NSLog(@"recoverNextObject can't continue because the size of this record is larger than the rest of the file!");
-		return nil;
-    }
-    
-    char *presumablySerializedBytes = (char*)malloc(record.dataLength);
-    
-    readBytes = read(logFD, presumablySerializedBytes, record.dataLength);
-    totalBytesRead += MAX(0, readBytes);
-    
-    if (readBytes < (int)record.dataLength) {
-		NSLog(@"recoverNextObject can't read all serialized bytes: %s", strerror(errno));
-		free(presumablySerializedBytes);
-		return nil;
-    }
-    
-    NSMutableData *presumablySerializedData = [[NSMutableData alloc] initWithBytesNoCopy:presumablySerializedBytes 
-																				  length:record.dataLength freeWhenDone:YES];
-    if ([presumablySerializedData CRC32] != record.checksum) {
+	if (!record.originalDataLength || !record.dataLength) {
+		NSLog(@"recoverNextObject found an invalid zero-length record");
+		return WALRecoveryStopped;
+	}
+	if (totalBytesRead > fileLength || record.dataLength > (uint64_t)(fileLength - totalBytesRead)) {
+		NSLog(@"recoverNextObject found a truncated final record");
+		return WALRecoveryEnded;
+	}
+
+	char *encryptedBytes = (char*)malloc(record.dataLength);
+	if (!encryptedBytes) {
+		NSLog(@"Unable to allocate the encrypted WAL record buffer");
+		return WALRecoveryStopped;
+	}
+	readError = 0;
+	readBytes = NVReadWALBytes(logFD, encryptedBytes, record.dataLength, &readError);
+	totalBytesRead += readBytes;
+	if (readBytes != (ssize_t)record.dataLength) {
+		NSLog(@"recoverNextObject can't read all serialized bytes%@", readError ?
+			[NSString stringWithFormat:@": %s", strerror(readError)] : @"");
+		free(encryptedBytes);
+		return WALRecoveryStopped;
+	}
+
+	serializedData = [[NSMutableData alloc] initWithBytesNoCopy:encryptedBytes
+		length:record.dataLength freeWhenDone:YES];
+	if (!serializedData) {
+		free(encryptedBytes);
+		return WALRecoveryStopped;
+	}
+	if ([serializedData CRC32] != record.checksum) {
 		NSLog(@"recoverNextObject: checksum of read data does not match that of record header");
-		[presumablySerializedData release];
-		return nil;
-    }
-	    
-    //attempt to decrypt using record key based on record salt and log session key
-	NSData *recordSalt = [NSData dataWithBytesNoCopy:record.saltBuffer length:RECORD_SALT_LEN freeWhenDone:NO];
-    NSData *recordKey = [logSessionKey derivedKeyOfLength:(int)[logSessionKey length] salt:recordSalt iterations:1];
-	
-	if (!([presumablySerializedData decryptAESDataWithKey:recordKey iv:[recordSalt subdataWithRange:NSMakeRange(0, 16)]])) {
+		goto cleanup;
+	}
+
+	NSData *recordSalt = [NSData dataWithBytesNoCopy:record.saltBuffer
+		length:RECORD_SALT_LEN freeWhenDone:NO];
+	NSData *recordKey = [logSessionKey derivedKeyOfLength:(int)[logSessionKey length]
+		salt:recordSalt iterations:1];
+	if (![serializedData decryptAESDataWithKey:recordKey
+		iv:[recordSalt subdataWithRange:NSMakeRange(0, 16)]]) {
 		NSLog(@"Record decryption failed!");
-		return nil;
+		goto cleanup;
 	}
-	
-	//decompress here
-	Bytef *uncompressedDataBuffer = (Bytef *)malloc(record.originalDataLength);
-	
-	compressionStream.avail_in = (uInt)[presumablySerializedData length];
-	compressionStream.next_in = (Bytef*)[presumablySerializedData bytes];
+
+	uncompressedBytes = (Bytef*)malloc(record.originalDataLength);
+	if (!uncompressedBytes) {
+		NSLog(@"Unable to allocate the WAL recovery buffer");
+		goto cleanup;
+	}
+	compressionStream.avail_in = (uInt)[serializedData length];
+	compressionStream.next_in = (Bytef*)[serializedData bytes];
 	compressionStream.avail_out = (uInt)record.originalDataLength;
-	compressionStream.next_out = uncompressedDataBuffer;
+	compressionStream.next_out = uncompressedBytes;
 	compressionStream.data_type = Z_BINARY;
-	
+
+	/* The writer uses one continuous zlib stream.  Successfully consuming this
+	 * record's complete compressed segment is what makes the next record usable. */
 	int inflateResult = inflate(&compressionStream, Z_SYNC_FLUSH);
-	if (inflateResult == Z_STREAM_ERROR) {
-		NSLog(@"zlib inflate error: %s", compressionStream.msg);
-		return nil;
+	if (inflateResult != Z_OK && inflateResult != Z_BUF_ERROR) {
+		NSLog(@"recoverNextObject: zlib inflate error %d: %s", inflateResult,
+			compressionStream.msg ?: "unknown error");
+		goto cleanup;
 	}
-	if (inflateResult == Z_NEED_DICT || inflateResult == Z_DATA_ERROR || 
-		inflateResult == Z_MEM_ERROR) {
-		NSLog(@"err: inflateResult = %d", inflateResult);
-		return nil;
+	BOOL declaredLengthTooLarge = compressionStream.avail_out != 0;
+	if (compressionStream.avail_in || !declaredLengthTooLarge) {
+		/* A full output buffer can leave decoded bytes pending even after zlib has
+		 * consumed all input.  Probe and drain until a no-output call proves that
+		 * this record's segment boundary has been reached. */
+		Bytef discard[4096];
+		BOOL producedExtraOutput = NO;
+		while (1) {
+			uInt inputBefore = compressionStream.avail_in;
+			compressionStream.next_out = discard;
+			compressionStream.avail_out = sizeof(discard);
+			inflateResult = inflate(&compressionStream, Z_SYNC_FLUSH);
+			uInt outputProduced = sizeof(discard) - compressionStream.avail_out;
+			if ((inflateResult != Z_OK && inflateResult != Z_BUF_ERROR) ||
+				(compressionStream.avail_in == inputBefore && !outputProduced &&
+				 compressionStream.avail_in)) {
+				NSLog(@"recoverNextObject could not reach the compressed record boundary");
+				goto cleanup;
+			}
+			if (outputProduced) producedExtraOutput = YES;
+			if (!compressionStream.avail_in && !outputProduced) break;
+		}
+		if (producedExtraOutput) {
+			NSLog(@"recoverNextObject found more decompressed data than declared");
+			result = WALRecordSkipped;
+			goto cleanup;
+		}
 	}
-	
-	if (compressionStream.avail_out != 0) {
-		NSLog(@"recoverNextObject: compressionStream.avail_out(%d) != 0", compressionStream.avail_out);
-		return nil;
+	if (declaredLengthTooLarge) {
+		NSLog(@"recoverNextObject found less decompressed data than declared");
+		result = WALRecordSkipped;
+		goto cleanup;
 	}
-	
-	[presumablySerializedData setLength:record.originalDataLength];
-	memcpy([presumablySerializedData mutableBytes], uncompressedDataBuffer, record.originalDataLength);
-	free(uncompressedDataBuffer);
-	
-    
-    id <SynchronizedNote> object = nil;
+
+	[serializedData release];
+	serializedData = nil;
+	uncompressedData = [[NSData alloc] initWithBytesNoCopy:uncompressedBytes
+		length:record.originalDataLength freeWhenDone:YES];
+	if (!uncompressedData) goto cleanup;
+	uncompressedBytes = NULL;
+	/* Unarchiving happens only after zlib consumed the complete segment, so an
+	 * archive exception or wrong object type can skip this record and continue. */
+	id object = nil;
 	@try {
 		NSError *unarchiveError = nil;
-		NSKeyedUnarchiver *unarchiver = [[[NSKeyedUnarchiver alloc] initForReadingFromData:presumablySerializedData error:&unarchiveError] autorelease];
+		NSKeyedUnarchiver *unarchiver = [[[NSKeyedUnarchiver alloc]
+			initForReadingFromData:uncompressedData error:&unarchiveError] autorelease];
 		[unarchiver setRequiresSecureCoding:NO];
 		object = [unarchiver decodeTopLevelObjectForKey:@"aNote" error:&unarchiveError];
 		[unarchiver finishDecoding];
 		if (!object)
-			NSLog(@"recoverNextObject could not unarchive object: %@; returning NSNull to skip", unarchiveError);
-    } @catch (NSException *e) {
-		NSLog(@"recoverNextObject got an exception while unarchiving object: %@; returning NSNull to skip", [e reason]);
-    }
-	if (!object) object = (id<SynchronizedNote>)[NSNull null];
-    
-    [presumablySerializedData release];
-    
-	return object;
+			NSLog(@"recoverNextObject could not unarchive object: %@", unarchiveError);
+	} @catch (NSException *exception) {
+		object = nil;
+		NSLog(@"recoverNextObject got an exception while unarchiving object: %@",
+			[exception reason]);
+	}
+	if (!object || ![object conformsToProtocol:@protocol(SynchronizedNote)]) {
+		if (object) NSLog(@"Recovered object of class %@ does not conform to SynchronizedNote",
+			[object className]);
+		result = WALRecordSkipped;
+		goto cleanup;
+	}
+	if (recoveredObject) *recoveredObject = object;
+	result = WALRecordRecovered;
+
+cleanup:
+	free(uncompressedBytes);
+	[uncompressedData release];
+	[serializedData release];
+	return result;
 }
 
 - (void)dealloc {
@@ -607,8 +728,8 @@ static Boolean SynchronizedNoteIsEqual(const void *o, const void *p) {
 //throw away objects with LSNs lower than the current highest one for each UUID
 //and when recovery cannot progress any further, only the newest objects will be exchanged
 
-- (NSDictionary*)recoveredNotes {
-    id <SynchronizedNote> obj = nil;
+- (NSDictionary*)recoveredNotesWithIncompleteRecovery:(BOOL*)incomplete {
+	id <SynchronizedNote> obj = nil;
 	CFUUIDBytes *objUUIDBytes = NULL;
     
     CFDictionaryKeyCallBacks keyCallbacks = kCFTypeDictionaryKeyCallBacks;
@@ -620,28 +741,31 @@ static Boolean SynchronizedNoteIsEqual(const void *o, const void *p) {
     
     CFMutableDictionaryRef recoveredNotes = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &keyCallbacks, &kCFTypeDictionaryValueCallBacks);
     
-    do {
-		if ((obj = [self recoverNextObject])) {
-			
-			if ([obj conformsToProtocol:@protocol(SynchronizedNote)]) {
-				objUUIDBytes = [obj uniqueNoteIDBytes];
-				id <SynchronizedNote> foundNote = nil;
-				
-				//if the note already exists, then insert this note only if it's newer, and always insert it if it doesn't exist
-				if (CFDictionaryGetValueIfPresent(recoveredNotes, (const void *)objUUIDBytes, (const void **)&foundNote)) {
-					
-					//note is already here, overwrite it only if our LSN is greater or equal
-					if (foundNote && ![foundNote youngerThanLogObject:obj])
-						continue;
-				}
-				CFDictionarySetValue(recoveredNotes, (const void *)objUUIDBytes, (const void *)obj);
-			} else {
-				NSLog(@"object of class %@ recovered that doesn't conform to SynchronizedNote protocol", [(NSObject*)obj className]);
-			}
+	/* A skipped record marks the result incomplete but preserves stream progress;
+	 * a stopped record marks it incomplete and preserves only the valid prefix. */
+	BOOL recoveryIncomplete = NO;
+	while (1) {
+		WALRecordRecoveryResult result = [self recoverNextObject:&obj];
+		if (result == WALRecoveryEnded) break;
+		if (result == WALRecoveryStopped) {
+			recoveryIncomplete = YES;
+			break;
 		}
-    } while (obj); //|| this note failed because of a deserialization problem, but everything else was fine
-    
-    
+		if (result == WALRecordSkipped) {
+			recoveryIncomplete = YES;
+			continue;
+		}
+
+		/* A note may occur many times in one WAL.  UUID+LSN coalescing makes replay
+		 * idempotent and also preserves the newest deletion object. */
+		objUUIDBytes = [obj uniqueNoteIDBytes];
+		id <SynchronizedNote> foundNote = nil;
+		if (CFDictionaryGetValueIfPresent(recoveredNotes, (const void *)objUUIDBytes,
+			(const void **)&foundNote) && foundNote && ![foundNote youngerThanLogObject:obj])
+			continue;
+		CFDictionarySetValue(recoveredNotes, (const void *)objUUIDBytes, (const void *)obj);
+	}
+	if (incomplete) *incomplete = recoveryIncomplete;
 	return [(NSDictionary*)recoveredNotes autorelease];
 }
 

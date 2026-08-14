@@ -64,7 +64,7 @@ Transactional directory reconciliation:
 - `storage-transition-memory-wins`: switching from a single database to separate files queues authoritative in-memory notes even when a newer external file exists.
 - `open-files-workflow`: mixed known and external paths reveal owned notes while importing the remaining files.
 - `deletion-contracts`: restored external deletions, batched confirmation-free deletion, and failed Trash moves.
-- `fsevents-live`: live service delivery drives create, rename, edit, and delete reconciliation without a manual scan; belongs to the platform suite.
+- `fsevents-live`: live service delivery drives create, rename, edit, and delete reconciliation without a manual scan; it also covers real direct/scratch editor routing and delivery, plus private 0600 encrypted scratch editing on the verified RAM disk and teardown. Belongs to the platform suite.
 - `rename-without-preflight`: note renames do not widen the race with a separate existence check.
 - `rename-enoent-source-proof`: ENOENT is accepted only when the source is truly absent; a disappearing destination with a surviving source returns `EAGAIN`.
 
@@ -78,8 +78,11 @@ Storage formats, archives, and recovery:
 - `filename-collisions`: slash-bearing titles, untracked destination files, and case-only internal renames remain distinct and reloadable.
 - `concurrent-controllers`: a live controller keeps exclusive ownership of its WAL while a second controller fails closed; crash recovery remains separately covered.
 - `unsupported-journal-locks`: bookmark-resolved controller launches and WAL recovery tolerate unsupported advisory locking (`ENOTSUP` and regular-file `EINVAL`) while lock contention still fails closed.
+- `legacy-temporary-database-recovery`: after a journaling error, an epoch-4 database offers recovery from the newest qualifying legacy verified-write temporary file; nanosecond/lexical selection, age/size/epoch/filename gates, source preservation, rollback, declined choices, and clean relaunch are covered.
+- `wal-record-recovery`: exercises clean records, skippable archive/type/length failures, checksum/decryption/zlib hard stops, compression-stream resynchronization, unexpected short reads, and benign truncated tails while retaining every safely recovered note.
+- `wal-recovery-workflows`: covers partial-note merging, legacy-candidate merging before epoch upgrade, starting from the old database, one-write epoch upgrade, mutually exclusive alerts, preservation names, rename/sync/fresh-journal rollback, discarded-controller callback cancellation, and unrelated journaling errors.
 - `legacy-fixtures`: reads legacy keyed/non-keyed database fixtures and upgrades metadata safely.
-- `encryption`: encrypted database persistence and reload.
+- `encryption`: encrypted database persistence plus real controller relaunch, encrypted WAL recovery, post-recovery editing, fresh-WAL replacement, clean WAL retirement, and shutdown/relaunch.
 - `wal-crash-recovery`: child-process WAL crash and relaunch recovery on the selected volume; normally run by the disk-image harness.
 - `wal-crash-child`: helper subprocess for `wal-crash-recovery`; do not normally invoke directly (`NV_WAL_CRASH_DIRECTORY` is required).
 - `wal-history-recovery`: bookmark-resolved child crashes after interleaved updates and deletion; recovery keeps each UUID's newest state without resurrecting the deleted note.
@@ -87,11 +90,11 @@ Storage formats, archives, and recovery:
 - `wal-recovery-retry-idempotence`: forces the database flush after WAL recovery to fail, crashes again, and verifies the re-journaled state recovers identically on repeated bookmark-based launches.
 - `wal-database-ordering`: verifies stale WAL records cannot replace a newer database, while newer WAL updates and deletions supersede it.
 - `wal-durability-boundaries`: crashes before journal synchronization, after journal synchronization, and after database persistence but before WAL cleanup to lock the durability contract.
-- `file-outbox-crash-recovery`: WAL success plus note-file failure survives relaunch and rewrites stale disk content before reconciliation.
+- `file-outbox-crash-recovery`: WAL success plus note-file failure survives relaunch, rewrites stale disk content before reconciliation, and recreates a WAL-only new note without classifying it as an external deletion.
 - `file-outbox-crash-child`: helper subprocess for the outbox crash test; do not normally invoke directly (`NV_FILE_OUTBOX_CRASH_DIRECTORY` is required).
 - `disk-full-recovery-contract`: fills a fixed-size image, verifies ENOSPC keeps the write pending, frees reserve space, and converges. Requires `NV_TEST_REQUIRE_DISK_IMAGE=1` and is normally harness-only.
 - `atomic-rollback`: content, xattr, rename, verification, and post-install identity failures preserve the correct installed/pending state.
-- `failures`: corrupt database, invalid notes directory, read-only writes, and related error propagation.
+- `failures`: corrupt database, invalid notes directory, read-only writes, nonblocking rejection of a FIFO journal, and related error propagation.
 
 Directory identity, bookmarks, and lifecycle:
 

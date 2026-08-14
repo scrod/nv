@@ -69,6 +69,9 @@ run-core: all
 	$(BUILD_DIR)/NVIntegrationTest filename-collisions
 	$(BUILD_DIR)/NVIntegrationTest concurrent-controllers
 	$(BUILD_DIR)/NVIntegrationTest unsupported-journal-locks
+	$(BUILD_DIR)/NVIntegrationTest legacy-temporary-database-recovery
+	$(BUILD_DIR)/NVIntegrationTest wal-record-recovery
+	$(BUILD_DIR)/NVIntegrationTest wal-recovery-workflows
 	$(BUILD_DIR)/NVIntegrationTest wal-history-recovery
 	$(BUILD_DIR)/NVIntegrationTest wal-damaged-tail-recovery
 	$(BUILD_DIR)/NVIntegrationTest wal-recovery-retry-idempotence

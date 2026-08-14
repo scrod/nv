@@ -227,7 +227,7 @@
 "Quit" = "Salir";
 
 /* no comment */
-"Reverting to current location of %@." = "Reverting to current location of %@.";
+"Reverting to current location of %@." = "Volviendo a la ubicación actual de %@.";
 
 /* no comment */
 "Warning: this database was created by a newer version of Notational Velocity. Continue anyway?" =
@@ -316,7 +316,7 @@
 "Copy" = "Copiar";
 
 /* menu item prefix to copy a URL */
-"Copy " = "Copy ";
+"Copy " = "Copiar ";
 
 /* contextual menu item title to copy urls */
 "Copy URL" = "Copiar URL";
@@ -476,7 +476,7 @@
 "Session could not be created" = "No se ha podido crear la sesión";
 
 /* Simplenote-specific error */
-"No authorization token" = "No authorization token";
+"No authorization token" = "No hay token de autorización";
 
 /* Simplenote-specific error */
 "The index of notes could not be parsed." = "No se ha podido analizar el índice de notas.";
@@ -674,3 +674,56 @@
 "Set Default Notes Folder" = "Establecer carpeta de notas predeterminada";
 "This folder contains a Notational Velocity database." = "Esta carpeta contiene una base de datos de Notational Velocity.";
 "Would you like to import its contents as new notes, or make it your default notes folder?" = "¿Quieres importar su contenido como notas nuevas o convertirla en tu carpeta de notas predeterminada?";
+
+/* localization audit: user-facing fallback strings */
+"Another copy of Notational Velocity is already using this notes database." = "Otra copia de Notational Velocity ya está utilizando esta base de datos de notas.";
+"Quit the other copy before opening this folder, or choose another notes folder." = "Cierra la otra copia antes de abrir esta carpeta o elige otra carpeta de notas.";
+"Add %lu Notes" = "Añade %lu notas";
+"Delete %lu Notes" = "Borrar %lu notas";
+"Choose a folder into which %lu notes will be exported" = "Escoja la carpeta donde exportar las %lu notas";
+"Add Notes" = "Añadir notas";
+"If you make changes, some settings and metadata will be lost." = "Si realizas cambios, se perderán algunos ajustes y metadatos.";
+"Please enter the passphrase to import old notes at %@." = "Introduce la contraseña para importar las notas antiguas desde %@.";
+"Error: the modification date of the file quotemark%@quotemark could not be compared." = "Error: no se pudo comparar la fecha de modificación del archivo quotemark%@quotemark.";
+"Unable to access the chosen directory." = "No se puede acceder a la carpeta seleccionada.";
+"The external editor saved data that was not valid UTF-8. The exact bytes follow as Base64:\n\n%@" = "El editor externo guardó datos que no eran UTF-8 válido. Los bytes exactos se muestran a continuación como Base64:\n\n%@";
+"a changing file's displaced contents remain in emergency recovery storage" = "el contenido desplazado del archivo modificado permanece en el almacenamiento de recuperación de emergencia";
+"a changing file's displaced contents were recovered as %@" = "el contenido desplazado del archivo modificado se recuperó como %@";
+"the externally edited note could not be decoded" = "no se pudo decodificar la nota editada externamente";
+"the note could not be converted to its file format" = "no se pudo convertir la nota a su formato de archivo";
+"the note could not be converted to the selected export format" = "no se pudo convertir la nota al formato de exportación seleccionado";
+"the write-ahead journal could not be updated" = "no se pudo actualizar el diario de escritura anticipada";
+"Invalid character in diff_fromDelta: %@" = "Carácter no válido en diff_fromDelta: %@";
+"Invalid number in diff_fromDelta: %@" = "Número no válido en diff_fromDelta: %@";
+"Negative number in diff_fromDelta: %@" = "Número negativo en diff_fromDelta: %@";
+"Delta length (%lu) larger than source text length (%lu)." = "La longitud del delta (%lu) es mayor que la longitud del texto de origen (%lu).";
+"Invalid diff operation in diff_fromDelta: %C" = "Operación de diff no válida en diff_fromDelta: %C";
+"Delta length (%lu) smaller than source text length (%lu)." = "La longitud del delta (%lu) es menor que la longitud del texto de origen (%lu).";
+"Invalid patch string: %@" = "Cadena de parche no válida: %@";
+"Invalid patch mode '%C' in: %@" = "Modo de parche no válido '%C' en: %@";
+"Add" = "Añadir";
+"Remove" = "Eliminar";
+"Make Default" = "Establecer como predeterminado";
+"Password Assistant" = "Asistente de contraseñas";
+"Keyboard Shortcut" = "Atajo de teclado";
+"Clear Search" = "Borrar búsqueda";
+"Return to All Notes" = "Volver a todas las notas";
+"Back" = "Atrás";
+"Editing Note" = "Editar nota";
+"Search" = "Buscar";
+"Resize Notes List" = "Cambiar tamaño de la lista de notas";
+"Show Sync Status" = "Mostrar estado de sincronización";
+"Synchronizing" = "Sincronizando";
+"Sync Error" = "Error de sincronización";
+"Warning" = "Advertencia";
+"Validated" = "Validado";
+"In Progress" = "En curso";
+"Error" = "Error";
+"Recovery from Interim Note-Changes failed but a newer database file was found; attempt recovery from it instead?" = "La recuperación desde Interim Note-Changes falló, pero se encontró un archivo de base de datos más reciente. ¿Intentar recuperarlo en su lugar?";
+"The unrecoverable database will be renamed." = "La base de datos irrecuperable cambiará de nombre.";
+"Recover Database" = "Recuperar base de datos";
+"Recovery from Interim Note-Changes failed." = "La recuperación desde Interim Note-Changes falló.";
+"You can start from the older Notes & Settings database instead. The unrecoverable Interim Note-Changes file will be renamed and preserved." = "Puedes comenzar con la base de datos anterior Notes & Settings. El archivo irrecuperable Interim Note-Changes cambiará de nombre y se conservará.";
+"Start From Old Notes" = "Comenzar con notas antiguas";
+"Some changes could not be recovered." = "No se pudieron recuperar algunos cambios.";
+"Notational Velocity recovered as many notes as possible. The original database and unrecoverable Interim Note-Changes files were renamed and preserved." = "Notational Velocity recuperó tantas notas como fue posible. La base de datos original y los archivos irrecuperables Interim Note-Changes cambiaron de nombre y se conservaron.";

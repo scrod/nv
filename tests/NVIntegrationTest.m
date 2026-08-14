@@ -3,14 +3,18 @@
 #import "../FrozenNotation.h"
 #import "../AppController.h"
 #import "../GlobalPrefs.h"
+#import "../StartupRecovery.h"
 #import "../NotationController.h"
 #import "../NotationDirectoryManager.h"
 #import "../NotationFileManager.h"
 #import "../NotationPrefs.h"
 #import "../NotationSyncServiceManager.h"
+#import "../PassphraseRetriever.h"
 #import "../DeletionManager.h"
 #import "../NoteObject.h"
 #import "../ExternalEditingSession/ExternalEditingSession.h"
+#import "../ExternalEditorListController.h"
+#import "../TemporaryFileCachePreparer.h"
 #import "../WALController.h"
 #import "../NSFileManager_NV.h"
 #import "../NSData_transformations.h"
@@ -38,6 +42,15 @@ extern char **environ;
 - (void)stopScratchWatcher;
 - (void)openDidCompleteForSessionPath:(NSString*)path application:(NSRunningApplication*)application;
 - (void)checkFinishRequests;
+- (BOOL)openURL:(NSURL*)URL inEditor:(ExternalEditor*)editor sessionPath:(NSString*)sessionPath;
+@end
+
+@interface WALStorageController (NVTesting)
+- (BOOL)writeNoteObject:(id<SynchronizedNote>)object;
+@end
+
+@interface WALRecoveryController (NVTesting)
+- (NSDictionary*)recoveredNotesWithIncompleteRecovery:(BOOL*)incomplete;
 @end
 
 @interface NVScratchRaceNote : NoteObject {
@@ -72,6 +85,22 @@ extern char **environ;
 }
 @end
 
+@interface NVTestExternalEditor : ExternalEditor {
+	BOOL editsDirectly;
+}
+- (id)initWithDirectEditing:(BOOL)direct;
+@end
+
+@implementation NVTestExternalEditor
+- (id)initWithDirectEditing:(BOOL)direct {
+	self = [super initWithBundleID:@"com.notationalvelocity.integration-test-editor"
+		resolvedURL:[NSURL fileURLWithPath:@"/Applications/Test Editor.app"]];
+	if (self) editsDirectly = direct;
+	return self;
+}
+- (BOOL)canEditNoteDirectly:(NoteObject*)note { (void)note; return editsDirectly; }
+@end
+
 extern NSString *NVMergedText(NSString *base, NSString *local, NSString *external);
 
 void FSEventsCallback(ConstFSEventStreamRef stream, void *info, size_t numEvents,
@@ -87,8 +116,35 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void *info, size_t numEvents
 static NSUInteger controllerDeallocationCount;
 static NSUInteger injectedControllerFlushFailures;
 static NSUInteger observedInjectedControllerFlushFailures;
+static NSUInteger injectedFreshJournalInitializationFailures;
+static NSUInteger injectedRecoveryDirectorySyncFailures;
+static NSUInteger injectedRecoveryJournalRenameFailures;
+static BOOL observeJournalInitializations;
+static NSUInteger observedJournalInitializations;
 static int injectedJournalFlockError;
+static NSModalResponse injectedLegacyRecoveryResponse = NSAlertFirstButtonReturn;
+static NSModalResponse injectedFailedWALRecoveryResponse = NSAlertFirstButtonReturn;
+static NSUInteger legacyRecoveryPromptCount;
+static NSUInteger failedWALRecoveryPromptCount;
+static NSUInteger partialWALRecoveryWarningCount;
+static NSUInteger legacyRecoveryQuitCount;
+static BOOL liveFSEventsEnabled;
+static BOOL observeExternalDatabaseInitialization;
+static NSUInteger observedExternalDatabaseInitializations;
+enum { NVTestJournalingError = -819, NVTestPassCanceledError = -823 };
 static IMP originalJournalFlockImplementation;
+static IMP originalExternalDatabaseInitializationImplementation;
+static IMP originalPassphraseRetrieverImplementation;
+static NSData *injectedDatabasePassphrase;
+static IMP originalExternalEditorOpenImplementation;
+static BOOL interceptExternalEditorOpen;
+static NSURL *observedExternalEditorURL;
+static NSString *observedExternalEditorSessionPath;
+static NSData *EncryptionTestPassphrase(void);
+
+@interface NotationController (StartupRecoveryTesting)
+- (BOOL)_synchronizeRecoveryDirectory:(NSError**)error;
+@end
 
 static int NVInjectedJournalFlock(id object, SEL selector) {
 	if (injectedJournalFlockError) {
@@ -105,6 +161,63 @@ static void InstallJournalFlockInjection(void) {
 	REQUIRE(method != NULL);
 	originalJournalFlockImplementation = method_getImplementation(method);
 	method_setImplementation(method, (IMP)NVInjectedJournalFlock);
+}
+
+static void NVObservedExternalDatabaseInitialization(id object, SEL selector,
+	NotationPrefs *prefs) {
+	if (observeExternalDatabaseInitialization) {
+		observedExternalDatabaseInitializations++;
+		return;
+	}
+	((void (*)(id, SEL, NotationPrefs*))originalExternalDatabaseInitializationImplementation)(
+		object, selector, prefs);
+}
+
+static void InstallExternalDatabaseInitializationObservation(void) {
+	if (originalExternalDatabaseInitializationImplementation) return;
+	Method method = class_getInstanceMethod([ExternalEditingSession class],
+		@selector(initializeDatabase:));
+	REQUIRE(method != NULL);
+	originalExternalDatabaseInitializationImplementation = method_getImplementation(method);
+	method_setImplementation(method, (IMP)NVObservedExternalDatabaseInitialization);
+}
+
+static int NVInjectedLoadedUserPassphraseData(id object, SEL selector) {
+	if (!injectedDatabasePassphrase)
+		return ((int (*)(id, SEL))originalPassphraseRetrieverImplementation)(object, selector);
+	Ivar prefsIvar = class_getInstanceVariable([PassphraseRetriever class], "notationPrefs");
+	NotationPrefs *prefs = object_getIvar(object, prefsIvar);
+	return [prefs canLoadPassphraseData:injectedDatabasePassphrase] ? 1 : 0;
+}
+
+static void InstallPassphraseRetrieverInjection(void) {
+	if (originalPassphraseRetrieverImplementation) return;
+	Method method = class_getInstanceMethod([PassphraseRetriever class],
+		@selector(loadedUserPassphraseData));
+	REQUIRE(method != NULL);
+	originalPassphraseRetrieverImplementation = method_getImplementation(method);
+	method_setImplementation(method, (IMP)NVInjectedLoadedUserPassphraseData);
+}
+
+static BOOL NVInterceptExternalEditorOpen(id object, SEL selector, NSURL *URL,
+	ExternalEditor *editor, NSString *sessionPath) {
+	if (!interceptExternalEditorOpen)
+		return ((BOOL (*)(id, SEL, NSURL*, ExternalEditor*, NSString*))
+			originalExternalEditorOpenImplementation)(object, selector, URL, editor, sessionPath);
+	[observedExternalEditorURL release];
+	observedExternalEditorURL = [URL retain];
+	[observedExternalEditorSessionPath release];
+	observedExternalEditorSessionPath = [sessionPath copy];
+	return YES;
+}
+
+static void InstallExternalEditorOpenInterception(void) {
+	if (originalExternalEditorOpenImplementation) return;
+	Method method = class_getInstanceMethod([ExternalEditingSession class],
+		@selector(openURL:inEditor:sessionPath:));
+	REQUIRE(method != NULL);
+	originalExternalEditorOpenImplementation = method_getImplementation(method);
+	method_setImplementation(method, (IMP)NVInterceptExternalEditorOpen);
 }
 
 typedef struct __attribute__((packed, aligned(4))) {
@@ -531,6 +644,24 @@ static char NVPreparedNoteDeallocationProbeKey;
 
 @implementation NVTestNotationController
 
+- (NSModalResponse)_legacyDatabaseRecoveryResponse {
+	legacyRecoveryPromptCount++;
+	return injectedLegacyRecoveryResponse;
+}
+
+- (NSModalResponse)_failedWALRecoveryResponse {
+	failedWALRecoveryPromptCount++;
+	return injectedFailedWALRecoveryResponse;
+}
+
+- (void)_showPartialWALRecoveryWarning {
+	partialWALRecoveryWarningCount++;
+}
+
+- (void)_quitAfterDecliningLegacyDatabaseRecovery {
+	legacyRecoveryQuitCount++;
+}
+
 - (int)testNoteDirectoryFileDescriptor {
 	return noteDirectoryFileDescriptor;
 }
@@ -542,6 +673,37 @@ static char NVPreparedNoteDeallocationProbeKey;
 		return NO;
 	}
 	return [super flushAllNoteChanges];
+}
+
+- (BOOL)initializeJournaling {
+	if (observeJournalInitializations) observedJournalInitializations++;
+	if (injectedFreshJournalInitializationFailures &&
+		![self noteExistsWithName:@"Interim Note-Changes"]) {
+		injectedFreshJournalInitializationFailures--;
+		return NO;
+	}
+	return [super initializeJournaling];
+}
+
+- (BOOL)_synchronizeRecoveryDirectory:(NSError**)error {
+	if (injectedRecoveryDirectorySyncFailures) {
+		injectedRecoveryDirectorySyncFailures--;
+		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EIO userInfo:nil];
+		return NO;
+	}
+	return [super _synchronizeRecoveryDirectory:error];
+}
+
+- (BOOL)renameNoteFromName:(NSString*)oldName toName:(NSString*)newName
+	error:(NSError**)error {
+	if (injectedRecoveryJournalRenameFailures &&
+		[oldName isEqualToString:@"Interim Note-Changes"] &&
+		[newName rangeOfString:@" recovery "].location != NSNotFound) {
+		injectedRecoveryJournalRenameFailures--;
+		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EACCES userInfo:nil];
+		return NO;
+	}
+	return [super renameNoteFromName:oldName toName:newName error:error];
 }
 
 - (void)noteDidNotWrite:(NoteObject *)note error:(NSError*)error {
@@ -808,6 +970,10 @@ static char NVPreparedNoteDeallocationProbeKey;
 		}
 		return YES;
 	}
+	/* Most scenarios run synchronously on the main thread, so dispatch-queue
+	 * FSEvents teardown cannot release its final callback retain until the scenario
+	 * returns.  Only the live FSEvents scenario needs an OS subscription. */
+	if (!liveFSEventsEnabled) return YES;
 	return [super _configureDirEventStream];
 }
 
@@ -1290,12 +1456,15 @@ static char NVPreparedNoteDeallocationProbeKey;
 @interface NVCorruptArchiveObject : NSObject <NSCoding>
 @end
 
+static NSUInteger corruptArchiveDecodeCount;
+
 @implementation NVCorruptArchiveObject
 
 - (void)encodeWithCoder:(NSCoder *)coder { (void)coder; }
 
 - (id)initWithCoder:(NSCoder *)coder {
 	(void)coder;
+	corruptArchiveDecodeCount++;
 	[NSException raise:NSInvalidUnarchiveOperationException format:@"intentional corrupt database fixture"];
 	return nil;
 }
@@ -1348,6 +1517,553 @@ static NSString *WALBookmarkPath(NSString *rootPath) {
 
 static NSString *WALJournalPath(NSString *rootPath) {
 	return [WALNotesDirectoryPath(rootPath) stringByAppendingPathComponent:@"Interim Note-Changes"];
+}
+
+static NSData *TestDatabaseData(NSString *text, UInt32 epoch, NSUInteger paddingLength) {
+	NotationPrefs *prefs = [[NotationPrefs alloc] init];
+	NoteObject *note = [[NoteObject alloc] initWithNoteBody:
+		[[[NSAttributedString alloc] initWithString:text] autorelease]
+		title:text delegate:nil format:SingleDatabaseFormat labels:@""];
+	NSData *database = [FrozenNotation frozenDataWithExistingNotes:
+		[NSMutableArray arrayWithObject:note] deletedNotes:[NSMutableSet set] prefs:prefs];
+	NSError *error = nil;
+	NSMutableDictionary *archive = [NSPropertyListSerialization propertyListWithData:database
+		options:NSPropertyListMutableContainersAndLeaves format:NULL error:&error];
+	NSMutableArray *objects = [archive objectForKey:@"$objects"];
+	REQUIRE(note != nil && database != nil && archive != nil && objects != nil && error == nil);
+	BOOL replacedEpoch = NO;
+	for (id object in objects) {
+		if ([object isKindOfClass:[NSMutableDictionary class]] &&
+			[object objectForKey:@"epochIteration"]) {
+			[object setObject:[NSNumber numberWithUnsignedInt:epoch] forKey:@"epochIteration"];
+			replacedEpoch = YES;
+		}
+	}
+	if (paddingLength)
+		[objects addObject:[@"x" stringByPaddingToLength:paddingLength withString:@"x" startingAtIndex:0]];
+	NSData *result = [NSPropertyListSerialization dataWithPropertyList:archive
+		format:NSPropertyListBinaryFormat_v1_0 options:0 error:&error];
+	REQUIRE(replacedEpoch && result != nil && error == nil);
+	[note release];
+	[prefs release];
+	return result;
+}
+
+static void WriteTestFile(NSData *data, NSString *path, time_t modificationTime) {
+	NSError *error = nil;
+	REQUIRE([data writeToFile:path options:0 error:&error] && error == nil);
+	struct timespec times[2] = {
+		{ .tv_sec = modificationTime, .tv_nsec = 0 },
+		{ .tv_sec = modificationTime, .tv_nsec = 0 }
+	};
+	REQUIRE(utimensat(AT_FDCWD, [path fileSystemRepresentation], times, 0) == 0);
+}
+
+static void SetTestFileModificationTime(NSString *path, time_t seconds, long nanoseconds) {
+	struct timespec times[2] = {
+		{ .tv_sec = seconds, .tv_nsec = nanoseconds },
+		{ .tv_sec = seconds, .tv_nsec = nanoseconds }
+	};
+	REQUIRE(utimensat(AT_FDCWD, [path fileSystemRepresentation], times, 0) == 0);
+}
+
+static NSData *CreateCorruptTestJournal(NSString *directoryPath) {
+	int directoryFD = open([directoryPath fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	REQUIRE(directoryFD >= 0);
+	NotationPrefs *prefs = [[NotationPrefs alloc] init];
+	WALStorageController *writer = [[WALStorageController alloc]
+		initWithDirectoryFileDescriptor:directoryFD encryptionKey:[prefs WALSessionKey]];
+	NoteObject *note = [[NoteObject alloc] initWithNoteBody:
+		[[[NSAttributedString alloc] initWithString:@"corrupt WAL record"] autorelease]
+		title:@"Corrupt WAL" delegate:nil format:SingleDatabaseFormat labels:@""];
+	REQUIRE(writer != nil && note != nil && [writer writeEstablishedNote:note] && [writer synchronize]);
+	[note release];
+	[writer release];
+	[prefs release];
+	close(directoryFD);
+
+	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
+	REQUIRE([journal length] > 0);
+	((uint8_t*)[journal mutableBytes])[[journal length] - 1] ^= 0xFF;
+	NSError *error = nil;
+	REQUIRE([journal writeToFile:path options:0 error:&error] && error == nil);
+	return journal;
+}
+
+enum { NVTestWALRecordHeaderLength = 44 };
+
+static NSUInteger WALRecordOffset(NSData *journal, NSUInteger recordIndex) {
+	NSUInteger offset = 0;
+	for (NSUInteger index = 0; index <= recordIndex; index++) {
+		REQUIRE(offset + NVTestWALRecordHeaderLength <= [journal length]);
+		if (index == recordIndex) return offset;
+		uint32_t storedLength = 0;
+		[journal getBytes:&storedLength range:NSMakeRange(offset + sizeof(uint32_t),
+			sizeof(storedLength))];
+		offset += NVTestWALRecordHeaderLength + CFSwapInt32BigToHost(storedLength);
+	}
+	return NSNotFound;
+}
+
+static NSData *CreateTestJournal(NSString *directoryPath, NSArray *objects) {
+	int directoryFD = open([directoryPath fileSystemRepresentation],
+		O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	REQUIRE(directoryFD >= 0);
+	NotationPrefs *prefs = [[NotationPrefs alloc] init];
+	WALStorageController *writer = [[WALStorageController alloc]
+		initWithDirectoryFileDescriptor:directoryFD encryptionKey:[prefs WALSessionKey]];
+	REQUIRE(writer != nil);
+	for (id object in objects)
+		REQUIRE([writer writeNoteObject:(id<SynchronizedNote>)object]);
+	REQUIRE([writer synchronize]);
+	[writer release];
+	[prefs release];
+	close(directoryFD);
+	return [NSData dataWithContentsOfFile:
+		[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+}
+
+static void CorruptWALChecksum(NSString *directoryPath, NSUInteger recordIndex) {
+	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
+	NSUInteger offset = WALRecordOffset(journal, recordIndex);
+	uint32_t checksum = 0;
+	[journal getBytes:&checksum range:NSMakeRange(offset + 2 * sizeof(uint32_t),
+		sizeof(checksum))];
+	checksum ^= CFSwapInt32HostToBig(1);
+	[journal replaceBytesInRange:NSMakeRange(offset + 2 * sizeof(uint32_t), sizeof(checksum))
+		withBytes:&checksum];
+	REQUIRE([journal writeToFile:path atomically:NO]);
+}
+
+static void UpdateWALPayloadChecksum(NSMutableData *journal, NSUInteger recordOffset,
+	NSUInteger payloadLength) {
+	NSData *payload = [journal subdataWithRange:NSMakeRange(
+		recordOffset + NVTestWALRecordHeaderLength, payloadLength)];
+	uint32_t checksum = CFSwapInt32HostToBig((uint32_t)[payload CRC32]);
+	[journal replaceBytesInRange:NSMakeRange(recordOffset + 2 * sizeof(uint32_t),
+		sizeof(checksum)) withBytes:&checksum];
+}
+
+static void CorruptWALCiphertext(NSString *directoryPath, NSUInteger recordIndex,
+	BOOL preserveValidEncryption) {
+	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
+	NSUInteger offset = WALRecordOffset(journal, recordIndex);
+	uint32_t storedLength = 0;
+	[journal getBytes:&storedLength range:NSMakeRange(offset + sizeof(uint32_t),
+		sizeof(storedLength))];
+	NSUInteger payloadLength = CFSwapInt32BigToHost(storedLength);
+	NSRange payloadRange = NSMakeRange(offset + NVTestWALRecordHeaderLength, payloadLength);
+	NSMutableData *payload = [NSMutableData dataWithData:
+		[journal subdataWithRange:payloadRange]];
+	if (preserveValidEncryption) {
+		NSData *salt = [journal subdataWithRange:NSMakeRange(offset + 3 * sizeof(uint32_t), 32)];
+		NotationPrefs *prefs = [[NotationPrefs alloc] init];
+		NSData *sessionKey = [prefs WALSessionKey];
+		NSData *recordKey = [sessionKey derivedKeyOfLength:(int)[sessionKey length]
+			salt:salt iterations:1];
+		REQUIRE([payload decryptAESDataWithKey:recordKey
+			iv:[salt subdataWithRange:NSMakeRange(0, 16)]]);
+		((uint8_t*)[payload mutableBytes])[0] ^= 0xFF;
+		REQUIRE([payload encryptAESDataWithKey:recordKey
+			iv:[salt subdataWithRange:NSMakeRange(0, 16)]]);
+		[prefs release];
+	} else {
+		NSUInteger bytesToCorrupt = MIN((NSUInteger)16, [payload length]);
+		uint8_t *bytes = [payload mutableBytes];
+		for (NSUInteger index = 0; index < bytesToCorrupt; index++)
+			bytes[[payload length] - 1 - index] ^= (uint8_t)(0xA5 + index);
+	}
+	REQUIRE([payload length] == payloadLength);
+	[journal replaceBytesInRange:payloadRange withBytes:[payload bytes]];
+	UpdateWALPayloadChecksum(journal, offset, payloadLength);
+	REQUIRE([journal writeToFile:path atomically:NO]);
+}
+
+static NoteObject *TestWALNote(NSString *text) {
+	return [[[NoteObject alloc] initWithNoteBody:
+		[[[NSAttributedString alloc] initWithString:text] autorelease]
+		title:text delegate:nil format:SingleDatabaseFormat labels:@""] autorelease];
+}
+
+typedef NS_ENUM(NSUInteger, NVWALLengthMutation) {
+	NVWALLengthTooLarge,
+	NVWALLengthHalf,
+	NVWALLengthOneByteShort
+};
+
+static void SetWALOriginalLength(NSString *directoryPath, NSUInteger recordIndex,
+	NVWALLengthMutation mutation) {
+	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
+	NSUInteger offset = WALRecordOffset(journal, recordIndex);
+	uint32_t storedLength = 0;
+	[journal getBytes:&storedLength range:NSMakeRange(offset, sizeof(storedLength))];
+	uint32_t length = CFSwapInt32BigToHost(storedLength);
+	if (mutation == NVWALLengthTooLarge) length += 100;
+	else if (mutation == NVWALLengthHalf) length = MAX(1U, length / 2);
+	else length = MAX(1U, length - 1);
+	storedLength = CFSwapInt32HostToBig(length);
+	[journal replaceBytesInRange:NSMakeRange(offset, sizeof(storedLength)) withBytes:&storedLength];
+	REQUIRE([journal writeToFile:path atomically:NO]);
+}
+
+static void SetWALOriginalLengthToZero(NSString *directoryPath, NSUInteger recordIndex) {
+	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
+	NSUInteger offset = WALRecordOffset(journal, recordIndex);
+	uint32_t zero = 0;
+	[journal replaceBytesInRange:NSMakeRange(offset, sizeof(zero)) withBytes:&zero];
+	REQUIRE([journal writeToFile:path atomically:NO]);
+}
+
+static NSDictionary *RecoverTestJournal(NSString *directoryPath, BOOL *incomplete) {
+	int directoryFD = open([directoryPath fileSystemRepresentation],
+		O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	REQUIRE(directoryFD >= 0);
+	NotationPrefs *prefs = [[NotationPrefs alloc] init];
+	WALRecoveryController *reader = [[WALRecoveryController alloc]
+		initWithDirectoryFileDescriptor:directoryFD encryptionKey:[prefs WALSessionKey]
+		error:NULL journalInUse:NULL];
+	REQUIRE(reader != nil);
+	NSDictionary *notes = [[[reader recoveredNotesWithIncompleteRecovery:incomplete]
+		retain] autorelease];
+	[reader release];
+	[prefs release];
+	close(directoryFD);
+	return notes;
+}
+
+static void RemoveTemporaryDirectory(NSString *path);
+
+static BOOL RecoveredNotesContainText(NSDictionary *notes, NSString *text) {
+	for (NoteObject *note in [notes allValues])
+		if ([[[note contentString] string] rangeOfString:text].location != NSNotFound) return YES;
+	return NO;
+}
+
+static void TestWALRecordRecovery(void) {
+	NSString *directoryPath = CreateTemporaryDirectory();
+	int directoryFD = -1;
+	WALStorageController *writer = nil;
+	WALRecoveryController *reader = nil;
+	NotationPrefs *prefs = [[NotationPrefs alloc] init];
+	@try {
+		CreateTestJournal(directoryPath, [NSArray array]);
+		BOOL incomplete = YES;
+		NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+		REQUIRE(!incomplete && [notes count] == 0);
+	} @finally {
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		directoryFD = open([directoryPath fileSystemRepresentation],
+			O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		REQUIRE(directoryFD >= 0);
+		writer = [[WALStorageController alloc] initWithDirectoryFileDescriptor:directoryFD
+			encryptionKey:[prefs WALSessionKey]];
+		NoteObject *first = [[[NoteObject alloc] initWithNoteBody:
+			[[[NSAttributedString alloc] initWithString:@"recover first"] autorelease]
+			title:@"First" delegate:nil format:SingleDatabaseFormat labels:@""] autorelease];
+		NoteObject *last = [[[NoteObject alloc] initWithNoteBody:
+			[[[NSAttributedString alloc] initWithString:@"recover last"] autorelease]
+			title:@"Last" delegate:nil format:SingleDatabaseFormat labels:@""] autorelease];
+		REQUIRE(writer != nil);
+		corruptArchiveDecodeCount = 0;
+		REQUIRE([writer writeNoteObject:first]);
+		REQUIRE([writer writeNoteObject:(id<SynchronizedNote>)
+			[[[NVCorruptArchiveObject alloc] init] autorelease]]);
+		REQUIRE([writer writeNoteObject:last]);
+		REQUIRE([writer synchronize]);
+		[writer release];
+		writer = nil;
+
+		reader = [[WALRecoveryController alloc] initWithDirectoryFileDescriptor:directoryFD
+			encryptionKey:[prefs WALSessionKey] error:NULL journalInUse:NULL];
+		BOOL incomplete = NO;
+		NSDictionary *notes = [reader recoveredNotesWithIncompleteRecovery:&incomplete];
+		REQUIRE(reader != nil && incomplete);
+		REQUIRE([notes count] == 2);
+		REQUIRE(corruptArchiveDecodeCount == 1);
+		REQUIRE(RecoveredNotesContainText(notes, @"recover first"));
+		REQUIRE(RecoveredNotesContainText(notes, @"recover last"));
+	} @finally {
+		[reader release];
+		[writer destroyLogFile];
+		[writer release];
+		[prefs release];
+		if (directoryFD >= 0) close(directoryFD);
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+			TestWALNote(@"clean first"), TestWALNote(@"clean last"), nil]);
+		BOOL incomplete = YES;
+		NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+		REQUIRE(!incomplete && [notes count] == 2);
+		REQUIRE(RecoveredNotesContainText(notes, @"clean first"));
+		REQUIRE(RecoveredNotesContainText(notes, @"clean last"));
+	} @finally {
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	for (NSUInteger corruptionCase = 0; corruptionCase < 2; corruptionCase++) {
+		directoryPath = CreateTemporaryDirectory();
+		@try {
+			CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+				TestWALNote(@"crypto first"), TestWALNote(@"crypto bad"),
+				TestWALNote(@"crypto last"), nil]);
+			CorruptWALCiphertext(directoryPath, 1, corruptionCase == 1);
+			BOOL incomplete = NO;
+			NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+			REQUIRE(incomplete && [notes count] == 1);
+			REQUIRE(RecoveredNotesContainText(notes, @"crypto first"));
+			REQUIRE(!RecoveredNotesContainText(notes, @"crypto last"));
+		} @finally {
+			RemoveTemporaryDirectory(directoryPath);
+		}
+	}
+
+	for (NVWALLengthMutation lengthCase = NVWALLengthTooLarge;
+		lengthCase <= NVWALLengthOneByteShort; lengthCase++) {
+		directoryPath = CreateTemporaryDirectory();
+		@try {
+			CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+				TestWALNote(@"length first"), TestWALNote(@"length bad"),
+				TestWALNote(@"length last"), nil]);
+			SetWALOriginalLength(directoryPath, 1, lengthCase);
+			BOOL incomplete = NO;
+			NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+			REQUIRE(incomplete && [notes count] == 2);
+			REQUIRE(RecoveredNotesContainText(notes, @"length first"));
+			REQUIRE(RecoveredNotesContainText(notes, @"length last"));
+			REQUIRE(!RecoveredNotesContainText(notes, @"length bad"));
+		} @finally {
+			RemoveTemporaryDirectory(directoryPath);
+		}
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+			TestWALNote(@"checksum first"), TestWALNote(@"checksum bad"),
+			TestWALNote(@"checksum last"), nil]);
+		CorruptWALChecksum(directoryPath, 1);
+		BOOL incomplete = NO;
+		NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+		REQUIRE(incomplete && [notes count] == 1);
+		REQUIRE(RecoveredNotesContainText(notes, @"checksum first"));
+		REQUIRE(!RecoveredNotesContainText(notes, @"checksum last"));
+	} @finally {
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+			TestWALNote(@"protocol first"), @"not a synchronized note",
+			TestWALNote(@"protocol last"), nil]);
+		BOOL incomplete = NO;
+		NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+		REQUIRE(incomplete && [notes count] == 2);
+		REQUIRE(RecoveredNotesContainText(notes, @"protocol first"));
+		REQUIRE(RecoveredNotesContainText(notes, @"protocol last"));
+	} @finally {
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	for (NSUInteger tailCase = 0; tailCase < 2; tailCase++) {
+		directoryPath = CreateTemporaryDirectory();
+		@try {
+			NSData *journal = CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+				TestWALNote(@"tail first"), TestWALNote(@"tail last"), nil]);
+			NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+			NSMutableData *truncated = [NSMutableData dataWithData:journal];
+			if (tailCase == 0)
+				[truncated setLength:WALRecordOffset(truncated, 1) + 7];
+			else
+				[truncated setLength:[truncated length] - 1];
+			REQUIRE([truncated writeToFile:path atomically:NO]);
+			BOOL incomplete = YES;
+			NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+			REQUIRE(!incomplete && [notes count] == 1);
+			REQUIRE(RecoveredNotesContainText(notes, @"tail first"));
+		} @finally {
+			RemoveTemporaryDirectory(directoryPath);
+		}
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+			TestWALNote(@"zero first"), TestWALNote(@"zero bad"),
+			TestWALNote(@"zero last"), nil]);
+		SetWALOriginalLengthToZero(directoryPath, 1);
+		BOOL incomplete = NO;
+		NSDictionary *notes = RecoverTestJournal(directoryPath, &incomplete);
+		REQUIRE(incomplete && [notes count] == 1);
+		REQUIRE(RecoveredNotesContainText(notes, @"zero first"));
+		REQUIRE(!RecoveredNotesContainText(notes, @"zero last"));
+	} @finally {
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	directoryFD = -1;
+	int journalWriteFD = -1;
+	reader = nil;
+	prefs = [[NotationPrefs alloc] init];
+	@try {
+		CreateTestJournal(directoryPath, [NSArray arrayWithObject:
+			TestWALNote(@"unexpected short read")]);
+		NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+		journalWriteFD = open([path fileSystemRepresentation], O_WRONLY | O_CLOEXEC);
+		REQUIRE(journalWriteFD >= 0);
+		directoryFD = open([directoryPath fileSystemRepresentation],
+			O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		reader = [[WALRecoveryController alloc] initWithDirectoryFileDescriptor:directoryFD
+			encryptionKey:[prefs WALSessionKey] error:NULL journalInUse:NULL];
+		REQUIRE(reader != nil);
+		REQUIRE(ftruncate(journalWriteFD, 7) == 0);
+		BOOL incomplete = NO;
+		NSDictionary *notes = [reader recoveredNotesWithIncompleteRecovery:&incomplete];
+		REQUIRE(incomplete && [notes count] == 0);
+	} @finally {
+		[reader release];
+		[prefs release];
+		if (journalWriteFD >= 0) close(journalWriteFD);
+		if (directoryFD >= 0) close(directoryFD);
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
+static NSArray *FilenamesWithPrefix(NSString *directoryPath, NSString *prefix) {
+	NSMutableArray *matches = [NSMutableArray array];
+	for (NSString *name in [[NSFileManager defaultManager]
+		contentsOfDirectoryAtPath:directoryPath error:NULL])
+		if ([name hasPrefix:prefix]) [matches addObject:name];
+	return matches;
+}
+
+static void CloseController(NVTestNotationController **controller);
+
+static void AssertLegacyRecoveryRejected(NSData *database, time_t databaseTime,
+	NSString *candidateName, NSData *candidate, time_t candidateTime) {
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+	NSString *candidatePath = [directoryPath stringByAppendingPathComponent:candidateName];
+	@try {
+		WriteTestFile(database, databasePath, databaseTime);
+		WriteTestFile(candidate, candidatePath, candidateTime);
+		NSData *journal = CreateCorruptTestJournal(directoryPath);
+		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
+		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
+		NSModalResponse previousResponse = injectedFailedWALRecoveryResponse;
+		injectedFailedWALRecoveryResponse = NSAlertSecondButtonReturn;
+		OSStatus status = noErr;
+		NVTestNotationController *controller = [[NVTestNotationController alloc]
+			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+		injectedFailedWALRecoveryResponse = previousResponse;
+		REQUIRE(controller == nil && status == NVTestPassCanceledError);
+		REQUIRE(legacyRecoveryPromptCount == legacyPromptCount);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount + 1);
+		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+		REQUIRE([[NSData dataWithContentsOfFile:candidatePath] isEqualToData:candidate]);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]
+			isEqualToData:journal]);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (legacy recovery ") count] == 0);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (legacy recovery ") count] == 0);
+	} @finally {
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
+static void AssertLockContentionBypassesRecovery(void) {
+	NSString *directoryPath = CreateTemporaryDirectory();
+	WALStorageController *writer = nil;
+	@try {
+		time_t now = time(NULL);
+		NSData *database = TestDatabaseData(@"live lock database", 4, 0);
+		NSData *candidate = TestDatabaseData(@"live lock candidate", 4, 4096);
+		WriteTestFile(database, [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName], now - 2);
+		WriteTestFile(candidate, [directoryPath stringByAppendingPathComponent:@".010203-779701622-1"], now - 1);
+		int directoryFD = open([directoryPath fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		NotationPrefs *prefs = [[NotationPrefs alloc] init];
+		writer = [[WALStorageController alloc] initWithDirectoryFileDescriptor:directoryFD
+			encryptionKey:[prefs WALSessionKey]];
+		[prefs release];
+		close(directoryFD);
+		REQUIRE(writer != nil);
+		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
+		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
+		OSStatus status = noErr;
+		NVTestNotationController *controller = [[NVTestNotationController alloc]
+			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+		REQUIRE(controller == nil && status == fBsyErr);
+		REQUIRE(legacyRecoveryPromptCount == legacyPromptCount);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName]]
+			isEqualToData:database]);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:@".010203-779701622-1"]]
+			isEqualToData:candidate]);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (legacy recovery ") count] == 0);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (legacy recovery ") count] == 0);
+	} @finally {
+		[writer destroyLogFile];
+		[writer release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
+static void AssertLegacyRecoveryChoiceLeavesFilesUnchanged(NSModalResponse response,
+	OSStatus expectedStatus, BOOL expectsQuit) {
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NVTestNotationController *controller = nil;
+	@try {
+		time_t now = time(NULL);
+		NSData *database = TestDatabaseData(@"recovery choice database", 4, 0);
+		NSData *candidate = TestDatabaseData(@"recovery choice candidate", 4, 4096);
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		NSString *candidatePath = [directoryPath stringByAppendingPathComponent:
+			@".010203-779701629-1"];
+		WriteTestFile(database, databasePath, now - 2);
+		WriteTestFile(candidate, candidatePath, now - 1);
+		NSData *journal = CreateCorruptTestJournal(directoryPath);
+		NSUInteger promptCount = legacyRecoveryPromptCount;
+		NSUInteger quitCount = legacyRecoveryQuitCount;
+		injectedLegacyRecoveryResponse = response;
+		OSStatus status = noErr;
+		controller = [[NVTestNotationController alloc]
+			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+		REQUIRE(controller == nil && status == expectedStatus);
+		REQUIRE(legacyRecoveryPromptCount == promptCount + 1);
+		REQUIRE(legacyRecoveryQuitCount == quitCount + (expectsQuit ? 1 : 0));
+		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+		REQUIRE([[NSData dataWithContentsOfFile:candidatePath] isEqualToData:candidate]);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			@"Interim Note-Changes"]] isEqualToData:journal]);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (legacy recovery ") count] == 0);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (legacy recovery ") count] == 0);
+	} @finally {
+		injectedLegacyRecoveryResponse = NSAlertFirstButtonReturn;
+		CloseController(&controller);
+		RemoveTemporaryDirectory(directoryPath);
+	}
 }
 
 static void PrepareWALBookmarkFixture(NSString *rootPath) {
@@ -2306,6 +3022,450 @@ static void TestWALCrashRecovery(void) {
 	}
 }
 
+static void TestLegacyTemporaryDatabaseRecovery(void) {
+	time_t now = time(NULL);
+	NSData *staleDatabase = TestDatabaseData(@"stale database", 4, 0);
+	NSData *olderCandidate = TestDatabaseData(@"older temporary database", 4, 2048);
+	NSData *tiedCandidate = TestDatabaseData(@"lexically earlier temporary database", 4, 3072);
+	NSData *nanosecondCandidate = TestDatabaseData(@"nanosecond-newest temporary database", 4, 3584);
+	NSData *newestCandidate = TestDatabaseData(@"newest temporary database", 4, 4096);
+	NSData *ignoredCandidate = TestDatabaseData(@"ignored nonmatching database", 4, 8192);
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	@try {
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		NSString *olderName = @".010203-779701620-1";
+		NSString *tiedName = @".010203-779701621-1";
+		NSString *nanosecondName = @".010203-779701621-0";
+		NSString *newestName = @".010203-779701621-2";
+		NSString *ignoredName = @".010203-779701623-3-extra";
+		NSString *shortName = @".010203";
+		NSString *symlinkName = @".010203-779701999-1";
+		WriteTestFile(staleDatabase, databasePath, now - 40);
+		WriteTestFile(olderCandidate, [directoryPath stringByAppendingPathComponent:olderName], now - 30);
+		WriteTestFile(tiedCandidate, [directoryPath stringByAppendingPathComponent:tiedName], now - 20);
+		NSString *nanosecondPath = [directoryPath stringByAppendingPathComponent:nanosecondName];
+		WriteTestFile(nanosecondCandidate, nanosecondPath, now - 20);
+		SetTestFileModificationTime(nanosecondPath, now - 20, 500);
+		WriteTestFile(newestCandidate, [directoryPath stringByAppendingPathComponent:newestName], now - 20);
+		WriteTestFile(ignoredCandidate, [directoryPath stringByAppendingPathComponent:ignoredName], now - 10);
+		WriteTestFile(ignoredCandidate, [directoryPath stringByAppendingPathComponent:shortName], now - 5);
+		REQUIRE(symlink([newestName fileSystemRepresentation],
+			[[directoryPath stringByAppendingPathComponent:symlinkName] fileSystemRepresentation]) == 0);
+		CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+			TestWALNote(@"candidate WAL recovery"), TestWALNote(@"candidate corrupt record"), nil]);
+		CorruptWALChecksum(directoryPath, 1);
+		NSData *corruptJournal = [NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+
+		NSUInteger promptCount = legacyRecoveryPromptCount;
+		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
+		NSUInteger warningCount = partialWALRecoveryWarningCount;
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(legacyRecoveryPromptCount == promptCount + 1);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount);
+		REQUIRE(partialWALRecoveryWarningCount == warningCount);
+		[controller stopFileNotifications];
+		REQUIRE([controller totalNoteCount] == 2);
+		REQUIRE(NoteContaining(controller, @"nanosecond-newest temporary database") != nil);
+		REQUIRE(NoteContaining(controller, @"candidate WAL recovery") != nil);
+		REQUIRE(NoteContaining(controller, @"older temporary database") == nil);
+		REQUIRE(NoteContaining(controller, @"ignored nonmatching database") == nil);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:newestName]] isEqualToData:newestCandidate]);
+		REQUIRE([[NSData dataWithContentsOfFile:nanosecondPath]
+			isEqualToData:nanosecondCandidate]);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:olderName]] isEqualToData:olderCandidate]);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:tiedName]] isEqualToData:tiedCandidate]);
+		struct stat symlinkInfo;
+		REQUIRE(lstat([[directoryPath stringByAppendingPathComponent:symlinkName] fileSystemRepresentation],
+			&symlinkInfo) == 0 && S_ISLNK(symlinkInfo.st_mode));
+		NSArray *databaseBackups = FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (legacy recovery ");
+		NSArray *journalBackups = FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (legacy recovery ");
+		REQUIRE([databaseBackups count] == 1 && [journalBackups count] == 1);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			[databaseBackups objectAtIndex:0]]] isEqualToData:staleDatabase]);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			[journalBackups objectAtIndex:0]]] isEqualToData:corruptJournal]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+		CloseController(&controller);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(legacyRecoveryPromptCount == promptCount + 1);
+		REQUIRE(partialWALRecoveryWarningCount == warningCount);
+		REQUIRE([[controller notationPrefs] epochIteration] == EPOC_ITERATION);
+		REQUIRE(NoteContaining(controller, @"nanosecond-newest temporary database") != nil);
+		REQUIRE(NoteContaining(controller, @"candidate WAL recovery") != nil);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	/* Isolate the lexical tie-breaker so a later nanosecond candidate cannot
+	 * accidentally make this assertion pass. */
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
+		WriteTestFile(TestDatabaseData(@"tie database", 4, 0),
+			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName], now - 20);
+		WriteTestFile(TestDatabaseData(@"lexically earlier candidate", 4, 2048),
+			[directoryPath stringByAppendingPathComponent:@".010203-779701621-1"], now - 10);
+		WriteTestFile(TestDatabaseData(@"lexically later candidate", 4, 3072),
+			[directoryPath stringByAppendingPathComponent:@".010203-779701621-2"], now - 10);
+		CreateCorruptTestJournal(directoryPath);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(NoteContaining(controller, @"lexically later candidate") != nil);
+		REQUIRE(NoteContaining(controller, @"lexically earlier candidate") == nil);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	AssertLegacyRecoveryRejected(TestDatabaseData(@"newer database", 4, 0), now - 10,
+		@".010203-779701624-1", TestDatabaseData(@"older candidate", 4, 4096), now - 20);
+	AssertLegacyRecoveryRejected(TestDatabaseData(@"larger database", 4, 4096), now - 20,
+		@".010203-779701625-1", TestDatabaseData(@"smaller candidate", 4, 0), now - 10);
+	AssertLegacyRecoveryRejected(TestDatabaseData(@"epoch five database", 5, 0), now - 20,
+		@".010203-779701626-1", TestDatabaseData(@"epoch four candidate", 4, 4096), now - 10);
+	AssertLegacyRecoveryRejected(TestDatabaseData(@"matching-name database", 4, 0), now - 20,
+		@".010203-779701627-1-extra", TestDatabaseData(@"nonmatching candidate", 4, 4096), now - 10);
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		NSData *database = TestDatabaseData(@"rollback database", 4, 0);
+		NSMutableData *invalidCandidate = [NSMutableData dataWithLength:[database length] + 4096];
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		NSString *candidatePath = [directoryPath stringByAppendingPathComponent:@".010203-779701628-1"];
+		WriteTestFile(database, databasePath, now - 20);
+		WriteTestFile(invalidCandidate, candidatePath, now - 10);
+		NSData *journal = CreateCorruptTestJournal(directoryPath);
+		OSStatus status = noErr;
+		controller = [[NVTestNotationController alloc]
+			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+		REQUIRE(controller == nil && status != noErr);
+		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+		REQUIRE([[NSData dataWithContentsOfFile:candidatePath] isEqualToData:invalidCandidate]);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]
+			isEqualToData:journal]);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (legacy recovery ") count] == 0);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (legacy recovery ") count] == 0);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (failed recovery ") count] == 1);
+	} @finally {
+		CloseController(&controller);
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	AssertLegacyRecoveryChoiceLeavesFilesUnchanged(NSAlertSecondButtonReturn,
+		NVTestPassCanceledError, NO);
+	AssertLegacyRecoveryChoiceLeavesFilesUnchanged(NSAlertThirdButtonReturn,
+		NVTestJournalingError, YES);
+}
+
+static void TestWALRecoveryWorkflows(void) {
+	time_t now = time(NULL);
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	@try {
+		WriteTestFile(TestDatabaseData(@"epoch four startup", 4, 0),
+			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName], now - 10);
+		observeJournalInitializations = YES;
+		observedJournalInitializations = 0;
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(observedJournalInitializations == 1);
+		REQUIRE(NoteContaining(controller, @"epoch four startup") != nil);
+		CloseController(&controller);
+		observeJournalInitializations = NO;
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE([[controller notationPrefs] epochIteration] == EPOC_ITERATION);
+	} @finally {
+		observeJournalInitializations = NO;
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
+		NSData *database = TestDatabaseData(@"old database note", 5, 0);
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		WriteTestFile(database, databasePath, now - 10);
+		NSData *journal = CreateCorruptTestJournal(directoryPath);
+		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
+		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
+		NSUInteger warningCount = partialWALRecoveryWarningCount;
+		injectedFailedWALRecoveryResponse = NSAlertFirstButtonReturn;
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		REQUIRE(NoteContaining(controller, @"old database note") != nil);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount + 1);
+		REQUIRE(legacyRecoveryPromptCount == legacyPromptCount);
+		REQUIRE(partialWALRecoveryWarningCount == warningCount);
+		NSArray *journalBackups = FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (failed recovery ");
+		REQUIRE([journalBackups count] == 1);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			[journalBackups objectAtIndex:0]]] isEqualToData:journal]);
+		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+		CloseController(&controller);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount + 1);
+	} @finally {
+		injectedFailedWALRecoveryResponse = NSAlertFirstButtonReturn;
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
+		NSData *database = TestDatabaseData(@"partial database note", 5, 0);
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		WriteTestFile(database, databasePath, now - 10);
+		CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+			TestWALNote(@"partial recovered note"), TestWALNote(@"partial lost note"), nil]);
+		CorruptWALChecksum(directoryPath, 1);
+		NSData *journal = [NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
+		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
+		NSUInteger warningCount = partialWALRecoveryWarningCount;
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		REQUIRE(NoteContaining(controller, @"partial database note") != nil);
+		REQUIRE(NoteContaining(controller, @"partial recovered note") != nil);
+		REQUIRE(NoteContaining(controller, @"partial lost note") == nil);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount);
+		REQUIRE(legacyRecoveryPromptCount == legacyPromptCount);
+		REQUIRE(partialWALRecoveryWarningCount == warningCount + 1);
+		NSArray *databaseBackups = FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (partial recovery ");
+		NSArray *journalBackups = FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (partial recovery ");
+		REQUIRE([databaseBackups count] == 1 && [journalBackups count] == 1);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			[databaseBackups objectAtIndex:0]]] isEqualToData:database]);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			[journalBackups objectAtIndex:0]]] isEqualToData:journal]);
+		CloseController(&controller);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(NoteContaining(controller, @"partial database note") != nil);
+		REQUIRE(NoteContaining(controller, @"partial recovered note") != nil);
+		REQUIRE(NoteContaining(controller, @"partial lost note") == nil);
+		REQUIRE(partialWALRecoveryWarningCount == warningCount + 1);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
+		WriteTestFile(TestDatabaseData(@"complete rollback database", 5, 0),
+			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName], now - 10);
+		NSData *journal = CreateTestJournal(directoryPath,
+			[NSArray arrayWithObject:TestWALNote(@"complete rollback recovered")]);
+		injectedFreshJournalInitializationFailures = 1;
+		OSStatus status = noErr;
+		controller = [[NVTestNotationController alloc]
+			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+		REQUIRE(controller == nil && status == NVTestJournalingError);
+		REQUIRE([[NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]
+			isEqualToData:journal]);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (WAL recovery ") count] == 0);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE([controller totalNoteCount] == 2);
+		REQUIRE(NoteContaining(controller, @"complete rollback recovered") != nil);
+	} @finally {
+		injectedFreshJournalInitializationFailures = 0;
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	for (NSModalResponse response = NSAlertSecondButtonReturn;
+		response <= NSAlertThirdButtonReturn; response++) {
+		directoryPath = CreateTemporaryDirectory();
+		@try {
+			NSData *database = TestDatabaseData(@"declined old database", 5, 0);
+			NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+			WriteTestFile(database, databasePath, now - 10);
+			NSData *journal = CreateCorruptTestJournal(directoryPath);
+			NSUInteger quitCount = legacyRecoveryQuitCount;
+			injectedFailedWALRecoveryResponse = response;
+			OSStatus status = noErr;
+			controller = [[NVTestNotationController alloc]
+				initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+			REQUIRE(controller == nil);
+			REQUIRE(status == (response == NSAlertSecondButtonReturn ?
+				NVTestPassCanceledError : NVTestJournalingError));
+			REQUIRE(legacyRecoveryQuitCount == quitCount +
+				(response == NSAlertThirdButtonReturn ? 1 : 0));
+			REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+			REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+				@"Interim Note-Changes"]] isEqualToData:journal]);
+			REQUIRE([FilenamesWithPrefix(directoryPath,
+				@"Interim Note-Changes (failed recovery ") count] == 0);
+		} @finally {
+			injectedFailedWALRecoveryResponse = NSAlertFirstButtonReturn;
+			CloseController(&controller);
+			RemoveTemporaryDirectory(directoryPath);
+		}
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		NSData *database = TestDatabaseData(@"partial rollback database", 5, 0);
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		WriteTestFile(database, databasePath, now - 10);
+		CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+			TestWALNote(@"partial rollback recovered"), TestWALNote(@"partial rollback lost"), nil]);
+		CorruptWALChecksum(directoryPath, 1);
+		NSData *journal = [NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+		injectedControllerFlushFailures = 1;
+		observedInjectedControllerFlushFailures = 0;
+		NSUInteger warningCount = partialWALRecoveryWarningCount;
+		OSStatus status = noErr;
+		controller = [[NVTestNotationController alloc]
+			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+		REQUIRE(controller == nil && status == NVTestJournalingError);
+		REQUIRE(observedInjectedControllerFlushFailures == 1);
+		REQUIRE(partialWALRecoveryWarningCount == warningCount);
+		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			@"Interim Note-Changes"]] isEqualToData:journal]);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Notes & Settings (partial recovery ") count] == 0);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (partial recovery ") count] == 0);
+	} @finally {
+		injectedControllerFlushFailures = 0;
+		CloseController(&controller);
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	for (NSUInteger failureCase = 0; failureCase < 3; failureCase++) {
+		directoryPath = CreateTemporaryDirectory();
+		@try {
+			NSData *database = TestDatabaseData(@"transaction rollback database", 5, 0);
+			NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+			WriteTestFile(database, databasePath, now - 10);
+			CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
+				TestWALNote(@"transaction recovered"), TestWALNote(@"transaction lost"), nil]);
+			CorruptWALChecksum(directoryPath, 1);
+			NSString *journalPath = [directoryPath stringByAppendingPathComponent:
+				@"Interim Note-Changes"];
+			NSData *journal = [NSData dataWithContentsOfFile:journalPath];
+			if (failureCase == 0) injectedRecoveryDirectorySyncFailures = 1;
+			else if (failureCase == 1) injectedRecoveryJournalRenameFailures = 1;
+			else injectedFreshJournalInitializationFailures = 1;
+			OSStatus status = noErr;
+			controller = [[NVTestNotationController alloc]
+				initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+			REQUIRE(controller == nil && status == NVTestJournalingError);
+			REQUIRE(injectedRecoveryDirectorySyncFailures == 0 &&
+				injectedRecoveryJournalRenameFailures == 0 &&
+				injectedFreshJournalInitializationFailures == 0);
+			REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+			REQUIRE([[NSData dataWithContentsOfFile:journalPath] isEqualToData:journal]);
+			REQUIRE([FilenamesWithPrefix(directoryPath,
+				@"Notes & Settings (partial recovery ") count] == 0);
+			REQUIRE([FilenamesWithPrefix(directoryPath,
+				@"Interim Note-Changes (partial recovery ") count] == 0);
+			REQUIRE([FilenamesWithPrefix(directoryPath,
+				@"Notes & Settings (failed recovery ") count] == 1);
+		} @finally {
+			injectedRecoveryDirectorySyncFailures = 0;
+			injectedRecoveryJournalRenameFailures = 0;
+			injectedFreshJournalInitializationFailures = 0;
+			CloseController(&controller);
+			RemoveTemporaryDirectory(directoryPath);
+		}
+	}
+
+	for (NSUInteger failureCase = 0; failureCase < 2; failureCase++) {
+		directoryPath = CreateTemporaryDirectory();
+		@try {
+			NSData *database = TestDatabaseData(@"old-notes rollback database", 5, 0);
+			NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+			WriteTestFile(database, databasePath, now - 10);
+			NSData *journal = CreateCorruptTestJournal(directoryPath);
+			if (failureCase == 0) injectedFreshJournalInitializationFailures = 1;
+			else {
+				injectedRecoveryDirectorySyncFailures = 1;
+				InstallExternalDatabaseInitializationObservation();
+				[[NSRunLoop currentRunLoop] runUntilDate:
+					[NSDate dateWithTimeIntervalSinceNow:0.01]];
+				observedExternalDatabaseInitializations = 0;
+				observeExternalDatabaseInitialization = YES;
+			}
+			injectedFailedWALRecoveryResponse = NSAlertFirstButtonReturn;
+			OSStatus status = noErr;
+			controller = [[NVTestNotationController alloc]
+				initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+			REQUIRE(controller == nil && status == NVTestJournalingError);
+			REQUIRE(injectedFreshJournalInitializationFailures == 0 &&
+				injectedRecoveryDirectorySyncFailures == 0);
+			REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
+			REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+				@"Interim Note-Changes"]] isEqualToData:journal]);
+			REQUIRE([FilenamesWithPrefix(directoryPath,
+				@"Interim Note-Changes (failed recovery ") count] == 0);
+			if (failureCase == 1) {
+				[[NSRunLoop currentRunLoop] runUntilDate:
+					[NSDate dateWithTimeIntervalSinceNow:0.01]];
+				REQUIRE(observedExternalDatabaseInitializations == 0);
+			}
+		} @finally {
+			observeExternalDatabaseInitialization = NO;
+			injectedFreshJournalInitializationFailures = 0;
+			injectedRecoveryDirectorySyncFailures = 0;
+			injectedFailedWALRecoveryResponse = NSAlertFirstButtonReturn;
+			CloseController(&controller);
+			RemoveTemporaryDirectory(directoryPath);
+		}
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	@try {
+		WriteTestFile(TestDatabaseData(@"unrelated journal error", 5, 0),
+			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName], now - 10);
+		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]
+			withIntermediateDirectories:NO attributes:nil error:NULL]);
+		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
+		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
+		OSStatus status = noErr;
+		controller = [[NVTestNotationController alloc]
+			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
+		REQUIRE(controller == nil && status == NVTestJournalingError);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount);
+		REQUIRE(legacyRecoveryPromptCount == legacyPromptCount);
+	} @finally {
+		CloseController(&controller);
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
 static void TestWALHistoryCrashChild(void) {
 	NSString *rootPath = [[[NSProcessInfo processInfo] environment]
 		objectForKey:@"NV_WAL_HISTORY_ROOT"];
@@ -2424,6 +3584,9 @@ static void TestWALDamagedTailRecovery(void) {
 		REQUIRE(NoteContaining(controller, @"prefix baseline") == nil);
 		REQUIRE(NoteContaining(controller, @"tail baseline") != nil);
 		REQUIRE(NoteContaining(controller, @"truncated tail record") == nil);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:WALJournalPath(rootPath)]);
+		REQUIRE([FilenamesWithPrefix(WALNotesDirectoryPath(rootPath),
+			@"Interim Note-Changes (WAL recovery ") count] == 0);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -2454,13 +3617,12 @@ static void TestWALRecoveryRetryFailureChild(void) {
 	REQUIRE([rootPath length]);
 	injectedControllerFlushFailures = 1;
 	observedInjectedControllerFlushFailures = 0;
-	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
-	NVTestNotationController *controller = CreateControllerResolvingWALBookmark(rootPath, delegate);
-	[controller stopFileNotifications];
+	OSStatus status = noErr;
+	NVTestNotationController *controller = [[NVTestNotationController alloc]
+		initWithDirectoryURL:ResolveWALBookmark(rootPath) error:&status];
+	REQUIRE(controller == nil && status == NVTestJournalingError);
 	REQUIRE(observedInjectedControllerFlushFailures == 1);
-	REQUIRE([controller totalNoteCount] == 1);
-	REQUIRE(NoteContaining(controller, @"recovery retry final") != nil);
-	REQUIRE([controller synchronizeJournalOnly]);
+	REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:WALJournalPath(rootPath)]);
 	_exit(84);
 }
 
@@ -2718,6 +3880,7 @@ static void TestFileOutboxCrashChild(void) {
 	NVTestNotationController *controller = CreateController(directoryPath, delegate);
 	[controller stopFileNotifications];
 	[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+	[[controller notationPrefs] setConfirmsFileDeletion:NO];
 	NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:@"file outbox baseline"] autorelease]
 		title:@"File Outbox Crash" delegate:controller format:PlainTextFormat labels:@""];
@@ -2727,7 +3890,11 @@ static void TestFileOutboxCrashChild(void) {
 		initWithString:@"file outbox WAL edit"] autorelease]];
 	REQUIRE(chmod([directoryPath fileSystemRepresentation], 0500) == 0);
 	[controller synchronizeNoteChanges:nil];
-	REQUIRE([controller pendingFileWriteCount] == 1 &&
+	NoteObject *newNote = [[NoteObject alloc] initWithNoteBody:
+		[[[NSAttributedString alloc] initWithString:@"file outbox WAL-only new note"] autorelease]
+		title:@"WAL-only New Note" delegate:controller format:PlainTextFormat labels:@""];
+	[controller addNewNote:newNote];
+	REQUIRE([controller pendingFileWriteCount] == 2 &&
 		[controller pendingJournalWriteCount] == 0 && [controller synchronizeJournalOnly]);
 	REQUIRE(chmod([directoryPath fileSystemRepresentation], 0700) == 0);
 	_exit(74);
@@ -2743,10 +3910,15 @@ static void TestFileOutboxCrashRecovery(void) {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
 		NoteObject *note = NoteContaining(controller, @"file outbox WAL edit");
-		REQUIRE(note != nil && [controller pendingFileWriteCount] == 0);
+		NoteObject *newNote = NoteContaining(controller, @"file outbox WAL-only new note");
+		REQUIRE(note != nil && newNote != nil && [controller pendingFileWriteCount] == 0);
+		REQUIRE([controller deletionCandidateCount] == 0);
 		NSString *disk = [NSString stringWithContentsOfFile:[[note noteFileURL] path]
 			encoding:NSUTF8StringEncoding error:NULL];
 		REQUIRE([disk isEqualToString:@"file outbox WAL edit"]);
+		REQUIRE([[NSString stringWithContentsOfFile:[[newNote noteFileURL] path]
+			encoding:NSUTF8StringEncoding error:NULL]
+			isEqualToString:@"file outbox WAL-only new note"]);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -4221,6 +5393,9 @@ static void TestLifecycle(void) {
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
+	/* MRC weak loads retain/autorelease their value.  Drain those temporary
+	 * references before asserting that the controller itself was released. */
+	NSAutoreleasePool *controllerPool = [[NSAutoreleasePool alloc] init];
 	NSUInteger originalCount = controllerDeallocationCount;
 
 	@try {
@@ -4242,6 +5417,8 @@ static void TestLifecycle(void) {
 		REQUIRE([[NoteObject alloc] initWithNoteBody:nil title:@"Invalid" delegate:controller
 			format:PlainTextFormat labels:@""] == nil);
 		CloseController(&controller);
+		[controllerPool drain];
+		controllerPool = nil;
 		NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
 		while (controllerDeallocationCount == originalCount && [deadline timeIntervalSinceNow] > 0.0)
 			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
@@ -4249,6 +5426,7 @@ static void TestLifecycle(void) {
 		REQUIRE(controllerDeallocationCount == originalCount + 1);
 	} @finally {
 		CloseController(&controller);
+		[controllerPool drain];
 		[delegate release];
 		RemoveTemporaryDirectory(directoryPath);
 	}
@@ -4286,6 +5464,7 @@ static void TestResourceLifecycle(void) {
 		NSAutoreleasePool *iterationPool = [[NSAutoreleasePool alloc] init];
 		NSString *directoryPath = CreateTemporaryDirectory();
 		NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+		NSAutoreleasePool *controllerPool = [[NSAutoreleasePool alloc] init];
 		NVTestNotationController *controller = CreateController(directoryPath, delegate);
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];
@@ -4326,6 +5505,7 @@ static void TestResourceLifecycle(void) {
 
 		REQUIRE(chmod([directoryPath fileSystemRepresentation], 0500) == 0);
 		CloseController(&controller);
+		[controllerPool drain];
 		NSDate *deallocationDeadline = [NSDate dateWithTimeIntervalSinceNow:0.5];
 		while (controllerDeallocationCount < originalDeallocationCount + iteration + 1 &&
 			[deallocationDeadline timeIntervalSinceNow] > 0.0)
@@ -4902,18 +6082,32 @@ static void TestFSEventsWriterChild(void) {
 	REQUIRE(unlink([renamedPath fileSystemRepresentation]) == 0);
 }
 
+static void TestExternalEditorWriterChild(void) {
+	NSString *path = [[[NSProcessInfo processInfo] environment]
+		objectForKey:@"NV_EXTERNAL_EDITOR_PATH"];
+	REQUIRE([path length]);
+	WriteExternalFileInPlace(@"changed through the live direct-file watcher", path);
+}
+
 static void TestLiveFSEvents(void) {
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
+	NSAutoreleasePool *controllerPool = [[NSAutoreleasePool alloc] init];
+	NSUInteger originalDeallocationCount = controllerDeallocationCount;
+	BOOL controllerWasCreated = NO;
 	pid_t child = -1;
 	NoteObject *note = nil;
 	NSString *backupProbePath = nil;
 	@try {
+		liveFSEventsEnabled = YES;
 		controller = CreateController(directoryPath, delegate);
+		controllerWasCreated = YES;
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[[controller notationPrefs] setConfirmsFileDeletion:NO];
 		ExternalEditingSession *scratchEditor = [ExternalEditingSession sharedExternalEditingSession];
+		[NSObject cancelPreviousPerformRequestsWithTarget:scratchEditor
+			selector:@selector(initializeDatabase:) object:[controller notationPrefs]];
 		[scratchEditor initializeDatabase:[controller notationPrefs]];
 		backupProbePath = [scratchEditor createScratchFileNamed:@"Backup Exclusion Probe"
 			data:[@"scratch" dataUsingEncoding:NSUTF8StringEncoding]];
@@ -4935,12 +6129,17 @@ static void TestLiveFSEvents(void) {
 			NULL, 0, 0, 0) < 0 && errno == ENOATTR);
 
 		NoteObject *scratchNote = AddTestNote(controller, @"Live Scratch Event", @"scratch");
-		NSMutableDictionary *scratchSessions = [scratchEditor valueForKey:@"_filePathsBeingEdited"];
-		NSData *scratchBase = [@"scratch" dataUsingEncoding:NSUTF8StringEncoding];
-		[scratchSessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			scratchNote, @"client", backupProbePath, @"path", scratchBase, @"data", nil]
-			forKey:backupProbePath];
-		REQUIRE([@"changed through the live scratch watcher" writeToFile:backupProbePath
+		InstallExternalEditorOpenInterception();
+		interceptExternalEditorOpen = YES;
+		ExternalEditor *testEditor = [[NVTestExternalEditor alloc] initWithDirectEditing:NO];
+		REQUIRE([scratchEditor editNote:scratchNote inEditor:testEditor context:nil]);
+		REQUIRE([observedExternalEditorSessionPath length] &&
+			[[observedExternalEditorURL path] isEqualToString:observedExternalEditorSessionPath]);
+		struct stat scratchInfo = { 0 };
+		REQUIRE(stat([observedExternalEditorSessionPath fileSystemRepresentation],
+			&scratchInfo) == 0 && (scratchInfo.st_mode & 0777) == 0600);
+		REQUIRE([@"changed through the live scratch watcher"
+			writeToFile:observedExternalEditorSessionPath
 			atomically:YES encoding:NSUTF8StringEncoding error:NULL]);
 		NSDate *scratchDeadline = [NSDate dateWithTimeIntervalSinceNow:3.0];
 		while (![[[scratchNote contentString] string]
@@ -4951,7 +6150,35 @@ static void TestLiveFSEvents(void) {
 		REQUIRE([[[scratchNote contentString] string]
 			isEqualToString:@"changed through the live scratch watcher"]);
 		[scratchEditor abortAllEditingSessionsForClient:scratchNote];
-		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:backupProbePath]);
+		REQUIRE(![[NSFileManager defaultManager]
+			fileExistsAtPath:observedExternalEditorSessionPath]);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE(unlink([backupProbePath fileSystemRepresentation]) == 0);
+		interceptExternalEditorOpen = NO;
+		[testEditor release];
+		[observedExternalEditorURL release];
+		observedExternalEditorURL = nil;
+		[observedExternalEditorSessionPath release];
+		observedExternalEditorSessionPath = nil;
+		interceptExternalEditorOpen = YES;
+		ExternalEditor *directEditor = [[NVTestExternalEditor alloc] initWithDirectEditing:YES];
+		REQUIRE([scratchEditor editNote:scratchNote inEditor:directEditor context:nil]);
+		REQUIRE(observedExternalEditorSessionPath == nil &&
+			[[observedExternalEditorURL path] isEqualToString:[[scratchNote absoluteUNIXPath] path]]);
+		SpawnScenarioWithEnvironment(@"external-editor-writer-child",
+			"NV_EXTERNAL_EDITOR_PATH", [observedExternalEditorURL path], 0);
+		NSDate *directDeadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
+		while (![[[scratchNote contentString] string]
+			isEqualToString:@"changed through the live direct-file watcher"] &&
+			[directDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([[[scratchNote contentString] string]
+			isEqualToString:@"changed through the live direct-file watcher"]);
+		interceptExternalEditorOpen = NO;
+		[directEditor release];
+		[observedExternalEditorURL release];
+		observedExternalEditorURL = nil;
 		[controller removeNote:scratchNote];
 		REQUIRE([controller totalNoteCount] == 0);
 		backupProbePath = nil;
@@ -4986,7 +6213,58 @@ static void TestLiveFSEvents(void) {
 		REQUIRE(waitpid(child, &status, 0) == child);
 		child = -1;
 		REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+
+		/* Exercise the real encrypted external-editing route. The preparer exposes a
+		 * path here only after production code has verified the HFS RAM disk. */
+		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
+		[[controller notationPrefs] setPassphraseData:EncryptionTestPassphrase()
+			inKeychain:NO];
+		[[controller notationPrefs] setDoesEncryption:YES];
+		[NSObject cancelPreviousPerformRequestsWithTarget:scratchEditor
+			selector:@selector(initializeDatabase:) object:[controller notationPrefs]];
+		TemporaryFileCachePreparer *encryptedPreparer =
+			[scratchEditor valueForKey:@"editingSpacePreparer"];
+		NSDate *encryptionDeadline = [NSDate dateWithTimeIntervalSinceNow:10.0];
+		while (![[encryptedPreparer preparedCachePath] length] &&
+			[encryptionDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		NSString *encryptedRoot = [encryptedPreparer preparedCachePath];
+		REQUIRE([[encryptedRoot stringByDeletingLastPathComponent] isEqualToString:
+			[NSTemporaryDirectory() stringByAppendingPathComponent:@"NVProtectedEditingSpace"]]);
+		struct statfs encryptedFileSystem = { 0 };
+		REQUIRE(statfs([encryptedRoot fileSystemRepresentation], &encryptedFileSystem) == 0);
+		REQUIRE(strcmp(encryptedFileSystem.f_fstypename, "hfs") == 0);
+
+		NoteObject *encryptedNote = AddTestNote(controller, @"Encrypted External Edit",
+			@"encrypted scratch baseline");
+		interceptExternalEditorOpen = YES;
+		ExternalEditor *encryptedEditor = [[NVTestExternalEditor alloc]
+			initWithDirectEditing:NO];
+		REQUIRE([scratchEditor editNote:encryptedNote inEditor:encryptedEditor context:nil]);
+		NSString *encryptedScratchPath = [[observedExternalEditorSessionPath copy] autorelease];
+		REQUIRE([encryptedScratchPath hasPrefix:[encryptedRoot stringByAppendingString:@"/"]]);
+		REQUIRE([@"encrypted scratch watcher secret"
+			writeToFile:encryptedScratchPath atomically:YES
+			encoding:NSUTF8StringEncoding error:NULL]);
+		NSDate *encryptedEditDeadline = [NSDate dateWithTimeIntervalSinceNow:3.0];
+		while (![[[encryptedNote contentString] string]
+			isEqualToString:@"encrypted scratch watcher secret"] &&
+			[encryptedEditDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE([[[encryptedNote contentString] string]
+			isEqualToString:@"encrypted scratch watcher secret"]);
+		[scratchEditor abortAllEditingSessionsForClient:encryptedNote];
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:encryptedScratchPath]);
+		interceptExternalEditorOpen = NO;
+		[encryptedEditor release];
 	} @finally {
+		interceptExternalEditorOpen = NO;
+		[observedExternalEditorURL release];
+		observedExternalEditorURL = nil;
+		[observedExternalEditorSessionPath release];
+		observedExternalEditorSessionPath = nil;
 		[note release];
 		if (backupProbePath) [[NSFileManager defaultManager] removeItemAtPath:backupProbePath error:NULL];
 		[[ExternalEditingSession sharedExternalEditingSession] stopScratchWatcher];
@@ -4995,6 +6273,17 @@ static void TestLiveFSEvents(void) {
 			waitpid(child, NULL, 0);
 		}
 		CloseController(&controller);
+		[controllerPool drain];
+		controllerPool = nil;
+		liveFSEventsEnabled = NO;
+		if (controllerWasCreated) {
+			NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:1.0];
+			while (controllerDeallocationCount == originalDeallocationCount &&
+				[deadline timeIntervalSinceNow] > 0.0)
+				[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+					beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.005]];
+			REQUIRE(controllerDeallocationCount == originalDeallocationCount + 1);
+		}
 		[delegate release];
 		RemoveTemporaryDirectory(directoryPath);
 	}
@@ -5067,6 +6356,7 @@ static void TestConcurrentControllers(void) {
 		[delegate release];
 		RemoveTemporaryDirectory(directoryPath);
 	}
+	AssertLockContentionBypassesRecovery();
 }
 
 static void TestPlainTextEncodings(void) {
@@ -5821,11 +7111,34 @@ static void TestLegacyFixtures(void) {
 	}
 }
 
+static NSData *EncryptionTestPassphrase(void) {
+	return [@"integration-test-passphrase" dataUsingEncoding:NSUTF8StringEncoding];
+}
+
+static void TestEncryptedWALChild(void) {
+	NSString *directoryPath = [[[NSProcessInfo processInfo] environment]
+		objectForKey:@"NV_ENCRYPTED_WAL_DIRECTORY"];
+	REQUIRE([directoryPath length]);
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = CreateController(directoryPath, delegate);
+	[controller stopFileNotifications];
+	NoteObject *note = AddTestNote(controller, @"Encrypted WAL",
+		@"encrypted database baseline");
+	[[controller notationPrefs] setPassphraseData:EncryptionTestPassphrase() inKeychain:NO];
+	[[controller notationPrefs] setDoesEncryption:YES];
+	REQUIRE([controller flushAllNoteChanges]);
+	[note setContentString:[[[NSAttributedString alloc]
+		initWithString:@"encrypted WAL-only edit"] autorelease]];
+	[controller synchronizeNoteChanges:nil];
+	REQUIRE([controller synchronizeJournalOnly]);
+	_exit(76);
+}
+
 static void TestEncryption(void) {
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
-	NSData *passphrase = [@"integration-test-passphrase" dataUsingEncoding:NSUTF8StringEncoding];
+	NSData *passphrase = EncryptionTestPassphrase();
 	NSString *secret = @"SECRET-PLAINTEXT-5B575E23-東京";
 
 	@try {
@@ -5859,7 +7172,32 @@ static void TestEncryption(void) {
 		REQUIRE(status == noErr);
 		REQUIRE([notes count] == 1);
 		REQUIRE([[[[notes objectAtIndex:0] contentString] string] isEqualToString:secret]);
+
+		CloseController(&controller);
+		RemoveTemporaryDirectory(directoryPath);
+		directoryPath = CreateTemporaryDirectory();
+		SpawnScenarioWithEnvironment(@"encrypted-wal-child",
+			"NV_ENCRYPTED_WAL_DIRECTORY", directoryPath, 76);
+		InstallPassphraseRetrieverInjection();
+		injectedDatabasePassphrase = passphrase;
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		REQUIRE([[controller notationPrefs] epochIteration] == EPOC_ITERATION);
+		REQUIRE([[controller notationPrefs] doesEncryption]);
+		NoteObject *recovered = NoteContaining(controller, @"encrypted WAL-only edit");
+		REQUIRE(recovered != nil);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+		[recovered setContentString:[[[NSAttributedString alloc]
+			initWithString:@"encrypted post-recovery edit"] autorelease]];
+		REQUIRE([controller flushAllNoteChanges]);
+		CloseController(&controller);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:
+			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(NoteContaining(controller, @"encrypted post-recovery edit") != nil);
 	} @finally {
+		injectedDatabasePassphrase = nil;
 		CloseController(&controller);
 		[delegate release];
 		RemoveTemporaryDirectory(directoryPath);
@@ -5904,6 +7242,19 @@ static void TestTrash(void) {
 		[delegate release];
 		RemoveTemporaryDirectory(directoryPath);
 	}
+}
+
+static void TestFIFOJournalChild(void) {
+	NSString *rootPath = [[[NSProcessInfo processInfo] environment]
+		objectForKey:@"NV_FIFO_JOURNAL_DIRECTORY"];
+	REQUIRE([rootPath length]);
+	OSStatus status = noErr;
+	NVTestNotationController *controller = [[NVTestNotationController alloc]
+		initWithDirectoryURL:FileReferenceURLForPath(rootPath) error:&status];
+	REQUIRE(controller == nil && status == NVTestJournalingError);
+	struct stat journalInfo = { 0 };
+	REQUIRE(lstat([[rootPath stringByAppendingPathComponent:@"Interim Note-Changes"]
+		fileSystemRepresentation], &journalInfo) == 0 && S_ISFIFO(journalInfo.st_mode));
 }
 
 static void TestFailures(void) {
@@ -5983,9 +7334,88 @@ static void TestFailures(void) {
 		RemoveTemporaryDirectory(rootPath);
 		[delegate release];
 	}
+
+	rootPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
+		controller = CreateController(rootPath, delegate);
+		REQUIRE([controller flushAllNoteChanges]);
+		CloseController(&controller);
+		NSString *journalPath = [rootPath stringByAppendingPathComponent:
+			@"Interim Note-Changes"];
+		REQUIRE(mkfifo([journalPath fileSystemRepresentation], 0600) == 0);
+		const char *oldValue = getenv("NV_FIFO_JOURNAL_DIRECTORY");
+		NSString *savedValue = oldValue ? [NSString stringWithUTF8String:oldValue] : nil;
+		REQUIRE(setenv("NV_FIFO_JOURNAL_DIRECTORY",
+			[rootPath fileSystemRepresentation], 1) == 0);
+		NSString *executable = [[[NSProcessInfo processInfo] arguments] objectAtIndex:0];
+		char *arguments[] = {
+			(char*)[executable fileSystemRepresentation], "fifo-journal-child", NULL
+		};
+		pid_t child = -1;
+		int spawnResult = posix_spawn(&child, arguments[0], NULL, NULL, arguments, environ);
+		if (savedValue) REQUIRE(setenv("NV_FIFO_JOURNAL_DIRECTORY",
+			[savedValue UTF8String], 1) == 0);
+		else REQUIRE(unsetenv("NV_FIFO_JOURNAL_DIRECTORY") == 0);
+		REQUIRE(spawnResult == 0 && child > 0);
+		int childStatus = 0;
+		NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:2.0];
+		pid_t waitResult = 0;
+		while ((waitResult = waitpid(child, &childStatus, WNOHANG)) == 0 &&
+			[deadline timeIntervalSinceNow] > 0.0)
+			usleep(10000);
+		if (waitResult == 0) {
+			kill(child, SIGKILL);
+			waitpid(child, &childStatus, 0);
+			REQUIRE(!"FIFO journal recovery blocked");
+		}
+		REQUIRE(waitResult == child);
+		REQUIRE(WIFEXITED(childStatus) && WEXITSTATUS(childStatus) == 0);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(rootPath);
+	}
 }
 
 static void TestExternalEditingTextMerge(void) {
+	NSString *cacheRoot = CreateTemporaryDirectory();
+	NSString *legacyScratchPath = [cacheRoot stringByAppendingPathComponent:@"legacy active.txt"];
+	REQUIRE([@"legacy scratch" writeToFile:legacyScratchPath atomically:NO
+		encoding:NSUTF8StringEncoding error:NULL]);
+	NSString *staleWorkspace = [cacheRoot stringByAppendingPathComponent:@"NVEditing-Stale"];
+	REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:staleWorkspace
+		withIntermediateDirectories:NO attributes:nil error:NULL]);
+	NSString *staleScratchPath = [staleWorkspace stringByAppendingPathComponent:@"stale plaintext.txt"];
+	REQUIRE([@"stale plaintext" writeToFile:staleScratchPath atomically:NO
+		encoding:NSUTF8StringEncoding error:NULL]);
+	REQUIRE([@"" writeToFile:[staleWorkspace stringByAppendingPathComponent:
+		@".NVExternalEditing.lock"] atomically:NO encoding:NSUTF8StringEncoding error:NULL]);
+	TemporaryFileCachePreparer *firstPreparer = [[TemporaryFileCachePreparer alloc] init];
+	[firstPreparer _finishPreparationWithPath:cacheRoot];
+	NSString *firstWorkspace = [[firstPreparer preparedCachePath] copy];
+	REQUIRE([firstWorkspace hasPrefix:[cacheRoot stringByAppendingString:@"/"]]);
+	REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:staleWorkspace]);
+	REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:legacyScratchPath]);
+	TemporaryFileCachePreparer *contendingPreparer = [[TemporaryFileCachePreparer alloc] init];
+	[contendingPreparer _finishPreparationWithPath:cacheRoot];
+	REQUIRE([[contendingPreparer preparedCachePath] length] &&
+		![[contendingPreparer preparedCachePath] isEqualToString:firstWorkspace]);
+	NSString *activeScratchPath = [[contendingPreparer preparedCachePath]
+		stringByAppendingPathComponent:@"active scratch.txt"];
+	REQUIRE([@"active scratch" writeToFile:activeScratchPath atomically:NO
+		encoding:NSUTF8StringEncoding error:NULL]);
+	[firstPreparer release];
+	TemporaryFileCachePreparer *thirdPreparer = [[TemporaryFileCachePreparer alloc] init];
+	[thirdPreparer _finishPreparationWithPath:cacheRoot];
+	REQUIRE([[thirdPreparer preparedCachePath] length]);
+	REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:firstWorkspace]);
+	REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:activeScratchPath]);
+	[firstWorkspace release];
+	[contendingPreparer release];
+	[thirdPreparer release];
+	RemoveTemporaryDirectory(cacheRoot);
+
 	NSString *base = @"first line\nsecond line\nthird line\n";
 	NSString *local = @"FIRST LINE\nsecond line\nthird line\n";
 	NSString *external = @"first line\nsecond line\nTHIRD LINE\n";
@@ -6603,6 +8033,12 @@ int main(int argc, const char *argv[]) {
 			TestWALCrashChild();
 		else if ([scenario isEqualToString:@"wal-crash-recovery"])
 			TestWALCrashRecovery();
+		else if ([scenario isEqualToString:@"legacy-temporary-database-recovery"])
+			TestLegacyTemporaryDatabaseRecovery();
+		else if ([scenario isEqualToString:@"wal-record-recovery"])
+			TestWALRecordRecovery();
+		else if ([scenario isEqualToString:@"wal-recovery-workflows"])
+			TestWALRecoveryWorkflows();
 		else if ([scenario isEqualToString:@"wal-history-child"])
 			TestWALHistoryCrashChild();
 		else if ([scenario isEqualToString:@"wal-history-recovery"])
@@ -6639,6 +8075,10 @@ int main(int argc, const char *argv[]) {
 			TestFileOutboxCrashChild();
 		else if ([scenario isEqualToString:@"file-outbox-crash-recovery"])
 			TestFileOutboxCrashRecovery();
+		else if ([scenario isEqualToString:@"encrypted-wal-child"])
+			TestEncryptedWALChild();
+		else if ([scenario isEqualToString:@"fifo-journal-child"])
+			TestFIFOJournalChild();
 		else if ([scenario isEqualToString:@"bookmark-create"])
 			TestBookmarkCreate();
 		else if ([scenario isEqualToString:@"bookmark-resolve"])
@@ -6689,6 +8129,8 @@ int main(int argc, const char *argv[]) {
 			TestLiveFSEvents();
 		else if ([scenario isEqualToString:@"fsevents-writer-child"])
 			TestFSEventsWriterChild();
+		else if ([scenario isEqualToString:@"external-editor-writer-child"])
+			TestExternalEditorWriterChild();
 		else if ([scenario isEqualToString:@"filename-collisions"])
 			TestFilenameCollisions();
 		else if ([scenario isEqualToString:@"concurrent-controllers"])

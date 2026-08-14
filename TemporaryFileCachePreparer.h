@@ -25,14 +25,12 @@
 @class NotationPrefs;
 
 @interface TemporaryFileCachePreparer : NSObject {
-	NSString *cachePath;
-	
 	id delegate;
 
-	NotationPrefs *notationPrefs;	
 	BOOL startedPreparing;
 	NSTask *mountTask, *newfsTask, *attachTask;
 	NSString *deviceName, *preparedCachePath;
+	int cacheLockFD;
 }
 
 - (void)prepEditingSpaceIfNecessaryForNotationPrefs:(NotationPrefs*)prefs;

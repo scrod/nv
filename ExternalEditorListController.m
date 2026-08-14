@@ -82,7 +82,7 @@ NSString *ExternalEditorsChangedNotification = @"ExternalEditorsChanged";
 	NSNumber *canHandleNumber = [knownPathExtensions objectForKey:extension];
 
 	if (!canHandleNumber) {
-		NSURL *noteURL = [aNote noteFileURL];
+		NSURL *noteURL = [aNote absoluteUNIXPath];
 
 		Boolean canAccept = false;
 		OSStatus err = noteURL ? LSCanURLAcceptURL((CFURLRef)noteURL, (CFURLRef)[self resolvedURL], kLSRolesEditor, kLSAcceptAllowLoginUI, &canAccept) : fnfErr;
@@ -332,7 +332,7 @@ errorReturn:
 - (NSArray*)_applicationURLsForNote:(NoteObject*)note {
 	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 	if (note && [[note delegate] currentNoteStorageFormat] != SingleDatabaseFormat) {
-		NSURL *URL = [note noteFileURL];
+		NSURL *URL = [note absoluteUNIXPath];
 		if (!URL) return [NSArray array];
 		if (@available(macOS 12.0, *))
 			return [workspace URLsForApplicationsToOpenURL:URL];

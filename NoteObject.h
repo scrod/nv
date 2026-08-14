@@ -202,6 +202,8 @@ NSInteger compareFilename(id *a, id *b);
 
 - (NSURL*)uniqueNoteLink;
 - (NSURL*)noteFileURL;
+/* For Finder and external-application handoffs only; not for NV file I/O. */
+- (NSURL*)absoluteUNIXPath;
 
 - (BOOL)writeUsingJournal:(WALStorageController*)wal;
 

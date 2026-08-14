@@ -312,8 +312,9 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	}
 	void (^completion)(BOOL) = completionHandler ? [completionHandler copy] :
 		[^(BOOL success) { (void)success; } copy];
-		NSDictionary *request = @{ NVFinishRequestPathsKey: paths, NVFinishRequestCompletionKey: completion,
-			NVFinishRequestDeadlineKey: [NSDate dateWithTimeIntervalSinceNow:5.0] };
+	NSMutableDictionary *request = [NSMutableDictionary dictionaryWithDictionary:
+		@{ NVFinishRequestPathsKey: paths, NVFinishRequestCompletionKey: completion,
+			NVFinishRequestDeadlineKey: [NSDate dateWithTimeIntervalSinceNow:5.0] }];
 	[completion release];
 	[_finishRequests addObject:request];
 	for (NSString *path in paths) {
@@ -484,7 +485,7 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	if (!note) goto failed;
 	if (!editor) editor = [[ExternalEditorListController sharedInstance] defaultExternalEditor];
 	if ([editor canEditNoteDirectly:note]) {
-		NSURL *URL = [note noteFileURL];
+		NSURL *URL = [note absoluteUNIXPath];
 		if ([self openURL:URL inEditor:editor sessionPath:nil]) return YES;
 		goto failed;
 	}

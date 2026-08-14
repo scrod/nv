@@ -117,7 +117,7 @@ static const NSStringEncoding AllowedEncodings[] = {
 			NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
 			NSURL *textEditURL = [workspace URLForApplicationWithBundleIdentifier:@"com.apple.TextEdit"];
 			if (textEditURL) {
-				NSURL *noteURL = [note noteFileURL];
+				NSURL *noteURL = [note absoluteUNIXPath];
 				if (!noteURL) {
 					NVRunAlert(NSLocalizedString(@"Could not locate the note file.", nil), NSLocalizedString(@"Does it still exist?", nil),
 					NSLocalizedString(@"I'll Go See", @"... if it exists"), nil, nil, NSAlertStyleWarning);

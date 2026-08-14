@@ -34,6 +34,7 @@
 #import "FrozenNotation.h"
 #import "AlienNoteImporter.h"
 #import "ExternalEditingSession.h"
+#import "StartupRecovery.h"
 #import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
 #import "NotationDirectoryManager.h"
@@ -57,11 +58,13 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 - (void)_removeNoteAfterExternalEditing:(NoteObject*)note;
 - (void)_removeNotesAfterExternalEditing:(NSArray*)notes;
 - (void)_externalEditingTeardownFailed;
+- (id)_initWithDirectoryURL:(NSURL*)directoryURL recoveredNotes:(NSDictionary*)recoveredNotes
+	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)error;
 @end
 
 @implementation NotationController
 
-@synthesize filterString, directoryRetryTimer, changeWritingTimer, lastWriteError;
+@synthesize filterString, directoryRetryTimer, changeWritingTimer, lastWriteError, walWriter;
 
 - (id)init {
     self = [super init];
@@ -134,6 +137,19 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 }
 
 - (id)initWithDirectoryURL:(NSURL*)directoryURL error:(OSStatus*)err {
+	return [self _initWithDirectoryURL:directoryURL recoveredNotes:nil
+		stagingRecovery:NO error:err];
+}
+
+- (id)_initWithDirectoryURL:(NSURL*)directoryURL recoveredNotes:(NSDictionary*)recoveredNotes
+	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)err {
+	/* Normal initialization creates the WAL and, if one already exists, delegates
+	 * the entire recovery transaction to StartupRecovery.  Staging initialization
+	 * only loads a database and persists recoveredNotes while the coordinator
+	 * continues to hold the old WAL lock.  It deliberately returns before WAL
+	 * creation, format setup, and epoch upgrade so those steps happen once, after
+	 * the old journal has been preserved.  A non-nil empty dictionary is meaningful:
+	 * it forces an installed legacy database through the same durable snapshot. */
 
 	if (![directoryURL isFileReferenceURL]) {
 		if (err)
@@ -166,19 +182,49 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 		if ((anErr = [self _readAndInitializeSerializedNotes]) != noErr) {
 			if (err)
 				*err = anErr;
+			[self release];
 			return nil;
 		}
 		
+		if (stagingRecovery) {
+			if ([recoveredNotes count]) [self processRecoveredNotes:recoveredNotes];
+			if (recoveredNotes) notesChanged = YES;
+			/* External note files are not part of the database/WAL rollback pair.
+			 * Keep their obligations pending until StartupRecovery commits that pair. */
+			NSSet *deferredFileWrites = [pendingFileWrites copy];
+			[pendingFileWrites removeAllObjects];
+			BOOL flushed = !recoveredNotes || [self flushAllNoteChanges];
+			[pendingFileWrites unionSet:deferredFileWrites];
+			[deferredFileWrites release];
+			if (!flushed) {
+				if (err) *err = kJournalingError;
+				[self release];
+				return nil;
+			}
+			return self;
+		}
+
+		if (![self initializeJournaling]) {
+			OSStatus recoveryError = kJournalingError;
+			NotationController *recoveredController =
+				[self newControllerByRecoveringStartupJournal:err ?: &recoveryError];
+			if (recoveredController) {
+				[self release];
+				return recoveredController;
+			}
+			if (err && *err == noErr) *err = recoveryError;
+			[self release];
+			return nil;
+		}
+
 		//set up the directory subscription, if necessary
 		//and sync based on notes in directory and their mod. dates
 		[self databaseSettingsChangedFromOldFormat:[notationPrefs notesStorageFormat]];
-		if (!walWriter) {
-			if (err)
-				*err = kJournalingError;
-			return nil;
-		}
 		
 		[self upgradeDatabaseIfNecessary];
+		/* Persist an upgrade without rotating the WAL.  A failed write retains its
+		 * normal retry obligation and the active journal remains authoritative. */
+		(void)[self flushAllNoteChanges];
 		
 		[self updateTitlePrefixConnections];
     }
@@ -205,14 +251,6 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 		
 		const UInt32 epochIteration = [notationPrefs epochIteration];
 		
-		//upgrade note-text-encodings here if there might exist notes with the wrong encoding (check NotationPrefs values)
-		if (epochIteration < 2) {
-			//this would have to be a database from epoch 1, where the default file-encoding was system-default
-			NSLog(@"trying to upgrade note encodings");
-			[allNotes makeObjectsPerformSelector:@selector(upgradeToUTF8IfUsingSystemEncoding)];
-			//move aside the old database as the new format breaks compatibility
-			(void)[self renameAndForgetNoteDatabaseFile:@"Notes & Settings (old version from 2.0b)" error:NULL];
-		}
 		if (epochIteration < 3) {
 			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
 		}
@@ -234,7 +272,6 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 		if (epochIteration < EPOC_ITERATION) {
 			NSLog(@"epochIteration was upgraded from %u to %u", epochIteration, EPOC_ITERATION);
 			notesChanged = YES;
-			[self flushEverything];
 		} else if ([notationPrefs epochIteration] > EPOC_ITERATION) {
 			NSAlert *versionAlert = [[[NSAlert alloc] init] autorelease];
 			[versionAlert setMessageText:NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil)];
@@ -371,84 +408,23 @@ returnResult:
 }
 
 - (BOOL)initializeJournaling {
-	NSData *walSessionKey = [notationPrefs WALSessionKey];
-
-	//initialize the journal if necessary
-		if (!(walWriter = [[WALStorageController alloc] initWithDirectoryFileDescriptor:noteDirectoryFileDescriptor encryptionKey:walSessionKey])) {
-			//journal file probably already exists, so try to recover it
-			WALRecoveryController *walReader = [[[WALRecoveryController alloc] initWithDirectoryFileDescriptor:noteDirectoryFileDescriptor encryptionKey:walSessionKey] autorelease];
-			if (walReader) {
-				
-				BOOL databaseCouldNotBeFlushed = NO;
-				NSDictionary *recoveredNotes = [walReader recoveredNotes];
-				if ([recoveredNotes count] > 0) {
-					[self processRecoveredNotes:recoveredNotes];
-					
-					if (![self flushAllNoteChanges]) {
-						//we shouldn't continue because the journal is still the sole record of the unsaved notes, so we can't delete it
-						//BUT: what if the database can't be verified? We should be able to continue, and just keep adding to the WAL
-						//in this case the WAL should be destroyed, re-initialized, and the recovered (and de-duped) notes added back
-						NSLog(@"Unable to flush recovered notes back to database");
-						databaseCouldNotBeFlushed = YES;
-						//goto bail;
-					}
-				}
-				//is there a way that recoverNextObject could fail that would indicate a failure with the file as opposed to simple non-recovery?
-				//if so, it perhaps the recoveredNotes method should also return an error condition, to be checked here
-				
-				//there could be other issues, too (1)
-				
-				if (![walReader destroyLogFile]) {
-					//couldn't delete the log file, so we can't create a new one
-					NSLog(@"Unable to delete the old write-ahead-log file");
-					goto bail;
-				}
-				
-				if (!(walWriter = [[WALStorageController alloc] initWithDirectoryFileDescriptor:noteDirectoryFileDescriptor encryptionKey:walSessionKey])) {
-					//couldn't create a journal after recovering the old one
-					//if databaseCouldNotBeFlushed is true here, then we've potentially lost notes; perhaps exchangeobjects would be better here?
-					NSLog(@"Unable to create a new write-ahead-log after deleting the old one");
-					goto bail;
-				}
-				
-				if ([recoveredNotes count] > 0) {
-					if (databaseCouldNotBeFlushed) {
-						//re-add the contents of recoveredNotes to walWriter; LSNs should take care of the order; no need to sort
-						//this allows for an ever-growing journal in the case of broken database serialization
-						//it should not be an acceptable condition for permanent use; hopefully an update would come soon
-						//warn the user, perhaps
-						[walWriter writeNoteObjects:[recoveredNotes allValues]];
-					}
-					[self refilterNotes];
-				}
-			} else {
-				NSLog(@"Unable to recover unsaved notes from write-ahead-log");
-				//1) should we let the user attempt to remove it without recovery?
-				goto bail;
-			}
-		}
-		return YES;
-    
-bail:
-    return NO;
+	if (self.walWriter) return YES;
+	WALStorageController *writer = [[WALStorageController alloc]
+		initWithDirectoryFileDescriptor:noteDirectoryFileDescriptor
+		encryptionKey:[notationPrefs WALSessionKey]];
+	/* Keep the property as the sole owner: recovery rollback must be able to
+	 * release the writer's flock immediately by clearing walWriter. */
+	self.walWriter = writer;
+	[writer release];
+	return self.walWriter != nil;
 }
 
 //stick the newest unique recovered notes into allNotes
 - (void)processRecoveredNotes:(NSDictionary*)dict {
-    enum { vListBufCount = 16 };
-    void* keysBuffer[vListBufCount], *valuesBuffer[vListBufCount];
-    NSUInteger i, count = [dict count];
-    
-    void **keys = (count <= vListBufCount) ? keysBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
-    void **values = (count <= vListBufCount) ? valuesBuffer : (void **)malloc(sizeof(void*) * (size_t)count);
-    
-    if (keys && values && dict) {
-	CFDictionaryGetKeysAndValues((CFDictionaryRef)dict, (const void **)keys, (const void **)values);
-	
-		for (i=0; i<count; i++) {
-			
-			CFUUIDBytes *objUUIDBytes = (CFUUIDBytes *)keys[i];
-			id<SynchronizedNote> obj = (id)values[i];
+	/* Values own their UUID bytes, so enumerating them directly avoids a second,
+	 * fallible key/value allocation while the only copy may still be in the WAL. */
+	for (id<SynchronizedNote> obj in [dict objectEnumerator]) {
+			CFUUIDBytes *objUUIDBytes = [obj uniqueNoteIDBytes];
 			
 			NSUInteger existingNoteIndex = [allNotes indexOfNoteWithUUIDBytes:objUUIDBytes];
 			
@@ -503,16 +479,7 @@ bail:
 					[pendingFileWrites addObject:obj];
 				}
 			}
-		}
-		
-	if (keys != keysBuffer)
-	    free(keys);
-	if (values != valuesBuffer)
-	    free(values);
-	
-    } else {
-	NSLog(@"_makeChangesInDictionary: Could not get values or keys!");
-    }
+	}
 }
 
 - (void)closeJournal {
@@ -521,8 +488,7 @@ bail:
 		if (![walWriter destroyLogFile])
 			NSLog(@"couldn't remove wal file--is this an error for note flushing?");
 		
-		[walWriter release];
-		walWriter = nil;	
+		self.walWriter = nil;
     }
 }
 
@@ -639,10 +605,6 @@ bail:
 		
 		[self stopFileNotifications];
 		
-		/*if (![self initializeJournaling]) {
-			[self performSelector:@selector(handleJournalError) withObject:nil afterDelay:0.0];
-		}*/
-		
     } else {
 		//write to disk any unwritten notes; do this before flushing database to make sure that when it is flushed, it gets the new file mod. dates
 		//otherwise it would be necessary to set notesChanged = YES; after this method
@@ -659,13 +621,6 @@ bail:
 			}
 		}
 
-		//flush and close the journal if necessary
-		/*if (walWriter) {
-			if ([self flushAllNoteChanges])
-				[self closeJournal];
-		}*/
-		//notationPrefs should call flushAllNoteChanges after this method, anyway
-		
 		[self startFileNotifications];
 		
 		[self synchronizeNotesFromDirectory];		

@@ -146,6 +146,7 @@
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		A17F00012F00000100000001 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */; };
+		A17F10022F00000100000001 /* StartupRecovery.m in Sources */ = {isa = PBXBuildFile; fileRef = A17F10012F00000100000001 /* StartupRecovery.m */; };
 		C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = C0D3A1002F00000100000003 /* ImportingUtils.m */; };
 		D1FFB0000000000000000001 /* DiffMatchPatch.m in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000002 /* DiffMatchPatch.m */; };
 		D1FFB0000000000000000002 /* DiffMatchPatchCFUtilities.c in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000004 /* DiffMatchPatchCFUtilities.c */; };
@@ -344,6 +345,7 @@
 		21DEA4962E73563C009413FF /* de */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = de; path = de.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4972E73563C009413FF /* pt */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = pt; path = pt.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4992E73563C009413FF /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
+		21DEA49B2E73563C009413FF /* es */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = es; path = Spanish.lproj/TagEditingManager.xib; sourceTree = "<group>"; };
 		21DEA4AB2E7356FA009413FF /* TagEditingManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TagEditingManager.m; sourceTree = "<group>"; };
 		21DEA4AC2E7356FA009413FF /* TagEditingManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TagEditingManager.h; sourceTree = "<group>"; };
 		21DEA4AE2E73889C009413FF /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/MacOSX.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
@@ -498,6 +500,8 @@
 		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* Notational Velocity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Notational Velocity.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = /System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = "<absolute>"; };
+		A17F10002F00000100000001 /* StartupRecovery.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StartupRecovery.h; sourceTree = "<group>"; };
+		A17F10012F00000100000001 /* StartupRecovery.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StartupRecovery.m; sourceTree = "<group>"; };
 		C0D3A1002F00000100000002 /* ImportingUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImportingUtils.h; sourceTree = "<group>"; };
 		C0D3A1002F00000100000003 /* ImportingUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImportingUtils.m; sourceTree = "<group>"; };
 		D1FFF0000000000000000001 /* DiffMatchPatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DiffMatchPatch.h; sourceTree = "<group>"; };
@@ -565,6 +569,8 @@
 				21A6E6FC0974204F008436A9 /* LabelsListController.m */,
 				2114C13D0957732800614E74 /* NotationController.h */,
 				2114C13E0957732800614E74 /* NotationController.m */,
+				A17F10002F00000100000001 /* StartupRecovery.h */,
+				A17F10012F00000100000001 /* StartupRecovery.m */,
 				2114C1440957733200614E74 /* NoteObject.h */,
 				2114C1450957733200614E74 /* NoteObject.m */,
 				2155DF42097C992800163A10 /* AttributedPlainText.h */,
@@ -979,6 +985,7 @@
 				zh,
 				"pt-PT",
 				French,
+				Spanish,
 			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* Notation */;
 			projectDirPath = "";
@@ -1063,6 +1070,7 @@
 				8D11072D0486CEB800E47090 /* main.m in Sources */,
 				2114C11609575BD400614E74 /* AppController.m in Sources */,
 				2114C13F0957732800614E74 /* NotationController.m in Sources */,
+				A17F10022F00000100000001 /* StartupRecovery.m in Sources */,
 				2114C1460957733200614E74 /* NoteObject.m in Sources */,
 				2114C23E095883A600614E74 /* NSData_transformations.m in Sources */,
 				219588D20961D7F200972B8C /* LinkingEditor.m in Sources */,
@@ -1541,6 +1549,7 @@
 				21DEA4942E73563C009413FF /* it */,
 				21DEA4962E73563C009413FF /* de */,
 				21DEA4972E73563C009413FF /* pt */,
+				21DEA49B2E73563C009413FF /* es */,
 				21DEA4992E73563C009413FF /* en */,
 			);
 			name = TagEditingManager.xib;

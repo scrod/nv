@@ -968,6 +968,12 @@ BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescripto
 		data, filename, YES, YES, preparationBlock, verificationBlock, nil, NULL, NULL, error);
 }
 
+- (BOOL)createDataAtomicallyInNotesDirectory:(NSData*)data
+	withName:(NSString*)filename error:(NSError**)error {
+	return NVStoreDataAtomicallyAtDirectoryFileDescriptor(noteDirectoryFileDescriptor,
+		data, filename, NO, NO, NULL, NULL, nil, NULL, NULL, error);
+}
+
 - (BOOL)storeNoteDataAtomically:(NSData*)data withName:(NSString*)filename
 	encoding:(NSStringEncoding)encoding tags:(NSArray*)tags
 	creationTime:(CFAbsoluteTime)creationTime modificationTime:(CFAbsoluteTime)modificationTime

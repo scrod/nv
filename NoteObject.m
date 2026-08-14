@@ -1194,6 +1194,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return [delegate fileReferenceURLForNoteNamed:filename error:NULL];
 }
 
+- (NSURL*)absoluteUNIXPath {
+	return [[delegate noteDirectoryURL] URLByAppendingPathComponent:filename];
+}
+
 - (BOOL)writeUsingCurrentFileFormatIfNecessary {
 	//if note had been updated via makeNoteDirty and needed file to be rewritten
 	if (shouldWriteToFile) {

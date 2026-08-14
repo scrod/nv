@@ -117,7 +117,7 @@
 "Please try again." = "Essayez à nouveau.";
 
 /* prompt for choosing an incompatible text encoding */
-"Please try another encoding." = "Please try another encoding.";
+"Please try another encoding." = "Veuillez essayer un autre encodage.";
 
 /* alert title when converting from unicode */
 "quotemark%@quotemark is a Unicode file and not directly interpretable using plain text encodings." = "“%@” est un fichier Unicode qui n'est pas unterprétable tel quel dans un encodage texte simple.";
@@ -171,7 +171,7 @@
 "You can import your old notes at any time by choosing quotemarkImport...quotemark from the quotemarkNotequotemark menu and selecting your NotationalDatabase.blor file." = "Vous pouvez importer vos anciennes notes à tout moment en choisissant “Importer…” depuis le menu “Note” et en sélectionnant votre fichier NotationalDatabase.blor.";
 
 /* No comment provided by engineer. */
-"You may need to re-run the Mac OS X installer." = "You may need to re-run the Mac OS X installer.";
+"You may need to re-run the Mac OS X installer." = "Vous devrez peut-être réexécuter l’installateur de Mac OS X.";
 
 /* No comment provided by engineer. */
 "You must select at least one note to export." = "Vous devez sélectionner une note au moins pour l'exporter.";
@@ -204,7 +204,7 @@
 "(None)" = "(Aucun)";
 
 /* no comment */
-"PBKDF2 iterations: %d" = "PBKDF2 iterations: %d";
+"PBKDF2 iterations: %d" = "Itérations PBKDF2 : %d";
 
 /* no comment */
 "Please choose a different folder in which to store your notes." = "Choisissez un autre dossier où stocker vos notes.";
@@ -474,7 +474,7 @@
 "Session could not be created" = "La session n'a pu être créée";
 
 /* Simplenote-specific error */
-"No authorization token" = "No authorization token";
+"No authorization token" = "Aucun jeton d’autorisation";
 
 /* Simplenote-specific error */
 "The index of notes could not be parsed." = "L'index des notes n'a pu être analysé.";
@@ -671,3 +671,56 @@
 "Set Default Notes Folder" = "Définir le dossier de notes par défaut";
 "This folder contains a Notational Velocity database." = "Ce dossier contient une base de données Notational Velocity.";
 "Would you like to import its contents as new notes, or make it your default notes folder?" = "Voulez-vous importer son contenu comme nouvelles notes ou en faire votre dossier de notes par défaut ?";
+
+/* localization audit: user-facing fallback strings */
+"Another copy of Notational Velocity is already using this notes database." = "Une autre copie de Notational Velocity utilise déjà cette base de données de notes.";
+"Quit the other copy before opening this folder, or choose another notes folder." = "Quittez l’autre copie avant d’ouvrir ce dossier ou choisissez un autre dossier de notes.";
+"Add %lu Notes" = "Ajouter %lu notes";
+"Delete %lu Notes" = "Effacer %lu notes";
+"Choose a folder into which %lu notes will be exported" = "Choisissez un dossier où exporter les %lu notes";
+"Add Notes" = "Ajouter des notes";
+"If you make changes, some settings and metadata will be lost." = "Si vous apportez des modifications, certains réglages et métadonnées seront perdus.";
+"Please enter the passphrase to import old notes at %@." = "Saisissez la phrase secrète pour importer les anciennes notes depuis %@.";
+"Error: the modification date of the file quotemark%@quotemark could not be compared." = "Erreur : la date de modification du fichier quotemark%@quotemark n’a pas pu être comparée.";
+"Unable to access the chosen directory." = "Impossible d’accéder au dossier sélectionné.";
+"The external editor saved data that was not valid UTF-8. The exact bytes follow as Base64:\n\n%@" = "L’éditeur externe a enregistré des données qui n’étaient pas valides en UTF-8. Les octets exacts suivent au format Base64 :\n\n%@";
+"a changing file's displaced contents remain in emergency recovery storage" = "le contenu déplacé du fichier modifié reste dans le stockage de récupération d’urgence";
+"a changing file's displaced contents were recovered as %@" = "le contenu déplacé du fichier modifié a été récupéré sous le nom %@";
+"the externally edited note could not be decoded" = "la note modifiée en externe n’a pas pu être décodée";
+"the note could not be converted to its file format" = "la note n’a pas pu être convertie dans son format de fichier";
+"the note could not be converted to the selected export format" = "la note n’a pas pu être convertie dans le format d’exportation sélectionné";
+"the write-ahead journal could not be updated" = "le journal d’écriture anticipée n’a pas pu être mis à jour";
+"Invalid character in diff_fromDelta: %@" = "Caractère non valide dans diff_fromDelta : %@";
+"Invalid number in diff_fromDelta: %@" = "Nombre non valide dans diff_fromDelta : %@";
+"Negative number in diff_fromDelta: %@" = "Nombre négatif dans diff_fromDelta : %@";
+"Delta length (%lu) larger than source text length (%lu)." = "La longueur du delta (%lu) est supérieure à celle du texte source (%lu).";
+"Invalid diff operation in diff_fromDelta: %C" = "Opération diff non valide dans diff_fromDelta : %C";
+"Delta length (%lu) smaller than source text length (%lu)." = "La longueur du delta (%lu) est inférieure à celle du texte source (%lu).";
+"Invalid patch string: %@" = "Chaîne de patch non valide : %@";
+"Invalid patch mode '%C' in: %@" = "Mode de patch « %C » non valide dans : %@";
+"Add" = "Ajouter";
+"Remove" = "Supprimer";
+"Make Default" = "Définir par défaut";
+"Password Assistant" = "Assistant de mot de passe";
+"Keyboard Shortcut" = "Raccourci clavier";
+"Clear Search" = "Effacer la recherche";
+"Return to All Notes" = "Retourner à toutes les notes";
+"Back" = "Retour";
+"Editing Note" = "Modification de la note";
+"Search" = "Rechercher";
+"Resize Notes List" = "Redimensionner la liste des notes";
+"Show Sync Status" = "Afficher l’état de synchronisation";
+"Synchronizing" = "Synchronisation en cours";
+"Sync Error" = "Erreur de synchronisation";
+"Warning" = "Avertissement";
+"Validated" = "Validé";
+"In Progress" = "En cours";
+"Error" = "Erreur";
+"Recovery from Interim Note-Changes failed but a newer database file was found; attempt recovery from it instead?" = "La récupération depuis Interim Note-Changes a échoué, mais un fichier de base de données plus récent a été trouvé. Voulez-vous tenter la récupération à partir de celui-ci ?";
+"The unrecoverable database will be renamed." = "La base de données irrécupérable sera renommée.";
+"Recover Database" = "Récupérer la base de données";
+"Recovery from Interim Note-Changes failed." = "La récupération depuis Interim Note-Changes a échoué.";
+"You can start from the older Notes & Settings database instead. The unrecoverable Interim Note-Changes file will be renamed and preserved." = "Vous pouvez plutôt utiliser l’ancienne base de données Notes & Settings. Le fichier irrécupérable Interim Note-Changes sera renommé et conservé.";
+"Start From Old Notes" = "Utiliser les anciennes notes";
+"Some changes could not be recovered." = "Certaines modifications n’ont pas pu être récupérées.";
+"Notational Velocity recovered as many notes as possible. The original database and unrecoverable Interim Note-Changes files were renamed and preserved." = "Notational Velocity a récupéré autant de notes que possible. La base de données d’origine et les fichiers irrécupérables Interim Note-Changes ont été renommés et conservés.";

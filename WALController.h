@@ -41,6 +41,7 @@
 
 @interface WALStorageController : WALController {
     NSMutableData *unwrittenData;
+	BOOL cannotContinueWriting;
 }
 - (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
 - (BOOL)writeEstablishedNote:(id<SynchronizedNote>)aNoteObject;
@@ -58,7 +59,10 @@
     //than there exists data in what we have yet to read
 }
 
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
-- (NSDictionary*)recoveredNotes;
+- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key
+	error:(int*)errorNumber journalInUse:(BOOL*)journalInUse;
+//Returns every safely decoded note; incomplete is YES if any record was skipped
+//or the shared compressed stream could not be advanced safely.
+- (NSDictionary*)recoveredNotesWithIncompleteRecovery:(BOOL*)incomplete;
 
 @end
