@@ -62,7 +62,7 @@
 	LinearDividerShader *dividerShader;
 	
 	NSURL *URLToInterpretOnLaunch;
-	NSMutableArray *pathsToOpenOnLaunch;
+	NSArray *pathsToOpenOnLaunch;
 	
     NSUndoManager *windowUndoManager;
     PrefsWindowController *prefsWindowController;

@@ -36,6 +36,8 @@
 
 extern char **environ;
 
+@class AlienNoteImporter;
+
 @interface ExternalEditingSession (NVTesting)
 - (NSString*)createScratchFileNamed:(NSString*)filename data:(NSData*)data;
 - (BOOL)processScratchFileAtPath:(NSString*)path endingSession:(BOOL)endingSession;
@@ -402,6 +404,68 @@ static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[notationController release];
 	notationController = nil;
+	[super dealloc];
+}
+@end
+
+@interface AppController (NVLaunchDirectoryTesting)
+- (void)application:(NSApplication*)sender openFiles:(NSArray*)filenames;
+- (void)applicationDidFinishLaunching:(NSNotification*)notification;
+@end
+
+@interface NVLaunchDirectoryPrefs : GlobalPrefs
+@end
+
+@implementation NVLaunchDirectoryPrefs
+- (void)registerWithTarget:(id)sender forChangesInSettings:(SEL)firstSEL, ... {
+	(void)sender;
+	(void)firstSEL;
+}
+@end
+
+@interface NVLaunchDirectoryAppController : AppController {
+	NSArray *importedLaunchPaths;
+}
+- (NSArray*)importedLaunchPaths;
+- (NSURL*)currentNotesDirectoryURL;
+- (void)closeForTesting;
+@end
+
+@implementation NVLaunchDirectoryAppController
+- (id)init {
+	self = [super init];
+	if (self) {
+		prefsController = [[NVLaunchDirectoryPrefs alloc] init];
+		windowUndoManager = [[NSUndoManager alloc] init];
+	}
+	return self;
+}
+- (void)restoreListStateUsingPreferences {}
+- (BOOL)importFilePaths:(NSArray*)paths usingImporter:(AlienNoteImporter*)importer {
+	(void)importer;
+	[importedLaunchPaths release];
+	importedLaunchPaths = [paths copy];
+	return YES;
+}
+- (NSArray*)importedLaunchPaths { return importedLaunchPaths; }
+- (NSURL*)currentNotesDirectoryURL { return [notationController noteDirectoryURL]; }
+- (void)closeForTesting {
+	[NSObject cancelPreviousPerformRequestsWithTarget:self];
+	[NSObject cancelPreviousPerformRequestsWithTarget:notationController];
+	[notationController setDelegate:nil];
+	[notationController closeAllResources];
+	[notationController release];
+	notationController = nil;
+	[pathsToOpenOnLaunch release];
+	pathsToOpenOnLaunch = nil;
+}
+- (void)dealloc {
+	[self closeForTesting];
+	[importedLaunchPaths release];
+	[prefsController release];
+	prefsController = nil;
+	[[NSAppleEventManager sharedAppleEventManager] removeEventHandlerForEventClass:
+		kInternetEventClass andEventID:kAEGetURL];
 	[super dealloc];
 }
 @end
@@ -6084,6 +6148,57 @@ static void TestOpenFilesWorkflow(void) {
 	}
 }
 
+static void TestLaunchDirectoryOverride(void) {
+	NSString *defaultDirectoryPath = CreateTemporaryDirectory();
+	NSString *launchDirectoryPath = CreateTemporaryDirectory();
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	id savedAlias = [[defaults objectForKey:@"DirectoryAlias"] retain];
+	id savedBookmark = [[defaults objectForKey:@"DirectoryBookmark"] retain];
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	NVLaunchDirectoryAppController *appController = nil;
+	@try {
+		controller = CreateController(defaultDirectoryPath, delegate);
+		REQUIRE([controller flushAllNoteChanges]);
+		CloseController(&controller);
+		controller = CreateController(launchDirectoryPath, delegate);
+		REQUIRE([controller flushAllNoteChanges]);
+		CloseController(&controller);
+
+		GlobalPrefs *prefs = [GlobalPrefs defaultPrefs];
+		REQUIRE([prefs setDefaultDirectoryURL:FileReferenceURLForPath(defaultDirectoryPath)
+			sender:nil error:NULL]);
+		NSData *configuredAlias = [[prefs aliasDataForDefaultDirectory] copy];
+		NSData *configuredBookmark = [[prefs bookmarkDataForDefaultDirectory] copy];
+
+		appController = [[NVLaunchDirectoryAppController alloc] init];
+		[appController application:NSApp openFiles:@[ launchDirectoryPath ]];
+		[appController applicationDidFinishLaunching:[NSNotification notificationWithName:
+			NSApplicationDidFinishLaunchingNotification object:NSApp]];
+
+		REQUIRE(URLsReferToSameItem([appController currentNotesDirectoryURL],
+			[NSURL fileURLWithPath:launchDirectoryPath]));
+		REQUIRE([appController importedLaunchPaths] == nil);
+		REQUIRE([configuredAlias isEqual:[prefs aliasDataForDefaultDirectory]]);
+		REQUIRE([configuredBookmark isEqual:[prefs bookmarkDataForDefaultDirectory]]);
+		[configuredBookmark release];
+		[configuredAlias release];
+	} @finally {
+		[appController closeForTesting];
+		[appController release];
+		CloseController(&controller);
+		[delegate release];
+		if (savedAlias) [defaults setObject:savedAlias forKey:@"DirectoryAlias"];
+		else [defaults removeObjectForKey:@"DirectoryAlias"];
+		if (savedBookmark) [defaults setObject:savedBookmark forKey:@"DirectoryBookmark"];
+		else [defaults removeObjectForKey:@"DirectoryBookmark"];
+		[savedBookmark release];
+		[savedAlias release];
+		RemoveTemporaryDirectory(launchDirectoryPath);
+		RemoveTemporaryDirectory(defaultDirectoryPath);
+	}
+}
+
 static void TestDeletionContracts(void) {
 	NVAppControllerWindow *window = [[[NVAppControllerWindow alloc] init] autorelease];
 	NVDeleteNotesTableView *tableView = [[[NVDeleteNotesTableView alloc] init] autorelease];
@@ -8641,8 +8756,10 @@ int main(int argc, const char *argv[]) {
 			TestStorageFormat(PlainTextFormat);
 		else if ([scenario isEqualToString:@"storage-transition-memory-wins"])
 			TestStorageTransitionMemoryWins();
-		else if ([scenario isEqualToString:@"open-files-workflow"])
+		else if ([scenario isEqualToString:@"open-files-workflow"]) {
 			TestOpenFilesWorkflow();
+			TestLaunchDirectoryOverride();
+		}
 		else if ([scenario isEqualToString:@"deletion-contracts"])
 			TestDeletionContracts();
 		else if ([scenario isEqualToString:@"storage-transitions"])

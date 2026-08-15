@@ -28,6 +28,7 @@
 #import "NotationFileManager.h"
 #import "NSString_NV.h"
 #import "NSFileManager_NV.h"
+#import "ImportingUtils.h"
 #import "EncodingsManager.h"
 #import "ExporterManager.h"
 #import "ExternalEditorListController.h"
@@ -61,6 +62,7 @@
 @interface AppController ()
 @property (nonatomic, retain) TagEditingManager *tagEditor;
 @property (nonatomic, retain) NSArray *savedSelectedNotes;
+@property (nonatomic, retain) NSArray *pathsToOpenOnLaunch;
 - (void)_loadNotationAtURL:(NSURL*)URL;
 - (BOOL)_confirmEndingExternalEditingForAction:(NSString*)action
 	continueButtonTitle:(NSString*)continueButtonTitle;
@@ -68,6 +70,9 @@
 - (void)_confirmQuittingExternalEditingWithCompletionHandler:
 	(void (^)(BOOL shouldQuit))completionHandler;
 - (void)_restoreWindowAfterCanceledTermination;
+- (NSString*)_consumeLaunchNotesDirectoryPath;
+- (void)_setNotationController:(NotationController*)newNotation
+	persistDefaultDirectory:(BOOL)persistDefaultDirectory;
 @end
 #import "AugmentedScrollView.h"
 #import "BookmarksController.h"
@@ -82,7 +87,7 @@
 
 @implementation AppController
 
-@synthesize tagEditor, savedSelectedNotes;
+@synthesize tagEditor, savedSelectedNotes, pathsToOpenOnLaunch;
 
 //an instance of this class is designated in the nib as the delegate of the window, nstextfield and two nstextviews
 
@@ -280,15 +285,28 @@ void outletObjectAwoke(id sender) {
 
 	OSStatus err = noErr;
 	NotationController *newNotation = nil;
-	BOOL hasSavedDirectory = [prefsController bookmarkDataForDefaultDirectory] != nil ||
-		[prefsController aliasDataForDefaultDirectory] != nil;
-	NSURL *savedDirectoryURL = [prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
+	NSString *launchDirectoryPath = [self _consumeLaunchNotesDirectoryPath];
+	BOOL hasLaunchDirectory = launchDirectoryPath != nil;
+	BOOL hasSavedDirectory = !hasLaunchDirectory &&
+		([prefsController bookmarkDataForDefaultDirectory] != nil ||
+		 [prefsController aliasDataForDefaultDirectory] != nil);
+	NSURL *savedDirectoryURL = hasLaunchDirectory ? nil :
+		[prefsController defaultDirectoryURLResolvingBookmark:NULL error:NULL];
 
 	NSString *subMessage = @"";
 
-	BOOL skipDefaultInitialization = (kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & (CGEventFlags)NSEventModifierFlagDeviceIndependentFlagsMask));
+	BOOL skipDefaultInitialization = !hasLaunchDirectory &&
+		(kCGEventFlagMaskAlternate == (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) &
+		 (CGEventFlags)NSEventModifierFlagDeviceIndependentFlagsMask));
 
-	if (!skipDefaultInitialization) {
+	if (hasLaunchDirectory) {
+		NSURL *launchDirectoryURL = [[NSFileManager defaultManager] fileReferenceURLForURL:
+			[NSURL fileURLWithPath:launchDirectoryPath isDirectory:YES] error:NULL];
+		newNotation = launchDirectoryURL ? [[NotationController alloc]
+			initWithDirectoryURL:launchDirectoryURL error:&err] : nil;
+		if (!launchDirectoryURL) err = fnfErr;
+		subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.", nil);
+	} else if (!skipDefaultInitialization) {
 		if (hasSavedDirectory) {
 		    newNotation = savedDirectoryURL ? [[NotationController alloc] initWithDirectoryURL:savedDirectoryURL error:&err] : nil;
 			if (!savedDirectoryURL) err = fnfErr;
@@ -299,9 +317,11 @@ void outletObjectAwoke(id sender) {
 		}
 	}
 
-	NSURL *displayDirectoryURL = [NSURL URLByResolvingBookmarkData:[prefsController bookmarkDataForDefaultDirectory]
-		options:NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:NULL error:NULL];
-	NSString *location = hasSavedDirectory ? [displayDirectoryURL path] : NSLocalizedString(@"your Application Support directory",nil);
+	NSURL *displayDirectoryURL = hasLaunchDirectory ? nil : [NSURL URLByResolvingBookmarkData:
+		[prefsController bookmarkDataForDefaultDirectory] options:NSURLBookmarkResolutionWithoutUI
+		relativeToURL:nil bookmarkDataIsStale:NULL error:NULL];
+	NSString *location = hasLaunchDirectory ? launchDirectoryPath : (hasSavedDirectory ?
+		[displayDirectoryURL path] : NSLocalizedString(@"your Application Support directory",nil));
 	if (!location) location = NSLocalizedString(@"its current location",nil);
 
 	NSURL *notesDirectoryURL = nil;
@@ -344,7 +364,7 @@ void outletObjectAwoke(id sender) {
 	    }
 	}
 
-	[self setNotationController:newNotation];
+	[self _setNotationController:newNotation persistDefaultDirectory:!hasLaunchDirectory];
 	[newNotation release];
 
 	NSLog(@"load time: %g, ",[[NSDate date] timeIntervalSinceDate:before]);
@@ -371,9 +391,9 @@ void outletObjectAwoke(id sender) {
 	 @selector(setConfirmNoteDeletion:sender:),  //whether "delete note" should have an ellipsis
 	 @selector(setAutoCompleteSearches:sender:), nil];   //when to tell notationcontroller to build its title-prefix connections
 
-	if (pathsToOpenOnLaunch) {
-		NSArray *launchPaths = [pathsToOpenOnLaunch autorelease];
-		pathsToOpenOnLaunch = nil;
+	if (self.pathsToOpenOnLaunch) {
+		NSArray *launchPaths = [[self.pathsToOpenOnLaunch retain] autorelease];
+		self.pathsToOpenOnLaunch = nil;
 		[self importFilePaths:launchPaths usingImporter:nil];
 	}
 
@@ -382,6 +402,12 @@ void outletObjectAwoke(id sender) {
 	return;
 terminateApp:
 	[NSApp terminate:self];
+}
+
+- (NSString*)_consumeLaunchNotesDirectoryPath {
+	NSString *path = [NVNotationalVelocityDataDirectoryPath(self.pathsToOpenOnLaunch) retain];
+	if (path) self.pathsToOpenOnLaunch = nil;
+	return [path autorelease];
 }
 
 - (void)handleGetURLEvent:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent {
@@ -397,6 +423,11 @@ terminateApp:
 }
 
 - (void)setNotationController:(NotationController*)newNotation {
+	[self _setNotationController:newNotation persistDefaultDirectory:YES];
+}
+
+- (void)_setNotationController:(NotationController*)newNotation
+	persistDefaultDirectory:(BOOL)persistDefaultDirectory {
 
     if (newNotation) {
 		if (notationController) {
@@ -430,6 +461,7 @@ terminateApp:
 		[windowUndoManager removeAllActions];
 		[notationController setUndoManager:windowUndoManager];
 
+		if (persistDefaultDirectory)
 			[prefsController setDefaultDirectoryURL:[notationController noteDirectoryURL] sender:self error:NULL];
 		if ([prefsController tableColumnsShowPreview] || [prefsController horizontalLayout]) {
 			[self _forceRegeneratePreviewsForTitleColumn];
@@ -1039,7 +1071,7 @@ terminateApp:
 	if (notationController)
 		[self importFilePaths:filenames usingImporter:nil];
 	else
-		pathsToOpenOnLaunch = [filenames mutableCopyWithZone:nil];
+		self.pathsToOpenOnLaunch = filenames;
 
 	[NSApp replyToOpenOrPrint:[filenames count] ? NSApplicationDelegateReplySuccess : NSApplicationDelegateReplyFailure];
 }
@@ -2115,6 +2147,7 @@ terminateApp:
 - (void)dealloc {
 	[tagEditor release];
 	[savedSelectedNotes release];
+	[pathsToOpenOnLaunch release];
 	[windowUndoManager release];
 	[dividerShader release];
 	[sparkleController release];
