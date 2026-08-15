@@ -29,6 +29,7 @@
 #import "GlobalPrefs.h"
 #import "NSData_transformations.h"
 #include <copyfile.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -43,8 +44,13 @@ NSString *NotesDatabaseFileName = @"Notes & Settings";
 typedef BOOL (^NVFilePreparationBlock)(int fileDescriptor, NSError **error);
 
 @interface NotationController (NVFileManagerTestSeams)
+- (BOOL)_setCocoaTags:(NSArray*)tags atURL:(NSURL*)URL error:(NSError**)error;
 - (void)_didSynchronizeTagsForNoteNamed:(NSString*)filename fileDescriptor:(int)fileDescriptor;
 - (void)_didSetTextEncodingForNoteNamed:(NSString*)filename fileDescriptor:(int)fileDescriptor;
+- (void)_didPrepareNoteFileNamed:(NSString*)filename;
+- (void)_didRejectAtomicSwapForNoteNamed:(NSString*)filename;
+- (void)_didExchangeNoteFileNamed:(NSString*)filename;
+- (int)_metadataFinalizationErrorAfterExchangingNoteNamed:(NSString*)filename;
 - (void)_didObserveRenameCollisionFromName:(NSString*)oldName toName:(NSString*)newName;
 - (BOOL)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename
 	preparationBlock:(NVFilePreparationBlock)preparationBlock
@@ -80,6 +86,33 @@ static BOOL NVFileSystemName(NSString *filename, char **name, NSError **error) {
 	}
 	*name = buffer;
 	return YES;
+}
+
+/* case-sensitive filesystems have no case-folding exclusive create;
+ * this descriptor-relative scan enforces the app's policy absent a concurrent
+ * external creator. Add a native case-folding namespace primitive if one appears. */
+static BOOL NVCaseInsensitiveNameExists(int directoryFileDescriptor,
+	NSString *filename, NSString *ignoredName) {
+	int scanFD = openat(directoryFileDescriptor, ".",
+		O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	DIR *directory = scanFD >= 0 ? fdopendir(scanFD) : NULL;
+	if (!directory) {
+		if (scanFD >= 0) close(scanFD);
+		return NO;
+	}
+	BOOL exists = NO;
+	struct dirent *entry;
+	while ((entry = readdir(directory))) {
+		NSString *name = [[NSFileManager defaultManager]
+			stringWithFileSystemRepresentation:entry->d_name length:entry->d_namlen];
+		if (![name isEqualToString:ignoredName] &&
+			[name caseInsensitiveCompare:filename] == NSOrderedSame) {
+			exists = YES;
+			break;
+		}
+	}
+	closedir(directory);
+	return exists;
 }
 
 static int NVExchangeDataAtDirectoryFileDescriptor(int directoryFileDescriptor,
@@ -291,14 +324,16 @@ static BOOL NVDescriptorContainsStableData(int fileDescriptor, NSData *expectedD
 		(!expectedData || [observedData isEqualToData:expectedData]);
 }
 
-static NSArray *NVCocoaTagNames(NSArray *tags) {
+NSArray *NVSemanticTagNames(NSArray *tags) {
+	if (![tags isKindOfClass:[NSArray class]]) return nil;
 	NSMutableArray *names = [NSMutableArray arrayWithCapacity:[tags count]];
-	for (NSString *tag in tags) {
+	for (id tag in tags) {
 		if (![tag isKindOfClass:[NSString class]]) return nil;
-		NSUInteger length = [tag length];
-		if (length >= 2 && [tag characterAtIndex:length - 2] == '\n' &&
-			[tag characterAtIndex:length - 1] >= '0' && [tag characterAtIndex:length - 1] <= '7')
-			[names addObject:[tag substringToIndex:length - 2]];
+		NSString *name = tag;
+		NSUInteger length = [name length];
+		if (length >= 2 && [name characterAtIndex:length - 2] == '\n' &&
+			[name characterAtIndex:length - 1] >= '0' && [name characterAtIndex:length - 1] <= '7')
+			[names addObject:[name substringToIndex:length - 2]];
 		else [names addObject:tag];
 	}
 	return names;
@@ -322,7 +357,7 @@ static BOOL NVSynchronizeOpenMetaAndCocoaTagsInternal(int directoryFileDescripto
 	if (!NVFileSystemName(filename, &name, error)) return NO;
 	NSData *data = tags ? [NSPropertyListSerialization dataWithPropertyList:tags
 		format:NSPropertyListBinaryFormat_v1_0 options:0 error:error] : nil;
-	NSArray *cocoaTags = tags ? NVCocoaTagNames(tags) : @[];
+	NSArray *cocoaTags = tags ? NVSemanticTagNames(tags) : @[];
 	if ((tags && !data) || !cocoaTags) {
 		free(name);
 		if (error && !*error) *error = NVErrorFromErrno(EINVAL, @"Encode file tags", filename);
@@ -350,7 +385,8 @@ static BOOL NVSynchronizeOpenMetaAndCocoaTagsInternal(int directoryFileDescripto
 	BOOL URLMatches = URL && NVURLReferencesFileDescriptor(URL, fd);
 	if (!URLMatches)
 		NSLog(@"Could not mirror OpenMeta tags to Finder tags for '%@': URL identity unavailable", filename);
-	else if (![URL setResourceValue:cocoaTags forKey:NSURLTagNamesKey error:&cocoaError])
+	else if (!(testObserver ? [testObserver _setCocoaTags:cocoaTags atURL:URL error:&cocoaError] :
+		[URL setResourceValue:cocoaTags forKey:NSURLTagNamesKey error:&cocoaError]))
 		NSLog(@"Could not mirror OpenMeta tags to Finder tags for '%@': %@", filename, cocoaError);
 	if (URLMatches && hideExtension &&
 		![URL setResourceValue:@YES forKey:NSURLHasHiddenExtensionKey error:&cocoaError])
@@ -441,7 +477,11 @@ static BOOL NVWriteDataToFileDescriptor(NSData *data, int fileDescriptor, NSErro
 
 - (id)_snapshotCocoaTagsAtURL:(NSURL*)URL {
 	id tags = nil;
-	return [URL getResourceValue:&tags forKey:NSURLTagNamesKey error:NULL] ? tags : nil;
+	return [URL getResourceValue:&tags forKey:NSURLTagNamesKey error:NULL] ? (tags ?: @[]) : nil;
+}
+
+- (BOOL)_setCocoaTags:(NSArray*)tags atURL:(NSURL*)URL error:(NSError**)error {
+	return [URL setResourceValue:tags forKey:NSURLTagNamesKey error:error];
 }
 
 - (int)_statSnapshotName:(const char*)name status:(struct stat*)status {
@@ -460,6 +500,17 @@ static BOOL NVWriteDataToFileDescriptor(NSData *data, int fileDescriptor, NSErro
 - (void)_didSetTextEncodingForNoteNamed:(NSString*)filename fileDescriptor:(int)fileDescriptor {
 	(void)filename;
 	(void)fileDescriptor;
+}
+
+- (void)_didPrepareNoteFileNamed:(NSString*)filename { (void)filename; }
+
+- (void)_didRejectAtomicSwapForNoteNamed:(NSString*)filename { (void)filename; }
+
+- (void)_didExchangeNoteFileNamed:(NSString*)filename { (void)filename; }
+
+- (int)_metadataFinalizationErrorAfterExchangingNoteNamed:(NSString*)filename {
+	(void)filename;
+	return 0;
 }
 
 - (void)_didObserveRenameCollisionFromName:(NSString*)oldName toName:(NSString*)newName {
@@ -510,27 +561,29 @@ static BOOL NVWriteDataToFileDescriptor(NSData *data, int fileDescriptor, NSErro
 	NSStringEncoding encoding = 0;
 	if (succeeded && encodingPresent && !NVParseTextEncoding(encodingData, &encoding, &localError)) succeeded = NO;
 
-	BOOL tagsPresent = NO;
-	NSData *tagsData = succeeded ? NVExtendedAttributeData(fileDescriptor,
-		"com.apple.metadata:kMDItemOMUserTags", &tagsPresent, &localError) : nil;
-	if (succeeded && !tagsData && tagsPresent) succeeded = NO;
-	if (succeeded && !tagsData && !tagsPresent && localError) succeeded = NO;
 	NSArray *tags = nil;
-	if (succeeded && tagsPresent && !(tags = NVParseTags(tagsData, &localError))) succeeded = NO;
-	if (succeeded && !tagsPresent) {
-		/* Some Finder/iCloud providers surface tags through URL resource values
-		 * without a readable raw xattr.  A file-reference URL is transient here;
-		 * accept its value only after opening it and proving it names this FD. */
+	if (succeeded) {
+		/* A file-reference URL is transient here; accept a valid Finder value,
+		 * including an empty array, only after proving it names this FD. */
 		NSURL *tagURL = [self fileReferenceURLForNoteNamed:filename error:NULL];
-		id cocoaTags = tagURL ? [self _snapshotCocoaTagsAtURL:tagURL] : nil;
-		if (cocoaTags &&
-			[cocoaTags isKindOfClass:[NSArray class]] && [cocoaTags count]) {
-			BOOL validStrings = YES;
-			for (id tag in cocoaTags)
-				if (![tag isKindOfClass:[NSString class]]) { validStrings = NO; break; }
-			if (validStrings && [self _snapshotTagURL:tagURL
-				referencesFileDescriptor:fileDescriptor])
+		NSArray *cocoaTags = NVSemanticTagNames(tagURL ?
+			[self _snapshotCocoaTagsAtURL:tagURL] : nil);
+		if (cocoaTags) {
+			if ([self _snapshotTagURL:tagURL referencesFileDescriptor:fileDescriptor])
 				tags = cocoaTags;
+			else {
+				localError = NVErrorFromErrno(EAGAIN, @"Read changing file", filename);
+				succeeded = NO;
+			}
+		}
+		else {
+			BOOL tagsPresent = NO;
+			NSData *tagsData = NVExtendedAttributeData(fileDescriptor,
+				"com.apple.metadata:kMDItemOMUserTags", &tagsPresent, &localError);
+			if (!tagsData && tagsPresent) succeeded = NO;
+			if (!tagsData && !tagsPresent && localError) succeeded = NO;
+			if (succeeded && tagsPresent && !(tags = NVParseTags(tagsData, &localError)))
+				succeeded = NO;
 		}
 	}
 
@@ -756,222 +809,409 @@ static NSString *NVTextEncodingAttributeValue(NSStringEncoding encoding) {
 		preparationBlock:NULL verificationBlock:verificationBlock error:error];
 }
 
-static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescriptor,
-	NSData *data, NSString *filename, BOOL replaceExisting, BOOL preserveDestinationMetadata,
+/*
+ * Theory of operation (full contract: docs/Atomic-Note-Saves.md): the
+ * coordinator creates one hidden temporary file and
+ * keeps its descriptor open throughout the transaction. Preparation writes and
+ * validates all bytes and metadata before rename, swap, or link makes the file
+ * visible. HFS+ exchange makes the prepared bytes visible first, then immediately
+ * reapplies and syncs the prepared metadata on the installed vnode. Existing
+ * destinations use replacement semantics; absent destinations use exclusive
+ * creation semantics. ExFAT's last-resort create path is the exception: its
+ * O_EXCL file is visible while it is populated. ExFAT conditional replacement
+ * accepts a narrow race between its last content check and atomic rename.
+ * After installation the directory is synced, the still-open installed descriptor
+ * can be checked against the destination name, and the coordinator either
+ * transfers that descriptor to its caller or cleans it up.
+ * NVAtomicStore carries the shared names, descriptor, and recovery-cleanup state
+ * through those phases; its pointers and descriptor are owned by the coordinator.
+ */
+typedef struct {
+	int directoryFD, temporaryFD;
+	char *destinationName, *temporaryName;
+	NSString *filename, *temporaryFilename;
+	BOOL removeTemporaryOnFailure;
+} NVAtomicStore;
+
+/* Fully prepare the hidden file and establish whether installation is a create
+ * or replacement. No destination name is changed in this phase. */
+static BOOL NVPrepareAtomicStore(NVAtomicStore *store, NSData *data, BOOL replaceExisting,
 	NVFilePreparationBlock preparationBlock, NVFileVerificationBlock verificationBlock,
-	NSData *expectedDestinationData,
-	NVFileInfo *resultingFileInfo, int *resultingFileDescriptor, NSError **error) {
-	if (resultingFileDescriptor) *resultingFileDescriptor = -1;
-	if (!data) {
-		if (error) *error = NVErrorFromErrno(EINVAL, @"Store data", filename);
-		return NO;
-	}
-	char *destinationName = NULL;
-	if (!NVFileSystemName(filename, &destinationName, error)) return NO;
-
-	NSString *temporaryFilename = [@".nv-write-" stringByAppendingString:[[NSUUID UUID] UUIDString]];
-	char *temporaryName = NULL;
-	if (!NVFileSystemName(temporaryFilename, &temporaryName, error)) {
-		free(destinationName);
-		return NO;
-	}
-	int temporaryFD = openat(directoryFileDescriptor, temporaryName,
-		O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
-	if (temporaryFD < 0) {
-		if (error) *error = NVErrorFromErrno(errno, @"Create temporary file", temporaryFilename);
-		free(destinationName);
-		free(temporaryName);
-		return NO;
-	}
-
-	BOOL installed = NO;
-	BOOL removeTemporaryOnFailure = YES;
-	BOOL success = NVWriteDataToFileDescriptor(data, temporaryFD, error);
+	NSData *expectedData, BOOL *destinationExists, NSError **error) {
+	BOOL success = NVWriteDataToFileDescriptor(data, store->temporaryFD, error);
 	if (success && verificationBlock) {
-		NSData *readBack = NVReadDataFromFileDescriptor(temporaryFD, error);
+		NSData *readBack = NVReadDataFromFileDescriptor(store->temporaryFD, error);
 		success = readBack && verificationBlock(readBack, error);
 	}
-
-	int destinationFD = -1;
-	BOOL destinationExists = NO;
-	if (success) {
-		destinationFD = openat(directoryFileDescriptor, destinationName, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-		destinationExists = destinationFD >= 0;
-		if (!destinationExists && errno != ENOENT) {
-			if (error) *error = NVErrorFromErrno(errno, @"Open destination", filename);
-			success = NO;
-		}
-	}
-	if (success && destinationExists && !replaceExisting) {
+	int destinationFD = success ? openat(store->directoryFD, store->destinationName,
+		O_RDONLY | O_CLOEXEC | O_NOFOLLOW) : -1;
+	*destinationExists = destinationFD >= 0;
+	if (success && !*destinationExists && errno != ENOENT) {
+		if (error) *error = NVErrorFromErrno(errno, @"Open destination", store->filename);
+		success = NO;
+	} else if (success && *destinationExists && !replaceExisting) {
 		if (error) *error = [NSError errorWithDomain:NSCocoaErrorDomain
-			code:NSFileWriteFileExistsError userInfo:[NSDictionary dictionaryWithObject:filename
-				forKey:NSFilePathErrorKey]];
+			code:NSFileWriteFileExistsError userInfo:@{ NSFilePathErrorKey: store->filename }];
 		success = NO;
-	}
-	if (success && expectedDestinationData && !destinationExists) {
-		if (error) *error = NVErrorFromErrno(EAGAIN, @"Replace changing file", filename);
+	} else if (success && expectedData && !*destinationExists) {
+		if (error) *error = NVErrorFromErrno(EAGAIN, @"Replace changing file", store->filename);
 		success = NO;
-	}
-	if (success && expectedDestinationData && destinationExists) {
+	} else if (success && expectedData) {
 		NSData *destinationData = NVReadDataFromFileDescriptor(destinationFD, NULL);
-		if (![destinationData isEqualToData:expectedDestinationData]) {
-			if (error) *error = NVErrorFromErrno(EAGAIN, @"Replace changing file", filename);
+		if (![destinationData isEqualToData:expectedData]) {
+			if (error) *error = NVErrorFromErrno(EAGAIN, @"Replace changing file", store->filename);
 			success = NO;
 		}
 	}
-	if (success && destinationExists && preserveDestinationMetadata) {
+	if (success && *destinationExists && replaceExisting) {
 		struct stat temporaryInfo;
 		struct timespec times[2];
-		int statResult = fstat(temporaryFD, &temporaryInfo);
+		int statResult = fstat(store->temporaryFD, &temporaryInfo);
 		if (statResult == 0) {
 			times[0] = temporaryInfo.st_atimespec;
 			times[1] = temporaryInfo.st_mtimespec;
 		}
-		if (statResult < 0 ||
-			fcopyfile(destinationFD, temporaryFD, NULL, COPYFILE_METADATA) < 0 ||
-			futimens(temporaryFD, times) < 0) {
-			if (error) *error = NVErrorFromErrno(errno, @"Preserve destination metadata", filename);
+		if (statResult < 0 || fcopyfile(destinationFD, store->temporaryFD, NULL,
+			COPYFILE_METADATA) < 0 || futimens(store->temporaryFD, times) < 0) {
+			if (error) *error = NVErrorFromErrno(errno, @"Preserve destination metadata", store->filename);
 			success = NO;
 		}
 	}
 	if (destinationFD >= 0) close(destinationFD);
-	if (success && preparationBlock && !preparationBlock(temporaryFD, error)) success = NO;
-	if (success && fsync(temporaryFD) < 0) {
-		if (error) *error = NVErrorFromErrno(errno, @"Synchronize temporary file", temporaryFilename);
+	if (success && preparationBlock && !preparationBlock(store->temporaryFD, error)) success = NO;
+	if (success && fsync(store->temporaryFD) < 0) {
+		if (error) *error = NVErrorFromErrno(errno, @"Synchronize temporary file", store->temporaryFilename);
 		success = NO;
 	}
+	return success;
+}
 
-	if (success && destinationExists) {
-		if (renameatx_np(directoryFileDescriptor, temporaryName,
-			directoryFileDescriptor, destinationName, RENAME_SWAP) == 0) {
-			installed = YES;
-		} else if (expectedDestinationData && !preparationBlock && !verificationBlock &&
-			!resultingFileInfo && !resultingFileDescriptor &&
-			(errno == ENOTSUP || errno == EINVAL) &&
-			NVExchangeDataAtDirectoryFileDescriptor(directoryFileDescriptor,
-				temporaryName, destinationName) == 0) {
-			installed = YES;
-		}
-		if (installed) {
-			if (expectedDestinationData) {
-				int displacedFD = openat(directoryFileDescriptor, temporaryName,
-					O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-				NSData *displacedData = displacedFD >= 0 ?
-					NVReadDataFromFileDescriptor(displacedFD, NULL) : nil;
-				if (displacedFD >= 0) close(displacedFD);
-				if (![displacedData isEqualToData:expectedDestinationData]) {
-					NSString *extension = [filename pathExtension];
-					NSString *recoveryFilename = [NSString stringWithFormat:
-						@"%@ (conflict recovery %@)%@%@", [filename stringByDeletingPathExtension],
-						[[NSUUID UUID] UUIDString], [extension length] ? @"." : @"", extension];
-					char *recoveryName = NULL;
-					BOOL recovered = NVFileSystemName(recoveryFilename, &recoveryName, NULL) &&
-						renameatx_np(directoryFileDescriptor, temporaryName,
-							directoryFileDescriptor, recoveryName, RENAME_EXCL) == 0;
-					free(recoveryName);
-					(void)fsync(directoryFileDescriptor);
-					NSLog(@"Destination '%@' changed during replacement. %@", filename, recovered ?
-						[NSString stringWithFormat:@"Recovered displaced contents as '%@'", recoveryFilename] :
-						@"Displaced contents remain in an emergency .nv-write file");
-					removeTemporaryOnFailure = NO;
-					if (error) *error = [NSError errorWithDomain:NVNoteStorageErrorDomain
-						code:NVNoteStorageAtomicRecoveryError userInfo:@{
-							NSLocalizedDescriptionKey: recovered ?
-								[NSString stringWithFormat:NSLocalizedString(
-									@"a changing file's displaced contents were recovered as %@", nil),
-									recoveryFilename] :
-								NSLocalizedString(@"a changing file's displaced contents remain in emergency recovery storage", nil)
-						}];
-					installed = NO;
-				}
-			}
-			if (installed && unlinkat(directoryFileDescriptor, temporaryName, 0) < 0)
-				NSLog(@"Unable to remove replaced file '%@': %s", temporaryFilename, strerror(errno));
-		} else if (!expectedDestinationData && (errno == ENOTSUP || errno == EINVAL) &&
-			renameat(directoryFileDescriptor, temporaryName,
-				directoryFileDescriptor, destinationName) == 0) {
-			installed = YES;
-		} else if (error) {
-			*error = NVErrorFromErrno(errno, @"Install replacement", filename);
-		}
-	} else if (success) {
-		if (renameatx_np(directoryFileDescriptor, temporaryName,
-			directoryFileDescriptor, destinationName, RENAME_EXCL) == 0)
-			installed = YES;
-		else if (errno == ENOTSUP || errno == EINVAL) {
-			if (linkat(directoryFileDescriptor, temporaryName,
-				directoryFileDescriptor, destinationName, 0) == 0) {
-				installed = YES;
-				(void)unlinkat(directoryFileDescriptor, temporaryName, 0);
-			} else if (errno == ENOTSUP || errno == EINVAL || errno == EPERM) {
-				/* filesystems without hard links or exclusive rename (e.g., ExFat) cannot
-				 * hide this O_EXCL copy; keep no-overwrite safety and upgrade if such a
-				 * filesystem gains an atomic exclusive-install primitive. */
-				int installedFD = openat(directoryFileDescriptor, destinationName,
-					O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
-				if (installedFD >= 0) {
-					BOOL copied = NVWriteDataToFileDescriptor(data, installedFD, error);
-					if (copied && preparationBlock && !preparationBlock(installedFD, error)) copied = NO;
-					if (copied && fsync(installedFD) < 0) {
-						if (error) *error = NVErrorFromErrno(errno, @"Synchronize new file", filename);
-						copied = NO;
-					}
-					if (copied) {
-						close(temporaryFD);
-						temporaryFD = installedFD;
-						installed = YES;
-						(void)unlinkat(directoryFileDescriptor, temporaryName, 0);
-					} else {
-						close(installedFD);
-						(void)unlinkat(directoryFileDescriptor, destinationName, 0);
-					}
-				}
-			}
-		}
-		if (!installed && error && !*error)
-			*error = NVErrorFromErrno(errno, @"Install new file", filename);
+/* File descriptors are the stable identity proof used after path-based
+ * installation and immediately before identity-sensitive cleanup. */
+static BOOL NVFileDescriptorMatchesName(int fileDescriptor, int directoryFileDescriptor,
+	const char *name) {
+	struct stat descriptorStatus = { 0 }, namedStatus = { 0 };
+	return fstat(fileDescriptor, &descriptorStatus) == 0 &&
+		fstatat(directoryFileDescriptor, name, &namedStatus, AT_SYMLINK_NOFOLLOW) == 0 &&
+		descriptorStatus.st_dev == namedStatus.st_dev && descriptorStatus.st_ino == namedStatus.st_ino;
+}
+
+static BOOL NVFileDescriptorsReferToSameFile(int firstFileDescriptor,
+	int secondFileDescriptor) {
+	struct stat firstStatus = { 0 }, secondStatus = { 0 };
+	return fstat(firstFileDescriptor, &firstStatus) == 0 &&
+		fstat(secondFileDescriptor, &secondStatus) == 0 &&
+		firstStatus.st_dev == secondStatus.st_dev && firstStatus.st_ino == secondStatus.st_ino;
+}
+
+static BOOL NVAtomicReplacementCapabilityUnavailable(int errorNumber) {
+	return errorNumber == ENOTSUP || errorNumber == EINVAL;
+}
+
+/* Move displaced bytes to a user-visible, exclusive recovery name. If that
+ * cannot be done, leave the hidden temporary name in place for emergency recovery. */
+static BOOL NVPreserveDisplacedAtomicFile(NVAtomicStore *store, NSError **error) {
+	NSString *extension = [store->filename pathExtension];
+	NSString *recoveryFilename = [NSString stringWithFormat:
+		@"%@ (conflict recovery %@)%@%@", [store->filename stringByDeletingPathExtension],
+		[[NSUUID UUID] UUIDString], [extension length] ? @"." : @"", extension];
+	char *recoveryName = NULL;
+	BOOL recovered = NVFileSystemName(recoveryFilename, &recoveryName, NULL) &&
+		renameatx_np(store->directoryFD, store->temporaryName,
+			store->directoryFD, recoveryName, RENAME_EXCL) == 0;
+	free(recoveryName);
+	(void)fsync(store->directoryFD);
+	NSLog(@"Atomic replacement of '%@' required recovery. %@", store->filename, recovered ?
+		[NSString stringWithFormat:@"Recovered displaced contents as '%@'", recoveryFilename] :
+		@"Displaced contents remain in an emergency .nv-write file");
+	store->removeTemporaryOnFailure = NO;
+	if (error) *error = [NSError errorWithDomain:NVNoteStorageErrorDomain
+		code:NVNoteStorageAtomicRecoveryError userInfo:@{ NSLocalizedDescriptionKey: recovered ?
+			[NSString stringWithFormat:NSLocalizedString(
+				@"a changing file's displaced contents were recovered as %@", nil), recoveryFilename] :
+			NSLocalizedString(@"a changing file's displaced contents remain in emergency recovery storage", nil) }];
+	return NO;
+}
+
+/* Recover the displaced file after exchange finalization fails. AtomicRecovery
+ * means our replacement is still installed; EAGAIN keeps the local write pending
+ * when its destination identity was lost. */
+static BOOL NVRecoverFailedExchangedReplacement(NVAtomicStore *store,
+	BOOL replacementStillInstalled, NSError **error) {
+	(void)NVPreserveDisplacedAtomicFile(store,
+		replacementStillInstalled ? error : NULL);
+	if (!replacementStillInstalled && error)
+		*error = NVErrorFromErrno(EAGAIN,
+			@"Finish exchanged replacement", store->filename);
+	return NO;
+}
+
+/* A successful swap or exchange leaves the previous destination at the
+ * temporary name. Remove expected bytes; recover anything else. */
+static BOOL NVFinishDisplacedAtomicFile(NVAtomicStore *store, int displacedFD,
+	NSData *expectedData, NSError **error) {
+	if (expectedData) {
+		NSData *displacedData = displacedFD >= 0 ?
+			NVReadDataFromFileDescriptor(displacedFD, NULL) : nil;
+		if (![displacedData isEqualToData:expectedData])
+			return NVPreserveDisplacedAtomicFile(store, error);
+	}
+	if (unlinkat(store->directoryFD, store->temporaryName, 0) < 0)
+		NSLog(@"Unable to remove replaced file '%@': %s", store->temporaryFilename, strerror(errno));
+	return YES;
+}
+
+/* copyfile preserves the portable metadata set. exchangedata() swaps HFS+
+ * modification times but not creation times, so restore both prepared dates
+ * from the pre-exchange snapshot. */
+static int NVCopyPreparedAtomicMetadata(int sourceFD, int destinationFD,
+	const NVFileInfo *preparedInfo) {
+	struct attrlist attributes;
+	bzero(&attributes, sizeof(attributes));
+	attributes.bitmapcount = ATTR_BIT_MAP_COUNT;
+	attributes.commonattr = ATTR_CMN_CRTIME | ATTR_CMN_MODTIME;
+	struct {
+		struct timespec creation;
+		struct timespec modification;
+	} dates = { preparedInfo->creationTime, preparedInfo->modificationTime };
+	if (fcopyfile(sourceFD, destinationFD, NULL, COPYFILE_METADATA) < 0) return -1;
+	return fsetattrlist(destinationFD, &attributes, &dates, sizeof(dates), 0);
+}
+
+/* exchangedata() makes open descriptors follow their swapped data. Reopen the
+ * installed path, prove it is the prepared descriptor's new vnode, copy and sync
+ * the prepared metadata, then hand that installed descriptor to the coordinator. */
+static BOOL NVFinalizeExchangedAtomicReplacement(NVAtomicStore *store, int installedFD,
+	NSData *expectedData, const NVFileInfo *preparedInfo,
+	NotationController *controller, NSError **error) {
+	int preparedFD = store->temporaryFD;
+	int displacedFD = openat(store->directoryFD, store->temporaryName,
+		O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	NSString *failedOperation = @"installed-file identity check";
+	int finalizationError = 0;
+	if (!NVFileDescriptorsReferToSameFile(preparedFD, installedFD) ||
+		!NVFileDescriptorMatchesName(installedFD, store->directoryFD,
+			store->destinationName))
+		finalizationError = EAGAIN;
+	if (!finalizationError && controller &&
+		(finalizationError = [controller
+			_metadataFinalizationErrorAfterExchangingNoteNamed:store->filename]))
+		failedOperation = @"test-injected metadata finalization";
+	if (!finalizationError && NVCopyPreparedAtomicMetadata(displacedFD,
+		installedFD, preparedInfo) < 0) {
+		failedOperation = @"metadata copy";
+		finalizationError = errno;
+	}
+	if (!finalizationError && fsync(installedFD) < 0) {
+		failedOperation = @"installed-file sync";
+		finalizationError = errno;
+	}
+	if (finalizationError)
+		NSLog(@"Unable to finish exchanged replacement of '%@' during %@: %s",
+			store->filename, failedOperation, strerror(finalizationError));
+	store->temporaryFD = installedFD;
+	BOOL finished = finalizationError == 0;
+	if (finished)
+		finished = NVFinishDisplacedAtomicFile(store, displacedFD, expectedData, error);
+	else {
+		BOOL replacementStillInstalled =
+			NVFileDescriptorsReferToSameFile(preparedFD, installedFD) &&
+			NVFileDescriptorMatchesName(installedFD, store->directoryFD,
+				store->destinationName);
+		NVRecoverFailedExchangedReplacement(store,
+			replacementStillInstalled, error);
+	}
+	if (displacedFD >= 0) close(displacedFD);
+	close(preparedFD);
+	return finished;
+}
+
+/* filesystems without swap or exchange get a last-second check and
+ * atomic rename. A writer can still win between those operations; add a native
+ * compare-and-swap primitive if the filesystem ever provides one. */
+static BOOL NVInstallBestEffortConditionalReplacement(NVAtomicStore *store,
+	NSData *expectedData, NSError **error) {
+	int destinationFD = openat(store->directoryFD, store->destinationName,
+		O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (destinationFD < 0) {
+		if (error) *error = NVErrorFromErrno(errno, @"Recheck destination", store->filename);
+		return NO;
+	}
+	NSData *destinationData = NVReadDataFromFileDescriptor(destinationFD, error);
+	close(destinationFD);
+	if (!destinationData) return NO;
+	if (![destinationData isEqualToData:expectedData]) {
+		if (error) *error = NVErrorFromErrno(EAGAIN, @"Replace changing file", store->filename);
+		return NO;
+	}
+	if (renameat(store->directoryFD, store->temporaryName,
+		store->directoryFD, store->destinationName) == 0) return YES;
+	if (error) *error = NVErrorFromErrno(errno, @"Install replacement", store->filename);
+	return NO;
+}
+
+/* Replace an existing name by descending a fixed capability ladder: APFS swap,
+ * ordinary rename for unconditional stores, HFS+ exchange for conditional
+ * stores, then the explicitly best-effort limited-filesystem fallback. */
+static BOOL NVInstallAtomicReplacement(NVAtomicStore *store, NSData *expectedData,
+	NotationController *controller, NSError **error) {
+	if (renameatx_np(store->directoryFD, store->temporaryName,
+		store->directoryFD, store->destinationName, RENAME_SWAP) == 0) {
+		int displacedFD = expectedData ? openat(store->directoryFD, store->temporaryName,
+			O_RDONLY | O_CLOEXEC | O_NOFOLLOW) : -1;
+		BOOL finished = NVFinishDisplacedAtomicFile(store, displacedFD, expectedData, error);
+		if (displacedFD >= 0) close(displacedFD);
+		return finished;
+	}
+	int swapError = errno;
+	if (!NVAtomicReplacementCapabilityUnavailable(swapError)) {
+		if (error) *error = NVErrorFromErrno(swapError, @"Swap replacement", store->filename);
+		return NO;
+	}
+	if (!expectedData) {
+		if (renameat(store->directoryFD, store->temporaryName,
+			store->directoryFD, store->destinationName) == 0) return YES;
+		if (error) *error = NVErrorFromErrno(errno, @"Install replacement", store->filename);
+		return NO;
 	}
 
-	if (installed) (void)fsync(directoryFileDescriptor);
-	if (installed && resultingFileInfo) {
-		NVFileInfo info = { 0 };
-		struct stat descriptorStatus = { 0 }, namedStatus = { 0 };
-		installed = NVGetFileInfoFromDescriptor(temporaryFD, &info, error) &&
-			fstat(temporaryFD, &descriptorStatus) == 0 &&
-			fstatat(directoryFileDescriptor, destinationName, &namedStatus,
-				AT_SYMLINK_NOFOLLOW) == 0 &&
-			descriptorStatus.st_dev == namedStatus.st_dev &&
-			descriptorStatus.st_ino == namedStatus.st_ino;
-		if (installed) *resultingFileInfo = info;
-		else if (error && !*error)
-			*error = NVErrorFromErrno(EAGAIN, @"Inspect installed file", filename);
+	NVFileInfo preparedInfo = { 0 };
+	if (!NVGetFileInfoFromDescriptor(store->temporaryFD, &preparedInfo, error)) return NO;
+	if (controller) [controller _didRejectAtomicSwapForNoteNamed:store->filename];
+	if (NVExchangeDataAtDirectoryFileDescriptor(store->directoryFD,
+		store->temporaryName, store->destinationName) == 0) {
+		if (controller) [controller _didExchangeNoteFileNamed:store->filename];
+		int installedFD = openat(store->directoryFD, store->destinationName,
+			O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+		if (installedFD < 0) {
+			NSLog(@"Unable to open exchanged replacement of '%@': %s",
+				store->filename, strerror(errno));
+			return NVRecoverFailedExchangedReplacement(store,
+				NVFileDescriptorMatchesName(store->temporaryFD,
+					store->directoryFD, store->destinationName), error);
+		}
+		return NVFinalizeExchangedAtomicReplacement(store, installedFD,
+			expectedData, &preparedInfo, controller, error);
 	}
-	if (!installed && removeTemporaryOnFailure)
-		(void)unlinkat(directoryFileDescriptor, temporaryName, 0);
-	if (installed && resultingFileDescriptor) *resultingFileDescriptor = temporaryFD;
-	else close(temporaryFD);
-	free(destinationName);
-	free(temporaryName);
+	int exchangeError = errno;
+	if (!NVAtomicReplacementCapabilityUnavailable(exchangeError)) {
+		if (error) *error = NVErrorFromErrno(exchangeError, @"Exchange replacement", store->filename);
+		return NO;
+	}
+	return NVInstallBestEffortConditionalReplacement(store, expectedData, error);
+}
+
+/* Install a previously absent name without overwriting a concurrent creator.
+ * The fallbacks preserve O_EXCL behavior even where exclusive rename or links
+ * are unavailable. */
+static BOOL NVInstallNewAtomicFile(NVAtomicStore *store, NSData *data,
+	NVFilePreparationBlock preparationBlock, NSError **error) {
+	if (renameatx_np(store->directoryFD, store->temporaryName,
+		store->directoryFD, store->destinationName, RENAME_EXCL) == 0) return YES;
+	if (errno != ENOTSUP && errno != EINVAL) goto failed;
+	if (linkat(store->directoryFD, store->temporaryName,
+		store->directoryFD, store->destinationName, 0) == 0) {
+		(void)unlinkat(store->directoryFD, store->temporaryName, 0);
+		return YES;
+	}
+	if (errno != ENOTSUP && errno != EINVAL && errno != EPERM) goto failed;
+	/* ExFAT has neither hard links nor exclusive rename. O_EXCL prevents overwrite,
+	 * but readers may observe this last-resort file while it is populated. */
+	int installedFD = openat(store->directoryFD, store->destinationName,
+		O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
+	if (installedFD >= 0) {
+		BOOL copied = NVWriteDataToFileDescriptor(data, installedFD, error);
+		if (copied && preparationBlock && !preparationBlock(installedFD, error)) copied = NO;
+		if (copied && fsync(installedFD) < 0) {
+			if (error) *error = NVErrorFromErrno(errno, @"Synchronize new file", store->filename);
+			copied = NO;
+		}
+		if (copied) {
+			close(store->temporaryFD);
+			store->temporaryFD = installedFD;
+			(void)unlinkat(store->directoryFD, store->temporaryName, 0);
+			return YES;
+		}
+		BOOL stillNamed = NVFileDescriptorMatchesName(installedFD,
+			store->directoryFD, store->destinationName);
+		close(installedFD);
+		/* unlink follows the strongest identity proof ExFAT offers; a
+		 * compare-and-unlink primitive would be needed to close the final race. */
+		if (stillNamed) (void)unlinkat(store->directoryFD, store->destinationName, 0);
+	}
+failed:
+	if (error && !*error) *error = NVErrorFromErrno(errno, @"Install new file", store->filename);
+	return NO;
+}
+
+/* Prove that the retained descriptor is the vnode now named by the destination,
+ * then return metadata read from that same descriptor. */
+static BOOL NVInspectInstalledAtomicFile(NVAtomicStore *store,
+	NVFileInfo *resultingFileInfo, NSError **error) {
+	NVFileInfo info = { 0 };
+	BOOL installed = NVGetFileInfoFromDescriptor(store->temporaryFD, &info, error) &&
+		NVFileDescriptorMatchesName(store->temporaryFD, store->directoryFD, store->destinationName);
+	if (installed) *resultingFileInfo = info;
+	else if (error && !*error) *error = NVErrorFromErrno(EAGAIN, @"Inspect installed file", store->filename);
+	return installed;
+}
+
+/* Coordinate prepare, exactly one install path, durability, identity checking,
+ * and centralized cleanup/descriptor transfer. */
+static BOOL NVStoreDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescriptor,
+	NotationController *controller, NSData *data, NSString *filename, BOOL replaceExisting,
+	NVFilePreparationBlock preparationBlock, NVFileVerificationBlock verificationBlock,
+	NSData *expectedDestinationData,
+	NVFileInfo *resultingFileInfo, int *resultingFileDescriptor, NSError **error) {
+	if (!data) {
+		if (error) *error = NVErrorFromErrno(EINVAL, @"Store data", filename);
+		return NO;
+	}
+	NVAtomicStore store = { directoryFileDescriptor, -1, NULL, NULL, filename,
+		[@".nv-write-" stringByAppendingString:[[NSUUID UUID] UUIDString]], YES };
+	BOOL installed = NO, destinationExists = NO;
+	if (!NVFileSystemName(filename, &store.destinationName, error) ||
+		!NVFileSystemName(store.temporaryFilename, &store.temporaryName, error)) goto done;
+	store.temporaryFD = openat(store.directoryFD, store.temporaryName,
+		O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
+	if (store.temporaryFD < 0) {
+		if (error) *error = NVErrorFromErrno(errno, @"Create temporary file", store.temporaryFilename);
+		goto done;
+	}
+	installed = NVPrepareAtomicStore(&store, data, replaceExisting, preparationBlock,
+		verificationBlock, expectedDestinationData, &destinationExists, error) &&
+		(destinationExists ? NVInstallAtomicReplacement(&store, expectedDestinationData,
+			controller, error) :
+		 NVInstallNewAtomicFile(&store, data, preparationBlock, error));
+	if (installed) (void)fsync(store.directoryFD);
+	if (installed && resultingFileInfo)
+		installed = NVInspectInstalledAtomicFile(&store, resultingFileInfo, error);
+	if (!installed && store.removeTemporaryOnFailure && store.temporaryName)
+		(void)unlinkat(store.directoryFD, store.temporaryName, 0);
+	if (installed && resultingFileDescriptor) { *resultingFileDescriptor = store.temporaryFD; store.temporaryFD = -1; }
+done:
+	if (store.temporaryFD >= 0) close(store.temporaryFD);
+	free(store.destinationName); free(store.temporaryName);
 	return installed;
 }
 
 BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescriptor,
 	NSData *data, NSString *filename, NSData *expectedData, NSError **error) {
 	return NVStoreDataAtomicallyAtDirectoryFileDescriptor(directoryFileDescriptor,
-		data, filename, YES, YES, NULL, NULL, expectedData, NULL, NULL, error);
+		nil, data, filename, YES, NULL, NULL, expectedData, NULL, NULL, error);
 }
 
 - (BOOL)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename
 	preparationBlock:(NVFilePreparationBlock)preparationBlock
 	verificationBlock:(NVFileVerificationBlock)verificationBlock error:(NSError**)error {
 	return NVStoreDataAtomicallyAtDirectoryFileDescriptor(noteDirectoryFileDescriptor,
-		data, filename, YES, YES, preparationBlock, verificationBlock, nil, NULL, NULL, error);
+		self, data, filename, YES, preparationBlock, verificationBlock, nil, NULL, NULL, error);
 }
 
 - (BOOL)createDataAtomicallyInNotesDirectory:(NSData*)data
 	withName:(NSString*)filename error:(NSError**)error {
 	return NVStoreDataAtomicallyAtDirectoryFileDescriptor(noteDirectoryFileDescriptor,
-		data, filename, NO, NO, NULL, NULL, nil, NULL, NULL, error);
+		self, data, filename, NO, NULL, NULL, nil, NULL, NULL, error);
 }
 
 - (BOOL)storeNoteDataAtomically:(NSData*)data withName:(NSString*)filename
@@ -994,7 +1234,7 @@ BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescripto
 	NVFileInfo installedInfo = { 0 };
 	int installedFD = -1;
 	BOOL installed = NVStoreDataAtomicallyAtDirectoryFileDescriptor(noteDirectoryFileDescriptor,
-		data, filename, YES, YES, ^BOOL(int fd, NSError **blockError) {
+		self, data, filename, YES, ^BOOL(int fd, NSError **blockError) {
 			if (encoding) {
 				const char *bytes = [encodingValue UTF8String];
 				if (fsetxattr(fd, "com.apple.TextEncoding", bytes, strlen(bytes), 0, 0) < 0) {
@@ -1020,6 +1260,7 @@ BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescripto
 				if (blockError) *blockError = NVErrorFromErrno(errno, @"Set file dates", filename);
 				return NO;
 			}
+			[self _didPrepareNoteFileNamed:filename];
 			return YES;
 		}, NULL, expectedData, &installedInfo, &installedFD, error);
 	if (!installed) return NO;
@@ -1206,7 +1447,8 @@ terminate:
 		//catch filename collisions with untracked files in the notes directory
 		NSString *candidate = [uniqueFilename stringByAppendingPathExtension:extension];
 		if (isUnique && (!note || ![candidate isEqualToString:filenameOfNote(note)]) &&
-			[self noteExistsWithName:candidate]) {
+			NVCaseInsensitiveNameExists(noteDirectoryFileDescriptor, candidate,
+				note ? filenameOfNote(note) : nil)) {
 			isUnique = NO;
 			uniqueFilename = [uniqueFilename stringByDeletingPathExtension];
 			uniqueFilename = [uniqueFilename stringByAppendingPathExtension:

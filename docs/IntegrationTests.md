@@ -48,7 +48,7 @@ Stable snapshots, xattrs, and concurrent writers:
 - `snapshot-in-place-observation`: races same-vnode content/encoding/tag mutation and reports coherent versus rejected/mixed observations.
 - `snapshot-failures`: injected data, xattr, decode, identity, and constructor failures propagate without mutating live state.
 - `xattr-interoperability`: Finder/OpenMeta tag plists and named/numeric `com.apple.TextEncoding` values, including absent xattrs.
-- `system-tag-producer`: a separate process writes `NSURLTagNamesKey`; verifies Cocoa/OpenMeta reads, import, and dual-format tag writes. The filesystem-image harness runs it on APFS.
+- `system-tag-producer`: a separate process changes `NSURLTagNamesKey`; verifies Finder precedence, explicit clears, OpenMeta fallback, and nonfatal Finder-write failure. The filesystem-image harness runs it on APFS.
 - `system-tag-writer-child`: helper subprocess for `system-tag-producer`; do not normally invoke directly (`NV_SYSTEM_TAG_PATH` is required).
 
 Transactional directory reconciliation:
@@ -76,6 +76,7 @@ Storage formats, archives, and recovery:
 - `plain-text-encodings`: ISO-8859-1 and malformed-declared-UTF-8 fallback import, save, byte preservation, encoding metadata, and reload.
 - `filesystem-crud`: separate-file create, external move, save, and reload on the selected volume; the disk-image harness runs it on ExFAT and native formats.
 - `filename-collisions`: slash-bearing titles, untracked destination files, and case-only internal renames remain distinct and reloadable.
+- `case-sensitive-filename-collisions`: on APFSX/HFSX, untracked case-only create/rename targets remain distinct, same-note case-only renames leave one file, and physical case collisions abort reconciliation without model mutation.
 - `concurrent-controllers`: a live controller keeps exclusive ownership of its WAL while a second controller fails closed; crash recovery remains separately covered.
 - `unsupported-journal-locks`: bookmark-resolved controller launches and WAL recovery tolerate unsupported advisory locking (`ENOTSUP` and regular-file `EINVAL`) while lock contention still fails closed.
 - `legacy-temporary-database-recovery`: after a journaling error, an epoch-4 database offers recovery from the newest qualifying legacy verified-write temporary file; nanosecond/lexical selection, age/size/epoch/filename gates, source preservation, rollback, declined choices, and clean relaunch are covered.
@@ -93,7 +94,8 @@ Storage formats, archives, and recovery:
 - `file-outbox-crash-recovery`: WAL success plus note-file failure survives relaunch, rewrites stale disk content before reconciliation, and recreates a WAL-only new note without classifying it as an external deletion.
 - `file-outbox-crash-child`: helper subprocess for the outbox crash test; do not normally invoke directly (`NV_FILE_OUTBOX_CRASH_DIRECTORY` is required).
 - `disk-full-recovery-contract`: fills a fixed-size image, verifies ENOSPC keeps the write pending, frees reserve space, and converges. Requires `NV_TEST_REQUIRE_DISK_IMAGE=1` and is normally harness-only.
-- `atomic-rollback`: content, xattr, rename, verification, and post-install identity failures preserve the correct installed/pending state.
+- `atomic-rollback`: create-only and conditional installation, content, xattr, rename, verification, conflict recovery, and post-install identity failures preserve the correct installed/pending state.
+- `atomic-replacement-capabilities`: verifies recoverable conditional replacement on APFS/HFS+, best-effort conditional replacement on ExFAT, prepared HFS+ metadata/descriptor handoff, and identity-safe ExFAT create cleanup. Normally run by the disk-image harness.
 - `failures`: corrupt database, invalid notes directory, read-only writes, nonblocking rejection of a FIFO journal, and related error propagation.
 
 Directory identity, bookmarks, and lifecycle:

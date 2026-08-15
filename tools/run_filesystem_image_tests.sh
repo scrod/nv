@@ -89,6 +89,10 @@ run_native_matrix() {
 	attach_image "$image" "$mount_point" || return 1
 	run_test "$label" "$mount_point" "$fs_type" "$case_sensitive" filesystem-capabilities
 	run_test "$label" "$mount_point" "$fs_type" "$case_sensitive" filesystem-crud
+	run_test "$label" "$mount_point" "$fs_type" "$case_sensitive" atomic-replacement-capabilities
+	if [[ "$case_sensitive" == 1 ]]; then
+		run_test "$label" "$mount_point" "$fs_type" "$case_sensitive" case-sensitive-filename-collisions
+	fi
 	if [[ "$fs_type" != exfat ]]; then
 		run_test "$label" "$mount_point" "$fs_type" "$case_sensitive" file-metadata
 		run_test "$label" "$mount_point" "$fs_type" "$case_sensitive" directory-reconciliation
@@ -109,6 +113,7 @@ apfs_mount="$test_root/mnt-NVAPFS"
 attach_image "$apfs_image" "$apfs_mount" || exit 1
 run_test NVAPFS "$apfs_mount" apfs 0 filesystem-capabilities
 run_test NVAPFS "$apfs_mount" apfs 0 filesystem-crud
+run_test NVAPFS "$apfs_mount" apfs 0 atomic-replacement-capabilities
 run_test NVAPFS "$apfs_mount" apfs 0 system-tag-producer
 run_test NVAPFS "$apfs_mount" apfs 0 wal-crash-recovery
 run_test NVAPFS "$apfs_mount" apfs 0 disk-full-recovery-contract

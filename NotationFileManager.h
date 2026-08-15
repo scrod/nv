@@ -42,7 +42,8 @@ typedef struct _NVFileInfo {
  * A coherent view of one note file.  Object fields follow normal autoreleased
  * return-value ownership and are valid for the caller's current autorelease
  * scope; the struct itself owns nothing and needs no cleanup.  A nil tags value
- * means the xattr is absent, while an empty array means it is present and empty.
+ * means neither Finder nor fallback OpenMeta supplied a value; an empty array is
+ * an authoritative empty semantic tag set.
  */
 typedef struct _NVNoteFileSnapshot {
 	NSData *data;
@@ -53,6 +54,7 @@ typedef struct _NVNoteFileSnapshot {
 
 BOOL NVReplaceDataAtomicallyAtDirectoryFileDescriptor(int directoryFileDescriptor,
 	NSData *data, NSString *filename, NSData *expectedData, NSError **error);
+NSArray *NVSemanticTagNames(NSArray *tags);
 
 
 @interface NotationController (NotationFileManager)

@@ -4,7 +4,7 @@ BUILD_DIR := /tmp/notation-integration-tests
 DERIVED_DATA := ../DerivedData
 HOST_ARCH := $(shell uname -m)
 APP_OBJECT_DIR := $(DERIVED_DATA)/Build/Intermediates.noindex/ArchiveIntermediates/Notation/IntermediateBuildFilesPath/Notation.build/Deployment/Notation.build/Objects-normal/$(HOST_ARCH)
-APP_OBJECTS = $(filter-out $(APP_OBJECT_DIR)/main.o,$(wildcard $(APP_OBJECT_DIR)/*.o))
+APP_OBJECTS = $(shell find "$(APP_OBJECT_DIR)" -maxdepth 1 -name '*.o' ! -name main.o ! -name '*_vers.o')
 APP_FRAMEWORKS := -F.. -Wl,-rpath,$(abspath ..) -Wl,-sectcreate,__TEXT,__info_plist,../Info.plist -framework Sparkle -framework Cocoa -framework Carbon -framework CoreServices -framework SecurityInterface -framework Security -framework WebKit -framework ApplicationServices -framework SystemConfiguration -framework IOKit -framework UniformTypeIdentifiers -lz
 TARGETS := \
 	$(BUILD_DIR)/AppearanceColorTest \

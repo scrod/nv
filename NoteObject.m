@@ -1286,9 +1286,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	 * text is combined with the saved starting text by diff-match-patch (our text
 	 * merging algorithm). RTF and HTML are treated more conservatively: if their
 	 * serialized bytes differ, the other program's version is saved as a conflict
-	 * note instead of guessing how to merge formatting. The final replacement is
-	 * allowed only if the file still matches the snapshot, so a later save cannot
-	 * be silently overwritten.
+	 * note instead of guessing how to merge formatting. On filesystems with swap
+	 * or exchange, the final replacement is allowed only if the file still matches
+	 * the snapshot. Limited filesystems such as ExFAT recheck immediately before
+	 * rename but retain a narrow concurrent-writer race.
 	 */
 
     NSData *formattedData = nil;
@@ -1409,8 +1410,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		NSError *writeError = nil;
 		NVFileInfo info = { 0 };
 		// expectedData tells the file writer, "replace this only if the destination
-		// is still exactly the file we just read." This closes the small race
-		// between checking for a conflict and installing our replacement.
+		// is still exactly the file we just read." Swap/exchange filesystems enforce
+		// that through installation; limited filesystems recheck just before rename.
 		if (![delegate storeNoteDataAtomically:formattedData withName:filename
 			encoding:(PlainTextFormat == formatID ? fileEncoding : 0)
 			tags:[self orderedLabelTitles] creationTime:createdDate
@@ -1763,16 +1764,9 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	}
 	else NSLog(@"Could not prepare export metadata for '%@': %@", newfilename, metadataError);
 
-	NSMutableArray *cocoaTags = [NSMutableArray arrayWithCapacity:[tags count]];
-	for (NSString *tag in tags) {
-		NSUInteger length = [tag length];
-		if (length >= 2 && [tag characterAtIndex:length - 2] == '\n' &&
-			[tag characterAtIndex:length - 1] >= '0' && [tag characterAtIndex:length - 1] <= '7')
-			[cocoaTags addObject:[tag substringToIndex:length - 2]];
-		else [cocoaTags addObject:tag];
-	}
 	NSError *tagError = nil;
-	if (![outputURL setResourceValue:cocoaTags forKey:NSURLTagNamesKey error:&tagError])
+	if (![outputURL setResourceValue:NVSemanticTagNames(tags)
+		forKey:NSURLTagNamesKey error:&tagError])
 		NSLog(@"Could not mirror OpenMeta tags to Finder tags for '%@': %@", newfilename, tagError);
 	metadataError = nil;
 	if (![outputURL setResourceValues:@{

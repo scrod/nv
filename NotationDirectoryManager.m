@@ -611,7 +611,9 @@ static BOOL NVErrorIsNoSuchFile(NSError *error) {
 	NSArray *keys = @[ NSURLIsRegularFileKey ];
 	for (NSUInteger attempt = 0; attempt < 2; attempt++) {
 		[self _resetCatalogEntries];
-		NSURL *directoryURL = [NSURL fileURLWithPath:[noteDirectoryURL path] isDirectory:YES];
+		NSString *directoryPath = [noteDirectoryURL path];
+		if (!directoryPath) return NO;
+		NSURL *directoryURL = [NSURL fileURLWithPath:directoryPath isDirectory:YES];
 		NSError *error = nil;
 		NSArray *URLs = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:directoryURL
 			includingPropertiesForKeys:keys options:0 error:&error];

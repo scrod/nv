@@ -241,9 +241,9 @@ typedef NS_ENUM(NSUInteger, NVInjectedBulkFailure) {
 };
 
 static NVTestBulkRecord TestBulkRecord(uint32_t documentID);
-static NSArray *CocoaTagNamesFromRawTags(NSArray *tags);
+static void WaitForNextMetadataTickIfNeeded(void);
 
-static BOOL SetTestOpenMetaTags(NotationController *controller, NSArray *tags,
+static BOOL SetTestOpenMetaTagsOnly(NotationController *controller, NSArray *tags,
 	NSString *filename, NSError **error) {
 	NSURL *URL = [controller fileReferenceURLForNoteNamed:filename error:error];
 	NSData *data = URL ? [NSPropertyListSerialization dataWithPropertyList:tags
@@ -255,7 +255,14 @@ static BOOL SetTestOpenMetaTags(NotationController *controller, NSArray *tags,
 			code:(path ? errno : ENAMETOOLONG) userInfo:nil];
 		return NO;
 	}
-	return [URL setResourceValue:CocoaTagNamesFromRawTags(tags)
+	return YES;
+}
+
+static BOOL SetTestOpenMetaTags(NotationController *controller, NSArray *tags,
+	NSString *filename, NSError **error) {
+	if (!SetTestOpenMetaTagsOnly(controller, tags, filename, error)) return NO;
+	NSURL *URL = [controller fileReferenceURLForNoteNamed:filename error:error];
+	return [URL setResourceValue:NVSemanticTagNames(tags)
 		forKey:NSURLTagNamesKey error:error];
 }
 
@@ -292,6 +299,10 @@ static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding
 - (id)_snapshotCocoaTagsAtURL:(NSURL*)URL;
 - (int)_statSnapshotName:(const char*)name status:(struct stat*)status;
 - (void)_didInstallNoteFileNamed:(NSString*)filename;
+- (void)_didPrepareNoteFileNamed:(NSString*)filename;
+- (void)_didRejectAtomicSwapForNoteNamed:(NSString*)filename;
+- (void)_didExchangeNoteFileNamed:(NSString*)filename;
+- (int)_metadataFinalizationErrorAfterExchangingNoteNamed:(NSString*)filename;
 - (void)_didSynchronizeTagsForNoteNamed:(NSString*)filename fileDescriptor:(int)fileDescriptor;
 - (void)_didSetTextEncodingForNoteNamed:(NSString*)filename fileDescriptor:(int)fileDescriptor;
 - (BOOL)setTextEncoding:(NSStringEncoding)encoding forNoteNamed:(NSString*)filename
@@ -558,8 +569,17 @@ static char NVPreparedNoteDeallocationProbeKey;
 	NSArray *snapshotBoundaryReplacementTags;
 	NSArray *snapshotBoundaryObservedTags;
 	NSUInteger snapshotBoundaryMutationsRemaining;
+	BOOL snapshotCocoaTagsUnavailable;
+	BOOL failCocoaTagWrites;
 	NSString *installedBoundaryMutationName;
 	NSData *installedBoundaryReplacementData;
+	NSString *preInstallBoundaryMutationName;
+	NSData *preInstallBoundaryReplacementData;
+	NSString *preInstallBoundaryRemovalName;
+	NSString *postExchangeBoundaryMutationName;
+	NSData *postExchangeBoundaryReplacementData;
+	NSString *postExchangeBoundaryRemovalName;
+	NSString *exchangedMetadataFailureName;
 	NSString *inPlaceBoundaryMutationName;
 	NSData *inPlaceBoundaryReplacementData;
 	BOOL mutateDuringTagSynchronization;
@@ -626,7 +646,14 @@ static char NVPreparedNoteDeallocationProbeKey;
 	atFinalIdentityChecks:(NSUInteger)checks;
 - (void)replaceSnapshotCocoaTags:(NSArray*)tags afterReadingTags:(NSArray*)observedTags
 	forNoteNamed:(NSString*)filename atIdentityChecks:(NSUInteger)checks;
+- (void)setSnapshotCocoaTagsUnavailable:(BOOL)unavailable;
+- (void)setFailCocoaTagWrites:(BOOL)fail;
 - (void)replaceInstalledNoteNamed:(NSString*)filename withData:(NSData*)data;
+- (void)replaceNoteNamed:(NSString*)filename beforeInstallWithData:(NSData*)data;
+- (void)removeNoteNamedBeforeInstall:(NSString*)filename;
+- (void)replaceNoteNamed:(NSString*)filename afterExchangeWithData:(NSData*)data;
+- (void)removeNoteNamedAfterExchange:(NSString*)filename;
+- (void)failExchangedMetadataFinalizationForNoteNamed:(NSString*)filename;
 - (void)mutateNoteNamed:(NSString*)filename withData:(NSData*)data duringTagSynchronization:(BOOL)tags;
 - (void)mutateNoteNamed:(NSString*)filename withData:(NSData*)data duringEncodingSynchronization:(BOOL)encoding;
 - (void)removeNoteBeforeRenameExistenceCheck:(NSString*)filename;
@@ -1068,10 +1095,27 @@ static char NVPreparedNoteDeallocationProbeKey;
 }
 
 - (id)_snapshotCocoaTagsAtURL:(NSURL*)URL {
+	if (snapshotCocoaTagsUnavailable) return nil;
 	if (snapshotBoundaryObservedTags &&
 		[[URL lastPathComponent] isEqualToString:snapshotBoundaryMutationName])
 		return snapshotBoundaryObservedTags;
 	return [super _snapshotCocoaTagsAtURL:URL];
+}
+
+- (void)setSnapshotCocoaTagsUnavailable:(BOOL)unavailable {
+	snapshotCocoaTagsUnavailable = unavailable;
+}
+
+- (void)setFailCocoaTagWrites:(BOOL)fail {
+	failCocoaTagWrites = fail;
+}
+
+- (BOOL)_setCocoaTags:(NSArray*)tags atURL:(NSURL*)URL error:(NSError**)error {
+	if (!failCocoaTagWrites)
+		return [URL setResourceValue:tags forKey:NSURLTagNamesKey error:error];
+	if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain
+		code:EOPNOTSUPP userInfo:nil];
+	return NO;
 }
 
 - (int)_statSnapshotName:(const char*)name status:(struct stat*)status {
@@ -1114,6 +1158,82 @@ static char NVPreparedNoteDeallocationProbeKey;
 		installedBoundaryMutationName = nil;
 		installedBoundaryReplacementData = nil;
 	}
+}
+
+- (void)replaceNoteNamed:(NSString*)filename beforeInstallWithData:(NSData*)data {
+	[preInstallBoundaryMutationName release];
+	[preInstallBoundaryReplacementData release];
+	preInstallBoundaryMutationName = [filename copy];
+	preInstallBoundaryReplacementData = [data retain];
+}
+
+- (void)removeNoteNamedBeforeInstall:(NSString*)filename {
+	[preInstallBoundaryRemovalName release];
+	preInstallBoundaryRemovalName = [filename copy];
+}
+
+- (void)replaceNoteNamed:(NSString*)filename afterExchangeWithData:(NSData*)data {
+	[postExchangeBoundaryMutationName release];
+	[postExchangeBoundaryReplacementData release];
+	postExchangeBoundaryMutationName = [filename copy];
+	postExchangeBoundaryReplacementData = [data retain];
+}
+
+- (void)removeNoteNamedAfterExchange:(NSString*)filename {
+	[postExchangeBoundaryRemovalName release];
+	postExchangeBoundaryRemovalName = [filename copy];
+}
+
+- (void)failExchangedMetadataFinalizationForNoteNamed:(NSString*)filename {
+	[exchangedMetadataFailureName release];
+	exchangedMetadataFailureName = [filename copy];
+}
+
+- (void)_didPrepareNoteFileNamed:(NSString*)filename {
+	if ([filename isEqualToString:preInstallBoundaryMutationName]) {
+		NSData *replacement = [[preInstallBoundaryReplacementData retain] autorelease];
+		[preInstallBoundaryMutationName release];
+		[preInstallBoundaryReplacementData release];
+		preInstallBoundaryMutationName = nil;
+		preInstallBoundaryReplacementData = nil;
+		REQUIRE([self storeDataAtomicallyInNotesDirectory:replacement
+			withName:filename verificationBlock:nil error:NULL]);
+	}
+}
+
+- (void)_didRejectAtomicSwapForNoteNamed:(NSString*)filename {
+	if ([filename isEqualToString:preInstallBoundaryRemovalName]) {
+		[preInstallBoundaryRemovalName release];
+		preInstallBoundaryRemovalName = nil;
+		REQUIRE(unlinkat([self testNoteDirectoryFileDescriptor],
+			[filename fileSystemRepresentation], 0) == 0);
+	}
+}
+
+- (void)_didExchangeNoteFileNamed:(NSString*)filename {
+	if ([filename isEqualToString:postExchangeBoundaryRemovalName]) {
+		[postExchangeBoundaryRemovalName release];
+		postExchangeBoundaryRemovalName = nil;
+		REQUIRE(unlinkat([self testNoteDirectoryFileDescriptor],
+			[filename fileSystemRepresentation], 0) == 0);
+		return;
+	}
+	if ([filename isEqualToString:postExchangeBoundaryMutationName]) {
+		NSData *replacement = [[postExchangeBoundaryReplacementData retain] autorelease];
+		[postExchangeBoundaryMutationName release];
+		[postExchangeBoundaryReplacementData release];
+		postExchangeBoundaryMutationName = nil;
+		postExchangeBoundaryReplacementData = nil;
+		REQUIRE([self storeDataAtomicallyInNotesDirectory:replacement
+			withName:filename verificationBlock:nil error:NULL]);
+	}
+}
+
+- (int)_metadataFinalizationErrorAfterExchangingNoteNamed:(NSString*)filename {
+	if (![filename isEqualToString:exchangedMetadataFailureName]) return 0;
+	[exchangedMetadataFailureName release];
+	exchangedMetadataFailureName = nil;
+	return EIO;
 }
 
 - (void)mutateNoteNamed:(NSString*)filename withData:(NSData*)data duringTagSynchronization:(BOOL)tags {
@@ -1364,6 +1484,13 @@ static char NVPreparedNoteDeallocationProbeKey;
 	[snapshotBoundaryObservedTags release];
 	[installedBoundaryMutationName release];
 	[installedBoundaryReplacementData release];
+	[preInstallBoundaryMutationName release];
+	[preInstallBoundaryReplacementData release];
+	[preInstallBoundaryRemovalName release];
+	[postExchangeBoundaryMutationName release];
+	[postExchangeBoundaryReplacementData release];
+	[postExchangeBoundaryRemovalName release];
+	[exchangedMetadataFailureName release];
 	[inPlaceBoundaryMutationName release];
 	[inPlaceBoundaryReplacementData release];
 	[removeBeforeRenameExistenceCheckName release];
@@ -2469,6 +2596,7 @@ static void TestSnapshotStress(void) {
 	@try {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
+		[controller setSnapshotCocoaTagsUnavailable:YES];
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		directoryFD = open([directoryPath fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		REQUIRE(directoryFD >= 0);
@@ -2566,6 +2694,7 @@ static void TestInPlaceSnapshotObservation(void) {
 	@try {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
+		[controller setSnapshotCocoaTagsUnavailable:YES];
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		directoryFD = open([directoryPath fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		REQUIRE(directoryFD >= 0);
@@ -2654,6 +2783,7 @@ static void TestXattrInteroperability(void) {
 	@try {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
+		[controller setSnapshotCocoaTagsUnavailable:YES];
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		NSString *filename = @"Finder Metadata.txt";
 		NSString *path = [directoryPath stringByAppendingPathComponent:filename];
@@ -2902,19 +3032,6 @@ static void TestSystemTagWriterChild(void) {
 	REQUIRE(error == nil);
 }
 
-static NSArray *CocoaTagNamesFromRawTags(NSArray *tags) {
-	if (!tags) return nil;
-	NSMutableArray *names = [NSMutableArray arrayWithCapacity:[tags count]];
-	for (NSString *tag in tags) {
-		NSUInteger length = [tag length];
-		if (length >= 2 && [tag characterAtIndex:length - 2] == '\n' &&
-			[tag characterAtIndex:length - 1] >= '0' && [tag characterAtIndex:length - 1] <= '7')
-			[names addObject:[tag substringToIndex:length - 2]];
-		else [names addObject:tag];
-	}
-	return names;
-}
-
 static BOOL TagSetsEqual(NSArray *one, NSArray *two) {
 	return [one count] == [two count] &&
 		[[NSSet setWithArray:one] isEqualToSet:[NSSet setWithArray:two]];
@@ -2928,11 +3045,13 @@ static void TestSystemTagProducer(void) {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
-		NSString *filename = @"System Tags.txt";
+		NoteObject *note = AddTestNote(controller, @"System Tags", @"system tag producer");
+		[note setLabelString:@"StaleOpenMeta"];
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *filename = [[filenameOfNote(note) copy] autorelease];
 		NSString *path = [directoryPath stringByAppendingPathComponent:filename];
-		WriteExternalFile(PlainTextFormat, @"system tag producer", path);
-		SpawnScenarioWithEnvironment(@"system-tag-writer-child", "NV_SYSTEM_TAG_PATH", path, 0);
 		NSError *error = nil;
+		SpawnScenarioWithEnvironment(@"system-tag-writer-child", "NV_SYSTEM_TAG_PATH", path, 0);
 		ssize_t rawTagLength = getxattr([path fileSystemRepresentation],
 			"com.apple.metadata:kMDItemOMUserTags", NULL, 0, 0, 0);
 		int rawTagError = rawTagLength < 0 ? errno : 0;
@@ -2944,37 +3063,47 @@ static void TestSystemTagProducer(void) {
 		NSLog(@"system tag producer after child exit: NSURL=%@ snapshot=%@ raw-xattr=%ld errno=%d",
 			tagsAvailable ? systemTags : @"unavailable", snapshot.tags, (long)rawTagLength, rawTagError);
 		NSArray *expectedNames = @[ @"Red", @"Caf\u00e9\u6771\u4eac" ];
-		NSArray *snapshotNames = CocoaTagNamesFromRawTags(snapshot.tags);
-		REQUIRE(tagsAvailable && TagSetsEqual(CocoaTagNamesFromRawTags(systemTags), expectedNames));
+		NSArray *snapshotNames = NVSemanticTagNames(snapshot.tags);
+		REQUIRE(tagsAvailable && TagSetsEqual(NVSemanticTagNames(systemTags), expectedNames));
 		REQUIRE(TagSetsEqual(snapshotNames, expectedNames));
-		REQUIRE(rawTagLength >= 0 || rawTagError == ENOATTR);
-		if (rawTagLength >= 0) {
-			NSArray *rawTags = [[NSFileManager defaultManager]
-				getOpenMetaTagsAtFSPath:[path fileSystemRepresentation]];
-			REQUIRE(TagSetsEqual(CocoaTagNamesFromRawTags(rawTags), expectedNames));
-			REQUIRE(removexattr([path fileSystemRepresentation],
-				"com.apple.metadata:kMDItemOMUserTags", 0) == 0);
-		}
-		[controller replaceSnapshotCocoaTags:expectedNames afterReadingTags:expectedNames
-			forNoteNamed:filename atIdentityChecks:0];
-		error = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
-		REQUIRE(error == nil && TagSetsEqual(snapshot.tags, expectedNames));
+		REQUIRE(rawTagLength >= 0 && rawTagError == 0);
+		REQUIRE([[[NSFileManager defaultManager]
+			getOpenMetaTagsAtFSPath:[path fileSystemRepresentation]]
+			isEqual:@[ @"StaleOpenMeta" ]]);
 		REQUIRE([controller synchronizeNotesFromDirectory]);
-		NoteObject *note = [AllNotes(controller) objectAtIndex:0];
 		REQUIRE(TagSetsEqual([note orderedLabelTitles], expectedNames));
+
+		WaitForNextMetadataTickIfNeeded();
+		REQUIRE([[NSURL fileURLWithPath:path] setResourceValue:@[]
+			forKey:NSURLTagNamesKey error:&error]);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		REQUIRE([[note orderedLabelTitles] count] == 0);
+		WaitForNextMetadataTickIfNeeded();
+		REQUIRE(SetTestOpenMetaTagsOnly(controller, @[ @"OpenMetaOnly" ], filename, &error));
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		REQUIRE([[note orderedLabelTitles] count] == 0);
+
+		[controller setSnapshotCocoaTagsUnavailable:YES];
+		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
+		REQUIRE([snapshot.tags isEqual:@[ @"OpenMetaOnly" ]]);
+		[controller setSnapshotCocoaTagsUnavailable:NO];
+		[controller replaceSnapshotCocoaTags:nil afterReadingTags:@[ @1 ]
+			forNoteNamed:filename atIdentityChecks:0];
+		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
+		REQUIRE([snapshot.tags isEqual:@[ @"OpenMetaOnly" ]]);
+		[controller replaceSnapshotCocoaTags:nil afterReadingTags:nil
+			forNoteNamed:filename atIdentityChecks:0];
+
+		[note setLabelString:@"NVRewritten"];
 		[note setContentString:[[[NSAttributedString alloc]
 			initWithString:@"system tag producer rewritten"] autorelease]];
+		[controller setFailCocoaTagWrites:YES];
 		REQUIRE([controller flushAllNoteChanges]);
+		[controller setFailCocoaTagWrites:NO];
 		NSArray *openMetaTags = [[NSFileManager defaultManager]
 			getOpenMetaTagsAtFSPath:[path fileSystemRepresentation]];
-		systemTags = nil;
-		REQUIRE([[NSURL fileURLWithPath:path] getResourceValue:&systemTags
-			forKey:NSURLTagNamesKey error:&error]);
 		NSArray *writtenTags = [note orderedLabelTitles];
 		REQUIRE([openMetaTags isEqual:writtenTags]);
-		REQUIRE(TagSetsEqual(CocoaTagNamesFromRawTags(systemTags),
-			CocoaTagNamesFromRawTags(writtenTags)));
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -4199,7 +4328,7 @@ static void TestFileMetadata(void) {
 		REQUIRE(removexattr([path fileSystemRepresentation], tagsAttribute, 0) == 0);
 		snapshotError = nil;
 		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
-		REQUIRE(snapshot.tags == nil);
+		REQUIRE(snapshot.tags != nil && [snapshot.tags count] == 0);
 		snapshotError = nil;
 		REQUIRE(SetTestOpenMetaTags(controller, @[], filename, &snapshotError));
 		REQUIRE(snapshotError == nil);
@@ -4213,18 +4342,22 @@ static void TestFileMetadata(void) {
 		NSArray *mirroredTags = @[ @"Red\n6", @"Plain" ];
 		REQUIRE(SetTestOpenMetaTags(controller, mirroredTags, filename, &snapshotError));
 		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
-		REQUIRE([snapshot.tags isEqual:mirroredTags]);
+		REQUIRE([snapshot.tags isEqual:NVSemanticTagNames(mirroredTags)]);
 		REQUIRE([[[NSFileManager defaultManager]
 			getOpenMetaTagsAtFSPath:[path fileSystemRepresentation]] isEqual:mirroredTags]);
 		cocoaTags = nil;
 		REQUIRE([[controller fileReferenceURLForNoteNamed:filename error:&snapshotError]
 			getResourceValue:&cocoaTags forKey:NSURLTagNamesKey error:&snapshotError]);
-		REQUIRE(TagSetsEqual(cocoaTags, CocoaTagNamesFromRawTags(mirroredTags)));
+		REQUIRE(TagSetsEqual(cocoaTags, NVSemanticTagNames(mirroredTags)));
 		REQUIRE(SetTestOpenMetaTags(controller, @[], filename, &snapshotError));
 
 		NSData *badTags = [@"not a property list" dataUsingEncoding:NSUTF8StringEncoding];
 		REQUIRE(setxattr([path fileSystemRepresentation], tagsAttribute,
 			[badTags bytes], [badTags length], 0, 0) == 0);
+		snapshotError = nil;
+		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		REQUIRE(snapshotError == nil && [snapshot.tags count] == 0);
+		[controller setSnapshotCocoaTagsUnavailable:YES];
 		NVNoteFileSnapshot failedSnapshot = { [NSData data], @[], NSUTF8StringEncoding, { { 0 }, { 0 }, { 0 }, 0, 42, 0 } };
 		snapshotError = nil;
 		REQUIRE(![controller readNoteFileSnapshot:&failedSnapshot forNoteNamed:filename error:&snapshotError]);
@@ -4238,6 +4371,7 @@ static void TestFileMetadata(void) {
 		snapshotError = nil;
 		REQUIRE(![controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
 		REQUIRE(snapshotError != nil);
+		[controller setSnapshotCocoaTagsUnavailable:NO];
 		snapshotError = nil;
 		REQUIRE(SetTestOpenMetaTags(controller, @[], filename, &snapshotError));
 		REQUIRE(snapshotError == nil);
@@ -4759,6 +4893,7 @@ static void TestSnapshotFailurePropagation(void) {
 
 		const char *tagsAttribute = "com.apple.metadata:kMDItemOMUserTags";
 		NSData *badTags = [@"malformed tags" dataUsingEncoding:NSUTF8StringEncoding];
+		[controller setSnapshotCocoaTagsUnavailable:YES];
 		REQUIRE(setxattr([renamedPath fileSystemRepresentation], tagsAttribute,
 			[badTags bytes], [badTags length], 0, 0) == 0);
 		WriteExternalFileInPlace(@"deferred after xattr failure", renamedPath);
@@ -4773,6 +4908,7 @@ static void TestSnapshotFailurePropagation(void) {
 		REQUIRE(SetTestOpenMetaTags(controller, @[], renamedFilename, NULL));
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		REQUIRE([[[note contentString] string] isEqualToString:@"deferred after xattr failure"]);
+		[controller setSnapshotCocoaTagsUnavailable:NO];
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -6175,6 +6311,15 @@ static void TestLiveFSEvents(void) {
 				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
 		REQUIRE([[[scratchNote contentString] string]
 			isEqualToString:@"changed through the live direct-file watcher"]);
+		NSArray *liveTags = @[ @"Red", @"Caf\u00e9\u6771\u4eac" ];
+		SpawnScenarioWithEnvironment(@"system-tag-writer-child", "NV_SYSTEM_TAG_PATH",
+			[observedExternalEditorURL path], 0);
+		NSDate *tagDeadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
+		while (!TagSetsEqual([scratchNote orderedLabelTitles], liveTags) &&
+			[tagDeadline timeIntervalSinceNow] > 0.0)
+			[[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+				beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+		REQUIRE(TagSetsEqual([scratchNote orderedLabelTitles], liveTags));
 		interceptExternalEditorOpen = NO;
 		[directEditor release];
 		[observedExternalEditorURL release];
@@ -6322,6 +6467,91 @@ static void TestFilenameCollisions(void) {
 		REQUIRE(NoteContaining(controller, @"new note contents") != nil);
 		REQUIRE(NoteContaining(controller, @"slash title contents") != nil);
 		REQUIRE(NoteContaining(controller, @"case-only rename contents") != nil);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
+static NSUInteger CaseInsensitiveFilenameCount(NSString *directoryPath,
+	NSString *filename) {
+	NSUInteger count = 0;
+	for (NSString *name in [[NSFileManager defaultManager]
+		contentsOfDirectoryAtPath:directoryPath error:NULL])
+		if ([name caseInsensitiveCompare:filename] == NSOrderedSame) count++;
+	return count;
+}
+
+static void TestCaseSensitiveFilenameCollisions(void) {
+	REQUIRE([[[[NSProcessInfo processInfo] environment]
+		objectForKey:@"NV_EXPECT_CASE_SENSITIVE"] boolValue]);
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		[controller stopFileNotifications];
+
+		NSString *untrackedCreateName = @"untracked collision.txt";
+		NSString *untrackedCreatePath = [directoryPath
+			stringByAppendingPathComponent:untrackedCreateName];
+		WriteExternalFile(PlainTextFormat, @"external create collision",
+			untrackedCreatePath);
+		NoteObject *createdNote = AddTestNote(controller, @"Untracked Collision",
+			@"local create collision");
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([filenameOfNote(createdNote)
+			caseInsensitiveCompare:untrackedCreateName] != NSOrderedSame);
+		REQUIRE([[NSString stringWithContentsOfFile:untrackedCreatePath
+			encoding:NSUTF8StringEncoding error:NULL]
+			isEqualToString:@"external create collision"]);
+		REQUIRE(CaseInsensitiveFilenameCount(directoryPath, untrackedCreateName) == 1);
+
+		NoteObject *renamedNote = AddTestNote(controller, @"Rename Source",
+			@"local rename collision");
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *renameSourceName = [[filenameOfNote(renamedNote) copy] autorelease];
+		NSString *renameSourcePath = [directoryPath
+			stringByAppendingPathComponent:renameSourceName];
+		NSString *untrackedRenameName = @"rename target.txt";
+		NSString *untrackedRenamePath = [directoryPath
+			stringByAppendingPathComponent:untrackedRenameName];
+		WriteExternalFile(PlainTextFormat, @"external rename collision",
+			untrackedRenamePath);
+		[renamedNote setTitleString:@"Rename Target"];
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([filenameOfNote(renamedNote)
+			caseInsensitiveCompare:untrackedRenameName] != NSOrderedSame);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:renameSourcePath]);
+		REQUIRE([[NSString stringWithContentsOfFile:untrackedRenamePath
+			encoding:NSUTF8StringEncoding error:NULL]
+			isEqualToString:@"external rename collision"]);
+		REQUIRE(CaseInsensitiveFilenameCount(directoryPath, untrackedRenameName) == 1);
+
+		NoteObject *caseOnlyNote = AddTestNote(controller, @"Case Only Note",
+			@"case-only rename");
+		REQUIRE([controller flushAllNoteChanges]);
+		[caseOnlyNote setTitleString:@"case only note"];
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([filenameOfNote(caseOnlyNote) isEqualToString:@"case only note.txt"]);
+		REQUIRE(CaseInsensitiveFilenameCount(directoryPath,
+			@"case only note.txt") == 1);
+
+		NSArray *modelBeforeCollision = [[AllNotes(controller) copy] autorelease];
+		NSString *physicalUpperPath = [directoryPath
+			stringByAppendingPathComponent:@"Physical Collision.txt"];
+		NSString *physicalLowerPath = [directoryPath
+			stringByAppendingPathComponent:@"physical collision.TXT"];
+		WriteExternalFile(PlainTextFormat, @"upper physical collision", physicalUpperPath);
+		WriteExternalFile(PlainTextFormat, @"lower physical collision", physicalLowerPath);
+		REQUIRE(CaseInsensitiveFilenameCount(directoryPath,
+			@"physical collision.txt") == 2);
+		REQUIRE(![controller synchronizeNotesFromDirectory]);
+		REQUIRE([AllNotes(controller) isEqualToArray:modelBeforeCollision]);
+		REQUIRE(NoteContaining(controller, @"upper physical collision") == nil);
+		REQUIRE(NoteContaining(controller, @"lower physical collision") == nil);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -6790,6 +7020,72 @@ static void TestAtomicRollback(void) {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
 		NSError *error = nil;
+		NSString *createName = @"Create Only.dat";
+		NSString *createPath = [directoryPath stringByAppendingPathComponent:createName];
+		REQUIRE([controller createDataAtomicallyInNotesDirectory:baseline
+			withName:createName error:&error]);
+		REQUIRE(error == nil);
+		error = nil;
+		REQUIRE(![controller createDataAtomicallyInNotesDirectory:replacement
+			withName:createName error:&error]);
+		REQUIRE([[error domain] isEqualToString:NSCocoaErrorDomain] &&
+			[error code] == NSFileWriteFileExistsError);
+		REQUIRE([[NSData dataWithContentsOfFile:createPath] isEqualToData:baseline]);
+		RequireNoTemporaryFiles(directoryPath);
+
+		NSString *conditionalName = @"Conditional.dat";
+		NSString *conditionalPath = [directoryPath stringByAppendingPathComponent:conditionalName];
+		int directoryFD = [controller testNoteDirectoryFileDescriptor];
+		error = nil;
+		REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
+			replacement, conditionalName, baseline, &error));
+		REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
+		REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conditionalName
+			verificationBlock:nil error:NULL]);
+		REQUIRE(chmod([conditionalPath fileSystemRepresentation], 0640) == 0);
+		REQUIRE(setxattr([conditionalPath fileSystemRepresentation],
+			"com.notationalvelocity.integration-test", [sentinel bytes], [sentinel length], 0, 0) == 0);
+		error = nil;
+		REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
+			replacement, conditionalName, replacement, &error));
+		REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
+		REQUIRE([[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:baseline]);
+		error = nil;
+		REQUIRE(NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
+			replacement, conditionalName, baseline, &error));
+		REQUIRE(error == nil &&
+			[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
+		REQUIRE([IntegrationTestAttribute(conditionalPath) isEqualToData:sentinel]);
+		RequireMode(conditionalPath, 0640);
+		RequireNoTemporaryFiles(directoryPath);
+
+		NSString *conflictName = @"Atomic Conflict.txt";
+		NSString *conflictPath = [directoryPath stringByAppendingPathComponent:conflictName];
+		NSData *racingData = [@"third-party racing contents" dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conflictName
+			verificationBlock:nil error:NULL]);
+		[controller replaceNoteNamed:conflictName beforeInstallWithData:racingData];
+		NVFileInfo ignoredInfo = { 0 };
+		error = nil;
+		REQUIRE(![controller storeNoteDataAtomically:replacement withName:conflictName
+			encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
+			modificationTime:1000100.0 expectedData:baseline
+			resultingFileInfo:&ignoredInfo error:&error]);
+		REQUIRE([[error domain] isEqualToString:NVNoteStorageErrorDomain] &&
+			[error code] == NVNoteStorageAtomicRecoveryError);
+		REQUIRE([[NSData dataWithContentsOfFile:conflictPath] isEqualToData:replacement]);
+		NSMutableArray *recoveryNames = [NSMutableArray array];
+		for (NSString *name in [[NSFileManager defaultManager]
+			contentsOfDirectoryAtPath:directoryPath error:NULL])
+			if ([name hasPrefix:@"Atomic Conflict (conflict recovery "] &&
+				[[name pathExtension] isEqualToString:@"txt"])
+				[recoveryNames addObject:name];
+		REQUIRE([recoveryNames count] == 1);
+		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+			[recoveryNames objectAtIndex:0]]] isEqualToData:racingData]);
+		RequireNoTemporaryFiles(directoryPath);
+
+		error = nil;
 		REQUIRE(![controller storeDataAtomicallyInNotesDirectory:baseline withName:@"../escape"
 			verificationBlock:nil error:&error]);
 		REQUIRE(error != nil);
@@ -6947,6 +7243,232 @@ static void TestAtomicRollback(void) {
 		REQUIRE([controller flushAllNoteChanges]);
 		REQUIRE([controller pendingFileWriteCount] == 0);
 		[boundaryNote release];
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
+static void TestAtomicReplacementCapabilities(void) {
+	NSString *filesystem = [[[NSProcessInfo processInfo] environment]
+		objectForKey:@"NV_EXPECT_FSTYPE"];
+	REQUIRE([filesystem isEqualToString:@"apfs"] || [filesystem isEqualToString:@"hfs"] ||
+		[filesystem isEqualToString:@"exfat"]);
+	BOOL supportsRecoverableReplacement = ![filesystem isEqualToString:@"exfat"];
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	NSData *baseline = [@"known destination bytes" dataUsingEncoding:NSUTF8StringEncoding];
+	NSData *replacement = [@"prepared replacement bytes" dataUsingEncoding:NSUTF8StringEncoding];
+	NSData *racingData = [@"concurrent writer bytes" dataUsingEncoding:NSUTF8StringEncoding];
+
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		int directoryFD = [controller testNoteDirectoryFileDescriptor];
+		NSError *error = nil;
+
+		NSString *conditionalName = @"Conditional Replacement.dat";
+		NSString *conditionalPath = [directoryPath stringByAppendingPathComponent:conditionalName];
+		REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conditionalName
+			verificationBlock:nil error:&error]);
+		error = nil;
+		REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
+			replacement, conditionalName, replacement, &error));
+		REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
+		REQUIRE([[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:baseline]);
+		error = nil;
+		REQUIRE(NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
+			replacement, conditionalName, baseline, &error));
+		REQUIRE(error == nil &&
+			[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
+		RequireNoTemporaryFiles(directoryPath);
+
+		if (supportsRecoverableReplacement) {
+			NSString *preparedName = @"Prepared Note.txt";
+			NSString *preparedPath = [directoryPath stringByAppendingPathComponent:preparedName];
+			NSData *sentinel = [@"preserved metadata" dataUsingEncoding:NSUTF8StringEncoding];
+			REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:preparedName
+				verificationBlock:nil error:NULL]);
+			REQUIRE(chmod([preparedPath fileSystemRepresentation], 0640) == 0);
+			REQUIRE(setxattr([preparedPath fileSystemRepresentation],
+				"com.notationalvelocity.integration-test", [sentinel bytes], [sentinel length], 0, 0) == 0);
+			NVFileInfo installedInfo = { 0 }, namedInfo = { 0 };
+			error = nil;
+			REQUIRE([controller storeNoteDataAtomically:replacement withName:preparedName
+				encoding:NSUTF8StringEncoding tags:@[ @"prepared" ] creationTime:1000000.0
+				modificationTime:1000100.0 expectedData:baseline
+				resultingFileInfo:&installedInfo error:&error]);
+			REQUIRE(error == nil);
+			REQUIRE([controller getFileInfo:&namedInfo forNoteNamed:preparedName error:&error]);
+			REQUIRE(error == nil && installedInfo.fileID == namedInfo.fileID);
+			REQUIRE([[NSData dataWithContentsOfFile:preparedPath] isEqualToData:replacement]);
+			REQUIRE([IntegrationTestAttribute(preparedPath) isEqualToData:sentinel]);
+			RequireMode(preparedPath, 0640);
+			REQUIRE([[NSFileManager defaultManager] textEncodingAttributeOfFSPath:
+				[preparedPath fileSystemRepresentation]] == NSUTF8StringEncoding);
+			NSDictionary *attributes = [[NSFileManager defaultManager]
+				attributesOfItemAtPath:preparedPath error:&error];
+			REQUIRE(attributes != nil && error == nil);
+			REQUIRE(fabs([[attributes objectForKey:NSFileCreationDate]
+				timeIntervalSinceReferenceDate] - 1000000.0) < 1.0);
+			REQUIRE(fabs([[attributes objectForKey:NSFileModificationDate]
+				timeIntervalSinceReferenceDate] - 1000100.0) < 1.0);
+
+			NSString *conflictName = @"Atomic Conflict.txt";
+			NSString *conflictPath = [directoryPath stringByAppendingPathComponent:conflictName];
+			REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conflictName
+				verificationBlock:nil error:NULL]);
+			[controller replaceNoteNamed:conflictName beforeInstallWithData:racingData];
+			error = nil;
+			REQUIRE(![controller storeNoteDataAtomically:replacement withName:conflictName
+				encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
+				modificationTime:1000100.0 expectedData:baseline
+				resultingFileInfo:&installedInfo error:&error]);
+			REQUIRE([[error domain] isEqualToString:NVNoteStorageErrorDomain] &&
+				[error code] == NVNoteStorageAtomicRecoveryError);
+			REQUIRE([[NSData dataWithContentsOfFile:conflictPath] isEqualToData:replacement]);
+			NSMutableArray *recoveryNames = [NSMutableArray array];
+			for (NSString *name in [[NSFileManager defaultManager]
+				contentsOfDirectoryAtPath:directoryPath error:NULL])
+				if ([name hasPrefix:@"Atomic Conflict (conflict recovery "])
+					[recoveryNames addObject:name];
+			REQUIRE([recoveryNames count] == 1);
+			REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+				[recoveryNames objectAtIndex:0]]] isEqualToData:racingData]);
+
+			if ([filesystem isEqualToString:@"hfs"]) {
+				NSString *removedName = @"Removed Before Exchange.txt";
+				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:removedName
+					verificationBlock:nil error:NULL]);
+				[controller removeNoteNamedBeforeInstall:removedName];
+				error = nil;
+				REQUIRE(![controller storeNoteDataAtomically:replacement withName:removedName
+					encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
+					modificationTime:1000100.0 expectedData:baseline
+					resultingFileInfo:&installedInfo error:&error]);
+				REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] &&
+					[error code] == ENOENT);
+				REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:
+					[directoryPath stringByAppendingPathComponent:removedName]]);
+
+				NSString *handoffName = @"Exchange Handoff Race.txt";
+				NSString *handoffPath = [directoryPath stringByAppendingPathComponent:handoffName];
+				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:handoffName
+					verificationBlock:nil error:NULL]);
+				[controller replaceNoteNamed:handoffName afterExchangeWithData:racingData];
+				error = nil;
+				REQUIRE(![controller storeNoteDataAtomically:replacement withName:handoffName
+					encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
+					modificationTime:1000100.0 expectedData:baseline
+					resultingFileInfo:&installedInfo error:&error]);
+				REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] &&
+					[error code] == EAGAIN);
+				REQUIRE([[NSData dataWithContentsOfFile:handoffPath] isEqualToData:racingData]);
+				recoveryNames = [NSMutableArray array];
+				for (NSString *name in [[NSFileManager defaultManager]
+					contentsOfDirectoryAtPath:directoryPath error:NULL])
+					if ([name hasPrefix:@"Exchange Handoff Race (conflict recovery "])
+						[recoveryNames addObject:name];
+				REQUIRE([recoveryNames count] == 1);
+				REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+					[recoveryNames objectAtIndex:0]]] isEqualToData:baseline]);
+
+				NSString *removedAfterExchangeName = @"Removed After Exchange.txt";
+				NSString *removedAfterExchangePath = [directoryPath
+					stringByAppendingPathComponent:removedAfterExchangeName];
+				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline
+					withName:removedAfterExchangeName verificationBlock:nil error:NULL]);
+				[controller removeNoteNamedAfterExchange:removedAfterExchangeName];
+				error = nil;
+				REQUIRE(![controller storeNoteDataAtomically:replacement
+					withName:removedAfterExchangeName encoding:NSUTF8StringEncoding tags:@[]
+					creationTime:1000000.0 modificationTime:1000100.0 expectedData:baseline
+					resultingFileInfo:&installedInfo error:&error]);
+				REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] &&
+					[error code] == EAGAIN);
+				REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:removedAfterExchangePath]);
+				recoveryNames = [NSMutableArray array];
+				for (NSString *name in [[NSFileManager defaultManager]
+					contentsOfDirectoryAtPath:directoryPath error:NULL])
+					if ([name hasPrefix:@"Removed After Exchange (conflict recovery "])
+						[recoveryNames addObject:name];
+				REQUIRE([recoveryNames count] == 1);
+				REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+					[recoveryNames objectAtIndex:0]]] isEqualToData:baseline]);
+
+				NSString *failureName = @"Metadata Finalization Failure.txt";
+				NSString *failurePath = [directoryPath stringByAppendingPathComponent:failureName];
+				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:failureName
+					verificationBlock:nil error:NULL]);
+				[controller failExchangedMetadataFinalizationForNoteNamed:failureName];
+				error = nil;
+				REQUIRE(![controller storeNoteDataAtomically:replacement withName:failureName
+					encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
+					modificationTime:1000100.0 expectedData:baseline
+					resultingFileInfo:&installedInfo error:&error]);
+				REQUIRE([[error domain] isEqualToString:NVNoteStorageErrorDomain] &&
+					[error code] == NVNoteStorageAtomicRecoveryError);
+				REQUIRE([[NSData dataWithContentsOfFile:failurePath] isEqualToData:replacement]);
+				recoveryNames = [NSMutableArray array];
+				for (NSString *name in [[NSFileManager defaultManager]
+					contentsOfDirectoryAtPath:directoryPath error:NULL])
+					if ([name hasPrefix:@"Metadata Finalization Failure (conflict recovery "])
+						[recoveryNames addObject:name];
+				REQUIRE([recoveryNames count] == 1);
+				REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
+					[recoveryNames objectAtIndex:0]]] isEqualToData:baseline]);
+			}
+		} else {
+			NSString *conflictName = @"Best Effort Conflict.txt";
+			NSString *conflictPath = [directoryPath stringByAppendingPathComponent:conflictName];
+			REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conflictName
+				verificationBlock:nil error:NULL]);
+			[controller replaceNoteNamed:conflictName beforeInstallWithData:racingData];
+			NVFileInfo ignoredInfo = { 0 };
+			error = nil;
+			REQUIRE(![controller storeNoteDataAtomically:replacement withName:conflictName
+				encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
+				modificationTime:1000100.0 expectedData:baseline
+				resultingFileInfo:&ignoredInfo error:&error]);
+			REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
+			REQUIRE([[NSData dataWithContentsOfFile:conflictPath] isEqualToData:racingData]);
+
+			NSString *createName = @"Create Only.dat";
+			NSString *createPath = [directoryPath stringByAppendingPathComponent:createName];
+			error = nil;
+			REQUIRE([controller createDataAtomicallyInNotesDirectory:baseline
+				withName:createName error:&error]);
+			REQUIRE(error == nil);
+			error = nil;
+			REQUIRE(![controller createDataAtomicallyInNotesDirectory:replacement
+				withName:createName error:&error]);
+			REQUIRE([[error domain] isEqualToString:NSCocoaErrorDomain] &&
+				[error code] == NSFileWriteFileExistsError);
+			REQUIRE([[NSData dataWithContentsOfFile:createPath] isEqualToData:baseline]);
+
+			NSString *visibleName = @"Visible Create Failure.dat";
+			NSString *visiblePath = [directoryPath stringByAppendingPathComponent:visibleName];
+			NSString *movedPath = [directoryPath stringByAppendingPathComponent:@"Moved Visible Create.dat"];
+			__block NSUInteger preparationCalls = 0;
+			error = nil;
+			REQUIRE(![controller storeDataAtomicallyInNotesDirectory:replacement withName:visibleName
+				preparationBlock:^BOOL(int fileDescriptor, NSError **blockError) {
+					(void)fileDescriptor;
+					preparationCalls++;
+					if (preparationCalls == 1) return YES;
+					REQUIRE(rename([visiblePath fileSystemRepresentation],
+						[movedPath fileSystemRepresentation]) == 0);
+					REQUIRE([racingData writeToFile:visiblePath options:0 error:NULL]);
+					if (blockError) *blockError = [NSError errorWithDomain:NSPOSIXErrorDomain
+						code:EIO userInfo:nil];
+					return NO;
+				} verificationBlock:nil error:&error]);
+			REQUIRE(preparationCalls == 2 && [error code] == EIO);
+			REQUIRE([[NSData dataWithContentsOfFile:visiblePath] isEqualToData:racingData]);
+		}
+		RequireNoTemporaryFiles(directoryPath);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -8133,6 +8655,8 @@ int main(int argc, const char *argv[]) {
 			TestExternalEditorWriterChild();
 		else if ([scenario isEqualToString:@"filename-collisions"])
 			TestFilenameCollisions();
+		else if ([scenario isEqualToString:@"case-sensitive-filename-collisions"])
+			TestCaseSensitiveFilenameCollisions();
 		else if ([scenario isEqualToString:@"concurrent-controllers"])
 			TestConcurrentControllers();
 		else if ([scenario isEqualToString:@"plain-text-encodings"])
@@ -8159,6 +8683,8 @@ int main(int argc, const char *argv[]) {
 			TestDeepDirectory();
 		else if ([scenario isEqualToString:@"atomic-rollback"])
 			TestAtomicRollback();
+		else if ([scenario isEqualToString:@"atomic-replacement-capabilities"])
+			TestAtomicReplacementCapabilities();
 		else if ([scenario isEqualToString:@"reference-edges"])
 			TestReferenceEdges();
 		else if ([scenario isEqualToString:@"legacy-fixtures"])
