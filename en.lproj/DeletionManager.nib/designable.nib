@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24765" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24765" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none">
     <dependencies>
         <deployment identifier="macosx"/>
         <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24765"/>
@@ -25,12 +25,12 @@
                 <rect key="frame" x="0.0" y="0.0" width="371" height="222"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <imageView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="351">
+                    <imageView fixedFrame="YES" id="351">
                         <rect key="frame" x="24" y="144" width="62" height="62"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                         <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="axesIndependently" image="NSApplicationIcon" id="352"/>
                     </imageView>
-                    <scrollView fixedFrame="YES" horizontalLineScroll="19" horizontalPageScroll="10" verticalLineScroll="19" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="330">
+                    <scrollView fixedFrame="YES" horizontalLineScroll="19" horizontalPageScroll="10" verticalLineScroll="19" verticalPageScroll="10" hasHorizontalScroller="NO" usesPredominantAxisScrolling="NO" id="330">
                         <rect key="frame" x="20" y="82" width="331" height="40"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <clipView key="contentView" id="sbV-4s-bfF">
@@ -73,7 +73,7 @@
                             <autoresizingMask key="autoresizingMask"/>
                         </scroller>
                     </scrollView>
-                    <button imageHugsTitle="YES" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="335" propertyAccessControl="nonLocalizable">
+                    <button imageHugsTitle="YES" verticalHuggingPriority="750" fixedFrame="YES" id="335" propertyAccessControl="nonLocalizable">
                         <rect key="frame" x="130" y="12" width="90" height="32"/>
                         <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxY="YES"/>
                         <buttonCell key="cell" type="push" title="Delete" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="345">
@@ -84,7 +84,7 @@
                             <action selector="deleteAction:" target="-2" id="338"/>
                         </connections>
                     </button>
-                    <button imageHugsTitle="YES" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="334" propertyAccessControl="nonLocalizable">
+                    <button imageHugsTitle="YES" verticalHuggingPriority="750" fixedFrame="YES" id="334" propertyAccessControl="nonLocalizable">
                         <rect key="frame" x="220" y="12" width="137" height="32"/>
                         <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxY="YES"/>
                         <buttonCell key="cell" type="push" title="Restore to Disk" bezelStyle="rounded" alignment="center" borderStyle="border" inset="2" id="344">
@@ -98,7 +98,7 @@ DQ
                             <action selector="restoreAction:" target="-2" id="339"/>
                         </connections>
                     </button>
-                    <button imageHugsTitle="YES" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="349">
+                    <button imageHugsTitle="YES" fixedFrame="YES" id="349">
                         <rect key="frame" x="18" y="58" width="297" height="18"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxY="YES"/>
                         <buttonCell key="cell" type="check" title="Do not show this message again" bezelStyle="regularSquare" imagePosition="leading" alignment="left" inset="2" id="350">
@@ -109,7 +109,7 @@ DQ
                             <action selector="changeConfirmDeletion:" target="-2" id="354"/>
                         </connections>
                     </button>
-                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="248" translatesAutoresizingMaskIntoConstraints="NO" id="333">
+                    <textField focusRingType="none" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" preferredMaxLayoutWidth="248" id="333">
                         <rect key="frame" x="99" y="142" width="247" height="64"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
                         <textFieldCell key="cell" sendsActionOnEndEditing="YES" title="The following files no longer exist in the notes folder—restore them to disk or delete them from Notational Velocity, too?" id="343">

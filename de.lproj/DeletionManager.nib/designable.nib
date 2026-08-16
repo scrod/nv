@@ -186,10 +186,7 @@ Y2huaXMgLSBzb2xsZW4gc2llIHdpZWRlcmhlcmdlc3RlbGx0IG9kZXIgZ2Vsw7ZzY2h0IHdlcmRlbj8<
 											</object>
 											<double key="NSIntercellSpacingWidth">3.000000e+00</double>
 											<double key="NSIntercellSpacingHeight">2.000000e+00</double>
-											<object class="NSColor" key="NSBackgroundColor">
-												<int key="NSColorSpace">3</int>
-												<bytes key="NSWhite">MQA</bytes>
-											</object>
+											<reference key="NSBackgroundColor" ref="509529981"/>
 											<object class="NSColor" key="NSGridColor">
 												<int key="NSColorSpace">6</int>
 												<string key="NSCatalogName">System</string>

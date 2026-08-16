@@ -22,7 +22,7 @@
 @class NotationController;
 @class NoteObject;
 
-@interface DeletionManager : NSObject <NSWindowDelegate>
+@interface DeletionManager : NSObject <NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate>
 {
     IBOutlet NSTableView *tableView;
     IBOutlet NSPanel *window;
