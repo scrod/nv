@@ -27,6 +27,7 @@
 #import "NSCollection_utils.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
+#import "NotationDirectoryManager.h"
 #import "NotationFileManager.h"
 #import "SecureTextEntryManager.h"
 #import <Security/Security.h>
@@ -515,6 +516,12 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 
 - (void)setNotesStorageFormat:(int)formatID {
 	if (formatID != notesStorageFormat) {
+		if ([delegate respondsToSelector:@selector(flushAllNoteChanges)] &&
+			![delegate flushAllNoteChanges]) return;
+		if (notesStorageFormat != SingleDatabaseFormat &&
+			[delegate respondsToSelector:@selector(synchronizeNotesFromDirectory)] &&
+			![delegate synchronizeNotesFromDirectory]) return;
+
 		int oldFormat = notesStorageFormat;
 		notesStorageFormat = formatID;	
 		preferencesChanged = YES;
@@ -548,8 +555,9 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if (returnCode != NSAlertSecondButtonReturn)
 		//didn't cancel
 		[self setNotesStorageFormat:newNoteStorageFormat];
+	BOOL formatChanged = notesStorageFormat == newNoteStorageFormat;
 	
-	if (returnCode == NSAlertThirdButtonReturn)
+	if (returnCode == NSAlertThirdButtonReturn && formatChanged)
 		//tell delegate to delete all its notes' files
 		[delegate trashRemainingNoteFilesInDirectory];
 	//but what if the files remain after switching to a single-db format--and then the user deletes a bunch of the files themselves?
@@ -558,7 +566,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if ([(id)contextInfo respondsToSelector:@selector(notesStorageFormatDidChange)])
 		[(NotationPrefsViewController*)contextInfo notesStorageFormatDidChange];
 	
-	if (returnCode != NSAlertSecondButtonReturn) {
+	if (returnCode != NSAlertSecondButtonReturn && formatChanged) {
 		//run queued method
 		NSAssert([(id)contextInfo respondsToSelector:@selector(runQueuedStorageFormatChangeInvocation)],
 				 @"can't get runQueuedStorageFormatChangeInvocation method for changing");

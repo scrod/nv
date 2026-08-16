@@ -275,7 +275,12 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 }
 
 - (void)notesStorageFormatDidChange {
-	notesStorageFormatInProgress = [notationPrefs notesStorageFormat];
+	int actualFormat = [notationPrefs notesStorageFormat];
+	if (notesStorageFormatInProgress != actualFormat) {
+		[postStorageFormatInvocation release];
+		postStorageFormatInvocation = nil;
+	}
+	notesStorageFormatInProgress = actualFormat;
 	[self setSeparateFileControlsState:notesStorageFormatInProgress];
 	
     [allowedExtensionsTable reloadData];
@@ -342,10 +347,11 @@ enum {VERIFY_NOT_ATTEMPTED, VERIFY_FAILED, VERIFY_IN_PROGRESS, VERIFY_SUCCESS};
 	} else {
 		//just call setNotesStorageFormat straight-out
 		[notationPrefs setNotesStorageFormat:notesStorageFormatInProgress];
+		BOOL formatChanged = [notationPrefs notesStorageFormat] == notesStorageFormatInProgress;
 		[self notesStorageFormatDidChange];
 		
 		//sheet ending will not do this for us--there is no sheet
-		[self runQueuedStorageFormatChangeInvocation];
+		if (formatChanged) [self runQueuedStorageFormatChangeInvocation];
 	}
 }
 

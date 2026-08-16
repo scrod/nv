@@ -80,7 +80,7 @@ typedef struct NSRange32 {
 - (void)captureFileMergeBaseIfNecessary;
 - (void)clearFileMergeBase;
 - (BOOL)preserveExternalSnapshot:(const NVNoteFileSnapshot*)snapshot format:(int)format
-	error:(NSError**)error;
+	movedFilename:(NSString**)movedFilename error:(NSError**)error;
 @end
 
 @implementation NoteObject
@@ -859,8 +859,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     return YES;
 }
 
-- (void)setFilenameFromTitle {
-	[self setFilename:[delegate uniqueFilenameForTitle:titleString fromNote:self] withExternalTrigger:NO];
+- (BOOL)setFilenameFromTitle {
+	NSString *newFilename = [delegate uniqueFilenameForTitle:titleString fromNote:self];
+	[self setFilename:newFilename withExternalTrigger:NO];
+	return [filename isEqualToString:newFilename];
 }
 
 - (void)setFilename:(NSString*)aString withExternalTrigger:(BOOL)externalTrigger {
@@ -871,13 +873,15 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		if (!externalTrigger) {
 			NSError *renameError = nil;
-			BOOL renamed = !oldName || [delegate renameNoteFromName:oldName
+			BOOL renamed = !oldName || currentFormatID == SingleDatabaseFormat ||
+				[delegate renameNoteFromName:oldName
 				toName:filename error:&renameError];
 			BOOL sourceWasMissing = !renamed &&
 				[[renameError domain] isEqualToString:NSPOSIXErrorDomain] &&
 				[renameError code] == ENOENT;
 			if (!renamed && !sourceWasMissing) {
 				NSLog(@"Couldn't rename note %@", titleString);
+				[delegate noteDidNotWrite:self error:renameError];
 				
 				//revert name
 				[filename release];
@@ -1261,19 +1265,25 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (BOOL)preserveExternalSnapshot:(const NVNoteFileSnapshot*)snapshot format:(int)format
-	error:(NSError**)error {
+	movedFilename:(NSString**)movedFilename error:(NSError**)error {
+	if (movedFilename) *movedFilename = nil;
 	NSString *conflictTitle = [titleString stringByAppendingString:@" (conflict)"];
 	NSString *conflictFilename = [delegate uniqueFilenameForTitle:conflictTitle fromNote:nil];
 	NSArray *tags = snapshot->tags ? snapshot->tags : [self orderedLabelTitles];
 	NVFileInfo ignoredInfo = { 0 };
-	BOOL stored = [delegate storeNoteDataAtomically:snapshot->data withName:conflictFilename
-		encoding:(format == PlainTextFormat ? snapshot->encoding : 0)
-		tags:tags creationTime:NVAbsoluteTimeFromTimespec(snapshot->info.creationTime)
-		modificationTime:NVAbsoluteTimeFromTimespec(snapshot->info.modificationTime)
-		expectedData:nil resultingFileInfo:&ignoredInfo error:error];
-	if (stored)
-		[delegate performSelector:@selector(synchronizeNotesFromDirectory)
+	BOOL moved = currentFormatID == SingleDatabaseFormat;
+	BOOL stored = moved ?
+		[delegate renameNoteFromName:filename toName:conflictFilename error:error] :
+		[delegate storeNoteDataAtomically:snapshot->data withName:conflictFilename
+			encoding:(format == PlainTextFormat ? snapshot->encoding : 0)
+			tags:tags creationTime:NVAbsoluteTimeFromTimespec(snapshot->info.creationTime)
+			modificationTime:NVAbsoluteTimeFromTimespec(snapshot->info.modificationTime)
+			expectedData:nil resultingFileInfo:&ignoredInfo error:error];
+	if (stored) {
+		if (moved && movedFilename) *movedFilename = conflictFilename;
+		else [delegate performSelector:@selector(synchronizeNotesFromDirectory)
 			withObject:nil afterDelay:0.0];
+	}
 	return stored;
 }
 
@@ -1289,13 +1299,18 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	 * note instead of guessing how to merge formatting. On filesystems with swap
 	 * or exchange, the final replacement is allowed only if the file still matches
 	 * the snapshot. Limited filesystems such as ExFAT recheck immediately before
-	 * rename but retain a narrow concurrent-writer race.
+	 * rename but retain a narrow concurrent-writer race. File-to-file conversion
+	 * is an authoritative rewrite after the source format is reconciled. A
+	 * database-to-file conversion also preserves a differing file already at the
+	 * destination name, but does not let that file replace the database note.
 	 */
 
     NSData *formattedData = nil;
     NSError *error = nil;
 	
-    int formatID = [delegate currentNoteStorageFormat];
+	int formatID = [delegate currentNoteStorageFormat];
+	BOOL convertingFromDatabase = currentFormatID == SingleDatabaseFormat;
+	BOOL changingFormat = currentFormatID != formatID;
     switch (formatID) {
 		case SingleDatabaseFormat:
 			//we probably shouldn't be here
@@ -1326,23 +1341,25 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     
 	if (formattedData) {
 		BOOL resetFilename = NO;
-		if (!filename || currentFormatID != formatID) {
+		if (!filename || changingFormat) {
 			//file will (probably) be renamed
 			//NSLog(@"resetting the file name due to format change: to %d from %d", formatID, currentFormatID);
-			[self setFilenameFromTitle];
+			if (![self setFilenameFromTitle]) return NO;
 			resetFilename = YES;
 		}
 		
-		currentFormatID = formatID;
-
 		NVNoteFileSnapshot snapshot = { 0 };
 		NSError *snapshotError = nil;
-		BOOL destinationExists = [delegate readNoteFileSnapshot:&snapshot
-			forNoteNamed:filename error:&snapshotError];
-		if (!destinationExists && !([[snapshotError domain] isEqualToString:NSPOSIXErrorDomain] &&
-			[snapshotError code] == ENOENT)) {
-			[delegate noteDidNotWrite:self error:snapshotError];
-			return NO;
+		NSString *movedConflictFilename = nil;
+		BOOL destinationExists = NO;
+		if (!changingFormat || convertingFromDatabase) {
+			destinationExists = [delegate readNoteFileSnapshot:&snapshot
+				forNoteNamed:filename error:&snapshotError];
+			if (!destinationExists && !([[snapshotError domain] isEqualToString:NSPOSIXErrorDomain] &&
+				[snapshotError code] == ENOENT)) {
+				[delegate noteDidNotWrite:self error:snapshotError];
+				return NO;
+			}
 		}
 
 		if (destinationExists) {
@@ -1353,9 +1370,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			NSString *externalLabels = snapshot.tags ?
 				[snapshot.tags componentsJoinedByString:@" "] :
 				(self.fileMergeBaseLabels ? self.fileMergeBaseLabels : labelString);
-			NSString *mergedLabels = self.fileMergeBaseLabels ?
-				NVTriviallyMergedString(self.fileMergeBaseLabels, labelString, externalLabels) :
-				([externalLabels isEqualToString:labelString] ? labelString : nil);
+			NSString *mergedLabels = convertingFromDatabase ? labelString :
+				(self.fileMergeBaseLabels ?
+					NVTriviallyMergedString(self.fileMergeBaseLabels, labelString, externalLabels) :
+					([externalLabels isEqualToString:labelString] ? labelString : nil));
 
 			if (formatID == PlainTextFormat) {
 				NSStringEncoding externalEncoding = snapshot.encoding ? snapshot.encoding : fileEncoding;
@@ -1369,9 +1387,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 				}
 				NSString *localText = [contentString string];
 				NSString *externalText = [externalContent string];
-				NSString *mergedText = self.fileMergeBaseText ?
+				NSString *mergedText = convertingFromDatabase ?
+					([localText isEqualToString:externalText] ? localText : nil) :
+					(self.fileMergeBaseText ?
 					NVMergedText(self.fileMergeBaseText, localText, externalText) :
-					([localText isEqualToString:externalText] ? localText : nil);
+					([localText isEqualToString:externalText] ? localText : nil));
 				conflict = !mergedText || !mergedLabels;
 				if (!conflict) {
 					if (![mergedText isEqualToString:localText]) {
@@ -1388,16 +1408,18 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 				}
 				[externalContent release];
 			} else {
-				BOOL externalContentChanged = self.fileMergeBaseData ?
+				BOOL externalContentChanged = convertingFromDatabase ? YES :
+					(self.fileMergeBaseData ?
 					![snapshot.data isEqualToData:self.fileMergeBaseData] :
-					(!self.fileMergeBaseText || !NVSnapshotMatchesNote(&snapshot, self));
+					(!self.fileMergeBaseText || !NVSnapshotMatchesNote(&snapshot, self)));
 				conflict = (externalContentChanged &&
 					![snapshot.data isEqualToData:formattedData]) || !mergedLabels;
 			}
 
 			if (conflict) {
 				NSError *conflictError = nil;
-				if (![self preserveExternalSnapshot:&snapshot format:formatID error:&conflictError]) {
+				if (![self preserveExternalSnapshot:&snapshot format:formatID
+					movedFilename:&movedConflictFilename error:&conflictError]) {
 					[delegate noteDidNotWrite:self error:conflictError];
 					return NO;
 				}
@@ -1416,13 +1438,27 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			encoding:(PlainTextFormat == formatID ? fileEncoding : 0)
 			tags:[self orderedLabelTitles] creationTime:createdDate
 			modificationTime:modifiedDate
-			expectedData:(destinationExists ? snapshot.data : nil)
+			expectedData:(!changingFormat && destinationExists ? snapshot.data : nil)
 			resultingFileInfo:&info error:&writeError]) {
 			NSLog(@"Unable to save note file %@", filename);
-			
+			if (movedConflictFilename) {
+				NSError *restoreError = nil;
+				if (![delegate renameNoteFromName:movedConflictFilename
+					toName:filename error:&restoreError]) {
+					writeError = restoreError;
+					if ([[restoreError domain] isEqualToString:NSPOSIXErrorDomain] &&
+						[restoreError code] == EEXIST)
+						[delegate performSelector:@selector(synchronizeNotesFromDirectory)
+							withObject:nil afterDelay:0.0];
+				}
+			}
 			[delegate noteDidNotWrite:self error:writeError];
 			return NO;
 		}
+		if (movedConflictFilename)
+			[delegate performSelector:@selector(synchronizeNotesFromDirectory)
+				withObject:nil afterDelay:0.0];
+		currentFormatID = formatID;
 		if (!resetFilename) {
 			//NSLog(@"resetting the file name just because.");
 			[self setFilenameFromTitle];

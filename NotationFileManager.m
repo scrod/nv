@@ -1446,7 +1446,12 @@ terminate:
 		}
 		//catch filename collisions with untracked files in the notes directory
 		NSString *candidate = [uniqueFilename stringByAppendingPathExtension:extension];
-		if (isUnique && (!note || ![candidate isEqualToString:filenameOfNote(note)]) &&
+		struct stat candidateInfo;
+		BOOL databaseDestinationExists = note && storageFormatOfNote(note) == SingleDatabaseFormat &&
+			fstatat(noteDirectoryFileDescriptor, [candidate fileSystemRepresentation],
+				&candidateInfo, AT_SYMLINK_NOFOLLOW) == 0;
+		if (isUnique && !databaseDestinationExists &&
+			(!note || ![candidate isEqualToString:filenameOfNote(note)]) &&
 			NVCaseInsensitiveNameExists(noteDirectoryFileDescriptor, candidate,
 				note ? filenameOfNote(note) : nil)) {
 			isUnique = NO;

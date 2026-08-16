@@ -387,6 +387,30 @@ static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding
 - (NSUInteger)selectedRowIndexesCallCount { return selectedRowIndexesCallCount; }
 @end
 
+@interface NVStorageFormatChangeProbe : NSObject {
+	int requestedFormat;
+	NSUInteger didChangeCount;
+	NSUInteger followupCount;
+}
+- (id)initWithFormat:(int)format;
+- (int)notesStorageFormatInProgress;
+- (NSUInteger)didChangeCount;
+- (NSUInteger)followupCount;
+@end
+
+@implementation NVStorageFormatChangeProbe
+- (id)initWithFormat:(int)format {
+	self = [super init];
+	if (self) requestedFormat = format;
+	return self;
+}
+- (int)notesStorageFormatInProgress { return requestedFormat; }
+- (void)notesStorageFormatDidChange { didChangeCount++; }
+- (void)runQueuedStorageFormatChangeInvocation { followupCount++; }
+- (NSUInteger)didChangeCount { return didChangeCount; }
+- (NSUInteger)followupCount { return followupCount; }
+@end
+
 @interface NVDeletionAppController : AppController
 - (id)initWithWindow:(id)aWindow notesTableView:(id)aNotesTableView;
 @end
@@ -651,6 +675,9 @@ static char NVPreparedNoteDeallocationProbeKey;
 	NSString *removeBeforeRenameExistenceCheckName;
 	NSUInteger renameExistenceCheckCount;
 	NSString *removeRenameCollisionDestinationName;
+	NSUInteger noteRenameFailures;
+	NSUInteger noteStoreFailures;
+	NSString *noteStoreFailureName;
 	NSURL *lastTrashedURL;
 	BOOL forceTrashFailure;
 	BOOL useTestTrash;
@@ -723,6 +750,9 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)removeNoteBeforeRenameExistenceCheck:(NSString*)filename;
 - (NSUInteger)renameExistenceCheckCount;
 - (void)removeRenameCollisionDestination:(NSString*)filename;
+- (void)failNextNoteRename;
+- (void)failNextNoteStore;
+- (void)failNextNoteStoreNamed:(NSString*)filename;
 - (NSURL*)lastTrashedURL;
 - (void)setForceTrashFailure:(BOOL)force;
 - (void)setUseTestTrash:(BOOL)use;
@@ -787,6 +817,11 @@ static char NVPreparedNoteDeallocationProbeKey;
 
 - (BOOL)renameNoteFromName:(NSString*)oldName toName:(NSString*)newName
 	error:(NSError**)error {
+	if (noteRenameFailures) {
+		noteRenameFailures--;
+		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EACCES userInfo:nil];
+		return NO;
+	}
 	if (injectedRecoveryJournalRenameFailures &&
 		[oldName isEqualToString:@"Interim Note-Changes"] &&
 		[newName rangeOfString:@" recovery "].location != NSNotFound) {
@@ -795,6 +830,24 @@ static char NVPreparedNoteDeallocationProbeKey;
 		return NO;
 	}
 	return [super renameNoteFromName:oldName toName:newName error:error];
+}
+
+- (BOOL)storeNoteDataAtomically:(NSData*)data withName:(NSString*)filename
+	encoding:(NSStringEncoding)encoding tags:(NSArray*)tags
+	creationTime:(CFAbsoluteTime)creationTime modificationTime:(CFAbsoluteTime)modificationTime
+	expectedData:(NSData*)expectedData resultingFileInfo:(NVFileInfo*)resultingFileInfo
+	error:(NSError**)error {
+	if (noteStoreFailures && (!noteStoreFailureName ||
+		[noteStoreFailureName isEqualToString:filename])) {
+		noteStoreFailures--;
+		[noteStoreFailureName release];
+		noteStoreFailureName = nil;
+		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EIO userInfo:nil];
+		return NO;
+	}
+	return [super storeNoteDataAtomically:data withName:filename encoding:encoding tags:tags
+		creationTime:creationTime modificationTime:modificationTime expectedData:expectedData
+		resultingFileInfo:resultingFileInfo error:error];
 }
 
 - (void)noteDidNotWrite:(NoteObject *)note error:(NSError*)error {
@@ -876,6 +929,14 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)removeRenameCollisionDestination:(NSString*)filename {
 	[removeRenameCollisionDestinationName release];
 	removeRenameCollisionDestinationName = [filename copy];
+}
+
+- (void)failNextNoteRename { noteRenameFailures++; }
+- (void)failNextNoteStore { noteStoreFailures++; }
+- (void)failNextNoteStoreNamed:(NSString*)filename {
+	noteStoreFailures++;
+	[noteStoreFailureName release];
+	noteStoreFailureName = [filename copy];
 }
 
 - (void)_didObserveRenameCollisionFromName:(NSString*)oldName toName:(NSString*)newName {
@@ -1559,6 +1620,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 	[inPlaceBoundaryReplacementData release];
 	[removeBeforeRenameExistenceCheckName release];
 	[removeRenameCollisionDestinationName release];
+	[noteStoreFailureName release];
 	[lastTrashedURL release];
 	[super dealloc];
 }
@@ -6026,6 +6088,31 @@ static void TestStorageFormat(int format) {
 			NoteObject *renamed = [AllNotes(controller) objectAtIndex:0];
 			REQUIRE([titleOfNote(renamed) isEqualToString:@"External Rename Ω"]);
 			REQUIRE([[[renamed contentString] string] rangeOfString:@"Externally edited"].location != NSNotFound);
+			if (format == HTMLFormat) {
+				NSString *path = [[renamed noteFileURL] path];
+				NSMutableString *HTML = [[[NSMutableString alloc] initWithData:
+					[NSData dataWithContentsOfFile:path] encoding:NSUTF8StringEncoding] autorelease];
+				NSRange body = [HTML rangeOfString:@"<body" options:NSCaseInsensitiveSearch];
+				NSRange bodyEnd = body.location == NSNotFound ? NSMakeRange(NSNotFound, 0) :
+					[HTML rangeOfString:@">" options:0
+						range:NSMakeRange(body.location, [HTML length] - body.location)];
+				REQUIRE(body.location != NSNotFound && bodyEnd.location != NSNotFound);
+				[HTML insertString:@"<!-- externally authored -->" atIndex:NSMaxRange(bodyEnd)];
+				REQUIRE([HTML writeToFile:path atomically:YES
+					encoding:NSUTF8StringEncoding error:NULL]);
+				REQUIRE([controller synchronizeNotesFromDirectory]);
+				NSString *expected = [[[[AllNotes(controller) objectAtIndex:0]
+					contentString] string] copy];
+				[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+				[controller stopFileNotifications];
+				REQUIRE([controller totalNoteCount] == 1);
+				renamed = [AllNotes(controller) objectAtIndex:0];
+				REQUIRE([[[renamed noteFileURL] pathExtension]
+					caseInsensitiveCompare:@"txt"] == NSOrderedSame);
+				REQUIRE([[NSString stringWithContentsOfURL:[renamed noteFileURL]
+					encoding:NSUTF8StringEncoding error:NULL] isEqualToString:expected]);
+				[expected release];
+			}
 		}
 	} @finally {
 		CloseController(&controller);
@@ -6056,23 +6143,192 @@ static void TestStorageTransitionMemoryWins(void) {
 		REQUIRE([controller flushAllNoteChanges]);
 
 		NSString *filePath = [directoryPath stringByAppendingPathComponent:filenameOfNote(note)];
-		REQUIRE([@"newer external file" writeToFile:filePath atomically:NO
-			encoding:NSUTF8StringEncoding error:NULL]);
-		struct timespec future[2];
-		REQUIRE(clock_gettime(CLOCK_REALTIME, &future[0]) == 0);
-		future[0].tv_sec += 60;
-		future[1] = future[0];
-		REQUIRE(utimensat(AT_FDCWD, [filePath fileSystemRepresentation], future, 0) == 0);
+		NSData *externalData = [@"newer external file" dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([externalData writeToFile:filePath options:NSDataWritingAtomic error:NULL]);
+		note.fileMergeBaseText = @"newer external file";
+		note.fileMergeBaseLabels = @"";
+		[controller failNextNoteStoreNamed:filenameOfNote(note)];
 
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];
+		REQUIRE([controller pendingFileWriteCount] == 1);
+		REQUIRE([controller recordedWriteError] == EIO);
+		REQUIRE(storageFormatOfNote(note) == SingleDatabaseFormat);
+		NSString *preservedPath = FileContainingText(directoryPath,
+			@"newer external file", nil);
+		REQUIRE(preservedPath != nil);
+		REQUIRE([preservedPath isEqualToString:filePath]);
+		REQUIRE([[NSData dataWithContentsOfFile:preservedPath] isEqualToData:externalData]);
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Storage Transition") count] == 1);
+		[[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+		REQUIRE([controller totalNoteCount] == 1);
+		REQUIRE(storageFormatOfNote(note) == SingleDatabaseFormat);
+		REQUIRE([filenameOfNote(note) isEqualToString:@"Storage Transition.txt"]);
+		NSData *memoryData = [memoryText dataUsingEncoding:NSUTF8StringEncoding];
+		[controller mutateNoteNamed:filenameOfNote(note) withData:memoryData
+			duringTagSynchronization:YES];
+		REQUIRE(![controller flushAllNoteChanges]);
+		REQUIRE(storageFormatOfNote(note) == SingleDatabaseFormat);
+		REQUIRE([[NSData dataWithContentsOfFile:filePath] isEqualToData:memoryData]);
+		NSString *conflictPath = FileContainingText(directoryPath,
+			@"newer external file", filenameOfNote(note));
+		REQUIRE(conflictPath != nil);
+		REQUIRE([[NSData dataWithContentsOfFile:conflictPath] isEqualToData:externalData]);
+		[[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+		REQUIRE([controller totalNoteCount] == 2);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE(storageFormatOfNote(note) == PlainTextFormat);
+		REQUIRE([controller pendingFileWriteCount] == 0);
 		NSString *storedText = [NSString stringWithContentsOfFile:filePath
 			encoding:NSUTF8StringEncoding error:NULL];
 		REQUIRE([storedText isEqualToString:memoryText]);
 		REQUIRE([[[note contentString] string] isEqualToString:memoryText]);
-		NSString *conflictPath = FileContainingText(directoryPath,
-			@"newer external file", filenameOfNote(note));
 		REQUIRE([[conflictPath lastPathComponent] rangeOfString:@"(conflict)"].location != NSNotFound);
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Storage Transition") count] == 2);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		REQUIRE([controller totalNoteCount] == 2);
+		NoteObject *conflict = NoteContaining(controller, @"newer external file");
+		REQUIRE(conflict != nil);
+		REQUIRE([[[conflict contentString] string] isEqualToString:@"newer external file"]);
+		REQUIRE([filenameOfNote(conflict) isEqualToString:[conflictPath lastPathComponent]]);
+		REQUIRE([[filenameOfNote(conflict) pathExtension] caseInsensitiveCompare:@"txt"] == NSOrderedSame);
+		REQUIRE([[NSData dataWithContentsOfURL:[conflict noteFileURL]] isEqualToData:externalData]);
+	} @finally {
+		[note release];
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	for (NSNumber *formatNumber in @[ @(RTFTextFormat), @(HTMLFormat) ]) {
+		int format = [formatNumber intValue];
+		directoryPath = CreateTemporaryDirectory();
+		delegate = [[NVTestControllerDelegate alloc] init];
+		controller = nil;
+		note = nil;
+		@try {
+			controller = CreateController(directoryPath, delegate);
+			[[controller notationPrefs] setNotesStorageFormat:format];
+			[controller stopFileNotifications];
+			note = [[NoteObject alloc] initWithNoteBody:
+				[[[NSAttributedString alloc] initWithString:@"initial rich note"] autorelease]
+				title:@"Rich Storage Transition" delegate:controller format:format labels:@""];
+			REQUIRE(note != nil);
+			[controller addNewNote:note];
+			REQUIRE([controller flushAllNoteChanges]);
+			NSString *filePath = [[note noteFileURL] path];
+			NSData *identicalData = [[[NSData dataWithContentsOfFile:filePath] copy] autorelease];
+
+			[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
+			REQUIRE([identicalData writeToFile:filePath options:NSDataWritingAtomic error:NULL]);
+			[[controller notationPrefs] setNotesStorageFormat:format];
+			[controller stopFileNotifications];
+			REQUIRE([controller totalNoteCount] == 1);
+			REQUIRE([FilenamesWithPrefix(directoryPath, @"Rich Storage Transition") count] == 1);
+			REQUIRE([[NSData dataWithContentsOfFile:filePath] isEqualToData:identicalData]);
+			[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
+			NSString *memoryText = @"authoritative rich database note";
+			[note setContentString:[[[NSAttributedString alloc]
+				initWithString:memoryText] autorelease]];
+			REQUIRE([controller flushAllNoteChanges]);
+			NSMutableData *externalData = [NSMutableData dataWithData:
+				DataForExternalFile(format, memoryText)];
+			if (format == RTFTextFormat)
+				[externalData appendData:[@"\n " dataUsingEncoding:NSUTF8StringEncoding]];
+			else {
+				NSMutableString *HTML = [[[NSMutableString alloc] initWithData:externalData
+					encoding:NSUTF8StringEncoding] autorelease];
+				NSRange body = [HTML rangeOfString:@"<body" options:NSCaseInsensitiveSearch];
+				NSRange bodyEnd = body.location == NSNotFound ? NSMakeRange(NSNotFound, 0) :
+					[HTML rangeOfString:@">" options:0 range:NSMakeRange(body.location,
+						[HTML length] - body.location)];
+				REQUIRE(bodyEnd.location != NSNotFound);
+				[HTML insertString:@"<!-- externally authored -->" atIndex:NSMaxRange(bodyEnd)];
+				[externalData setData:[HTML dataUsingEncoding:NSUTF8StringEncoding]];
+			}
+			REQUIRE([externalData writeToFile:filePath options:NSDataWritingAtomic error:NULL]);
+			note.fileMergeBaseData = externalData;
+
+			[[controller notationPrefs] setNotesStorageFormat:format];
+			[controller stopFileNotifications];
+			NSData *storedData = [NSData dataWithContentsOfFile:filePath];
+			NSAttributedString *storedContent = format == RTFTextFormat ?
+				[[[NSAttributedString alloc] initWithRTF:storedData documentAttributes:NULL] autorelease] :
+				[[[NSAttributedString alloc] initWithHTML:storedData documentAttributes:NULL] autorelease];
+			REQUIRE([[storedContent string] rangeOfString:memoryText].location != NSNotFound);
+			REQUIRE(![storedData isEqualToData:externalData]);
+			REQUIRE([[[note noteFileURL] path] isEqualToString:filePath]);
+			REQUIRE([[[note contentString] string] isEqualToString:memoryText]);
+			REQUIRE([FilenamesWithPrefix(directoryPath, @"Rich Storage Transition") count] == 2);
+			REQUIRE([controller synchronizeNotesFromDirectory]);
+			REQUIRE([controller totalNoteCount] == 2);
+			NoteObject *conflict = nil;
+			for (NoteObject *candidate in AllNotes(controller))
+				if ([filenameOfNote(candidate) rangeOfString:@"(conflict)"].location != NSNotFound)
+					conflict = candidate;
+			REQUIRE(conflict != nil);
+			REQUIRE(conflict != note);
+			REQUIRE([filenameOfNote(conflict) rangeOfString:@"(conflict)"].location != NSNotFound);
+			NSString *conflictText = [[conflict contentString] string];
+			REQUIRE([conflictText rangeOfString:memoryText].location != NSNotFound);
+			REQUIRE([conflictText rangeOfString:@"\\rtf"].location == NSNotFound);
+			REQUIRE([conflictText rangeOfString:@"<html"
+				options:NSCaseInsensitiveSearch].location == NSNotFound);
+			REQUIRE([[filenameOfNote(conflict) pathExtension] caseInsensitiveCompare:
+				[NotationPrefs pathExtensionForFormat:format]] == NSOrderedSame);
+			REQUIRE([[NSData dataWithContentsOfURL:[conflict noteFileURL]] isEqualToData:externalData]);
+		} @finally {
+			[note release];
+			CloseController(&controller);
+			[delegate release];
+			RemoveTemporaryDirectory(directoryPath);
+		}
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	controller = nil;
+	note = nil;
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
+		[controller stopFileNotifications];
+		note = [[NoteObject alloc] initWithNoteBody:
+			[[[NSAttributedString alloc] initWithString:@"old rich file"] autorelease]
+			title:@"Wrong Format Guard" delegate:controller format:RTFTextFormat labels:@""];
+		REQUIRE(note != nil);
+		[controller addNewNote:note];
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *oldPath = [[[[note noteFileURL] path] copy] autorelease];
+		NSData *oldData = [[[NSData dataWithContentsOfFile:oldPath] copy] autorelease];
+
+		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
+		NSString *memoryText = @"plain database note";
+		[note setContentString:[[[NSAttributedString alloc]
+			initWithString:memoryText] autorelease]];
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *plainPath = [[oldPath stringByDeletingPathExtension]
+			stringByAppendingPathExtension:@"txt"];
+		NSData *externalData = [@"existing plain destination"
+			dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([externalData writeToFile:plainPath options:NSDataWritingAtomic error:NULL]);
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		[controller stopFileNotifications];
+		REQUIRE([[[note noteFileURL] path] isEqualToString:plainPath]);
+		REQUIRE([[plainPath pathExtension] caseInsensitiveCompare:@"txt"] == NSOrderedSame);
+		REQUIRE([[NSString stringWithContentsOfFile:plainPath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:memoryText]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:oldPath]);
+		REQUIRE([[NSData dataWithContentsOfFile:oldPath] isEqualToData:oldData]);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		REQUIRE([controller totalNoteCount] == 2);
+		NoteObject *conflict = NoteContaining(controller, @"existing plain destination");
+		REQUIRE(conflict != nil && conflict != note);
+		REQUIRE([filenameOfNote(conflict) rangeOfString:@"(conflict)"].location != NSNotFound);
+		REQUIRE([[filenameOfNote(conflict) pathExtension]
+			caseInsensitiveCompare:@"txt"] == NSOrderedSame);
+		REQUIRE([[NSData dataWithContentsOfURL:[conflict noteFileURL]] isEqualToData:externalData]);
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Wrong Format Guard") count] == 3);
 	} @finally {
 		[note release];
 		CloseController(&controller);
@@ -6214,6 +6470,32 @@ static void TestDeletionContracts(void) {
 		controller = CreateController(directoryPath, delegate);
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];
+		NSPanel *deletionPanel = [[[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 371, 222)
+			styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:YES] autorelease];
+		NSScrollView *deletionScrollView = [[[NSScrollView alloc]
+			initWithFrame:NSMakeRect(20, 82, 331, 40)] autorelease];
+		NSTableView *deletionTableView = [[[NSTableView alloc]
+			initWithFrame:[[deletionScrollView contentView] bounds]] autorelease];
+		NSView *deletionHeading = [[[NSView alloc] initWithFrame:NSMakeRect(99, 142, 247, 64)] autorelease];
+		[deletionScrollView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+		[deletionHeading setAutoresizingMask:NSViewWidthSizable | NSViewMinYMargin];
+		[deletionScrollView setDocumentView:deletionTableView];
+		[[deletionPanel contentView] addSubview:deletionScrollView];
+		[[deletionPanel contentView] addSubview:deletionHeading];
+		DeletionManager *sizingManager = [[[DeletionManager alloc]
+			initWithNotationController:controller] autorelease];
+		[sizingManager setValue:deletionPanel forKey:@"window"];
+		[sizingManager setValue:deletionTableView forKey:@"tableView"];
+		[deletionTableView setDataSource:sizingManager];
+		[[sizingManager valueForKey:@"deletedNotes"] addObjectsFromArray:@[ @1, @2, @3, @4 ]];
+		CGFloat oldPanelHeight = NSHeight([deletionPanel frame]);
+		CGFloat oldScrollHeight = NSHeight([deletionScrollView frame]);
+		CGFloat oldHeadingY = NSMinY([deletionHeading frame]);
+		[sizingManager _updatePanelForNotes];
+		CGFloat panelGrowth = NSHeight([deletionPanel frame]) - oldPanelHeight;
+		REQUIRE([deletionTableView numberOfRows] == 4);
+		REQUIRE(fabs(NSHeight([deletionScrollView frame]) - oldScrollHeight - panelGrowth) < 0.5);
+		REQUIRE(fabs(NSMinY([deletionHeading frame]) - oldHeadingY - panelGrowth) < 0.5);
 		NSUndoManager *routedUndoManager = [[[NSUndoManager alloc] init] autorelease];
 		NVAppControllerWindow *routingWindow = [[[NVAppControllerWindow alloc]
 			initWithUndoManager:routedUndoManager] autorelease];
@@ -6288,32 +6570,252 @@ static void TestStorageTransitions(void) {
 		[controller stopFileNotifications];
 		NoteObject *note = AddTestNote(controller, @"Transition Matrix", @"format transition body");
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *plainPath = [[note noteFileURL] path];
+
+		NSArray *formats = @[ @(RTFTextFormat), @(PlainTextFormat), @(HTMLFormat),
+			@(RTFTextFormat), @(HTMLFormat), @(PlainTextFormat) ];
+		NSString *expectedBody = @"format transition body";
+		NSUInteger transition = 0;
+		for (NSNumber *format in formats) {
+			expectedBody = [NSString stringWithFormat:@"%@\nunflushed edit %lu",
+				expectedBody, (unsigned long)++transition];
+			[note setContentString:[[[NSAttributedString alloc]
+				initWithString:expectedBody] autorelease]];
+			[[controller notationPrefs] setNotesStorageFormat:[format intValue]];
+			[controller stopFileNotifications];
+			REQUIRE([controller flushAllNoteChanges]);
+			REQUIRE([controller synchronizeNotesFromDirectory]);
+			REQUIRE([controller totalNoteCount] == 1);
+			REQUIRE([[[note contentString] string] isEqualToString:expectedBody]);
+			NSString *path = [[note noteFileURL] path];
+			REQUIRE([[path pathExtension] caseInsensitiveCompare:
+				[NotationPrefs pathExtensionForFormat:[format intValue]]] == NSOrderedSame);
+			REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:path]);
+			if ([format intValue] == PlainTextFormat)
+				REQUIRE([[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding
+					error:NULL] isEqualToString:expectedBody]);
+			else {
+				NSData *storedData = [NSData dataWithContentsOfFile:path];
+				NSString *latestEdit = [NSString stringWithFormat:@"unflushed edit %lu",
+					(unsigned long)transition];
+				NSData *latestEditData = [latestEdit dataUsingEncoding:NSUTF8StringEncoding];
+				REQUIRE([storedData rangeOfData:latestEditData options:0
+					range:NSMakeRange(0, [storedData length])].location != NSNotFound);
+			}
+			REQUIRE([FilenamesWithPrefix(directoryPath, @"Transition Matrix") count] == 1);
+		}
+
+		NSString *sourcePath = [[note noteFileURL] path];
+		NSString *retryBody = [expectedBody stringByAppendingString:@"\npreflight retry edit"];
+		[note setContentString:[[[NSAttributedString alloc] initWithString:retryBody] autorelease]];
+		injectedControllerFlushFailures = 1;
+		observedInjectedControllerFlushFailures = 0;
+		[controller setUseTestTrash:YES];
+		NVStorageFormatChangeProbe *probe = [[[NVStorageFormatChangeProbe alloc]
+			initWithFormat:SingleDatabaseFormat] autorelease];
+		[[controller notationPrefs] noteFilesCleanupSheetDidEnd:nil
+			returnCode:NSAlertThirdButtonReturn contextInfo:probe];
+		REQUIRE(observedInjectedControllerFlushFailures == 1);
+		REQUIRE([controller currentNoteStorageFormat] == PlainTextFormat);
+		REQUIRE([controller pendingFileWriteCount] == 1);
+		REQUIRE([controller trashMoveCount] == 0);
+		REQUIRE([probe didChangeCount] == 1 && [probe followupCount] == 0);
+		REQUIRE([[[note noteFileURL] path] isEqualToString:sourcePath]);
+		REQUIRE([[NSString stringWithContentsOfFile:sourcePath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:expectedBody]);
+
+		REQUIRE([controller flushAllNoteChanges]);
+		expectedBody = retryBody;
+		WriteExternalFileInPlace(@"unreadable during reconciliation", sourcePath);
+		[controller setFailingSnapshotName:filenameOfNote(note)];
+		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
+		REQUIRE([controller currentNoteStorageFormat] == PlainTextFormat);
+		REQUIRE([[[note noteFileURL] path] isEqualToString:sourcePath]);
+		REQUIRE([[[note contentString] string] isEqualToString:expectedBody]);
+		[controller setFailingSnapshotName:nil];
+		WriteExternalFileInPlace(expectedBody, sourcePath);
 
 		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
 		[controller stopFileNotifications];
+		REQUIRE([controller currentNoteStorageFormat] == RTFTextFormat);
+		REQUIRE(storageFormatOfNote(note) == RTFTextFormat);
+		REQUIRE([controller pendingFileWriteCount] == 0);
+		REQUIRE([[[[NSAttributedString alloc] initWithRTF:
+			[NSData dataWithContentsOfURL:[note noteFileURL]] documentAttributes:NULL]
+			autorelease].string isEqualToString:expectedBody]);
+
+		sourcePath = [[note noteFileURL] path];
+		[controller failNextNoteRename];
+		[[controller notationPrefs] setNotesStorageFormat:HTMLFormat];
+		[controller stopFileNotifications];
+		REQUIRE([controller currentNoteStorageFormat] == HTMLFormat);
+		REQUIRE(storageFormatOfNote(note) == RTFTextFormat);
+		REQUIRE([controller pendingFileWriteCount] == 1);
+		REQUIRE([controller recordedWriteError] == EACCES);
+		REQUIRE([[[note noteFileURL] path] isEqualToString:sourcePath]);
+		REQUIRE([[sourcePath pathExtension] caseInsensitiveCompare:@"rtf"] == NSOrderedSame);
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Transition Matrix") count] == 1);
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *rtfPath = [[note noteFileURL] path];
-		REQUIRE([[rtfPath pathExtension] caseInsensitiveCompare:@"rtf"] == NSOrderedSame);
-		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:plainPath]);
-		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:rtfPath]);
+		REQUIRE(storageFormatOfNote(note) == HTMLFormat);
+		REQUIRE([[[note noteFileURL] pathExtension] caseInsensitiveCompare:@"html"] == NSOrderedSame);
+
+		[controller failNextNoteStore];
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		[controller stopFileNotifications];
+		REQUIRE([controller currentNoteStorageFormat] == PlainTextFormat);
+		REQUIRE(storageFormatOfNote(note) == HTMLFormat);
+		REQUIRE([controller pendingFileWriteCount] == 1);
+		REQUIRE([controller recordedWriteError] == EIO);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE(storageFormatOfNote(note) == PlainTextFormat);
+		REQUIRE([[NSString stringWithContentsOfURL:[note noteFileURL]
+			encoding:NSUTF8StringEncoding error:NULL] isEqualToString:expectedBody]);
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Transition Matrix") count] == 1);
+		NSString *plainPath = [[note noteFileURL] path];
+
+		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
+		REQUIRE([controller flushAllNoteChanges]);
+		expectedBody = [expectedBody stringByAppendingString:@"\ndatabase-only edit"];
+		[note setContentString:[[[NSAttributedString alloc]
+			initWithString:expectedBody] autorelease]];
+		[note setLabelString:@"database-only-label"];
+		REQUIRE([controller flushAllNoteChanges]);
+		WriteExternalFile(PlainTextFormat, expectedBody, plainPath);
+		REQUIRE(SetTestOpenMetaTags(controller, @[ @"external-only-label" ],
+			filenameOfNote(note), NULL));
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		[controller stopFileNotifications];
+		REQUIRE([controller totalNoteCount] == 1);
+		REQUIRE(storageFormatOfNote(note) == PlainTextFormat);
+		REQUIRE([labelsOfNote(note) isEqualToString:@"database-only-label"]);
+		REQUIRE([[NSString stringWithContentsOfFile:plainPath encoding:NSUTF8StringEncoding
+			error:NULL] isEqualToString:expectedBody]);
+		NSArray *storedTags = [[NSFileManager defaultManager]
+			getOpenMetaTagsAtFSPath:[plainPath fileSystemRepresentation]];
+		REQUIRE([storedTags containsObject:@"database-only-label"]);
+		REQUIRE(![storedTags containsObject:@"external-only-label"]);
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Transition Matrix") count] == 1);
 
 		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
 		REQUIRE([controller flushAllNoteChanges]);
 		[controller setUseTestTrash:YES];
 		[controller trashRemainingNoteFilesInDirectory];
 		REQUIRE([controller trashMoveCount] == 1);
-		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:rtfPath]);
+		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:plainPath]);
 		CloseController(&controller);
 
 		controller = CreateController(directoryPath, delegate);
 		REQUIRE([controller currentNoteStorageFormat] == SingleDatabaseFormat);
 		REQUIRE([controller totalNoteCount] == 1);
-		REQUIRE(NoteContaining(controller, @"format transition body") != nil);
+		REQUIRE(NoteContaining(controller, expectedBody) != nil);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
 		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		[controller stopFileNotifications];
+		NSString *base = @"first line\nsecond line\nthird line\n";
+		NSString *local = @"FIRST LINE\nsecond line\nthird line\n";
+		NSString *external = @"first line\nsecond line\nTHIRD LINE\n";
+		NSString *merged = @"FIRST LINE\nsecond line\nTHIRD LINE\n";
+		NoteObject *note = AddTestNote(controller, @"Merge Then Convert", base);
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *path = [[note noteFileURL] path];
+		[note setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
+		WriteExternalFile(PlainTextFormat, external, path);
+		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
+		[controller stopFileNotifications];
+		REQUIRE([controller totalNoteCount] == 1);
+		REQUIRE([[[note contentString] string] isEqualToString:merged]);
+		REQUIRE([[[note noteFileURL] pathExtension] caseInsensitiveCompare:@"rtf"] == NSOrderedSame);
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Merge Then Convert") count] == 1);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
+		[controller stopFileNotifications];
+		NoteObject *note = AddTestNote(controller, @"Rich Conflict Then Convert", @"rich base");
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *path = [[note noteFileURL] path];
+		[note setContentString:[[[NSAttributedString alloc] initWithString:@"rich local"] autorelease]];
+		REQUIRE(note.fileMergeBaseData != nil);
+		WriteExternalFile(RTFTextFormat, @"rich external", path);
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		[controller stopFileNotifications];
+		REQUIRE([controller totalNoteCount] == 2);
+		REQUIRE([[[note contentString] string] isEqualToString:@"rich local"]);
+		NoteObject *conflict = NoteContaining(controller, @"rich external");
+		REQUIRE(conflict != nil);
+		for (NoteObject *converted in AllNotes(controller)) {
+			REQUIRE([[filenameOfNote(converted) pathExtension]
+				caseInsensitiveCompare:@"txt"] == NSOrderedSame);
+			REQUIRE([[NSString stringWithContentsOfURL:[converted noteFileURL]
+				encoding:NSUTF8StringEncoding error:NULL]
+				isEqualToString:[[converted contentString] string]]);
+		}
+		REQUIRE([FilenamesWithPrefix(directoryPath, @"Rich Conflict Then Convert") count] == 2);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	for (NSNumber *sourceFormat in @[ @(RTFTextFormat) ]) {
+		directoryPath = CreateTemporaryDirectory();
+		delegate = [[NVTestControllerDelegate alloc] init];
+		@try {
+			controller = CreateController(directoryPath, delegate);
+			[[controller notationPrefs] setNotesStorageFormat:[sourceFormat intValue]];
+			[controller stopFileNotifications];
+			NSString *extension = [NotationPrefs pathExtensionForFormat:[sourceFormat intValue]];
+			NSString *filename = [@"Noncanonical Rich" stringByAppendingPathExtension:extension];
+			NSString *path = [directoryPath stringByAppendingPathComponent:filename];
+			NSMutableData *sourceData = [NSMutableData dataWithData:
+				DataForExternalFile([sourceFormat intValue], @"noncanonical rich source")];
+			if ([sourceFormat intValue] == HTMLFormat) {
+				NSMutableString *HTML = [[[NSMutableString alloc] initWithData:sourceData
+					encoding:NSUTF8StringEncoding] autorelease];
+				NSRange body = [HTML rangeOfString:@"<body" options:NSCaseInsensitiveSearch];
+				NSRange bodyEnd = body.location == NSNotFound ? NSMakeRange(NSNotFound, 0) :
+					[HTML rangeOfString:@">" options:0 range:NSMakeRange(body.location,
+						[HTML length] - body.location)];
+				REQUIRE(bodyEnd.location != NSNotFound);
+				[HTML insertString:@"<!-- externally authored -->" atIndex:NSMaxRange(bodyEnd)];
+				[sourceData setData:[HTML dataUsingEncoding:NSUTF8StringEncoding]];
+			} else {
+				[sourceData appendData:[@"\n \n" dataUsingEncoding:NSUTF8StringEncoding]];
+			}
+			REQUIRE([sourceData writeToFile:path options:NSDataWritingAtomic error:NULL]);
+			REQUIRE([controller synchronizeNotesFromDirectory]);
+			REQUIRE([controller totalNoteCount] == 1);
+			NoteObject *note = [AllNotes(controller) objectAtIndex:0];
+			NSString *expected = [[[note contentString] string] copy];
+			[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+			[controller stopFileNotifications];
+			REQUIRE([controller totalNoteCount] == 1);
+			REQUIRE([[[note contentString] string] isEqualToString:expected]);
+			REQUIRE([[[note noteFileURL] pathExtension] caseInsensitiveCompare:@"txt"] == NSOrderedSame);
+			REQUIRE([[NSString stringWithContentsOfURL:[note noteFileURL]
+				encoding:NSUTF8StringEncoding error:NULL] isEqualToString:expected]);
+			REQUIRE([FilenamesWithPrefix(directoryPath, @"Noncanonical Rich") count] == 1);
+			[expected release];
+		} @finally {
+			CloseController(&controller);
+			[delegate release];
+			RemoveTemporaryDirectory(directoryPath);
+		}
 	}
 }
 

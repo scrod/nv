@@ -93,6 +93,14 @@ are adjacent systems, not phases inside this atomic writer.
   stops before the destination is touched.
 - The single-database format should never call the individual-note writer.
 
+Storage-format changes first flush pending writes and reconcile the directory
+while the source format is still active. File-to-file conversion then renames
+each clean source and installs the in-memory note with unconditional replacement.
+Database-to-file conversion additionally checks an existing destination: equal
+plain text causes no conflict, while different plain text or rich-format bytes
+are moved verbatim to a conflict note before the database note is installed.
+Same-format writes continue to use the snapshot and conflict rules below.
+
 ### Coherent disk snapshot
 
 The snapshot reader opens the destination once and reads bytes, text-encoding

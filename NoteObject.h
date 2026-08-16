@@ -222,7 +222,7 @@ NSInteger compareFilename(id *a, id *b);
 - (void)editExternallyUsingEditor:(ExternalEditor*)ed;
 - (void)abortEditingInExternalEditor;
 
-- (void)setFilenameFromTitle;
+- (BOOL)setFilenameFromTitle;
 - (void)setFilename:(NSString*)aString withExternalTrigger:(BOOL)externalTrigger;
 - (BOOL)_setTitleString:(NSString*)aNewTitle;
 - (void)setTitleString:(NSString*)aNewTitle;

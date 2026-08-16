@@ -612,10 +612,13 @@ returnResult:
 		/* Changing to a separate-file format makes the live model authoritative.
 		 * Queue every note before scanning so an existing external file cannot win
 		 * through a racy existence/mtime preflight. */
-		if (currentStorageFormat != oldFormat) {
-			/* These writes intentionally have no merge base. The shared note writer
-			 * preserves any different destination as a conflict copy before replacement. */
+		BOOL changingFormat = currentStorageFormat != oldFormat;
+		if (changingFormat) {
+			/* The preference setter flushed and reconciled the source format first,
+			 * so conversion can treat the live model as authoritative. */
 			for (NoteObject *note in allNotes) {
+				if (oldFormat == SingleDatabaseFormat)
+					note->currentFormatID = SingleDatabaseFormat;
 				[note requireFileWrite];
 				[pendingFileWrites addObject:note];
 			}
@@ -623,7 +626,7 @@ returnResult:
 
 		[self startFileNotifications];
 		
-		[self synchronizeNotesFromDirectory];		
+		if (!changingFormat) [self synchronizeNotesFromDirectory];
     }
 	//perform after delay because this could trigger the mounting of a RAM disk in a background  NSTask
 	[[ExternalEditingSession sharedExternalEditingSession] performSelector:@selector(initializeDatabase:) withObject:notationPrefs afterDelay:0.0];

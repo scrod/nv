@@ -49,8 +49,9 @@ designable="$nib_dir/designable.nib"
 	print -u2 "expected an editable nib package containing designable.nib: $nib_dir"
 	exit 2
 }
+source_designable_checksum=$(shasum -a 256 "$designable" | awk '{ print $1 }')
 
-print -u2 "Warning: an open Xcode document can overwrite this result."
+print -u2 "Warning: close this nib in Xcode; a later Xcode save can overwrite this result."
 
 nib_temp_base=${TMPDIR:-/tmp}
 nib_temp_base=${nib_temp_base%/}
@@ -84,6 +85,10 @@ if rg -q '<archive type="com.apple.InterfaceBuilder3.Cocoa.XIB"' "$candidate_des
 	cp "$nib_work_dir/upgraded.xib" "$candidate_designable"
 fi
 
+xmllint --noout "$candidate_designable"
+xmllint --xpath '//autoresizingMask' "$candidate_designable" \
+	> "$nib_work_dir/autoresizing-masks-before.xml" 2>/dev/null || true
+
 perl -0pi -e '
 	s/ useAutolayout="[^"]*"//g;
 	s/ translatesAutoresizingMaskIntoConstraints="[^"]*"//g;
@@ -92,6 +97,12 @@ perl -0pi -e '
 ' "$candidate_designable"
 
 xmllint --noout "$candidate_designable"
+xmllint --xpath '//autoresizingMask' "$candidate_designable" \
+	> "$nib_work_dir/autoresizing-masks-after.xml" 2>/dev/null || true
+cmp -s "$nib_work_dir/autoresizing-masks-before.xml" "$nib_work_dir/autoresizing-masks-after.xml" || {
+	print -u2 "refusing to change autoresizing masks in $nib_dir"
+	exit 1
+}
 if rg -q 'useAutolayout|translatesAutoresizingMaskIntoConstraints|<constraints>|<constraint[ >]' "$candidate_designable"; then
 	print -u2 "failed to remove all Auto Layout metadata from $nib_dir"
 	exit 1
@@ -107,6 +118,12 @@ candidate_variants=("$candidate"/keyedobjects-*.nib)
 cp "$candidate_designable" "$nib_work_dir/compile.xib"
 run_ibtool "$nib_work_dir/compile.log" --compile "$candidate/keyedobjects.nib" "$nib_work_dir/compile.xib" \
 	--minimum-deployment-target "$deployment_target" --target-device mac
+
+current_designable_checksum=$(shasum -a 256 "$designable" | awk '{ print $1 }')
+[[ "$current_designable_checksum" == "$source_designable_checksum" ]] || {
+	print -u2 "$designable changed while $script_name was running; close it in Xcode and retry"
+	exit 1
+}
 
 cp "$candidate_designable" "$designable"
 cp "$candidate/keyedobjects.nib" "$nib_dir/keyedobjects.nib"
