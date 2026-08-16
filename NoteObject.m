@@ -26,12 +26,12 @@
 #import "LabelObject.h"
 #import "WALController.h"
 #import "NotationController.h"
+#import "NVRootedDirectory_Private.h"
 #import "NotationPrefs.h"
 #import "AttributedPlainText.h"
 #import "NSString_CustomTruncation.h"
 #import "NSFileManager_NV.h"
 #include "BufferUtils.h"
-#import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
 #import "SyncServiceSessionProtocol.h"
 #import "SyncSessionController.h"
@@ -73,13 +73,13 @@ typedef struct NSRange32 {
 } NSRange32;
 
 @interface NoteObject ()
-- (id)initWithCatalogEntry:(NoteCatalogEntry*)entry snapshot:(const NVNoteFileSnapshot*)snapshot
+- (id)initWithCatalogEntry:(NoteCatalogEntry*)entry snapshot:(NVFileSnapshot*)snapshot
 	format:(int)format fallbackLabels:(NSString*)fallbackLabels
 	fallbackEncoding:(NSStringEncoding)fallbackEncoding
 	fallbackCreatedDate:(CFAbsoluteTime)fallbackCreatedDate error:(NSError**)error;
 - (void)captureFileMergeBaseIfNecessary;
 - (void)clearFileMergeBase;
-- (BOOL)preserveExternalSnapshot:(const NVNoteFileSnapshot*)snapshot format:(int)format
+- (BOOL)preserveExternalSnapshot:(NVFileSnapshot*)snapshot format:(int)format
 	movedFilename:(NSString**)movedFilename error:(NSError**)error;
 @end
 
@@ -91,41 +91,28 @@ typedef struct NSRange32 {
 @synthesize externalEditingConflictNote;
 @synthesize externalEditingConflictData;
 
-static CFAbsoluteTime NVAbsoluteTimeFromTimespec(struct timespec value) {
-	return (CFAbsoluteTime)value.tv_sec + ((CFAbsoluteTime)value.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
-}
-
-static struct timespec NVTimespecFromAbsoluteTime(CFAbsoluteTime value) {
-	NSTimeInterval unixTime = value + kCFAbsoluteTimeIntervalSince1970;
-	struct timespec result = { (time_t)floor(unixTime), 0 };
-	result.tv_nsec = (long)((unixTime - floor(unixTime)) * NSEC_PER_SEC);
-	return result;
-}
-
-static void NVSetFileInfo(NoteObject *note, const NVFileInfo *info) {
-	note->fileModificationTime = info->modificationTime;
-	note->fileAttributeChangeTime = info->attributeModificationTime;
-	note->logicalSize = info->logicalSize;
-	note->sessionFileID = info->fileID;
-	note->documentID = info->documentID;
-	note->sessionFileGeneration = info->generationCount;
+static void NVSetFileObservation(NoteObject *note, NVFileObservation *observation) {
+	note->fileModificationTime = [observation modificationTime];
+	note->fileAttributeChangeTime = [observation attributeModificationTime];
+	note->logicalSize = [observation logicalSize];
+	note->sessionFileID = [observation fileID];
+	note->documentID = [observation documentID];
+	note->sessionFileGeneration = [observation generationCount];
 	note->fileMetadataIsValid = YES;
 }
 
-static BOOL NVTimespecsEqual(struct timespec one, struct timespec two) {
-	return one.tv_sec == two.tv_sec && one.tv_nsec == two.tv_nsec;
-}
-
-static BOOL NVSnapshotMatchesNote(const NVNoteFileSnapshot *snapshot, NoteObject *note) {
+static BOOL NVSnapshotMatchesNote(NVFileSnapshot *snapshot, NoteObject *note) {
+	NVFileObservation *observation = [snapshot observation];
 	return note->fileMetadataIsValid &&
-		note->logicalSize == snapshot->info.logicalSize &&
-		(!note->sessionFileID || !snapshot->info.fileID ||
-			note->sessionFileID == snapshot->info.fileID) &&
-		(!note->sessionFileGeneration || !snapshot->info.generationCount ||
-			note->sessionFileGeneration == snapshot->info.generationCount) &&
-		NVTimespecsEqual(note->fileModificationTime, snapshot->info.modificationTime) &&
-		NVTimespecsEqual(note->fileAttributeChangeTime,
-			snapshot->info.attributeModificationTime);
+		note->logicalSize == [observation logicalSize] &&
+		(!note->sessionFileID || ![observation fileID] ||
+			note->sessionFileID == [observation fileID]) &&
+		(!note->sessionFileGeneration || ![observation generationCount] ||
+			note->sessionFileGeneration == [observation generationCount]) &&
+		NVCompareTimespecs(note->fileModificationTime,
+			[observation modificationTime]) == NSOrderedSame &&
+		NVCompareTimespecs(note->fileAttributeChangeTime,
+			[observation attributeModificationTime]) == NSOrderedSame;
 }
 
 static NSString *NVTriviallyMergedString(NSString *base, NSString *local, NSString *external) {
@@ -156,6 +143,16 @@ static NSData *NVCreateRichFileData(NSAttributedString *content, int format, NSE
 			documentAttributes:@{ NSDocumentTypeDocumentAttribute: NSHTMLTextDocumentType }
 			error:error];
 	return nil;
+}
+
+static NSData *NVCreatePlainTextDataPromotingToUTF8(NSString *string,
+	NSStringEncoding *encoding) {
+	NSData *data = [string dataUsingEncoding:*encoding allowLossyConversion:NO];
+	if (!data) {
+		*encoding = NSUTF8StringEncoding;
+		data = [string dataUsingEncoding:*encoding allowLossyConversion:YES];
+	}
+	return data;
 }
 
 static NSMutableAttributedString *NVCreateDecodedContent(NSData *data, int format,
@@ -234,10 +231,6 @@ static NSMutableAttributedString *NVCreateDecodedContent(NSData *data, int forma
 	return delegate;
 }
 
-- (void)setDelegate:(id)theDelegate {
-	delegate = theDelegate;
-}
-
 - (void)attachToDelegate:(id)theDelegate {
 	/*
 	 * Construction and file decoding intentionally leave a note detached.  This
@@ -258,11 +251,15 @@ NSInteger compareFilename(id *one, id *two) {
 				(CFStringRef)((*(NoteObject**)two)->filename), kCFCompareCaseInsensitive);
 }
 
+static NSInteger NVCompareAbsoluteTimes(CFAbsoluteTime one, CFAbsoluteTime two) {
+	return one < two ? NSOrderedAscending : (one > two ? NSOrderedDescending : NSOrderedSame);
+}
+
 NSInteger compareDateModified(id *a, id *b) {
-    return (*(NoteObject**)a)->modifiedDate - (*(NoteObject**)b)->modifiedDate;
+	return NVCompareAbsoluteTimes((*(NoteObject**)a)->modifiedDate, (*(NoteObject**)b)->modifiedDate);
 }
 NSInteger compareDateCreated(id *a, id *b) {
-    return (*(NoteObject**)a)->createdDate - (*(NoteObject**)b)->createdDate;
+	return NVCompareAbsoluteTimes((*(NoteObject**)a)->createdDate, (*(NoteObject**)b)->createdDate);
 }
 NSInteger compareLabelString(id *a, id *b) {    
     return (NSInteger)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)a)), 
@@ -290,10 +287,10 @@ NSInteger compareUniqueNoteIDBytes(id *a, id *b) {
 
 
 NSInteger compareDateModifiedReverse(id *a, id *b) {
-    return (*(NoteObject**)b)->modifiedDate - (*(NoteObject**)a)->modifiedDate;
+	return compareDateModified(b, a);
 }
 NSInteger compareDateCreatedReverse(id *a, id *b) {
-    return (*(NoteObject**)b)->createdDate - (*(NoteObject**)a)->createdDate;
+	return compareDateCreated(b, a);
 }
 NSInteger compareLabelStringReverse(id *a, id *b) {    
     return (NSInteger)CFStringCompare((CFStringRef)(labelsOfNote(*(NoteObject **)b)), 
@@ -319,7 +316,6 @@ NSInteger compareTitleStringReverse(id *a, id *b) {
 //syncing w/ server and from journal;
 
 DefModelAttrAccessor(filenameOfNote, filename)
-DefModelAttrAccessor(fileSizeOfNote, logicalSize)
 DefModelAttrAccessor(sessionFileIDOfNote, sessionFileID)
 DefModelAttrAccessor(documentIDOfNote, documentID)
 DefModelAttrAccessor(sessionFileGenerationOfNote, sessionFileGeneration)
@@ -334,7 +330,6 @@ DefModelAttrAccessor(storageFormatOfNote, currentFormatID)
 DefModelAttrAccessor(fileEncodingOfNote, fileEncoding)
 DefModelAttrAccessor(prefixParentsOfNote, prefixParentNotes)
 
-//DefColAttrAccessor(wordCountOfNote, wordCountString)
 DefColAttrAccessor(titleOfNote2, titleString)
 DefColAttrAccessor(dateCreatedStringOfNote, dateCreatedString)
 DefColAttrAccessor(dateModifiedStringOfNote, dateModifiedString)
@@ -389,21 +384,16 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return obj;
 }
 
-//make notationcontroller should send setDelegate: and setLabelString: (if necessary) to each note when unarchiving this way
+//NotationController attaches decoded notes and rebuilds their label connections after unarchiving.
 
 //there is no measurable difference in speed when using decodeValuesOfObjCTypes, oddly enough
 //the overhead of the _decodeObject* C functions must be significantly greater than the objc_msgSend and argument passing overhead
-#define DECODE_INDIVIDUALLY 1
-
 - (id)initWithCoder:(NSCoder*)decoder {
 	self = [self init];
 	if (self) {
 		
 		if ([decoder allowsKeyedCoding]) {
 			//(hopefully?) no versioning necessary here
-			
-			//for knowing when to delay certain initializations during launch (e.g., preview generation)
-			didUnarchive = YES;
 			
 			modifiedDate = [decoder decodeDoubleForKey:VAR_STR(modifiedDate)];
 			createdDate = [decoder decodeDoubleForKey:VAR_STR(createdDate)];
@@ -447,7 +437,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			unsigned int legacyLowSeconds = 0;
 			float scrolledProportion = 0.0;
 			unsigned long longTemp;
-#if DECODE_INDIVIDUALLY
 			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&modifiedDate];
 			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&createdDate];
 			[decoder decodeValueOfObjCType:"{_NSRange=II}" at:&range32];
@@ -476,8 +465,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			(void)legacyHighSeconds;
 			(void)legacyLowSeconds;
 			(void)legacyFraction;
-#endif
-            selectedRange.location = range32.location;
+			selectedRange.location = range32.location;
             selectedRange.length = range32.length;
 			contentsWere7Bit = (*(unsigned int*)&scrolledProportion) != 0; //hacko wacko
 		}
@@ -529,15 +517,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		[coder encodeObject:contentString forKey:VAR_STR(contentString)];
 		[coder encodeObject:filename forKey:VAR_STR(filename)];
 		
-	} else {
-		// Modern builds only write keyed archives; non-keyed archives remain decode-only compatibility.
 	}
 }
 
-- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle delegate:(id)aDelegate format:(int)formatID labels:(NSString*)aLabelString {
-	/* aDelegate is retained in the legacy signature for source compatibility;
-	 * attachment is now explicit and side-effect-free construction ignores it. */
-	(void)aDelegate;
+- (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle format:(int)formatID labels:(NSString*)aLabelString {
     self = [self init];
     if (self) {
 		
@@ -579,28 +562,29 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
     return self;
 }
 
-- (id)initWithCatalogEntry:(NoteCatalogEntry*)entry snapshot:(const NVNoteFileSnapshot*)snapshot
+- (id)initWithCatalogEntry:(NoteCatalogEntry*)entry snapshot:(NVFileSnapshot*)snapshot
 	format:(int)format fallbackLabels:(NSString*)fallbackLabels
 	fallbackEncoding:(NSStringEncoding)fallbackEncoding
 	fallbackCreatedDate:(CFAbsoluteTime)fallbackCreatedDate error:(NSError**)error {
-	NSStringEncoding encoding = snapshot->encoding ? snapshot->encoding : fallbackEncoding;
-	NSMutableAttributedString *decoded = NVCreateDecodedContent(snapshot->data, format, &encoding);
+	NSStringEncoding encoding = [snapshot encoding] ? [snapshot encoding] : fallbackEncoding;
+	NSMutableAttributedString *decoded = NVCreateDecodedContent([snapshot data], format, &encoding);
 	if (!decoded) {
 		if (error) *error = NVNoteStorageError(NVNoteStorageFormattingError,
 			[NSString stringWithFormat:@"Could not decode note file '%@'.", entry->filename]);
 		[self release];
 		return nil;
 	}
-	NSString *labels = snapshot->tags ? [snapshot->tags componentsJoinedByString:@" "] : fallbackLabels;
+	NSString *labels = [snapshot tags] ? [[snapshot tags] componentsJoinedByString:@" "] : fallbackLabels;
 	self = [self initWithNoteBody:decoded title:[(NSString*)entry->filename stringByDeletingPathExtension]
-		delegate:nil format:format labels:(labels ? labels : @"")];
+		format:format labels:(labels ? labels : @"")];
 	[decoded release];
 	if (!self) return nil;
 	filename = [(NSString*)entry->filename copy];
 	fileEncoding = encoding;
-	NVSetFileInfo(self, &snapshot->info);
-	[self setDateModified:NVAbsoluteTimeFromTimespec(snapshot->info.modificationTime)];
-	CFAbsoluteTime creationTime = NVAbsoluteTimeFromTimespec(snapshot->info.creationTime);
+	NVFileObservation *observation = [snapshot observation];
+	NVSetFileObservation(self, observation);
+	[self setDateModified:NVAbsoluteTimeFromTimespec([observation modificationTime])];
+	CFAbsoluteTime creationTime = NVAbsoluteTimeFromTimespec([observation creationTime]);
 	[self setDateAdded:(creationTime > 0.0 ? creationTime :
 		(fallbackCreatedDate > 0.0 ? fallbackCreatedDate : CFAbsoluteTimeGetCurrent()))];
 	return self;
@@ -688,12 +672,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		cContentsFoundPtr = cContents = replaceString(cContents, [[contentString string] lowercaseUTF8String]);
 		contentCacheNeedsUpdate = NO;
 		
-			size_t len = strlen(cContents);
+		size_t len = strlen(cContents);
 		contentsWere7Bit = !(ContainsHighAscii(cContents, len));
-		
-		//could cache dumbwordcount here for faster launch, but string creation takes more time, anyway
-		//if (wordCountString) CFRelease((CFStringRef*)wordCountString); //this is CFString, so bridge will just call back to CFRelease, anyway
-		//wordCountString = (NSString*)CFStringFromBase10Integer(DumbWordCount(cContents, len));
 	}
 }
 
@@ -704,17 +684,12 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			contentsWere7Bit = NO;
 	}
 	
-	size_t len = -1;
-	
 	if (!contentsWere7Bit) {
 		const char *cStringData = [[contentString string] lowercaseUTF8String];
 		cContentsFoundPtr = cContents = cStringData ? strdup(cStringData) : NULL;
 		
-		contentsWere7Bit = cContents ? !(ContainsHighAscii(cContents, (len = strlen(cContents)))) : NO;
+		contentsWere7Bit = cContents ? !ContainsHighAscii(cContents, strlen(cContents)) : NO;
 	}
-	
-	//if (len < 0) len = strlen(cContents);
-	//wordCountString = (NSString*)CFStringFromBase10Integer(DumbWordCount(cContents, len));
 	
 	contentCacheNeedsUpdate = NO;
 }
@@ -806,7 +781,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 - (void)setTitleString:(NSString*)aNewTitle {
 	
-	NSString *oldTitle = [titleString retain];
 	if (aNewTitle && ![aNewTitle isEqualToString:titleString])
 		[self captureFileMergeBaseIfNecessary];
 	
@@ -824,8 +798,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		//woe to the exporter who also left the note files in the notes directory after switching to a singledb format
 		//his note names might not be up-to-date
-		if ([delegate currentNoteStorageFormat] != SingleDatabaseFormat || 
-			![delegate noteExistsWithName:filename]) {
+		if ([delegate currentNoteStorageFormat] != SingleDatabaseFormat ||
+			![[delegate noteDirectory] regularFileExistsNamed:filename]) {
 			
 			[self setFilenameFromTitle];
 		}
@@ -837,14 +811,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		
 		[self updateTablePreviewString];
 		
-		/*NSUndoManager *undoMan = [delegate undoManager];
-		[undoMan registerUndoWithTarget:self selector:@selector(setTitleString:) object:oldTitle];
-		if (![undoMan isUndoing] && ![undoMan isRedoing])
-			[undoMan setActionName:[NSString stringWithFormat:@"Rename Note \"%@\"", titleString]];
-		*/
 		[delegate note:self attributeChanged:NoteTitleColumnString];
-    }
-	[oldTitle release];
+	}
 }
 
 - (BOOL)_setTitleString:(NSString*)aNewTitle {
@@ -874,8 +842,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		if (!externalTrigger) {
 			NSError *renameError = nil;
 			BOOL renamed = !oldName || currentFormatID == SingleDatabaseFormat ||
-				[delegate renameNoteFromName:oldName
-				toName:filename error:&renameError];
+				[[delegate noteDirectory] renameFileNamed:oldName
+				toUnusedName:filename error:&renameError];
 			BOOL sourceWasMissing = !renamed &&
 				[[renameError domain] isEqualToString:NSPOSIXErrorDomain] &&
 				[renameError code] == ENOENT;
@@ -984,15 +952,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 - (void)replaceMatchingLabelSet:(NSSet*)aLabelSet {
     [labelSet minusSet:aLabelSet];
     [labelSet unionSet:aLabelSet];
-}
-
-- (void)replaceMatchingLabel:(LabelObject*)aLabel {
-    [aLabel retain]; // just in case this is actually the same label
-    
-    //remove the old label and add the new one; if this is the same one, well, too bad
-    [labelSet removeObject:aLabel];
-    [labelSet addObject:aLabel];
-    [aLabel release];
 }
 
 - (void)updateLabelConnectionsAfterDecoding {
@@ -1194,20 +1153,12 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 								 [idsDict URLEncodedString]]];
 }
 
-- (NSURL*)noteFileURL {
-	return [delegate fileReferenceURLForNoteNamed:filename error:NULL];
-}
-
 - (NSURL*)absoluteUNIXPath {
-	return [[delegate noteDirectoryURL] URLByAppendingPathComponent:filename];
+	return [[delegate noteDirectory] transientFileReferenceURLForFileNamed:filename error:NULL];
 }
 
 - (BOOL)writeUsingCurrentFileFormatIfNecessary {
-	//if note had been updated via makeNoteDirty and needed file to be rewritten
-	if (shouldWriteToFile) {
-		return [self writeUsingCurrentFileFormat];
-	}
-	return YES;
+	return !shouldWriteToFile || [self writeUsingCurrentFileFormat];
 }
 
 - (void)requireFileWrite {
@@ -1217,15 +1168,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 - (void)captureFileMergeBaseIfNecessary {
 	if (self.fileMergeBaseText || shouldWriteToFile || !delegate || !filename ||
 		[delegate currentNoteStorageFormat] == SingleDatabaseFormat) return;
-	self.fileMergeBaseText = [contentString string];
-	self.fileMergeBaseLabels = labelString;
-	if (currentFormatID == RTFTextFormat || currentFormatID == HTMLFormat) {
-		NVNoteFileSnapshot snapshot = { 0 };
-		if ([delegate readNoteFileSnapshot:&snapshot forNoteNamed:filename error:NULL] &&
-			(NVSnapshotMatchesNote(&snapshot, self) ||
-			 [snapshot.data isEqualToData:NVCreateRichFileData(contentString, currentFormatID, NULL)]))
-			self.fileMergeBaseData = snapshot.data;
-	}
+	[self setFileMergeBaseFromNote:self];
 }
 
 - (void)setFileMergeBaseFromNote:(NoteObject*)note {
@@ -1233,14 +1176,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	self.fileMergeBaseLabels = labelsOfNote(note);
 	self.fileMergeBaseData = nil;
 	if (storageFormatOfNote(note) == RTFTextFormat || storageFormatOfNote(note) == HTMLFormat) {
-		NVNoteFileSnapshot snapshot = { 0 };
 		id noteDelegate = [note delegate];
-		if ([noteDelegate readNoteFileSnapshot:&snapshot
-			forNoteNamed:filenameOfNote(note) error:NULL] &&
-			(NVSnapshotMatchesNote(&snapshot, note) ||
-			 [snapshot.data isEqualToData:NVCreateRichFileData([note contentString],
+		NVFileSnapshot *snapshot = [[noteDelegate noteDirectory]
+			snapshotForFileNamed:filenameOfNote(note) error:NULL];
+		if (snapshot && (NVSnapshotMatchesNote(snapshot, note) ||
+			[[snapshot data] isEqualToData:NVCreateRichFileData([note contentString],
 				storageFormatOfNote(note), NULL)]))
-			self.fileMergeBaseData = snapshot.data;
+			self.fileMergeBaseData = [snapshot data];
 	}
 }
 
@@ -1251,34 +1193,41 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 }
 
 - (BOOL)writeUsingJournal:(WALStorageController*)wal {
-    BOOL wroteAllOfNote = [wal writeEstablishedNote:self];
-	
-    if (wroteAllOfNote) {
-		//update formatID to absolutely ensure we don't reload an earlier note back from disk, from text encoding menu, for example
-		//currentFormatID = SingleDatabaseFormat;
-	} else {
+	BOOL wroteAllOfNote = [wal writeEstablishedNote:self];
+	if (!wroteAllOfNote) {
 		[delegate noteDidNotWrite:self error:NVNoteStorageError(NVNoteStorageJournalError,
 			NSLocalizedString(@"the write-ahead journal could not be updated", nil))];
 	}
-    
-    return wroteAllOfNote;
+	return wroteAllOfNote;
 }
 
-- (BOOL)preserveExternalSnapshot:(const NVNoteFileSnapshot*)snapshot format:(int)format
+- (BOOL)preserveExternalSnapshot:(NVFileSnapshot*)snapshot format:(int)format
 	movedFilename:(NSString**)movedFilename error:(NSError**)error {
 	if (movedFilename) *movedFilename = nil;
 	NSString *conflictTitle = [titleString stringByAppendingString:@" (conflict)"];
 	NSString *conflictFilename = [delegate uniqueFilenameForTitle:conflictTitle fromNote:nil];
-	NSArray *tags = snapshot->tags ? snapshot->tags : [self orderedLabelTitles];
-	NVFileInfo ignoredInfo = { 0 };
+	NSArray *tags = [snapshot tags] ? [snapshot tags] : [self orderedLabelTitles];
 	BOOL moved = currentFormatID == SingleDatabaseFormat;
-	BOOL stored = moved ?
-		[delegate renameNoteFromName:filename toName:conflictFilename error:error] :
-		[delegate storeNoteDataAtomically:snapshot->data withName:conflictFilename
-			encoding:(format == PlainTextFormat ? snapshot->encoding : 0)
-			tags:tags creationTime:NVAbsoluteTimeFromTimespec(snapshot->info.creationTime)
-			modificationTime:NVAbsoluteTimeFromTimespec(snapshot->info.modificationTime)
-			expectedData:nil resultingFileInfo:&ignoredInfo error:error];
+	BOOL stored = moved ? [[delegate noteDirectory] renameFileNamed:filename
+		toUnusedName:conflictFilename error:error] : NO;
+	if (!moved) {
+		NVFileObservation *observation = [snapshot observation];
+		NVFileWriteResult *result = [[delegate noteDirectory] createNoteFileNamed:conflictFilename
+			withData:[snapshot data] encoding:(format == PlainTextFormat ? [snapshot encoding] : 0)
+			tags:tags creationTime:NVAbsoluteTimeFromTimespec([observation creationTime])
+			modificationTime:NVAbsoluteTimeFromTimespec([observation modificationTime])];
+		switch ([result disposition]) {
+			case NVFileWriteInstalledVerified:
+				stored = YES;
+				break;
+			case NVFileWriteInstalledNeedsReconciliation:
+				stored = YES;
+				break;
+			case NVFileWriteNotInstalled:
+				if (error) *error = [result error];
+				break;
+		}
+	}
 	if (stored) {
 		if (moved && movedFilename) *movedFilename = conflictFilename;
 		else [delegate performSelector:@selector(synchronizeNotesFromDirectory)
@@ -1311,6 +1260,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	int formatID = [delegate currentNoteStorageFormat];
 	BOOL convertingFromDatabase = currentFormatID == SingleDatabaseFormat;
 	BOOL changingFormat = currentFormatID != formatID;
+	NSStringEncoding snapshotFallbackEncoding = fileEncoding;
     switch (formatID) {
 		case SingleDatabaseFormat:
 			//we probably shouldn't be here
@@ -1318,17 +1268,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			
 			return NO;
 		case PlainTextFormat:
-			
-			if (!(formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:NO])) {
-				
-				//just make the file unicode and ram it through
-				//unicode is probably better than UTF-8, as it's more easily auto-detected by other programs via the BOM
-				//but we can auto-detect UTF-8, so what the heck
-				[self _setFileEncoding:NSUTF8StringEncoding];
-				//maybe we could rename the file file.utf8.txt here
-				NSLog(@"promoting to unicode (UTF-8)");
-				formattedData = [[contentString string] dataUsingEncoding:fileEncoding allowLossyConversion:YES];
-			}
+			formattedData = NVCreatePlainTextDataPromotingToUTF8(
+				[contentString string], &fileEncoding);
 			break;
 		case RTFTextFormat:
 		case HTMLFormat:
@@ -1348,13 +1289,13 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			resetFilename = YES;
 		}
 		
-		NVNoteFileSnapshot snapshot = { 0 };
+		NVFileSnapshot *snapshot = nil;
 		NSError *snapshotError = nil;
 		NSString *movedConflictFilename = nil;
 		BOOL destinationExists = NO;
 		if (!changingFormat || convertingFromDatabase) {
-			destinationExists = [delegate readNoteFileSnapshot:&snapshot
-				forNoteNamed:filename error:&snapshotError];
+			snapshot = [[delegate noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+			destinationExists = snapshot != nil;
 			if (!destinationExists && !([[snapshotError domain] isEqualToString:NSPOSIXErrorDomain] &&
 				[snapshotError code] == ENOENT)) {
 				[delegate noteDidNotWrite:self error:snapshotError];
@@ -1367,8 +1308,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			// version can be related to the version the user started editing; if
 			// not, preserve that version as a separate conflict note.
 			BOOL conflict = NO;
-			NSString *externalLabels = snapshot.tags ?
-				[snapshot.tags componentsJoinedByString:@" "] :
+			NSString *externalLabels = [snapshot tags] ?
+				[[snapshot tags] componentsJoinedByString:@" "] :
 				(self.fileMergeBaseLabels ? self.fileMergeBaseLabels : labelString);
 			NSString *mergedLabels = convertingFromDatabase ? labelString :
 				(self.fileMergeBaseLabels ?
@@ -1376,9 +1317,10 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 					([externalLabels isEqualToString:labelString] ? labelString : nil));
 
 			if (formatID == PlainTextFormat) {
-				NSStringEncoding externalEncoding = snapshot.encoding ? snapshot.encoding : fileEncoding;
+				NSStringEncoding externalEncoding = [snapshot encoding] ?
+					[snapshot encoding] : snapshotFallbackEncoding;
 				NSMutableAttributedString *externalContent =
-					NVCreateDecodedContent(snapshot.data, PlainTextFormat, &externalEncoding);
+					NVCreateDecodedContent([snapshot data], PlainTextFormat, &externalEncoding);
 				if (!externalContent) {
 					[delegate noteDidNotWrite:self error:NVNoteStorageError(
 						NVNoteStorageFormattingError,
@@ -1403,22 +1345,22 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 						[[delegate delegate] contentsUpdatedForNote:self];
 					}
 					fileEncoding = externalEncoding;
-					formattedData = [[contentString string] dataUsingEncoding:fileEncoding
-						allowLossyConversion:NO];
+					formattedData = NVCreatePlainTextDataPromotingToUTF8(
+						[contentString string], &fileEncoding);
 				}
 				[externalContent release];
 			} else {
 				BOOL externalContentChanged = convertingFromDatabase ? YES :
 					(self.fileMergeBaseData ?
-					![snapshot.data isEqualToData:self.fileMergeBaseData] :
-					(!self.fileMergeBaseText || !NVSnapshotMatchesNote(&snapshot, self)));
+					![[snapshot data] isEqualToData:self.fileMergeBaseData] :
+					(!self.fileMergeBaseText || !NVSnapshotMatchesNote(snapshot, self)));
 				conflict = (externalContentChanged &&
-					![snapshot.data isEqualToData:formattedData]) || !mergedLabels;
+					![[snapshot data] isEqualToData:formattedData]) || !mergedLabels;
 			}
 
 			if (conflict) {
 				NSError *conflictError = nil;
-				if (![self preserveExternalSnapshot:&snapshot format:formatID
+				if (![self preserveExternalSnapshot:snapshot format:formatID
 					movedFilename:&movedConflictFilename error:&conflictError]) {
 					[delegate noteDidNotWrite:self error:conflictError];
 					return NO;
@@ -1430,21 +1372,42 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		}
 		
 		NSError *writeError = nil;
-		NVFileInfo info = { 0 };
 		// expectedData tells the file writer, "replace this only if the destination
 		// is still exactly the file we just read." Swap/exchange filesystems enforce
 		// that through installation; limited filesystems recheck just before rename.
-		if (![delegate storeNoteDataAtomically:formattedData withName:filename
-			encoding:(PlainTextFormat == formatID ? fileEncoding : 0)
-			tags:[self orderedLabelTitles] creationTime:createdDate
-			modificationTime:modifiedDate
-			expectedData:(!changingFormat && destinationExists ? snapshot.data : nil)
-			resultingFileInfo:&info error:&writeError]) {
+		NVFileWriteResult *writeResult = (!changingFormat && destinationExists) ?
+			[[delegate noteDirectory] replaceNoteFileNamed:filename withData:formattedData
+				encoding:(PlainTextFormat == formatID ? fileEncoding : 0)
+				tags:[self orderedLabelTitles] creationTime:createdDate
+				modificationTime:modifiedDate expectedSnapshot:snapshot] :
+			[[delegate noteDirectory] overwriteNoteFileNamed:filename withData:formattedData
+				encoding:(PlainTextFormat == formatID ? fileEncoding : 0)
+				tags:[self orderedLabelTitles] creationTime:createdDate
+				modificationTime:modifiedDate];
+		BOOL wroteVerified = NO;
+		switch ([writeResult disposition]) {
+			case NVFileWriteInstalledVerified:
+				wroteVerified = YES;
+				break;
+			case NVFileWriteInstalledNeedsReconciliation:
+				currentFormatID = formatID;
+				if ([[writeResult installedSnapshot] observation])
+					NVSetFileObservation(self, [[writeResult installedSnapshot] observation]);
+				shouldWriteToFile = NO;
+				[self clearFileMergeBase];
+				[delegate performSelector:@selector(synchronizeNotesFromDirectory)
+					withObject:nil afterDelay:0.0];
+				return YES; // the exact obligation was installed; reconciliation owns its successor
+			case NVFileWriteNotInstalled:
+				writeError = [writeResult error];
+				break;
+		}
+		if (!wroteVerified) {
 			NSLog(@"Unable to save note file %@", filename);
 			if (movedConflictFilename) {
 				NSError *restoreError = nil;
-				if (![delegate renameNoteFromName:movedConflictFilename
-					toName:filename error:&restoreError]) {
+				if (![[delegate noteDirectory] renameFileNamed:movedConflictFilename
+					toUnusedName:filename error:&restoreError]) {
 					writeError = restoreError;
 					if ([[restoreError domain] isEqualToString:NSPOSIXErrorDomain] &&
 						[restoreError code] == EEXIST)
@@ -1463,7 +1426,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			//NSLog(@"resetting the file name just because.");
 			[self setFilenameFromTitle];
 		}
-		NVSetFileInfo(self, &info);
+		NVSetFileObservation(self, [[writeResult installedSnapshot] observation]);
 		
 		
 		//finished writing to file successfully
@@ -1490,80 +1453,39 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	if (SingleDatabaseFormat == currentFormatID) return YES;
 
 	NSError *error = nil;
-	if (![delegate setCreationTime:createdDate modificationTime:modifiedDate forNoteNamed:filename error:&error]) {
+	NVFileObservation *observation = [[delegate noteDirectory] setCreationTime:createdDate
+		modificationTime:modifiedDate forFileNamed:filename error:&error];
+	if (!observation) {
 		NSLog(@"Could not set dates for %@: %@", filename, error);
 		return NO;
 	}
-	NVFileInfo info;
-	if (![delegate getFileInfo:&info forNoteNamed:filename error:&error]) {
-		NSLog(@"Unable to inspect newly written file %@: %@", filename, error);
-		return NO;
-	}
-	NVSetFileInfo(self, &info);
+	NVSetFileObservation(self, observation);
 	
 	return YES;
 }
 
-- (BOOL)upgradeToUTF8IfUsingSystemEncoding {
-	if (CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding()) == fileEncoding)
-		return [self upgradeEncodingToUTF8];
-	return NO;
-}
-
-- (BOOL)upgradeEncodingToUTF8 {
-	//"convert" the file to have a UTF-8 encoding
-	BOOL didUpgrade = YES;
-	
-	if (NSUTF8StringEncoding != fileEncoding) {
-		[self _setFileEncoding:NSUTF8StringEncoding];
-		
-		if (!contentsWere7Bit && PlainTextFormat == currentFormatID) {
-			//this note exists on disk as a plaintext file, and its encoding is incompatible with UTF-8
-			
-			if ([delegate currentNoteStorageFormat] == PlainTextFormat) {
-				//actual conversion is expected because notes are presently being maintained as plain text files
-				
-				NSLog(@"rewriting %@ as utf8 data", titleString);
-				didUpgrade = [self writeUsingCurrentFileFormat];
-			} else if ([delegate currentNoteStorageFormat] == SingleDatabaseFormat) {
-				//update last-written-filemod time to guarantee proper encoding at next DB storage format switch, 
-				//in case this note isn't otherwise modified before that happens.
-				//a side effect is that if the user switches to an RTF or HTML format,
-				//this note will be written immediately instead of lazily upon the next modification
-				fileModificationTime = NVTimespecFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
-			}
-		}
-		//make note dirty to ensure these changes are saved
-		[self makeNoteDirtyUpdateTime:NO updateFile:NO];
-	}
-	return didUpgrade;
-}
-
-- (void)_setFileEncoding:(NSStringEncoding)encoding {
-	fileEncoding = encoding;
-}
-
 - (BOOL)setFileEncodingAndReinterpret:(NSStringEncoding)encoding {
 	if (encoding == fileEncoding) return YES;
-	NVNoteFileSnapshot snapshot;
 	NSError *error = nil;
-	if (![delegate readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]) return NO;
-	NVNoteFileSnapshot forcedSnapshot = snapshot;
-	forcedSnapshot.encoding = encoding;
-	NoteCatalogEntry entry = { snapshot.info.attributeModificationTime,
-		snapshot.info.fileID, (CFStringRef)filename, snapshot.info.documentID,
-		snapshot.info.generationCount };
-	NoteObject *prepared = [[NoteObject alloc] initWithCatalogEntry:&entry snapshot:&forcedSnapshot
+	NVFileSnapshot *snapshot = [[delegate noteDirectory] snapshotForFileNamed:filename error:&error];
+	if (!snapshot) return NO;
+	NVFileSnapshot *forcedSnapshot = [[[NVFileSnapshot alloc] initWithData:[snapshot data]
+		tags:[snapshot tags] encoding:encoding observation:[snapshot observation]] autorelease];
+	NVFileObservation *observation = [snapshot observation];
+	NoteCatalogEntry entry = { [observation attributeModificationTime],
+		[observation fileID], (CFStringRef)filename, [observation documentID],
+		[observation generationCount] };
+	NoteObject *prepared = [[NoteObject alloc] initWithCatalogEntry:&entry snapshot:forcedSnapshot
 		format:currentFormatID fallbackLabels:labelString fallbackEncoding:encoding
 		fallbackCreatedDate:createdDate error:&error];
 	if (!prepared) return NO;
-	NVFileInfo resultingInfo;
-	if (![delegate setTextEncoding:encoding forNoteNamed:filename matchingFileInfo:&snapshot.info
-		expectedData:snapshot.data resultingFileInfo:&resultingInfo error:&error]) {
+	NVFileSnapshot *resultingSnapshot = [[delegate noteDirectory] setTextEncoding:encoding
+		forFileNamed:filename expectedSnapshot:snapshot error:&error];
+	if (!resultingSnapshot) {
 		[prepared release];
 		return NO;
 	}
-	NVSetFileInfo(prepared, &resultingInfo);
+	NVSetFileObservation(prepared, [resultingSnapshot observation]);
 	[self disconnectLabels];
 	[self applyPreparedFileStateFromNote:prepared];
 	[self attachToDelegate:delegate];
@@ -1588,45 +1510,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	sessionFileGeneration = 0;
 }
 
-- (BOOL)_updateFromData:(NSData*)data inFormat:(int)fmt
-	preferredEncoding:(NSStringEncoding)preferredEncoding {
-    
-    if (!data) {
-		NSLog(@"%@: Data is nil!", NSStringFromSelector(_cmd));
-		return NO;
-    }
-	NSAssert(fmt != SingleDatabaseFormat,
-		@"Warning! Tried to update data from a note in single-db format!");
-    
-	NSStringEncoding decodedEncoding = preferredEncoding;
-	NSMutableAttributedString *attributedStringFromData =
-		NVCreateDecodedContent(data, fmt, &decodedEncoding);
-    
-    if (!attributedStringFromData) {
-		NSLog(@"Couldn't make string out of data for note %@ with format %d", titleString, fmt);
-		return NO;
-    }
-    
-	[contentString release];
-	contentString = attributedStringFromData;
-	fileEncoding = decodedEncoding;
-	[contentString santizeForeignStylesForImporting];
-	//[contentString setAttributedString:attributedStringFromData];
-	contentCacheNeedsUpdate = YES;
-    [self updateContentCacheCStringIfNecessary];
-	[undoManager removeAllActions];
-	
-	[self updateTablePreviewString];
-    
-	//don't update the date modified here, as this could be old data
-    
-    return YES;
-}
-
-- (BOOL)updateFromData:(NSData*)data inFormat:(int)fmt {
-	return [self _updateFromData:data inFormat:fmt preferredEncoding:fileEncoding];
-}
-
 - (void)updateWithSyncBody:(NSString*)newBody andTitle:(NSString*)newTitle {
 	
 	NSMutableAttributedString *attributedBodyString = [[NSMutableAttributedString alloc] initWithString:newBody attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]];
@@ -1646,7 +1529,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 
 - (BOOL)moveFileToTrash {
 	NSError *error = nil;
-	if (![delegate moveNoteToTrashNamed:filename resultingURL:NULL error:&error]) {
+	if (![[delegate noteDirectory] moveFileToTrashUsingWorkspaceNamed:filename
+		resultingURL:NULL error:&error]) {
 		if (([[error domain] isEqualToString:NSCocoaErrorDomain] &&
 			[error code] == NSFileNoSuchFileError) ||
 			([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == ENOENT))
@@ -1657,21 +1541,11 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	return YES;
 }
 
-- (BOOL)removeUsingJournal:(WALStorageController*)wal {
-    return [wal writeRemovalForNote:self];
-}
-
 - (void)registerModificationWithOwnedServices {
 	//mirror this note's current mod date to services with which it is already synced
 	//there is no point calling this method unless the modification time is 
 	[[SyncSessionController allServiceClasses] makeObjectsPerformSelector:@selector(registerLocalModificationForNote:) withObject:self];
 }
-
-- (void)removeAllSyncServiceMD {
-	//potentially dangerous
-	[syncServicesMD removeAllObjects];
-}
-
 
 - (void)makeNoteDirtyUpdateTime:(BOOL)updateTime updateFile:(BOOL)updateFile {
 	if (updateFile) {
@@ -1720,11 +1594,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		case SingleDatabaseFormat:
 			NSAssert(NO, @"Warning! Tried to export data in single-db format!?");
 		case PlainTextFormat:
-			if (!(formattedData = [[contentMinusColor string] dataUsingEncoding:fileEncoding allowLossyConversion:NO])) {
-				[self _setFileEncoding:NSUTF8StringEncoding];
-				NSLog(@"promoting to unicode (UTF-8) on export--probably because internal format is singledb");
-				formattedData = [[contentMinusColor string] dataUsingEncoding:fileEncoding allowLossyConversion:YES];
-			}
+			formattedData = NVCreatePlainTextDataPromotingToUTF8(
+				[contentMinusColor string], &fileEncoding);
 			break;
 		case RTFTextFormat:
 			formattedData = [contentMinusColor RTFFromRange:NSMakeRange(0, [contentMinusColor length]) documentAttributes:@{}];
@@ -1768,12 +1639,8 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 		error:outError]) return NO;
 
 	NSString *encodingValue = nil;
-	if (PlainTextFormat == storageFormat) {
-		CFStringEncoding cfEncoding = CFStringConvertNSStringEncodingToEncoding(fileEncoding);
-		NSString *encodingName = (NSString*)CFStringConvertEncodingToIANACharSetName(cfEncoding);
-		if (encodingName)
-			encodingValue = [encodingName stringByAppendingFormat:@";%u", (unsigned int)cfEncoding];
-	}
+	if (PlainTextFormat == storageFormat)
+		encodingValue = NVTextEncodingAttributeValue(fileEncoding);
 	NSArray *tags = [self orderedLabelTitles];
 	NSError *metadataError = nil;
 	NSData *tagData = [NSPropertyListSerialization dataWithPropertyList:tags
@@ -1841,7 +1708,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			NSAttributedString *value = [[[NSAttributedString alloc] initWithString:merged
 				attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
 			[self setContentString:value];
-			[delegate note:self attributeChanged:NotePreviewString];
 			[[delegate delegate] contentsUpdatedForNote:self];
 		}
 		return YES;
@@ -1860,7 +1726,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
 		NoteObject *conflict = [[[NoteObject alloc] initWithNoteBody:body
 			title:[titleString stringByAppendingString:@" (conflict - undecodable data)"]
-			delegate:nil format:SingleDatabaseFormat labels:labelString] autorelease];
+			format:SingleDatabaseFormat labels:labelString] autorelease];
 		[delegate addNotes:[NSArray arrayWithObject:conflict]];
 		self.externalEditingConflictNote = conflict;
 		self.externalEditingConflictData = data;
@@ -1873,7 +1739,7 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	NSAttributedString *body = [[[NSAttributedString alloc] initWithString:external
 		attributes:[[GlobalPrefs defaultPrefs] noteBodyAttributes]] autorelease];
 	NoteObject *conflict = [[[NoteObject alloc] initWithNoteBody:body
-		title:[titleString stringByAppendingString:@" (conflict)"] delegate:nil
+		title:[titleString stringByAppendingString:@" (conflict)"]
 		format:SingleDatabaseFormat labels:labelString] autorelease];
 	[delegate addNotes:[NSArray arrayWithObject:conflict]];
 	self.externalEditingConflictNote = conflict;
@@ -1882,24 +1748,6 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 	self.externalEditingConflictNote = nil;
 	self.externalEditingConflictData = nil;
 	return YES;
-}
-
-- (NSRange)nextRangeForWords:(NSArray*)words options:(unsigned)opts range:(NSRange)inRange {
-	//opts indicate forwards or backwards, inRange allows us to continue from where we left off
-	//return location of NSNotFound and length 0 if none of the words could be found inRange
-	
-	//an optimization would be to fall back on cached cString if contentsWere7Bit is true, but then we have to handle opts ourselves
-	NSString *haystack = [contentString string];
-	NSRange nextRange = NSMakeRange(NSNotFound, 0);
-	for (NSString *word in words) {
-		if ([word length] > 0) {
-			nextRange = [haystack rangeOfString:word options:opts range:inRange];
-			if (nextRange.location != NSNotFound && nextRange.length)
-				break;
-		}
-	}
-
-	return nextRange;
 }
 
 force_inline void resetFoundPtrsForNote(NoteObject *note) {
@@ -1948,26 +1796,6 @@ BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shor
 - (void)removeAllPrefixParentNotes {
 	[prefixParentNotes removeAllObjects];
 }
-
-- (NSSet*)labelSet {
-    return labelSet;
-}
-
-/*
-- (CFArrayRef)rangesForWords:(NSString*)string inRange:(NSRange)rangeLimit {
-	//use cstring caches if note is all 7-bit, as we [REALLY OUGHT TO] be able to assume a 1-to-1 character mapping
-	
-	if (contentsWere7Bit) {
-		char *manglingString = strdup([string UTF8String]);
-		char *token, *separators = separatorsForCString(manglingString);
-		
-		while ((token = strsep(&manglingString, separators))) {
-			if (*token != '\0') {
-				//find all occurrences of token in cContents and add cfranges to cfmutablearray
-			}
-		}
-	}
-}*/
 
 - (NSUndoManager*)undoManager {
     if (!undoManager) {

@@ -25,7 +25,7 @@
 #import "NoteAttributeColumn.h"
 #import "NotationSyncServiceManager.h"
 #import "NotationDirectoryManager.h"
-#import "NotationFileManager.h"
+#import "NVRootedDirectory.h"
 #import "NSString_NV.h"
 #import "NSFileManager_NV.h"
 #import "ImportingUtils.h"
@@ -73,6 +73,8 @@
 - (NSString*)_consumeLaunchNotesDirectoryPath;
 - (void)_setNotationController:(NotationController*)newNotation
 	persistDefaultDirectory:(BOOL)persistDefaultDirectory;
+- (void)_relocateNotesDirectory;
+- (void)_checkIfNotationIsTrashed;
 @end
 #import "AugmentedScrollView.h"
 #import "BookmarksController.h"
@@ -239,6 +241,65 @@ void outletObjectAwoke(id sender) {
 	}
 }
 
+- (void)_relocateNotesDirectory {
+	while (1) {
+		NSOpenPanel *openPanel = [NSOpenPanel openPanel];
+		[openPanel setCanCreateDirectories:YES];
+		[openPanel setCanChooseFiles:NO];
+		[openPanel setCanChooseDirectories:YES];
+		[openPanel setResolvesAliases:YES];
+		[openPanel setAllowsMultipleSelection:NO];
+		[openPanel setTreatsFilePackagesAsDirectories:NO];
+		[openPanel setTitle:NSLocalizedString(@"Select a folder",nil)];
+		[openPanel setPrompt:NSLocalizedString(@"Select",nil)];
+		[openPanel setMessage:NSLocalizedString(@"Select a new location for your Notational Velocity notes.",nil)];
+
+		if ([openPanel runModal] == NSModalResponseOK) {
+			NSURL *selectedURL = [[NSFileManager defaultManager] fileReferenceURLForURL:[openPanel URL] error:NULL];
+			if (selectedURL) {
+				NSError *moveError = nil;
+				if (![[notationController noteDirectory] relocateIntoDirectoryReferenceURL:selectedURL error:&moveError]) {
+					NSString *messageText = [NSString stringWithFormat:NSLocalizedString(@"Couldn't move notes into the chosen folder because %@", nil), moveError];
+					NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+					[alert setMessageText:messageText];
+					[alert setInformativeText:NSLocalizedString(@"Your notes were not moved.", nil)];
+					[alert addButtonWithTitle:NSLocalizedString(@"OK", nil)];
+					[alert runModal];
+					continue;
+				}
+				NSURL *directoryURL = [[notationController noteDirectory] transientFileReferenceURL];
+				[[GlobalPrefs defaultPrefs] setDefaultDirectoryURL:directoryURL sender:self error:NULL];
+				[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[ directoryURL ]];
+				goto terminate;
+			}
+			goto terminate;
+		} else {
+terminate:
+			[NSApp terminate:nil];
+			break;
+		}
+	}
+}
+
+- (void)_checkIfNotationIsTrashed {
+	if (!NVURLIsInTrash([[notationController noteDirectory] transientFileReferenceURL])) return;
+
+	NSString *trashLocation = [[[notationController noteDirectoryURL] path]
+		stringByAbbreviatingWithTildeInPath];
+	if (!trashLocation) trashLocation = @"unknown";
+	NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
+	[trashAlert setMessageText:[NSString stringWithFormat:
+		NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.", nil), trashLocation]];
+	[trashAlert setInformativeText:NSLocalizedString(
+		@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?", nil)];
+	[trashAlert addButtonWithTitle:NSLocalizedString(@"Relocate Notes", nil)];
+	[trashAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
+	[trashAlert setAlertStyle:NSAlertStyleCritical];
+	if ([trashAlert runModal] == NSAlertFirstButtonReturn)
+		[self _relocateNotesDirectory];
+	else [NSApp terminate:nil];
+}
+
 - (void)runDelayedUIActionsAfterLaunch {
 	[[prefsController bookmarksController] setAppController:self];
 	[[prefsController bookmarksController] restoreWindowFromSave];
@@ -246,7 +307,7 @@ void outletObjectAwoke(id sender) {
 	[self updateNoteMenus];
 	[textView setupFontMenu];
 	[prefsController registerAppActivationKeystrokeWithTarget:self selector:@selector(toggleNVActivation:)];
-	[notationController checkIfNotationIsTrashed];
+	[self _checkIfNotationIsTrashed];
 	[[SecureTextEntryManager sharedInstance] checkForIncompatibleApps];
 
 	// Connect Sparkle programmatically to avoid loading its framework at nib awake
@@ -308,8 +369,17 @@ void outletObjectAwoke(id sender) {
 		subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.", nil);
 	} else if (!skipDefaultInitialization) {
 		if (hasSavedDirectory) {
-		    newNotation = savedDirectoryURL ? [[NotationController alloc] initWithDirectoryURL:savedDirectoryURL error:&err] : nil;
-			if (!savedDirectoryURL) err = fnfErr;
+			NSError *rootError = nil;
+			NVRootedDirectory *savedRoot = savedDirectoryURL ? [[NVRootedDirectory alloc]
+				initWithBookmarkData:[prefsController bookmarkDataForDefaultDirectory]
+				error:&rootError] : nil;
+			newNotation = savedRoot ? [[NotationController alloc]
+				initWithRootedDirectory:savedRoot error:&err] : nil;
+			[savedRoot release];
+			if (!newNotation && err == noErr) {
+				if (rootError) NSLog(@"Unable to open saved notes directory: %@", rootError);
+				err = fnfErr;
+			}
 		    subMessage = NSLocalizedString(@"Please choose a different folder in which to store your notes.",nil);
 		} else {
 		    newNotation = [[NotationController alloc] initWithDefaultDirectoryReturningError:&err];
@@ -1688,7 +1758,7 @@ terminateApp:
 		NSString *title = [[field stringValue] length] ? [field stringValue] : NSLocalizedString(@"Untitled Note", @"Title of a nameless note");
 		NSAttributedString *attributedContents = [textView textStorage] ? [textView textStorage] : [[[NSAttributedString alloc] initWithString:@"" attributes:
 																									 [prefsController noteBodyAttributes]] autorelease];
-		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedContents title:title delegate:notationController
+		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:attributedContents title:title
 														  format:[notationController currentNoteStorageFormat] labels:nil] autorelease];
 		[notationController addNewNote:note];
 

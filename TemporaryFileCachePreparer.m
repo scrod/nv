@@ -22,6 +22,8 @@
 
 #import "TemporaryFileCachePreparer.h"
 #import "NotationPrefs.h"
+#import "NVRootedDirectory_Private.h"
+#import "NSFileManager_NV.h"
 #include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -30,6 +32,7 @@
 
 @interface TemporaryFileCachePreparer ()
 @property (nonatomic, retain, readwrite) NSString *preparedCachePath;
+@property (nonatomic, retain, readwrite) NVRootedDirectory *preparedDirectory;
 @end
 
 //used to mount a RAM disk for temporary file editing
@@ -38,7 +41,7 @@
 
 @implementation TemporaryFileCachePreparer
 
-@synthesize preparing = startedPreparing, preparedCachePath;
+@synthesize preparing = startedPreparing, preparedCachePath, preparedDirectory;
 
 static NSInteger RAMDiskMountState(const char *expectedMountPath);
 static NSString *RAMDiskMountPath(void);
@@ -78,6 +81,7 @@ static const unsigned char NVBackupExclusionBplist[] = {
 	[mountTask release];
 	[deviceName release];
 	[preparedCachePath release];
+	[preparedDirectory release];
 	if (cacheLockFD >= 0) close(cacheLockFD);
 	[super dealloc];
 }
@@ -312,7 +316,28 @@ static void NVCleanStaleEditingFiles(int rootFD, NSString *rootPath) {
 		[self _stopPreparation];
 		return;
 	}
-	close(workspaceFD);
+	NSString *workspacePath = [aPath stringByAppendingPathComponent:workspaceName];
+	NSError *rootError = nil;
+	NSURL *workspaceURL = [[NSFileManager defaultManager] fileReferenceURLForURL:
+		[NSURL fileURLWithPath:workspacePath isDirectory:YES] error:&rootError];
+	NSData *workspaceBookmark = workspaceURL ? [[NSFileManager defaultManager]
+		bookmarkDataForFileReferenceURL:workspaceURL error:&rootError] : nil;
+	int transferredWorkspaceFD = workspaceFD;
+	workspaceFD = -1;
+	NVRootedDirectory *rootedWorkspace = workspaceBookmark ? [[[NVRootedDirectory alloc]
+		initWithOwnedDirectoryFileDescriptor:transferredWorkspaceFD fileReferenceURL:workspaceURL
+		bookmarkData:workspaceBookmark error:&rootError] autorelease] : nil;
+	if (!workspaceBookmark) close(transferredWorkspaceFD);
+	if (!rootedWorkspace) {
+		if (workspaceFD >= 0) close(workspaceFD);
+		close(lockFD);
+		(void)unlinkat(rootFD, [workspaceName fileSystemRepresentation], AT_REMOVEDIR);
+		close(rootLockFD);
+		close(rootFD);
+		NSLog(@"Could not root external-editing workspace: %@", rootError);
+		[self _stopPreparation];
+		return;
+	}
 	close(rootLockFD);
 	close(rootFD);
 	cacheLockFD = lockFD;
@@ -320,11 +345,11 @@ static void NVCleanStaleEditingFiles(int rootFD, NSString *rootPath) {
 	(void)setxattr([aPath fileSystemRepresentation],
 		"com.apple.metadata:com_apple_backup_excludeItem",
 		NVBackupExclusionBplist, sizeof(NVBackupExclusionBplist), 0, 0);
-	NSString *workspacePath = [aPath stringByAppendingPathComponent:workspaceName];
 	(void)setxattr([workspacePath fileSystemRepresentation],
 		"com.apple.metadata:com_apple_backup_excludeItem",
 		NVBackupExclusionBplist, sizeof(NVBackupExclusionBplist), 0, 0);
 	self.preparedCachePath = workspacePath;
+	self.preparedDirectory = rootedWorkspace;
 	
 	startedPreparing = NO;
 	

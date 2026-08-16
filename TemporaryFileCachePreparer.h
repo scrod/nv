@@ -23,6 +23,7 @@
 #import <Cocoa/Cocoa.h>
 
 @class NotationPrefs;
+@class NVRootedDirectory;
 
 @interface TemporaryFileCachePreparer : NSObject {
 	id delegate;
@@ -30,6 +31,7 @@
 	BOOL startedPreparing;
 	NSTask *mountTask, *newfsTask, *attachTask;
 	NSString *deviceName, *preparedCachePath;
+	NVRootedDirectory *preparedDirectory;
 	int cacheLockFD;
 }
 
@@ -44,6 +46,7 @@
 - (void)_finishPreparationWithPath:(NSString*)aPath;
 - (void)_stopPreparation;
 @property (nonatomic, retain, readonly) NSString *preparedCachePath;
+@property (nonatomic, retain, readonly) NVRootedDirectory *preparedDirectory;
 - (void)setDelegate:(id)aDelegate;
 - (id)delegate;
 

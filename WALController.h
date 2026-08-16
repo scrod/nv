@@ -26,9 +26,13 @@
 #include <sys/types.h>
 #include <zlib.h>
 
+@class NVRootedDirectory;
+
+extern NSString * const NVJournalFilename;
+
 @interface WALController : NSObject {
-	int logFD;
-	int directoryFD;
+	NSFileHandle *logFileHandle;
+	NVRootedDirectory *directory;
 	NSData *logSessionKey;
 	
 	z_stream compressionStream;
@@ -43,7 +47,7 @@
     NSMutableData *unwrittenData;
 	BOOL cannotContinueWriting;
 }
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
+- (id)initWithRootedDirectory:(NVRootedDirectory*)root encryptionKey:(NSData*)key;
 - (BOOL)writeEstablishedNote:(id<SynchronizedNote>)aNoteObject;
 - (BOOL)writeRemovalForNote:(id<SynchronizedNote>)aNoteObject;
 - (void)writeNoteObjects:(NSArray*)notes;
@@ -59,7 +63,7 @@
     //than there exists data in what we have yet to read
 }
 
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key
+- (id)initWithRootedDirectory:(NVRootedDirectory*)root encryptionKey:(NSData*)key
 	error:(int*)errorNumber journalInUse:(BOOL*)journalInUse;
 //Returns every safely decoded note; incomplete is YES if any record was skipped
 //or the shared compressed stream could not be advanced safely.

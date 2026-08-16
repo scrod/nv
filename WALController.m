@@ -32,6 +32,7 @@
 #import "DeletedNoteObject.h"
 #import "NSCollection_utils.h"
 #import "NSString_NV.h"
+#import "NVRootedDirectory_Private.h"
 
 /*
  * Write-ahead log theory of operation
@@ -40,8 +41,8 @@
  * ownership lock.  A writer creates it exclusively, takes flock(), and appends
  * note versions to one continuous zlib stream.  Each append is independently
  * archived and encrypted, then framed with its uncompressed length, encrypted
- * length, checksum, and salt.  -synchronize drains short writes and fsyncs the
- * journal before the corresponding in-memory changes may be considered safe.
+ * length, checksum, and salt.  -synchronize drains short writes and barrier-syncs
+ * the journal before the corresponding database write can proceed.
  * Once zlib advances, a failure to finish that record permanently stops this
  * writer; later records would otherwise depend on compressed bytes never saved.
  *
@@ -73,7 +74,7 @@ typedef union {
 	char recordBuffer[(sizeof(u_int32_t) * 3) + RECORD_SALT_LEN];
 } WALRecordHeader;
 
-static const char NVJournalFilename[] = "Interim Note-Changes";
+NSString * const NVJournalFilename = @"Interim Note-Changes";
 
 typedef NS_ENUM(NSUInteger, WALRecordRecoveryResult) {
 	WALRecordRecovered, //object and shared compression state are both valid
@@ -103,7 +104,8 @@ static ssize_t NVReadWALBytes(int fileDescriptor, void *buffer, size_t length,
 }
 
 @interface WALController ()
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key;
+- (id)initWithRootedDirectory:(NVRootedDirectory*)root encryptionKey:(NSData*)key;
+- (int)_logFileDescriptor;
 - (int)_flockJournalFile;
 - (BOOL)_acquireJournalLock;
 @end
@@ -147,15 +149,23 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 @implementation WALController
 
+- (int)_logFileDescriptor { return logFileHandle ? [logFileHandle fileDescriptor] : -1; }
+
+- (void)_closeLogFile {
+	[logFileHandle closeFile];
+	[logFileHandle release];
+	logFileHandle = nil;
+}
+
 - (int)_flockJournalFile {
-	return flock(logFD, LOCK_EX | LOCK_NB);
+	return flock([self _logFileDescriptor], LOCK_EX | LOCK_NB);
 }
 
 - (BOOL)_acquireJournalLock {
 	if ([self _flockJournalFile] == 0) return YES;
 	int lockError = errno;
 	struct stat info;
-	BOOL regularFile = fstat(logFD, &info) == 0 && S_ISREG(info.st_mode);
+	BOOL regularFile = fstat([self _logFileDescriptor], &info) == 0 && S_ISREG(info.st_mode);
 	if (lockError == ENOTSUP || (lockError == EINVAL && regularFile)) {
 		/* unsupported filesystems run without advisory exclusion;
 		 * O_EXCL still excludes a second writer, but recovery cannot distinguish
@@ -167,13 +177,11 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	return NO;
 }
 
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key {
+- (id)initWithRootedDirectory:(NVRootedDirectory*)root encryptionKey:(NSData*)key {
     self = [super init];
     if (self) {
-		logFD = -1;
-		directoryFD = -1;
-		directoryFD = dup(fileDescriptor);
-		if (directoryFD < 0) {
+		directory = [root retain];
+		if (!directory) {
 			[self release];
 			return nil;
 		}
@@ -188,38 +196,39 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 
 //called frequently--each time the app comes to the foreground?
 - (BOOL)logFileStillExists {
-    struct stat openFileInfo, namedFileInfo;
+    struct stat openFileInfo;
     
     //but really we shouldn't just fstat the fd because the file shouldn't be renamed or moved, either
     //on the other hand, what if another app deleted and re-created it? then any changes would be lost upon closing the fd
-	if (fstat(logFD, &openFileInfo) < 0 ||
-		fstatat(directoryFD, NVJournalFilename, &namedFileInfo, AT_SYMLINK_NOFOLLOW) < 0) {
+	if (fstat([self _logFileDescriptor], &openFileInfo) < 0 ||
+		![directory fileHandle:logFileHandle isStillNamed:NVJournalFilename]) {
 	NSLog(@"logFileStillExists: fstat error: %s", strerror(errno));
 	
 	return NO;
     }
     
-	return openFileInfo.st_nlink > 0 && openFileInfo.st_dev == namedFileInfo.st_dev &&
-		openFileInfo.st_ino == namedFileInfo.st_ino;
+	return openFileInfo.st_nlink > 0;
 }
 
 - (BOOL)destroyLogFile {
-	if (unlinkat(directoryFD, NVJournalFilename, 0) < 0) {
-		NSLog(@"destroyLogFile: unlink error: %s", strerror(errno));
+	NSError *error = nil;
+	if (![directory removeFileNamed:NVJournalFilename error:&error]) {
+		NSLog(@"destroyLogFile: %@", error);
 		return NO;
 	}
-	if (logFD >= 0 && close(logFD) < 0) {
-		NSLog(@"destroyLogFile: close error: %s:", strerror(errno));
+	[self _closeLogFile];
+	if (![directory synchronize:&error]) {
+		NSLog(@"destroyLogFile directory synchronization: %@", error);
+		return NO;
 	}
-	logFD = -1;
     return YES;
 }
 
 - (void)dealloc {
-	/* Closing logFD also releases flock; some recovery transitions require that
+	/* Closing the file handle also releases flock; some recovery transitions require that
 	 * to happen synchronously when the controller's last owner releases it. */
-	if (logFD >= 0) close(logFD);
-	if (directoryFD >= 0) close(directoryFD);
+	[self _closeLogFile];
+	[directory release];
 	[logSessionKey release];
 	
 	[super dealloc];
@@ -240,8 +249,8 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 //if these operations are all successful, log file is removed
 
 
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key {
-    self = [super initWithDirectoryFileDescriptor:fileDescriptor encryptionKey:key];
+- (id)initWithRootedDirectory:(NVRootedDirectory*)root encryptionKey:(NSData*)key {
+    self = [super initWithRootedDirectory:root encryptionKey:key];
     if (self) {
 	
 	//we could make parent dir writable just in case, but that might be a security hazard depending on ownership
@@ -249,8 +258,10 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	
 	//attempt to open/create the file exclusively with write-only and append access
 	
-	if ((logFD = openat(directoryFD, NVJournalFilename,
-		O_CREAT | O_EXCL | O_WRONLY | O_APPEND | O_CLOEXEC | O_NOFOLLOW, S_IRUSR | S_IWUSR)) < 0) {
+	NSError *openError = nil;
+	logFileHandle = [[directory createAppendOnlyFileExclusivelyNamed:NVJournalFilename
+		permissions:S_IRUSR | S_IWUSR error:&openError] retain];
+	if (!logFileHandle) {
 	    //if this fails, the file probably still exists, or we don't have write permission
 	    //either way, we shouldn't continue
 	    
@@ -263,7 +274,13 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 		[self release];
 		return nil;
 	}
-	if (fcntl(logFD, F_NOCACHE, 1) < 0) {
+	if (![directory synchronize:&openError]) {
+		NSLog(@"Unable to synchronize journal creation: %@", openError);
+		(void)[directory removeFileNamed:NVJournalFilename error:NULL];
+		[self release];
+		return nil;
+	}
+	if (fcntl([self _logFileDescriptor], F_NOCACHE, 1) < 0) {
 		NSLog(@"Unable to disable disk caching for writing: %s", strerror(errno));
 	}
 		
@@ -331,7 +348,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     
     //attempt to write any buffered data
     if ([unwrittenData length] > 0) {
-		if ((bytesWritten = write(logFD, [unwrittenData bytes], [unwrittenData length])) > 0) {
+		if ((bytesWritten = write([self _logFileDescriptor], [unwrittenData bytes], [unwrittenData length])) > 0) {
 			//shift bytes backward and shrink buffer if any data could be written
 			void *bytes = [unwrittenData mutableBytes];
 			size_t newLength = [unwrittenData length] - bytesWritten;
@@ -423,7 +440,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 		//always append data in the right order; if there is old buffered data, then the new data is buffered until that is empty
 		//otherwise the new data is appended immediately
 		
-		bytesWritten = write(logFD, dataChunk, dataChunkSize);
+		bytesWritten = write([self _logFileDescriptor], dataChunk, dataChunkSize);
     }
     
     if (bytesWritten < 0) {
@@ -440,7 +457,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     
 	/* Once appended here, the WAL owns every remaining byte in unwrittenData.
 	 * The controller may therefore retire the note-level journal obligation;
-	 * -synchronize remains responsible for draining and fsyncing this byte outbox. */
+	 * -synchronize remains responsible for draining and barrier-syncing this byte outbox. */
 	cannotContinueWriting = NO;
 	return YES;
 }
@@ -449,10 +466,9 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
     
     BOOL flushedUnwritten = [self _attemptToWriteUnwrittenData];
     
-    //F_FULLFSYNC is probably overkill
-    if (fsync(logFD)) {
-	NSLog(@"synchronize WAL: fsync error: %s", strerror(errno));
-	return NO;
+	if (NVBarrierSyncFileDescriptor([self _logFileDescriptor]) < 0) {
+		NSLog(@"synchronize WAL: barrier sync error: %s", strerror(errno));
+		return NO;
     }
     
     return flushedUnwritten;
@@ -477,18 +493,20 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 //The startup coordinator owns database persistence and WAL replacement. This
 //class only holds the existing journal lock and scans recoverable records.
 
-- (id)initWithDirectoryFileDescriptor:(int)fileDescriptor encryptionKey:(NSData*)key
+- (id)initWithRootedDirectory:(NVRootedDirectory*)root encryptionKey:(NSData*)key
 	error:(int*)errorNumber journalInUse:(BOOL*)journalInUse {
 	if (errorNumber) *errorNumber = 0;
 	if (journalInUse) *journalInUse = NO;
-    self = [super initWithDirectoryFileDescriptor:fileDescriptor encryptionKey:key];
+    self = [super initWithRootedDirectory:root encryptionKey:key];
     if (self) {
 	fileLength = totalBytesRead = 0;
 	
 	//attempt to open file read-only
-	if ((logFD = openat(directoryFD, NVJournalFilename,
-		O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW)) < 0) {
-		int openError = errno;
+	NSError *openErrorObject = nil;
+	logFileHandle = [[directory openExistingRegularFileNonblockingNamed:NVJournalFilename
+		error:&openErrorObject] retain];
+	if (!logFileHandle) {
+		int openError = (int)[openErrorObject code];
 	    NSLog(@"WALRecoveryController: open error: %s", strerror(errno));
 		if (errorNumber) *errorNumber = openError;
 	    [self release];
@@ -504,7 +522,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 		return nil;
 	}
 	struct stat sb;
-	if (fstat(logFD, &sb) < 0) {
+	if (fstat([self _logFileDescriptor], &sb) < 0) {
 		int statError = errno;
 	    NSLog(@"WALRecoveryController: fstat error: %s", strerror(errno));
 		if (errorNumber) *errorNumber = statError;
@@ -518,7 +536,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 	    [self release];
 	    return nil;
 	}
-	(void)fchmod(logFD, S_IRUSR);
+	(void)fchmod([self _logFileDescriptor], S_IRUSR);
 	
 	fileLength = sb.st_size;
 	
@@ -558,7 +576,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 		return WALRecoveryEnded;
 	}
 	int readError = 0;
-	ssize_t readBytes = NVReadWALBytes(logFD, &record, sizeof(record), &readError);
+	ssize_t readBytes = NVReadWALBytes([self _logFileDescriptor], &record, sizeof(record), &readError);
 	totalBytesRead += readBytes;
 	if (readError || readBytes != (ssize_t)sizeof(record)) {
 		NSLog(@"recoverNextObject can't read the complete log record header%@",
@@ -584,7 +602,7 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 		return WALRecoveryStopped;
 	}
 	readError = 0;
-	readBytes = NVReadWALBytes(logFD, encryptedBytes, record.dataLength, &readError);
+	readBytes = NVReadWALBytes([self _logFileDescriptor], encryptedBytes, record.dataLength, &readError);
 	totalBytesRead += readBytes;
 	if (readBytes != (ssize_t)record.dataLength) {
 		NSLog(@"recoverNextObject can't read all serialized bytes%@", readError ?

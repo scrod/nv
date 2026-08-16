@@ -43,7 +43,7 @@
 #import "TemporaryFileCachePreparer.h"
 #import "ExternalEditorListController.h"
 #import "NoteObject.h"
-#import "../NotationFileManager.h"
+#import "../NVRootedDirectory.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -52,6 +52,7 @@
 static NSString * const NVExternalEditorClientKey = @"client";
 static NSString * const NVExternalEditorContextKey = @"context";
 static NSString * const NVExternalEditorPathKey = @"path";
+static NSString * const NVExternalEditorLeafNameKey = @"leafName";
 static NSString * const NVExternalEditorDataKey = @"data";
 static NSString * const NVExternalEditorMergeBaseDataKey = @"mergeBaseData";
 static NSString * const NVExternalEditorProcessingKey = @"processing";
@@ -65,57 +66,6 @@ static NSString * const NVExternalEditorPendingOpenCountKey = @"pendingOpenCount
 static NSString * const NVFinishRequestPathsKey = @"paths";
 static NSString * const NVFinishRequestCompletionKey = @"completion";
 static NSString * const NVFinishRequestDeadlineKey = @"deadline";
-
-static BOOL NVRemoveScratchFile(NSString *path) {
-	if (unlink([path fileSystemRepresentation]) == 0 || errno == ENOENT) return YES;
-	if (errno == EPERM) {
-		struct stat info = { 0 };
-		if (lstat([path fileSystemRepresentation], &info) == 0 &&
-			chflags([path fileSystemRepresentation], info.st_flags & ~(UF_IMMUTABLE | UF_APPEND)) == 0 &&
-			(unlink([path fileSystemRepresentation]) == 0 || errno == ENOENT))
-			return YES;
-	}
-	return NO;
-}
-
-static NSData *NVReadStableScratchFile(NSString *path, struct timespec *changeTime) {
-	// Read through an open descriptor and verify that it and the pathname still
-	// refer to the same unchanged regular file. Many editors save safely by
-	// writing a new file and renaming it over the old one; if that happens while
-	// we read, return no result so the caller can try again later.
-	int fd = open([path fileSystemRepresentation], O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-	if (fd < 0) return nil;
-	struct stat before = { 0 }, after = { 0 }, named = { 0 };
-	NSData *result = nil;
-	if (fstat(fd, &before) == 0 && S_ISREG(before.st_mode) && before.st_size >= 0 &&
-		(uint64_t)before.st_size <= NSUIntegerMax) {
-		NSMutableData *data = [NSMutableData dataWithLength:(NSUInteger)before.st_size];
-		uint8_t *bytes = [data mutableBytes];
-		size_t remaining = (size_t)before.st_size;
-		off_t offset = 0;
-		BOOL readAll = YES;
-		while (remaining) {
-			ssize_t amount = pread(fd, bytes + offset, remaining, offset);
-			if (amount < 0 && errno == EINTR) continue;
-			if (amount <= 0) { readAll = NO; break; }
-			offset += amount;
-			remaining -= (size_t)amount;
-		}
-		if (readAll && fstat(fd, &after) == 0 &&
-			lstat([path fileSystemRepresentation], &named) == 0 &&
-			before.st_dev == after.st_dev && before.st_ino == after.st_ino &&
-			before.st_size == after.st_size && before.st_ctimespec.tv_sec == after.st_ctimespec.tv_sec &&
-			before.st_ctimespec.tv_nsec == after.st_ctimespec.tv_nsec &&
-			after.st_dev == named.st_dev && after.st_ino == named.st_ino &&
-			after.st_size == named.st_size &&
-			after.st_ctimespec.tv_sec == named.st_ctimespec.tv_sec &&
-			after.st_ctimespec.tv_nsec == named.st_ctimespec.tv_nsec)
-			result = data;
-		if (result && changeTime) *changeTime = after.st_ctimespec;
-	}
-	close(fd);
-	return result;
-}
 
 @interface ExternalEditingSession ()
 - (BOOL)openURL:(NSURL*)URL inEditor:(ExternalEditor*)editor sessionPath:(NSString*)sessionPath;
@@ -172,9 +122,13 @@ static ExternalEditingSession *sharedExternalEditingSession;
 - (void)dealloc {
 	[self stopScratchWatcher];
 	[[[NSWorkspace sharedWorkspace] notificationCenter] removeObserver:self];
-	for (NSString *path in [_filePathsBeingEdited allKeys])
-		if (!NVRemoveScratchFile(path))
-			NSLog(@"Unable to remove external-editing scratch file '%@': %s", path, strerror(errno));
+	NVRootedDirectory *scratchDirectory = [editingSpacePreparer preparedDirectory];
+	for (NSDictionary *session in [_filePathsBeingEdited allValues]) {
+		NSString *leafName = [session objectForKey:NVExternalEditorLeafNameKey];
+		NSError *removeError = nil;
+		if (leafName && ![scratchDirectory removeFileNamed:leafName error:&removeError])
+			NSLog(@"Unable to remove external-editing scratch file '%@': %@", leafName, removeError);
+	}
 	[_filePathsBeingEdited release];
 	[_finishRequests release];
 	[editingSpacePreparer setDelegate:nil];
@@ -440,8 +394,8 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	// current user to read it. For an encrypted database the prepared root is a
 	// RAM-backed volume, so the note's plain text is not left on persistent disk;
 	// an explicit export is the separate path that intentionally writes a copy.
-	NSString *root = [editingSpacePreparer preparedCachePath];
-	if (![root length] || !data) return nil;
+	NVRootedDirectory *scratchDirectory = [editingSpacePreparer preparedDirectory];
+	if (!scratchDirectory || !data) return nil;
 	if (!scratchEventStream) [self startScratchWatcher];
 	if (!scratchEventStream) return nil;
 	NSString *base = [[filename lastPathComponent] stringByDeletingPathExtension];
@@ -449,28 +403,22 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	for (NSUInteger sequence = 0; sequence < 10000; sequence++) {
 		NSString *name = sequence ? [NSString stringWithFormat:@"%@ %03lu.txt", base,
 			(unsigned long)sequence] : [base stringByAppendingPathExtension:@"txt"];
-		NSString *path = [root stringByAppendingPathComponent:name];
-		int fd = open([path fileSystemRepresentation],
-			O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
-		if (fd < 0) {
-			if (errno == EEXIST) continue;
-			return nil;
+		NVFileWriteResult *result = [scratchDirectory createFileNamed:name withData:data];
+		switch ([result disposition]) {
+			case NVFileWriteInstalledVerified: {
+				NSError *pathError = nil;
+				return [[scratchDirectory transientFileReferenceURLForFileNamed:name
+					error:&pathError] path];
+			}
+			case NVFileWriteNotInstalled:
+				if ([[result error] code] == NSFileWriteFileExistsError) continue;
+				return nil;
+			case NVFileWriteInstalledNeedsReconciliation:
+				if ([result installedSnapshot])
+					(void)[scratchDirectory removeFileNamed:name
+						ifMatchingObservation:[[result installedSnapshot] observation] error:NULL];
+				return nil;
 		}
-		const uint8_t *bytes = [data bytes];
-		size_t remaining = [data length];
-		BOOL wrote = YES;
-		while (remaining) {
-			ssize_t amount = write(fd, bytes, remaining);
-			if (amount < 0 && errno == EINTR) continue;
-			if (amount <= 0) { wrote = NO; break; }
-			bytes += amount;
-			remaining -= (size_t)amount;
-		}
-		if (wrote) wrote = fsync(fd) == 0;
-		close(fd);
-		if (wrote) return path;
-		(void)unlink([path fileSystemRepresentation]);
-		return nil;
 	}
 	return nil;
 }
@@ -504,7 +452,8 @@ static ExternalEditingSession *sharedExternalEditingSession;
 	if (!path) goto failed;
 	NSMutableDictionary *session = [NSMutableDictionary dictionaryWithObjectsAndKeys:
 		note, NVExternalEditorClientKey,
-		path, NVExternalEditorPathKey, data, NVExternalEditorDataKey,
+		path, NVExternalEditorPathKey, [path lastPathComponent], NVExternalEditorLeafNameKey,
+		data, NVExternalEditorDataKey,
 		data, NVExternalEditorMergeBaseDataKey,
 		nil];
 	if (context) [session setObject:context forKey:NVExternalEditorContextKey];
@@ -536,10 +485,14 @@ failed:
 		return YES;
 	}
 
-	struct timespec changeTime = { 0 };
-	NSData *data = NVReadStableScratchFile(path, &changeTime);
-	if (!data) {
-		BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:path];
+	NVRootedDirectory *scratchDirectory = [editingSpacePreparer preparedDirectory];
+	NSString *leafName = [session objectForKey:NVExternalEditorLeafNameKey];
+	NSError *snapshotError = nil;
+	NVFileSnapshot *fileSnapshot = [scratchDirectory snapshotForFileNamed:leafName error:&snapshotError];
+	NSData *data = [fileSnapshot data];
+	struct timespec changeTime = [[fileSnapshot observation] attributeModificationTime];
+	if (!fileSnapshot) {
+		BOOL exists = [scratchDirectory regularFileExistsNamed:leafName];
 		if (endingSession) {
 			NSUInteger attempts = [[session objectForKey:NVExternalEditorFinalReadAttemptsKey]
 				unsignedIntegerValue] + 1;
@@ -609,11 +562,13 @@ failed:
 	}
 	if (endingSession || [[session objectForKey:NVExternalEditorPendingEndKey] boolValue]) {
 		if ([_filePathsBeingEdited objectForKey:path] == session) {
-			if (NVRemoveScratchFile(path))
+			NSError *removeError = nil;
+			if ([scratchDirectory removeFileNamed:leafName
+				ifMatchingObservation:[fileSnapshot observation] error:&removeError])
 				[self removeSessionAtPath:path];
 			else {
-				NSLog(@"Unable to remove external-editing scratch file '%@': %s", path,
-					strerror(errno));
+				NSLog(@"Unable to remove external-editing scratch file '%@': %@", path,
+					removeError);
 				[session release];
 				return NO;
 			}
@@ -626,31 +581,33 @@ failed:
 			[session removeObjectForKey:NVExternalEditorNoteModificationDateKey];
 			[session removeObjectForKey:NVExternalEditorWriteErrorReportedKey];
 		} else {
-			NSError *writeError = nil;
-			NSString *directory = [path stringByDeletingLastPathComponent];
-			int directoryFD = open([directory fileSystemRepresentation],
-				O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
-			BOOL wrote = directoryFD >= 0 &&
-				NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD, noteData,
-					[path lastPathComponent], data, &writeError);
-			if (directoryFD >= 0) close(directoryFD);
-			else writeError = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno
-				userInfo:@{ NSFilePathErrorKey: directory }];
-			if (wrote) {
-				if (![session objectForKey:NVExternalEditorMergeBaseDataKey])
-					[session setObject:data forKey:NVExternalEditorMergeBaseDataKey];
-				[session setObject:noteData forKey:NVExternalEditorDataKey];
-				[session removeObjectForKey:NVExternalEditorNoteModificationDateKey];
-				[session removeObjectForKey:NVExternalEditorWriteErrorReportedKey];
-			} else if ([[writeError domain] isEqualToString:NSPOSIXErrorDomain] &&
-				[writeError code] == EAGAIN) {
-				[session release];
-				return NO;
-			} else if (![session objectForKey:NVExternalEditorWriteErrorReportedKey]) {
-				NSLog(@"Could not update external-editing scratch file '%@': %@", path,
-					writeError);
-				NSBeep();
-				[session setObject:@YES forKey:NVExternalEditorWriteErrorReportedKey];
+			NVFileWriteResult *writeResult = [scratchDirectory replaceFileNamed:leafName
+				withData:noteData expectedSnapshot:fileSnapshot];
+			NSError *writeError = [writeResult error];
+			switch ([writeResult disposition]) {
+				case NVFileWriteInstalledVerified:
+					if (![session objectForKey:NVExternalEditorMergeBaseDataKey])
+						[session setObject:data forKey:NVExternalEditorMergeBaseDataKey];
+					[session setObject:noteData forKey:NVExternalEditorDataKey];
+					[session removeObjectForKey:NVExternalEditorNoteModificationDateKey];
+					[session removeObjectForKey:NVExternalEditorWriteErrorReportedKey];
+					break;
+				case NVFileWriteInstalledNeedsReconciliation:
+					[session release];
+					return NO;
+				case NVFileWriteNotInstalled:
+					if ([[writeError domain] isEqualToString:NSPOSIXErrorDomain] &&
+						[writeError code] == EAGAIN) {
+						[session release];
+						return NO;
+					}
+					if (![session objectForKey:NVExternalEditorWriteErrorReportedKey]) {
+						NSLog(@"Could not update external-editing scratch file '%@': %@", path,
+							writeError);
+						NSBeep();
+						[session setObject:@YES forKey:NVExternalEditorWriteErrorReportedKey];
+					}
+					break;
 			}
 		}
 	}

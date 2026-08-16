@@ -28,13 +28,9 @@
 
 //enum { kUISearch, kUINewNote, kUIDeleteNote, kUIRenameNote, kUILabelOperation };
 
-typedef struct _NoteCatalogEntry {
-	struct timespec attributeChangeTime;
-	uint64_t fileID;
-	CFStringRef filename;
-	uint32_t documentID;
-	uint32_t generationCount;
-} NoteCatalogEntry;
+typedef struct _NoteCatalogEntry NoteCatalogEntry;
+
+extern NSString * const NotesDatabaseFileName;
 
 @class NoteObject;
 @class DeletedNoteObject;
@@ -45,6 +41,7 @@ typedef struct _NoteCatalogEntry {
 @class DeletionManager;
 @class GlobalPrefs;
 @class NVDirectoryTransaction;
+@class NVRootedDirectory;
 
 @interface NotationController : NSObject {
     NSMutableArray *allNotes;
@@ -80,15 +77,12 @@ typedef struct _NoteCatalogEntry {
 	FSEventStreamRef noteDirEventStreamRef;
 	BOOL eventStreamStarted;
 	    
-    size_t catEntriesCount, totalCatEntriesCount;
-    NoteCatalogEntry *catalogEntries, **sortedCatalogEntries;
+	id directoryCatalog; // private NVRootedDirectoryCatalog
     
 	unsigned int lastCheckedDateInHours;
 	int lastLayoutStyleGenerated;
 	NSString *currentFileMetadataVolumeUUID;
-    NSURL *noteDirectoryURL;
-    NSData *noteDirectoryBookmarkData;
-    int noteDirectoryFileDescriptor;
+	NVRootedDirectory *noteDirectory;
 	NSError *lastWriteError;
     
     WALStorageController *walWriter;
@@ -108,7 +102,9 @@ typedef struct _NoteCatalogEntry {
 - (id)initWithAliasData:(NSData*)data error:(OSStatus*)err;
 - (id)initWithDefaultDirectoryReturningError:(OSStatus*)err;
 - (id)initWithDirectoryURL:(NSURL*)directoryURL error:(OSStatus*)err;
+- (id)initWithRootedDirectory:(NVRootedDirectory*)directory error:(OSStatus*)err;
 - (NSURL*)noteDirectoryURL;
+- (NVRootedDirectory*)noteDirectory;
 - (OSStatus)_readAndInitializeSerializedNotes;
 - (void)processRecoveredNotes:(NSDictionary*)dict;
 - (BOOL)initializeJournaling;
@@ -140,7 +136,6 @@ typedef struct _NoteCatalogEntry {
 - (void)scheduleWriteForNote:(NoteObject*)note;
 - (void)closeAllResources;
 - (void)trashRemainingNoteFilesInDirectory;
-- (void)checkIfNotationIsTrashed;
 - (void)updateLinksToNote:(NoteObject*)aNoteObject fromOldName:(NSString*)oldname;
 - (void)updateTitlePrefixConnections;
 - (void)addNotes:(NSArray<NoteObject*>*)noteArray;

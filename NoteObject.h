@@ -56,7 +56,6 @@ typedef struct _NoteFilterContext {
 	//if this note's title is "Chicken Shack menu listing", its prefix parent might have the title "Chicken Shack"
 	NSMutableArray *prefixParentNotes;
 	
-//	NSString *wordCountString;
 	NSString *dateModifiedString, *dateCreatedString;
 	
 	id delegate; //the notes controller
@@ -69,7 +68,7 @@ typedef struct _NoteFilterContext {
 	BOOL fileMetadataIsValid;
 	int currentFormatID;
 	NSStringEncoding fileEncoding;
-	BOOL shouldWriteToFile, didUnarchive;
+	BOOL shouldWriteToFile;
 	/* Runtime-only three-way-merge state. Deliberately absent from NSCoding. */
 	NSString *fileMergeBaseText, *fileMergeBaseLabels;
 	NSData *fileMergeBaseData;
@@ -125,7 +124,6 @@ NSInteger compareFilename(id *a, id *b);
 	//syncing w/ files in directory
 	int storageFormatOfNote(NoteObject *note);
 	NSString* filenameOfNote(NoteObject *note);
-	uint64_t fileSizeOfNote(NoteObject *note);
 	uint64_t sessionFileIDOfNote(NoteObject *note);
 	uint32_t documentIDOfNote(NoteObject *note);
 	uint32_t sessionFileGenerationOfNote(NoteObject *note);
@@ -154,22 +152,17 @@ NSInteger compareFilename(id *a, id *b);
 	id labelColumnCellForNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id dateCreatedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
 	id dateModifiedStringOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
-	id wordCountOfNote(NotesTableView *tv, NoteObject *note, NSInteger row);
-
 	void resetFoundPtrsForNote(NoteObject *note);
 	BOOL noteContainsUTF8String(NoteObject *note, NoteFilterContext *context);
 	BOOL noteTitleHasPrefixOfUTF8String(NoteObject *note, const char* fullString, size_t stringLen);
 	BOOL noteTitleIsAPrefixOfOtherNoteTitle(NoteObject *longerNote, NoteObject *shorterNote);
 
 - (id)delegate;
-- (void)setDelegate:(id)theDelegate;
 - (void)attachToDelegate:(id)theDelegate;
 - (id)initWithNoteBody:(NSAttributedString*)bodyText title:(NSString*)aNoteTitle 
-			  delegate:(id)aDelegate format:(int)formatID labels:(NSString*)aLabelString;
+				  format:(int)formatID labels:(NSString*)aLabelString;
 
-- (NSSet*)labelSet;
 - (void)replaceMatchingLabelSet:(NSSet*)aLabelSet;
-- (void)replaceMatchingLabel:(LabelObject*)label;
 - (void)updateLabelConnectionsAfterDecoding;
 - (void)updateLabelConnections;
 - (void)disconnectLabels;
@@ -187,21 +180,15 @@ NSInteger compareFilename(id *a, id *b);
 - (void)updateWithSyncBody:(NSString*)newBody andTitle:(NSString*)newTitle;
 - (void)registerModificationWithOwnedServices;
 
-- (void)_setFileEncoding:(NSStringEncoding)encoding;
 - (BOOL)setFileEncodingAndReinterpret:(NSStringEncoding)encoding;
-- (BOOL)upgradeToUTF8IfUsingSystemEncoding;
-- (BOOL)upgradeEncodingToUTF8;
 - (void)updateFileIdentityFromCatalogEntry:(NoteCatalogEntry*)catEntry;
 - (void)applyPreparedFileStateFromNote:(NoteObject*)preparedNote;
 - (void)applyCatalogEntry:(NoteCatalogEntry*)catEntry
 	filename:(NSString*)newFilename title:(NSString*)newTitle;
 - (void)invalidateFileMetadata;
-- (BOOL)updateFromData:(NSData*)data inFormat:(int)fmt;
-
 - (BOOL)writeFileDatesAndUpdateTrackingInfo;
 
 - (NSURL*)uniqueNoteLink;
-- (NSURL*)noteFileURL;
 /* For Finder and external-application handoffs only; not for NV file I/O. */
 - (NSURL*)absoluteUNIXPath;
 
@@ -214,11 +201,9 @@ NSInteger compareFilename(id *a, id *b);
 - (void)makeNoteDirtyUpdateTime:(BOOL)updateTime updateFile:(BOOL)updateFile;
 
 - (BOOL)moveFileToTrash;
-- (BOOL)removeUsingJournal:(WALStorageController*)wal;
 
 - (BOOL)exportToDirectoryURL:(NSURL*)directoryURL withFilename:(NSString*)userFilename
 	usingFormat:(int)storageFormat overwrite:(BOOL)overwrite error:(NSError**)error;
-- (NSRange)nextRangeForWords:(NSArray*)words options:(unsigned)opts range:(NSRange)inRange;
 - (void)editExternallyUsingEditor:(ExternalEditor*)ed;
 - (void)abortEditingInExternalEditor;
 

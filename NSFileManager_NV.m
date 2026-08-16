@@ -23,10 +23,8 @@
 
 #import "NSFileManager_NV.h"
 #include <errno.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <sys/param.h>
-#include <unistd.h>
+#include <string.h>
+#include <sys/xattr.h>
 
 static BOOL NVGetFileResourceIdentifier(NSURL *URL, id *identifier) {
 	if (!URL || !identifier) return NO;
@@ -43,23 +41,68 @@ BOOL NVURLsReferToSameItem(NSURL *one, NSURL *two) {
 		[oneIdentifier isEqual:twoIdentifier];
 }
 
-BOOL NVURLIsSameItemOrDescendantOfURL(NSURL *URL, NSURL *possibleAncestorURL) {
-	id ancestorIdentifier = nil;
-	if (!NVGetFileResourceIdentifier(possibleAncestorURL, &ancestorIdentifier)) return NO;
+BOOL NVURLIsInTrash(NSURL *URL) {
+	NSURLRelationship relationship;
+	return URL && [[NSFileManager defaultManager] getRelationship:&relationship
+		ofDirectory:NSTrashDirectory inDomain:0 toItemAtURL:URL error:NULL] &&
+		(relationship == NSURLRelationshipSame || relationship == NSURLRelationshipContains);
+}
 
-	NSURL *currentURL = URL;
-	for (;;) {
-		id currentIdentifier = nil;
-		NSURL *parentURL = nil;
-		id parentIdentifier = nil;
-		if (!NVGetFileResourceIdentifier(currentURL, &currentIdentifier) ||
-			![currentURL getResourceValue:&parentURL
-				forKey:NSURLParentDirectoryURLKey error:NULL]) return NO;
-		if ([currentIdentifier isEqual:ancestorIdentifier]) return YES;
-		if (!NVGetFileResourceIdentifier(parentURL, &parentIdentifier) ||
-			[currentIdentifier isEqual:parentIdentifier]) return NO;
-		currentURL = parentURL;
+int NVCopyFileSystemNameForLeaf(NSString *filename, char **name) {
+	if (!name) return EINVAL;
+	*name = NULL;
+	if (![filename length] || [filename isEqualToString:@"."] || [filename isEqualToString:@".."] ||
+		[filename rangeOfString:@"/"].location != NSNotFound ||
+		[filename rangeOfString:@"\0"].location != NSNotFound) return EINVAL;
+	const char *representation = [filename fileSystemRepresentation];
+	if (!representation || strchr(representation, '/')) return ENAMETOOLONG;
+	*name = strdup(representation);
+	return *name ? 0 : ENOMEM;
+}
+
+static NSError *NVInvalidMetadataError(void) {
+	return [NSError errorWithDomain:NSPOSIXErrorDomain code:EINVAL userInfo:nil];
+}
+
+NSArray *NVOpenMetaTagsFromData(NSData *data, NSError **error) {
+	if (!data) {
+		if (error) *error = NVInvalidMetadataError();
+		return nil;
 	}
+	NSError *parseError = nil;
+	id value = [NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable
+		format:NULL error:&parseError];
+	if (![value isKindOfClass:[NSArray class]]) {
+		if (error) *error = parseError ?: NVInvalidMetadataError();
+		return nil;
+	}
+	for (id tag in value) {
+		if (![tag isKindOfClass:[NSString class]]) {
+			if (error) *error = NVInvalidMetadataError();
+			return nil;
+		}
+	}
+	return value;
+}
+
+NSStringEncoding NVTextEncodingFromAttributeData(NSData *data, NSError **error) {
+	NSString *value = [[[NSString alloc] initWithData:data
+		encoding:NSUTF8StringEncoding] autorelease];
+	NSArray *parts = [value componentsSeparatedByString:@";"];
+	CFStringEncoding encoding = kCFStringEncodingInvalidId;
+	if ([parts count] > 1) {
+		NSScanner *scanner = [NSScanner scannerWithString:[parts objectAtIndex:1]];
+		long long number = 0;
+		if ([scanner scanLongLong:&number] && [scanner isAtEnd] && number >= 0 && number <= UINT32_MAX)
+			encoding = (CFStringEncoding)number;
+	} else if ([parts count] == 1) {
+		encoding = CFStringConvertIANACharSetNameToEncoding((CFStringRef)[parts objectAtIndex:0]);
+	}
+	if (!value || encoding == kCFStringEncodingInvalidId || !CFStringIsEncodingAvailable(encoding)) {
+		if (error) *error = NVInvalidMetadataError();
+		return 0;
+	}
+	return CFStringConvertEncodingToNSStringEncoding(encoding);
 }
 
 
@@ -71,134 +114,31 @@ static NSError *NVFileReferenceError(NSInteger code, NSString *description) {
 														 forKey:NSLocalizedDescriptionKey]];
 }
 
-#define NVDirectoryOpenFlags (O_RDONLY | O_DIRECTORY | O_CLOEXEC)
-
-static int NVOpenDirectory(const char *path) {
-	return path ? open(path, NVDirectoryOpenFlags) : -1;
-}
-
-static int NVFileDescriptorError(NSError **error, NSError *value) {
-	if (error) *error = value;
-	return -1;
-}
-
-static int NVOpenDeepDirectory(NSURL *URL, NSError **error) {
-	NSNumber *isDirectory = nil;
-	NSError *resolutionError = nil;
-	if (![URL getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:&resolutionError] ||
-		![isDirectory boolValue])
-		return NVFileDescriptorError(error, resolutionError ?: NVFileReferenceError(ENOTDIR,
-			@"The referenced item is not a reachable directory."));
-
-	CFIndex capacity = PATH_MAX;
-	UInt8 *path = NULL;
-	for (; capacity <= LONG_MAX / 2; capacity *= 2) {
-		path = reallocf(path, (size_t)capacity);
-		if (!path) return NVFileDescriptorError(error, NVFileReferenceError(ENOMEM,
-			@"Unable to allocate the resolved directory path."));
-		if (CFURLGetFileSystemRepresentation((CFURLRef)URL, true, path, capacity)) break;
-	}
-	if (capacity > LONG_MAX / 2 || path[0] != '/') {
-		free(path);
-		return NVFileDescriptorError(error, NVFileReferenceError(ENAMETOOLONG,
-			@"Unable to resolve the deeply nested directory reference."));
-	}
-
-	int directoryFD = NVOpenDirectory("/");
-	int openError = errno;
-	for (char *component = (char *)path + 1; directoryFD >= 0 && *component;) {
-		char *end = component + MIN(strlen(component), PATH_MAX - 1);
-		while (end > component && *end && *end != '/') end--;
-		if (end == component) {
-			close(directoryFD);
-			directoryFD = -1;
-			openError = ENAMETOOLONG;
-			break;
-		}
-		char separator = *end;
-		*end = '\0';
-		int childFD = openat(directoryFD, component, NVDirectoryOpenFlags);
-		openError = errno;
-		*end = separator;
-		close(directoryFD);
-		directoryFD = childFD;
-		component = end;
-		while (*component == '/') component++;
-	}
-	free(path);
-	return directoryFD >= 0 ? directoryFD : NVFileDescriptorError(error,
-		[NSError errorWithDomain:NSPOSIXErrorDomain code:openError userInfo:nil]);
-}
-
-#define kMaxDataSize 4096
-
-- (id)getOpenMetaTagsAtFSPath:(const char*)path {
-	//return convention: empty tags should be an empty array; 
-	//for files that have never been tagged, or that have had their tags removed, return 
-	//files might lose their metadata if edited externally or synced without being first encoded
-	
+- (NSArray*)getOpenMetaTagsAtFSPath:(const char*)path {
 	if (!path) return nil;
-	
-	const char* inKeyNameC = "com.apple.metadata:kMDItemOMUserTags";
-	// retrieve data from store. 
-	char* data[kMaxDataSize];
-	ssize_t dataSize = kMaxDataSize; // ssize_t means SIGNED size_t as getXattr returns - 1 for no attribute found
-	NSData* nsData = nil;
-	if ((dataSize = getxattr(path, inKeyNameC, data, dataSize, 0, 0)) > 0) {
-		nsData = [NSData dataWithBytes:data	length:dataSize];
-	} else {
-		// I get EINVAL sometimes when setting/getting xattrs on afp servers running 10.5. When I get this error, I find that everything is working correctly... so it seems to make sense to ignore them
-		// EINVAL means invalid argument. I know that the args are fine. 
-		//if ((errno != ENOATTR) && (errno != EINVAL) && error) // it is not an error to have no attribute set 
-		//	*error = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:[NSDictionary dictionaryWithObject:[self errnoString:errno] forKey:@"info"]];
-		return nil;
-	}
-	
-	// ok, we have some data 
-	NSPropertyListFormat formatFound;
-	NSError *plistError = nil;
-	id outObject = [NSPropertyListSerialization propertyListWithData:nsData options:NSPropertyListImmutable format:&formatFound error:&plistError];
-	if (plistError) {
-			NSLog(@"%@: error deserializing labels: %@", NSStringFromSelector(_cmd), plistError);
-		return nil;
-	}
-	
-	return outObject;
-
+	char data[4096];
+	ssize_t length = getxattr(path, "com.apple.metadata:kMDItemOMUserTags",
+		data, sizeof(data), 0, 0);
+	if (length <= 0) return nil;
+	NSError *decodeError = nil;
+	NSArray *tags = NVOpenMetaTagsFromData(
+		[NSData dataWithBytes:data length:(NSUInteger)length], &decodeError);
+	if (!tags) NSLog(@"%@: error deserializing labels: %@", NSStringFromSelector(_cmd), decodeError);
+	return tags;
 }
 
 
 - (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path {
-	if (!path) goto errorReturn;
-	
-	//We could query the size of the attribute, but that would require a second system call
-	//and the value for this key shouldn't need to be anywhere near this large, anyway.
-	//It could be, but it probably won't. If it is, then we won't get the encoding. Too bad.
-	char xattrValueBytes[128] = { 0 };
-	if (getxattr(path, "com.apple.TextEncoding", xattrValueBytes, sizeof(xattrValueBytes), 0, 0) < 0) {
-        if (ENOATTR != errno) NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
-		goto errorReturn;
+	if (!path) return 0;
+	char xattrValueBytes[128];
+	ssize_t length = getxattr(path, "com.apple.TextEncoding",
+		xattrValueBytes, sizeof(xattrValueBytes), 0, 0);
+	if (length < 0) {
+		if (ENOATTR != errno) NSLog(@"couldn't get text encoding attribute of %s: %d", path, errno);
+		return 0;
 	}
-	NSString *encodingStr = [NSString stringWithUTF8String:xattrValueBytes];
-	if (!encodingStr) {
-        NSLog(@"couldn't make attribute data from %s into a string", path);
-		goto errorReturn;
-	}
-	NSArray *segs = [encodingStr componentsSeparatedByString:@";"];
-	
-	if ([segs count] >= 2 && [(NSString*)[segs objectAtIndex:1] length] > 1) {
-		return CFStringConvertEncodingToNSStringEncoding([[segs objectAtIndex:1] intValue]);
-	} else if ([(NSString*)[segs objectAtIndex:0] length] > 1) {
-		CFStringEncoding theCFEncoding = CFStringConvertIANACharSetNameToEncoding((CFStringRef)[segs objectAtIndex:0]);
-		if (theCFEncoding == kCFStringEncodingInvalidId) {
-			NSLog(@"couldn't convert IANA charset");
-			goto errorReturn;
-		}
-		return CFStringConvertEncodingToNSStringEncoding(theCFEncoding);
-	}
-	
-errorReturn:
-	return 0;
+	return NVTextEncodingFromAttributeData(
+		[NSData dataWithBytes:xattrValueBytes length:(NSUInteger)length], NULL);
 }
 
 - (NSURL*)fileReferenceURLForURL:(NSURL*)url error:(NSError**)error {
@@ -225,22 +165,16 @@ errorReturn:
 - (NSURL*)fileReferenceURLForFilename:(NSString*)filename
 				 inDirectoryURL:(NSURL*)directoryURL
 						error:(NSError**)error {
-	if (![directoryURL isFileReferenceURL] || ![filename length] ||
-		[filename isEqualToString:@"."] || [filename isEqualToString:@".."] ||
-		[filename rangeOfString:@"/"].location != NSNotFound) {
-		if (error) *error = NVFileReferenceError(EINVAL, @"The filename is not a single valid path component.");
+	if (![directoryURL isFileReferenceURL]) {
+		if (error) *error = NVFileReferenceError(EINVAL, @"The directory is not a file-reference URL.");
 		return nil;
 	}
 
-	NSUInteger bufferSize = [filename maximumLengthOfBytesUsingEncoding:NSUTF8StringEncoding] + 1;
-	char *fileSystemName = malloc(bufferSize);
-	if (!fileSystemName) {
-		if (error) *error = NVFileReferenceError(ENOMEM, @"Unable to allocate storage for the filename.");
-		return nil;
-	}
-	if (![filename getFileSystemRepresentation:fileSystemName maxLength:bufferSize]) {
-		free(fileSystemName);
-		if (error) *error = NVFileReferenceError(ENAMETOOLONG, @"The filename cannot be represented by this file system.");
+	char *fileSystemName = NULL;
+	int nameError = NVCopyFileSystemNameForLeaf(filename, &fileSystemName);
+	if (nameError) {
+		if (error) *error = NVFileReferenceError(nameError,
+			@"The filename is not a single valid path component.");
 		return nil;
 	}
 
@@ -252,34 +186,6 @@ errorReturn:
 		return nil;
 	}
 	return [(NSURL*)relativeURL autorelease];
-}
-
-/*
- * Open a directory while preserving file-reference semantics.  The resolved
- * path normally costs one open; ENOENT clears a possibly stale NSURL cache and
- * retries once.  If the absolute path exceeds PATH_MAX, resolve it into a
- * dynamically sized buffer and open the path in the fewest PATH_MAX-sized,
- * directory-relative chunks so renames remain harmless after the FD is open.
- */
-- (int)openFileDescriptorForDirectoryReferenceURL:(NSURL*)directoryURL error:(NSError**)error {
-	if (![directoryURL isFileReferenceURL])
-		return NVFileDescriptorError(error, NVFileReferenceError(EINVAL,
-			@"The directory is not a file-reference URL."));
-
-	const char *fileSystemPath = [directoryURL fileSystemRepresentation];
-	int directoryFD = NVOpenDirectory(fileSystemPath);
-	if (directoryFD >= 0) return directoryFD;
-	int openError = fileSystemPath ? errno : ENAMETOOLONG;
-	if (openError == ENOENT) {
-		[directoryURL removeAllCachedResourceValues];
-		fileSystemPath = [directoryURL fileSystemRepresentation];
-		directoryFD = NVOpenDirectory(fileSystemPath);
-		if (directoryFD >= 0) return directoryFD;
-		openError = fileSystemPath ? errno : ENAMETOOLONG;
-	}
-	return openError == ENAMETOOLONG ? NVOpenDeepDirectory(directoryURL, error) :
-		NVFileDescriptorError(error,
-			[NSError errorWithDomain:NSPOSIXErrorDomain code:openError userInfo:nil]);
 }
 
 - (NSData*)bookmarkDataForFileReferenceURL:(NSURL*)url error:(NSError**)error {

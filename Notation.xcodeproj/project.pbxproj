@@ -67,7 +67,6 @@
 		216BA24310746E3900F62D93 /* ImporterAccessory.nib in Resources */ = {isa = PBXBuildFile; fileRef = 216BA24110746E3900F62D93 /* ImporterAccessory.nib */; };
 		216D987F12CE68AD0004B9CE /* NSFileManager_NV.m in Sources */ = {isa = PBXBuildFile; fileRef = 216D987E12CE68AD0004B9CE /* NSFileManager_NV.m */; };
 		216DA22612D17DB70004B9CE /* AugmentedScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = 216DA22512D17DB70004B9CE /* AugmentedScrollView.m */; };
-		217CEBA309E9885500DF0E09 /* NotationFileManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 217CEBA209E9885500DF0E09 /* NotationFileManager.m */; };
 		217D4282096545A000E84749 /* LabelObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 217D4281096545A000E84749 /* LabelObject.m */; };
 		2181171309F311110020A252 /* DeletedNoteObject.m in Sources */ = {isa = PBXBuildFile; fileRef = 2181171209F311110020A252 /* DeletedNoteObject.m */; };
 		21813562105AF27400A0AE18 /* Acknowledgments.txt in Resources */ = {isa = PBXBuildFile; fileRef = 21813561105AF27400A0AE18 /* Acknowledgments.txt */; };
@@ -147,6 +146,7 @@
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		A17F00012F00000100000001 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */; };
 		A17F10022F00000100000001 /* StartupRecovery.m in Sources */ = {isa = PBXBuildFile; fileRef = A17F10012F00000100000001 /* StartupRecovery.m */; };
+		A17F20042F00000100000001 /* NVRootedDirectory.m in Sources */ = {isa = PBXBuildFile; fileRef = A17F20022F00000100000001 /* NVRootedDirectory.m */; };
 		C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = C0D3A1002F00000100000003 /* ImportingUtils.m */; };
 		D1FFB0000000000000000001 /* DiffMatchPatch.m in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000002 /* DiffMatchPatch.m */; };
 		D1FFB0000000000000000002 /* DiffMatchPatchCFUtilities.c in Sources */ = {isa = PBXBuildFile; fileRef = D1FFF0000000000000000004 /* DiffMatchPatchCFUtilities.c */; };
@@ -257,8 +257,6 @@
 		216D987E12CE68AD0004B9CE /* NSFileManager_NV.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NSFileManager_NV.m; sourceTree = "<group>"; };
 		216DA22412D17DB70004B9CE /* AugmentedScrollView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AugmentedScrollView.h; sourceTree = "<group>"; };
 		216DA22512D17DB70004B9CE /* AugmentedScrollView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AugmentedScrollView.m; sourceTree = "<group>"; };
-		217CEBA109E9885500DF0E09 /* NotationFileManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NotationFileManager.h; sourceTree = "<group>"; };
-		217CEBA209E9885500DF0E09 /* NotationFileManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NotationFileManager.m; sourceTree = "<group>"; };
 		217D4280096545A000E84749 /* LabelObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LabelObject.h; sourceTree = "<group>"; };
 		217D4281096545A000E84749 /* LabelObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LabelObject.m; sourceTree = "<group>"; };
 		2181171109F311110020A252 /* DeletedNoteObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DeletedNoteObject.h; sourceTree = "<group>"; };
@@ -502,6 +500,9 @@
 		A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = /System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = "<absolute>"; };
 		A17F10002F00000100000001 /* StartupRecovery.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StartupRecovery.h; sourceTree = "<group>"; };
 		A17F10012F00000100000001 /* StartupRecovery.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StartupRecovery.m; sourceTree = "<group>"; };
+		A17F20012F00000100000001 /* NVRootedDirectory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVRootedDirectory.h; sourceTree = "<group>"; };
+		A17F20022F00000100000001 /* NVRootedDirectory.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NVRootedDirectory.m; sourceTree = "<group>"; };
+		A17F20032F00000100000001 /* NVRootedDirectory_Private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVRootedDirectory_Private.h; sourceTree = "<group>"; };
 		C0D3A1002F00000100000002 /* ImportingUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImportingUtils.h; sourceTree = "<group>"; };
 		C0D3A1002F00000100000003 /* ImportingUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImportingUtils.m; sourceTree = "<group>"; };
 		D1FFF0000000000000000001 /* DiffMatchPatch.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DiffMatchPatch.h; sourceTree = "<group>"; };
@@ -597,8 +598,9 @@
 				21DB3D0D12D4FBDD0057F52B /* SecureTextEntryManager.h */,
 				21DB3D0E12D4FBDD0057F52B /* SecureTextEntryManager.m */,
 				21CF80F210FD33B90094AA90 /* SynchronizedNoteMixIns.h */,
-				217CEBA109E9885500DF0E09 /* NotationFileManager.h */,
-				217CEBA209E9885500DF0E09 /* NotationFileManager.m */,
+				A17F20012F00000100000001 /* NVRootedDirectory.h */,
+				A17F20032F00000100000001 /* NVRootedDirectory_Private.h */,
+				A17F20022F00000100000001 /* NVRootedDirectory.m */,
 				2155DEA4097B5F0300163A10 /* BufferUtils.h */,
 				2155DEA5097B5F0300163A10 /* BufferUtils.c */,
 				2168EC5109E33B0300778D02 /* FrozenNotation.h */,
@@ -1071,6 +1073,7 @@
 				2114C11609575BD400614E74 /* AppController.m in Sources */,
 				2114C13F0957732800614E74 /* NotationController.m in Sources */,
 				A17F10022F00000100000001 /* StartupRecovery.m in Sources */,
+				A17F20042F00000100000001 /* NVRootedDirectory.m in Sources */,
 				2114C1460957733200614E74 /* NoteObject.m in Sources */,
 				2114C23E095883A600614E74 /* NSData_transformations.m in Sources */,
 				219588D20961D7F200972B8C /* LinkingEditor.m in Sources */,
@@ -1090,7 +1093,6 @@
 				21A2F95E09DF3FDC001AF0B5 /* NotationPrefs.m in Sources */,
 				21A2FA1709DF6174001AF0B5 /* NotationPrefsViewController.m in Sources */,
 				2168EC5309E33B0300778D02 /* FrozenNotation.m in Sources */,
-				217CEBA309E9885500DF0E09 /* NotationFileManager.m in Sources */,
 				215DE83809ECC4FE009A710B /* HeaderViewWIthMenu.m in Sources */,
 				2181171309F311110020A252 /* DeletedNoteObject.m in Sources */,
 				212DCA470A6AD28700F74E46 /* EncodingsManager.m in Sources */,

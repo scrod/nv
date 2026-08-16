@@ -6,7 +6,7 @@
 #import "../StartupRecovery.h"
 #import "../NotationController.h"
 #import "../NotationDirectoryManager.h"
-#import "../NotationFileManager.h"
+#import "NVRootedDirectoryTestHooks.h"
 #import "../NotationPrefs.h"
 #import "../NotationSyncServiceManager.h"
 #import "../PassphraseRetriever.h"
@@ -35,6 +35,7 @@
 #import <objc/runtime.h>
 
 extern char **environ;
+
 
 @class AlienNoteImporter;
 
@@ -114,6 +115,24 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void *info, size_t numEvents
 		[NSException raise:NSInternalInconsistencyException \
 					format:@"%s:%d: requirement failed: %s", __FILE__, __LINE__, #condition]; \
 } while (0)
+
+static NSString *CreateTestScratchFile(ExternalEditingSession *editor,
+	NSString *name, NSData *data) {
+	TemporaryFileCachePreparer *preparer = [editor valueForKey:@"editingSpacePreparer"];
+	NVRootedDirectory *directory = [preparer preparedDirectory];
+	NVFileWriteResult *result = [directory createFileNamed:name withData:data];
+	REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+	NSString *path = [[directory transientFileReferenceURLForFileNamed:name error:NULL] path];
+	REQUIRE([path length] > 0);
+	return path;
+}
+
+static NSMutableDictionary *TestScratchSession(NoteObject *note,
+	NSString *path, NSData *data) {
+	return [NSMutableDictionary dictionaryWithObjectsAndKeys:
+		note, @"client", path, @"path", [path lastPathComponent], @"leafName",
+		data, @"data", data, @"mergeBaseData", nil];
+}
 
 static NSUInteger controllerDeallocationCount;
 static NSUInteger injectedControllerFlushFailures;
@@ -247,7 +266,8 @@ static void WaitForNextMetadataTickIfNeeded(void);
 
 static BOOL SetTestOpenMetaTagsOnly(NotationController *controller, NSArray *tags,
 	NSString *filename, NSError **error) {
-	NSURL *URL = [controller fileReferenceURLForNoteNamed:filename error:error];
+	NSURL *URL = [[controller noteDirectory]
+		transientFileReferenceURLForFileNamed:filename error:error];
 	NSData *data = URL ? [NSPropertyListSerialization dataWithPropertyList:tags
 		format:NSPropertyListBinaryFormat_v1_0 options:0 error:error] : nil;
 	const char *path = [URL fileSystemRepresentation];
@@ -263,14 +283,16 @@ static BOOL SetTestOpenMetaTagsOnly(NotationController *controller, NSArray *tag
 static BOOL SetTestOpenMetaTags(NotationController *controller, NSArray *tags,
 	NSString *filename, NSError **error) {
 	if (!SetTestOpenMetaTagsOnly(controller, tags, filename, error)) return NO;
-	NSURL *URL = [controller fileReferenceURLForNoteNamed:filename error:error];
+	NSURL *URL = [[controller noteDirectory]
+		transientFileReferenceURLForFileNamed:filename error:error];
 	return [URL setResourceValue:NVSemanticTagNames(tags)
 		forKey:NSURLTagNamesKey error:error];
 }
 
 static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding encoding,
 	NSString *filename, NSError **error) {
-	NSURL *URL = [controller fileReferenceURLForNoteNamed:filename error:error];
+	NSURL *URL = [[controller noteDirectory]
+		transientFileReferenceURLForFileNamed:filename error:error];
 	if (!URL) return NO;
 	CFStringEncoding cfEncoding = CFStringConvertNSStringEncodingToEncoding(encoding);
 	NSString *value = [(NSString*)CFStringConvertEncodingToIANACharSetName(cfEncoding)
@@ -284,41 +306,19 @@ static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding
 	return NO;
 }
 
-@interface NotationController (NVDirectoryFallbackTest)
-- (void)_resetCatalogEntries;
-- (BOOL)_readFilesUsingFoundation;
-- (int)_getattrlistbulk:(int)directoryFD attributes:(void*)attributes
-	buffer:(void*)buffer size:(size_t)bufferSize options:(uint64_t)options;
-- (BOOL)_appendCatalogEntryFilename:(CFStringRef)filename
-	attributeChangeTime:(struct timespec)changeTime documentID:(uint32_t)documentID
-	fileID:(uint64_t)fileID generationCount:(uint32_t)generationCount;
-@end
-
-@interface NotationController (NVSnapshotTest)
-- (BOOL)_readNoteFileSnapshotOnce:(NVNoteFileSnapshot*)snapshot
-				forNoteNamed:(NSString*)filename error:(NSError**)error;
-- (BOOL)_snapshotTagURL:(NSURL*)URL referencesFileDescriptor:(int)fileDescriptor;
-- (id)_snapshotCocoaTagsAtURL:(NSURL*)URL;
-- (int)_statSnapshotName:(const char*)name status:(struct stat*)status;
-- (void)_didInstallNoteFileNamed:(NSString*)filename;
-- (void)_didPrepareNoteFileNamed:(NSString*)filename;
-- (void)_didRejectAtomicSwapForNoteNamed:(NSString*)filename;
-- (void)_didExchangeNoteFileNamed:(NSString*)filename;
-- (int)_metadataFinalizationErrorAfterExchangingNoteNamed:(NSString*)filename;
-- (void)_didSynchronizeTagsForNoteNamed:(NSString*)filename fileDescriptor:(int)fileDescriptor;
-- (void)_didSetTextEncodingForNoteNamed:(NSString*)filename fileDescriptor:(int)fileDescriptor;
-- (BOOL)setTextEncoding:(NSStringEncoding)encoding forNoteNamed:(NSString*)filename
-	matchingFileInfo:(const NVFileInfo*)expectedInfo expectedData:(NSData*)expectedData
-	resultingFileInfo:(NVFileInfo*)resultingInfo error:(NSError**)error;
-- (BOOL)storeDataAtomicallyInNotesDirectory:(NSData*)data withName:(NSString*)filename
-	preparationBlock:(BOOL (^)(int fileDescriptor, NSError **error))preparationBlock
-	verificationBlock:(NVFileVerificationBlock)verificationBlock error:(NSError**)error;
-@end
-
 @interface NotationController (NVDirectoryPreparationTest)
 - (NoteObject*)_preparedNoteForCatalogEntry:(NoteCatalogEntry*)entry
 	fallbackNote:(NoteObject*)fallbackNote error:(NSError**)error;
+- (BOOL)_readFilesInDirectory;
+- (BOOL)_catalogContainsCaseInsensitiveCollision;
+- (BOOL)modifyNoteIfNecessary:(NoteObject*)note usingCatalogEntry:(NoteCatalogEntry*)entry;
+- (BOOL)processNotesAddedByIdentity:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries;
+- (BOOL)processNotesAddedByContent:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries;
 - (BOOL)_configureDirEventStream;
+@end
+
+@interface WALController (NVIntegrationTest)
+- (void)_closeLogFile;
 @end
 
 @interface NVDeallocationProbe : NSObject {
@@ -616,6 +616,12 @@ static BOOL SetTestTextEncoding(NotationController *controller, NSStringEncoding
 
 static char NVPreparedNoteDeallocationProbeKey;
 
+@interface NotationController (NVIntegrationRootedInitialization)
+- (id)_initWithRootedDirectory:(NVRootedDirectory*)directory
+	recoveredNotes:(NSDictionary*)recoveredNotes stagingRecovery:(BOOL)stagingRecovery
+	error:(OSStatus*)error;
+@end
+
 @interface NVTestNotationController : NotationController {
 	OSStatus recordedWriteError;
 	OSStatus atomicVerificationResult;
@@ -659,6 +665,12 @@ static char NVPreparedNoteDeallocationProbeKey;
 	NSUInteger snapshotBoundaryMutationsRemaining;
 	BOOL snapshotCocoaTagsUnavailable;
 	BOOL failCocoaTagWrites;
+	NSString *extendedAttributeReadFailureName;
+	BOOL extendedAttributeReadFailureDuringValueRead;
+	NSUInteger extendedAttributeReadFailuresRemaining;
+	BOOL forceExclusiveRenameUnavailable;
+	NSUInteger temporaryRemovalFailures;
+	NSString *forcedTemporaryFilename;
 	NSString *installedBoundaryMutationName;
 	NSData *installedBoundaryReplacementData;
 	NSString *preInstallBoundaryMutationName;
@@ -683,6 +695,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 	BOOL useTestTrash;
 	NSUInteger trashMoveCount;
 	NSUInteger externalEditingDurabilityFailures;
+	NSUInteger directorySynchronizationFailures;
 }
 - (OSStatus)recordedWriteError;
 - (void)setAtomicVerificationResult:(OSStatus)result;
@@ -739,6 +752,10 @@ static char NVPreparedNoteDeallocationProbeKey;
 	forNoteNamed:(NSString*)filename atIdentityChecks:(NSUInteger)checks;
 - (void)setSnapshotCocoaTagsUnavailable:(BOOL)unavailable;
 - (void)setFailCocoaTagWrites:(BOOL)fail;
+- (void)failNextExtendedAttributeReadNamed:(NSString*)name readingValue:(BOOL)readingValue;
+- (void)forceNextExclusiveRenameUnavailable;
+- (void)failNextTemporaryRemoval;
+- (void)useTemporaryFilename:(NSString*)filename;
 - (void)replaceInstalledNoteNamed:(NSString*)filename withData:(NSData*)data;
 - (void)replaceNoteNamed:(NSString*)filename beforeInstallWithData:(NSData*)data;
 - (void)removeNoteNamedBeforeInstall:(NSString*)filename;
@@ -758,12 +775,30 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)setUseTestTrash:(BOOL)use;
 - (NSUInteger)trashMoveCount;
 - (void)setExternalEditingDurabilityFailures:(NSUInteger)failures;
+- (void)failNextDirectorySynchronization;
+- (BOOL)databaseChangesPending;
 - (void)restoreDeletionCandidates;
 - (void)processDeletionCandidates;
-- (int)testNoteDirectoryFileDescriptor;
 @end
 
 @implementation NVTestNotationController
+
+- (id)_initWithRootedDirectory:(NVRootedDirectory*)directory
+	recoveredNotes:(NSDictionary*)recoveredNotes stagingRecovery:(BOOL)stagingRecovery
+	error:(OSStatus*)error {
+	self = [super _initWithRootedDirectory:directory recoveredNotes:recoveredNotes
+		stagingRecovery:stagingRecovery error:error];
+	if (self && [directory isKindOfClass:[NVTestRootedDirectory class]])
+		[(NVTestRootedDirectory*)directory setHookTarget:self];
+	return self;
+}
+
+- (NVRootedDirectory*)newRootedDirectoryForURL:(NSURL*)URL error:(NSError**)error {
+	NVTestRootedDirectory *root = [[NVTestRootedDirectory alloc]
+		initWithFileReferenceURL:URL error:error];
+	[root setHookTarget:self];
+	return root;
+}
 
 - (NSModalResponse)_legacyDatabaseRecoveryResponse {
 	legacyRecoveryPromptCount++;
@@ -783,10 +818,6 @@ static char NVPreparedNoteDeallocationProbeKey;
 	legacyRecoveryQuitCount++;
 }
 
-- (int)testNoteDirectoryFileDescriptor {
-	return noteDirectoryFileDescriptor;
-}
-
 - (BOOL)flushAllNoteChanges {
 	if (injectedControllerFlushFailures) {
 		injectedControllerFlushFailures--;
@@ -799,7 +830,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (BOOL)initializeJournaling {
 	if (observeJournalInitializations) observedJournalInitializations++;
 	if (injectedFreshJournalInitializationFailures &&
-		![self noteExistsWithName:@"Interim Note-Changes"]) {
+		![[self noteDirectory] regularFileExistsNamed:NVJournalFilename]) {
 		injectedFreshJournalInitializationFailures--;
 		return NO;
 	}
@@ -815,39 +846,35 @@ static char NVPreparedNoteDeallocationProbeKey;
 	return [super _synchronizeRecoveryDirectory:error];
 }
 
-- (BOOL)renameNoteFromName:(NSString*)oldName toName:(NSString*)newName
+- (BOOL)_consumeRenameFailureFromName:(NSString*)oldName toName:(NSString*)newName
 	error:(NSError**)error {
 	if (noteRenameFailures) {
 		noteRenameFailures--;
 		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EACCES userInfo:nil];
-		return NO;
+		return YES;
 	}
 	if (injectedRecoveryJournalRenameFailures &&
-		[oldName isEqualToString:@"Interim Note-Changes"] &&
+		[oldName isEqualToString:NVJournalFilename] &&
 		[newName rangeOfString:@" recovery "].location != NSNotFound) {
 		injectedRecoveryJournalRenameFailures--;
 		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EACCES userInfo:nil];
-		return NO;
+		return YES;
 	}
-	return [super renameNoteFromName:oldName toName:newName error:error];
+	return NO;
 }
 
-- (BOOL)storeNoteDataAtomically:(NSData*)data withName:(NSString*)filename
-	encoding:(NSStringEncoding)encoding tags:(NSArray*)tags
-	creationTime:(CFAbsoluteTime)creationTime modificationTime:(CFAbsoluteTime)modificationTime
-	expectedData:(NSData*)expectedData resultingFileInfo:(NVFileInfo*)resultingFileInfo
-	error:(NSError**)error {
+- (NVFileWriteResult*)_injectedNoteStoreFailureForName:(NSString*)filename {
 	if (noteStoreFailures && (!noteStoreFailureName ||
 		[noteStoreFailureName isEqualToString:filename])) {
 		noteStoreFailures--;
 		[noteStoreFailureName release];
 		noteStoreFailureName = nil;
-		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EIO userInfo:nil];
-		return NO;
+		return [[[NVFileWriteResult alloc] initWithDisposition:NVFileWriteNotInstalled
+			capability:NVFileWriteStrongAtomicCapability installedSnapshot:nil
+			error:[NSError errorWithDomain:NSPOSIXErrorDomain code:EIO userInfo:nil]
+			recoveryFilename:nil] autorelease];
 	}
-	return [super storeNoteDataAtomically:data withName:filename encoding:encoding tags:tags
-		creationTime:creationTime modificationTime:modificationTime expectedData:expectedData
-		resultingFileInfo:resultingFileInfo error:error];
+	return nil;
 }
 
 - (void)noteDidNotWrite:(NoteObject *)note error:(NSError*)error {
@@ -869,53 +896,84 @@ static char NVPreparedNoteDeallocationProbeKey;
 	if (filename) renameExistenceCheckCount = 0;
 }
 
-- (BOOL)noteExistsWithName:(NSString*)filename {
+- (NSNumber*)_injectedExistenceResultForName:(NSString*)filename {
 	renameExistenceCheckCount++;
 	if ([filename isEqualToString:removeBeforeRenameExistenceCheckName]) {
-		REQUIRE(unlinkat(noteDirectoryFileDescriptor, [filename fileSystemRepresentation], 0) == 0);
+		REQUIRE([[self noteDirectory] removeFileNamed:filename error:NULL]);
 		[removeBeforeRenameExistenceCheckName release];
 		removeBeforeRenameExistenceCheckName = nil;
-		return YES;
+		return @YES;
 	}
-	return [super noteExistsWithName:filename];
+	return nil;
 }
 
 - (NSUInteger)renameExistenceCheckCount {
 	return renameExistenceCheckCount;
 }
 
-- (BOOL)moveNoteToTrashNamed:(NSString*)filename resultingURL:(NSURL**)resultingURL
-	error:(NSError**)error {
-	if (forceTrashFailure) {
-		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EACCES userInfo:nil];
-		return NO;
-	}
-	if (useTestTrash) {
-		if (unlinkat(noteDirectoryFileDescriptor, [filename fileSystemRepresentation], 0) < 0) {
-			if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:nil];
-			return NO;
-		}
-		trashMoveCount++;
-		if (resultingURL) *resultingURL = nil;
-		return YES;
-	}
-	NSURL *URL = nil;
-	BOOL moved = [super moveNoteToTrashNamed:filename resultingURL:&URL error:error];
-	if (moved) {
-		[lastTrashedURL release];
-		lastTrashedURL = [URL retain];
-	}
-	if (resultingURL) *resultingURL = URL;
-	return moved;
+- (BOOL)_shouldFailTrashForTesting { return forceTrashFailure; }
+- (BOOL)_usesTestTrashForTesting { return useTestTrash; }
+- (void)_didUseTestTrash { trashMoveCount++; }
+- (void)_didTrashURLForTesting:(NSURL*)URL {
+	[lastTrashedURL release];
+	lastTrashedURL = [URL retain];
 }
 
 - (NSURL*)lastTrashedURL { return lastTrashedURL; }
 - (void)setForceTrashFailure:(BOOL)force { forceTrashFailure = force; }
 - (void)setUseTestTrash:(BOOL)use { useTestTrash = use; }
 - (NSUInteger)trashMoveCount { return trashMoveCount; }
+- (void)failNextExtendedAttributeReadNamed:(NSString*)name readingValue:(BOOL)readingValue {
+	[extendedAttributeReadFailureName release];
+	extendedAttributeReadFailureName = [name copy];
+	extendedAttributeReadFailureDuringValueRead = readingValue;
+	extendedAttributeReadFailuresRemaining = 1;
+}
+- (int)_extendedAttributeReadErrorForName:(const char*)name readingValue:(BOOL)readingValue {
+	if (!extendedAttributeReadFailuresRemaining || !extendedAttributeReadFailureName ||
+		![extendedAttributeReadFailureName isEqualToString:[NSString stringWithUTF8String:name]] ||
+		extendedAttributeReadFailureDuringValueRead != readingValue) return 0;
+	if (!--extendedAttributeReadFailuresRemaining) {
+		[extendedAttributeReadFailureName release];
+		extendedAttributeReadFailureName = nil;
+	}
+	return EIO;
+}
+- (void)forceNextExclusiveRenameUnavailable { forceExclusiveRenameUnavailable = YES; }
+- (int)_exclusiveRenameErrorForFileNamed:(NSString*)filename {
+	(void)filename;
+	if (!forceExclusiveRenameUnavailable) return 0;
+	forceExclusiveRenameUnavailable = NO;
+	return ENOTSUP;
+}
+- (void)failNextTemporaryRemoval { temporaryRemovalFailures++; }
+- (int)_temporaryRemovalErrorForFileNamed:(NSString*)filename {
+	(void)filename;
+	if (!temporaryRemovalFailures) return 0;
+	temporaryRemovalFailures--;
+	return EIO;
+}
+- (void)useTemporaryFilename:(NSString*)filename {
+	[forcedTemporaryFilename release];
+	forcedTemporaryFilename = [filename copy];
+}
+- (NSString*)_temporaryFilenameForFileNamed:(NSString*)filename {
+	(void)filename;
+	NSString *result = [[forcedTemporaryFilename retain] autorelease];
+	[forcedTemporaryFilename release];
+	forcedTemporaryFilename = nil;
+	return result;
+}
 - (void)setExternalEditingDurabilityFailures:(NSUInteger)failures {
 	externalEditingDurabilityFailures = failures;
 }
+- (void)failNextDirectorySynchronization { directorySynchronizationFailures++; }
+- (int)_directorySynchronizationError {
+	if (!directorySynchronizationFailures) return 0;
+	directorySynchronizationFailures--;
+	return EIO;
+}
+- (BOOL)databaseChangesPending { return notesChanged; }
 - (BOOL)makeNoteDurableForExternalEditing:(NoteObject*)note {
 	if (externalEditingDurabilityFailures) {
 		externalEditingDurabilityFailures--;
@@ -942,7 +1000,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)_didObserveRenameCollisionFromName:(NSString*)oldName toName:(NSString*)newName {
 	(void)oldName;
 	if (![newName isEqualToString:removeRenameCollisionDestinationName]) return;
-	REQUIRE(unlinkat(noteDirectoryFileDescriptor, [newName fileSystemRepresentation], 0) == 0);
+	REQUIRE([[self noteDirectory] removeFileNamed:newName error:NULL]);
 	[removeRenameCollisionDestinationName release];
 	removeRenameCollisionDestinationName = nil;
 }
@@ -952,18 +1010,20 @@ static char NVPreparedNoteDeallocationProbeKey;
 }
 
 - (NSUInteger)directoryStreamNoteCount {
-	[self _resetCatalogEntries];
-	if (![self _readFilesUsingFoundation]) return NSNotFound;
+	BOOL previous = forceFoundationEnumeration;
+	forceFoundationEnumeration = YES;
+	BOOL succeeded = [self _readFilesInDirectory];
+	forceFoundationEnumeration = previous;
+	if (!succeeded) return NSNotFound;
 	NSUInteger allowedCount = 0;
-	for (size_t index = 0; index < catEntriesCount; index++)
-		if ([notationPrefs catalogEntryAllowed:&catalogEntries[index]]) allowedCount++;
+	NVRootedDirectoryCatalog *catalog = directoryCatalog;
+	NoteCatalogEntry *entries = [catalog entries];
+	for (size_t index = 0; index < [catalog count]; index++)
+		if ([notationPrefs catalogEntryAllowed:&entries[index]]) allowedCount++;
 	return allowedCount;
 }
 
-- (BOOL)_readFilesUsingFoundation {
-	foundationEnumerationCount++;
-	return [super _readFilesUsingFoundation];
-}
+- (void)_didUseFoundationCatalogEnumeration { foundationEnumerationCount++; }
 
 - (int)_getattrlistbulk:(int)directoryFD attributes:(void*)attributes
 	buffer:(void*)buffer size:(size_t)bufferSize options:(uint64_t)options {
@@ -1012,8 +1072,10 @@ static char NVPreparedNoteDeallocationProbeKey;
 	injectPartialBulkFailure = NO;
 	NSUInteger fallbackCount = foundationEnumerationCount;
 	NSUInteger allowedCount = 0;
-	for (size_t index = 0; index < catEntriesCount; index++)
-		if ([notationPrefs catalogEntryAllowed:&catalogEntries[index]]) allowedCount++;
+	NVRootedDirectoryCatalog *catalog = directoryCatalog;
+	NoteCatalogEntry *entries = [catalog entries];
+	for (size_t index = 0; index < [catalog count]; index++)
+		if ([notationPrefs catalogEntryAllowed:&entries[index]]) allowedCount++;
 	NSUInteger expectedCount = [self directoryStreamNoteCount];
 	return succeeded && injectedFirstBulkCount > 0 && injectedBulkCallCount == 2 &&
 		fallbackCount == 1 && allowedCount == expectedCount;
@@ -1028,8 +1090,10 @@ static char NVPreparedNoteDeallocationProbeKey;
 	injectedBulkFailure = 0;
 	NSUInteger fallbackCount = foundationEnumerationCount;
 	NSUInteger publishedCount = 0;
-	for (size_t index = 0; index < catEntriesCount; index++)
-		if ([notationPrefs catalogEntryAllowed:&catalogEntries[index]]) publishedCount++;
+	NVRootedDirectoryCatalog *catalog = directoryCatalog;
+	NoteCatalogEntry *entries = [catalog entries];
+	for (size_t index = 0; index < [catalog count]; index++)
+		if ([notationPrefs catalogEntryAllowed:&entries[index]]) publishedCount++;
 	if (usesFoundation) {
 		NSUInteger expectedCount = [self directoryStreamNoteCount];
 		return succeeded && injectedFirstBulkCount > 0 && injectedBulkCallCount == 2 && fallbackCount == 1 &&
@@ -1057,9 +1121,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 }
 
 - (void)breakJournalDescriptor {
-	int descriptor = [[walWriter valueForKey:@"logFD"] intValue];
-	REQUIRE(descriptor >= 0 && close(descriptor) == 0);
-	[walWriter setValue:[NSNumber numberWithInt:-1] forKey:@"logFD"];
+	[walWriter _closeLogFile];
 }
 
 - (BOOL)bufferJournalForNoteWithoutRetiringObligation:(NoteObject*)note {
@@ -1139,9 +1201,11 @@ static char NVPreparedNoteDeallocationProbeKey;
 
 - (uint32_t)catalogDocumentIdentifierForFilename:(NSString*)filename {
 	if (![self _readFilesInDirectory]) return UINT32_MAX;
-	for (size_t index = 0; index < catEntriesCount; index++)
-		if ([(NSString*)catalogEntries[index].filename isEqualToString:filename])
-			return catalogEntries[index].documentID;
+	NVRootedDirectoryCatalog *catalog = directoryCatalog;
+	NoteCatalogEntry *entries = [catalog entries];
+	for (size_t index = 0; index < [catalog count]; index++)
+		if ([(NSString*)entries[index].filename isEqualToString:filename])
+			return entries[index].documentID;
 	return UINT32_MAX;
 }
 
@@ -1164,33 +1228,14 @@ static char NVPreparedNoteDeallocationProbeKey;
 	return contentFallbackCalled;
 }
 
-- (NSData*)dataFromNoteNamed:(NSString*)filename error:(NSError**)error {
-	noteDataReadCount++;
-	return [super dataFromNoteNamed:filename error:error];
-}
+- (void)_didReadNoteDataForTesting { noteDataReadCount++; }
 
-- (BOOL)readNoteFileSnapshot:(NVNoteFileSnapshot*)snapshot
-				forNoteNamed:(NSString*)filename error:(NSError**)error {
-	noteDataReadCount++;
+- (BOOL)_shouldFailSnapshotNamed:(NSString*)filename error:(NSError**)error {
 	if ([filename isEqualToString:failingSnapshotName]) {
 		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EIO userInfo:nil];
-		return NO;
+		return YES;
 	}
-	BOOL succeeded = [super readNoteFileSnapshot:snapshot forNoteNamed:filename error:error];
-	return succeeded;
-}
-
-- (BOOL)_readNoteFileSnapshotOnce:(NVNoteFileSnapshot*)snapshot
-				forNoteNamed:(NSString*)filename error:(NSError**)error {
-	snapshotAttemptCount++;
-	if (![super _readNoteFileSnapshotOnce:snapshot forNoteNamed:filename error:error]) return NO;
-	if (transientSnapshotFailures) {
-		transientSnapshotFailures--;
-		bzero(snapshot, sizeof(*snapshot));
-		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EAGAIN userInfo:nil];
-		return NO;
-	}
-	return YES;
+	return NO;
 }
 
 - (void)replaceSnapshotName:(NSString*)filename withData:(NSData*)data
@@ -1224,7 +1269,8 @@ static char NVPreparedNoteDeallocationProbeKey;
 	if (snapshotBoundaryObservedTags &&
 		[[URL lastPathComponent] isEqualToString:snapshotBoundaryMutationName])
 		return snapshotBoundaryObservedTags;
-	return [super _snapshotCocoaTagsAtURL:URL];
+	id tags = nil;
+	return [URL getResourceValue:&tags forKey:NSURLTagNamesKey error:NULL] ? (tags ?: @[]) : nil;
 }
 
 - (void)setSnapshotCocoaTagsUnavailable:(BOOL)unavailable {
@@ -1243,15 +1289,21 @@ static char NVPreparedNoteDeallocationProbeKey;
 	return NO;
 }
 
-- (int)_statSnapshotName:(const char*)name status:(struct stat*)status {
+- (int)_snapshotStatErrorAfterPreparingName:(const char*)name {
+	snapshotAttemptCount++;
+	if (transientSnapshotFailures) {
+		transientSnapshotFailures--;
+		return EAGAIN;
+	}
 	NSString *filename = [NSString stringWithUTF8String:name];
 	if (snapshotBoundaryReplacementData && snapshotBoundaryMutationsRemaining &&
 		[filename isEqualToString:snapshotBoundaryMutationName]) {
-		REQUIRE([self storeDataAtomicallyInNotesDirectory:snapshotBoundaryReplacementData
-			withName:filename verificationBlock:nil error:NULL]);
-		snapshotBoundaryMutationsRemaining--;
+		REQUIRE([[[self noteDirectory] overwriteFileNamed:filename
+			withData:snapshotBoundaryReplacementData] disposition] ==
+			NVFileWriteInstalledVerified);
+			snapshotBoundaryMutationsRemaining--;
 	}
-	return [super _statSnapshotName:name status:status];
+	return 0;
 }
 
 - (BOOL)_snapshotTagURL:(NSURL*)URL referencesFileDescriptor:(int)fileDescriptor {
@@ -1264,7 +1316,9 @@ static char NVPreparedNoteDeallocationProbeKey;
 		snapshotBoundaryObservedTags = [snapshotBoundaryReplacementTags copy];
 		snapshotBoundaryMutationsRemaining--;
 	}
-	return [super _snapshotTagURL:URL referencesFileDescriptor:fileDescriptor];
+	NSFileHandle *handle = [[[NSFileHandle alloc] initWithFileDescriptor:fileDescriptor
+		closeOnDealloc:NO] autorelease];
+	return [[self noteDirectory] fileHandle:handle isStillNamed:[URL lastPathComponent]];
 }
 
 - (void)replaceInstalledNoteNamed:(NSString*)filename withData:(NSData*)data {
@@ -1276,12 +1330,15 @@ static char NVPreparedNoteDeallocationProbeKey;
 
 - (void)_didInstallNoteFileNamed:(NSString*)filename {
 	if ([filename isEqualToString:installedBoundaryMutationName]) {
-		REQUIRE([self storeDataAtomicallyInNotesDirectory:installedBoundaryReplacementData
-			withName:filename verificationBlock:nil error:NULL]);
+		NSData *replacementData = [installedBoundaryReplacementData retain];
 		[installedBoundaryMutationName release];
 		[installedBoundaryReplacementData release];
 		installedBoundaryMutationName = nil;
 		installedBoundaryReplacementData = nil;
+		REQUIRE([[[self noteDirectory] overwriteFileNamed:filename
+			withData:replacementData] disposition] ==
+			NVFileWriteInstalledVerified);
+		[replacementData release];
 	}
 }
 
@@ -1321,8 +1378,8 @@ static char NVPreparedNoteDeallocationProbeKey;
 		[preInstallBoundaryReplacementData release];
 		preInstallBoundaryMutationName = nil;
 		preInstallBoundaryReplacementData = nil;
-		REQUIRE([self storeDataAtomicallyInNotesDirectory:replacement
-			withName:filename verificationBlock:nil error:NULL]);
+		REQUIRE([[[self noteDirectory] overwriteFileNamed:filename withData:replacement]
+			disposition] == NVFileWriteInstalledVerified);
 	}
 }
 
@@ -1330,8 +1387,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 	if ([filename isEqualToString:preInstallBoundaryRemovalName]) {
 		[preInstallBoundaryRemovalName release];
 		preInstallBoundaryRemovalName = nil;
-		REQUIRE(unlinkat([self testNoteDirectoryFileDescriptor],
-			[filename fileSystemRepresentation], 0) == 0);
+		REQUIRE([[self noteDirectory] removeFileNamed:filename error:NULL]);
 	}
 }
 
@@ -1339,8 +1395,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 	if ([filename isEqualToString:postExchangeBoundaryRemovalName]) {
 		[postExchangeBoundaryRemovalName release];
 		postExchangeBoundaryRemovalName = nil;
-		REQUIRE(unlinkat([self testNoteDirectoryFileDescriptor],
-			[filename fileSystemRepresentation], 0) == 0);
+		REQUIRE([[self noteDirectory] removeFileNamed:filename error:NULL]);
 		return;
 	}
 	if ([filename isEqualToString:postExchangeBoundaryMutationName]) {
@@ -1349,8 +1404,8 @@ static char NVPreparedNoteDeallocationProbeKey;
 		[postExchangeBoundaryReplacementData release];
 		postExchangeBoundaryMutationName = nil;
 		postExchangeBoundaryReplacementData = nil;
-		REQUIRE([self storeDataAtomicallyInNotesDirectory:replacement
-			withName:filename verificationBlock:nil error:NULL]);
+		REQUIRE([[[self noteDirectory] overwriteFileNamed:filename withData:replacement]
+			disposition] == NVFileWriteInstalledVerified);
 	}
 }
 
@@ -1380,8 +1435,10 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)_performInPlaceBoundaryMutationForName:(NSString*)filename
 	fileDescriptor:(int)fileDescriptor enabled:(BOOL*)enabled {
 	if (!*enabled || ![filename isEqualToString:inPlaceBoundaryMutationName]) return;
-	int mutationFD = openat(noteDirectoryFileDescriptor, [filename fileSystemRepresentation],
-		O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+	NSFileHandle *mutationHandle = [[self noteDirectory]
+		openExistingRegularFileForUpdatingNamed:filename error:NULL];
+	REQUIRE(mutationHandle != nil);
+	int mutationFD = [mutationHandle fileDescriptor];
 	struct stat status, mutationStatus;
 	REQUIRE(mutationFD >= 0 && fstat(fileDescriptor, &status) == 0 &&
 		fstat(mutationFD, &mutationStatus) == 0 && status.st_dev == mutationStatus.st_dev &&
@@ -1391,7 +1448,6 @@ static char NVPreparedNoteDeallocationProbeKey;
 		[inPlaceBoundaryReplacementData length], 0) == (ssize_t)[inPlaceBoundaryReplacementData length]);
 	struct timespec times[2] = { status.st_atimespec, status.st_mtimespec };
 	REQUIRE(futimens(mutationFD, times) == 0 && fsync(mutationFD) == 0);
-	REQUIRE(close(mutationFD) == 0);
 	*enabled = NO;
 }
 
@@ -1480,13 +1536,8 @@ static char NVPreparedNoteDeallocationProbeKey;
 }
 
 - (BOOL)synchronizeWithClosedDirectoryDescriptor {
-	int savedDescriptor = dup(noteDirectoryFileDescriptor);
-	REQUIRE(savedDescriptor >= 0);
-	REQUIRE(close(noteDirectoryFileDescriptor) == 0);
-	noteDirectoryFileDescriptor = -1;
-	BOOL result = [self synchronizeNotesFromDirectory];
-	noteDirectoryFileDescriptor = savedDescriptor;
-	return result;
+	return [(NVTestRootedDirectory*)[self noteDirectory]
+		performWithInvalidDirectoryDescriptor:^{ return [self synchronizeNotesFromDirectory]; }];
 }
 
 - (BOOL)reconcileNoteUsingFoundation:(NoteObject*)note {
@@ -1514,51 +1565,58 @@ static char NVPreparedNoteDeallocationProbeKey;
 		directoryMoveOldPath = directoryMoveNewPath = nil;
 	}
 	if (mutationBeforeFenceName && ++mutationCatalogReadCount == 2) {
-		int fd = openat(noteDirectoryFileDescriptor, [mutationBeforeFenceName fileSystemRepresentation],
-			O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOFOLLOW);
+		NSFileHandle *handle = [[self noteDirectory]
+			openExistingRegularFileForUpdatingNamed:mutationBeforeFenceName error:NULL];
+		REQUIRE(handle != nil);
+		int fd = [handle fileDescriptor];
 		REQUIRE(fd >= 0);
+		REQUIRE(ftruncate(fd, 0) == 0);
 		REQUIRE(write(fd, [mutationBeforeFenceData bytes], [mutationBeforeFenceData length]) ==
 			(ssize_t)[mutationBeforeFenceData length]);
-		REQUIRE(fsync(fd) == 0 && close(fd) == 0);
+		REQUIRE(fsync(fd) == 0);
 		[mutationBeforeFenceName release];
 		[mutationBeforeFenceData release];
 		mutationBeforeFenceName = nil;
 		mutationBeforeFenceData = nil;
 	}
 	if (!syntheticCatalogNames) return [super _readFilesInDirectory];
-	[self _resetCatalogEntries];
+	NVRootedDirectoryCatalog *catalog = [[NVRootedDirectoryCatalog alloc] init];
 	for (NSString *name in syntheticCatalogNames)
-		REQUIRE([self _appendCatalogEntryFilename:(CFStringRef)[name copy]
+		REQUIRE([catalog appendOwnedFilename:(CFStringRef)[name copy]
 			attributeChangeTime:(struct timespec){ 0 } documentID:0 fileID:0 generationCount:0]);
-	for (size_t index = 0; index < catEntriesCount; index++)
-		sortedCatalogEntries[index] = &catalogEntries[index];
+	[directoryCatalog release];
+	directoryCatalog = catalog;
 	return YES;
 }
 
 - (void)resetCatalogReadCount { catalogReadCount = 0; }
 - (NSUInteger)catalogReadCount { return catalogReadCount; }
 
-- (BOOL)getFileInfo:(NVFileInfo*)info forNoteNamed:(NSString*)filename error:(NSError**)error {
+- (BOOL)_shouldFailObservationNamed:(NSString*)filename error:(NSError**)error {
 	if (missingMetadataFailuresRemaining && [filename isEqualToString:missingMetadataName]) {
 		missingMetadataFailuresRemaining--;
 		if (error) *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:ENOENT userInfo:nil];
-		return NO;
+		return YES;
 	}
-	return [super getFileInfo:info forNoteNamed:filename error:error];
+	return NO;
 }
 
 - (BOOL)foundationScanRetriesThenRejectsVanishedFilename:(NSString*)filename {
 	[missingMetadataName release];
 	missingMetadataName = [filename copy];
 	missingMetadataFailuresRemaining = 1;
-	[self _resetCatalogEntries];
-	BOOL retrySucceeded = [self _readFilesUsingFoundation];
+	BOOL previous = forceFoundationEnumeration;
+	forceFoundationEnumeration = YES;
+	BOOL retrySucceeded = [self _readFilesInDirectory];
 	NSUInteger matchingEntries = 0;
-	for (size_t index = 0; index < catEntriesCount; index++)
-		if ([(NSString*)catalogEntries[index].filename isEqualToString:filename]) matchingEntries++;
+	NVRootedDirectoryCatalog *catalog = directoryCatalog;
+	NoteCatalogEntry *entries = [catalog entries];
+	for (size_t index = 0; index < [catalog count]; index++)
+		if ([(NSString*)entries[index].filename isEqualToString:filename]) matchingEntries++;
 	missingMetadataFailuresRemaining = 2;
-	BOOL persistentSucceeded = [self _readFilesUsingFoundation];
-	BOOL persistentCatalogWasEmpty = catEntriesCount == 0;
+	BOOL persistentSucceeded = [self _readFilesInDirectory];
+	BOOL persistentCatalogWasEmpty = !persistentSucceeded;
+	forceFoundationEnumeration = previous;
 	[missingMetadataName release];
 	missingMetadataName = nil;
 	missingMetadataFailuresRemaining = 0;
@@ -1566,12 +1624,12 @@ static char NVPreparedNoteDeallocationProbeKey;
 }
 
 - (BOOL)hasCaseCollisionForNames:(NSArray*)names {
-	[self _resetCatalogEntries];
+	NVRootedDirectoryCatalog *catalog = [[NVRootedDirectoryCatalog alloc] init];
 	for (NSString *name in names)
-		REQUIRE([self _appendCatalogEntryFilename:(CFStringRef)[name copy]
+		REQUIRE([catalog appendOwnedFilename:(CFStringRef)[name copy]
 			attributeChangeTime:(struct timespec){ 0 } documentID:0 fileID:0 generationCount:0]);
-	for (size_t index = 0; index < catEntriesCount; index++)
-		sortedCatalogEntries[index] = &catalogEntries[index];
+	[directoryCatalog release];
+	directoryCatalog = catalog;
 	return [self _catalogContainsCaseInsensitiveCollision];
 }
 
@@ -1595,6 +1653,8 @@ static char NVPreparedNoteDeallocationProbeKey;
 
 - (void)dealloc {
 	controllerDeallocationCount++;
+	if ([[self noteDirectory] isKindOfClass:[NVTestRootedDirectory class]])
+		[(NVTestRootedDirectory*)[self noteDirectory] removeHookTarget:self];
 	[syntheticCatalogNames release];
 	[missingMetadataName release];
 	[failingSnapshotName release];
@@ -1607,6 +1667,8 @@ static char NVPreparedNoteDeallocationProbeKey;
 	[snapshotBoundaryReplacementData release];
 	[snapshotBoundaryReplacementTags release];
 	[snapshotBoundaryObservedTags release];
+	[extendedAttributeReadFailureName release];
+	[forcedTemporaryFilename release];
 	[installedBoundaryMutationName release];
 	[installedBoundaryReplacementData release];
 	[preInstallBoundaryMutationName release];
@@ -1745,6 +1807,14 @@ static NSURL *FileReferenceURLForPath(NSString *path) {
 	return referenceURL;
 }
 
+static NVRootedDirectory *RootedDirectoryForPath(NSString *path) {
+	NSError *error = nil;
+	NVRootedDirectory *directory = [[[NVRootedDirectory alloc]
+		initWithFileReferenceURL:FileReferenceURLForPath(path) error:&error] autorelease];
+	REQUIRE(directory != nil && error == nil);
+	return directory;
+}
+
 static NVTestNotationController *CreateControllerWithURL(NSURL *directoryURL, NVTestControllerDelegate *delegate) {
 	OSStatus status = noErr;
 	NVTestNotationController *controller = [[NVTestNotationController alloc] initWithDirectoryURL:directoryURL error:&status];
@@ -1769,14 +1839,14 @@ static NSString *WALBookmarkPath(NSString *rootPath) {
 }
 
 static NSString *WALJournalPath(NSString *rootPath) {
-	return [WALNotesDirectoryPath(rootPath) stringByAppendingPathComponent:@"Interim Note-Changes"];
+	return [WALNotesDirectoryPath(rootPath) stringByAppendingPathComponent:NVJournalFilename];
 }
 
 static NSData *TestDatabaseData(NSString *text, UInt32 epoch, NSUInteger paddingLength) {
 	NotationPrefs *prefs = [[NotationPrefs alloc] init];
 	NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:text] autorelease]
-		title:text delegate:nil format:SingleDatabaseFormat labels:@""];
+		title:text format:SingleDatabaseFormat labels:@""];
 	NSData *database = [FrozenNotation frozenDataWithExistingNotes:
 		[NSMutableArray arrayWithObject:note] deletedNotes:[NSMutableSet set] prefs:prefs];
 	NSError *error = nil;
@@ -1825,17 +1895,18 @@ static NSData *CreateCorruptTestJournal(NSString *directoryPath) {
 	REQUIRE(directoryFD >= 0);
 	NotationPrefs *prefs = [[NotationPrefs alloc] init];
 	WALStorageController *writer = [[WALStorageController alloc]
-		initWithDirectoryFileDescriptor:directoryFD encryptionKey:[prefs WALSessionKey]];
+		initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
+		encryptionKey:[prefs WALSessionKey]];
 	NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:@"corrupt WAL record"] autorelease]
-		title:@"Corrupt WAL" delegate:nil format:SingleDatabaseFormat labels:@""];
+		title:@"Corrupt WAL" format:SingleDatabaseFormat labels:@""];
 	REQUIRE(writer != nil && note != nil && [writer writeEstablishedNote:note] && [writer synchronize]);
 	[note release];
 	[writer release];
 	[prefs release];
 	close(directoryFD);
 
-	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSString *path = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
 	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
 	REQUIRE([journal length] > 0);
 	((uint8_t*)[journal mutableBytes])[[journal length] - 1] ^= 0xFF;
@@ -1865,7 +1936,8 @@ static NSData *CreateTestJournal(NSString *directoryPath, NSArray *objects) {
 	REQUIRE(directoryFD >= 0);
 	NotationPrefs *prefs = [[NotationPrefs alloc] init];
 	WALStorageController *writer = [[WALStorageController alloc]
-		initWithDirectoryFileDescriptor:directoryFD encryptionKey:[prefs WALSessionKey]];
+		initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
+		encryptionKey:[prefs WALSessionKey]];
 	REQUIRE(writer != nil);
 	for (id object in objects)
 		REQUIRE([writer writeNoteObject:(id<SynchronizedNote>)object]);
@@ -1874,11 +1946,11 @@ static NSData *CreateTestJournal(NSString *directoryPath, NSArray *objects) {
 	[prefs release];
 	close(directoryFD);
 	return [NSData dataWithContentsOfFile:
-		[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+		[directoryPath stringByAppendingPathComponent:NVJournalFilename]];
 }
 
 static void CorruptWALChecksum(NSString *directoryPath, NSUInteger recordIndex) {
-	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSString *path = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
 	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
 	NSUInteger offset = WALRecordOffset(journal, recordIndex);
 	uint32_t checksum = 0;
@@ -1901,7 +1973,7 @@ static void UpdateWALPayloadChecksum(NSMutableData *journal, NSUInteger recordOf
 
 static void CorruptWALCiphertext(NSString *directoryPath, NSUInteger recordIndex,
 	BOOL preserveValidEncryption) {
-	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSString *path = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
 	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
 	NSUInteger offset = WALRecordOffset(journal, recordIndex);
 	uint32_t storedLength = 0;
@@ -1938,7 +2010,7 @@ static void CorruptWALCiphertext(NSString *directoryPath, NSUInteger recordIndex
 static NoteObject *TestWALNote(NSString *text) {
 	return [[[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:text] autorelease]
-		title:text delegate:nil format:SingleDatabaseFormat labels:@""] autorelease];
+		title:text format:SingleDatabaseFormat labels:@""] autorelease];
 }
 
 typedef NS_ENUM(NSUInteger, NVWALLengthMutation) {
@@ -1949,7 +2021,7 @@ typedef NS_ENUM(NSUInteger, NVWALLengthMutation) {
 
 static void SetWALOriginalLength(NSString *directoryPath, NSUInteger recordIndex,
 	NVWALLengthMutation mutation) {
-	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSString *path = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
 	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
 	NSUInteger offset = WALRecordOffset(journal, recordIndex);
 	uint32_t storedLength = 0;
@@ -1964,7 +2036,7 @@ static void SetWALOriginalLength(NSString *directoryPath, NSUInteger recordIndex
 }
 
 static void SetWALOriginalLengthToZero(NSString *directoryPath, NSUInteger recordIndex) {
-	NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+	NSString *path = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
 	NSMutableData *journal = [NSMutableData dataWithContentsOfFile:path];
 	NSUInteger offset = WALRecordOffset(journal, recordIndex);
 	uint32_t zero = 0;
@@ -1978,7 +2050,8 @@ static NSDictionary *RecoverTestJournal(NSString *directoryPath, BOOL *incomplet
 	REQUIRE(directoryFD >= 0);
 	NotationPrefs *prefs = [[NotationPrefs alloc] init];
 	WALRecoveryController *reader = [[WALRecoveryController alloc]
-		initWithDirectoryFileDescriptor:directoryFD encryptionKey:[prefs WALSessionKey]
+		initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
+		encryptionKey:[prefs WALSessionKey]
 		error:NULL journalInUse:NULL];
 	REQUIRE(reader != nil);
 	NSDictionary *notes = [[[reader recoveredNotesWithIncompleteRecovery:incomplete]
@@ -2017,14 +2090,14 @@ static void TestWALRecordRecovery(void) {
 		directoryFD = open([directoryPath fileSystemRepresentation],
 			O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		REQUIRE(directoryFD >= 0);
-		writer = [[WALStorageController alloc] initWithDirectoryFileDescriptor:directoryFD
+		writer = [[WALStorageController alloc] initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
 			encryptionKey:[prefs WALSessionKey]];
 		NoteObject *first = [[[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"recover first"] autorelease]
-			title:@"First" delegate:nil format:SingleDatabaseFormat labels:@""] autorelease];
+			title:@"First" format:SingleDatabaseFormat labels:@""] autorelease];
 		NoteObject *last = [[[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"recover last"] autorelease]
-			title:@"Last" delegate:nil format:SingleDatabaseFormat labels:@""] autorelease];
+			title:@"Last" format:SingleDatabaseFormat labels:@""] autorelease];
 		REQUIRE(writer != nil);
 		corruptArchiveDecodeCount = 0;
 		REQUIRE([writer writeNoteObject:first]);
@@ -2035,7 +2108,7 @@ static void TestWALRecordRecovery(void) {
 		[writer release];
 		writer = nil;
 
-		reader = [[WALRecoveryController alloc] initWithDirectoryFileDescriptor:directoryFD
+		reader = [[WALRecoveryController alloc] initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
 			encryptionKey:[prefs WALSessionKey] error:NULL journalInUse:NULL];
 		BOOL incomplete = NO;
 		NSDictionary *notes = [reader recoveredNotesWithIncompleteRecovery:&incomplete];
@@ -2136,7 +2209,7 @@ static void TestWALRecordRecovery(void) {
 		@try {
 			NSData *journal = CreateTestJournal(directoryPath, [NSArray arrayWithObjects:
 				TestWALNote(@"tail first"), TestWALNote(@"tail last"), nil]);
-			NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+			NSString *path = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
 			NSMutableData *truncated = [NSMutableData dataWithData:journal];
 			if (tailCase == 0)
 				[truncated setLength:WALRecordOffset(truncated, 1) + 7];
@@ -2175,12 +2248,12 @@ static void TestWALRecordRecovery(void) {
 	@try {
 		CreateTestJournal(directoryPath, [NSArray arrayWithObject:
 			TestWALNote(@"unexpected short read")]);
-		NSString *path = [directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"];
+		NSString *path = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
 		journalWriteFD = open([path fileSystemRepresentation], O_WRONLY | O_CLOEXEC);
 		REQUIRE(journalWriteFD >= 0);
 		directoryFD = open([directoryPath fileSystemRepresentation],
 			O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-		reader = [[WALRecoveryController alloc] initWithDirectoryFileDescriptor:directoryFD
+		reader = [[WALRecoveryController alloc] initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
 			encryptionKey:[prefs WALSessionKey] error:NULL journalInUse:NULL];
 		REQUIRE(reader != nil);
 		REQUIRE(ftruncate(journalWriteFD, 7) == 0);
@@ -2229,7 +2302,7 @@ static void AssertLegacyRecoveryRejected(NSData *database, time_t databaseTime,
 		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
 		REQUIRE([[NSData dataWithContentsOfFile:candidatePath] isEqualToData:candidate]);
 		REQUIRE([[NSData dataWithContentsOfFile:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]]
 			isEqualToData:journal]);
 		REQUIRE([FilenamesWithPrefix(directoryPath,
 			@"Notes & Settings (legacy recovery ") count] == 0);
@@ -2251,7 +2324,7 @@ static void AssertLockContentionBypassesRecovery(void) {
 		WriteTestFile(candidate, [directoryPath stringByAppendingPathComponent:@".010203-779701622-1"], now - 1);
 		int directoryFD = open([directoryPath fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		NotationPrefs *prefs = [[NotationPrefs alloc] init];
-		writer = [[WALStorageController alloc] initWithDirectoryFileDescriptor:directoryFD
+		writer = [[WALStorageController alloc] initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
 			encryptionKey:[prefs WALSessionKey]];
 		[prefs release];
 		close(directoryFD);
@@ -2307,7 +2380,7 @@ static void AssertLegacyRecoveryChoiceLeavesFilesUnchanged(NSModalResponse respo
 		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
 		REQUIRE([[NSData dataWithContentsOfFile:candidatePath] isEqualToData:candidate]);
 		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
-			@"Interim Note-Changes"]] isEqualToData:journal]);
+			NVJournalFilename]] isEqualToData:journal]);
 		REQUIRE([FilenamesWithPrefix(directoryPath,
 			@"Notes & Settings (legacy recovery ") count] == 0);
 		REQUIRE([FilenamesWithPrefix(directoryPath,
@@ -2408,7 +2481,7 @@ static NSString *FileContainingText(NSString *directoryPath, NSString *text,
 static NoteObject *AddTestNote(NotationController *controller, NSString *title, NSString *body) {
 	NoteObject *note = [[[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:body] autorelease]
-		title:title delegate:controller format:[controller currentNoteStorageFormat] labels:@""] autorelease];
+		title:title format:[controller currentNoteStorageFormat] labels:@""] autorelease];
 	REQUIRE(note != nil);
 	[controller addNewNote:note];
 	return note;
@@ -2701,14 +2774,14 @@ static uint32_t FoundationDocumentIdentifier(NSString *path) {
 	return (uint32_t)[value unsignedIntValue];
 }
 
-static NSInteger SnapshotStressVersionIndex(NVNoteFileSnapshot *snapshot,
+static NSInteger SnapshotStressVersionIndex(NVFileSnapshot *snapshot,
 	NSArray *contents, NSArray *encodings, NSArray *tags) {
 	for (NSUInteger index = 0; index < [contents count]; index++) {
-		if (![snapshot->data isEqualToData:[contents objectAtIndex:index]]) continue;
-		if (snapshot->encoding != [[encodings objectAtIndex:index] unsignedIntegerValue]) return NSNotFound;
+		if (![[snapshot data] isEqualToData:[contents objectAtIndex:index]]) continue;
+		if ([snapshot encoding] != [[encodings objectAtIndex:index] unsignedIntegerValue]) return NSNotFound;
 		id expectedTags = [tags objectAtIndex:index];
-		if (expectedTags == [NSNull null]) return snapshot->tags == nil ? (NSInteger)index : NSNotFound;
-		return [snapshot->tags isEqual:expectedTags] ? (NSInteger)index : NSNotFound;
+		if (expectedTags == [NSNull null]) return [snapshot tags] == nil ? (NSInteger)index : NSNotFound;
+		return [[snapshot tags] isEqual:expectedTags] ? (NSInteger)index : NSNotFound;
 	}
 	return NSNotFound;
 }
@@ -2776,10 +2849,11 @@ static void TestSnapshotStress(void) {
 		int writerStatus = 0;
 		while (waitpid(writer, &writerStatus, WNOHANG) == 0) {
 			NSAutoreleasePool *iterationPool = [[NSAutoreleasePool alloc] init];
-			NVNoteFileSnapshot snapshot;
 			NSError *error = nil;
-			if ([controller readNoteFileSnapshot:&snapshot forNoteNamed:@"Snapshot Stress.txt" error:&error]) {
-				NSInteger version = SnapshotStressVersionIndex(&snapshot, contents, encodings, expectedTags);
+			NVFileSnapshot *snapshot = [[controller noteDirectory]
+				snapshotForFileNamed:@"Snapshot Stress.txt" error:&error];
+			if (snapshot) {
+				NSInteger version = SnapshotStressVersionIndex(snapshot, contents, encodings, expectedTags);
 				if (version == NSNotFound) mixtures++;
 				else observed[version]++;
 				successes++;
@@ -2873,10 +2947,11 @@ static void TestInPlaceSnapshotObservation(void) {
 		int writerStatus = 0;
 		while (waitpid(writer, &writerStatus, WNOHANG) == 0) {
 			NSAutoreleasePool *iterationPool = [[NSAutoreleasePool alloc] init];
-			NVNoteFileSnapshot snapshot;
 			NSError *error = nil;
-			if ([controller readNoteFileSnapshot:&snapshot forNoteNamed:@"In Place Stress.txt" error:&error]) {
-				NSInteger version = SnapshotStressVersionIndex(&snapshot, contents, encodings, expectedTags);
+			NVFileSnapshot *snapshot = [[controller noteDirectory]
+				snapshotForFileNamed:@"In Place Stress.txt" error:&error];
+			if (snapshot) {
+				NSInteger version = SnapshotStressVersionIndex(snapshot, contents, encodings, expectedTags);
 				if (version == NSNotFound) mixed++;
 				else { observed[version]++; coherent++; }
 			} else {
@@ -2922,19 +2997,21 @@ static void TestXattrInteroperability(void) {
 		const char encodingName[] = "utf-8";
 		REQUIRE(setxattr([path fileSystemRepresentation], "com.apple.TextEncoding",
 			encodingName, sizeof(encodingName) - 1, 0, 0) == 0);
-		NVNoteFileSnapshot snapshot;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:NULL]);
+		NVFileSnapshot *snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:NULL];
+		REQUIRE(snapshot != nil);
 		REQUIRE([snapshot.tags isEqual:finderTags] && snapshot.encoding == NSUTF8StringEncoding);
 
 		const char numericEncoding[] = "US-ASCII;1536";
 		REQUIRE(setxattr([path fileSystemRepresentation], "com.apple.TextEncoding",
 			numericEncoding, sizeof(numericEncoding) - 1, 0, 0) == 0);
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:NULL]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:NULL];
+		REQUIRE(snapshot != nil);
 		REQUIRE(snapshot.encoding == NSASCIIStringEncoding && [snapshot.tags isEqual:finderTags]);
 		REQUIRE(removexattr([path fileSystemRepresentation], "com.apple.TextEncoding", 0) == 0);
 		REQUIRE(removexattr([path fileSystemRepresentation],
 			"com.apple.metadata:kMDItemOMUserTags", 0) == 0);
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:NULL]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:NULL];
+		REQUIRE(snapshot != nil);
 		REQUIRE(snapshot.encoding == 0 && snapshot.tags == nil);
 	} @finally {
 		CloseController(&controller);
@@ -2957,9 +3034,10 @@ static void TestSnapshotBoundaryRaces(void) {
 		NSData *replacement = [@"after final identity lookup" dataUsingEncoding:NSUTF8StringEncoding];
 		[controller setTransientSnapshotFailures:0];
 		[controller replaceSnapshotName:filename withData:replacement atFinalIdentityChecks:1];
-		NVNoteFileSnapshot snapshot;
 		NSError *error = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
+		NVFileSnapshot *snapshot = [[controller noteDirectory]
+			snapshotForFileNamed:filename error:&error];
+		REQUIRE(snapshot != nil);
 		REQUIRE(error == nil && [controller snapshotAttemptCount] == 2);
 		REQUIRE([snapshot.data isEqualToData:replacement]);
 
@@ -2972,7 +3050,8 @@ static void TestSnapshotBoundaryRaces(void) {
 		[controller replaceSnapshotCocoaTags:afterTags afterReadingTags:beforeTags
 			forNoteNamed:filename atIdentityChecks:1];
 		error = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&error];
+		REQUIRE(snapshot != nil);
 		REQUIRE(error == nil && [controller snapshotAttemptCount] == 2);
 		REQUIRE([snapshot.tags isEqual:afterTags]);
 	} @finally {
@@ -3055,20 +3134,21 @@ static void TestFilesystemCapabilities(void) {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
-		NVFileInfo info;
 		NSError *metadataError = nil;
-		REQUIRE([controller getFileInfo:&info forNoteNamed:@"Capability.txt" error:&metadataError]);
-		REQUIRE(metadataError == nil && info.fileID != 0);
+		NVFileObservation *info = [[controller noteDirectory]
+			observationForFileNamed:@"Capability.txt" error:&metadataError];
+		REQUIRE(metadataError == nil && [info fileID] != 0);
 		NSUInteger foundationCount = [controller foundationEnumerationsForDirectoryScan];
 		REQUIRE(foundationCount != NSNotFound);
-		NVNoteFileSnapshot snapshot;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:@"Capability.txt" error:NULL]);
+		NVFileSnapshot *snapshot = [[controller noteDirectory]
+			snapshotForFileNamed:@"Capability.txt" error:NULL];
+		REQUIRE(snapshot != nil);
 
 		id foundationDocumentID = nil;
 		BOOL foundationDocumentIDAvailable = [[NSURL fileURLWithPath:capabilityPath]
 			getResourceValue:&foundationDocumentID forKey:NSURLDocumentIdentifierKey error:NULL];
-		if (foundationDocumentIDAvailable && info.documentID && [foundationDocumentID unsignedIntValue])
-			REQUIRE(info.documentID == [foundationDocumentID unsignedIntValue]);
+		if (foundationDocumentIDAvailable && [info documentID] && [foundationDocumentID unsignedIntValue])
+			REQUIRE([info documentID] == [foundationDocumentID unsignedIntValue]);
 
 		int fileFD = open([capabilityPath fileSystemRepresentation], O_RDONLY | O_CLOEXEC);
 		REQUIRE(fileFD >= 0);
@@ -3094,32 +3174,32 @@ static void TestFilesystemCapabilities(void) {
 			NSData *initial = [@"initial scratch bytes" dataUsingEncoding:NSUTF8StringEncoding];
 			NSData *replacement = [@"replacement scratch bytes" dataUsingEncoding:NSUTF8StringEncoding];
 			REQUIRE([initial writeToFile:conditionalPath options:0 error:NULL]);
-			int directoryFD = open([directoryPath fileSystemRepresentation],
-				O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
-			REQUIRE(directoryFD >= 0);
-			NSError *replacementError = nil;
-			REQUIRE(NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
-				replacement, conditionalName, initial, &replacementError));
-			REQUIRE(replacementError == nil &&
+			NVFileSnapshot *initialSnapshot = [[controller noteDirectory]
+				snapshotForFileNamed:conditionalName error:NULL];
+			REQUIRE(initialSnapshot != nil);
+			NVFileWriteResult *writeResult = [[controller noteDirectory]
+				replaceFileNamed:conditionalName withData:replacement expectedSnapshot:initialSnapshot];
+			REQUIRE([writeResult disposition] == NVFileWriteInstalledVerified &&
+				[writeResult capability] == NVFileWriteHFSCompatibilityCapability &&
 				[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
-			replacementError = nil;
-			REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
-				initial, conditionalName, initial, &replacementError));
+			writeResult = [[controller noteDirectory] replaceFileNamed:conditionalName
+				withData:initial expectedSnapshot:initialSnapshot];
+			NSError *replacementError = [writeResult error];
+			REQUIRE([writeResult disposition] == NVFileWriteNotInstalled);
 			REQUIRE([[replacementError domain] isEqualToString:NSPOSIXErrorDomain] &&
 				[replacementError code] == EAGAIN &&
 				[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
-			REQUIRE(close(directoryFD) == 0);
 			RequireNoTemporaryFiles(directoryPath);
 		}
 
 		NSLog(@"filesystem capabilities: fs=%s case-sensitive=%@ xattrs=%@ enumeration=%@ "
 			"document-id=%u foundation-document-id=%@ file-id=%llu generation=%@:%u ctime=%lld.%09ld",
 			volume.f_fstypename, caseSensitive ? @"yes" : @"no", supportsXattrs ? @"yes" : @"no",
-			foundationCount ? @"Foundation" : @"bulk", info.documentID,
+			foundationCount ? @"Foundation" : @"bulk", [info documentID],
 			foundationDocumentIDAvailable ? foundationDocumentID : @"unavailable",
-			(unsigned long long)info.fileID, generationAvailable ? @"available" : @"unavailable",
-			generation.generationCount, (long long)info.attributeModificationTime.tv_sec,
-			(long)info.attributeModificationTime.tv_nsec);
+			(unsigned long long)[info fileID], generationAvailable ? @"available" : @"unavailable",
+			generation.generationCount, (long long)[info attributeModificationTime].tv_sec,
+			(long)[info attributeModificationTime].tv_nsec);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -3184,8 +3264,8 @@ static void TestSystemTagProducer(void) {
 		id systemTags = nil;
 		BOOL tagsAvailable = [[NSURL fileURLWithPath:path]
 			getResourceValue:&systemTags forKey:NSURLTagNamesKey error:&error];
-		NVNoteFileSnapshot snapshot;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
+		NVFileSnapshot *snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&error];
+		REQUIRE(snapshot != nil);
 		NSLog(@"system tag producer after child exit: NSURL=%@ snapshot=%@ raw-xattr=%ld errno=%d",
 			tagsAvailable ? systemTags : @"unavailable", snapshot.tags, (long)rawTagLength, rawTagError);
 		NSArray *expectedNames = @[ @"Red", @"Caf\u00e9\u6771\u4eac" ];
@@ -3210,12 +3290,14 @@ static void TestSystemTagProducer(void) {
 		REQUIRE([[note orderedLabelTitles] count] == 0);
 
 		[controller setSnapshotCocoaTagsUnavailable:YES];
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&error];
+		REQUIRE(snapshot != nil);
 		REQUIRE([snapshot.tags isEqual:@[ @"OpenMetaOnly" ]]);
 		[controller setSnapshotCocoaTagsUnavailable:NO];
 		[controller replaceSnapshotCocoaTags:nil afterReadingTags:@[ @1 ]
 			forNoteNamed:filename atIdentityChecks:0];
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&error]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&error];
+		REQUIRE(snapshot != nil);
 		REQUIRE([snapshot.tags isEqual:@[ @"OpenMetaOnly" ]]);
 		[controller replaceSnapshotCocoaTags:nil afterReadingTags:nil
 			forNoteNamed:filename atIdentityChecks:0];
@@ -3247,7 +3329,7 @@ static void TestWALCrashChild(void) {
 	[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
 	NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:@"WAL baseline"] autorelease]
-		title:@"WAL Crash Recovery" delegate:controller format:SingleDatabaseFormat labels:@""];
+		title:@"WAL Crash Recovery" format:SingleDatabaseFormat labels:@""];
 	[controller addNewNote:note];
 	REQUIRE([controller flushAllNoteChanges]);
 	[note setContentString:[[[NSAttributedString alloc]
@@ -3312,7 +3394,7 @@ static void TestLegacyTemporaryDatabaseRecovery(void) {
 			TestWALNote(@"candidate WAL recovery"), TestWALNote(@"candidate corrupt record"), nil]);
 		CorruptWALChecksum(directoryPath, 1);
 		NSData *corruptJournal = [NSData dataWithContentsOfFile:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]];
 
 		NSUInteger promptCount = legacyRecoveryPromptCount;
 		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
@@ -3348,7 +3430,7 @@ static void TestLegacyTemporaryDatabaseRecovery(void) {
 		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
 			[journalBackups objectAtIndex:0]]] isEqualToData:corruptJournal]);
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]]);
 		CloseController(&controller);
 		controller = CreateController(directoryPath, delegate);
 		REQUIRE(legacyRecoveryPromptCount == promptCount + 1);
@@ -3408,7 +3490,7 @@ static void TestLegacyTemporaryDatabaseRecovery(void) {
 		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
 		REQUIRE([[NSData dataWithContentsOfFile:candidatePath] isEqualToData:invalidCandidate]);
 		REQUIRE([[NSData dataWithContentsOfFile:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]]
 			isEqualToData:journal]);
 		REQUIRE([FilenamesWithPrefix(directoryPath,
 			@"Notes & Settings (legacy recovery ") count] == 0);
@@ -3475,7 +3557,7 @@ static void TestWALRecoveryWorkflows(void) {
 			[journalBackups objectAtIndex:0]]] isEqualToData:journal]);
 		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]]);
 		CloseController(&controller);
 		controller = CreateController(directoryPath, delegate);
 		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount + 1);
@@ -3496,7 +3578,7 @@ static void TestWALRecoveryWorkflows(void) {
 			TestWALNote(@"partial recovered note"), TestWALNote(@"partial lost note"), nil]);
 		CorruptWALChecksum(directoryPath, 1);
 		NSData *journal = [NSData dataWithContentsOfFile:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]];
 		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
 		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
 		NSUInteger warningCount = partialWALRecoveryWarningCount;
@@ -3542,7 +3624,7 @@ static void TestWALRecoveryWorkflows(void) {
 			initWithDirectoryURL:FileReferenceURLForPath(directoryPath) error:&status];
 		REQUIRE(controller == nil && status == NVTestJournalingError);
 		REQUIRE([[NSData dataWithContentsOfFile:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]]
 			isEqualToData:journal]);
 		REQUIRE([FilenamesWithPrefix(directoryPath,
 			@"Interim Note-Changes (WAL recovery ") count] == 0);
@@ -3576,7 +3658,7 @@ static void TestWALRecoveryWorkflows(void) {
 				(response == NSAlertThirdButtonReturn ? 1 : 0));
 			REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
 			REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
-				@"Interim Note-Changes"]] isEqualToData:journal]);
+				NVJournalFilename]] isEqualToData:journal]);
 			REQUIRE([FilenamesWithPrefix(directoryPath,
 				@"Interim Note-Changes (failed recovery ") count] == 0);
 		} @finally {
@@ -3595,7 +3677,7 @@ static void TestWALRecoveryWorkflows(void) {
 			TestWALNote(@"partial rollback recovered"), TestWALNote(@"partial rollback lost"), nil]);
 		CorruptWALChecksum(directoryPath, 1);
 		NSData *journal = [NSData dataWithContentsOfFile:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]];
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]];
 		injectedControllerFlushFailures = 1;
 		observedInjectedControllerFlushFailures = 0;
 		NSUInteger warningCount = partialWALRecoveryWarningCount;
@@ -3607,7 +3689,7 @@ static void TestWALRecoveryWorkflows(void) {
 		REQUIRE(partialWALRecoveryWarningCount == warningCount);
 		REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
 		REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
-			@"Interim Note-Changes"]] isEqualToData:journal]);
+			NVJournalFilename]] isEqualToData:journal]);
 		REQUIRE([FilenamesWithPrefix(directoryPath,
 			@"Notes & Settings (partial recovery ") count] == 0);
 		REQUIRE([FilenamesWithPrefix(directoryPath,
@@ -3628,7 +3710,7 @@ static void TestWALRecoveryWorkflows(void) {
 				TestWALNote(@"transaction recovered"), TestWALNote(@"transaction lost"), nil]);
 			CorruptWALChecksum(directoryPath, 1);
 			NSString *journalPath = [directoryPath stringByAppendingPathComponent:
-				@"Interim Note-Changes"];
+				NVJournalFilename];
 			NSData *journal = [NSData dataWithContentsOfFile:journalPath];
 			if (failureCase == 0) injectedRecoveryDirectorySyncFailures = 1;
 			else if (failureCase == 1) injectedRecoveryJournalRenameFailures = 1;
@@ -3682,7 +3764,7 @@ static void TestWALRecoveryWorkflows(void) {
 				injectedRecoveryDirectorySyncFailures == 0);
 			REQUIRE([[NSData dataWithContentsOfFile:databasePath] isEqualToData:database]);
 			REQUIRE([[NSData dataWithContentsOfFile:[directoryPath stringByAppendingPathComponent:
-				@"Interim Note-Changes"]] isEqualToData:journal]);
+				NVJournalFilename]] isEqualToData:journal]);
 			REQUIRE([FilenamesWithPrefix(directoryPath,
 				@"Interim Note-Changes (failed recovery ") count] == 0);
 			if (failureCase == 1) {
@@ -3705,7 +3787,7 @@ static void TestWALRecoveryWorkflows(void) {
 		WriteTestFile(TestDatabaseData(@"unrelated journal error", 5, 0),
 			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName], now - 10);
 		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]
 			withIntermediateDirectories:NO attributes:nil error:NULL]);
 		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
 		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
@@ -4138,7 +4220,7 @@ static void TestFileOutboxCrashChild(void) {
 	[[controller notationPrefs] setConfirmsFileDeletion:NO];
 	NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:@"file outbox baseline"] autorelease]
-		title:@"File Outbox Crash" delegate:controller format:PlainTextFormat labels:@""];
+		title:@"File Outbox Crash" format:PlainTextFormat labels:@""];
 	[controller addNewNote:note];
 	REQUIRE([controller flushAllNoteChanges]);
 	[note setContentString:[[[NSAttributedString alloc]
@@ -4147,7 +4229,7 @@ static void TestFileOutboxCrashChild(void) {
 	[controller synchronizeNoteChanges:nil];
 	NoteObject *newNote = [[NoteObject alloc] initWithNoteBody:
 		[[[NSAttributedString alloc] initWithString:@"file outbox WAL-only new note"] autorelease]
-		title:@"WAL-only New Note" delegate:controller format:PlainTextFormat labels:@""];
+		title:@"WAL-only New Note" format:PlainTextFormat labels:@""];
 	[controller addNewNote:newNote];
 	REQUIRE([controller pendingFileWriteCount] == 2 &&
 		[controller pendingJournalWriteCount] == 0 && [controller synchronizeJournalOnly]);
@@ -4168,10 +4250,10 @@ static void TestFileOutboxCrashRecovery(void) {
 		NoteObject *newNote = NoteContaining(controller, @"file outbox WAL-only new note");
 		REQUIRE(note != nil && newNote != nil && [controller pendingFileWriteCount] == 0);
 		REQUIRE([controller deletionCandidateCount] == 0);
-		NSString *disk = [NSString stringWithContentsOfFile:[[note noteFileURL] path]
+		NSString *disk = [NSString stringWithContentsOfFile:[[note absoluteUNIXPath] path]
 			encoding:NSUTF8StringEncoding error:NULL];
 		REQUIRE([disk isEqualToString:@"file outbox WAL edit"]);
-		REQUIRE([[NSString stringWithContentsOfFile:[[newNote noteFileURL] path]
+		REQUIRE([[NSString stringWithContentsOfFile:[[newNote absoluteUNIXPath] path]
 			encoding:NSUTF8StringEncoding error:NULL]
 			isEqualToString:@"file outbox WAL-only new note"]);
 	} @finally {
@@ -4196,7 +4278,7 @@ static void TestBookmarkCreate(void) {
 		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"bookmark survives remount"] autorelease]
-			title:@"Remounted Bookmark" delegate:controller format:SingleDatabaseFormat labels:@""];
+			title:@"Remounted Bookmark" format:SingleDatabaseFormat labels:@""];
 		[controller addNewNote:note];
 		[note release];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -4258,10 +4340,10 @@ static void TestLiveDetachChild(void) {
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"bookmark survives remount"] autorelease]
-			title:@"Live Detach" delegate:controller format:PlainTextFormat labels:@"detach"];
+			title:@"Live Detach" format:PlainTextFormat labels:@"detach"];
 		[controller addNewNote:note];
 		REQUIRE([controller flushAllNoteChanges]);
-		heldNoteFD = open([[note noteFileURL] fileSystemRepresentation], O_RDONLY | O_CLOEXEC);
+		heldNoteFD = open([[note absoluteUNIXPath] fileSystemRepresentation], O_RDONLY | O_CLOEXEC);
 		REQUIRE(heldNoteFD >= 0);
 		NSData *bookmark = [[NSFileManager defaultManager]
 			bookmarkDataForFileReferenceURL:[controller noteDirectoryURL] error:NULL];
@@ -4273,10 +4355,9 @@ static void TestLiveDetachChild(void) {
 			[deadline timeIntervalSinceNow] > 0.0) usleep(10000);
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:continuePath]);
 
-		NVNoteFileSnapshot snapshot;
 		NSError *error = nil;
-		BOOL snapshotSucceeded = [controller readNoteFileSnapshot:&snapshot
-			forNoteNamed:filenameOfNote(note) error:&error];
+		BOOL snapshotSucceeded = [[controller noteDirectory]
+			snapshotForFileNamed:filenameOfNote(note) error:&error] != nil;
 		[note setContentString:[[[NSAttributedString alloc]
 			initWithString:@"bookmark survives remount after live detach"] autorelease]];
 		BOOL flushSucceeded = [controller flushAllNoteChanges];
@@ -4377,7 +4458,7 @@ static void TestDiskFullRecoveryContract(void) {
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"Disk Full Recovery\nbaseline"] autorelease]
-			title:@"Disk Full Recovery" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Disk Full Recovery" format:PlainTextFormat labels:@""];
 		[controller addNewNote:note];
 		[note release];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -4391,7 +4472,7 @@ static void TestDiskFullRecoveryContract(void) {
 		REQUIRE(!firstFlush && [controller recordedWriteError] != noErr);
 		REQUIRE(unlink([fillerPath fileSystemRepresentation]) == 0);
 		REQUIRE(unlink([reservePath fileSystemRepresentation]) == 0);
-		REQUIRE(fsync([controller testNoteDirectoryFileDescriptor]) == 0);
+		REQUIRE([[controller noteDirectory] synchronize:NULL]);
 		BOOL recoveryFlush = [controller flushAllNoteChanges];
 		NSString *diskContent = [NSString stringWithContentsOfFile:path
 			encoding:NSUTF8StringEncoding error:NULL];
@@ -4417,17 +4498,20 @@ static void TestFileMetadata(void) {
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];
 		NSError *error = nil;
-		NSData *newEmptyData = [controller dataFromNoteNamed:@"Read Or Create Database"
-			creatingIfMissing:YES error:&error];
-		REQUIRE(newEmptyData != nil && [newEmptyData length] == 0 && error == nil);
+		NVFileWriteResult *createResult = [[controller noteDirectory]
+			createFileNamed:@"Read Or Create Database" withData:[NSData data]];
+		REQUIRE([createResult disposition] == NVFileWriteInstalledVerified);
+		NSData *newEmptyData = [[controller noteDirectory]
+			dataFromFileNamed:@"Read Or Create Database" error:&error];
+		REQUIRE([newEmptyData length] == 0 && error == nil);
 		NSString *readOrCreatePath = [directoryPath
 			stringByAppendingPathComponent:@"Read Or Create Database"];
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:readOrCreatePath]);
 		NSData *existingData = [@"existing" dataUsingEncoding:NSUTF8StringEncoding];
 		REQUIRE([existingData writeToFile:readOrCreatePath atomically:NO]);
 		error = nil;
-		REQUIRE([[controller dataFromNoteNamed:@"Read Or Create Database"
-			creatingIfMissing:YES error:&error] isEqualToData:existingData]);
+		REQUIRE([[[controller noteDirectory] dataFromFileNamed:@"Read Or Create Database" error:&error]
+			isEqualToData:existingData]);
 		REQUIRE(error == nil);
 		NSArray *collidingNames = @[ @"Case.txt", @"case.TXT" ];
 		NSArray *distinctNames = @[ @"One.txt", @"Two.txt" ];
@@ -4435,44 +4519,50 @@ static void TestFileMetadata(void) {
 		REQUIRE(![controller hasCaseCollisionForNames:distinctNames]);
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"metadata baseline"] autorelease]
-			title:@"Metadata Identity" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Metadata Identity" format:PlainTextFormat labels:@""];
 		[controller addNewNote:note];
 		REQUIRE([controller flushAllNoteChanges]);
 		NSString *filename = [[filenameOfNote(note) copy] autorelease];
 		NSString *path = [directoryPath stringByAppendingPathComponent:filename];
-		NVNoteFileSnapshot snapshot;
 		NSError *snapshotError = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		NVFileSnapshot *snapshot = [[controller noteDirectory]
+			snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil);
 		REQUIRE(snapshotError == nil);
 		REQUIRE([[[[NSString alloc] initWithData:snapshot.data encoding:NSUTF8StringEncoding]
 			autorelease] isEqualToString:@"metadata baseline"]);
 		REQUIRE(snapshot.encoding == NSUTF8StringEncoding);
 		REQUIRE([snapshot.tags count] == 0);
-		REQUIRE(snapshot.info.fileID == sessionFileIDOfNote(note));
+		REQUIRE([[snapshot observation] fileID] == sessionFileIDOfNote(note));
 
 		const char *tagsAttribute = "com.apple.metadata:kMDItemOMUserTags";
 		REQUIRE(removexattr([path fileSystemRepresentation], tagsAttribute, 0) == 0);
 		snapshotError = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil);
 		REQUIRE(snapshot.tags != nil && [snapshot.tags count] == 0);
 		snapshotError = nil;
 		REQUIRE(SetTestOpenMetaTags(controller, @[], filename, &snapshotError));
 		REQUIRE(snapshotError == nil);
 		snapshotError = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil);
 		REQUIRE(snapshotError == nil && snapshot.tags != nil && [snapshot.tags count] == 0);
 		id cocoaTags = nil;
-		REQUIRE([[controller fileReferenceURLForNoteNamed:filename error:&snapshotError]
+		REQUIRE([[[controller noteDirectory]
+			transientFileReferenceURLForFileNamed:filename error:&snapshotError]
 			getResourceValue:&cocoaTags forKey:NSURLTagNamesKey error:&snapshotError]);
 		REQUIRE(snapshotError == nil && [cocoaTags count] == 0);
 		NSArray *mirroredTags = @[ @"Red\n6", @"Plain" ];
 		REQUIRE(SetTestOpenMetaTags(controller, mirroredTags, filename, &snapshotError));
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil);
 		REQUIRE([snapshot.tags isEqual:NVSemanticTagNames(mirroredTags)]);
 		REQUIRE([[[NSFileManager defaultManager]
 			getOpenMetaTagsAtFSPath:[path fileSystemRepresentation]] isEqual:mirroredTags]);
 		cocoaTags = nil;
-		REQUIRE([[controller fileReferenceURLForNoteNamed:filename error:&snapshotError]
+		REQUIRE([[[controller noteDirectory]
+			transientFileReferenceURLForFileNamed:filename error:&snapshotError]
 			getResourceValue:&cocoaTags forKey:NSURLTagNamesKey error:&snapshotError]);
 		REQUIRE(TagSetsEqual(cocoaTags, NVSemanticTagNames(mirroredTags)));
 		REQUIRE(SetTestOpenMetaTags(controller, @[], filename, &snapshotError));
@@ -4481,53 +4571,67 @@ static void TestFileMetadata(void) {
 		REQUIRE(setxattr([path fileSystemRepresentation], tagsAttribute,
 			[badTags bytes], [badTags length], 0, 0) == 0);
 		snapshotError = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil);
 		REQUIRE(snapshotError == nil && [snapshot.tags count] == 0);
 		[controller setSnapshotCocoaTagsUnavailable:YES];
-		NVNoteFileSnapshot failedSnapshot = { [NSData data], @[], NSUTF8StringEncoding, { { 0 }, { 0 }, { 0 }, 0, 42, 0 } };
 		snapshotError = nil;
-		REQUIRE(![controller readNoteFileSnapshot:&failedSnapshot forNoteNamed:filename error:&snapshotError]);
-		REQUIRE(snapshotError != nil && failedSnapshot.data == nil && failedSnapshot.tags == nil &&
-			failedSnapshot.encoding == 0 && failedSnapshot.info.fileID == 0);
+		REQUIRE([[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError] == nil);
+		REQUIRE(snapshotError != nil);
 
 		NSData *wrongTypeTags = [NSPropertyListSerialization dataWithPropertyList:@[ @1 ]
 			format:NSPropertyListBinaryFormat_v1_0 options:0 error:NULL];
 		REQUIRE(setxattr([path fileSystemRepresentation], tagsAttribute,
 			[wrongTypeTags bytes], [wrongTypeTags length], 0, 0) == 0);
 		snapshotError = nil;
-		REQUIRE(![controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		REQUIRE([[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError] == nil);
 		REQUIRE(snapshotError != nil);
 		[controller setSnapshotCocoaTagsUnavailable:NO];
 		snapshotError = nil;
 		REQUIRE(SetTestOpenMetaTags(controller, @[], filename, &snapshotError));
 		REQUIRE(snapshotError == nil);
 
-		NVFileInfo encodingInfo = { 0 }, resultingEncodingInfo = { 0 };
-		REQUIRE([controller getFileInfo:&encodingInfo forNoteNamed:filename error:&snapshotError]);
-		REQUIRE(encodingInfo.generationCount != 0);
-		NVFileInfo wrongGenerationInfo = encodingInfo;
-		wrongGenerationInfo.generationCount++;
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil && [[snapshot observation] generationCount] != 0);
+		NVFileObservation *encodingInfo = [snapshot observation];
+		NVFileObservation *wrongGenerationInfo = [[[NVFileObservation alloc]
+			initWithCreationTime:[encodingInfo creationTime]
+			modificationTime:[encodingInfo modificationTime]
+			attributeModificationTime:[encodingInfo attributeModificationTime]
+			logicalSize:[encodingInfo logicalSize] fileID:[encodingInfo fileID]
+			documentID:[encodingInfo documentID]
+			generationCount:[encodingInfo generationCount] + 1] autorelease];
+		NVFileSnapshot *wrongGenerationSnapshot = [[[NVFileSnapshot alloc]
+			initWithData:[snapshot data] tags:[snapshot tags] encoding:[snapshot encoding]
+			observation:wrongGenerationInfo] autorelease];
 		snapshotError = nil;
-		REQUIRE(![controller setTextEncoding:NSUTF8StringEncoding forNoteNamed:filename
-			matchingFileInfo:&wrongGenerationInfo expectedData:nil
-			resultingFileInfo:&resultingEncodingInfo
-			error:&snapshotError]);
+		REQUIRE([[controller noteDirectory] setTextEncoding:NSUTF8StringEncoding
+			forFileNamed:filename expectedSnapshot:wrongGenerationSnapshot error:&snapshotError] == nil);
 		REQUIRE(snapshotError != nil);
-		encodingInfo.generationCount = 0;
+		NVFileObservation *generationAgnosticInfo = [[[NVFileObservation alloc]
+			initWithCreationTime:[encodingInfo creationTime]
+			modificationTime:[encodingInfo modificationTime]
+			attributeModificationTime:[encodingInfo attributeModificationTime]
+			logicalSize:[encodingInfo logicalSize] fileID:[encodingInfo fileID]
+			documentID:[encodingInfo documentID] generationCount:0] autorelease];
+		NVFileSnapshot *generationAgnosticSnapshot = [[[NVFileSnapshot alloc]
+			initWithData:[snapshot data] tags:[snapshot tags] encoding:[snapshot encoding]
+			observation:generationAgnosticInfo] autorelease];
 		snapshotError = nil;
-		REQUIRE([controller setTextEncoding:NSUTF8StringEncoding forNoteNamed:filename
-			matchingFileInfo:&encodingInfo expectedData:nil resultingFileInfo:&resultingEncodingInfo
-			error:&snapshotError]);
-		REQUIRE(snapshotError == nil && resultingEncodingInfo.generationCount != 0);
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		NVFileSnapshot *resultingEncodingSnapshot = [[controller noteDirectory]
+			setTextEncoding:NSUTF8StringEncoding forFileNamed:filename
+			expectedSnapshot:generationAgnosticSnapshot error:&snapshotError];
+		REQUIRE(snapshotError == nil &&
+			[[resultingEncodingSnapshot observation] generationCount] != 0);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil);
 		NSMutableData *concurrentEncodingData = [[snapshot.data mutableCopy] autorelease];
 		((uint8_t*)[concurrentEncodingData mutableBytes])[0] ^= 1;
 		[controller mutateNoteNamed:filename withData:concurrentEncodingData
 			duringEncodingSynchronization:YES];
 		snapshotError = nil;
-		REQUIRE(![controller setTextEncoding:NSISOLatin1StringEncoding forNoteNamed:filename
-			matchingFileInfo:&snapshot.info expectedData:snapshot.data
-			resultingFileInfo:&resultingEncodingInfo error:&snapshotError]);
+		REQUIRE([[controller noteDirectory] setTextEncoding:NSISOLatin1StringEncoding
+			forFileNamed:filename expectedSnapshot:snapshot error:&snapshotError] == nil);
 		REQUIRE(snapshotError != nil);
 		REQUIRE([[NSData dataWithContentsOfFile:path] isEqualToData:concurrentEncodingData]);
 		WriteExternalFileInPlace(@"metadata baseline", path);
@@ -4538,7 +4642,7 @@ static void TestFileMetadata(void) {
 		REQUIRE(setxattr([path fileSystemRepresentation], encodingAttribute,
 			badEncoding, strlen(badEncoding), 0, 0) == 0);
 		snapshotError = nil;
-		REQUIRE(![controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		REQUIRE([[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError] == nil);
 		REQUIRE(snapshotError != nil);
 		snapshotError = nil;
 		REQUIRE(SetTestTextEncoding(controller, NSUTF8StringEncoding, filename, &snapshotError));
@@ -4567,11 +4671,12 @@ static void TestFileMetadata(void) {
 
 		[controller setTransientSnapshotFailures:1];
 		snapshotError = nil;
-		REQUIRE([controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		snapshot = [[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError];
+		REQUIRE(snapshot != nil);
 		REQUIRE(snapshotError == nil && [controller snapshotAttemptCount] == 2);
 		[controller setTransientSnapshotFailures:2];
 		snapshotError = nil;
-		REQUIRE(![controller readNoteFileSnapshot:&snapshot forNoteNamed:filename error:&snapshotError]);
+		REQUIRE([[controller noteDirectory] snapshotForFileNamed:filename error:&snapshotError] == nil);
 		REQUIRE([[snapshotError domain] isEqualToString:NSPOSIXErrorDomain] &&
 			[snapshotError code] == EAGAIN && [controller snapshotAttemptCount] == 2);
 
@@ -4579,10 +4684,18 @@ static void TestFileMetadata(void) {
 		NSString *symlinkPath = [directoryPath stringByAppendingPathComponent:symlinkName];
 		REQUIRE(symlink([filename fileSystemRepresentation], [symlinkPath fileSystemRepresentation]) == 0);
 		snapshotError = nil;
-		REQUIRE(![controller readNoteFileSnapshot:&snapshot forNoteNamed:symlinkName error:&snapshotError]);
+		REQUIRE([[controller noteDirectory] snapshotForFileNamed:symlinkName error:&snapshotError] == nil);
 		REQUIRE(snapshotError != nil);
-		NVFileInfo symlinkInfo;
-		REQUIRE(![controller getFileInfo:&symlinkInfo forNoteNamed:symlinkName error:NULL]);
+		REQUIRE([[controller noteDirectory] observationForFileNamed:symlinkName error:NULL] == nil);
+		NVFileWriteResult *symlinkWrite = [[controller noteDirectory]
+			overwriteFileNamed:symlinkName withData:[@"must not follow" dataUsingEncoding:NSUTF8StringEncoding]];
+		REQUIRE([symlinkWrite disposition] == NVFileWriteNotInstalled);
+		REQUIRE(![[controller noteDirectory] renameFileNamed:symlinkName
+			toUnusedName:@"Renamed Symlink.txt" error:NULL]);
+		REQUIRE(![[controller noteDirectory] removeFileNamed:symlinkName error:NULL]);
+		struct stat symlinkStatus;
+		REQUIRE(lstat([symlinkPath fileSystemRepresentation], &symlinkStatus) == 0 &&
+			S_ISLNK(symlinkStatus.st_mode));
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:symlinkPath error:NULL]);
 
 		uint32_t bulkDocumentID = [controller catalogDocumentIdentifierForFilename:filename];
@@ -4619,8 +4732,7 @@ static void TestFileMetadata(void) {
 			&marker, sizeof(marker), 0, 0) == 0);
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		struct timespec currentChangeTime = fileAttributeChangeTimeOfNote(note);
-		REQUIRE(previousChangeTime.tv_sec != currentChangeTime.tv_sec ||
-			previousChangeTime.tv_nsec != currentChangeTime.tv_nsec);
+		REQUIRE(NVCompareTimespecs(previousChangeTime, currentChangeTime) != NSOrderedSame);
 
 		[note setContentString:[[[NSAttributedString alloc] initWithString:@"unsaved rename wins"] autorelease]];
 		NSString *unsavedFilename = @"Unsaved Metadata Rename.txt";
@@ -4655,6 +4767,30 @@ static void TestFileMetadata(void) {
 		REQUIRE([added count] == 2 && [removed count] == 1);
 		REQUIRE([filenameOfNote(note) isEqualToString:(NSString*)newDocumentEntry.filename]);
 		[controller setInterceptContentFallback:NO];
+
+		for (NSNumber *documentTier in @[ @YES, @NO ]) {
+			BOOL useDocumentIdentifier = [documentTier boolValue];
+			NoteObject *duplicateRemoved = [[NoteObject alloc] initWithNoteBody:
+				[[[NSAttributedString alloc] initWithString:@"duplicate removed identity"] autorelease]
+				title:@"Duplicate Removed Identity" format:PlainTextFormat labels:@""];
+			uint64_t identifier = useDocumentIdentifier ? 0x34567890 : 0x0102030405060708ULL;
+			NoteCatalogEntry removedIdentity = { fileAttributeChangeTimeOfNote(note),
+				useDocumentIdentifier ? 0 : identifier, (CFStringRef)unsavedFilename,
+				useDocumentIdentifier ? (uint32_t)identifier : 0 };
+			[note updateFileIdentityFromCatalogEntry:&removedIdentity];
+			removedIdentity.filename = CFSTR("Duplicate Removed Identity.txt");
+			[duplicateRemoved updateFileIdentityFromCatalogEntry:&removedIdentity];
+			NoteCatalogEntry addedIdentity = removedIdentity;
+			addedIdentity.filename = CFSTR("Ambiguous Removed Identity.txt");
+			added = [NSMutableArray arrayWithObject:[NSValue valueWithPointer:&addedIdentity]];
+			removed = [NSMutableArray arrayWithObjects:note, duplicateRemoved, nil];
+			[controller setInterceptContentFallback:YES];
+			[controller processNotesAddedByIdentity:added removed:removed];
+			REQUIRE([controller contentFallbackCalled]);
+			REQUIRE([added count] == 1 && [removed count] == 2);
+			[controller setInterceptContentFallback:NO];
+			[duplicateRemoved release];
+		}
 
 		[note setFilename:unsavedFilename withExternalTrigger:YES];
 		oldDocumentEntry.filename = (CFStringRef)unsavedFilename;
@@ -4715,7 +4851,7 @@ static void TestCoarseCTimeObservation(void) {
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"coarse ctime"] autorelease]
-			title:@"Coarse CTime" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Coarse CTime" format:PlainTextFormat labels:@""];
 		[controller addNewNote:note];
 		[note release];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -4735,7 +4871,59 @@ static void TestCoarseCTimeObservation(void) {
 	}
 }
 
+static void TestInterleavedDirectoryMerge(void) {
+	NSString *directoryPath = CreateTemporaryDirectory();
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
+		for (NSString *name in @[ @"B Existing.txt", @"D Deleted.txt",
+			@"F Changed.txt", @"H Deleted.txt" ])
+			WriteExternalFile(PlainTextFormat, name,
+				[directoryPath stringByAppendingPathComponent:name]);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		NoteObject *existing = NoteContaining(controller, @"B Existing.txt");
+		NoteObject *changed = NoteContaining(controller, @"F Changed.txt");
+		REQUIRE(existing != nil && changed != nil);
+
+		WriteExternalFile(PlainTextFormat, @"addition before",
+			[directoryPath stringByAppendingPathComponent:@"A Added.txt"]);
+		WriteExternalFile(PlainTextFormat, @"addition between",
+			[directoryPath stringByAppendingPathComponent:@"E Added.txt"]);
+		WriteExternalFile(PlainTextFormat, @"addition after",
+			[directoryPath stringByAppendingPathComponent:@"Z Added.txt"]);
+		WriteExternalFile(PlainTextFormat, @"unsupported",
+			[directoryPath stringByAppendingPathComponent:@"G Unsupported.md"]);
+		WriteExternalFileInPlace(@"changed in place",
+			[directoryPath stringByAppendingPathComponent:@"F Changed.txt"]);
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:
+			[directoryPath stringByAppendingPathComponent:@"D Deleted.txt"] error:NULL]);
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:
+			[directoryPath stringByAppendingPathComponent:@"H Deleted.txt"] error:NULL]);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		REQUIRE(NoteContaining(controller, @"B Existing.txt") == existing);
+		REQUIRE(NoteContaining(controller, @"changed in place") == changed);
+		REQUIRE(NoteContaining(controller, @"addition before") != nil);
+		REQUIRE(NoteContaining(controller, @"addition between") != nil);
+		REQUIRE(NoteContaining(controller, @"addition after") != nil);
+		REQUIRE(NoteContaining(controller, @"unsupported") == nil);
+		REQUIRE([controller deletionCandidateCount] == 2);
+
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:
+			[directoryPath stringByAppendingPathComponent:@"Z Added.txt"] error:NULL]);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		REQUIRE([controller deletionCandidateCount] == 3);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+}
+
 static void TestDirectoryReconciliation(void) {
+	TestInterleavedDirectoryMerge();
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
@@ -4797,8 +4985,8 @@ static void TestDirectoryReconciliation(void) {
 		WriteExternalFileInPlace(@"deferred external refresh needle", importedPath);
 		REQUIRE(![controller synchronizeNotesFromDirectory]);
 		REQUIRE([[[importedNote contentString] string] isEqualToString:@"initial external import"]);
-		REQUIRE(metadataBeforeFailedRefresh.tv_sec == fileAttributeChangeTimeOfNote(importedNote).tv_sec &&
-			metadataBeforeFailedRefresh.tv_nsec == fileAttributeChangeTimeOfNote(importedNote).tv_nsec);
+		REQUIRE(NVCompareTimespecs(metadataBeforeFailedRefresh,
+			fileAttributeChangeTimeOfNote(importedNote)) == NSOrderedSame);
 		REQUIRE([delegate contentsUpdatedCount] == 0);
 		REQUIRE([controller pushScheduleCount] == 0);
 		REQUIRE([[controller notesListDataSource] count] == 0);
@@ -4902,10 +5090,10 @@ static void TestDirectoryReconciliation(void) {
 
 		firstFallbackNote = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"same-size-A"] autorelease]
-			title:@"Fallback First" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Fallback First" format:PlainTextFormat labels:@""];
 		secondFallbackNote = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"same-size-B"] autorelease]
-			title:@"Fallback Second" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Fallback Second" format:PlainTextFormat labels:@""];
 		[controller addNewNote:firstFallbackNote];
 		[controller addNewNote:secondFallbackNote];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -4915,8 +5103,8 @@ static void TestDirectoryReconciliation(void) {
 		zeroIdentity.attributeChangeTime = fileAttributeChangeTimeOfNote(secondFallbackNote);
 		zeroIdentity.filename = (CFStringRef)filenameOfNote(secondFallbackNote);
 		[secondFallbackNote updateFileIdentityFromCatalogEntry:&zeroIdentity];
-		NSString *firstPath = [[firstFallbackNote noteFileURL] path];
-		NSString *secondPath = [[secondFallbackNote noteFileURL] path];
+		NSString *firstPath = [[firstFallbackNote absoluteUNIXPath] path];
+		NSString *secondPath = [[secondFallbackNote absoluteUNIXPath] path];
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:firstPath error:NULL]);
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:secondPath error:NULL]);
 		NSString *firstRenamedFilename = @"Zeta Content Match.txt";
@@ -4946,7 +5134,7 @@ static void TestDirectoryReconciliation(void) {
 		REQUIRE([controller noteDataReadCount] == 0);
 
 		for (NoteObject *note in [[AllNotes(controller) copy] autorelease])
-			REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[note noteFileURL] path] error:NULL]);
+			REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[note absoluteUNIXPath] path] error:NULL]);
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		WaitForNoteCount(controller, 0);
 	} @finally {
@@ -5028,13 +5216,31 @@ static void TestSnapshotFailurePropagation(void) {
 		[delegate resetContentsUpdatedCount];
 		REQUIRE(![controller synchronizeNotesFromDirectory]);
 		REQUIRE([[[note contentString] string] isEqualToString:@"stable import"]);
-		REQUIRE(metadataBeforeXattrFailure.tv_sec == fileAttributeChangeTimeOfNote(note).tv_sec &&
-			metadataBeforeXattrFailure.tv_nsec == fileAttributeChangeTimeOfNote(note).tv_nsec);
+		REQUIRE(NVCompareTimespecs(metadataBeforeXattrFailure,
+			fileAttributeChangeTimeOfNote(note)) == NSOrderedSame);
 		REQUIRE([controller pushScheduleCount] == 0 && [delegate contentsUpdatedCount] == 0);
 		REQUIRE(SetTestOpenMetaTags(controller, @[], renamedFilename, NULL));
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		REQUIRE([[[note contentString] string] isEqualToString:@"deferred after xattr failure"]);
 		[controller setSnapshotCocoaTagsUnavailable:NO];
+
+		NSError *attributeError = nil;
+		[controller failNextExtendedAttributeReadNamed:@"com.apple.TextEncoding" readingValue:NO];
+		REQUIRE([[controller noteDirectory] snapshotForFileNamed:renamedFilename
+			error:&attributeError] == nil);
+		REQUIRE([[attributeError domain] isEqualToString:NSPOSIXErrorDomain] &&
+			[attributeError code] == EIO);
+		REQUIRE(SetTestTextEncoding(controller, NSUTF8StringEncoding,
+			renamedFilename, NULL));
+		REQUIRE(SetTestOpenMetaTagsOnly(controller, @[], renamedFilename, NULL));
+		[controller setSnapshotCocoaTagsUnavailable:YES];
+		attributeError = nil;
+		[controller failNextExtendedAttributeReadNamed:
+			@"com.apple.metadata:kMDItemOMUserTags" readingValue:YES];
+		REQUIRE([[controller noteDirectory] snapshotForFileNamed:renamedFilename
+			error:&attributeError] == nil);
+		REQUIRE([[attributeError domain] isEqualToString:NSPOSIXErrorDomain] &&
+			[attributeError code] == EIO);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -5064,8 +5270,8 @@ static void TestSnapshotFailurePropagation(void) {
 		[delegate resetContentsUpdatedCount];
 		REQUIRE(![controller synchronizeNotesFromDirectory]);
 		REQUIRE([[[note contentString] string] isEqualToString:@"valid rtf"]);
-		REQUIRE(metadataBeforeDecodeFailure.tv_sec == fileAttributeChangeTimeOfNote(note).tv_sec &&
-			metadataBeforeDecodeFailure.tv_nsec == fileAttributeChangeTimeOfNote(note).tv_nsec);
+		REQUIRE(NVCompareTimespecs(metadataBeforeDecodeFailure,
+			fileAttributeChangeTimeOfNote(note)) == NSOrderedSame);
 		REQUIRE([controller pushScheduleCount] == 0 && [delegate contentsUpdatedCount] == 0);
 	} @finally {
 		CloseController(&controller);
@@ -5084,10 +5290,10 @@ static void TestAmbiguousContentFallback(void) {
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		NoteObject *first = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"identical content"] autorelease]
-			title:@"Ambiguous First" delegate:controller format:PlainTextFormat labels:@"ghost-tag"];
+			title:@"Ambiguous First" format:PlainTextFormat labels:@"ghost-tag"];
 		NoteObject *second = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"identical content"] autorelease]
-			title:@"Ambiguous Second" delegate:controller format:PlainTextFormat labels:@"ghost-tag"];
+			title:@"Ambiguous Second" format:PlainTextFormat labels:@"ghost-tag"];
 		[controller addNewNote:first];
 		[controller addNewNote:second];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -5145,7 +5351,7 @@ static void RunAmbiguityCardinalityCase(NSUInteger oldCount, NSUInteger newCount
 			NoteCatalogEntry noIdentity = { fileAttributeChangeTimeOfNote(note), 0,
 				(CFStringRef)filenameOfNote(note), 0 };
 			[note updateFileIdentityFromCatalogEntry:&noIdentity];
-			REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[note noteFileURL] path] error:NULL]);
+			REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[note absoluteUNIXPath] path] error:NULL]);
 		}
 		NSString *firstNewPath = nil;
 		for (NSUInteger index = 0; index < newCount; index++) {
@@ -5270,10 +5476,10 @@ static BOOL DirectoryImportWasAtomicWithFailureAtIndex(NSUInteger failureIndex) 
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		NoteObject *deletedCandidate = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"candidate remains live"] autorelease]
-			title:@"Deleted Candidate" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Deleted Candidate" format:PlainTextFormat labels:@""];
 		[controller addNewNote:deletedCandidate];
 		REQUIRE([controller flushAllNoteChanges]);
-		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[deletedCandidate noteFileURL] path]
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[deletedCandidate absoluteUNIXPath] path]
 			error:NULL]);
 		[deletedCandidate release];
 		NSArray *names = @[ @"A Import.txt", @"M Import.txt", @"Z Import.txt" ];
@@ -5608,7 +5814,7 @@ static void TestEpochFiveArchive(void) {
 		[controller stopFileNotifications];
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"epoch five metadata"] autorelease]
-			title:@"Epoch Five" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Epoch Five" format:PlainTextFormat labels:@""];
 		[controller addNewNote:note];
 		REQUIRE([controller flushAllNoteChanges]);
 		id noteArchive = ArchivePropertyList(note);
@@ -5652,6 +5858,24 @@ static NSData *IntegrationTestAttribute(NSString *path) {
 }
 
 static void TestLifecycle(void) {
+	NoteObject *earlier = [[NoteObject alloc] initWithNoteBody:
+		[[[NSAttributedString alloc] initWithString:@"earlier"] autorelease]
+		title:@"Earlier" format:SingleDatabaseFormat labels:@""];
+	NoteObject *later = [[NoteObject alloc] initWithNoteBody:
+		[[[NSAttributedString alloc] initWithString:@"later"] autorelease]
+		title:@"Later" format:SingleDatabaseFormat labels:@""];
+	[earlier setDateModified:1000.125];
+	[later setDateModified:1000.625];
+	[earlier setDateAdded:2000.125];
+	[later setDateAdded:2000.625];
+	id earlierObject = earlier, laterObject = later;
+	REQUIRE(compareDateModified(&earlierObject, &laterObject) < 0);
+	REQUIRE(compareDateModifiedReverse(&earlierObject, &laterObject) > 0);
+	REQUIRE(compareDateCreated(&earlierObject, &laterObject) < 0);
+	REQUIRE(compareDateCreatedReverse(&earlierObject, &laterObject) > 0);
+	[earlier release];
+	[later release];
+
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
@@ -5667,16 +5891,16 @@ static void TestLifecycle(void) {
 		[controller resetLabelAddCount];
 		NoteObject *detached = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"detached body"] autorelease]
-			title:@"Detached" delegate:controller format:PlainTextFormat labels:@"ghost"];
+			title:@"Detached" format:PlainTextFormat labels:@"ghost"];
 		REQUIRE(detached != nil && [detached delegate] == nil && filenameOfNote(detached) == nil);
 		REQUIRE([controller labelAddCount] == 0);
 		[detached _setLabelString:@""];
 		[detached attachToDelegate:controller];
 		REQUIRE([detached delegate] == controller && filenameOfNote(detached) != nil);
-		[detached setDelegate:nil];
+		[detached attachToDelegate:nil];
 		REQUIRE([detached delegate] == nil);
 		[detached release];
-		REQUIRE([[NoteObject alloc] initWithNoteBody:nil title:@"Invalid" delegate:controller
+		REQUIRE([[NoteObject alloc] initWithNoteBody:nil title:@"Invalid"
 			format:PlainTextFormat labels:@""] == nil);
 		CloseController(&controller);
 		[controllerPool drain];
@@ -5799,16 +6023,15 @@ static void TestAtomicInstallAcrossDirectoryMove(void) {
 		NSData *contents = [@"installed through the original directory descriptor"
 			dataUsingEncoding:NSUTF8StringEncoding];
 		__block BOOL moved = NO;
-		NSError *error = nil;
-		REQUIRE([controller storeDataAtomicallyInNotesDirectory:contents
-			withName:@"Relocated Install.txt"
-			preparationBlock:^BOOL(int fileDescriptor, NSError **preparationError) {
-				(void)fileDescriptor;
+		NVFileWriteResult *result = [[controller noteDirectory]
+			overwriteFileNamed:@"Relocated Install.txt" withData:contents
+			preparedDataVerifier:^BOOL(NSData *readBackData, NSError **verificationError) {
+				(void)readBackData;
 				moved = [[NSFileManager defaultManager] moveItemAtPath:oldPath
-					toPath:newPath error:preparationError];
+					toPath:newPath error:verificationError];
 				return moved;
-			} verificationBlock:nil error:&error]);
-		REQUIRE(error == nil && moved);
+			}];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified && moved);
 		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:oldPath]);
 		NSString *installedPath = [newPath stringByAppendingPathComponent:@"Relocated Install.txt"];
 		REQUIRE([[[NSData alloc] initWithContentsOfFile:installedPath] autorelease] != nil);
@@ -5887,8 +6110,9 @@ static void TestRenamesWhileDirectoryMoves(void) {
 		[controller stopFileNotifications];
 		NSData *contents = [@"root-relative rename survives parent movement"
 			dataUsingEncoding:NSUTF8StringEncoding];
-		REQUIRE([controller storeDataAtomicallyInNotesDirectory:contents
-			withName:@"Rename A.txt" verificationBlock:nil error:NULL]);
+		REQUIRE([[[controller noteDirectory] overwriteFileNamed:@"Rename A.txt"
+			withData:contents] disposition] ==
+			NVFileWriteInstalledVerified);
 		parentFD = open([rootPath fileSystemRepresentation], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		REQUIRE(parentFD >= 0);
 
@@ -5912,7 +6136,8 @@ static void TestRenamesWhileDirectoryMoves(void) {
 		int moverStatus = 0;
 		while (waitpid(mover, &moverStatus, WNOHANG) == 0) {
 			NSError *error = nil;
-			REQUIRE([controller renameNoteFromName:currentName toName:nextName error:&error]);
+			REQUIRE([[controller noteDirectory] renameFileNamed:currentName
+				toUnusedName:nextName error:&error]);
 			NSString *temporary = currentName;
 			currentName = nextName;
 			nextName = temporary;
@@ -5923,7 +6148,8 @@ static void TestRenamesWhileDirectoryMoves(void) {
 		REQUIRE(WIFEXITED(moverStatus) && WEXITSTATUS(moverStatus) == 0);
 		REQUIRE(renameCount > 20);
 		NSError *readError = nil;
-		REQUIRE([contents isEqualToData:[controller dataFromNoteNamed:currentName error:&readError]]);
+		REQUIRE([contents isEqualToData:[[controller noteDirectory]
+			dataFromFileNamed:currentName error:&readError]]);
 		REQUIRE(readError == nil);
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
 			[oldPath stringByAppendingPathComponent:currentName]]);
@@ -5950,7 +6176,7 @@ static void TestDirectoryRelocationRaces(void) {
 static void VerifyExternalChanges(NVTestNotationController *controller, int format, NSString *directoryPath) {
 	REQUIRE([controller totalNoteCount] == 1);
 	NoteObject *original = [[AllNotes(controller) objectAtIndex:0] retain];
-	NSString *originalPath = [[original noteFileURL] path];
+	NSString *originalPath = [[original absoluteUNIXPath] path];
 	NSString *externalText = @"Externally edited Unicode π content with a deliberately different size.";
 	WriteExternalFile(format, externalText, originalPath);
 	REQUIRE([controller synchronizeNotesFromDirectory]);
@@ -6000,12 +6226,12 @@ static void TestStorageFormat(int format) {
 		NSString *duplicateTitle = [NSString stringWithFormat:@"Duplicate Ω 東京 %@", [[NSUUID UUID] UUIDString]];
 
 		NoteObject *first = [[NoteObject alloc] initWithNoteBody:StyledBody(@"initial")
-			title:duplicateTitle delegate:controller format:format labels:@"alpha beta"];
+			title:duplicateTitle format:format labels:@"alpha beta"];
 		REQUIRE(first != nil);
 		[controller addNewNote:first];
 		NoteObject *duplicate = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"Duplicate-name companion"] autorelease]
-			title:duplicateTitle delegate:controller format:format labels:@"gamma"];
+			title:duplicateTitle format:format labels:@"gamma"];
 		REQUIRE(duplicate != nil);
 		[controller addNewNote:duplicate];
 		REQUIRE([controller totalNoteCount] == 2);
@@ -6019,7 +6245,7 @@ static void TestStorageFormat(int format) {
 
 		NSString *storagePath = format == SingleDatabaseFormat
 			? [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName]
-			: [[first noteFileURL] path];
+			: [[first absoluteUNIXPath] path];
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:storagePath]);
 		if (format != SingleDatabaseFormat)
 			REQUIRE([[storagePath pathExtension] isEqualToString:[NotationPrefs pathExtensionForFormat:format]]);
@@ -6040,7 +6266,7 @@ static void TestStorageFormat(int format) {
 			REQUIRE([tags containsObject:@"alpha"]);
 			REQUIRE([tags containsObject:@"updated"]);
 			id cocoaTags = nil;
-			REQUIRE([[first noteFileURL] getResourceValue:&cocoaTags
+			REQUIRE([[first absoluteUNIXPath] getResourceValue:&cocoaTags
 				forKey:NSURLTagNamesKey error:&error]);
 			REQUIRE([cocoaTags containsObject:@"alpha"] && [cocoaTags containsObject:@"updated"]);
 			if (format == PlainTextFormat)
@@ -6089,7 +6315,7 @@ static void TestStorageFormat(int format) {
 			REQUIRE([titleOfNote(renamed) isEqualToString:@"External Rename Ω"]);
 			REQUIRE([[[renamed contentString] string] rangeOfString:@"Externally edited"].location != NSNotFound);
 			if (format == HTMLFormat) {
-				NSString *path = [[renamed noteFileURL] path];
+				NSString *path = [[renamed absoluteUNIXPath] path];
 				NSMutableString *HTML = [[[NSMutableString alloc] initWithData:
 					[NSData dataWithContentsOfFile:path] encoding:NSUTF8StringEncoding] autorelease];
 				NSRange body = [HTML rangeOfString:@"<body" options:NSCaseInsensitiveSearch];
@@ -6107,9 +6333,9 @@ static void TestStorageFormat(int format) {
 				[controller stopFileNotifications];
 				REQUIRE([controller totalNoteCount] == 1);
 				renamed = [AllNotes(controller) objectAtIndex:0];
-				REQUIRE([[[renamed noteFileURL] pathExtension]
+				REQUIRE([[[renamed absoluteUNIXPath] pathExtension]
 					caseInsensitiveCompare:@"txt"] == NSOrderedSame);
-				REQUIRE([[NSString stringWithContentsOfURL:[renamed noteFileURL]
+				REQUIRE([[NSString stringWithContentsOfURL:[renamed absoluteUNIXPath]
 					encoding:NSUTF8StringEncoding error:NULL] isEqualToString:expected]);
 				[expected release];
 			}
@@ -6137,7 +6363,7 @@ static void TestStorageTransitionMemoryWins(void) {
 		NSString *memoryText = @"authoritative in-memory note";
 		note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:memoryText] autorelease]
-			title:@"Storage Transition" delegate:controller format:SingleDatabaseFormat labels:@""];
+			title:@"Storage Transition" format:SingleDatabaseFormat labels:@""];
 		REQUIRE(note != nil);
 		[controller addNewNote:note];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -6167,8 +6393,9 @@ static void TestStorageTransitionMemoryWins(void) {
 		NSData *memoryData = [memoryText dataUsingEncoding:NSUTF8StringEncoding];
 		[controller mutateNoteNamed:filenameOfNote(note) withData:memoryData
 			duringTagSynchronization:YES];
-		REQUIRE(![controller flushAllNoteChanges]);
-		REQUIRE(storageFormatOfNote(note) == SingleDatabaseFormat);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE(storageFormatOfNote(note) == PlainTextFormat);
+		REQUIRE([controller pendingFileWriteCount] == 0);
 		REQUIRE([[NSData dataWithContentsOfFile:filePath] isEqualToData:memoryData]);
 		NSString *conflictPath = FileContainingText(directoryPath,
 			@"newer external file", filenameOfNote(note));
@@ -6192,7 +6419,7 @@ static void TestStorageTransitionMemoryWins(void) {
 		REQUIRE([[[conflict contentString] string] isEqualToString:@"newer external file"]);
 		REQUIRE([filenameOfNote(conflict) isEqualToString:[conflictPath lastPathComponent]]);
 		REQUIRE([[filenameOfNote(conflict) pathExtension] caseInsensitiveCompare:@"txt"] == NSOrderedSame);
-		REQUIRE([[NSData dataWithContentsOfURL:[conflict noteFileURL]] isEqualToData:externalData]);
+		REQUIRE([[NSData dataWithContentsOfURL:[conflict absoluteUNIXPath]] isEqualToData:externalData]);
 	} @finally {
 		[note release];
 		CloseController(&controller);
@@ -6212,11 +6439,11 @@ static void TestStorageTransitionMemoryWins(void) {
 			[controller stopFileNotifications];
 			note = [[NoteObject alloc] initWithNoteBody:
 				[[[NSAttributedString alloc] initWithString:@"initial rich note"] autorelease]
-				title:@"Rich Storage Transition" delegate:controller format:format labels:@""];
+				title:@"Rich Storage Transition" format:format labels:@""];
 			REQUIRE(note != nil);
 			[controller addNewNote:note];
 			REQUIRE([controller flushAllNoteChanges]);
-			NSString *filePath = [[note noteFileURL] path];
+			NSString *filePath = [[note absoluteUNIXPath] path];
 			NSData *identicalData = [[[NSData dataWithContentsOfFile:filePath] copy] autorelease];
 
 			[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
@@ -6257,7 +6484,7 @@ static void TestStorageTransitionMemoryWins(void) {
 				[[[NSAttributedString alloc] initWithHTML:storedData documentAttributes:NULL] autorelease];
 			REQUIRE([[storedContent string] rangeOfString:memoryText].location != NSNotFound);
 			REQUIRE(![storedData isEqualToData:externalData]);
-			REQUIRE([[[note noteFileURL] path] isEqualToString:filePath]);
+			REQUIRE([[[note absoluteUNIXPath] path] isEqualToString:filePath]);
 			REQUIRE([[[note contentString] string] isEqualToString:memoryText]);
 			REQUIRE([FilenamesWithPrefix(directoryPath, @"Rich Storage Transition") count] == 2);
 			REQUIRE([controller synchronizeNotesFromDirectory]);
@@ -6276,7 +6503,7 @@ static void TestStorageTransitionMemoryWins(void) {
 				options:NSCaseInsensitiveSearch].location == NSNotFound);
 			REQUIRE([[filenameOfNote(conflict) pathExtension] caseInsensitiveCompare:
 				[NotationPrefs pathExtensionForFormat:format]] == NSOrderedSame);
-			REQUIRE([[NSData dataWithContentsOfURL:[conflict noteFileURL]] isEqualToData:externalData]);
+			REQUIRE([[NSData dataWithContentsOfURL:[conflict absoluteUNIXPath]] isEqualToData:externalData]);
 		} @finally {
 			[note release];
 			CloseController(&controller);
@@ -6295,11 +6522,11 @@ static void TestStorageTransitionMemoryWins(void) {
 		[controller stopFileNotifications];
 		note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"old rich file"] autorelease]
-			title:@"Wrong Format Guard" delegate:controller format:RTFTextFormat labels:@""];
+			title:@"Wrong Format Guard" format:RTFTextFormat labels:@""];
 		REQUIRE(note != nil);
 		[controller addNewNote:note];
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *oldPath = [[[[note noteFileURL] path] copy] autorelease];
+		NSString *oldPath = [[[[note absoluteUNIXPath] path] copy] autorelease];
 		NSData *oldData = [[[NSData dataWithContentsOfFile:oldPath] copy] autorelease];
 
 		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
@@ -6314,7 +6541,7 @@ static void TestStorageTransitionMemoryWins(void) {
 		REQUIRE([externalData writeToFile:plainPath options:NSDataWritingAtomic error:NULL]);
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];
-		REQUIRE([[[note noteFileURL] path] isEqualToString:plainPath]);
+		REQUIRE([[[note absoluteUNIXPath] path] isEqualToString:plainPath]);
 		REQUIRE([[plainPath pathExtension] caseInsensitiveCompare:@"txt"] == NSOrderedSame);
 		REQUIRE([[NSString stringWithContentsOfFile:plainPath encoding:NSUTF8StringEncoding
 			error:NULL] isEqualToString:memoryText]);
@@ -6327,7 +6554,7 @@ static void TestStorageTransitionMemoryWins(void) {
 		REQUIRE([filenameOfNote(conflict) rangeOfString:@"(conflict)"].location != NSNotFound);
 		REQUIRE([[filenameOfNote(conflict) pathExtension]
 			caseInsensitiveCompare:@"txt"] == NSOrderedSame);
-		REQUIRE([[NSData dataWithContentsOfURL:[conflict noteFileURL]] isEqualToData:externalData]);
+		REQUIRE([[NSData dataWithContentsOfURL:[conflict absoluteUNIXPath]] isEqualToData:externalData]);
 		REQUIRE([FilenamesWithPrefix(directoryPath, @"Wrong Format Guard") count] == 3);
 	} @finally {
 		[note release];
@@ -6351,7 +6578,7 @@ static void TestOpenFilesWorkflow(void) {
 		NSString *importPath = [importDirectoryPath stringByAppendingPathComponent:@"Imported.txt"];
 		WriteExternalFile(PlainTextFormat, @"imported through openFiles", importPath);
 
-		NSArray *paths = @[ [[knownNote noteFileURL] path], importPath ];
+		NSArray *paths = @[ [[knownNote absoluteUNIXPath] path], importPath ];
 		REQUIRE([controller openFiles:paths]);
 		REQUIRE([controller totalNoteCount] == 2);
 		REQUIRE([[delegate revealedNotes] containsObject:knownNote]);
@@ -6523,7 +6750,7 @@ static void TestDeletionContracts(void) {
 
 		NoteObject *first = AddTestNote(controller, @"Restore First", @"restore first body");
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *firstPath = [[first noteFileURL] path];
+		NSString *firstPath = [[first absoluteUNIXPath] path];
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:firstPath error:NULL]);
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		REQUIRE([controller deletionCandidateCount] == 1);
@@ -6535,7 +6762,7 @@ static void TestDeletionContracts(void) {
 		NoteObject *second = AddTestNote(controller, @"Delete Second", @"delete second body");
 		REQUIRE([controller flushAllNoteChanges]);
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:firstPath error:NULL]);
-		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[second noteFileURL] path] error:NULL]);
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:[[second absoluteUNIXPath] path] error:NULL]);
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		REQUIRE([controller deletionCandidateCount] == 2);
 		[[controller notationPrefs] setConfirmsFileDeletion:NO];
@@ -6544,7 +6771,7 @@ static void TestDeletionContracts(void) {
 
 		NoteObject *failed = AddTestNote(controller, @"Failed Trash", @"must remain after failure");
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *failedPath = [[failed noteFileURL] path];
+		NSString *failedPath = [[failed absoluteUNIXPath] path];
 		[failed setContentString:[[[NSAttributedString alloc]
 			initWithString:@"latest edit survives failure"] autorelease]];
 		[controller setForceTrashFailure:YES];
@@ -6586,7 +6813,7 @@ static void TestStorageTransitions(void) {
 			REQUIRE([controller synchronizeNotesFromDirectory]);
 			REQUIRE([controller totalNoteCount] == 1);
 			REQUIRE([[[note contentString] string] isEqualToString:expectedBody]);
-			NSString *path = [[note noteFileURL] path];
+			NSString *path = [[note absoluteUNIXPath] path];
 			REQUIRE([[path pathExtension] caseInsensitiveCompare:
 				[NotationPrefs pathExtensionForFormat:[format intValue]]] == NSOrderedSame);
 			REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:path]);
@@ -6604,7 +6831,7 @@ static void TestStorageTransitions(void) {
 			REQUIRE([FilenamesWithPrefix(directoryPath, @"Transition Matrix") count] == 1);
 		}
 
-		NSString *sourcePath = [[note noteFileURL] path];
+		NSString *sourcePath = [[note absoluteUNIXPath] path];
 		NSString *retryBody = [expectedBody stringByAppendingString:@"\npreflight retry edit"];
 		[note setContentString:[[[NSAttributedString alloc] initWithString:retryBody] autorelease]];
 		injectedControllerFlushFailures = 1;
@@ -6619,7 +6846,7 @@ static void TestStorageTransitions(void) {
 		REQUIRE([controller pendingFileWriteCount] == 1);
 		REQUIRE([controller trashMoveCount] == 0);
 		REQUIRE([probe didChangeCount] == 1 && [probe followupCount] == 0);
-		REQUIRE([[[note noteFileURL] path] isEqualToString:sourcePath]);
+		REQUIRE([[[note absoluteUNIXPath] path] isEqualToString:sourcePath]);
 		REQUIRE([[NSString stringWithContentsOfFile:sourcePath encoding:NSUTF8StringEncoding
 			error:NULL] isEqualToString:expectedBody]);
 
@@ -6629,7 +6856,7 @@ static void TestStorageTransitions(void) {
 		[controller setFailingSnapshotName:filenameOfNote(note)];
 		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
 		REQUIRE([controller currentNoteStorageFormat] == PlainTextFormat);
-		REQUIRE([[[note noteFileURL] path] isEqualToString:sourcePath]);
+		REQUIRE([[[note absoluteUNIXPath] path] isEqualToString:sourcePath]);
 		REQUIRE([[[note contentString] string] isEqualToString:expectedBody]);
 		[controller setFailingSnapshotName:nil];
 		WriteExternalFileInPlace(expectedBody, sourcePath);
@@ -6640,10 +6867,10 @@ static void TestStorageTransitions(void) {
 		REQUIRE(storageFormatOfNote(note) == RTFTextFormat);
 		REQUIRE([controller pendingFileWriteCount] == 0);
 		REQUIRE([[[[NSAttributedString alloc] initWithRTF:
-			[NSData dataWithContentsOfURL:[note noteFileURL]] documentAttributes:NULL]
+			[NSData dataWithContentsOfURL:[note absoluteUNIXPath]] documentAttributes:NULL]
 			autorelease].string isEqualToString:expectedBody]);
 
-		sourcePath = [[note noteFileURL] path];
+		sourcePath = [[note absoluteUNIXPath] path];
 		[controller failNextNoteRename];
 		[[controller notationPrefs] setNotesStorageFormat:HTMLFormat];
 		[controller stopFileNotifications];
@@ -6651,12 +6878,12 @@ static void TestStorageTransitions(void) {
 		REQUIRE(storageFormatOfNote(note) == RTFTextFormat);
 		REQUIRE([controller pendingFileWriteCount] == 1);
 		REQUIRE([controller recordedWriteError] == EACCES);
-		REQUIRE([[[note noteFileURL] path] isEqualToString:sourcePath]);
+		REQUIRE([[[note absoluteUNIXPath] path] isEqualToString:sourcePath]);
 		REQUIRE([[sourcePath pathExtension] caseInsensitiveCompare:@"rtf"] == NSOrderedSame);
 		REQUIRE([FilenamesWithPrefix(directoryPath, @"Transition Matrix") count] == 1);
 		REQUIRE([controller flushAllNoteChanges]);
 		REQUIRE(storageFormatOfNote(note) == HTMLFormat);
-		REQUIRE([[[note noteFileURL] pathExtension] caseInsensitiveCompare:@"html"] == NSOrderedSame);
+		REQUIRE([[[note absoluteUNIXPath] pathExtension] caseInsensitiveCompare:@"html"] == NSOrderedSame);
 
 		[controller failNextNoteStore];
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
@@ -6667,10 +6894,10 @@ static void TestStorageTransitions(void) {
 		REQUIRE([controller recordedWriteError] == EIO);
 		REQUIRE([controller flushAllNoteChanges]);
 		REQUIRE(storageFormatOfNote(note) == PlainTextFormat);
-		REQUIRE([[NSString stringWithContentsOfURL:[note noteFileURL]
+		REQUIRE([[NSString stringWithContentsOfURL:[note absoluteUNIXPath]
 			encoding:NSUTF8StringEncoding error:NULL] isEqualToString:expectedBody]);
 		REQUIRE([FilenamesWithPrefix(directoryPath, @"Transition Matrix") count] == 1);
-		NSString *plainPath = [[note noteFileURL] path];
+		NSString *plainPath = [[note absoluteUNIXPath] path];
 
 		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -6725,14 +6952,14 @@ static void TestStorageTransitions(void) {
 		NSString *merged = @"FIRST LINE\nsecond line\nTHIRD LINE\n";
 		NoteObject *note = AddTestNote(controller, @"Merge Then Convert", base);
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *path = [[note noteFileURL] path];
+		NSString *path = [[note absoluteUNIXPath] path];
 		[note setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
 		WriteExternalFile(PlainTextFormat, external, path);
 		[[controller notationPrefs] setNotesStorageFormat:RTFTextFormat];
 		[controller stopFileNotifications];
 		REQUIRE([controller totalNoteCount] == 1);
 		REQUIRE([[[note contentString] string] isEqualToString:merged]);
-		REQUIRE([[[note noteFileURL] pathExtension] caseInsensitiveCompare:@"rtf"] == NSOrderedSame);
+		REQUIRE([[[note absoluteUNIXPath] pathExtension] caseInsensitiveCompare:@"rtf"] == NSOrderedSame);
 		REQUIRE([FilenamesWithPrefix(directoryPath, @"Merge Then Convert") count] == 1);
 	} @finally {
 		CloseController(&controller);
@@ -6748,7 +6975,7 @@ static void TestStorageTransitions(void) {
 		[controller stopFileNotifications];
 		NoteObject *note = AddTestNote(controller, @"Rich Conflict Then Convert", @"rich base");
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *path = [[note noteFileURL] path];
+		NSString *path = [[note absoluteUNIXPath] path];
 		[note setContentString:[[[NSAttributedString alloc] initWithString:@"rich local"] autorelease]];
 		REQUIRE(note.fileMergeBaseData != nil);
 		WriteExternalFile(RTFTextFormat, @"rich external", path);
@@ -6761,7 +6988,7 @@ static void TestStorageTransitions(void) {
 		for (NoteObject *converted in AllNotes(controller)) {
 			REQUIRE([[filenameOfNote(converted) pathExtension]
 				caseInsensitiveCompare:@"txt"] == NSOrderedSame);
-			REQUIRE([[NSString stringWithContentsOfURL:[converted noteFileURL]
+			REQUIRE([[NSString stringWithContentsOfURL:[converted absoluteUNIXPath]
 				encoding:NSUTF8StringEncoding error:NULL]
 				isEqualToString:[[converted contentString] string]]);
 		}
@@ -6806,8 +7033,8 @@ static void TestStorageTransitions(void) {
 			[controller stopFileNotifications];
 			REQUIRE([controller totalNoteCount] == 1);
 			REQUIRE([[[note contentString] string] isEqualToString:expected]);
-			REQUIRE([[[note noteFileURL] pathExtension] caseInsensitiveCompare:@"txt"] == NSOrderedSame);
-			REQUIRE([[NSString stringWithContentsOfURL:[note noteFileURL]
+			REQUIRE([[[note absoluteUNIXPath] pathExtension] caseInsensitiveCompare:@"txt"] == NSOrderedSame);
+			REQUIRE([[NSString stringWithContentsOfURL:[note absoluteUNIXPath]
 				encoding:NSUTF8StringEncoding error:NULL] isEqualToString:expected]);
 			REQUIRE([FilenamesWithPrefix(directoryPath, @"Noncanonical Rich") count] == 1);
 			[expected release];
@@ -7005,7 +7232,12 @@ static void TestLiveFSEvents(void) {
 			initWithDirectEditing:NO];
 		REQUIRE([scratchEditor editNote:encryptedNote inEditor:encryptedEditor context:nil]);
 		NSString *encryptedScratchPath = [[observedExternalEditorSessionPath copy] autorelease];
-		REQUIRE([encryptedScratchPath hasPrefix:[encryptedRoot stringByAppendingString:@"/"]]);
+		NSString *encryptedScratchName = [encryptedScratchPath lastPathComponent];
+		REQUIRE([[encryptedPreparer preparedDirectory]
+			regularFileExistsNamed:encryptedScratchName]);
+		REQUIRE(URLsReferToSameItem(
+			[NSURL fileURLWithPath:[encryptedScratchPath stringByDeletingLastPathComponent]],
+			[NSURL fileURLWithPath:encryptedRoot]));
 		REQUIRE([@"encrypted scratch watcher secret"
 			writeToFile:encryptedScratchPath atomically:YES
 			encoding:NSUTF8StringEncoding error:NULL]);
@@ -7071,7 +7303,7 @@ static void TestFilenameCollisions(void) {
 		REQUIRE([[NSString stringWithContentsOfFile:untrackedPath encoding:NSUTF8StringEncoding error:NULL]
 			isEqualToString:@"untracked disk contents"]);
 		REQUIRE([filenameOfNote(slash) rangeOfString:@"/"].location == NSNotFound);
-		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:[[slash noteFileURL] path]]);
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:[[slash absoluteUNIXPath] path]]);
 		REQUIRE([titleOfNote(slash) isEqualToString:@"Folder/Title"]);
 
 		[caseNote setTitleString:@"case name"];
@@ -7255,6 +7487,33 @@ static void TestPlainTextEncodings(void) {
 		malformedNote = NoteContaining(controller, fallbackText);
 		REQUIRE(malformedNote != nil);
 		REQUIRE(fileEncodingOfNote(malformedNote) == NSMacOSRomanStringEncoding);
+
+		NSString *mergeFilename = @"Latin One Merge.txt";
+		NSString *mergePath = [directoryPath stringByAppendingPathComponent:mergeFilename];
+		NSString *mergeBase = @"caf\u00e9 first line\nsecond line\nthird line\n";
+		REQUIRE([[mergeBase dataUsingEncoding:NSISOLatin1StringEncoding]
+			writeToFile:mergePath options:0 error:NULL]);
+		REQUIRE(SetTestTextEncoding(controller, NSISOLatin1StringEncoding,
+			mergeFilename, NULL));
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		NoteObject *mergeNote = NoteContaining(controller, mergeBase);
+		REQUIRE(mergeNote != nil);
+		REQUIRE(fileEncodingOfNote(mergeNote) == NSISOLatin1StringEncoding);
+		NSString *mergeLocal = @"\u6771 caf\u00e9 first line\nsecond line\nthird line\n";
+		NSString *mergeExternal = @"caf\u00e9 first line\nsecond line\nTHIRD LINE\n";
+		NSString *mergeExpected = @"\u6771 caf\u00e9 first line\nsecond line\nTHIRD LINE\n";
+		[mergeNote setContentString:[[[NSAttributedString alloc]
+			initWithString:mergeLocal] autorelease]];
+		REQUIRE([[mergeExternal dataUsingEncoding:NSISOLatin1StringEncoding]
+			writeToFile:mergePath options:0 error:NULL]);
+		REQUIRE(removexattr([mergePath fileSystemRepresentation],
+			"com.apple.TextEncoding", 0) == 0);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE(fileEncodingOfNote(mergeNote) == NSUTF8StringEncoding);
+		REQUIRE([[NSData dataWithContentsOfFile:mergePath]
+			isEqualToData:[mergeExpected dataUsingEncoding:NSUTF8StringEncoding]]);
+		REQUIRE([[NSFileManager defaultManager] textEncodingAttributeOfFSPath:
+			[mergePath fileSystemRepresentation]] == NSUTF8StringEncoding);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -7263,6 +7522,18 @@ static void TestPlainTextEncodings(void) {
 }
 
 static void TestFilesystemCRUD(void) {
+	NSError *decodeError = [NSError errorWithDomain:NSPOSIXErrorDomain code:EIO userInfo:nil];
+	NSData *wrongTags = [NSPropertyListSerialization dataWithPropertyList:@{}
+		format:NSPropertyListBinaryFormat_v1_0 options:0 error:NULL];
+	REQUIRE(NVOpenMetaTagsFromData(wrongTags, &decodeError) == nil && [decodeError code] == EINVAL);
+	struct timespec earlier = { 42, 1 }, later = { 42, 2 };
+	REQUIRE(NVCompareTimespecs(earlier, later) == NSOrderedAscending);
+	REQUIRE(NVCompareTimespecs(later, earlier) == NSOrderedDescending);
+	REQUIRE(NVCompareTimespecs(earlier, earlier) == NSOrderedSame);
+	CFAbsoluteTime beforeReferenceDate = -3600.25;
+	REQUIRE(NVAbsoluteTimeFromTimespec(
+		NVTimespecFromAbsoluteTime(beforeReferenceDate)) == beforeReferenceDate);
+
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
@@ -7272,7 +7543,21 @@ static void TestFilesystemCRUD(void) {
 		[controller stopFileNotifications];
 		NoteObject *note = AddTestNote(controller, @"Filesystem CRUD", @"created on test volume");
 		REQUIRE([controller flushAllNoteChanges]);
-		NSString *oldPath = [[note noteFileURL] path];
+		NSString *directoryName = @"Not A Regular File";
+		NSString *symlinkName = @"Regular File Link.txt";
+		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:
+			[directoryPath stringByAppendingPathComponent:directoryName]
+			withIntermediateDirectories:NO attributes:nil error:NULL]);
+		REQUIRE(symlink([filenameOfNote(note) fileSystemRepresentation],
+			[[directoryPath stringByAppendingPathComponent:symlinkName]
+				fileSystemRepresentation]) == 0);
+		REQUIRE([[controller noteDirectory] caseInsensitiveRegularFileExistsNamed:
+			[filenameOfNote(note) uppercaseString] excludingName:nil]);
+		REQUIRE(![[controller noteDirectory] caseInsensitiveRegularFileExistsNamed:
+			directoryName excludingName:nil]);
+		REQUIRE(![[controller noteDirectory] caseInsensitiveRegularFileExistsNamed:
+			symlinkName excludingName:nil]);
+		NSString *oldPath = [[note absoluteUNIXPath] path];
 		NSString *newPath = [directoryPath stringByAppendingPathComponent:@"Filesystem Moved.txt"];
 		REQUIRE(rename([oldPath fileSystemRepresentation], [newPath fileSystemRepresentation]) == 0);
 		REQUIRE([controller synchronizeNotesFromDirectory]);
@@ -7291,6 +7576,24 @@ static void TestFilesystemCRUD(void) {
 	}
 }
 
+static void TestFileBarrierSync(void) {
+	char temporaryPath[] = "/tmp/nv-file-barrier.XXXXXX";
+	int fileDescriptor = mkstemp(temporaryPath);
+	REQUIRE(fileDescriptor >= 0);
+	REQUIRE(write(fileDescriptor, "x", 1) == 1);
+	REQUIRE(NVBarrierSyncFileDescriptor(fileDescriptor) == 0);
+	REQUIRE(close(fileDescriptor) == 0);
+	REQUIRE(unlink(temporaryPath) == 0);
+
+	/* Character devices do not support the barrier command, while fsync() on
+	 * /dev/null succeeds.  This exercises the compatibility fallback. */
+	fileDescriptor = open("/dev/null", O_WRONLY | O_CLOEXEC);
+	REQUIRE(fileDescriptor >= 0);
+	REQUIRE(fcntl(fileDescriptor, F_BARRIERFSYNC, 0) < 0);
+	REQUIRE(NVBarrierSyncFileDescriptor(fileDescriptor) == 0);
+	REQUIRE(close(fileDescriptor) == 0);
+}
+
 static void TestRenameSkipsExistencePreflight(void) {
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
@@ -7303,7 +7606,7 @@ static void TestRenameSkipsExistencePreflight(void) {
 		[controller stopFileNotifications];
 		note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"rename fixture"] autorelease]
-			title:@"Rename Before" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Rename Before" format:PlainTextFormat labels:@""];
 		REQUIRE(note != nil);
 		[controller addNewNote:note];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -7342,7 +7645,8 @@ static void TestRenameENOENTRequiresMissingSource(void) {
 			atomically:NO encoding:NSUTF8StringEncoding error:NULL]);
 		[controller removeRenameCollisionDestination:newName];
 		NSError *error = nil;
-		REQUIRE(![controller renameNoteFromName:oldName toName:newName error:&error]);
+		REQUIRE(![[controller noteDirectory] renameFileNamed:oldName
+			toUnusedName:newName error:&error]);
 		REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
 			[directoryPath stringByAppendingPathComponent:oldName]]);
@@ -7369,7 +7673,7 @@ static void TestDirectoryIdentity(void) {
 		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:oldPath
 			withIntermediateDirectories:NO attributes:nil error:NULL]);
 		controller = CreateController(oldPath, delegate);
-		REQUIRE(![controller notesDirectoryIsTrashed]);
+		REQUIRE(!NVURLIsInTrash([[controller noteDirectory] transientFileReferenceURL]));
 		directoryReferenceURL = [[controller noteDirectoryURL] retain];
 		NSURL *databaseReferenceURL = [[NSFileManager defaultManager]
 			fileReferenceURLForFilename:NotesDatabaseFileName
@@ -7381,7 +7685,7 @@ static void TestDirectoryIdentity(void) {
 		REQUIRE([[NSFileManager defaultManager] moveItemAtPath:oldPath toPath:newPath error:&error]);
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"Written after directory move"] autorelease]
-			title:@"Moved Directory Note" delegate:controller format:SingleDatabaseFormat labels:@""];
+			title:@"Moved Directory Note" format:SingleDatabaseFormat labels:@""];
 		[controller addNewNote:note];
 		[note release];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -7389,7 +7693,7 @@ static void TestDirectoryIdentity(void) {
 			[newPath stringByAppendingPathComponent:NotesDatabaseFileName]]);
 		REQUIRE([[NSData dataWithContentsOfURL:databaseReferenceURL] length] > 0);
 		REQUIRE([[[directoryReferenceURL path] lastPathComponent] isEqualToString:[newPath lastPathComponent]]);
-		REQUIRE(![controller notesDirectoryIsTrashed]);
+		REQUIRE(!NVURLIsInTrash([[controller noteDirectory] transientFileReferenceURL]));
 		aliasData = [[NSData legacyAliasDataForFileReferenceURL:directoryReferenceURL] copy];
 		REQUIRE(aliasData != nil);
 		CloseController(&controller);
@@ -7452,7 +7756,7 @@ static void TestLocationMigration(void) {
 
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"Written after migrating the stored location"] autorelease]
-			title:@"Location Migration" delegate:controller format:SingleDatabaseFormat labels:@""];
+			title:@"Location Migration" format:SingleDatabaseFormat labels:@""];
 		[controller addNewNote:note];
 		[note release];
 		REQUIRE([controller flushAllNoteChanges]);
@@ -7540,6 +7844,7 @@ static void TestDeepDirectory(void) {
 		stringByAppendingPathComponent:notesName];
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
+	NVRootedDirectory *persistentRoot = nil;
 	NSURL *deepURL = nil;
 	NSMutableArray *directoryFDs = [NSMutableArray array];
 	NSMutableArray *components = [NSMutableArray array];
@@ -7549,7 +7854,15 @@ static void TestDeepDirectory(void) {
 		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:notesPath
 			withIntermediateDirectories:YES attributes:nil error:NULL]);
 		deepURL = [FileReferenceURLForPath(notesPath) retain];
-		controller = CreateControllerWithURL(deepURL, delegate);
+		NSError *rootError = nil;
+		persistentRoot = [[NVRootedDirectory alloc]
+			initWithFileReferenceURL:deepURL error:&rootError];
+		REQUIRE(persistentRoot != nil && rootError == nil);
+		OSStatus openStatus = noErr;
+		controller = [[NVTestNotationController alloc]
+			initWithRootedDirectory:persistentRoot error:&openStatus];
+		REQUIRE(controller != nil && openStatus == noErr);
+		[controller setDelegate:delegate];
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
 		[controller stopFileNotifications];
 
@@ -7571,16 +7884,21 @@ static void TestDeepDirectory(void) {
 		REQUIRE(renameat(rootFD, [movableName fileSystemRepresentation], directoryFD,
 			[movableName fileSystemRepresentation]) == 0);
 		moved = YES;
-		REQUIRE(![controller notesDirectoryIsTrashed]);
+		NSError *deepOpenError = nil;
+		REQUIRE(![persistentRoot relocateIntoDirectoryReferenceURL:deepURL error:&deepOpenError]);
+		REQUIRE([[deepOpenError domain] isEqualToString:NSPOSIXErrorDomain] &&
+			[deepOpenError code] == EINVAL);
+		REQUIRE(!NVURLIsInTrash([[controller noteDirectory] transientFileReferenceURL]));
 
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"Stored beyond PATH_MAX"] autorelease]
-			title:@"Deep Note" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Deep Note" format:PlainTextFormat labels:@""];
 		[controller addNewNote:note];
 		REQUIRE([controller flushAllNoteChanges]);
-		REQUIRE(URLIsReferenceBased([note noteFileURL]));
+		REQUIRE(URLIsReferenceBased([note absoluteUNIXPath]));
 		NSError *readError = nil;
-		NSData *storedData = [controller dataFromNoteNamed:filenameOfNote(note) error:&readError];
+		NSData *storedData = [[controller noteDirectory]
+			dataFromFileNamed:filenameOfNote(note) error:&readError];
 		REQUIRE(storedData != nil);
 		REQUIRE(readError == nil);
 		NSString *storedString = [[[NSString alloc] initWithData:storedData encoding:NSUTF8StringEncoding] autorelease];
@@ -7590,17 +7908,24 @@ static void TestDeepDirectory(void) {
 		[note release];
 		note = nil;
 		CloseController(&controller);
-		controller = CreateControllerWithURL(deepURL, delegate);
+		OSStatus reopenStatus = noErr;
+		controller = [[NVTestNotationController alloc]
+			initWithRootedDirectory:persistentRoot error:&reopenStatus];
+		REQUIRE(controller != nil && reopenStatus == noErr);
+		[controller setDelegate:delegate];
 		[controller stopFileNotifications];
 		note = [NoteContaining(controller, @"beyond PATH_MAX") retain];
 		REQUIRE(note != nil);
 
 		NSData *externalData = [@"Externally changed beyond PATH_MAX" dataUsingEncoding:NSUTF8StringEncoding];
-		int noteFD = openat([controller testNoteDirectoryFileDescriptor],
-			[filenameOfNote(note) fileSystemRepresentation], O_WRONLY | O_TRUNC | O_CLOEXEC);
+		NSFileHandle *noteHandle = [[controller noteDirectory]
+			openExistingRegularFileForUpdatingNamed:filenameOfNote(note) error:NULL];
+		REQUIRE(noteHandle != nil);
+		int noteFD = [noteHandle fileDescriptor];
 		REQUIRE(noteFD >= 0);
+		REQUIRE(ftruncate(noteFD, 0) == 0);
 		REQUIRE(write(noteFD, [externalData bytes], [externalData length]) == (ssize_t)[externalData length]);
-		REQUIRE(fsync(noteFD) == 0 && close(noteFD) == 0);
+		REQUIRE(fsync(noteFD) == 0);
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		REQUIRE([[[note contentString] string] isEqualToString:@"Externally changed beyond PATH_MAX"]);
 		[note release];
@@ -7618,6 +7943,7 @@ static void TestDeepDirectory(void) {
 				[[components objectAtIndex:count - 1] fileSystemRepresentation], AT_REMOVEDIR);
 		}
 		if ([directoryFDs count]) close([[directoryFDs objectAtIndex:0] intValue]);
+		[persistentRoot release];
 		[deepURL release];
 		[delegate release];
 		RemoveTemporaryDirectory(rootPath);
@@ -7637,40 +7963,90 @@ static void TestAtomicRollback(void) {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
 		NSError *error = nil;
+		NSString *verifiedName = @"Verified Install.dat";
+		[controller failNextDirectorySynchronization];
+		NVFileWriteResult *verified = [[controller noteDirectory]
+			overwriteFileNamed:verifiedName withData:replacement];
+		REQUIRE([verified disposition] == NVFileWriteInstalledVerified);
+		REQUIRE([verified installedSnapshot] != nil);
+		REQUIRE([[[verified installedSnapshot] data] isEqualToData:replacement]);
+		REQUIRE([verified error] == nil);
+		REQUIRE([[[controller noteDirectory] dataFromFileNamed:verifiedName error:NULL]
+			isEqualToData:replacement]);
+		NSError *synchronizationError = nil;
+		REQUIRE(![[controller noteDirectory] synchronize:&synchronizationError]);
+		REQUIRE([[synchronizationError domain] isEqualToString:NSPOSIXErrorDomain] &&
+			[synchronizationError code] == EIO);
+
+		NoteObject *databaseNote = AddTestNote(controller, @"Database Durability",
+			@"database state must remain pending after directory sync failure");
+		[controller failNextDirectorySynchronization];
+		REQUIRE(![controller flushAllNoteChanges]);
+		REQUIRE([controller databaseChangesPending]);
+		REQUIRE([controller writeRetryIsScheduled]);
+		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE(![controller databaseChangesPending]);
+		(void)databaseNote;
+
 		NSString *createName = @"Create Only.dat";
 		NSString *createPath = [directoryPath stringByAppendingPathComponent:createName];
-		REQUIRE([controller createDataAtomicallyInNotesDirectory:baseline
-			withName:createName error:&error]);
-		REQUIRE(error == nil);
-		error = nil;
-		REQUIRE(![controller createDataAtomicallyInNotesDirectory:replacement
-			withName:createName error:&error]);
+		NVFileWriteResult *result = [[controller noteDirectory] createFileNamed:createName
+			withData:baseline];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+		result = [[controller noteDirectory] createFileNamed:createName withData:replacement];
+		error = [result error];
+		REQUIRE([result disposition] == NVFileWriteNotInstalled);
 		REQUIRE([[error domain] isEqualToString:NSCocoaErrorDomain] &&
 			[error code] == NSFileWriteFileExistsError);
 		REQUIRE([[NSData dataWithContentsOfFile:createPath] isEqualToData:baseline]);
 		RequireNoTemporaryFiles(directoryPath);
 
+		NSString *collidingTemporaryName = @".nv-write-existing";
+		NSString *collidingTemporaryPath = [directoryPath
+			stringByAppendingPathComponent:collidingTemporaryName];
+		NSData *unownedTemporaryData = [@"not owned by this write"
+			dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([unownedTemporaryData writeToFile:collidingTemporaryPath options:0 error:NULL]);
+		[controller useTemporaryFilename:collidingTemporaryName];
+		result = [[controller noteDirectory] createFileNamed:@"Temporary Collision.dat"
+			withData:replacement];
+		REQUIRE([result disposition] == NVFileWriteNotInstalled);
+		REQUIRE([[NSData dataWithContentsOfFile:collidingTemporaryPath]
+			isEqualToData:unownedTemporaryData]);
+		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:collidingTemporaryPath error:NULL]);
+
+		NSString *cleanupFailureName = @"Cleanup Failure.dat";
+		[controller forceNextExclusiveRenameUnavailable];
+		[controller failNextTemporaryRemoval];
+		result = [[controller noteDirectory] createFileNamed:cleanupFailureName withData:replacement];
+		REQUIRE([result disposition] == NVFileWriteInstalledNeedsReconciliation);
+		REQUIRE([result capability] == NVFileWriteHFSCompatibilityCapability);
+		REQUIRE([[[result installedSnapshot] data] isEqualToData:replacement]);
+		REQUIRE([[[result error] domain] isEqualToString:NSPOSIXErrorDomain] &&
+			[[result error] code] == EIO && [[result recoveryFilename] length] > 0);
+		REQUIRE([[controller noteDirectory] removeFileNamed:[result recoveryFilename] error:NULL]);
+
 		NSString *conditionalName = @"Conditional.dat";
 		NSString *conditionalPath = [directoryPath stringByAppendingPathComponent:conditionalName];
-		int directoryFD = [controller testNoteDirectoryFileDescriptor];
-		error = nil;
-		REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
-			replacement, conditionalName, baseline, &error));
-		REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
-		REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conditionalName
-			verificationBlock:nil error:NULL]);
+		result = [[controller noteDirectory] overwriteFileNamed:conditionalName withData:baseline];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified);
 		REQUIRE(chmod([conditionalPath fileSystemRepresentation], 0640) == 0);
 		REQUIRE(setxattr([conditionalPath fileSystemRepresentation],
 			"com.notationalvelocity.integration-test", [sentinel bytes], [sentinel length], 0, 0) == 0);
-		error = nil;
-		REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
-			replacement, conditionalName, replacement, &error));
+		NVFileSnapshot *baselineSnapshot = [[controller noteDirectory]
+			snapshotForFileNamed:conditionalName error:NULL];
+		NVFileSnapshot *wrongSnapshot = [[[NVFileSnapshot alloc] initWithData:replacement
+			tags:[baselineSnapshot tags] encoding:[baselineSnapshot encoding]
+			observation:[baselineSnapshot observation]] autorelease];
+		result = [[controller noteDirectory] replaceFileNamed:conditionalName
+			withData:replacement expectedSnapshot:wrongSnapshot];
+		error = [result error];
+		REQUIRE([result disposition] == NVFileWriteNotInstalled);
 		REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
 		REQUIRE([[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:baseline]);
-		error = nil;
-		REQUIRE(NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
-			replacement, conditionalName, baseline, &error));
-		REQUIRE(error == nil &&
+		result = [[controller noteDirectory] replaceFileNamed:conditionalName
+			withData:replacement expectedSnapshot:baselineSnapshot];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified &&
 			[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
 		REQUIRE([IntegrationTestAttribute(conditionalPath) isEqualToData:sentinel]);
 		RequireMode(conditionalPath, 0640);
@@ -7679,17 +8055,16 @@ static void TestAtomicRollback(void) {
 		NSString *conflictName = @"Atomic Conflict.txt";
 		NSString *conflictPath = [directoryPath stringByAppendingPathComponent:conflictName];
 		NSData *racingData = [@"third-party racing contents" dataUsingEncoding:NSUTF8StringEncoding];
-		REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conflictName
-			verificationBlock:nil error:NULL]);
+		result = [[controller noteDirectory] overwriteFileNamed:conflictName withData:baseline];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+		baselineSnapshot = [[controller noteDirectory] snapshotForFileNamed:conflictName error:NULL];
 		[controller replaceNoteNamed:conflictName beforeInstallWithData:racingData];
-		NVFileInfo ignoredInfo = { 0 };
-		error = nil;
-		REQUIRE(![controller storeNoteDataAtomically:replacement withName:conflictName
+		result = [[controller noteDirectory] replaceNoteFileNamed:conflictName withData:replacement
 			encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
-			modificationTime:1000100.0 expectedData:baseline
-			resultingFileInfo:&ignoredInfo error:&error]);
-		REQUIRE([[error domain] isEqualToString:NVNoteStorageErrorDomain] &&
-			[error code] == NVNoteStorageAtomicRecoveryError);
+			modificationTime:1000100.0 expectedSnapshot:baselineSnapshot];
+		error = [result error];
+		REQUIRE([result disposition] == NVFileWriteInstalledNeedsReconciliation);
+		REQUIRE(error != nil && [[result recoveryFilename] length] > 0);
 		REQUIRE([[NSData dataWithContentsOfFile:conflictPath] isEqualToData:replacement]);
 		NSMutableArray *recoveryNames = [NSMutableArray array];
 		for (NSString *name in [[NSFileManager defaultManager]
@@ -7702,46 +8077,34 @@ static void TestAtomicRollback(void) {
 			[recoveryNames objectAtIndex:0]]] isEqualToData:racingData]);
 		RequireNoTemporaryFiles(directoryPath);
 
-		error = nil;
-		REQUIRE(![controller storeDataAtomicallyInNotesDirectory:baseline withName:@"../escape"
-			verificationBlock:nil error:&error]);
-		REQUIRE(error != nil);
-		error = nil;
-		REQUIRE([controller dataFromNoteNamed:@"../escape" error:&error] == nil);
-		REQUIRE(error != nil);
-		error = nil;
-		REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:[path lastPathComponent]
-			verificationBlock:nil error:&error]);
-		REQUIRE(error == nil);
+		NSArray *invalidNames = @[ @"", @".", @"..", @"../escape",
+			[NSString stringWithFormat:@"nul%Cname", (unichar)0] ];
+		for (NSString *invalidName in invalidNames) {
+			result = [[controller noteDirectory] overwriteFileNamed:invalidName withData:baseline];
+			REQUIRE([result disposition] == NVFileWriteNotInstalled && [result error] != nil);
+			error = nil;
+			REQUIRE([[NSFileManager defaultManager] fileReferenceURLForFilename:invalidName
+				inDirectoryURL:[controller noteDirectoryURL] error:&error] == nil && error != nil);
+		}
+		result = [[controller noteDirectory] overwriteFileNamed:[path lastPathComponent]
+			withData:baseline];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified);
 		REQUIRE(chmod([path fileSystemRepresentation], 0640) == 0);
 		REQUIRE(setxattr([path fileSystemRepresentation], "com.notationalvelocity.integration-test",
 			[sentinel bytes], [sentinel length], 0, 0) == 0);
 
 		[controller setAtomicVerificationResult:ioErr];
-		error = nil;
-		REQUIRE(![controller storeDataAtomicallyInNotesDirectory:replacement withName:[path lastPathComponent]
-			verificationBlock:^BOOL(NSData *readBackData, NSError **verificationError) {
+		result = [[controller noteDirectory] overwriteFileNamed:[path lastPathComponent]
+			withData:replacement preparedDataVerifier:^BOOL(NSData *readBackData,
+				NSError **verificationError) {
 				(void)readBackData;
 				if ([controller atomicVerificationResult] == noErr) return YES;
 				if (verificationError) *verificationError = [NSError errorWithDomain:NSOSStatusErrorDomain
 					code:[controller atomicVerificationResult] userInfo:nil];
 				return NO;
-			} error:&error]);
-		REQUIRE(error != nil);
-		REQUIRE([[NSData dataWithContentsOfFile:path] isEqualToData:baseline]);
-		REQUIRE([IntegrationTestAttribute(path) isEqualToData:sentinel]);
-		RequireMode(path, 0640);
-		RequireNoTemporaryFiles(directoryPath);
-
-		error = nil;
-		REQUIRE(![controller storeDataAtomicallyInNotesDirectory:replacement
-			withName:[path lastPathComponent]
-			preparationBlock:^BOOL(int fileDescriptor, NSError **preparationError) {
-				(void)fileDescriptor;
-				if (preparationError) *preparationError = [NSError errorWithDomain:NSPOSIXErrorDomain
-					code:EIO userInfo:nil];
-				return NO;
-			} verificationBlock:nil error:&error]);
+			}];
+		error = [result error];
+		REQUIRE([result disposition] == NVFileWriteNotInstalled);
 		REQUIRE(error != nil);
 		REQUIRE([[NSData dataWithContentsOfFile:path] isEqualToData:baseline]);
 		REQUIRE([IntegrationTestAttribute(path) isEqualToData:sentinel]);
@@ -7749,21 +8112,20 @@ static void TestAtomicRollback(void) {
 		RequireNoTemporaryFiles(directoryPath);
 
 		[controller setAtomicVerificationResult:noErr];
-		error = nil;
-		REQUIRE([controller storeDataAtomicallyInNotesDirectory:replacement withName:[path lastPathComponent]
-			verificationBlock:^BOOL(NSData *readBackData, NSError **verificationError) {
+		result = [[controller noteDirectory] overwriteFileNamed:[path lastPathComponent]
+			withData:replacement preparedDataVerifier:^BOOL(NSData *readBackData,
+				NSError **verificationError) {
 				(void)verificationError;
 				return [readBackData isEqualToData:replacement];
-			} error:&error]);
-		REQUIRE(error == nil);
+			}];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified);
 		REQUIRE([[NSData dataWithContentsOfFile:path] isEqualToData:replacement]);
 		RequireMode(path, 0640);
 		RequireNoTemporaryFiles(directoryPath);
 
 		NoteObject *exportNote = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"shared export writer"] autorelease]
-			title:@"Export" delegate:nil format:PlainTextFormat labels:@"tag"];
-		[exportNote _setFileEncoding:NSUTF8StringEncoding];
+			title:@"Export" format:PlainTextFormat labels:@"tag"];
 		[exportNote setDateAdded:1000000.0];
 		[exportNote setDateModified:1000100.0];
 		NSURL *directoryReferenceURL = FileReferenceURLForPath(directoryPath);
@@ -7820,7 +8182,7 @@ static void TestAtomicRollback(void) {
 		REQUIRE(NVMergedText(boundaryBase, boundaryTagLocal, boundaryExternal) == nil);
 		NoteObject *boundaryNote = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:boundaryBase] autorelease]
-			title:@"Installed Boundary" delegate:controller format:PlainTextFormat labels:@"tag"];
+			title:@"Installed Boundary" format:PlainTextFormat labels:@"tag"];
 		[controller addNewNote:boundaryNote];
 		REQUIRE([controller flushAllNoteChanges]);
 		NSString *boundaryFilename = [[filenameOfNote(boundaryNote) copy] autorelease];
@@ -7829,19 +8191,16 @@ static void TestAtomicRollback(void) {
 		[boundaryNote setContentString:[[[NSAttributedString alloc]
 			initWithString:boundaryLocal] autorelease]];
 		REQUIRE([controller pendingFileWriteCount] == 1);
-		REQUIRE(![boundaryNote writeUsingCurrentFileFormat]);
+		REQUIRE([boundaryNote writeUsingCurrentFileFormat]);
 		REQUIRE([controller pendingFileWriteCount] == 1);
 		NSString *externalDisk = [[[NSString alloc]
-			initWithData:[controller dataFromNoteNamed:boundaryFilename error:NULL]
+			initWithData:[[controller noteDirectory] dataFromFileNamed:boundaryFilename error:NULL]
 			encoding:NSUTF8StringEncoding] autorelease];
 		REQUIRE([externalDisk isEqualToString:boundaryExternal]);
-		REQUIRE([boundaryNote writeUsingCurrentFileFormat]);
-		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		[controller synchronizeNoteChanges:nil];
 		REQUIRE([controller pendingFileWriteCount] == 0);
-		NSString *boundaryDisk = [[[NSString alloc]
-			initWithData:[controller dataFromNoteNamed:boundaryFilename error:NULL]
-			encoding:NSUTF8StringEncoding] autorelease];
-		REQUIRE([boundaryDisk isEqualToString:boundaryLocal]);
+		REQUIRE([[[boundaryNote contentString] string] isEqualToString:boundaryExternal]);
 
 		[boundaryNote setContentString:[[[NSAttributedString alloc]
 			initWithString:boundaryBase] autorelease]];
@@ -7852,13 +8211,14 @@ static void TestAtomicRollback(void) {
 		[boundaryNote setContentString:[[[NSAttributedString alloc]
 			initWithString:boundaryTagLocal] autorelease]];
 		REQUIRE([controller pendingFileWriteCount] == 1);
-		REQUIRE(![boundaryNote writeUsingCurrentFileFormat]);
-		REQUIRE([controller pendingFileWriteCount] == 1);
-		REQUIRE([[controller dataFromNoteNamed:boundaryFilename error:NULL]
-			isEqualToData:tagRaceReplacement]);
 		REQUIRE([boundaryNote writeUsingCurrentFileFormat]);
-		REQUIRE([controller flushAllNoteChanges]);
+		REQUIRE([controller pendingFileWriteCount] == 1);
+		REQUIRE([[[controller noteDirectory] dataFromFileNamed:boundaryFilename error:NULL]
+			isEqualToData:tagRaceReplacement]);
+		REQUIRE([controller synchronizeNotesFromDirectory]);
+		[controller synchronizeNoteChanges:nil];
 		REQUIRE([controller pendingFileWriteCount] == 0);
+		REQUIRE([[[boundaryNote contentString] string] isEqualToString:boundaryExternal]);
 		[boundaryNote release];
 	} @finally {
 		CloseController(&controller);
@@ -7883,22 +8243,27 @@ static void TestAtomicReplacementCapabilities(void) {
 	@try {
 		controller = CreateController(directoryPath, delegate);
 		[controller stopFileNotifications];
-		int directoryFD = [controller testNoteDirectoryFileDescriptor];
 		NSError *error = nil;
 
 		NSString *conditionalName = @"Conditional Replacement.dat";
 		NSString *conditionalPath = [directoryPath stringByAppendingPathComponent:conditionalName];
-		REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conditionalName
-			verificationBlock:nil error:&error]);
-		error = nil;
-		REQUIRE(!NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
-			replacement, conditionalName, replacement, &error));
+		NVFileWriteResult *result = [[controller noteDirectory]
+			overwriteFileNamed:conditionalName withData:baseline];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+		NVFileSnapshot *baselineSnapshot = [[controller noteDirectory]
+			snapshotForFileNamed:conditionalName error:NULL];
+		NVFileSnapshot *wrongSnapshot = [[[NVFileSnapshot alloc] initWithData:replacement
+			tags:[baselineSnapshot tags] encoding:[baselineSnapshot encoding]
+			observation:[baselineSnapshot observation]] autorelease];
+		result = [[controller noteDirectory] replaceFileNamed:conditionalName
+			withData:replacement expectedSnapshot:wrongSnapshot];
+		error = [result error];
+		REQUIRE([result disposition] == NVFileWriteNotInstalled);
 		REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
 		REQUIRE([[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:baseline]);
-		error = nil;
-		REQUIRE(NVReplaceDataAtomicallyAtDirectoryFileDescriptor(directoryFD,
-			replacement, conditionalName, baseline, &error));
-		REQUIRE(error == nil &&
+		result = [[controller noteDirectory] replaceFileNamed:conditionalName
+			withData:replacement expectedSnapshot:baselineSnapshot];
+		REQUIRE([result disposition] == NVFileWriteInstalledVerified &&
 			[[NSData dataWithContentsOfFile:conditionalPath] isEqualToData:replacement]);
 		RequireNoTemporaryFiles(directoryPath);
 
@@ -7906,20 +8271,21 @@ static void TestAtomicReplacementCapabilities(void) {
 			NSString *preparedName = @"Prepared Note.txt";
 			NSString *preparedPath = [directoryPath stringByAppendingPathComponent:preparedName];
 			NSData *sentinel = [@"preserved metadata" dataUsingEncoding:NSUTF8StringEncoding];
-			REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:preparedName
-				verificationBlock:nil error:NULL]);
+			result = [[controller noteDirectory] overwriteFileNamed:preparedName withData:baseline];
+			REQUIRE([result disposition] == NVFileWriteInstalledVerified);
 			REQUIRE(chmod([preparedPath fileSystemRepresentation], 0640) == 0);
 			REQUIRE(setxattr([preparedPath fileSystemRepresentation],
 				"com.notationalvelocity.integration-test", [sentinel bytes], [sentinel length], 0, 0) == 0);
-			NVFileInfo installedInfo = { 0 }, namedInfo = { 0 };
-			error = nil;
-			REQUIRE([controller storeNoteDataAtomically:replacement withName:preparedName
+			baselineSnapshot = [[controller noteDirectory] snapshotForFileNamed:preparedName error:NULL];
+			result = [[controller noteDirectory] replaceNoteFileNamed:preparedName withData:replacement
 				encoding:NSUTF8StringEncoding tags:@[ @"prepared" ] creationTime:1000000.0
-				modificationTime:1000100.0 expectedData:baseline
-				resultingFileInfo:&installedInfo error:&error]);
-			REQUIRE(error == nil);
-			REQUIRE([controller getFileInfo:&namedInfo forNoteNamed:preparedName error:&error]);
-			REQUIRE(error == nil && installedInfo.fileID == namedInfo.fileID);
+				modificationTime:1000100.0 expectedSnapshot:baselineSnapshot];
+			REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+			error = nil;
+			NVFileObservation *namedInfo = [[controller noteDirectory] observationForFileNamed:preparedName
+				error:&error];
+			REQUIRE(error == nil && [[[result installedSnapshot] observation] fileID] ==
+				[namedInfo fileID]);
 			REQUIRE([[NSData dataWithContentsOfFile:preparedPath] isEqualToData:replacement]);
 			REQUIRE([IntegrationTestAttribute(preparedPath) isEqualToData:sentinel]);
 			RequireMode(preparedPath, 0640);
@@ -7935,16 +8301,16 @@ static void TestAtomicReplacementCapabilities(void) {
 
 			NSString *conflictName = @"Atomic Conflict.txt";
 			NSString *conflictPath = [directoryPath stringByAppendingPathComponent:conflictName];
-			REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conflictName
-				verificationBlock:nil error:NULL]);
+			result = [[controller noteDirectory] overwriteFileNamed:conflictName withData:baseline];
+			REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+			baselineSnapshot = [[controller noteDirectory] snapshotForFileNamed:conflictName error:NULL];
 			[controller replaceNoteNamed:conflictName beforeInstallWithData:racingData];
-			error = nil;
-			REQUIRE(![controller storeNoteDataAtomically:replacement withName:conflictName
+			result = [[controller noteDirectory] replaceNoteFileNamed:conflictName withData:replacement
 				encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
-				modificationTime:1000100.0 expectedData:baseline
-				resultingFileInfo:&installedInfo error:&error]);
-			REQUIRE([[error domain] isEqualToString:NVNoteStorageErrorDomain] &&
-				[error code] == NVNoteStorageAtomicRecoveryError);
+				modificationTime:1000100.0 expectedSnapshot:baselineSnapshot];
+			error = [result error];
+			REQUIRE([result disposition] == NVFileWriteInstalledNeedsReconciliation);
+			REQUIRE(error != nil && [[result recoveryFilename] length] > 0);
 			REQUIRE([[NSData dataWithContentsOfFile:conflictPath] isEqualToData:replacement]);
 			NSMutableArray *recoveryNames = [NSMutableArray array];
 			for (NSString *name in [[NSFileManager defaultManager]
@@ -7957,14 +8323,15 @@ static void TestAtomicReplacementCapabilities(void) {
 
 			if ([filesystem isEqualToString:@"hfs"]) {
 				NSString *removedName = @"Removed Before Exchange.txt";
-				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:removedName
-					verificationBlock:nil error:NULL]);
+				result = [[controller noteDirectory] overwriteFileNamed:removedName withData:baseline];
+				REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+				baselineSnapshot = [[controller noteDirectory] snapshotForFileNamed:removedName error:NULL];
 				[controller removeNoteNamedBeforeInstall:removedName];
-				error = nil;
-				REQUIRE(![controller storeNoteDataAtomically:replacement withName:removedName
+				result = [[controller noteDirectory] replaceNoteFileNamed:removedName withData:replacement
 					encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
-					modificationTime:1000100.0 expectedData:baseline
-					resultingFileInfo:&installedInfo error:&error]);
+					modificationTime:1000100.0 expectedSnapshot:baselineSnapshot];
+				error = [result error];
+				REQUIRE([result disposition] == NVFileWriteNotInstalled);
 				REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] &&
 					[error code] == ENOENT);
 				REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:
@@ -7972,14 +8339,15 @@ static void TestAtomicReplacementCapabilities(void) {
 
 				NSString *handoffName = @"Exchange Handoff Race.txt";
 				NSString *handoffPath = [directoryPath stringByAppendingPathComponent:handoffName];
-				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:handoffName
-					verificationBlock:nil error:NULL]);
+				result = [[controller noteDirectory] overwriteFileNamed:handoffName withData:baseline];
+				REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+				baselineSnapshot = [[controller noteDirectory] snapshotForFileNamed:handoffName error:NULL];
 				[controller replaceNoteNamed:handoffName afterExchangeWithData:racingData];
-				error = nil;
-				REQUIRE(![controller storeNoteDataAtomically:replacement withName:handoffName
+				result = [[controller noteDirectory] replaceNoteFileNamed:handoffName withData:replacement
 					encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
-					modificationTime:1000100.0 expectedData:baseline
-					resultingFileInfo:&installedInfo error:&error]);
+					modificationTime:1000100.0 expectedSnapshot:baselineSnapshot];
+				error = [result error];
+				REQUIRE([result disposition] == NVFileWriteInstalledNeedsReconciliation);
 				REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] &&
 					[error code] == EAGAIN);
 				REQUIRE([[NSData dataWithContentsOfFile:handoffPath] isEqualToData:racingData]);
@@ -7995,14 +8363,18 @@ static void TestAtomicReplacementCapabilities(void) {
 				NSString *removedAfterExchangeName = @"Removed After Exchange.txt";
 				NSString *removedAfterExchangePath = [directoryPath
 					stringByAppendingPathComponent:removedAfterExchangeName];
-				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline
-					withName:removedAfterExchangeName verificationBlock:nil error:NULL]);
+				result = [[controller noteDirectory] overwriteFileNamed:removedAfterExchangeName
+					withData:baseline];
+				REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+				baselineSnapshot = [[controller noteDirectory]
+					snapshotForFileNamed:removedAfterExchangeName error:NULL];
 				[controller removeNoteNamedAfterExchange:removedAfterExchangeName];
-				error = nil;
-				REQUIRE(![controller storeNoteDataAtomically:replacement
-					withName:removedAfterExchangeName encoding:NSUTF8StringEncoding tags:@[]
-					creationTime:1000000.0 modificationTime:1000100.0 expectedData:baseline
-					resultingFileInfo:&installedInfo error:&error]);
+				result = [[controller noteDirectory] replaceNoteFileNamed:removedAfterExchangeName
+					withData:replacement encoding:NSUTF8StringEncoding tags:@[]
+					creationTime:1000000.0 modificationTime:1000100.0
+					expectedSnapshot:baselineSnapshot];
+				error = [result error];
+				REQUIRE([result disposition] == NVFileWriteInstalledNeedsReconciliation);
 				REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] &&
 					[error code] == EAGAIN);
 				REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:removedAfterExchangePath]);
@@ -8017,16 +8389,16 @@ static void TestAtomicReplacementCapabilities(void) {
 
 				NSString *failureName = @"Metadata Finalization Failure.txt";
 				NSString *failurePath = [directoryPath stringByAppendingPathComponent:failureName];
-				REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:failureName
-					verificationBlock:nil error:NULL]);
+				result = [[controller noteDirectory] overwriteFileNamed:failureName withData:baseline];
+				REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+				baselineSnapshot = [[controller noteDirectory] snapshotForFileNamed:failureName error:NULL];
 				[controller failExchangedMetadataFinalizationForNoteNamed:failureName];
-				error = nil;
-				REQUIRE(![controller storeNoteDataAtomically:replacement withName:failureName
+				result = [[controller noteDirectory] replaceNoteFileNamed:failureName withData:replacement
 					encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
-					modificationTime:1000100.0 expectedData:baseline
-					resultingFileInfo:&installedInfo error:&error]);
-				REQUIRE([[error domain] isEqualToString:NVNoteStorageErrorDomain] &&
-					[error code] == NVNoteStorageAtomicRecoveryError);
+					modificationTime:1000100.0 expectedSnapshot:baselineSnapshot];
+				error = [result error];
+				REQUIRE([result disposition] == NVFileWriteInstalledNeedsReconciliation);
+				REQUIRE(error != nil && [[result recoveryFilename] length] > 0);
 				REQUIRE([[NSData dataWithContentsOfFile:failurePath] isEqualToData:replacement]);
 				recoveryNames = [NSMutableArray array];
 				for (NSString *name in [[NSFileManager defaultManager]
@@ -8040,50 +8412,30 @@ static void TestAtomicReplacementCapabilities(void) {
 		} else {
 			NSString *conflictName = @"Best Effort Conflict.txt";
 			NSString *conflictPath = [directoryPath stringByAppendingPathComponent:conflictName];
-			REQUIRE([controller storeDataAtomicallyInNotesDirectory:baseline withName:conflictName
-				verificationBlock:nil error:NULL]);
+			result = [[controller noteDirectory] overwriteFileNamed:conflictName withData:baseline];
+			REQUIRE([result disposition] == NVFileWriteInstalledVerified &&
+				[result capability] == NVFileWriteBestEffortCapability);
+			baselineSnapshot = [[controller noteDirectory] snapshotForFileNamed:conflictName error:NULL];
 			[controller replaceNoteNamed:conflictName beforeInstallWithData:racingData];
-			NVFileInfo ignoredInfo = { 0 };
-			error = nil;
-			REQUIRE(![controller storeNoteDataAtomically:replacement withName:conflictName
+			result = [[controller noteDirectory] replaceNoteFileNamed:conflictName withData:replacement
 				encoding:NSUTF8StringEncoding tags:@[] creationTime:1000000.0
-				modificationTime:1000100.0 expectedData:baseline
-				resultingFileInfo:&ignoredInfo error:&error]);
+				modificationTime:1000100.0 expectedSnapshot:baselineSnapshot];
+			error = [result error];
+			REQUIRE([result disposition] == NVFileWriteNotInstalled);
 			REQUIRE([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == EAGAIN);
 			REQUIRE([[NSData dataWithContentsOfFile:conflictPath] isEqualToData:racingData]);
 
 			NSString *createName = @"Create Only.dat";
 			NSString *createPath = [directoryPath stringByAppendingPathComponent:createName];
-			error = nil;
-			REQUIRE([controller createDataAtomicallyInNotesDirectory:baseline
-				withName:createName error:&error]);
-			REQUIRE(error == nil);
-			error = nil;
-			REQUIRE(![controller createDataAtomicallyInNotesDirectory:replacement
-				withName:createName error:&error]);
+			result = [[controller noteDirectory] createFileNamed:createName withData:baseline];
+			REQUIRE([result disposition] == NVFileWriteInstalledVerified);
+			result = [[controller noteDirectory] createFileNamed:createName withData:replacement];
+			error = [result error];
+			REQUIRE([result disposition] == NVFileWriteNotInstalled);
 			REQUIRE([[error domain] isEqualToString:NSCocoaErrorDomain] &&
 				[error code] == NSFileWriteFileExistsError);
 			REQUIRE([[NSData dataWithContentsOfFile:createPath] isEqualToData:baseline]);
 
-			NSString *visibleName = @"Visible Create Failure.dat";
-			NSString *visiblePath = [directoryPath stringByAppendingPathComponent:visibleName];
-			NSString *movedPath = [directoryPath stringByAppendingPathComponent:@"Moved Visible Create.dat"];
-			__block NSUInteger preparationCalls = 0;
-			error = nil;
-			REQUIRE(![controller storeDataAtomicallyInNotesDirectory:replacement withName:visibleName
-				preparationBlock:^BOOL(int fileDescriptor, NSError **blockError) {
-					(void)fileDescriptor;
-					preparationCalls++;
-					if (preparationCalls == 1) return YES;
-					REQUIRE(rename([visiblePath fileSystemRepresentation],
-						[movedPath fileSystemRepresentation]) == 0);
-					REQUIRE([racingData writeToFile:visiblePath options:0 error:NULL]);
-					if (blockError) *blockError = [NSError errorWithDomain:NSPOSIXErrorDomain
-						code:EIO userInfo:nil];
-					return NO;
-				} verificationBlock:nil error:&error]);
-			REQUIRE(preparationCalls == 2 && [error code] == EIO);
-			REQUIRE([[NSData dataWithContentsOfFile:visiblePath] isEqualToData:racingData]);
 		}
 		RequireNoTemporaryFiles(directoryPath);
 	} @finally {
@@ -8100,15 +8452,13 @@ static void TestReferenceEdges(void) {
 
 	@try {
 		NSString *identityParentPath = [directoryPath stringByAppendingPathComponent:@"Identity Parent"];
-		NSString *identityChildPath = [identityParentPath stringByAppendingPathComponent:@"Child"];
 		NSString *identityOtherPath = [directoryPath stringByAppendingPathComponent:@"Identity Other"];
-		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:identityChildPath
-			withIntermediateDirectories:YES attributes:nil error:NULL]);
+		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:identityParentPath
+			withIntermediateDirectories:NO attributes:nil error:NULL]);
 		REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:identityOtherPath
 			withIntermediateDirectories:NO attributes:nil error:NULL]);
 		NSURL *identityParentURL = [NSURL fileURLWithPath:identityParentPath isDirectory:YES];
 		NSURL *identityParentReferenceURL = FileReferenceURLForPath(identityParentPath);
-		NSURL *identityChildURL = [NSURL fileURLWithPath:identityChildPath isDirectory:YES];
 		NSURL *identityOtherURL = [NSURL fileURLWithPath:identityOtherPath isDirectory:YES];
 		NSURL *missingURL = [NSURL fileURLWithPath:
 			[directoryPath stringByAppendingPathComponent:@"Missing Identity"] isDirectory:YES];
@@ -8117,12 +8467,6 @@ static void TestReferenceEdges(void) {
 		REQUIRE(!NVURLsReferToSameItem(nil, identityParentURL));
 		REQUIRE(!NVURLsReferToSameItem(identityParentURL, nil));
 		REQUIRE(!NVURLsReferToSameItem(missingURL, identityParentURL));
-		REQUIRE(NVURLIsSameItemOrDescendantOfURL(identityParentReferenceURL,
-			identityParentURL));
-		REQUIRE(NVURLIsSameItemOrDescendantOfURL(identityChildURL, identityParentURL));
-		REQUIRE(!NVURLIsSameItemOrDescendantOfURL(identityChildURL, identityOtherURL));
-		REQUIRE(!NVURLIsSameItemOrDescendantOfURL(missingURL, identityParentURL));
-		REQUIRE(!NVURLIsSameItemOrDescendantOfURL(identityChildURL, missingURL));
 
 		controller = CreateController(directoryPath, delegate);
 		[[controller notationPrefs] setNotesStorageFormat:PlainTextFormat];
@@ -8130,16 +8474,16 @@ static void TestReferenceEdges(void) {
 
 		NoteObject *caseNote = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"original path identity contents"] autorelease]
-			title:@"Case Edge" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Case Edge" format:PlainTextFormat labels:@""];
 		NoteObject *unicodeNote = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"decomposed Unicode filename"] autorelease]
-			title:@"Cafe\u0301 東京" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Cafe\u0301 東京" format:PlainTextFormat labels:@""];
 		NSMutableString *longTitle = [NSMutableString string];
 		while ([longTitle length] < 280)
 			[longTitle appendString:@"LongTitle"];
 		NoteObject *longNote = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"long component filename"] autorelease]
-			title:longTitle delegate:controller format:PlainTextFormat labels:@""];
+			title:longTitle format:PlainTextFormat labels:@""];
 		[controller addNewNote:caseNote];
 		[controller addNewNote:unicodeNote];
 		[controller addNewNote:longNote];
@@ -8150,7 +8494,7 @@ static void TestReferenceEdges(void) {
 		REQUIRE([filenameOfNote(longNote) length] <= 255);
 
 		NoteObject *originalIdentity = [caseNote retain];
-		NSString *originalPath = [[[caseNote noteFileURL] path] copy];
+		NSString *originalPath = [[[caseNote absoluteUNIXPath] path] copy];
 		NSError *error = nil;
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:originalPath error:&error]);
 		NSString *replacementText = @"replacement at the same path with a new file identity and a different size";
@@ -8166,7 +8510,7 @@ static void TestReferenceEdges(void) {
 		REQUIRE([controller synchronizeNotesFromDirectory]);
 		REQUIRE([controller totalNoteCount] == 3);
 		REQUIRE([AllNotes(controller) containsObject:originalIdentity]);
-		REQUIRE([[[originalIdentity noteFileURL] lastPathComponent] isEqualToString:caseFilename]);
+		REQUIRE([[[originalIdentity absoluteUNIXPath] lastPathComponent] isEqualToString:caseFilename]);
 		[originalPath release];
 		[originalIdentity release];
 		[caseNote release];
@@ -8284,7 +8628,7 @@ static void TestEncryption(void) {
 		controller = CreateController(directoryPath, delegate);
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:secret] autorelease]
-			title:@"Encrypted Note" delegate:controller format:SingleDatabaseFormat labels:@""];
+			title:@"Encrypted Note" format:SingleDatabaseFormat labels:@""];
 		[controller addNewNote:note];
 		[note release];
 		[[controller notationPrefs] setPassphraseData:passphrase inKeychain:NO];
@@ -8326,13 +8670,13 @@ static void TestEncryption(void) {
 		NoteObject *recovered = NoteContaining(controller, @"encrypted WAL-only edit");
 		REQUIRE(recovered != nil);
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]]);
 		[recovered setContentString:[[[NSAttributedString alloc]
 			initWithString:@"encrypted post-recovery edit"] autorelease]];
 		REQUIRE([controller flushAllNoteChanges]);
 		CloseController(&controller);
 		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:
-			[directoryPath stringByAppendingPathComponent:@"Interim Note-Changes"]]);
+			[directoryPath stringByAppendingPathComponent:NVJournalFilename]]);
 		controller = CreateController(directoryPath, delegate);
 		REQUIRE(NoteContaining(controller, @"encrypted post-recovery edit") != nil);
 	} @finally {
@@ -8356,9 +8700,9 @@ static void TestTrash(void) {
 		NSString *uniqueTitle = [NSString stringWithFormat:@"NV Trash Test %@", [[NSUUID UUID] UUIDString]];
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"trash fixture"] autorelease]
-			title:uniqueTitle delegate:controller format:PlainTextFormat labels:@""];
+			title:uniqueTitle format:PlainTextFormat labels:@""];
 		[controller addNewNote:note];
-		trashArtifact = [[note noteFileURL] retain];
+		trashArtifact = [[note absoluteUNIXPath] retain];
 		NSString *sourcePath = [[trashArtifact path] copy];
 		[controller removeNote:note];
 		[note release];
@@ -8392,7 +8736,7 @@ static void TestFIFOJournalChild(void) {
 		initWithDirectoryURL:FileReferenceURLForPath(rootPath) error:&status];
 	REQUIRE(controller == nil && status == NVTestJournalingError);
 	struct stat journalInfo = { 0 };
-	REQUIRE(lstat([[rootPath stringByAppendingPathComponent:@"Interim Note-Changes"]
+	REQUIRE(lstat([[rootPath stringByAppendingPathComponent:NVJournalFilename]
 		fileSystemRepresentation], &journalInfo) == 0 && S_ISFIFO(journalInfo.st_mode));
 }
 
@@ -8422,10 +8766,11 @@ static void TestFailures(void) {
 		NSURL *deletedReference = [FileReferenceURLForPath(deletedPath) retain];
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:deletedPath error:NULL]);
 		NSError *openError = nil;
-		int deletedFD = [[NSFileManager defaultManager]
-			openFileDescriptorForDirectoryReferenceURL:deletedReference error:&openError];
-		REQUIRE(deletedFD < 0);
+		NVRootedDirectory *deletedRoot = [[NVRootedDirectory alloc]
+			initWithFileReferenceURL:deletedReference error:&openError];
+		REQUIRE(deletedRoot == nil);
 		REQUIRE(openError != nil);
+		[deletedRoot release];
 		[deletedReference release];
 	} @finally {
 		RemoveTemporaryDirectory(rootPath);
@@ -8463,7 +8808,7 @@ static void TestFailures(void) {
 		REQUIRE(chmod([rootPath fileSystemRepresentation], 0500) == 0);
 		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:@"cannot write this file"] autorelease]
-			title:@"Read Only Failure" delegate:controller format:PlainTextFormat labels:@""];
+			title:@"Read Only Failure" format:PlainTextFormat labels:@""];
 		[controller addNewNote:note];
 		[note release];
 		REQUIRE([controller recordedWriteError] != noErr);
@@ -8481,7 +8826,7 @@ static void TestFailures(void) {
 		REQUIRE([controller flushAllNoteChanges]);
 		CloseController(&controller);
 		NSString *journalPath = [rootPath stringByAppendingPathComponent:
-			@"Interim Note-Changes"];
+			NVJournalFilename];
 		REQUIRE(mkfifo([journalPath fileSystemRepresentation], 0600) == 0);
 		const char *oldValue = getenv("NV_FIFO_JOURNAL_DIRECTORY");
 		NSString *savedValue = oldValue ? [NSString stringWithUTF8String:oldValue] : nil;
@@ -8677,26 +9022,23 @@ static void TestExternalEditingTextMerge(void) {
 			[titleOfNote(conflict) isEqualToString:@"Scratch Merge (conflict)"]);
 
 		NoteObject *drainedNote = AddTestNote(controller, @"Scratch Final Drain", base);
-		NSString *scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-drain.txt"];
 		NSData *scratchBase = [base dataUsingEncoding:NSUTF8StringEncoding];
 		NSData *scratchExternal = [external dataUsingEncoding:NSUTF8StringEncoding];
-		REQUIRE([scratchExternal writeToFile:scratchPath atomically:NO]);
 		ExternalEditingSession *scratchEditor = [ExternalEditingSession sharedExternalEditingSession];
 		[NSObject cancelPreviousPerformRequestsWithTarget:scratchEditor];
+		[scratchEditor initializeDatabase:[controller notationPrefs]];
+		NSString *scratchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-drain.txt", scratchExternal);
 		NSMutableDictionary *sessions = [scratchEditor valueForKey:@"_filePathsBeingEdited"];
 		NoteObject *backgroundNote = AddTestNote(controller, @"Scratch Background", base);
 		NoteObject *selectedNote = AddTestNote(controller, @"Scratch Selected", @"selected");
-		NSString *backgroundPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-background.txt"];
-		NSString *unrelatedPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-unrelated.txt"];
-		REQUIRE([scratchBase writeToFile:backgroundPath atomically:NO]);
-		REQUIRE([scratchBase writeToFile:unrelatedPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			backgroundNote, @"client", backgroundPath, @"path", scratchBase, @"data", nil]
+		NSString *backgroundPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-background.txt", scratchBase);
+		NSString *unrelatedPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-unrelated.txt", scratchBase);
+		[sessions setObject:TestScratchSession(backgroundNote, backgroundPath, scratchBase)
 			forKey:backgroundPath];
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			selectedNote, @"client", unrelatedPath, @"path", scratchBase, @"data", nil]
+		[sessions setObject:TestScratchSession(selectedNote, unrelatedPath, scratchBase)
 			forKey:unrelatedPath];
 		NVSelectionAppController *selectionController = class_createInstance(
 			[NVSelectionAppController class], 0);
@@ -8747,11 +9089,9 @@ static void TestExternalEditingTextMerge(void) {
 		[selectionController release];
 
 		NoteObject *deletionNote = AddTestNote(controller, @"Scratch Delete", base);
-		NSString *deletionPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-delete.txt"];
-		REQUIRE([scratchExternal writeToFile:deletionPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			deletionNote, @"client", deletionPath, @"path", scratchBase, @"data", nil]
+		NSString *deletionPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-delete.txt", scratchExternal);
+		[sessions setObject:TestScratchSession(deletionNote, deletionPath, scratchBase)
 			forKey:deletionPath];
 		[controller setExternalEditingDurabilityFailures:1];
 		[controller removeNote:deletionNote];
@@ -8767,20 +9107,16 @@ static void TestExternalEditingTextMerge(void) {
 		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:deletionPath]);
 
 		NoteObject *terminationNote = AddTestNote(controller, @"Scratch Termination", base);
-		NSString *terminationPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-termination.txt"];
 		NoteObject *sharedTerminationNote = AddTestNote(controller,
 			@"Scratch Shared Termination", base);
-		NSString *sharedTerminationPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-shared-termination.txt"];
-		REQUIRE([scratchExternal writeToFile:terminationPath atomically:NO]);
-		REQUIRE([scratchExternal writeToFile:sharedTerminationPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			terminationNote, @"client", terminationPath, @"path", scratchBase, @"data", nil]
+		NSString *terminationPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-termination.txt", scratchExternal);
+		NSString *sharedTerminationPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-shared-termination.txt", scratchExternal);
+		[sessions setObject:TestScratchSession(terminationNote, terminationPath, scratchBase)
 			forKey:terminationPath];
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			sharedTerminationNote, @"client", sharedTerminationPath, @"path", scratchBase,
-			@"data", nil] forKey:sharedTerminationPath];
+		[sessions setObject:TestScratchSession(sharedTerminationNote,
+			sharedTerminationPath, scratchBase) forKey:sharedTerminationPath];
 		NVTestRunningApplication *firstTestApplication = [[[NVTestRunningApplication alloc]
 			initWithProcessIdentifier:4242] autorelease];
 		NVTestRunningApplication *lastTestApplication = [[[NVTestRunningApplication alloc]
@@ -8811,12 +9147,12 @@ static void TestExternalEditingTextMerge(void) {
 		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:sharedTerminationPath]);
 
 		NoteObject *failedLaunchNote = AddTestNote(controller, @"Scratch Launch Failure", base);
-		NSString *failedLaunchPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-launch-failure.txt"];
-		REQUIRE([scratchBase writeToFile:failedLaunchPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			failedLaunchNote, @"client", failedLaunchPath, @"path", scratchBase, @"data",
-			@2, @"pendingOpenCount", nil] forKey:failedLaunchPath];
+		NSString *failedLaunchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-launch-failure.txt", scratchBase);
+		NSMutableDictionary *failedLaunchSession = TestScratchSession(failedLaunchNote,
+			failedLaunchPath, scratchBase);
+		[failedLaunchSession setObject:@2 forKey:@"pendingOpenCount"];
+		[sessions setObject:failedLaunchSession forKey:failedLaunchPath];
 		[scratchEditor openDidCompleteForSessionPath:failedLaunchPath application:nil];
 		REQUIRE([scratchEditor hasActiveScratchEditingSessionForClient:failedLaunchNote]);
 		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:failedLaunchPath]);
@@ -8825,11 +9161,9 @@ static void TestExternalEditingTextMerge(void) {
 		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:failedLaunchPath]);
 
 		NoteObject *modalFinishNote = AddTestNote(controller, @"Scratch Modal Finish", base);
-		NSString *modalFinishPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-modal-finish.txt"];
-		REQUIRE([scratchExternal writeToFile:modalFinishPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			modalFinishNote, @"client", modalFinishPath, @"path", scratchBase, @"data", nil]
+		NSString *modalFinishPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-modal-finish.txt", scratchExternal);
+		[sessions setObject:TestScratchSession(modalFinishNote, modalFinishPath, scratchBase)
 			forKey:modalFinishPath];
 		[controller setExternalEditingDurabilityFailures:1];
 		__block BOOL modalFinishDelivered = NO;
@@ -8855,10 +9189,9 @@ static void TestExternalEditingTextMerge(void) {
 		REQUIRE(![directFileTerminationApplication receivedReply]);
 
 		NoteObject *quitNote = AddTestNote(controller, @"Scratch Quit", base);
-		NSString *quitPath = [directoryPath stringByAppendingPathComponent:@"scratch-quit.txt"];
-		REQUIRE([scratchExternal writeToFile:quitPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			quitNote, @"client", quitPath, @"path", scratchBase, @"data", nil]
+		NSString *quitPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-quit.txt", scratchExternal);
+		[sessions setObject:TestScratchSession(quitNote, quitPath, scratchBase)
 			forKey:quitPath];
 		NVTerminationApplication *terminationApplication = [[[NVTerminationApplication alloc]
 			init] autorelease];
@@ -8908,20 +9241,16 @@ static void TestExternalEditingTextMerge(void) {
 		REQUIRE([[[quitNote contentString] string] isEqualToString:external]);
 		REQUIRE(![[NSFileManager defaultManager] fileExistsAtPath:quitPath]);
 		NoteObject *failedFinishNote = AddTestNote(controller, @"Scratch Finish Failure", base);
-		NSString *failedFinishPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-finish-failure.txt"];
-		REQUIRE([scratchExternal writeToFile:failedFinishPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			failedFinishNote, @"client", failedFinishPath, @"path", scratchBase, @"data", nil]
+		NSString *failedFinishPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-finish-failure.txt", scratchExternal);
+		[sessions setObject:TestScratchSession(failedFinishNote, failedFinishPath, scratchBase)
 			forKey:failedFinishPath];
 		NoteObject *failedFinishWithAppNote = AddTestNote(controller,
 			@"Scratch Finish Failure With App", base);
-		NSString *failedFinishWithAppPath = [directoryPath stringByAppendingPathComponent:
-			@"scratch-finish-failure-with-app.txt"];
-		REQUIRE([scratchExternal writeToFile:failedFinishWithAppPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			failedFinishWithAppNote, @"client", failedFinishWithAppPath, @"path", scratchBase,
-			@"data", nil] forKey:failedFinishWithAppPath];
+		NSString *failedFinishWithAppPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-finish-failure-with-app.txt", scratchExternal);
+		[sessions setObject:TestScratchSession(failedFinishWithAppNote,
+			failedFinishWithAppPath, scratchBase) forKey:failedFinishWithAppPath];
 		NVTestRunningApplication *failedFinishApplication =
 			[[[NVTestRunningApplication alloc] initWithProcessIdentifier:4244] autorelease];
 		[scratchEditor openDidCompleteForSessionPath:failedFinishWithAppPath
@@ -8970,8 +9299,7 @@ static void TestExternalEditingTextMerge(void) {
 		REQUIRE(![scratchEditor hasActiveScratchEditingSessionForClient:failedFinishWithAppNote]);
 		[terminationController release];
 
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			drainedNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+		[sessions setObject:TestScratchSession(drainedNote, scratchPath, scratchBase)
 			forKey:scratchPath];
 		[scratchEditor abortAllEditingSessionsForClient:drainedNote];
 		REQUIRE([[[drainedNote contentString] string] isEqualToString:external]);
@@ -8985,10 +9313,9 @@ static void TestExternalEditingTextMerge(void) {
 		NSString *roundTripSix = [roundTripFive stringByAppendingString:@"six\n"];
 		NSData *roundTripBaseData = [roundTripBase dataUsingEncoding:NSUTF8StringEncoding];
 		NoteObject *roundTripNote = AddTestNote(controller, @"Scratch Round Trip", roundTripBase);
-		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-round-trip.txt"];
-		REQUIRE([roundTripBaseData writeToFile:scratchPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			roundTripNote, @"client", scratchPath, @"path", roundTripBaseData, @"data", nil]
+		scratchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-round-trip.txt", roundTripBaseData);
+		[sessions setObject:TestScratchSession(roundTripNote, scratchPath, roundTripBaseData)
 			forKey:scratchPath];
 		REQUIRE([[roundTripFour dataUsingEncoding:NSUTF8StringEncoding]
 			writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
@@ -9011,10 +9338,9 @@ static void TestExternalEditingTextMerge(void) {
 		[scratchEditor abortAllEditingSessionsForClient:roundTripNote];
 
 		NoteObject *externalNote = AddTestNote(controller, @"Scratch External Write", base);
-		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-external.txt"];
-		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			externalNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+		scratchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-external.txt", scratchBase);
+		[sessions setObject:TestScratchSession(externalNote, scratchPath, scratchBase)
 			forKey:scratchPath];
 		REQUIRE([scratchExternal writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
 		struct stat beforeExternalRead = { 0 }, afterExternalRead = { 0 };
@@ -9026,10 +9352,9 @@ static void TestExternalEditingTextMerge(void) {
 		[scratchEditor abortAllEditingSessionsForClient:externalNote];
 
 		NoteObject *concurrentNote = AddTestNote(controller, @"Scratch Concurrent Write", base);
-		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-concurrent.txt"];
-		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			concurrentNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+		scratchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-concurrent.txt", scratchBase);
+		[sessions setObject:TestScratchSession(concurrentNote, scratchPath, scratchBase)
 			forKey:scratchPath];
 		REQUIRE([scratchExternal writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
 		[concurrentNote setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
@@ -9040,13 +9365,12 @@ static void TestExternalEditingTextMerge(void) {
 
 		NVScratchRaceNote *raceNote = [[[NVScratchRaceNote alloc] initWithNoteBody:
 			[[[NSAttributedString alloc] initWithString:base] autorelease]
-			title:@"Scratch Save Race" delegate:controller format:SingleDatabaseFormat labels:@""]
+			title:@"Scratch Save Race" format:SingleDatabaseFormat labels:@""]
 			autorelease];
 		[controller addNewNote:raceNote];
-		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-race.txt"];
-		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			raceNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+		scratchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-race.txt", scratchBase);
+		[sessions setObject:TestScratchSession(raceNote, scratchPath, scratchBase)
 			forKey:scratchPath];
 		REQUIRE([scratchExternal writeToFile:scratchPath options:NSDataWritingAtomic error:NULL]);
 		[raceNote setContentString:[[[NSAttributedString alloc] initWithString:local] autorelease]];
@@ -9063,11 +9387,10 @@ static void TestExternalEditingTextMerge(void) {
 		[scratchEditor abortAllEditingSessionsForClient:raceNote];
 
 		NoteObject *conflictingNote = AddTestNote(controller, @"Scratch Write Conflict", partialBase);
-		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-conflict.txt"];
 		NSData *partialBaseData = [partialBase dataUsingEncoding:NSUTF8StringEncoding];
-		REQUIRE([partialBaseData writeToFile:scratchPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			conflictingNote, @"client", scratchPath, @"path", partialBaseData, @"data", nil]
+		scratchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-conflict.txt", partialBaseData);
+		[sessions setObject:TestScratchSession(conflictingNote, scratchPath, partialBaseData)
 			forKey:scratchPath];
 		NSUInteger beforeConflictCount = [controller totalNoteCount];
 		REQUIRE([[partialExternal dataUsingEncoding:NSUTF8StringEncoding]
@@ -9093,10 +9416,9 @@ static void TestExternalEditingTextMerge(void) {
 		[scratchEditor abortAllEditingSessionsForClient:conflictingNote];
 
 		NoteObject *invalidNote = AddTestNote(controller, @"Scratch Invalid UTF-8", base);
-		scratchPath = [directoryPath stringByAppendingPathComponent:@"scratch-invalid.txt"];
-		REQUIRE([scratchBase writeToFile:scratchPath atomically:NO]);
-		[sessions setObject:[NSMutableDictionary dictionaryWithObjectsAndKeys:
-			invalidNote, @"client", scratchPath, @"path", scratchBase, @"data", nil]
+		scratchPath = CreateTestScratchFile(scratchEditor,
+			@"scratch-invalid.txt", scratchBase);
+		[sessions setObject:TestScratchSession(invalidNote, scratchPath, scratchBase)
 			forKey:scratchPath];
 		const unsigned char invalidByte = 0xff;
 		NSData *invalidData = [NSData dataWithBytes:&invalidByte length:1];
@@ -9282,6 +9604,8 @@ int main(int argc, const char *argv[]) {
 			TestPlainTextEncodings();
 		else if ([scenario isEqualToString:@"filesystem-crud"])
 			TestFilesystemCRUD();
+		else if ([scenario isEqualToString:@"file-barrier-sync"])
+			TestFileBarrierSync();
 		else if ([scenario isEqualToString:@"rename-without-preflight"])
 			TestRenameSkipsExistencePreflight();
 		else if ([scenario isEqualToString:@"rename-enoent-source-proof"])

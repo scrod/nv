@@ -5,6 +5,7 @@ DERIVED_DATA := ../DerivedData
 HOST_ARCH := $(shell uname -m)
 APP_OBJECT_DIR := $(DERIVED_DATA)/Build/Intermediates.noindex/ArchiveIntermediates/Notation/IntermediateBuildFilesPath/Notation.build/Deployment/Notation.build/Objects-normal/$(HOST_ARCH)
 APP_OBJECTS = $(shell find "$(APP_OBJECT_DIR)" -maxdepth 1 -name '*.o' ! -name main.o ! -name '*_vers.o')
+NV_INTEGRATION_APP_OBJECTS = $(filter-out %/NVRootedDirectory.o,$(APP_OBJECTS))
 APP_FRAMEWORKS := -F.. -Wl,-rpath,$(abspath ..) -Wl,-sectcreate,__TEXT,__info_plist,../Info.plist -framework Sparkle -framework Cocoa -framework Carbon -framework CoreServices -framework SecurityInterface -framework Security -framework WebKit -framework ApplicationServices -framework SystemConfiguration -framework IOKit -framework UniformTypeIdentifiers -lz
 TARGETS := \
 	$(BUILD_DIR)/AppearanceColorTest \
@@ -35,8 +36,11 @@ $(BUILD_DIR)/ModernStickiesImportTest: ModernStickiesImportTest.m Makefile app-o
 $(BUILD_DIR)/WebArchiveImportIntegrationTest: WebArchiveImportIntegrationTest.m Makefile app-objects | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
-$(BUILD_DIR)/NVIntegrationTest: NVIntegrationTest.m Makefile app-objects | $(BUILD_DIR)
-	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
+$(BUILD_DIR)/NVIntegrationTest: NVIntegrationTest.m NVRootedDirectoryTestHooks.m \
+	NVRootedDirectoryTestHooks.h \
+	../NVRootedDirectory.m ../NVRootedDirectory.h ../NVRootedDirectory_Private.h Makefile app-objects | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) -DNV_INTEGRATION_TESTING=1 $< NVRootedDirectoryTestHooks.m \
+		../NVRootedDirectory.m $(NV_INTEGRATION_APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
 run: run-core run-platform
 
@@ -79,6 +83,7 @@ run-core: all
 	$(BUILD_DIR)/NVIntegrationTest wal-durability-boundaries
 	$(BUILD_DIR)/NVIntegrationTest plain-text-encodings
 	$(BUILD_DIR)/NVIntegrationTest filesystem-crud
+	$(BUILD_DIR)/NVIntegrationTest file-barrier-sync
 	$(BUILD_DIR)/NVIntegrationTest rename-without-preflight
 	$(BUILD_DIR)/NVIntegrationTest rename-enoent-source-proof
 	$(BUILD_DIR)/NVIntegrationTest rtf

@@ -6,9 +6,8 @@ codebase. The serialized single-database format has a different persistence path
 although its database file uses part of the same low-level writer.
 
 The implementation is mainly in
-[`NoteObject.m`](../NoteObject.m) and
-[`NotationFileManager.m`](../NotationFileManager.m). The integration scenarios
-that define the contract are in
+[`NVRootedDirectory.m`](../NVRootedDirectory.m) and
+[`NoteObject.m`](../NoteObject.m). The integration scenarios that define the contract are in
 [`tests/NVIntegrationTest.m`](../tests/NVIntegrationTest.m).
 
 ## What “atomic” means here
@@ -48,40 +47,44 @@ limits are documented below.
 - A **safe-save** writes a separate complete file and atomically replaces the
   directory entry instead of modifying the old file in place.
 
-## The functions and how they fit together
+## The capability and how it fits together
 
 The normal path is:
 
 1. `-[NoteObject writeUsingCurrentFileFormat]` serializes the in-memory note,
    reads the current disk snapshot, and resolves external edits.
-2. `-[NotationController storeNoteDataAtomically:...]` supplies the note bytes,
-   encoding, tags, dates, and the snapshot's bytes as `expectedData`.
-3. `NVStoreDataAtomicallyAtDirectoryFileDescriptor` coordinates staging,
-   installation, identity validation, cleanup, and descriptor handoff.
-4. `NVPrepareAtomicStore` writes and verifies a hidden `.nv-write-<UUID>` file,
+2. Its `NVRootedDirectory` reads one immutable `NVFileSnapshot`, containing the
+   bytes, optional note metadata, and an `NVFileObservation` from the same open
+   descriptor.
+3. `NoteObject` chooses an explicit create, conditional-replace, or overwrite
+   operation and supplies bytes, encoding, tags, and dates.
+4. The root privately stages and verifies a hidden `.nv-write-<UUID>` file,
    preserves applicable destination metadata, applies note metadata, and
    `fsync`s the staged descriptor.
-5. Exactly one installer runs:
-   `NVInstallNewAtomicFile` for a destination observed as absent, or
-   `NVInstallAtomicReplacement` for a destination observed as present.
-6. `NVInspectInstalledAtomicFile` proves that the retained descriptor is still
-   the file named by the destination and obtains `NVFileInfo` from that same
-   descriptor.
-7. The note-specific wrapper mirrors Finder tags, restores the authoritative
-   OpenMeta tag xattr, flushes it, rechecks content/revision stability, and
-   returns the installed file information to `NoteObject`.
+5. The root installs through the filesystem capability ladder, verifies the
+   retained descriptor against both the destination name and exact requested
+   bytes, and makes a best-effort request to synchronize the directory.
+6. The operation returns an `NVFileWriteResult`; callers must switch on its
+   disposition. A verified success updates the note from the returned installed
+   snapshot rather than performing a separate path-based observation.
 
-The smaller entry points intentionally reuse this coordinator:
+The public write operations deliberately encode intent in their names:
 
 | Entry point | Meaning |
 |---|---|
-| `storeNoteDataAtomically:...expectedData:...` | Full separate-note save, including encoding, tags, dates, installed-descriptor validation, and file information. |
-| `storeDataAtomicallyInNotesDirectory:...` | Unconditional data replacement with optional staged read-back verification; used for the serialized database and tests. |
-| `createDataAtomicallyInNotesDirectory:...` | Create-only installation; an existing destination is never intentionally overwritten. |
-| `NVReplaceDataAtomicallyAtDirectoryFileDescriptor` | Data-only conditional replacement; used by external-editing scratch files. |
+| `createFileNamed:withData:` / `createNoteFileNamed:...` | Exclusive creation; an existing name is never replaced. |
+| `replaceFileNamed:withData:expectedSnapshot:` / note variant | Conditional byte replacement using the expected snapshot. |
+| `overwriteFileNamed:withData:` / note variant | Unconditional safe-save replacement. |
 
-Title-driven filename changes, directory reconciliation, exports, and the WAL
-are adjacent systems, not phases inside this atomic writer.
+The root also owns observation, coherent snapshot reads, exclusive rename,
+identity-checked removal, packed catalog creation, and directory synchronization.
+Its directory descriptor and atomic-store mechanics are private. WAL receives
+an `NSFileHandle` for its named long-lived file, never the directory descriptor.
+As a general ownership rule, opened files cross method or object boundaries as
+`NSFileHandle`; raw descriptors are borrowed for one operation or held by one
+explicit internal owner such as the root or atomic store.
+Paths and URLs are produced only by named transient adapters for FSEvents,
+Finder/Trash, Launch Services, Finder tags, and the HFS+ exchange shim.
 
 ## Note-level behavior before the file write
 
@@ -118,6 +121,10 @@ returns a valid value, differing or malformed OpenMeta data is ignored for that
 snapshot. Filesystems with unreliable Finder resource values may therefore
 degrade between Finder and OpenMeta precedence without weakening identity checks.
 
+An xattr that is absent is distinct from one that could not be read. A
+non-`ENOATTR` error while reading either the encoding or fallback tag xattr
+fails the snapshot with that error; it is never accepted as missing metadata.
+
 ### External edits and conflicts
 
 If the destination exists, the snapshot is compared with the note's merge base:
@@ -131,16 +138,11 @@ If the destination exists, the snapshot is compared with the note's merge base:
 - Conflict notes keep the external bytes, dates, encoding, and tags under an
   exclusive unique filename ending in `(conflict)` plus any required suffix.
 
-After this decision, `expectedData` means “the destination must still contain
-the exact bytes in the snapshot.” It compares the entire byte sequence, not a
-hash. It does not compare tags, dates, or other metadata.
-
-`nil` `expectedData` means unconditional replacement, not “the destination must
-be absent.” If the coordinator observes the destination as absent it still uses
-an exclusive create path. If another process creates the destination before
-that initial existence check, however, the operation is treated as an
-unconditional replacement. Callers that require strict absence must use the
-create-only entry point.
+For conditional replacement, the expected snapshot means “the destination must
+still contain these exact bytes.” The comparison covers the entire byte
+sequence, not a hash. It deliberately does not compare tags, dates, or other
+metadata. Creation and overwrite are separate methods; no boolean or meaningful
+`nil` value selects those semantics.
 
 ## Common staging behavior
 
@@ -150,14 +152,16 @@ overlong filesystem names fail before installation. All normal operations are
 relative to the already-open notes-directory descriptor, so they do not escape
 the directory and continue to address that directory if an ancestor is renamed.
 
-The data and, for a full note save, the `resultingFileInfo` output pointer must
-be non-null. Callers must supply tags as an array of strings, and a requested
-text encoding must have a valid filesystem attribute representation. Empty data
-is a valid file. Null data/output and invalid filenames or encodings fail before
-installation.
+Data must be non-null. Callers must supply tags as an array of strings, and a
+requested text encoding must have a valid filesystem attribute representation.
+Empty data is a valid file. Null data and invalid filenames or encodings fail
+before installation.
 
 The temporary file is created with `O_EXCL`, `O_NOFOLLOW`, close-on-exec, and
-mode `0600`. The writer then:
+mode `0600`. It is considered owned by the write only after that exclusive open
+succeeds. Cleanup proves that the retained descriptor still owns the temporary
+name before unlinking it, so an existing collision or a replacement at that
+name is never removed. The writer then:
 
 1. writes every byte, handling short writes and `EINTR`;
 2. optionally reads the staged bytes back and runs the caller's verification;
@@ -180,12 +184,13 @@ dates are deliberately updated.
 Installation follows filesystem capability, not a guessed filesystem name.
 Only `ENOTSUP` and `EINVAL` mean that swap or exchange is unavailable. Other
 errors are operational failures and stop the save. The create path also treats
-`EPERM` from hard-link creation as lack of that capability.
+`EPERM` from hard-link creation as lack of that capability. Every result exposes
+the capability actually used: strong atomic, HFS compatibility, or best effort.
 
 | Situation | APFS / APFSX | HFS+ / HFSX | ExFAT and similarly limited filesystems |
 |---|---|---|---|
 | Destination absent | Exclusive rename (`RENAME_EXCL`). | Exclusive rename, or hard-link plus unlink when needed. | Visible `O_CREAT | O_EXCL` file populated as a last resort. |
-| Existing, unconditional replacement | Atomic `RENAME_SWAP`, then remove the displaced file. | Ordinary atomic rename after swap reports unsupported. | Ordinary atomic rename after swap reports unsupported. |
+| Existing, unconditional replacement | Atomic `RENAME_SWAP`, then remove the displaced file. | Atomic `exchangedata()` with descriptor verification and metadata finalization. | Ordinary atomic rename after swap and exchange report unsupported. |
 | Existing, conditional replacement | Atomic `RENAME_SWAP`; inspect the atomically displaced bytes. | Atomic `exchangedata()`; finalize prepared metadata and inspect displaced bytes. | Re-read expected bytes immediately before ordinary atomic rename. |
 | Concurrent-writer guarantee | Displaced content can be compared and recovered without losing either version. | Displaced content can be compared and recovered without losing either version. | Best effort; a writer can win after the last check and still be overwritten. |
 
@@ -201,13 +206,12 @@ destination to the temporary name. The writer then reads the displaced file:
   `NoteObject` and is removed.
 - If they differ, another writer won the race. The local replacement remains
   installed, while the displaced external version is moved to a unique visible
-  `(<conflict recovery UUID>)` filename. The call returns
-  `NVNoteStorageAtomicRecoveryError` so the controller knows that the local
-  content was installed but reconciliation is required.
+  `(<conflict recovery UUID>)` filename. The result is
+  `NVFileWriteInstalledNeedsReconciliation` and carries that recovery filename.
 
 This is a recoverable compare-after-swap, not a lock. A conflict can therefore
-change the destination even though the API returns `NO`; the important guarantee
-is that neither set of bytes is silently discarded.
+install the requested destination while returning a reconciliation state; the
+important guarantee is that neither set of bytes is silently discarded.
 
 ### HFS+ conditional replacement
 
@@ -226,11 +230,10 @@ comparison and recovery helper as APFS.
 HFS+ content becomes visible at `exchangedata()` before metadata finalization is
 complete. A concurrent reader can briefly observe new bytes with not-yet-final
 metadata. If metadata finalization fails while the replacement is still proven
-installed, the old destination is recovered and the call returns
-`NVNoteStorageAtomicRecoveryError`. If the destination was removed or replaced
-after exchange, the old destination is still recovered but the call returns
-`EAGAIN`, keeping the local in-memory write pending for retry. A racing writer's
-vnode is never accepted as the completed local write.
+installed, the old destination is recovered and the result requires
+reconciliation. If the destination was removed or replaced after exchange, the
+old destination is still recovered and the result carries `EAGAIN`. A racing
+writer's vnode is never accepted as the completed local write.
 
 `exchangedata()` requires paths, so this compatibility helper briefly resolves
 the open directory descriptor with `F_GETPATH`. A path-resolution, path-length,
@@ -290,31 +293,31 @@ preserve the distinction between an absent OpenMeta xattr and a present-empty on
 After tag synchronization, the writer checks the descriptor's revision before
 and after an exact content read, then proves the destination name still identifies
 that descriptor. This prevents a same-size, preserved-mtime mutation or a
-path-level replacement from being recorded as this save. `resultingFileInfo` is
-read from that verified descriptor and becomes the note's new disk identity.
+path-level replacement from being recorded as this save. The resulting
+`NVFileSnapshot` is read from that verified descriptor and becomes the note's
+new disk identity.
 
-An ordinary error during this post-install phase can occur after new content has
-become visible. The call still returns `NO`, the file-write obligation stays
-pending, and a retry re-snapshots and reconciles the actual disk state. Callers
-must not interpret every `NO` as “the destination was unchanged.”
+An error during this post-install phase can occur after new content has become
+visible. The disposition states that fact explicitly; callers never infer
+installation from a boolean or error alone.
 
 ## Error and recovery meanings
 
-| Result | Meaning to the caller | Pending-write behavior |
+| `NVFileWriteDisposition` | Meaning to the caller | Pending-write behavior |
 |---|---|---|
-| `YES` | The requested installation and required descriptor checks completed. | The note's file obligation may be retired. |
-| `NSFileWriteFileExistsError` | A create-only operation found an existing destination. | Keep or report the attempted write; existing bytes remain. |
-| POSIX `EAGAIN` | Expected bytes did not match, the expected destination vanished, or installed identity was lost. | Keep the local write pending and retry after re-snapshot/merge. |
-| `NVNoteStorageAtomicRecoveryError` | The local replacement is proven installed, but displaced content had to be recovered or HFS+ post-exchange finalization failed. | Retire this exact write, alert, and schedule directory reconciliation. |
-| Other Cocoa/POSIX/OSStatus error | Preparation, verification, metadata, sync, capability operation, capacity, permission, or I/O failure. | Normally keep the local write pending. |
+| `NVFileWriteNotInstalled` | No requested destination was installed. The attached error distinguishes create collision, byte mismatch, capacity, permission, verification, and I/O failures. | Keep the local write pending or report an exclusive-create collision. |
+| `NVFileWriteInstalledVerified` | The retained descriptor still owns the destination name and exact bytes were read back coherently. | Retire the file-install obligation and adopt the installed snapshot. |
+| `NVFileWriteInstalledNeedsReconciliation` | Requested bytes were installed, but a displaced version was recovered or post-install state needs a rescan. The result carries an installed snapshot when coherent and a recovery filename when one exists. | Retire this exact obligation and schedule directory reconciliation. |
 
 Recovery files use an exclusive name shaped like
 `Title (conflict recovery <UUID>).ext`. If that visible rename fails, the
 displaced file remains under its hidden `.nv-write-<UUID>` name for emergency
 recovery, and normal failure cleanup deliberately leaves it alone. Failure to
-remove a displaced file whose bytes were already expected is logged but does not
-turn an otherwise completed save into failure; this can also leave a hidden
-stale file.
+remove an expected displaced file is also returned as reconciliation-required,
+so hidden recovery state is never silently classified as verified success.
+The same rule applies when an installation succeeded but its owned staging name
+could not be removed: the result identifies that name when it still belongs to
+the operation and requires reconciliation instead of reporting verified success.
 
 ## Naming, case, and file-type edge cases
 
@@ -342,10 +345,22 @@ stale file.
 
 ## Durability and coordination limits
 
-- File descriptors are `fsync`ed before successful completion of their required
-  phase. The coordinator also attempts to `fsync` the directory after install,
-  but currently treats directory-sync failure as best effort. This contract has
-  process-death and remount coverage, not a power-loss proof for every filesystem.
+- The writer `fsync`s the regular-file descriptor before installation and, where
+  a compatibility fallback requires more I/O after installation, before reporting
+  success. After installation it also makes a best-effort directory `fsync`.
+  Its result describes only the installed namespace identity and bytes; it does
+  not claim that a directory entry is power-loss durable.
+- Checked directory `fsync` is requested once at explicit transaction boundaries:
+  WAL creation/removal, a database checkpoint after its WAL is synchronized, and
+  startup-recovery namespace batches. A failed database-boundary request keeps the
+  database/WAL obligation pending. This is the filesystem's normal synchronization
+  request, not a uniform hardware power-loss guarantee, and the app does not use
+  `F_FULLFSYNC` here.
+- Notes-directory relocation makes best-effort requests to synchronize both old
+  and new parents. Finder trash operations add no separate synchronization because
+  the workspace operation owns the destination. Live correctness still comes from
+  atomic namespace operations, descriptor identity checks, exact read-back, and
+  WAL/database recovery—not from a durability claim.
 - Atomic safe-save is the supported cross-process producer contract. A third
   party that rewrites content and xattrs through separate syscalls on the same
   vnode can expose a stable intermediate combination indistinguishable from its
@@ -371,13 +386,13 @@ The most relevant integration scenarios are:
 
 | Scenario | Coverage |
 |---|---|
-| `atomic-rollback` | Create-only refusal, conditional mismatch/success, metadata preservation, preparation/read-back failures, conflict recovery, post-install identity races, and temporary-file cleanup. |
+| `atomic-rollback` | Leaf/symlink refusal, create-only and conditional semantics, exact read-back, all write dispositions, separation of verified installation from explicit database synchronization, conflict recovery, post-install identity races, and temporary-file cleanup. |
 | `atomic-replacement-capabilities` | APFS swap, HFS+ exchange and descriptor handoff, operational exchange failure, post-exchange races/finalization, ExFAT best-effort replacement, visible create fallback, and identity-aware cleanup. |
 | `snapshot-boundary-races`, `snapshot-stress` | Coherent single-descriptor reads and safe-save races. |
 | `snapshot-in-place-observation` | Documents the unsupported same-vnode multi-syscall producer limit. |
 | `filename-collisions`, `case-sensitive-filename-collisions` | Logical case-insensitive naming, APFSX/HFSX behavior, and atomic rejection of physical case collisions. |
 | `unsaved-write-recovery-contract`, `file-outbox-crash-recovery`, `disk-full-recovery-contract` | Pending-write retention, WAL recovery, ENOSPC, and retry convergence. |
-| `directory-relocation-races` | Descriptor-relative installation while the notes directory or its ancestors move. |
+| `directory-relocation-races`, `deep-directory` | Descriptor-relative installation, scanning, renaming, and retained-root controller restart while the notes directory or its ancestors move, including paths beyond `PATH_MAX`. |
 
 Run the host scenario and the real filesystem capability matrix with:
 

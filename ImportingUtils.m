@@ -1,5 +1,5 @@
 #import "ImportingUtils.h"
-#import "NotationFileManager.h"
+#import "NotationController.h"
 
 NSPasteboardType const NVLegacyFilenamesPasteboardType = @"NSFilenamesPboardType";
 NSPasteboardType const NVWebArchivePasteboardType = @"Apple Web Archive pasteboard type";

@@ -22,13 +22,13 @@
 
 
 #import "NotationPrefs.h"
+#import "NVRootedDirectory_Private.h"
 #import "GlobalPrefs.h"
 #import "NSString_NV.h"
 #import "NSCollection_utils.h"
 #import "NotationPrefsViewController.h"
 #import "NSData_transformations.h"
 #import "NotationDirectoryManager.h"
-#import "NotationFileManager.h"
 #import "SecureTextEntryManager.h"
 #import <Security/Security.h>
 #import <ApplicationServices/ApplicationServices.h>
@@ -850,7 +850,7 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	if ([filename isEqualToString:NotesDatabaseFileName]) {
 		return NO;
 	}
-	if ([filename isEqualToString:@"Interim Note-Changes"]) {
+	if ([filename isEqualToString:NVJournalFilename]) {
 		return NO;
 	}
 	

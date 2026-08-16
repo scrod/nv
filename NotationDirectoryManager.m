@@ -21,28 +21,26 @@
     along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
 
 #import "NotationDirectoryManager.h"
-#import "NSFileManager_NV.h"
 #import "NotationPrefs.h"
-#import "NotationFileManager.h"
+#import "NVRootedDirectory_Private.h"
 #import "BufferUtils.h"
 #import "GlobalPrefs.h"
 #import "NotationSyncServiceManager.h"
 #import "NoteObject.h"
 #import "DeletionManager.h"
 #import "NSCollection_utils.h"
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/attr.h>
-#include <sys/stat.h>
-#include <sys/vnode.h>
-#include <unistd.h>
+#import "NSString_NV.h"
 
 @interface NoteObject (NVDirectoryPreparation)
-- (id)initWithCatalogEntry:(NoteCatalogEntry*)entry snapshot:(const NVNoteFileSnapshot*)snapshot
+- (id)initWithCatalogEntry:(NoteCatalogEntry*)entry snapshot:(NVFileSnapshot*)snapshot
 	format:(int)format fallbackLabels:(NSString*)fallbackLabels
 	fallbackEncoding:(NSStringEncoding)fallbackEncoding
 	fallbackCreatedDate:(CFAbsoluteTime)fallbackCreatedDate error:(NSError**)error;
 @end
+
+static void NVRecordUniqueObject(NSMutableDictionary *objects, id key, id object) {
+	[objects setObject:[objects objectForKey:key] ? (id)[NSNull null] : object forKey:key];
+}
 
 /*
  * One scan owns one of these private staging objects. Containers intentionally
@@ -60,7 +58,6 @@
 	NSMutableArray *changedNotes;
 	NSMutableDictionary *preparedCandidates;
 	NSMutableSet *candidatesWithoutTags;
-	NSData *catalogToken;
 	NSString *volumeUUID;
 	BOOL hasChanges;
 }
@@ -90,7 +87,6 @@
 	[changedNotes release];
 	[preparedCandidates release];
 	[candidatesWithoutTags release];
-	[catalogToken release];
 	[volumeUUID release];
 	[super dealloc];
 }
@@ -98,34 +94,61 @@
 
 @implementation NotationController (NotationDirectoryManager)
 
+#define sortedCatalogEntries ([(NVRootedDirectoryCatalog*)directoryCatalog sortedEntries])
+#define catEntriesCount ([(NVRootedDirectoryCatalog*)directoryCatalog count])
 
-static NSInteger compareCatalogEntryName(const void *one, const void *two) {
-    return (int)CFStringCompare((CFStringRef)((*(NoteCatalogEntry **)one)->filename), 
-								(CFStringRef)((*(NoteCatalogEntry **)two)->filename), kCFCompareCaseInsensitive);
+- (void)initializeFileMetadataVolumeUUID {
+	if (currentFileMetadataVolumeUUID || [self currentNoteStorageFormat] == SingleDatabaseFormat) return;
+	currentFileMetadataVolumeUUID = [[[self noteDirectory] volumeUUIDString] copy];
 }
 
-static NSData *NVCatalogToken(NoteCatalogEntry **entries, size_t count) {
-	/* Exact bytes, not a hash: equality is the commit fence, so even a theoretical
-	 * collision is unnecessary risk.  Entries are already normalized and sorted. */
-	NSMutableData *token = [NSMutableData dataWithCapacity:count * 64];
-	for (size_t index = 0; index < count; index++) {
-		NoteCatalogEntry *entry = entries[index];
-		const char *name = [(NSString*)entry->filename UTF8String];
-		uint32_t nameLength = name ? (uint32_t)strlen(name) : 0;
-		struct __attribute__((packed)) {
-			uint32_t nameLength;
-			int64_t changeSeconds;
-			int64_t changeNanoseconds;
-			uint64_t fileID;
-			uint32_t documentID;
-			uint32_t generationCount;
-		} fixed = { nameLength, entry->attributeChangeTime.tv_sec,
-			entry->attributeChangeTime.tv_nsec, entry->fileID, entry->documentID,
-			entry->generationCount };
-		[token appendBytes:&fixed length:sizeof(fixed)];
-		if (nameLength) [token appendBytes:name length:nameLength];
-	}
-	return token;
+- (BOOL)archivedFileMetadataIsForCurrentVolume {
+	return currentFileMetadataVolumeUUID &&
+		[currentFileMetadataVolumeUUID isEqualToString:[notationPrefs fileMetadataVolumeUUID]];
+}
+
+//whenever a note uses this method to change its filename, we will have to re-establish all the links to it
+- (NSString*)uniqueFilenameForTitle:(NSString*)title fromNote:(NoteObject*)note {
+	BOOL isUnique = YES;
+	NSString *uniqueFilename = title;
+	NSMutableString *sanitizedName = [[uniqueFilename mutableCopy] autorelease];
+	[sanitizedName replaceOccurrencesOfString:@"/" withString:@":" options:0
+		range:NSMakeRange(0, [sanitizedName length])];
+	if ([sanitizedName length] && [sanitizedName characterAtIndex:0] == (unichar)'.')
+		[sanitizedName replaceCharactersInRange:NSMakeRange(0, 1) withString:@"_"];
+	uniqueFilename = [[sanitizedName copy] autorelease];
+
+	int noteFormat = [notationPrefs notesStorageFormat] || !note ? [notationPrefs notesStorageFormat] : storageFormatOfNote(note);
+	NSString *extension = [notationPrefs chosenPathExtensionForFormat:noteFormat];
+	if (note && filenameOfNote(note) && [notationPrefs pathExtensionAllowed:[filenameOfNote(note) pathExtension] forFormat:noteFormat])
+		extension = [filenameOfNote(note) pathExtension];
+	uniqueFilename = [uniqueFilename filenameExpectingAdditionalCharCount:(int)(3 + [extension length] + 2)];
+
+	unsigned int iteration = 0;
+	do {
+		isUnique = YES;
+		for (NoteObject *aNote in allNotes) {
+			NSString *basefilename = [filenameOfNote(aNote) stringByDeletingPathExtension];
+			if (note != aNote && [basefilename caseInsensitiveCompare:uniqueFilename] == NSOrderedSame) {
+				isUnique = NO;
+				uniqueFilename = [uniqueFilename stringByDeletingPathExtension];
+				uniqueFilename = [uniqueFilename stringByAppendingPathExtension:[@((int)++iteration) stringValue]];
+				break;
+			}
+		}
+		NSString *candidate = [uniqueFilename stringByAppendingPathExtension:extension];
+		BOOL databaseDestinationExists = note && storageFormatOfNote(note) == SingleDatabaseFormat &&
+			[[self noteDirectory] regularFileExistsNamed:candidate];
+		if (isUnique && !databaseDestinationExists &&
+			(!note || ![candidate isEqualToString:filenameOfNote(note)]) &&
+			[[self noteDirectory] caseInsensitiveRegularFileExistsNamed:candidate
+				excludingName:(note ? filenameOfNote(note) : nil)]) {
+			isUnique = NO;
+			uniqueFilename = [uniqueFilename stringByDeletingPathExtension];
+			uniqueFilename = [uniqueFilename stringByAppendingPathExtension:[@((int)++iteration) stringValue]];
+		}
+	} while (!isUnique);
+	return [uniqueFilename stringByAppendingPathExtension:extension];
 }
 
 //used to find notes corresponding to a group of existing files in the notes dir, with the understanding 
@@ -270,7 +293,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	/*
 	 * FSEvents requires a path even though note I/O must remain path-independent.
 	 * Resolve the bookmark only to supply that transient subscription path; the
-	 * scan and every later file operation continue through noteDirectoryFileDescriptor.
+	 * scan and every later file operation continue through the rooted directory capability.
 	 * Recreating instead of retargeting is required because FSEventStream has no
 	 * API for changing its watched roots.
 	 */
@@ -282,9 +305,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 		[self _destroyDirEventStream];
 	}
 	
-	NSURL *eventURL = [NSURL URLByResolvingBookmarkData:noteDirectoryBookmarkData
-		options:NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:NULL error:NULL];
-	NSString *path = [eventURL path];
+	NSString *path = [[self noteDirectory] transientPathForEventWatch:NULL];
 	if (!path) {
 		NSLog(@"Could not resolve notes directory for FSEvents");
 		return NO;
@@ -340,13 +361,14 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
  * catalog buffer is deliberately reused by the fence enumeration. */
 - (NoteObject*)_preparedNoteForCatalogEntry:(NoteCatalogEntry*)entry
 	fallbackNote:(NoteObject*)fallbackNote error:(NSError**)error {
-	NVNoteFileSnapshot snapshot;
-	if (![self readNoteFileSnapshot:&snapshot forNoteNamed:(NSString*)entry->filename error:error])
+	NVFileSnapshot *snapshot = [[self noteDirectory]
+		snapshotForFileNamed:(NSString*)entry->filename error:error];
+	if (!snapshot)
 		return nil;
 	NSString *fallbackLabels = fallbackNote ? labelsOfNote(fallbackNote) : @"";
 	NSStringEncoding fallbackEncoding = fallbackNote ? fileEncodingOfNote(fallbackNote) : NSUTF8StringEncoding;
 	CFAbsoluteTime fallbackCreatedDate = fallbackNote ? createdDateOfNote(fallbackNote) : 0.0;
-	return [[[NoteObject alloc] initWithCatalogEntry:entry snapshot:&snapshot
+	return [[[NoteObject alloc] initWithCatalogEntry:entry snapshot:snapshot
 		format:[self currentNoteStorageFormat] fallbackLabels:fallbackLabels
 		fallbackEncoding:fallbackEncoding fallbackCreatedDate:fallbackCreatedDate error:error] autorelease];
 }
@@ -355,8 +377,8 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	NSString *newFilename = (NSString*)entry->filename;
 	BOOL renamed = ![newFilename isEqualToString:filenameOfNote(note)];
 	BOOL metadataChanged = !fileMetadataIsValidForNote(note) ||
-		fileAttributeChangeTimeOfNote(note).tv_sec != entry->attributeChangeTime.tv_sec ||
-		fileAttributeChangeTimeOfNote(note).tv_nsec != entry->attributeChangeTime.tv_nsec ||
+		NVCompareTimespecs(fileAttributeChangeTimeOfNote(note),
+			entry->attributeChangeTime) != NSOrderedSame ||
 		documentIDOfNote(note) != entry->documentID || sessionFileIDOfNote(note) != entry->fileID;
 	metadataChanged = metadataChanged ||
 		sessionFileGenerationOfNote(note) != entry->generationCount;
@@ -460,11 +482,12 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	[self initializeFileMetadataVolumeUUID];
 	BOOL succeeded = NO, retry = YES;
 	NVDirectoryTransaction *transaction = [[NVDirectoryTransaction alloc] init];
+	NVRootedDirectoryCatalog *firstCatalog = nil;
 	directoryTransaction = transaction;
 	if (![self _readFilesInDirectory]) goto finished;
 	if ([self _catalogContainsCaseInsensitiveCollision]) { retry = NO; goto finished; }
-	transaction->catalogToken = [NVCatalogToken(sortedCatalogEntries, catEntriesCount) retain];
 	transaction->volumeUUID = [currentFileMetadataVolumeUUID copy];
+	firstCatalog = [directoryCatalog retain];
 
 	if (catEntriesCount && [allNotes count]) {
 		if (![self makeNotesMatchCatalogEntries:sortedCatalogEntries ofSize:catEntriesCount]) goto finished;
@@ -485,7 +508,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	 * after every prepared value has copied the catalog fields it needs. */
 	if (![self _readFilesInDirectory]) goto finished;
 	if ([self _catalogContainsCaseInsensitiveCollision]) { retry = NO; goto finished; }
-	if (![transaction->catalogToken isEqualToData:NVCatalogToken(sortedCatalogEntries, catEntriesCount)])
+	if (![firstCatalog isExactlyEqualToCatalog:directoryCatalog])
 		goto finished;
 
 	directoryTransaction = nil;
@@ -493,6 +516,7 @@ void FSEventsCallback(ConstFSEventStreamRef stream, void* info, size_t num_event
 	succeeded = YES;
 
 finished:
+	[firstCatalog release];
 	directoryTransaction = nil;
 	[transaction release];
 	directoryScanRunning = NO;
@@ -524,8 +548,7 @@ finished:
 	 * This sort also prepares sortedCatalogEntries for the name merge below.
 	 */
 	if (catEntriesCount < 2) return NO;
-	mergesort(sortedCatalogEntries, catEntriesCount, sizeof(*sortedCatalogEntries),
-		(int (*)(const void *, const void *))compareCatalogEntryName);
+	[(NVRootedDirectoryCatalog*)directoryCatalog sortCaseInsensitively];
 	for (size_t index = 1; index < catEntriesCount; index++) {
 		if (CFStringCompare(sortedCatalogEntries[index - 1]->filename,
 			sortedCatalogEntries[index]->filename, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
@@ -537,331 +560,19 @@ finished:
 	return NO;
 }
 
-- (void)_resetCatalogEntries {
-	/* Each scan owns its CFString filenames.  Reset before enumerating so an
-	 * empty or failed scan can never reuse the preceding scan's entries. */
-	for (size_t i = 0; i < catEntriesCount; i++) {
-		if (catalogEntries[i].filename) {
-			CFRelease(catalogEntries[i].filename);
-			catalogEntries[i].filename = NULL;
-		}
-	}
-	catEntriesCount = 0;
-}
-
-static __attribute__((always_inline)) inline BOOL NVAppendCatalogEntry(
-	NoteCatalogEntry **entries, NoteCatalogEntry ***sortedEntries, size_t *entryCount,
-	size_t *entryCapacity, CFStringRef filename, struct timespec changeTime,
-	uint32_t documentID, uint64_t fileID, uint32_t generationCount) {
-	/*
-	 * The hot enumerator stores plain C records and a parallel pointer array so
-	 * sorting never moves or retains Objective-C objects.  `filename` ownership
-	 * transfers on success and is released here on failure.  Geometric growth is
-	 * uncommon after the first scan and avoids a realloc for every directory batch.
-	 */
-	if (*entryCount == *entryCapacity) {
-		size_t oldCapacity = *entryCapacity;
-		size_t newCapacity = MAX((size_t)32, oldCapacity * 2);
-		NoteCatalogEntry **newSortedEntries = realloc(*sortedEntries,
-			newCapacity * sizeof(**sortedEntries));
-		if (!newSortedEntries) { CFRelease(filename); return NO; }
-		*sortedEntries = newSortedEntries;
-		NoteCatalogEntry *newEntries = realloc(*entries, newCapacity * sizeof(**entries));
-		if (!newEntries) { CFRelease(filename); return NO; }
-		*entries = newEntries;
-		bzero(*entries + oldCapacity, (newCapacity - oldCapacity) * sizeof(**entries));
-		*entryCapacity = newCapacity;
-	}
-
-	NoteCatalogEntry *entry = &(*entries)[(*entryCount)++];
-	entry->filename = filename;
-	entry->attributeChangeTime = changeTime;
-	entry->documentID = documentID;
-	entry->fileID = fileID;
-	entry->generationCount = generationCount;
-	return YES;
-}
-
-- (BOOL)_appendCatalogEntryFilename:(CFStringRef)filename
-	attributeChangeTime:(struct timespec)changeTime documentID:(uint32_t)documentID
-	fileID:(uint64_t)fileID generationCount:(uint32_t)generationCount {
-	// Shared by the slow fallback and tests; the bulk hot loop calls the inline helper directly.
-	return NVAppendCatalogEntry(&catalogEntries, &sortedCatalogEntries, &catEntriesCount,
-		&totalCatEntriesCount, filename, changeTime, documentID, fileID, generationCount);
-}
-
-static BOOL NVErrorIsNoSuchFile(NSError *error) {
-	return ([[error domain] isEqualToString:NSPOSIXErrorDomain] && [error code] == ENOENT) ||
-		([[error domain] isEqualToString:NSCocoaErrorDomain] && [error code] == NSFileNoSuchFileError);
-}
-
-- (BOOL)_readFilesUsingFoundation {
-	/*
-	 * Compatibility fallback only.  Foundation supplies names and vnode type;
-	 * exact ctime and both IDs still come from the root-relative metadata helper.
-	 * NSDate cannot round-trip every timespec nanosecond, so using
-	 * NSURLAttributeModificationDateKey here would make an unchanged file appear
-	 * changed on every fallback scan.  These path URLs are transient enumeration
-	 * products—NoteObject never stores them and later access remains FD-relative.
-	 * Rebuilding one path URL up front is faster than asking Foundation to resolve
-	 * a file-reference URL for every child; it never becomes an identity token.
-	 * A child ENOENT restarts the complete enumeration once instead of being
-	 * omitted, because omission is indistinguishable from a user deletion.
-	 */
-	NSArray *keys = @[ NSURLIsRegularFileKey ];
-	for (NSUInteger attempt = 0; attempt < 2; attempt++) {
-		[self _resetCatalogEntries];
-		NSString *directoryPath = [noteDirectoryURL path];
-		if (!directoryPath) return NO;
-		NSURL *directoryURL = [NSURL fileURLWithPath:directoryPath isDirectory:YES];
-		NSError *error = nil;
-		NSArray *URLs = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:directoryURL
-			includingPropertiesForKeys:keys options:0 error:&error];
-		if (!URLs) {
-			if (NVErrorIsNoSuchFile(error) && !attempt) continue;
-			NSLog(@"Foundation directory enumeration failed: %@", error);
-			[self _resetCatalogEntries];
-			return NO;
-		}
-		BOOL transientFailure = NO;
-		for (NSURL *URL in URLs) {
-			error = nil;
-			NSDictionary *values = [URL resourceValuesForKeys:keys error:&error];
-			if (!values) {
-				if (NVErrorIsNoSuchFile(error)) { transientFailure = YES; break; }
-				NSLog(@"Foundation metadata lookup failed: %@", error);
-				[self _resetCatalogEntries];
-				return NO;
-			}
-			if (![[values objectForKey:NSURLIsRegularFileKey] boolValue]) continue;
-			NSString *name = [URL lastPathComponent];
-			NVFileInfo info;
-			error = nil;
-			if (![self getFileInfo:&info forNoteNamed:name error:&error]) {
-				if (NVErrorIsNoSuchFile(error)) { transientFailure = YES; break; }
-				NSLog(@"Root-relative metadata lookup failed for '%@': %@", name, error);
-				[self _resetCatalogEntries];
-				return NO;
-			}
-			CFMutableStringRef filename = (CFMutableStringRef)[name mutableCopy];
-			const char *UTF8Name = [name UTF8String];
-			if (UTF8Name && ContainsHighAscii(UTF8Name, strlen(UTF8Name)))
-				CFStringNormalize(filename, kCFStringNormalizationFormC);
-			if (![self _appendCatalogEntryFilename:filename
-				attributeChangeTime:info.attributeModificationTime
-				documentID:info.documentID fileID:info.fileID
-				generationCount:info.generationCount]) {
-				[self _resetCatalogEntries];
-				return NO;
-			}
-		}
-		if (!transientFailure) return YES;
-		if (attempt) break;
-	}
-	[self _resetCatalogEntries];
-	return NO;
-}
-
-typedef struct __attribute__((packed, aligned(4))) {
-	uint32_t length;
-	attribute_set_t returned;
-	uint32_t error;
-	attrreference_t name;
-	fsobj_type_t objectType;
-	struct timespec changeTime;
-	uint32_t generationCount;
-	uint32_t documentID;
-	uint64_t fileID;
-} NVBulkCatalogRecord;
-
-/*
- * Darwin bulk records are packed on four-byte boundaries, including the 64-bit
- * file ID.  FSOPT_PACK_INVAL_ATTRS reserves each requested slot even when an
- * optional value such as document ID is unavailable; returned.commonattr says
- * which slots are valid.  Keep the explicit offsets so an SDK ABI change fails
- * at compile time instead of silently assigning identity data to the wrong file.
- */
-_Static_assert(offsetof(NVBulkCatalogRecord, returned) == 4, "returned attribute offset");
-_Static_assert(offsetof(NVBulkCatalogRecord, error) == 24, "error attribute offset");
-_Static_assert(offsetof(NVBulkCatalogRecord, name) == 28, "name attribute offset");
-_Static_assert(offsetof(NVBulkCatalogRecord, objectType) == 36, "object type attribute offset");
-_Static_assert(offsetof(NVBulkCatalogRecord, changeTime) == 40, "change time attribute offset");
-_Static_assert(offsetof(NVBulkCatalogRecord, generationCount) == 56, "generation count attribute offset");
-_Static_assert(offsetof(NVBulkCatalogRecord, documentID) == 60, "document ID attribute offset");
-_Static_assert(offsetof(NVBulkCatalogRecord, fileID) == 64, "file ID attribute offset");
-
-static __attribute__((always_inline)) inline NVBulkCatalogParseResult _NVParseBulkCatalogRecord(const void *bytes, size_t availableLength,
-	size_t *parsedRecordLength, const char **name, size_t *nameLength, struct timespec *changeTime,
-	uint32_t *documentID, uint64_t *fileID, uint32_t *generationCount) {
-	/*
-	 * Validate every variable-length boundary before returning pointers into the
-	 * syscall buffer.  The name reference is relative to the attrreference field
-	 * itself and includes its trailing NUL.  Missing mandatory attributes make
-	 * the packed layout unusable and trigger the Foundation fallback.  A file
-	 * that vanished during enumeration invalidates the whole snapshot: continuing
-	 * would make an existing note look deleted.  Non-regular vnodes are safe to
-	 * skip; other per-entry errors use the compatibility fallback.
-	 */
-	if (!bytes || availableLength < sizeof(uint32_t)) return NVBulkCatalogRecordMalformed;
-	const NVBulkCatalogRecord *record = bytes;
-	uint32_t length = 0;
-	memcpy(&length, &record->length, sizeof(length));
-	if (length < sizeof(*record) || length > availableLength) return NVBulkCatalogRecordMalformed;
-	if (parsedRecordLength) *parsedRecordLength = length;
-	if (!(record->returned.commonattr & ATTR_CMN_ERROR)) return NVBulkCatalogRecordUnsupported;
-	uint32_t entryError = 0;
-	memcpy(&entryError, &record->error, sizeof(entryError));
-	if (entryError)
-		return entryError == ENOENT ? NVBulkCatalogRecordTransient : NVBulkCatalogRecordUnsupported;
-	const attrgroup_t mandatory = ATTR_CMN_NAME | ATTR_CMN_OBJTYPE | ATTR_CMN_CHGTIME | ATTR_CMN_FILEID;
-	if ((record->returned.commonattr & mandatory) != mandatory)
-		return NVBulkCatalogRecordUnsupported;
-	fsobj_type_t objectType = VNON;
-	memcpy(&objectType, &record->objectType, sizeof(objectType));
-	if (objectType != VREG) return NVBulkCatalogRecordSkipped;
-	attrreference_t nameReference;
-	memcpy(&nameReference, &record->name, sizeof(nameReference));
-	if (nameReference.attr_length <= 1 || nameReference.attr_dataoffset < 0)
-		return NVBulkCatalogRecordMalformed;
-	size_t nameOffset = offsetof(NVBulkCatalogRecord, name) + (size_t)nameReference.attr_dataoffset;
-	if (nameOffset < sizeof(*record) || nameOffset > length ||
-		nameReference.attr_length > length - nameOffset)
-		return NVBulkCatalogRecordMalformed;
-	const char *recordName = (const char *)bytes + nameOffset;
-	if (recordName[nameReference.attr_length - 1] != '\0') return NVBulkCatalogRecordMalformed;
-	if (memchr(recordName, '\0', nameReference.attr_length - 1)) return NVBulkCatalogRecordMalformed;
-	if (name) *name = recordName;
-	if (nameLength) *nameLength = nameReference.attr_length - 1;
-	if (changeTime) memcpy(changeTime, &record->changeTime, sizeof(*changeTime));
-	if (fileID) memcpy(fileID, &record->fileID, sizeof(*fileID));
-	if (generationCount) *generationCount =
-		(record->returned.commonattr & ATTR_CMN_GEN_COUNT) ? record->generationCount : 0;
-	if (documentID) *documentID = (record->returned.commonattr & ATTR_CMN_DOCUMENT_ID) ?
-		record->documentID : 0;
-	return NVBulkCatalogRecordFile;
-}
-
-NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t availableLength,
-	size_t *parsedRecordLength, const char **name, size_t *nameLength, struct timespec *changeTime,
-	uint32_t *documentID, uint64_t *fileID, uint32_t *generationCount) {
-	// Non-inlined seam for malformed-record and optional-document-ID regression tests.
-	return _NVParseBulkCatalogRecord(bytes, availableLength, parsedRecordLength, name, nameLength,
-		changeTime, documentID, fileID, generationCount);
-}
-
-- (int)_getattrlistbulk:(int)directoryFD attributes:(void*)attributes
-	buffer:(void*)buffer size:(size_t)bufferSize options:(uint64_t)options {
-	/*
-	 * Keep the syscall behind one overridable message so the complete
-	 * partial-results-to-Foundation transition can be regression tested.  This
-	 * is once per 64 KiB batch, not once per entry, so dispatch cost is lost in
-	 * syscall noise and the parser remains the measured hot loop.
-	 */
-	return getattrlistbulk(directoryFD, attributes, buffer, bufferSize, options);
-}
-
 //scour the notes directory for fresh meat
 - (BOOL)_readFilesInDirectory {
-	/*
-	 * getattrlistbulk advances the directory position of the descriptor supplied
-	 * to it.  Root-relative file operations do not consume that position, so
-	 * rewind the long-lived root FD before each scan instead of reopening ".".
-	 *
-	 * The requested fields are intentionally only name, vnode type, ctime, and
-	 * the two identity candidates.  ctime is a cheap invalidation token for both
-	 * content and xattr changes.  Full mtime/creation/size metadata is fetched in
-	 * from one root-relative file descriptor only after this pass identifies a
-	 * changed, new, or content-fallback candidate.  The 64 KiB buffer and direct CFString
-	 * construction are measured choices for this hot path; normalization is a
-	 * no-op for ASCII, so only non-ASCII UTF-8 names pay for a mutable copy.
-	 * ENOENT in a returned record invalidates the partial catalog and retries once;
-	 * persistent churn aborts the scan without exposing partial state.
-	 */
-	struct attrlist requested;
-	bzero(&requested, sizeof(requested));
-	requested.bitmapcount = ATTR_BIT_MAP_COUNT;
-	requested.commonattr = ATTR_CMN_RETURNED_ATTRS | ATTR_CMN_ERROR | ATTR_CMN_NAME |
-		ATTR_CMN_OBJTYPE | ATTR_CMN_CHGTIME | ATTR_CMN_GEN_COUNT |
-		ATTR_CMN_DOCUMENT_ID | ATTR_CMN_FILEID;
-
-	char buffer[64 * 1024];
-	for (NSUInteger attempt = 0; attempt < 2; attempt++) {
-		[self _resetCatalogEntries];
-		if (lseek(noteDirectoryFileDescriptor, 0, SEEK_SET) < 0) {
-			NSLog(@"Could not rewind notes directory for enumeration: %s", strerror(errno));
-			return NO;
-		}
-
-		BOOL succeeded = YES, transientFailure = NO, useFoundation = NO;
-		for (;;) {
-			int count = [self _getattrlistbulk:noteDirectoryFileDescriptor attributes:&requested
-				buffer:buffer size:sizeof(buffer)
-				options:FSOPT_ATTR_CMN_EXTENDED | FSOPT_PACK_INVAL_ATTRS];
-			if (count < 0) {
-				NSLog(@"Bulk directory enumeration unavailable (%s); using Foundation", strerror(errno));
-				useFoundation = YES;
-				break;
-			}
-			if (!count) break;
-
-			const char *recordBytes = buffer;
-			for (int index = 0; index < count; index++) {
-				size_t available = sizeof(buffer) - (size_t)(recordBytes - buffer);
-				size_t recordLength = 0, nameLength = 0;
-				const char *name = NULL;
-				struct timespec changeTime = { 0 };
-				uint32_t documentID = 0;
-				uint32_t generationCount = 0;
-				uint64_t fileID = 0;
-				NVBulkCatalogParseResult result = _NVParseBulkCatalogRecord(recordBytes, available,
-					&recordLength, &name, &nameLength, &changeTime, &documentID, &fileID,
-					&generationCount);
-				if (result == NVBulkCatalogRecordTransient) {
-					transientFailure = YES;
-					succeeded = NO;
-					break;
-				}
-				if (result < NVBulkCatalogRecordSkipped) {
-					succeeded = NO;
-					break;
-				}
-				if (result == NVBulkCatalogRecordFile) {
-					CFStringRef filename = CFStringCreateWithBytes(kCFAllocatorDefault,
-						(const UInt8 *)name, nameLength, kCFStringEncodingUTF8, false);
-					if (!filename) { succeeded = NO; break; }
-					if (ContainsHighAscii(name, nameLength)) {
-						CFMutableStringRef normalizedFilename = CFStringCreateMutableCopy(
-							kCFAllocatorDefault, 0, filename);
-						CFRelease(filename);
-						CFStringNormalize(normalizedFilename, kCFStringNormalizationFormC);
-						filename = normalizedFilename;
-					}
-					if (!NVAppendCatalogEntry(&catalogEntries, &sortedCatalogEntries, &catEntriesCount,
-						&totalCatEntriesCount, filename, changeTime, documentID, fileID,
-						generationCount)) {
-						succeeded = NO;
-						break;
-					}
-				}
-				recordBytes += recordLength;
-			}
-			if (!succeeded) break;
-		}
-		if (transientFailure) {
-			if (!attempt) continue;
-			[self _resetCatalogEntries];
-			return NO;
-		}
-		if (!succeeded || useFoundation) {
-			NSLog(@"Bulk directory metadata was malformed or incomplete; using Foundation");
-			[self _resetCatalogEntries];
-			succeeded = [self _readFilesUsingFoundation];
-		}
-		for (size_t index = 0; index < catEntriesCount; index++)
-			sortedCatalogEntries[index] = &catalogEntries[index];
-		return succeeded;
+	NSError *error = nil;
+	NVRootedDirectoryCatalog *catalog = [[self noteDirectory] newCatalog:&error];
+	if (!catalog) {
+		[directoryCatalog release];
+		directoryCatalog = nil;
+		NSLog(@"Could not enumerate notes directory: %@", error);
+		return NO;
 	}
-	return NO;
+	[directoryCatalog release];
+	directoryCatalog = catalog;
+	return YES;
 }
 
 - (BOOL)modifyNoteIfNecessary:(NoteObject*)aNoteObject usingCatalogEntry:(NoteCatalogEntry*)catEntry {
@@ -877,8 +588,8 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 	 */
 	struct timespec previousChangeTime = fileAttributeChangeTimeOfNote(aNoteObject);
 	BOOL metadataChanged = !fileMetadataIsValidForNote(aNoteObject) ||
-		previousChangeTime.tv_sec != catEntry->attributeChangeTime.tv_sec ||
-		previousChangeTime.tv_nsec != catEntry->attributeChangeTime.tv_nsec ||
+		NVCompareTimespecs(previousChangeTime,
+			catEntry->attributeChangeTime) != NSOrderedSame ||
 		(sessionFileIDOfNote(aNoteObject) && catEntry->fileID &&
 			sessionFileIDOfNote(aNoteObject) != catEntry->fileID) ||
 		(sessionFileGenerationOfNote(aNoteObject) && catEntry->generationCount &&
@@ -910,6 +621,19 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 	return YES;
 }
 
+- (BOOL)_stageUnmatchedAddedEntries:(NSArray*)addedEntries removedNotes:(NSArray*)removedNotes {
+	for (NSValue *value in addedEntries) {
+		NoteCatalogEntry *entry = [value pointerValue];
+		NSError *error = nil;
+		if (![self prepareNoteAdditionFromCatalogEntry:entry error:&error]) {
+			NSLog(@"Could not import note '%@': %@", entry->filename, error);
+			return NO;
+		}
+	}
+	[self _stageOrAddDeletedNotes:removedNotes];
+	return YES;
+}
+
 - (BOOL)makeNotesMatchCatalogEntries:(NoteCatalogEntry**)catEntriesPtrs ofSize:(size_t)catCount {
 	/*
 	 * Both sides are sorted under the app's case-insensitive filename semantics,
@@ -936,126 +660,87 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
     NSMutableArray *addedEntries = [NSMutableArray array];
     NSMutableArray *removedEntries = [NSMutableArray array];
 	
-    //oldItems(a,i) = currentNotes
-    //newItems(b,j) = catEntries;
-    
-    unsigned int i, j, lastInserted = 0;
-    
-    for (i=0; i<aSize; i++) {
-		
-		BOOL exitedEarly = NO;
-		for (j=lastInserted; j<bSize; j++) {
-			
-			CFComparisonResult order = CFStringCompare((CFStringRef)(catEntriesPtrs[j]->filename),
-													   (CFStringRef)filenameOfNote(currentNotes[i]), 
-													   kCFCompareCaseInsensitive);
-			if (order == kCFCompareGreaterThan) {    //if (A[i] < B[j])
-				lastInserted = j;
-				exitedEarly = YES;
-				
-				//NSLog(@"FILE DELETED (during): %@", filenameOfNote(currentNotes[i]));
-				[removedEntries addObject:currentNotes[i]];
-				break;
-			} else if (order == kCFCompareEqualTo) {			//if (A[i] == B[j])
-				//the name matches, so add this to changed iff its contents also changed
-				lastInserted = j + 1;
-				exitedEarly = YES;
-				
-				if (![self modifyNoteIfNecessary:currentNotes[i] usingCatalogEntry:catEntriesPtrs[j]])
-					return NO;
-				
-				break;
-			}
-			
-			//NSLog(@"FILE ADDED (during): %@", catEntriesPtrs[j]->filename);
+	NSUInteger i = 0;
+	size_t j = 0;
+	while (i < aSize && j < bSize) {
+		CFComparisonResult order = CFStringCompare(catEntriesPtrs[j]->filename,
+			(CFStringRef)filenameOfNote(currentNotes[i]), kCFCompareCaseInsensitive);
+		if (order == kCFCompareGreaterThan) {
+			[removedEntries addObject:currentNotes[i++]];
+		} else if (order == kCFCompareEqualTo) {
+			if (![self modifyNoteIfNecessary:currentNotes[i++] usingCatalogEntry:catEntriesPtrs[j++]])
+				return NO;
+		} else {
 			if ([notationPrefs catalogEntryAllowed:catEntriesPtrs[j]])
 				[addedEntries addObject:[NSValue valueWithPointer:catEntriesPtrs[j]]];
-		}
-		
-		if (!exitedEarly) {
-			
-			//element A[i] "appended" to the end of list B
-			if (CFStringCompare((CFStringRef)filenameOfNote(currentNotes[i]),
-								(CFStringRef)(catEntriesPtrs[MIN(lastInserted, bSize-1)]->filename), 
-								kCFCompareCaseInsensitive) == kCFCompareGreaterThan) {
-                lastInserted = (unsigned int)bSize;
-				
-				//NSLog(@"FILE DELETED (after): %@", filenameOfNote(currentNotes[i]));
-				[removedEntries addObject:currentNotes[i]];
-			}
-		}
-		
-    }
-    
-    for (j=lastInserted; j<bSize; j++) {
-		
-		//NSLog(@"FILE ADDED (after): %@", catEntriesPtrs[j]->filename);
-		if ([notationPrefs catalogEntryAllowed:catEntriesPtrs[j]])
-			[addedEntries addObject:[NSValue valueWithPointer:catEntriesPtrs[j]]];
-    }
-    
-	if ([addedEntries count] && [removedEntries count]) {
-		if (![self processNotesAddedByIdentity:addedEntries removed:removedEntries]) return NO;
-	} else {
-		
-		if (![removedEntries count]) {
-			for (i=0; i<[addedEntries count]; i++) {
-				NSError *error = nil;
-				NoteCatalogEntry *entry = [[addedEntries objectAtIndex:i] pointerValue];
-				if (![self prepareNoteAdditionFromCatalogEntry:entry error:&error]) {
-					NSLog(@"Could not import note '%@': %@", entry->filename, error);
-					return NO;
-				}
-			}
-		}
-		
-		if (![addedEntries count]) {
-			[self _stageOrAddDeletedNotes:removedEntries];
+			j++;
 		}
 	}
-	return YES;
+	while (i < aSize) [removedEntries addObject:currentNotes[i++]];
+	while (j < bSize) {
+		if ([notationPrefs catalogEntryAllowed:catEntriesPtrs[j]])
+			[addedEntries addObject:[NSValue valueWithPointer:catEntriesPtrs[j]]];
+		j++;
+	}
+
+	if ([addedEntries count] && [removedEntries count])
+		return [self processNotesAddedByIdentity:addedEntries removed:removedEntries];
+	return [self _stageUnmatchedAddedEntries:addedEntries removedNotes:removedEntries];
 }
 
 - (BOOL)_matchAddedEntries:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries
 	usingDocumentIdentifiers:(BOOL)useDocumentIdentifiers {
 	/*
-	 * Match only identifiers unique on both sides.  Zero means unavailable, and
-	 * duplicate values are ambiguous, so either condition must fall through rather
-	 * than guessing.  Callers qualify persistent 32-bit document IDs by volume;
-	 * 64-bit file IDs are deliberately session-only and never archived.  Darwin's
-	 * generation count is a revision counter—it changes on ordinary edits—so it is
-	 * an invalidation token, not an incarnation qualifier for rename matching.
-	 * Iterate a copy because successful pairs are removed from both work lists.
+	 * Filename reconciliation leaves two kinds of unmatched objects: catalog
+	 * entries for names newly present on disk, and live notes whose old names have
+	 * disappeared.  A rename therefore looks like one entry in each array.  This
+	 * method tries to pair those entries by one filesystem identifier; successful
+	 * pairs are removed so the next identity tier sees only unresolved candidates.
+	 *
+	 * NVRecordUniqueObject builds a reverse index for each side.  The first object
+	 * seen for an identifier is stored directly; a second occurrence replaces it
+	 * with NSNull.  Thus an object lookup proves that the identifier occurs exactly
+	 * once on that side.  We pair only identifiers unique on both sides, because a
+	 * duplicate cannot identify which file was renamed.  Zero means no identifier
+	 * is available and is ignored.
+	 *
+	 * Persistent 32-bit document IDs are qualified by volume before this method is
+	 * called.  The 64-bit file ID is deliberately session-only and never archived.
+	 * Darwin's generation count changes on ordinary edits, so it is an invalidation
+	 * token rather than an incarnation qualifier for rename matching.
 	 */
 	NSMutableDictionary *removedByIdentifier = [NSMutableDictionary dictionary];
 	for (NoteObject *note in removedEntries) {
 		uint64_t identifier = useDocumentIdentifiers ? documentIDOfNote(note) : sessionFileIDOfNote(note);
 		if (!identifier) continue;
 		NSNumber *key = @((unsigned long long)identifier);
-		[removedByIdentifier setObject:[removedByIdentifier objectForKey:key] ? (id)[NSNull null] : note
-			forKey:key];
+		NVRecordUniqueObject(removedByIdentifier, key, note);
 	}
-	NSMutableDictionary *addedCounts = [NSMutableDictionary dictionary];
+	NSMutableDictionary *addedByIdentifier = [NSMutableDictionary dictionary];
 	for (NSValue *value in addedEntries) {
 		NoteCatalogEntry *entry = [value pointerValue];
 		uint64_t identifier = useDocumentIdentifiers ? entry->documentID : entry->fileID;
 		if (!identifier) continue;
 		NSNumber *key = @((unsigned long long)identifier);
-		[addedCounts setObject:@((NSUInteger)([[addedCounts objectForKey:key] unsignedIntegerValue] + 1)) forKey:key];
+		NVRecordUniqueObject(addedByIdentifier, key, value);
 	}
-	for (NSValue *value in [[addedEntries copy] autorelease]) {
+	NSUInteger index = 0;
+	while (index < [addedEntries count]) {
+		NSValue *value = [addedEntries objectAtIndex:index];
 		NoteCatalogEntry *entry = [value pointerValue];
 		uint64_t identifier = useDocumentIdentifiers ? entry->documentID : entry->fileID;
 		NSNumber *key = @((unsigned long long)identifier);
-		id note = identifier && [[addedCounts objectForKey:key] unsignedIntegerValue] == 1 ?
+		id note = identifier && [addedByIdentifier objectForKey:key] == value ?
 			[removedByIdentifier objectForKey:key] : nil;
-		if (!note || note == [NSNull null]) continue;
+		if (!note || note == [NSNull null]) {
+			index++;
+			continue;
+		}
 		NSLog(@"File %@ renamed by %@ to %@", filenameOfNote(note),
 			useDocumentIdentifiers ? @"document identifier" : @"session file identifier", entry->filename);
 		if (![self modifyNoteIfNecessary:note usingCatalogEntry:entry]) return NO;
-		[addedEntries removeObjectIdenticalTo:value];
+		[addedEntries removeObjectAtIndex:index];
 		[removedEntries removeObjectIdenticalTo:note];
-		[removedByIdentifier removeObjectForKey:key];
 	}
 	return YES;
 }
@@ -1071,40 +756,45 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 	if ([addedEntries count] && [removedEntries count]) {
 		return [self processNotesAddedByContent:addedEntries removed:removedEntries];
 	}
-	for (NSValue *value in addedEntries) {
-		NoteCatalogEntry *entry = [value pointerValue];
-		NSError *error = nil;
-		if (![self prepareNoteAdditionFromCatalogEntry:entry error:&error]) {
-			NSLog(@"Could not import note '%@': %@", entry->filename, error);
-			return NO;
-		}
-	}
-	if ([removedEntries count]) [self _stageOrAddDeletedNotes:removedEntries];
-	return YES;
+	return [self _stageUnmatchedAddedEntries:addedEntries removedNotes:removedEntries];
 }
 
 - (BOOL)processNotesAddedByContent:(NSMutableArray*)addedEntries removed:(NSMutableArray*)removedEntries {
 	/*
-	 * Content is the identity of last resort, so only a value unique on both sides
-	 * may prove a rename.  Preflight every added file before committing deletions;
-	 * one unreadable candidate otherwise made the old implementation delete a note
-	 * and import a blank replacement.  The detached preflight value is reused by
-	 * reconciliation; the final catalog fence validates it before commit.
-	 * Identical-content groups remain ordinary additions and removals.
+	 * The identifier passes leave only files whose identity cannot be established
+	 * from filesystem metadata.  Content is the portable identity of last resort:
+	 * if one newly present file and one missing note have identical content, they
+	 * can be treated as the two names of a rename.  Repeated content on either side
+	 * is ambiguous, so NVRecordUniqueObject marks that dictionary entry with NSNull
+	 * and the candidates remain an ordinary addition and removal.
 	 *
-	 * rename candidate sets are normally tiny, so two dictionaries are
+	 * Every added file is read coherently and decoded into a detached NoteObject
+	 * before either work list is changed.  This is an all-or-nothing preflight: an
+	 * unreadable or invalid candidate aborts the scan instead of allowing an old
+	 * note to be deleted and a blank replacement imported.  The detached values
+	 * are cached in the transaction, including the distinction between absent and
+	 * empty tags, so both rename staging and ordinary import reuse the same verified
+	 * read.  The catalog fence later confirms that the directory did not change
+	 * before the transaction commits.
+	 *
+	 * Finally, additions are visited in their original deterministic order.  A
+	 * unique pair is staged as a rename and removed from both arrays; the common
+	 * finalizer imports and deletes whatever remains.
+	 *
+	 * Rename candidate sets are normally tiny, so two dictionaries are
 	 * simpler than restoring the old size-sorting/index machinery.
 	 */
 	NSMutableDictionary *addedByContent = [NSMutableDictionary dictionary];
 	for (NSValue *value in addedEntries) {
 		NoteCatalogEntry *entry = [value pointerValue];
 		NSError *error = nil;
-		NVNoteFileSnapshot snapshot;
-		if (![self readNoteFileSnapshot:&snapshot forNoteNamed:(NSString*)entry->filename error:&error]) {
+		NVFileSnapshot *snapshot = [[self noteDirectory]
+			snapshotForFileNamed:(NSString*)entry->filename error:&error];
+		if (!snapshot) {
 			NSLog(@"Could not inspect rename candidate '%@': %@", entry->filename, error);
 			return NO;
 		}
-		NoteObject *prepared = [[[NoteObject alloc] initWithCatalogEntry:entry snapshot:&snapshot
+		NoteObject *prepared = [[[NoteObject alloc] initWithCatalogEntry:entry snapshot:snapshot
 			format:[self currentNoteStorageFormat] fallbackLabels:@""
 			fallbackEncoding:NSUTF8StringEncoding fallbackCreatedDate:0.0 error:&error] autorelease];
 		if (!prepared) {
@@ -1113,59 +803,38 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 		}
 		[directoryTransaction->preparedCandidates setObject:prepared
 			forKey:(NSString*)entry->filename];
-		if (!snapshot.tags)
+		if (![snapshot tags])
 			[directoryTransaction->candidatesWithoutTags addObject:(NSString*)entry->filename];
 		NSString *content = [[prepared contentString] string];
-		if (!content) {
-			NSLog(@"Could not decode rename candidate '%@'", entry->filename);
-			return NO;
-		}
-		NSMutableArray *values = [addedByContent objectForKey:content];
-		if (!values) {
-			values = [NSMutableArray array];
-			[addedByContent setObject:values forKey:content];
-		}
-		[values addObject:value];
+		NVRecordUniqueObject(addedByContent, content, value);
 	}
 
 	NSMutableDictionary *removedByContent = [NSMutableDictionary dictionary];
 	for (NoteObject *note in removedEntries) {
 		NSString *content = [[note contentString] string];
-		NSMutableArray *notes = [removedByContent objectForKey:content];
-		if (!notes) {
-			notes = [NSMutableArray array];
-			[removedByContent setObject:notes forKey:content];
-		}
-		[notes addObject:note];
+		NVRecordUniqueObject(removedByContent, content, note);
 	}
 
-	NSMutableArray *uniquePairs = [NSMutableArray array];
-	for (NSString *content in addedByContent) {
-		NSArray *values = [addedByContent objectForKey:content];
-		NSArray *notes = [removedByContent objectForKey:content];
-		if ([values count] == 1 && [notes count] == 1)
-			[uniquePairs addObject:@[ [values objectAtIndex:0], [notes objectAtIndex:0] ]];
-	}
-	for (NSArray *pair in uniquePairs) {
-		NSValue *value = [pair objectAtIndex:0];
-		NoteObject *note = [pair objectAtIndex:1];
+	NSUInteger index = 0;
+	while (index < [addedEntries count]) {
+		NSValue *value = [addedEntries objectAtIndex:index];
 		NoteCatalogEntry *entry = [value pointerValue];
+		NoteObject *prepared = [directoryTransaction->preparedCandidates
+			objectForKey:(NSString*)entry->filename];
+		NSString *content = [[prepared contentString] string];
+		id note = [addedByContent objectForKey:content] == value ?
+			[removedByContent objectForKey:content] : nil;
+		if (!note || note == [NSNull null]) {
+			index++;
+			continue;
+		}
 		NSLog(@"File %@ renamed by unique content to %@", filenameOfNote(note), entry->filename);
 		if (![self modifyNoteIfNecessary:note usingCatalogEntry:entry]) return NO;
-		[addedEntries removeObjectIdenticalTo:value];
+		[addedEntries removeObjectAtIndex:index];
 		[removedEntries removeObjectIdenticalTo:note];
 	}
 
-	for (NSValue *value in addedEntries) {
-		NoteCatalogEntry *entry = [value pointerValue];
-		NSError *error = nil;
-		if (![self prepareNoteAdditionFromCatalogEntry:entry error:&error]) {
-			NSLog(@"Could not import note '%@': %@", entry->filename, error);
-			return NO;
-		}
-	}
-	if ([removedEntries count]) [self _stageOrAddDeletedNotes:removedEntries];
-	return YES;
+	return [self _stageUnmatchedAddedEntries:addedEntries removedNotes:removedEntries];
 }
 
 @end

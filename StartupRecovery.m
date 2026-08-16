@@ -1,11 +1,32 @@
+//
+//  StartupRecovery.m
+//  Notation
+//
+//  Created by Zachary Schneirov on 8/14/26.
+
+/*Copyright (c) 2026, Zachary Schneirov. All rights reserved.
+ This file is part of Notational Velocity.
+
+ Notational Velocity is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ Notational Velocity is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with Notational Velocity.  If not, see <http://www.gnu.org/licenses/>. */
+
 #import "StartupRecovery.h"
+#import "NVRootedDirectory_Private.h"
 #import "NotationDirectoryManager.h"
-#import "NotationFileManager.h"
 #import "NotationPrefs.h"
 #import "WALController.h"
 #import "ExternalEditingSession/ExternalEditingSession.h"
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -32,26 +53,25 @@
  * prefix is replayed into the current database and a warning is shown; an empty
  * prefix instead offers to preserve and skip the failed WAL.
  *
- * Each successful path follows the same durability ordering: prepare a staged
- * controller, durably write any recovered database snapshot while the original
+ * Each successful path follows the same recovery ordering: prepare a staged
+ * controller, write and verify any recovered database snapshot while the original
  * WAL is still canonical and locked, rename that WAL to an exclusive UUID name,
  * create and synchronize a fresh WAL, finish format setup/epoch upgrade, and
- * fsync the directory.  Original database/WAL files are retained for partial or
- * legacy recovery.  A complete recovery removes its retired WAL only after the
- * replacement is durable; deletion and its directory sync are best-effort
- * cleanup after that commit.  Legacy/partial failures move newly installed files
- * aside and restore the originals without overwriting another file.  If complete
- * replay already made the current database durable, restoring its old WAL is
- * sufficient because replay is UUID/LSN-idempotent.  Separate-format note-file
- * writes remain pending until this database/WAL transaction has committed.
+ * request directory synchronization at the transaction boundaries.  Original
+ * database/WAL files are retained for partial or legacy recovery.  A complete
+ * recovery removes its retired WAL only after the replacement checkpoint;
+ * deletion and its directory sync are best-effort cleanup after that point.
+ * Legacy/partial failures move newly installed files aside and restore the
+ * originals without overwriting another file.  If complete replay already made
+ * the current database checkpoint, restoring its old WAL is sufficient because
+ * replay is UUID/LSN-idempotent.  Separate-format note-file writes remain pending
+ * until this database/WAL transaction has completed.
  *
  * The staged controller intentionally performs no WAL creation, format setup,
  * epoch upgrade, or recursive recovery.  It exists only to validate/load the
- * chosen database and make the pre-retirement snapshot durable; activation is
+ * chosen database and complete the pre-retirement checkpoint; activation is
  * centralized here so every path has the same lock, rollback, and sync rules.
  */
-
-static NSString *NVStartupJournalFilename = @"Interim Note-Changes";
 
 static NSError *NVStartupRecoveryError(int errorNumber, NSString *operation) {
 	return [NSError errorWithDomain:NSPOSIXErrorDomain code:errorNumber userInfo:
@@ -75,20 +95,12 @@ static BOOL NVIsLegacyTemporaryDatabaseName(const char *name) {
 	return YES;
 }
 
-static NSComparisonResult NVCompareModificationTimes(struct timespec one, struct timespec two) {
-	if (one.tv_sec != two.tv_sec)
-		return one.tv_sec < two.tv_sec ? NSOrderedAscending : NSOrderedDescending;
-	if (one.tv_nsec != two.tv_nsec)
-		return one.tv_nsec < two.tv_nsec ? NSOrderedAscending : NSOrderedDescending;
-	return NSOrderedSame;
-}
-
 static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *identifier) {
 	return [NSString stringWithFormat:@"%@ (%@ %@)", filename, kind, identifier];
 }
 
 @interface NotationController (StartupRecoveryInitialization)
-- (id)_initWithDirectoryURL:(NSURL*)directoryURL recoveredNotes:(NSDictionary*)recoveredNotes
+- (id)_initWithRootedDirectory:(NVRootedDirectory*)directory recoveredNotes:(NSDictionary*)recoveredNotes
 	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)error;
 @end
 
@@ -127,94 +139,57 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 	error:(NSError**)error {
 	if ([notationPrefs epochIteration] > 4) return nil;
 
-	/* Inspect through the already-open notes directory and never follow a link:
-	 * candidates are untrusted crash leftovers, not user-selected paths. */
-	struct stat databaseInfo;
-	int databaseError = 0;
-	if (fstatat(noteDirectoryFileDescriptor, [NotesDatabaseFileName fileSystemRepresentation],
-		&databaseInfo, AT_SYMLINK_NOFOLLOW) < 0)
-		databaseError = errno;
-	else if (!S_ISREG(databaseInfo.st_mode))
-		databaseError = EINVAL;
-	if (databaseError) {
-		if (error) *error = NVStartupRecoveryError(databaseError,
-			@"Inspect database for legacy recovery");
-		return nil;
-	}
-
-	int scanFD = dup(noteDirectoryFileDescriptor);
-	DIR *directory = scanFD >= 0 ? fdopendir(scanFD) : NULL;
-	if (!directory) {
-		int scanError = errno;
-		if (scanFD >= 0) close(scanFD);
-		if (error) *error = NVStartupRecoveryError(scanError, @"Scan legacy recovery files");
-		return nil;
-	}
+	NVFileObservation *databaseObservation = [[self noteDirectory]
+		observationForFileNamed:NotesDatabaseFileName error:error];
+	if (!databaseObservation) return nil;
+	NVRootedDirectoryCatalog *catalog = [[[self noteDirectory] newCatalog:error] autorelease];
+	if (!catalog) return nil;
+	NoteCatalogEntry *entries = [catalog entries];
 
 	/* The filesystem timestamp, including nanoseconds, defines "newest".  The
 	 * lexical tie-breaker makes selection deterministic on coarse filesystems. */
 	NSString *candidateName = nil;
-	struct stat candidateInfo = { 0 };
-	int scanError = 0;
-	while (1) {
-		errno = 0;
-		struct dirent *entry = readdir(directory);
-		if (!entry) {
-			scanError = errno;
-			break;
+	NVFileObservation *candidateObservation = nil;
+	for (size_t index = 0; index < [catalog count]; index++) {
+		NSString *name = (NSString*)entries[index].filename;
+		NSError *observationError = nil;
+		NVFileObservation *observation = [[self noteDirectory]
+			observationForFileNamed:name error:&observationError];
+		if (!observation) {
+			if ([[observationError domain] isEqualToString:NSPOSIXErrorDomain] &&
+				[observationError code] == ENOENT) continue;
+			if (error) *error = NVStartupRecoveryError((int)[observationError code],
+				@"Enumerate regular files");
+			return nil;
 		}
-		if (!NVIsLegacyTemporaryDatabaseName(entry->d_name)) continue;
-		struct stat info;
-		if (fstatat(dirfd(directory), entry->d_name, &info, AT_SYMLINK_NOFOLLOW) < 0 ||
-			!S_ISREG(info.st_mode)) continue;
-		NSString *name = [NSString stringWithUTF8String:entry->d_name];
+		if (!NVIsLegacyTemporaryDatabaseName([name fileSystemRepresentation])) continue;
 		NSComparisonResult timeOrder = candidateName ?
-			NVCompareModificationTimes(info.st_mtimespec, candidateInfo.st_mtimespec) :
+			NVCompareTimespecs([observation modificationTime],
+				[candidateObservation modificationTime]) :
 			NSOrderedDescending;
 		if (timeOrder == NSOrderedDescending || (timeOrder == NSOrderedSame &&
 			[name compare:candidateName] == NSOrderedDescending)) {
-			[candidateName release];
-			candidateName = [name copy];
-			candidateInfo = info;
+			candidateName = name;
+			candidateObservation = observation;
 		}
 	}
-	closedir(directory);
-
-	if (scanError) {
-		[candidateName release];
-		if (error) *error = NVStartupRecoveryError(scanError, @"Scan legacy recovery files");
-		return nil;
-	}
-	if (!candidateName || candidateInfo.st_size <= databaseInfo.st_size ||
-		(uint64_t)candidateInfo.st_size > NSUIntegerMax ||
-		NVCompareModificationTimes(candidateInfo.st_mtimespec,
-			databaseInfo.st_mtimespec) != NSOrderedDescending) {
-		[candidateName release];
+	if (!candidateName || [candidateObservation logicalSize] <= [databaseObservation logicalSize] ||
+		[candidateObservation logicalSize] > NSUIntegerMax ||
+		NVCompareTimespecs([candidateObservation modificationTime],
+			[databaseObservation modificationTime]) != NSOrderedDescending) {
 		return nil;
 	}
 
-	/* Re-stat after reading so a candidate changed during the scan/read window is
-	 * rejected instead of installing bytes from a different inode or version. */
-	NSError *readError = nil;
-	NSData *data = [self dataFromNoteNamed:candidateName error:&readError];
-	struct stat stableInfo;
-	BOOL stable = data && [data length] == (NSUInteger)candidateInfo.st_size &&
-		fstatat(noteDirectoryFileDescriptor, [candidateName fileSystemRepresentation],
-			&stableInfo, AT_SYMLINK_NOFOLLOW) == 0 && S_ISREG(stableInfo.st_mode) &&
-		stableInfo.st_dev == candidateInfo.st_dev && stableInfo.st_ino == candidateInfo.st_ino &&
-		stableInfo.st_size == candidateInfo.st_size &&
-		NVCompareModificationTimes(stableInfo.st_mtimespec,
-			candidateInfo.st_mtimespec) == NSOrderedSame;
+	NVFileSnapshot *snapshot = [[self noteDirectory] snapshotForFileNamed:candidateName error:error];
+	BOOL stable = snapshot && [[snapshot observation]
+		hasSameIdentityAndRevisionAsObservation:candidateObservation];
 	if (!stable) {
-		[candidateName release];
-		if (error) *error = readError ?: NVStartupRecoveryError(EAGAIN,
+		if (error && !*error) *error = NVStartupRecoveryError(EAGAIN,
 			@"Read stable legacy recovery file");
 		return nil;
 	}
-
-	if (returnedName) *returnedName = [candidateName autorelease];
-	else [candidateName release];
-	return data;
+	if (returnedName) *returnedName = candidateName;
+	return [snapshot data];
 }
 
 - (NSModalResponse)_legacyDatabaseRecoveryResponse {
@@ -253,9 +228,7 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 }
 
 - (BOOL)_synchronizeRecoveryDirectory:(NSError**)error {
-	if (fsync(noteDirectoryFileDescriptor) == 0) return YES;
-	if (error) *error = NVStartupRecoveryError(errno, @"Synchronize recovery directory");
-	return NO;
+	return [[self noteDirectory] synchronize:error];
 }
 
 - (BOOL)_renameLockedJournal:(WALRecoveryController*)reader toName:(NSString*)name
@@ -267,7 +240,8 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 			@"Verify locked journal before recovery");
 		return NO;
 	}
-	return [self renameNoteFromName:NVStartupJournalFilename toName:name error:error];
+	return [[self noteDirectory] renameFileNamed:NVJournalFilename
+		toUnusedName:name error:error];
 }
 
 - (BOOL)_rollBackDatabaseRecoveryWithIdentifier:(NSString*)identifier
@@ -277,24 +251,24 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 	BOOL restored = YES;
 	NSError *lastError = nil;
 	NSString *failedIdentifier = [[NSUUID UUID] UUIDString];
-	NSString *journalBackup = NVRecoveryName(NVStartupJournalFilename, kind, identifier);
-	if ([self noteExistsWithName:journalBackup] &&
+	NSString *journalBackup = NVRecoveryName(NVJournalFilename, kind, identifier);
+	if ([[self noteDirectory] regularFileExistsNamed:journalBackup] &&
 		![self _restoreJournalFromName:journalBackup error:&lastError]) {
 		if (error) *error = lastError;
 		return NO;
 	}
 
 	NSString *databaseBackup = NVRecoveryName(NotesDatabaseFileName, kind, identifier);
-	if ([self noteExistsWithName:databaseBackup]) {
-		if ([self noteExistsWithName:NotesDatabaseFileName]) {
+	if ([[self noteDirectory] regularFileExistsNamed:databaseBackup]) {
+		if ([[self noteDirectory] regularFileExistsNamed:NotesDatabaseFileName]) {
 			NSString *failedName = NVRecoveryName(NotesDatabaseFileName,
 				@"failed recovery", failedIdentifier);
-			if (![self renameNoteFromName:NotesDatabaseFileName toName:failedName
+			if (![[self noteDirectory] renameFileNamed:NotesDatabaseFileName toUnusedName:failedName
 				error:&lastError])
 				restored = NO;
 		}
-		if (restored && ![self renameNoteFromName:databaseBackup
-			toName:NotesDatabaseFileName error:&lastError])
+		if (restored && ![[self noteDirectory] renameFileNamed:databaseBackup
+			toUnusedName:NotesDatabaseFileName error:&lastError])
 			restored = NO;
 	}
 	if (![self _synchronizeRecoveryDirectory:&lastError]) restored = NO;
@@ -305,19 +279,19 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 
 - (BOOL)_restoreJournalFromName:(NSString*)backupName error:(NSError**)error {
 	NSError *localError = nil;
-	if ([self noteExistsWithName:NVStartupJournalFilename]) {
+	if ([[self noteDirectory] regularFileExistsNamed:NVJournalFilename]) {
 		/* A failed activation may already have created a canonical WAL.  Lock and
 		 * identify it before moving it aside; never rename another live writer. */
 		int lockError = 0;
 		WALRecoveryController *currentJournal = [[WALRecoveryController alloc]
-			initWithDirectoryFileDescriptor:noteDirectoryFileDescriptor
+			initWithRootedDirectory:noteDirectory
 			encryptionKey:[notationPrefs WALSessionKey] error:&lockError journalInUse:NULL];
 		if (!currentJournal) {
 			if (error) *error = NVStartupRecoveryError(lockError ?: EBUSY,
 				@"Lock failed replacement journal for rollback");
 			return NO;
 		}
-		NSString *failedName = NVRecoveryName(NVStartupJournalFilename,
+		NSString *failedName = NVRecoveryName(NVJournalFilename,
 			@"failed startup recovery", [[NSUUID UUID] UUIDString]);
 		if (![self _renameLockedJournal:currentJournal toName:failedName
 			error:&localError]) {
@@ -327,8 +301,8 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 		}
 		[currentJournal release];
 	}
-	if (![self renameNoteFromName:backupName toName:NVStartupJournalFilename
-		error:&localError] || ![self _synchronizeRecoveryDirectory:&localError]) {
+	if (![[self noteDirectory] renameFileNamed:backupName toUnusedName:NVJournalFilename
+			error:&localError] || ![self _synchronizeRecoveryDirectory:&localError]) {
 		if (error) *error = localError;
 		return NO;
 	}
@@ -337,17 +311,30 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 
 - (NSString*)_installDatabaseData:(NSData*)data recoveryKind:(NSString*)kind
 	error:(NSError**)error {
-	/* Preserve first, create the replacement without overwriting, then commit the
-	 * namespace changes with a directory fsync.  The UUID also joins the matching
-	 * database and WAL backups for later inspection. */
+	/* Preserve first, create the replacement without overwriting, then request one
+	 * directory synchronization for both namespace changes.  The UUID also joins
+	 * the matching database and WAL backups for later inspection. */
 	NSString *identifier = [[NSUUID UUID] UUIDString];
 	NSString *databaseBackup = NVRecoveryName(NotesDatabaseFileName, kind, identifier);
 	NSError *localError = nil;
 
-	if (![self renameNoteFromName:NotesDatabaseFileName toName:databaseBackup error:&localError] ||
-		![self createDataAtomicallyInNotesDirectory:data withName:NotesDatabaseFileName
-			error:&localError] ||
-		![self _synchronizeRecoveryDirectory:&localError]) {
+	BOOL renamed = [[self noteDirectory] renameFileNamed:NotesDatabaseFileName
+		toUnusedName:databaseBackup error:&localError];
+	NVFileWriteResult *writeResult = renamed ?
+		[[self noteDirectory] createFileNamed:NotesDatabaseFileName withData:data] : nil;
+	BOOL installed = NO;
+	if (writeResult) {
+		switch ([writeResult disposition]) {
+			case NVFileWriteInstalledVerified:
+				installed = YES;
+				break;
+			case NVFileWriteNotInstalled:
+			case NVFileWriteInstalledNeedsReconciliation:
+				localError = [writeResult error];
+				break;
+		}
+	}
+	if (!renamed || !installed || ![self _synchronizeRecoveryDirectory:&localError]) {
 		NSError *rollbackError = nil;
 		if (![self _rollBackDatabaseRecoveryWithIdentifier:identifier recoveryKind:kind
 			error:&rollbackError])
@@ -368,7 +355,8 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 	OSStatus restartError = noErr;
 	NSError *activationError = nil;
 	NotationController *controller = [[[self class] alloc]
-		_initWithDirectoryURL:noteDirectoryURL recoveredNotes:recoveredNotes
+		_initWithRootedDirectory:[self noteDirectory]
+		recoveredNotes:recoveredNotes
 		stagingRecovery:YES error:&restartError];
 	if (!controller) goto failed;
 	if (![self _renameLockedJournal:reader toName:backupName error:&activationError])
@@ -435,7 +423,7 @@ failed:
 		NSLog(@"Unable to install recovery database: %@", transactionError);
 		return nil;
 	}
-	NSString *journalBackup = NVRecoveryName(NVStartupJournalFilename, kind, identifier);
+	NSString *journalBackup = NVRecoveryName(NVJournalFilename, kind, identifier);
 	NotationController *replacement = [self _restartWithRecoveredNotes:recoveredNotes
 		lockedJournal:reader backupName:journalBackup error:error];
 	if (replacement) return replacement;
@@ -476,7 +464,7 @@ failed:
 	/* Install an identical copy so the original database becomes the immutable
 	 * pre-merge backup before recovered notes are applied to the canonical copy. */
 	NSError *readError = nil;
-	NSData *databaseData = [self dataFromNoteNamed:NotesDatabaseFileName error:&readError];
+	NSData *databaseData = [[self noteDirectory] dataFromFileNamed:NotesDatabaseFileName error:&readError];
 	if (!databaseData) {
 		NSLog(@"Unable to read database for partial WAL recovery: %@", readError);
 		return nil;
@@ -503,13 +491,13 @@ failed:
 		return nil;
 	}
 
-	NSString *backupName = NVRecoveryName(NVStartupJournalFilename,
+	NSString *backupName = NVRecoveryName(NVJournalFilename,
 		@"failed recovery", [[NSUUID UUID] UUIDString]);
 	NotationController *replacement = [self _restartWithRecoveredNotes:nil
 		lockedJournal:reader backupName:backupName error:error];
 	if (replacement) return replacement;
 	NSError *restoreError = nil;
-	if ([self noteExistsWithName:backupName] &&
+	if ([[self noteDirectory] regularFileExistsNamed:backupName] &&
 		![self _restoreJournalFromName:backupName error:&restoreError])
 		NSLog(@"Unable to restore failed WAL after restart failure: %@", restoreError);
 	return nil;
@@ -518,15 +506,16 @@ failed:
 - (NotationController*)_finishCompleteWALRecovery:(NSDictionary*)recoveredNotes
 	lockedJournal:(WALRecoveryController*)reader error:(OSStatus*)error {
 	/* A complete scan needs no permanent recovery backups.  The temporary WAL
-	 * rename still makes rollback possible until the fresh journal is durable. */
-	NSString *backupName = NVRecoveryName(NVStartupJournalFilename,
+	 * rename still makes rollback possible until fresh-journal setup completes. */
+	NSString *backupName = NVRecoveryName(NVJournalFilename,
 		@"WAL recovery", [[NSUUID UUID] UUIDString]);
 	NotationController *replacement = [self _restartWithRecoveredNotes:
 		([recoveredNotes count] ? recoveredNotes : nil) lockedJournal:reader
 		backupName:backupName error:error];
 	if (replacement) {
-		if (unlinkat(noteDirectoryFileDescriptor, [backupName fileSystemRepresentation], 0) < 0) {
-			NSLog(@"Unable to remove retired WAL '%@': %s", backupName, strerror(errno));
+		NSError *removeError = nil;
+		if (![[self noteDirectory] removeFileNamed:backupName error:&removeError]) {
+			NSLog(@"Unable to remove retired WAL '%@': %@", backupName, removeError);
 		} else {
 			NSError *syncError = nil;
 			if (![self _synchronizeRecoveryDirectory:&syncError])
@@ -535,7 +524,7 @@ failed:
 		return replacement;
 	}
 	NSError *restoreError = nil;
-	if ([self noteExistsWithName:backupName] &&
+	if ([[self noteDirectory] regularFileExistsNamed:backupName] &&
 		![self _restoreJournalFromName:backupName error:&restoreError])
 		NSLog(@"Unable to restore WAL after recovery restart failure: %@", restoreError);
 	return nil;
@@ -548,7 +537,7 @@ failed:
 	int readerError = 0;
 	BOOL journalInUse = NO;
 	WALRecoveryController *reader = [[WALRecoveryController alloc]
-		initWithDirectoryFileDescriptor:noteDirectoryFileDescriptor
+		initWithRootedDirectory:noteDirectory
 		encryptionKey:[notationPrefs WALSessionKey] error:&readerError
 		journalInUse:&journalInUse];
 	if (!reader) {

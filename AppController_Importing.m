@@ -23,7 +23,6 @@
 
 #import "AppController_Importing.h"
 #import "NotationController.h"
-#import "NotationFileManager.h"
 #import "BookmarksController.h"
 #import "DualField.h"
 #import "SyncSessionController.h"
@@ -211,7 +210,7 @@
 		}
 		[newString santizeForeignStylesForImporting];
 		
-		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:newString title:noteTitle delegate:notationController
+		NoteObject *note = [[[NoteObject alloc] initWithNoteBody:newString title:noteTitle
 												  format:[notationController currentNoteStorageFormat] labels:nil] autorelease];
 		if (!note) return NO;
 		if (bodyLoc > 0 && [newString length] >= bodyLoc + prefixedSourceLength) [note setSelectedRange:NSMakeRange(prefixedSourceLength, bodyLoc)];
@@ -304,7 +303,7 @@
 			[attributedContents removeAttachments];
 			[attributedContents santizeForeignStylesForImporting];
 			
-			NoteObject *note = [[[NoteObject alloc] initWithNoteBody:[attributedContents autorelease] title:title delegate:notationController
+			NoteObject *note = [[[NoteObject alloc] initWithNoteBody:[attributedContents autorelease] title:title
 													  format:[notationController currentNoteStorageFormat] labels:tags] autorelease];
 			[notationController addNewNote:note];
 			return note != nil;

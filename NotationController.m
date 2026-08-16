@@ -35,14 +35,17 @@
 #import "AlienNoteImporter.h"
 #import "ExternalEditingSession.h"
 #import "StartupRecovery.h"
-#import "NotationFileManager.h"
 #import "NotationSyncServiceManager.h"
 #import "NotationDirectoryManager.h"
 #import "SyncSessionController.h"
 #import "BookmarksController.h"
 #import "DeletionManager.h"
 #import "NSData_transformations.h"
+#import "NVRootedDirectory_Private.h"
+#include <errno.h>
 #include <unistd.h>
+
+NSString * const NotesDatabaseFileName = @"Notes & Settings";
 
 static id UnarchiveRootObject(NSData *data, NSError **error) {
 	NSError *unarchiveError = nil;
@@ -54,15 +57,23 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 	return object;
 }
 
+@interface NotationController (NVRootedDirectoryFactory)
+- (NVRootedDirectory*)newRootedDirectoryForURL:(NSURL*)URL error:(NSError**)error;
+@end
+
 @interface NotationController ()
 - (void)_removeNoteAfterExternalEditing:(NoteObject*)note;
 - (void)_removeNotesAfterExternalEditing:(NSArray*)notes;
 - (void)_externalEditingTeardownFailed;
-- (id)_initWithDirectoryURL:(NSURL*)directoryURL recoveredNotes:(NSDictionary*)recoveredNotes
+- (id)_initWithRootedDirectory:(NVRootedDirectory*)directory recoveredNotes:(NSDictionary*)recoveredNotes
 	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)error;
 @end
 
 @implementation NotationController
+
+- (NVRootedDirectory*)newRootedDirectoryForURL:(NSURL*)URL error:(NSError**)error {
+	return [[NVRootedDirectory alloc] initWithFileReferenceURL:URL error:error];
+}
 
 @synthesize filterString, directoryRetryTimer, changeWritingTimer, lastWriteError, walWriter;
 
@@ -84,12 +95,8 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 		lastWordInFilterStr = 0;
 		selectedNoteIndex = NSNotFound;
 		
-		catalogEntries = NULL;
-		sortedCatalogEntries = NULL;
-		catEntriesCount = totalCatEntriesCount = 0;
+		directoryCatalog = nil;
 
-		noteDirectoryFileDescriptor = -1;
-		
 		lastLayoutStyleGenerated = -1;
 		lastCheckedDateInHours = hoursFromAbsoluteTime(CFAbsoluteTimeGetCurrent());
 		
@@ -102,14 +109,16 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 
 - (id)initWithAliasData:(NSData*)data error:(OSStatus*)err {
 	NSData *bookmarkData = [data bookmarkDataFromLegacyAliasRecord];
-	NSURL *directoryURL = [[NSFileManager defaultManager] fileReferenceURLFromBookmarkData:bookmarkData
-		stale:NULL error:NULL];
-	if (!directoryURL) {
+	NVRootedDirectory *directory = [[NVRootedDirectory alloc]
+		initWithBookmarkData:bookmarkData error:NULL];
+	if (!directory) {
 		if (err) *err = fnfErr;
 		[self release];
 		return nil;
 	}
-	return [self initWithDirectoryURL:directoryURL error:err];
+	self = [self initWithRootedDirectory:directory error:err];
+	[directory release];
+	return self;
 }
 
 - (id)initWithDefaultDirectoryReturningError:(OSStatus*)err {
@@ -137,11 +146,31 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 }
 
 - (id)initWithDirectoryURL:(NSURL*)directoryURL error:(OSStatus*)err {
-	return [self _initWithDirectoryURL:directoryURL recoveredNotes:nil
+	if (![directoryURL isFileReferenceURL]) {
+		if (err) *err = paramErr;
+		[self release];
+		return nil;
+	}
+	NSError *directoryOpenError = nil;
+	NVRootedDirectory *directory = [self newRootedDirectoryForURL:directoryURL
+		error:&directoryOpenError];
+	if (!directory) {
+		NSLog(@"Unable to open notes directory by reference: %@", directoryOpenError);
+		if (err) *err = ioErr;
+		[self release];
+		return nil;
+	}
+	self = [self initWithRootedDirectory:directory error:err];
+	[directory release];
+	return self;
+}
+
+- (id)initWithRootedDirectory:(NVRootedDirectory*)directory error:(OSStatus*)err {
+	return [self _initWithRootedDirectory:directory recoveredNotes:nil
 		stagingRecovery:NO error:err];
 }
 
-- (id)_initWithDirectoryURL:(NSURL*)directoryURL recoveredNotes:(NSDictionary*)recoveredNotes
+- (id)_initWithRootedDirectory:(NVRootedDirectory*)directory recoveredNotes:(NSDictionary*)recoveredNotes
 	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)err {
 	/* Normal initialization creates the WAL and, if one already exists, delegates
 	 * the entire recovery transaction to StartupRecovery.  Staging initialization
@@ -149,9 +178,9 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 	 * continues to hold the old WAL lock.  It deliberately returns before WAL
 	 * creation, format setup, and epoch upgrade so those steps happen once, after
 	 * the old journal has been preserved.  A non-nil empty dictionary is meaningful:
-	 * it forces an installed legacy database through the same durable snapshot. */
+	 * it forces an installed legacy database through the same verified checkpoint. */
 
-	if (![directoryURL isFileReferenceURL]) {
+	if (!directory) {
 		if (err)
 			*err = paramErr;
 		[self release];
@@ -163,18 +192,7 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 
 	self = [self init];
 	if (self) {
-		noteDirectoryURL = [directoryURL retain];
-		noteDirectoryBookmarkData = [[[NSFileManager defaultManager]
-			bookmarkDataForFileReferenceURL:directoryURL error:NULL] retain];
-		NSError *directoryOpenError = nil;
-		noteDirectoryFileDescriptor = [[NSFileManager defaultManager]
-			openFileDescriptorForDirectoryReferenceURL:directoryURL error:&directoryOpenError];
-		if (noteDirectoryFileDescriptor < 0) {
-			NSLog(@"Unable to open notes directory by reference: %@", directoryOpenError);
-			if (err) *err = ioErr;
-			[self release];
-			return nil;
-		}
+		noteDirectory = [directory retain];
 		//check writable and readable perms, warning user if necessary
 		
 		//first read cache file
@@ -233,8 +251,10 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 }
 
 - (NSURL*)noteDirectoryURL {
-	return noteDirectoryURL;
+	return [noteDirectory transientFileReferenceURL];
 }
+
+- (NVRootedDirectory*)noteDirectory { return noteDirectory; }
 
 - (id)delegate {
 	return delegate;
@@ -246,6 +266,26 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 
 }
 
+- (BOOL)_removeSpuriousDatabaseFileNotes {
+	// Remove notes accidentally imported from database artifacts, but leave the files intact.
+	NoteObject *dbNote = nil, *walNote = nil;
+	for (NoteObject *note in allNotes) {
+		if (!dbNote && [filenameOfNote(note) isEqualToString:NotesDatabaseFileName])
+			dbNote = [[note retain] autorelease];
+		if (!walNote && [filenameOfNote(note) isEqualToString:NVJournalFilename])
+			walNote = [[note retain] autorelease];
+	}
+	if (dbNote) {
+		[allNotes removeObjectIdenticalTo:dbNote];
+		[self _addDeletedNote:dbNote];
+	}
+	if (walNote) {
+		[allNotes removeObjectIdenticalTo:walNote];
+		[self _addDeletedNote:walNote];
+	}
+	return walNote || dbNote;
+}
+
 - (void)upgradeDatabaseIfNecessary {
 	if (![notationPrefs firstTimeUsed]) {
 		
@@ -255,7 +295,7 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 			[allNotes makeObjectsPerformSelector:@selector(writeFileDatesAndUpdateTrackingInfo)];
 		}
 		if (epochIteration < 4) {
-			if ([self removeSpuriousDatabaseFileNotes]) {
+			if ([self _removeSpuriousDatabaseFileNotes]) {
 				NSLog(@"found and removed spurious DB notes");
 				[self refilterNotes];
 			}
@@ -345,8 +385,26 @@ returnResult:
 
     OSStatus err = noErr;
 	NSError *readError = nil;
-	NSData *notesData = [self dataFromNoteNamed:NotesDatabaseFileName
-		creatingIfMissing:YES error:&readError];
+	NSData *notesData = [noteDirectory dataFromFileNamed:NotesDatabaseFileName error:&readError];
+	if (!notesData && [[readError domain] isEqualToString:NSPOSIXErrorDomain] &&
+		[readError code] == ENOENT) {
+		NVFileWriteResult *createResult = [noteDirectory createFileNamed:NotesDatabaseFileName
+			withData:[NSData data]];
+		switch ([createResult disposition]) {
+			case NVFileWriteInstalledVerified:
+				notesData = [NSData data];
+				break;
+			case NVFileWriteNotInstalled:
+				if ([[[createResult error] domain] isEqualToString:NSCocoaErrorDomain] &&
+					[[createResult error] code] == NSFileWriteFileExistsError)
+					notesData = [noteDirectory dataFromFileNamed:NotesDatabaseFileName error:&readError];
+				else readError = [createResult error];
+				break;
+			case NVFileWriteInstalledNeedsReconciliation:
+				readError = [createResult error];
+				break;
+		}
+	}
 	if (!notesData) {
 		NSLog(@"Could not read notes database: %@", readError);
 		return ioErr;
@@ -410,7 +468,7 @@ returnResult:
 - (BOOL)initializeJournaling {
 	if (self.walWriter) return YES;
 	WALStorageController *writer = [[WALStorageController alloc]
-		initWithDirectoryFileDescriptor:noteDirectoryFileDescriptor
+		initWithRootedDirectory:noteDirectory
 		encryptionKey:[notationPrefs WALSessionKey]];
 	/* Keep the property as the sole owner: recovery rollback must be able to
 	 * release the writer's flock immediately by clearing walWriter. */
@@ -539,11 +597,30 @@ returnResult:
 		}
 		
 		//we should have all journal records on disk by now
-		if (![self storeDataAtomicallyInNotesDirectory:serializedData withName:NotesDatabaseFileName
-			verificationBlock:^BOOL(NSData *readBackData, NSError **verificationError) {
+		NVFileWriteResult *writeResult = [noteDirectory overwriteFileNamed:NotesDatabaseFileName
+			withData:serializedData
+			preparedDataVerifier:^BOOL(NSData *readBackData, NSError **verificationError) {
 				return [self verifyDatabaseData:readBackData error:verificationError];
-			} error:NULL])
+			}];
+		switch ([writeResult disposition]) {
+			case NVFileWriteInstalledVerified:
+				break;
+			case NVFileWriteNotInstalled:
+			case NVFileWriteInstalledNeedsReconciliation:
+				NSLog(@"Database save remains pending: %@", [writeResult error]);
+				writeRetryPending = YES;
+				[self _scheduleFilesystemRetryTimer];
+				return NO;
+		}
+		/* The writer reports the verified installation, not transaction durability.
+		 * Keep the WAL-backed database change pending until this explicit boundary. */
+		NSError *directoryError = nil;
+		if (![noteDirectory synchronize:&directoryError]) {
+			NSLog(@"Database save remains pending: %@", directoryError);
+			writeRetryPending = YES;
+			[self _scheduleFilesystemRetryTimer];
 			return NO;
+		}
 		
 		[notationPrefs setPreferencesAreStored];
 		notesChanged = NO;
@@ -719,24 +796,6 @@ returnResult:
 	[allNotes makeObjectsPerformSelector:@selector(disconnectLabels)];
 }
 
-- (void)checkIfNotationIsTrashed {
-	if ([self notesDirectoryIsTrashed]) {
-		
-		NSString *trashLocation = [[noteDirectoryURL path] stringByAbbreviatingWithTildeInPath];
-		if (!trashLocation) trashLocation = @"unknown";
-NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
-		[trashAlert setMessageText:[NSString stringWithFormat:NSLocalizedString(@"Your notes directory (%@) appears to be in the Trash.", nil), trashLocation]];
-		[trashAlert setInformativeText:NSLocalizedString(@"If you empty the Trash now, you could lose your notes. Relocate the notes to a less volatile folder?", nil)];
-		[trashAlert addButtonWithTitle:NSLocalizedString(@"Relocate Notes", nil)];
-		[trashAlert addButtonWithTitle:NSLocalizedString(@"Quit", nil)];
-		[trashAlert setAlertStyle:NSAlertStyleCritical];
-		NSModalResponse result = [trashAlert runModal];
-		if (result == NSAlertFirstButtonReturn)
-			[self relocateNotesDirectory];
-		else [NSApp terminate:nil];
-	}
-}
-
 - (void)trashRemainingNoteFilesInDirectory {
 	NSAssert([notationPrefs notesStorageFormat] == SingleDatabaseFormat, @"We shouldn't be removing files if the storage is not single-database");	
 	[allNotes makeObjectsPerformSelector:@selector(moveFileToTrash)];
@@ -789,7 +848,6 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	//new notes should not have any sync MD; if they do, they should be added using -addNotesFromSync:
 	//problem is that note could very likely still be in the process of syncing, in which case these dicts will be accessed
 	//for simplenote is is necessary only once the iPhone app has fully deleted the note off the server; otherwise a regular update will recreate it
-	//[note removeAllSyncServiceMD];
     
 	[note makeNoteDirtyUpdateTime:YES updateFile:YES];
 	
@@ -1587,14 +1645,9 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	[directoryRetryTimer release];
 	[walWriter release];
 	[notationPrefs setDelegate:nil];
-	[allNotes makeObjectsPerformSelector:@selector(setDelegate:) withObject:nil];
+	[allNotes makeObjectsPerformSelector:@selector(attachToDelegate:) withObject:nil];
 
-	for (size_t i = 0; i < catEntriesCount; i++)
-		if (catalogEntries[i].filename) CFRelease(catalogEntries[i].filename);
-    if (catalogEntries)
-		free(catalogEntries);
-    if (sortedCatalogEntries)
-		free(sortedCatalogEntries);
+	[directoryCatalog release];
 	if (allNotesBuffer)
 		free(allNotesBuffer);
 	free(currentFilterStr);
@@ -1610,11 +1663,9 @@ NSAlert *trashAlert = [[[NSAlert alloc] init] autorelease];
 	[pendingFileWrites release];
 	[pendingJournalWrites release];
 	[_filterString release];
-	[noteDirectoryURL release];
-	[noteDirectoryBookmarkData release];
+	[noteDirectory release];
 	[currentFileMetadataVolumeUUID release];
 	[lastWriteError release];
-	if (noteDirectoryFileDescriptor >= 0) close(noteDirectoryFileDescriptor);
     
     [super dealloc];
 }

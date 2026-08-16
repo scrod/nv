@@ -24,16 +24,18 @@
 
 
 #import <Cocoa/Cocoa.h>
-#include <sys/xattr.h>
 
 BOOL NVURLsReferToSameItem(NSURL *one, NSURL *two);
-BOOL NVURLIsSameItemOrDescendantOfURL(NSURL *URL, NSURL *possibleAncestorURL);
+BOOL NVURLIsInTrash(NSURL *URL);
+int NVCopyFileSystemNameForLeaf(NSString *filename, char **name);
+NSArray *NVOpenMetaTagsFromData(NSData *data, NSError **error);
+NSStringEncoding NVTextEncodingFromAttributeData(NSData *data, NSError **error);
 
 
 @interface NSFileManager (NV)
 
 
-- (id)getOpenMetaTagsAtFSPath:(const char*)path;
+- (NSArray*)getOpenMetaTagsAtFSPath:(const char*)path;
 
 - (NSStringEncoding)textEncodingAttributeOfFSPath:(const char*)path;
 
@@ -41,7 +43,6 @@ BOOL NVURLIsSameItemOrDescendantOfURL(NSURL *URL, NSURL *possibleAncestorURL);
 - (NSURL*)fileReferenceURLForFilename:(NSString*)filename
 				 inDirectoryURL:(NSURL*)directoryURL
 						error:(NSError**)error;
-- (int)openFileDescriptorForDirectoryReferenceURL:(NSURL*)directoryURL error:(NSError**)error;
 - (NSData*)bookmarkDataForFileReferenceURL:(NSURL*)url error:(NSError**)error;
 - (NSURL*)fileReferenceURLFromBookmarkData:(NSData*)bookmarkData
 								 stale:(BOOL*)stale

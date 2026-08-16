@@ -2,6 +2,8 @@
 
 Run test commands from the repository root. The test Makefile builds the Deployment app objects without code signing, links standalone test executables into `/tmp/notation-integration-tests`, and then runs them. A successful test is silent or exits with status 0; many deliberately injected failure cases write expected diagnostics to stderr.
 
+`NVIntegrationTest` replaces the app's `NVRootedDirectory.o` with a test-instrumented build of the same source and links `tests/NVRootedDirectoryTestHooks.m`. The production target does not compile the hook category, injected race callbacks, or descriptor-invalidating test seam.
+
 ### Common commands
 
 - `make -C tests` builds every test executable without running it.
@@ -35,7 +37,7 @@ Enumeration and filesystem metadata:
 
 - `bulk-parser`: valid, unavailable, transient, malformed, overlapping-name, embedded-NUL, document-ID, file-ID, and generation-count packed records.
 - `bulk-parser-fuzz`: guard-page truncation checks and 50,000 deterministic packed-record mutations.
-- `file-metadata`: case collisions, ctime/generation detection, document and session file identity, rename matching, tags, and content fallback.
+- `file-metadata`: case collisions, ctime/generation detection, document and session file identity, rename matching, tags, content fallback, and refusal to read, replace, or remove symlink targets.
 - `coarse-ctime-observation`: records the accepted degraded same-vnode detection behavior on HFS+ with coarse ctime; the image harness treats this as an open-contract observation.
 - `partial-bulk-fallback`: partial `getattrlistbulk` output is discarded before Foundation fallback; persistent transient failures do not commit partial catalogs.
 - `filesystem-capabilities`: verifies expected filesystem type/case sensitivity, xattrs, bulk enumeration, document/file IDs, generation count, and stable snapshots. Normally run by the disk-image harness with `NV_TEST_VOLUME_ROOT`, `NV_EXPECT_FSTYPE`, and `NV_EXPECT_CASE_SENSITIVE`.
@@ -94,19 +96,19 @@ Storage formats, archives, and recovery:
 - `file-outbox-crash-recovery`: WAL success plus note-file failure survives relaunch, rewrites stale disk content before reconciliation, and recreates a WAL-only new note without classifying it as an external deletion.
 - `file-outbox-crash-child`: helper subprocess for the outbox crash test; do not normally invoke directly (`NV_FILE_OUTBOX_CRASH_DIRECTORY` is required).
 - `disk-full-recovery-contract`: fills a fixed-size image, verifies ENOSPC keeps the write pending, frees reserve space, and converges. Requires `NV_TEST_REQUIRE_DISK_IMAGE=1` and is normally harness-only.
-- `atomic-rollback`: create-only and conditional installation, content, xattr, rename, verification, conflict recovery, and post-install identity failures preserve the correct installed/pending state.
-- `atomic-replacement-capabilities`: verifies recoverable conditional replacement on APFS/HFS+, best-effort conditional replacement on ExFAT, prepared HFS+ metadata/descriptor handoff, and identity-safe ExFAT create cleanup. Normally run by the disk-image harness.
+- `atomic-rollback`: leaf validation, symlink refusal, create/replace/overwrite semantics, exact installed-content verification, every typed write disposition, separation of file installation from explicit database synchronization, database pending-state retention, conflict recovery, post-install identity failures, and ownership-safe temporary cleanup.
+- `atomic-replacement-capabilities`: verifies the reported capability for APFS swap, HFS+ exchange/link fallbacks, and ExFAT replacement/create fallbacks, plus prepared HFS+ metadata/descriptor handoff and identity-safe ExFAT create cleanup. Normally run by the disk-image harness.
 - `failures`: corrupt database, invalid notes directory, read-only writes, nonblocking rejection of a FIFO journal, and related error propagation.
 
 Directory identity, bookmarks, and lifecycle:
 
 - `lifecycle`: detached-note construction/attachment, delegate clearing, label registration, notifications, and constructor/encoding failure behavior.
 - `resource-lifecycle`: repeated success/failure/abort/controller teardown cycles, timer/outbox cleanup, deallocation, and file-descriptor baseline; also used by `leak-check`.
-- `directory-identity`: file-reference/bookmark and directory-FD identity survive directory movement.
-- `directory-relocation-races`: moves the directory during atomic installation, scanning, and repeated root-relative note renames.
+- `directory-identity`: file-reference/bookmark and rooted-directory identity survive directory movement.
+- `directory-relocation-races`: moves the directory during atomic installation, exact two-catalog scanning, and repeated root-relative note renames.
 - `location-migration`: legacy notes-location state migrates to the current bookmark/reference representation.
 - `preferences-migration`: legacy preference archive migration and modern values.
-- `deep-directory`: long/deep paths remain accessible through directory-relative operations.
+- `deep-directory`: a retained rooted capability survives controller restart and keeps reads, writes, scans, and updates directory-relative after an ancestor moves beyond `PATH_MAX`.
 - `reference-edges`: Unicode normalization, symlinks, missing references, same-file identity, and related URL/FD edge cases.
 - `bookmark-create`, `bookmark-resolve`: helper pair used by the filesystem-image harness to verify resolution after detach/remount (`NV_BOOKMARK_DIRECTORY` and `NV_BOOKMARK_FILE` are required; resolve optionally uses `NV_BOOKMARK_EXPECTED_CONTENT`).
 - `live-detach-child`: harness-controlled process that keeps controller descriptors open across forced detach and validates in-memory safety/remount recovery; requires the `NV_LIVE_DETACH_*` variables.

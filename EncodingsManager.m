@@ -17,7 +17,7 @@
 
 #import "EncodingsManager.h"
 #import "NoteObject.h"
-#import "NotationFileManager.h"
+#import "NVRootedDirectory.h"
 #import "NSData_transformations.h"
 #import "NSString_NV.h"
 #import "AppController.h"
@@ -146,7 +146,8 @@ static const NSStringEncoding AllowedEncodings[] = {
 	self.note = aNote;
 	
 	[noteData release];
-	if (!(noteData = [[[note delegate] dataFromNoteNamed:filenameOfNote(note) error:NULL] retain])) {
+	if (!(noteData = [[[[note delegate] noteDirectory]
+		dataFromFileNamed:filenameOfNote(note) error:NULL] retain])) {
 		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: unable to read the contents of the file quotemark%@.quotemark", nil), filenameOfNote(aNote)],
 				NSLocalizedString(@"The file may no longer exist or has incorrect permissions.", nil),
 				NSLocalizedString(@"OK", nil), nil, nil, NSAlertStyleWarning);
@@ -279,9 +280,10 @@ static const NSStringEncoding AllowedEncodings[] = {
 }
 
 - (BOOL)shouldUpdateNoteFromDisk {
-	NVFileInfo info;
 	NSError *error = nil;
-	if (![[note delegate] getFileInfo:&info forNoteNamed:filenameOfNote(note) error:&error]) {
+	NVFileObservation *observation = [[[note delegate] noteDirectory]
+		observationForFileNamed:filenameOfNote(note) error:&error];
+	if (!observation) {
 		NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"Error: the modification date of the file quotemark%@quotemark could not be determined because %@", nil),
 			filenameOfNote(note), [error localizedDescription]],
 			NSLocalizedString(@"The file may no longer exist or has incorrect permissions.", nil),
@@ -291,10 +293,9 @@ static const NSStringEncoding AllowedEncodings[] = {
 	
 	struct timespec fileModificationTime = fileModificationTimeOfNote(note);
 	CFAbsoluteTime timeOnDisk, lastTime;
-	timeOnDisk = (CFAbsoluteTime)info.modificationTime.tv_sec +
-		((CFAbsoluteTime)info.modificationTime.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
-	lastTime = (CFAbsoluteTime)fileModificationTime.tv_sec +
-		((CFAbsoluteTime)fileModificationTime.tv_nsec / NSEC_PER_SEC) - kCFAbsoluteTimeIntervalSince1970;
+	struct timespec observedModificationTime = [observation modificationTime];
+	timeOnDisk = NVAbsoluteTimeFromTimespec(observedModificationTime);
+	lastTime = NVAbsoluteTimeFromTimespec(fileModificationTime);
 	if (fileMetadataIsValidForNote(note)) {
 		if (lastTime > timeOnDisk) {
 			NSModalResponse result = NVRunAlert([NSString stringWithFormat:NSLocalizedString(@"The note quotemark%@quotemark is newer than its file on disk.", nil), titleOfNote(note)],
