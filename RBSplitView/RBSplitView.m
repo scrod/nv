@@ -932,9 +932,9 @@ static inline CGFloat fMAX(CGFloat a,CGFloat b) {
 			[self setAutosaveName:[coder decodeObject] recursively:NO];
 			data = [coder decodeObject];
 			[self setBackground:[coder decodeObject]];
-			[coder decodeValueOfObjCType:@encode(typeof(divt)) at:&divt];
-			[coder decodeValueOfObjCType:@encode(typeof(isHorizontal)) at:&isHorizontal];
-			[coder decodeValueOfObjCType:@encode(typeof(isCoupled)) at:&isCoupled];
+			[coder decodeValueOfObjCType:@encode(typeof(divt)) at:&divt size:sizeof(divt)];
+			[coder decodeValueOfObjCType:@encode(typeof(isHorizontal)) at:&isHorizontal size:sizeof(isHorizontal)];
+			[coder decodeValueOfObjCType:@encode(typeof(isCoupled)) at:&isCoupled size:sizeof(isCoupled)];
 		}
 		dividers = NULL;
 		if (data) {

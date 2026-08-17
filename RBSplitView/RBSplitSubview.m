@@ -607,11 +607,11 @@ static animationData* currentAnimation = NULL;
 			canCollapse = [coder decodeBoolForKey:@"canCollapse"];
 		} else {
 			[self setIdentifier:[coder decodeObject]];
-			[coder decodeValueOfObjCType:@encode(typeof(tag)) at:&tag];
-			[coder decodeValueOfObjCType:@encode(typeof(minDimension)) at:&minDimension];
-			[coder decodeValueOfObjCType:@encode(typeof(maxDimension)) at:&maxDimension];
-			[coder decodeValueOfObjCType:@encode(typeof(fraction)) at:&fraction];
-			[coder decodeValueOfObjCType:@encode(typeof(canCollapse)) at:&canCollapse];
+			[coder decodeValueOfObjCType:@encode(typeof(tag)) at:&tag size:sizeof(tag)];
+			[coder decodeValueOfObjCType:@encode(typeof(minDimension)) at:&minDimension size:sizeof(minDimension)];
+			[coder decodeValueOfObjCType:@encode(typeof(maxDimension)) at:&maxDimension size:sizeof(maxDimension)];
+			[coder decodeValueOfObjCType:@encode(typeof(fraction)) at:&fraction size:sizeof(fraction)];
+			[coder decodeValueOfObjCType:@encode(typeof(canCollapse)) at:&canCollapse size:sizeof(canCollapse)];
 		}
 	}
     return self;

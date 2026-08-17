@@ -54,9 +54,9 @@
 			syncServicesMD = [[decoder decodeObjectForKey:VAR_STR(syncServicesMD)] retain];
 			logSequenceNumber = [decoder decodeInt32ForKey:VAR_STR(logSequenceNumber)];
 		} else {
-			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
+			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes size:sizeof(uniqueNoteIDBytes)];
 			syncServicesMD = [[decoder decodeObject] retain];
-			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
+			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber size:sizeof(logSequenceNumber)];
 		}
     }
     return self;

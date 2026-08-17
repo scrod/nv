@@ -109,13 +109,19 @@
 	isRunning = YES;
 	
 	//NSLog(@"starting request for URL '%@'", requestURL);
-	if (!(urlConnection = [[NSURLConnection alloc] initWithRequest:request delegate:self])) {
-		NSLog(@"%@: Couldn't create NSURLConnection with URLRequest %@", NSStringFromSelector(_cmd), request);
+	NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
+	urlSession = [[NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:[NSOperationQueue mainQueue]] retain];
+	if (!(urlTask = [[urlSession dataTaskWithRequest:request] retain])) {
+		NSLog(@"%@: Couldn't create NSURLSessionDataTask with URLRequest %@", NSStringFromSelector(_cmd), request);
+		[urlSession invalidateAndCancel];
+		[urlSession release];
+		urlSession = nil;
 		isRunning = NO;
 		[self release];
 		[delegate release];
 		return NO;
 	}
+	[urlTask resume];
 	
 	return YES;
 }
@@ -125,7 +131,7 @@
 	
 	didCancel = YES;
 	
-	[urlConnection cancel];
+	[urlTask cancel];
 	[self _fetchDidFinishWithError:NSLocalizedString(@"Operation cancelled", 
 													 @"Error string returned to indicate that the user cancelled a syncing service operation")];
 }
@@ -136,7 +142,10 @@
 	[dataToSendContentType release];
 	[requestURL release];
 	[receivedData release];
-	[urlConnection release];
+	[urlTask cancel];
+	[urlTask release];
+	[urlSession invalidateAndCancel];
+	[urlSession release];
 	[headers release];
 	[representedObject release];
 	
@@ -169,40 +178,55 @@
 	
 	[receivedData setLength:0];
 	
-	[urlConnection autorelease];
-	urlConnection = nil;
+	[urlTask release];
+	urlTask = nil;
+	[urlSession invalidateAndCancel];
+	[urlSession release];
+	urlSession = nil;
 	isRunning = NO;
 	
 	[self autorelease];
 	[delegate autorelease];
 }
 
-- (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response {
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveResponse:(NSURLResponse *)response completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))completionHandler {
+	#pragma unused(session)
+	if (dataTask != urlTask || !isRunning) {
+		completionHandler(NSURLSessionResponseCancel);
+		return;
+	}
+
 	[receivedData setLength:0];
 	
 	lastStatusCode = 0;
 	BOOL responseValid = [response isKindOfClass:[NSHTTPURLResponse class]];
 	if (!responseValid || (lastStatusCode = [(NSHTTPURLResponse*)response statusCode]) != 200) {
-		
-		[urlConnection cancel];
+		completionHandler(NSURLSessionResponseCancel);
 		[self _fetchDidFinishWithError:[NSHTTPURLResponse localizedStringForStatusCode:lastStatusCode]];
 	} else if (responseValid) {
 		self.headers = [(NSHTTPURLResponse*)response allHeaderFields];
+		completionHandler(NSURLSessionResponseAllow);
 	}
 }
 
-- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data {
+	#pragma unused(session)
+	if (dataTask != urlTask || !isRunning) {
+		return;
+	}
+
 	if (data) {
 		[receivedData appendData:data];
 	}
 }
 
-- (void)connectionDidFinishLoading:(NSURLConnection *)connection {
-	[self _fetchDidFinishWithError:nil];
-}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
+	#pragma unused(session)
+	if (task != urlTask || !isRunning) {
+		return;
+	}
 
-- (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {
-	[self _fetchDidFinishWithError:[error localizedDescription]];
+	[self _fetchDidFinishWithError:error ? [error localizedDescription] : nil];
 }
 
 @end

@@ -48,9 +48,9 @@
 	if (!self) return nil;
 	
 	mRTFDData = [[decoder decodeObject] retain];
-	[decoder decodeValueOfObjCType:@encode(int) at:&mWindowFlags];
-	[decoder decodeValueOfObjCType:"{_NSRect={_NSPoint=ff}{_NSSize=ff}}" at:&mWindowFrame];
-	[decoder decodeValueOfObjCType:@encode(int) at:&mWindowColor];
+	[decoder decodeValueOfObjCType:@encode(int) at:&mWindowFlags size:sizeof(mWindowFlags)];
+	[decoder decodeValueOfObjCType:"{_NSRect={_NSPoint=ff}{_NSSize=ff}}" at:&mWindowFrame size:sizeof(mWindowFrame)];
+	[decoder decodeValueOfObjCType:@encode(int) at:&mWindowColor size:sizeof(mWindowColor)];
 	mCreationDate = [[decoder decodeObject] retain];
 	mModificationDate = [[decoder decodeObject] retain];
 	

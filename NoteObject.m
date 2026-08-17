@@ -437,25 +437,25 @@ force_inline id unifiedCellForNote(NotesTableView *tv, NoteObject *note, NSInteg
 			unsigned int legacyLowSeconds = 0;
 			float scrolledProportion = 0.0;
 			unsigned long longTemp;
-			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&modifiedDate];
-			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&createdDate];
-			[decoder decodeValueOfObjCType:"{_NSRange=II}" at:&range32];
-			[decoder decodeValueOfObjCType:@encode(float) at:&scrolledProportion];
+			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&modifiedDate size:sizeof(modifiedDate)];
+			[decoder decodeValueOfObjCType:@encode(CFAbsoluteTime) at:&createdDate size:sizeof(createdDate)];
+			[decoder decodeValueOfObjCType:"{_NSRange=II}" at:&range32 size:sizeof(range32)];
+			[decoder decodeValueOfObjCType:@encode(float) at:&scrolledProportion size:sizeof(scrolledProportion)];
 			
-			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber];
+			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&logSequenceNumber size:sizeof(logSequenceNumber)];
 			
-			[decoder decodeValueOfObjCType:@encode(int) at:&currentFormatID];
-			[decoder decodeValueOfObjCType:"L" at:&longTemp];
+			[decoder decodeValueOfObjCType:@encode(int) at:&currentFormatID size:sizeof(currentFormatID)];
+			[decoder decodeValueOfObjCType:"L" at:&longTemp size:sizeof(longTemp)];
             legacyNodeID = (unsigned int)longTemp;
-			[decoder decodeValueOfObjCType:@encode(unsigned short) at:&legacyHighSeconds];
-			[decoder decodeValueOfObjCType:"L" at:&longTemp];
+			[decoder decodeValueOfObjCType:@encode(unsigned short) at:&legacyHighSeconds size:sizeof(legacyHighSeconds)];
+			[decoder decodeValueOfObjCType:"L" at:&longTemp size:sizeof(longTemp)];
             legacyLowSeconds = (unsigned int)longTemp;
-			[decoder decodeValueOfObjCType:@encode(unsigned short) at:&legacyFraction];
+			[decoder decodeValueOfObjCType:@encode(unsigned short) at:&legacyFraction size:sizeof(legacyFraction)];
             
-            [decoder decodeValueOfObjCType:"I" at:&fileEncoding];
+            [decoder decodeValueOfObjCType:"I" at:&fileEncoding size:sizeof(fileEncoding)];
 			
-			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes];
-			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime];
+			[decoder decodeValueOfObjCType:@encode(CFUUIDBytes) at:&uniqueNoteIDBytes size:sizeof(uniqueNoteIDBytes)];
+			[decoder decodeValueOfObjCType:@encode(unsigned int) at:&serverModifiedTime size:sizeof(serverModifiedTime)];
 			
 			titleString = [[decoder decodeObject] retain];
 			labelString = [[decoder decodeObject] retain];

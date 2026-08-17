@@ -26,12 +26,13 @@
 
 //carries out a single request
 
-@interface SyncResponseFetcher : NSObject {
+@interface SyncResponseFetcher : NSObject <NSURLSessionDataDelegate> {
 
 	NSMutableData *receivedData;
 	NSData *dataToSend;
 	NSString *dataToSendContentType;
-	NSURLConnection *urlConnection;
+	NSURLSession *urlSession;
+	NSURLSessionDataTask *urlTask;
 	NSURL *requestURL;
 	NSDictionary *headers;
 	id representedObject;
