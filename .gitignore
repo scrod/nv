@@ -2,6 +2,7 @@
 build/*
 Vendor/*
 DerivedData/*
+DerivedDataAnalyze/*
 *.pbxuser
 *.mode1v3
 *.mode1

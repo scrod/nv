@@ -205,6 +205,8 @@
 	<string>https://notational.net/nvupdates.xml</string>
 	<key>SUPublicDSAKeyFile</key>
 	<string>dsa_pub.pem</string>
+	<key>SUPublicEDKey</key>
+	<string>FXkP4ZBZwK98JS6LpSJLB6WHjFlMymy/Wa1EdvSxnx8=</string>
 	<key>SUScheduledCheckInterval</key>
 	<real>345600</real>
 	<key>SmartCrashReports_CompanyName</key>

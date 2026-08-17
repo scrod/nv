@@ -1,0 +1,399 @@
+name: Release
+
+# Tag-driven release pipeline. A signed v* tag created by tools/release.sh
+# builds, Developer-ID-signs, notarizes, staples, Sparkle-signs, attests, and
+# publishes an immutable GitHub release.
+#
+# Required secrets belong to the protected `release` environment:
+#   APPLE_CERTIFICATE_BASE64  Developer ID Application certificate/private key (.p12)
+#   APPLE_P12_PASSWORD        password for that .p12
+#   NOTARY_KEY_P8_BASE64      App Store Connect Team API key (.p8)
+#   NOTARY_KEY_ID             Team API key ID
+#   NOTARY_ISSUER_ID          Team API issuer ID
+#   SPARKLE_ED_PRIVATE_KEY    Sparkle EdDSA private seed
+#   SPARKLE_DSA_PRIVATE_KEY   legacy DSA key, required only while Info.plist
+#                             contains SUPublicDSAKeyFile (the bridge release)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  APP_NAME: "Notational Velocity"
+  ASSET_BASENAME: NotationalVelocity
+  # Pin the runner generation and Xcode explicitly. Xcode 26.6 supports the
+  # app's macOS 11.5 deployment target; log both versions below for provenance.
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+  SPARKLE_VERSION: 2.9.5
+  SPARKLE_TAR_SHA256: 015336b601493e05c237964954bff6191370003d94edefe663724c88840d73cc
+
+jobs:
+  zizmor:
+    name: Audit release workflow
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: zizmor-action
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          advanced-security: false
+          inputs: .github/workflows/release.yml
+          version: 1.29.0
+
+  build:
+    name: Build, sign, and notarize
+    needs: zizmor
+    runs-on: macos-26
+    environment: release
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate signed tag and runner
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(b[0-9]+)?$ ]] \
+            || { echo "Invalid release tag: $GITHUB_REF_NAME" >&2; exit 1; }
+          [ "$(git cat-file -t "$GITHUB_REF_NAME")" = tag ] \
+            || { echo "Release tag must be annotated and signed" >&2; exit 1; }
+
+          TAG_OBJECT_SHA=$(git rev-parse "$GITHUB_REF_NAME^{tag}")
+          VERIFIED=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA" --jq .verification.verified)
+          [ "$VERIFIED" = true ] \
+            || { echo "GitHub does not verify the release tag signature" >&2; exit 1; }
+
+          git fetch --quiet origin master
+          TAG_COMMIT=$(git rev-list -n 1 "$GITHUB_REF_NAME")
+          git merge-base --is-ancestor "$TAG_COMMIT" origin/master \
+            || { echo "Release tag is not on origin/master" >&2; exit 1; }
+
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          sw_vers
+          xcodebuild -version
+
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_P12_PASSWORD: ${{ secrets.APPLE_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "$APPLE_CERTIFICATE_BASE64" ] && [ -n "$APPLE_P12_PASSWORD" ] \
+            || { echo "Developer ID certificate secrets are missing" >&2; exit 1; }
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          rm -f "$CERT_PATH"
+
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+          [ -n "$SIGNING_IDENTITY" ] \
+            || { echo "No Developer ID Application identity found" >&2; exit 1; }
+          TEAM_ID=$(echo "$SIGNING_IDENTITY" | sed -E 's/.*\(([A-Z0-9]{10})\)$/\1/')
+          [[ "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] \
+            || { echo "Could not parse team ID from $SIGNING_IDENTITY" >&2; exit 1; }
+          echo "Using signing identity: $SIGNING_IDENTITY"
+          echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
+
+      - name: Archive and sign
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project Notation.xcodeproj \
+            -scheme Notation \
+            -configuration Deployment \
+            -archivePath "$RUNNER_TEMP/Notation.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+          APP_PATH=$(find "$RUNNER_TEMP/Notation.xcarchive/Products" -maxdepth 5 \
+            -type d -name "$APP_NAME.app" -print -quit)
+          [ -d "$APP_PATH" ] || { echo "No $APP_NAME.app found in archive" >&2; exit 1; }
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+
+      - name: Validate app and signature
+        run: |
+          set -euo pipefail
+          INFO="$APP_PATH/Contents/Info.plist"
+          PLISTBUDDY=/usr/libexec/PlistBuddy
+          [ "$($PLISTBUDDY -c 'Print :CFBundleShortVersionString' "$INFO")" = "$VERSION" ] \
+            || { echo "Tag and app marketing versions differ" >&2; exit 1; }
+          BUILD_NUMBER=$($PLISTBUDDY -c 'Print :CFBundleVersion' "$INFO")
+          [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] && (( BUILD_NUMBER >= 9 )) \
+            || { echo "CFBundleVersion must be an integer >= 9" >&2; exit 1; }
+          [ "$($PLISTBUDDY -c 'Print :LSMinimumSystemVersion' "$INFO")" = 11.5 ] \
+            || { echo "Unexpected deployment target" >&2; exit 1; }
+          [ "$($PLISTBUDDY -c 'Print :SUFeedURL' "$INFO")" = \
+            "https://notational.net/nvupdates.xml" ] \
+            || { echo "Unexpected SUFeedURL" >&2; exit 1; }
+          ED_PUBLIC_KEY=$($PLISTBUDDY -c 'Print :SUPublicEDKey' "$INFO")
+          [[ "$ED_PUBLIC_KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]] \
+            || { echo "SUPublicEDKey is missing or malformed" >&2; exit 1; }
+
+          if DSA_KEY_FILE=$($PLISTBUDDY -c 'Print :SUPublicDSAKeyFile' "$INFO" 2>/dev/null); then
+            [ -f "$APP_PATH/Contents/Resources/$DSA_KEY_FILE" ] \
+              || { echo "Bundled DSA public key is missing" >&2; exit 1; }
+          fi
+          [ "$($PLISTBUDDY -c 'Print :CFBundleShortVersionString' \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Resources/Info.plist")" = "$SPARKLE_VERSION" ] \
+            || { echo "Built app does not contain Sparkle $SPARKLE_VERSION" >&2; exit 1; }
+
+          for binary in \
+            "$APP_PATH/Contents/MacOS/$APP_NAME" \
+            "$APP_PATH/Contents/Frameworks/Sparkle.framework/Sparkle"; do
+            ARCHS=$(lipo -archs "$binary")
+            grep -qw arm64 <<< "$ARCHS" && grep -qw x86_64 <<< "$ARCHS" \
+              || { echo "$binary is not universal: $ARCHS" >&2; exit 1; }
+          done
+
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          SIGNATURE=$(codesign -dv --verbose=4 "$APP_PATH" 2>&1)
+          grep -q 'flags=.*runtime' <<< "$SIGNATURE" \
+            || { echo "Hardened runtime is missing" >&2; exit 1; }
+          grep -q '^Authority=Developer ID Application' <<< "$SIGNATURE" \
+            || { echo "Not signed with Developer ID Application" >&2; exit 1; }
+          grep -q '^Timestamp=' <<< "$SIGNATURE" \
+            || { echo "Secure timestamp is missing" >&2; exit 1; }
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Package notarization ZIP
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/dist"
+          mkdir -p "$WORK"
+          ZIP_PATH="$WORK/$ASSET_BASENAME-$VERSION.zip"
+          ditto -c -k --keepParent --sequesterRsrc "$APP_PATH" "$ZIP_PATH"
+          echo "WORK=$WORK" >> "$GITHUB_ENV"
+          echo "ZIP_PATH=$ZIP_PATH" >> "$GITHUB_ENV"
+
+      - name: Notarize
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          [ -n "$NOTARY_KEY_P8_BASE64" ] && [ -n "$NOTARY_KEY_ID" ] && [ -n "$NOTARY_ISSUER_ID" ] \
+            || { echo "Notarization secrets are missing" >&2; exit 1; }
+          AUTH_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$NOTARY_KEY_P8_BASE64" | base64 --decode -o "$AUTH_KEY_PATH"
+          chmod 600 "$AUTH_KEY_PATH"
+          NOTARY_ARGS=(--key "$AUTH_KEY_PATH" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID")
+
+          set +e
+          xcrun notarytool submit "$ZIP_PATH" "${NOTARY_ARGS[@]}" \
+            --wait --output-format json > "$RUNNER_TEMP/notary.json"
+          SUBMIT_STATUS=$?
+          set -e
+          cat "$RUNNER_TEMP/notary.json"
+          SUBMISSION_ID=$(jq -r '.id // empty' "$RUNNER_TEMP/notary.json" 2>/dev/null || true)
+          STATUS=$(jq -r '.status // empty' "$RUNNER_TEMP/notary.json" 2>/dev/null || true)
+          if [ -n "$SUBMISSION_ID" ]; then
+            xcrun notarytool log "$SUBMISSION_ID" "${NOTARY_ARGS[@]}" \
+              > "$RUNNER_TEMP/notary-log.json" || true
+            cat "$RUNNER_TEMP/notary-log.json"
+          fi
+          [ "$SUBMIT_STATUS" -eq 0 ] && [ "$STATUS" = Accepted ] \
+            || { echo "Notarization failed (status: ${STATUS:-unknown})" >&2; exit 1; }
+
+      - name: Staple, assess, and rebuild update archive
+        run: |
+          set -euo pipefail
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+          spctl -a -t exec -vv "$APP_PATH"
+
+          rm -f "$ZIP_PATH"
+          ditto -c -k --keepParent --sequesterRsrc "$APP_PATH" "$ZIP_PATH"
+
+      - name: Generate Sparkle appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          SPARKLE_DSA_PRIVATE_KEY: ${{ secrets.SPARKLE_DSA_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$SPARKLE_ED_PRIVATE_KEY" ] \
+            || { echo "SPARKLE_ED_PRIVATE_KEY is missing" >&2; exit 1; }
+
+          curl -sfL -o "$RUNNER_TEMP/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_TAR_SHA256  $RUNNER_TEMP/sparkle.tar.xz" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/sparkle-tools"
+          tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle-tools"
+
+          FEED_DIR="$RUNNER_TEMP/feed"
+          mkdir -p "$FEED_DIR"
+          cp "$ZIP_PATH" "$FEED_DIR/"
+          curl -sfL -o "$FEED_DIR/appcast.xml" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/appcast.xml" \
+            || echo "No previous appcast found; starting a fresh feed"
+
+          DSA_PATH=""
+          DSA_ARGS=()
+          trap 'if [ -n "${DSA_PATH:-}" ]; then rm -f "$DSA_PATH"; fi' EXIT
+          INFO="$APP_PATH/Contents/Info.plist"
+          if DSA_KEY_FILE=$(/usr/libexec/PlistBuddy -c 'Print :SUPublicDSAKeyFile' "$INFO" 2>/dev/null); then
+            [ -n "$SPARKLE_DSA_PRIVATE_KEY" ] \
+              || { echo "SPARKLE_DSA_PRIVATE_KEY is required for this bridge release" >&2; exit 1; }
+            DSA_PATH="$RUNNER_TEMP/dsa-private.pem"
+            printf '%s\n' "$SPARKLE_DSA_PRIVATE_KEY" > "$DSA_PATH"
+            chmod 600 "$DSA_PATH"
+            EXPECTED_DSA=$(openssl dsa -pubin \
+              -in "$APP_PATH/Contents/Resources/$DSA_KEY_FILE" -outform DER 2>/dev/null \
+              | shasum -a 256 | awk '{print $1}')
+            ACTUAL_DSA=$(openssl dsa -in "$DSA_PATH" -pubout -outform DER 2>/dev/null \
+              | shasum -a 256 | awk '{print $1}')
+            [ -n "$EXPECTED_DSA" ] && [ "$ACTUAL_DSA" = "$EXPECTED_DSA" ] \
+              || { echo "Legacy DSA private key does not match the bundled public key" >&2; exit 1; }
+            DSA_ARGS=(-f "$DSA_PATH")
+          fi
+
+          printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | \
+            "$RUNNER_TEMP/sparkle-tools/bin/generate_appcast" \
+              --ed-key-file - \
+              "${DSA_ARGS[@]}" \
+              --maximum-versions 0 \
+              --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+              --full-release-notes-url "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" \
+              --link "https://github.com/$GITHUB_REPOSITORY" \
+              "$FEED_DIR"
+
+          UPDATE_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$(basename "$ZIP_PATH")"
+          XPATH="//*[local-name()='enclosure' and @url='$UPDATE_URL']"
+          [ "$(xmllint --xpath "count($XPATH)" "$FEED_DIR/appcast.xml")" = 1 ] \
+            || { echo "Appcast does not contain exactly one new archive" >&2; exit 1; }
+          [ "$(xmllint --xpath "string($XPATH/@*[local-name()='version'])" "$FEED_DIR/appcast.xml")" = "$BUILD_NUMBER" ] \
+            || { echo "Appcast build number is wrong" >&2; exit 1; }
+          [ -n "$(xmllint --xpath "string($XPATH/@*[local-name()='edSignature'])" "$FEED_DIR/appcast.xml")" ] \
+            || { echo "New appcast item lacks an EdDSA signature" >&2; exit 1; }
+          if [ "${#DSA_ARGS[@]}" -ne 0 ]; then
+            [ -n "$(xmllint --xpath "string($XPATH/@*[local-name()='dsaSignature'])" "$FEED_DIR/appcast.xml")" ] \
+              || { echo "Bridge appcast item lacks a DSA signature" >&2; exit 1; }
+          fi
+          xmllint --noout "$FEED_DIR/appcast.xml"
+          echo "FEED_DIR=$FEED_DIR" >> "$GITHUB_ENV"
+          rm -f "$DSA_PATH"
+          trap - EXIT
+
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          cp "$FEED_DIR/appcast.xml" "$WORK/appcast.xml"
+          CHECKSUM_PATH="$WORK/$ASSET_BASENAME-$VERSION-checksums.txt"
+          (cd "$WORK" && shasum -a 256 \
+            "$ASSET_BASENAME-$VERSION.zip" \
+            appcast.xml) > "$CHECKSUM_PATH"
+
+      - name: Remove credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/dsa-private.pem" "$RUNNER_TEMP/cert.p12"
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-assets-${{ github.ref_name }}
+          path: |
+            ${{ runner.temp }}/dist/*.zip
+            ${{ runner.temp }}/dist/*-checksums.txt
+            ${{ runner.temp }}/dist/appcast.xml
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish:
+    name: Attest and publish
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 15
+    permissions:
+      contents: write # create the immutable GitHub release
+      id-token: write # request the Sigstore signing certificate
+      attestations: write # persist provenance in GitHub
+      artifact-metadata: write # record the attested release assets
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: release-assets-${{ github.ref_name }}
+          path: ${{ runner.temp }}/release-assets
+
+      - name: Verify release assets
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ASSET_DIR="$RUNNER_TEMP/release-assets"
+          CHECKSUMS="$ASSET_DIR/$ASSET_BASENAME-$VERSION-checksums.txt"
+          [ -f "$CHECKSUMS" ] || { echo "Release checksums are missing" >&2; exit 1; }
+          (cd "$ASSET_DIR" && sha256sum -c "$(basename "$CHECKSUMS")")
+
+      - name: Attest build provenance
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: |
+            ${{ runner.temp }}/release-assets/*.zip
+            ${{ runner.temp }}/release-assets/*-checksums.txt
+            ${{ runner.temp }}/release-assets/appcast.xml
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          ASSET_DIR="$RUNNER_TEMP/release-assets"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            && { echo "Release $GITHUB_REF_NAME already exists; refusing to overwrite it" >&2; exit 1; }
+          gh release create "$GITHUB_REF_NAME" \
+            "$ASSET_DIR/$ASSET_BASENAME-$VERSION.zip" \
+            "$ASSET_DIR/$ASSET_BASENAME-$VERSION-checksums.txt" \
+            "$ASSET_DIR/appcast.xml" \
+            --verify-tag \
+            --latest \
+            --title "$APP_NAME $VERSION" \
+            --generate-notes
