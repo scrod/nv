@@ -90,8 +90,9 @@
 
 	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 	[alert setMessageText:NSLocalizedString(@"This folder contains a Notational Velocity database.", nil)];
-	[alert setInformativeText:NSLocalizedString(
-		@"Would you like to import its contents as new notes, or make it your default notes folder?", nil)];
+	[alert setInformativeText:importableFileCount ?
+		NSLocalizedString(@"Would you like to import its contents as new notes, or make it your default notes folder?", nil) :
+		NSLocalizedString(@"Would you like to make it your default notes folder?", nil)];
 	if (importableFileCount)
 		[alert addButtonWithTitle:[NSString stringWithFormat:NSLocalizedString(@"Import %lu Text Files", nil),
 			importableFileCount]];

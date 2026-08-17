@@ -674,6 +674,7 @@
 "Set Default Notes Folder" = "Establecer carpeta de notas predeterminada";
 "This folder contains a Notational Velocity database." = "Esta carpeta contiene una base de datos de Notational Velocity.";
 "Would you like to import its contents as new notes, or make it your default notes folder?" = "¿Quieres importar su contenido como notas nuevas o convertirla en tu carpeta de notas predeterminada?";
+"Would you like to make it your default notes folder?" = "¿Quieres convertirla en tu carpeta de notas predeterminada?";
 
 /* localization audit: user-facing fallback strings */
 "Another copy of Notational Velocity is already using this notes database." = "Otra copia de Notational Velocity ya está utilizando esta base de datos de notas.";

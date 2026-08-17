@@ -672,6 +672,7 @@
 "Set Default Notes Folder" = "设置默认笔记文件夹";
 "This folder contains a Notational Velocity database." = "此文件夹包含一个 Notational Velocity 数据库。";
 "Would you like to import its contents as new notes, or make it your default notes folder?" = "要将其内容导入为新笔记，还是将其设为默认笔记文件夹？";
+"Would you like to make it your default notes folder?" = "要将其设为默认笔记文件夹吗？";
 
 /* localization audit: user-facing fallback strings */
 "Another copy of Notational Velocity is already using this notes database." = "Notational Velocity 的另一个副本已在使用此笔记数据库。";

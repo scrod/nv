@@ -674,6 +674,7 @@
 "Set Default Notes Folder" = "Standardnotizordner festlegen";
 "This folder contains a Notational Velocity database." = "Dieser Ordner enthält eine Notational-Velocity-Datenbank.";
 "Would you like to import its contents as new notes, or make it your default notes folder?" = "Möchtest du den Inhalt als neue Notizen importieren oder diesen Ordner als Standardnotizordner festlegen?";
+"Would you like to make it your default notes folder?" = "Möchtest du diesen Ordner als Standardnotizordner festlegen?";
 
 /* localization audit: user-facing fallback strings */
 "Another copy of Notational Velocity is already using this notes database." = "Eine andere Kopie von Notational Velocity verwendet bereits diese Notizendatenbank.";
