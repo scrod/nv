@@ -670,7 +670,7 @@
 "The settings change was canceled. The temporary file and external-editing session remain available; save again and retry." = "El cambio de ajustes se canceló. El archivo temporal y la sesión de edición externa siguen disponibles; guarda de nuevo y vuelve a intentarlo.";
 
 /* notes-folder import chooser */
-"Import Contents as New Notes" = "Importar contenido como notas nuevas";
+"Import %lu Text Files" = "Importar %lu archivos de texto";
 "Set Default Notes Folder" = "Establecer carpeta de notas predeterminada";
 "This folder contains a Notational Velocity database." = "Esta carpeta contiene una base de datos de Notational Velocity.";
 "Would you like to import its contents as new notes, or make it your default notes folder?" = "¿Quieres importar su contenido como notas nuevas o convertirla en tu carpeta de notas predeterminada?";

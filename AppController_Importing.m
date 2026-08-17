@@ -85,19 +85,24 @@
 		[paths release];
 		return imported;
 	}
+	if (!importer) importer = [[[AlienNoteImporter alloc] init] autorelease];
+	NSUInteger importableFileCount = [[importer notesWithPaths:paths] count];
 
 	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
 	[alert setMessageText:NSLocalizedString(@"This folder contains a Notational Velocity database.", nil)];
 	[alert setInformativeText:NSLocalizedString(
 		@"Would you like to import its contents as new notes, or make it your default notes folder?", nil)];
-	[alert addButtonWithTitle:NSLocalizedString(@"Import Contents as New Notes", nil)];
+	if (importableFileCount)
+		[alert addButtonWithTitle:[NSString stringWithFormat:NSLocalizedString(@"Import %lu Text Files", nil),
+			importableFileCount]];
 	[alert addButtonWithTitle:NSLocalizedString(@"Set Default Notes Folder", nil)];
 	NSButton *cancelButton = [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
 	[cancelButton setKeyEquivalent:@"\e"];
+	NSModalResponse defaultNotesFolderResponse = importableFileCount ? NSAlertSecondButtonReturn : NSAlertFirstButtonReturn;
 	[alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
-		if (response == NSAlertFirstButtonReturn)
+		if (importableFileCount && response == NSAlertFirstButtonReturn)
 			[self _importFilePaths:paths usingImporter:importer];
-		else if (response == NSAlertSecondButtonReturn)
+		else if (response == defaultNotesFolderResponse)
 			[self _setDefaultNotesDirectoryPath:dataDirectoryPath sender:alert];
 	}];
 	[paths release];
