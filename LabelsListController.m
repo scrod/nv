@@ -170,7 +170,7 @@
         NSUInteger labelIndex = labelsBuffer[i];
 	[notesOfLabels unionSet:[objects[labelIndex] noteSet]];
     }
-    
+    free(labelsBuffer);
     return [notesOfLabels autorelease];
 }
 

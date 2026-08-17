@@ -382,11 +382,12 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 		(void)[controller flushAllNoteChanges];
 	}
 	if (error) *error = noErr;
-	return controller;
+	return [controller autorelease];
 
 failed:
 	if (activationError) NSLog(@"Unable to restart after WAL recovery: %@", activationError);
 	[self _discardStagedController:controller];
+	[controller release];
 	if (error) *error = restartError ?: kJournalingError;
 	return nil;
 }
@@ -405,9 +406,9 @@ failed:
 	[controller->changeWritingTimer invalidate];
 	controller.changeWritingTimer = nil;
 	/* walWriter has no deferred autorelease ownership, so this synchronously
-	 * closes its descriptor before rollback locks the replacement WAL. */
+	 * closes its descriptor before rollback locks the replacement WAL.  The caller
+	 * releases the rejected controller after this teardown. */
 	controller.walWriter = nil;
-	[controller release];
 }
 
 - (NotationController*)_restartUsingDatabaseData:(NSData*)data
@@ -578,7 +579,7 @@ failed:
 	}
 	[reader release];
 	[recoveredNotes release];
-	return replacement;
+	return [replacement retain];
 }
 
 @end

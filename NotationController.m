@@ -75,7 +75,7 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 	return [[NVRootedDirectory alloc] initWithFileReferenceURL:URL error:error];
 }
 
-@synthesize filterString, directoryRetryTimer, changeWritingTimer, lastWriteError, walWriter;
+@synthesize filterString = _filterString, directoryRetryTimer, changeWritingTimer, lastWriteError, walWriter;
 
 - (id)init {
     self = [super init];
@@ -1643,6 +1643,8 @@ returnResult:
 - (void)dealloc {
 	[directoryRetryTimer invalidate];
 	[directoryRetryTimer release];
+	[changeWritingTimer invalidate];
+	[changeWritingTimer release];
 	[walWriter release];
 	[notationPrefs setDelegate:nil];
 	[allNotes makeObjectsPerformSelector:@selector(attachToDelegate:) withObject:nil];

@@ -58,7 +58,7 @@ NVBulkCatalogParseResult NVParseBulkCatalogRecord(const void *bytes, size_t avai
 - (NoteCatalogEntry*)entries;
 - (NoteCatalogEntry**)sortedEntries;
 - (size_t)count;
-- (BOOL)appendOwnedFilename:(CFStringRef)filename
+- (BOOL)appendOwnedFilename:(CFStringRef CF_CONSUMED)filename
 	attributeChangeTime:(struct timespec)changeTime documentID:(uint32_t)documentID
 	fileID:(uint64_t)fileID generationCount:(uint32_t)generationCount;
 - (void)sortCaseInsensitively;

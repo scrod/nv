@@ -152,7 +152,10 @@ static size_t EstimatedCharCountForWidth(float upToWidth) {
 	NSMutableString *unattributedPreview = [[NSMutableString alloc] initWithCapacity:bodyCharCount + [self length] + 2];
 	
 	NSString *truncatedBodyString = [[bodyText string] truncatedPreviewStringOfLength:bodyCharCount];
-	if (!truncatedBodyString) return nil;
+	if (!truncatedBodyString) {
+		[unattributedPreview release];
+		return nil;
+	}
 	
 	[unattributedPreview appendString:self];
 	[unattributedPreview appendString:@"\n"];

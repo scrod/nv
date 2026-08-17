@@ -93,12 +93,14 @@ static id UnarchiveObject(NSData *data, NSString *key, NSError **error) {
 			
 			if (![prefs encryptDataInNewSession:notesData]) {
 				NSLog(@"Couldn't encrypt data!");
+				[self release];
 				return nil;
 			}
 		}
 		
 		if (![notesData length]) {
             NSLog(@"%@: empty notesData; returning nil", NSStringFromSelector(_cmd));
+			[self release];
 			return nil;
 		}
 	}

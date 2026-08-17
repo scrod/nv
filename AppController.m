@@ -151,8 +151,10 @@
 		[[container.heightAnchor constraintEqualToConstant:labelSize.height] setActive:YES];
 		[titleLabel setFrameOrigin:NSMakePoint(padX, 0)];
 		[container addSubview:titleLabel];
+		[titleLabel release];
 
 		[appTitleItem setView:container];
+		[container release];
 		[appTitleItem setLabel:NSLocalizedString(@"Notation", @"App name")];
 	}
 

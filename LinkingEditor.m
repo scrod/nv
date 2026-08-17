@@ -1426,6 +1426,7 @@ cancelCompetion:
 								alternateAttributeValue:[NSNumber numberWithFloat:OBLIQUENESS_FOR_ITALIC]];	
 			}
 			[self setTypingAttributes:newTypingAttributes];
+			[newTypingAttributes release];
 		}
 	}
 }

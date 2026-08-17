@@ -70,6 +70,7 @@
 		[session release];
 	}
 	[downloadPath release];
+	[tempDirectory release];
 	[url release];
 	[userData release];
 	[urlGetterTopLevelObjects release];

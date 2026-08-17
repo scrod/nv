@@ -206,7 +206,7 @@ static void sendCallbacksForGlobalPrefs(GlobalPrefs* self, SEL selector, id orig
 }
 
 - (void)dealloc {
-	
+	[noteBodyAttributes release];
 	[tableColumns release];
 	[super dealloc];
 }
