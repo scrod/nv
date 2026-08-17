@@ -735,6 +735,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (NSUInteger)deletionCandidateCount;
 - (void)setMutationBeforeFenceName:(NSString*)filename content:(NSString*)content;
 - (void)breakJournalDescriptor;
+- (BOOL)journalFileStillExists;
 - (void)setPreparedNoteProbeName:(NSString*)filename deallocationFlag:(BOOL*)flag;
 - (void)setDirectoryMoveFromPath:(NSString*)oldPath toPath:(NSString*)newPath
 	onCatalogRead:(NSUInteger)catalogRead;
@@ -1123,6 +1124,8 @@ static char NVPreparedNoteDeallocationProbeKey;
 - (void)breakJournalDescriptor {
 	[walWriter _closeLogFile];
 }
+
+- (BOOL)journalFileStillExists { return [walWriter logFileStillExists]; }
 
 - (BOOL)bufferJournalForNoteWithoutRetiringObligation:(NoteObject*)note {
 	return walWriter && [walWriter writeEstablishedNote:note];
@@ -5699,6 +5702,7 @@ static void TestUnsavedWriteRecoveryContract(void) {
 		[note setContentString:[[[NSAttributedString alloc]
 			initWithString:@"file sink succeeds independently"] autorelease]];
 		[controller breakJournalDescriptor];
+		REQUIRE(![controller journalFileStillExists]);
 		[controller synchronizeNoteChanges:nil];
 		REQUIRE([controller pendingFileWriteCount] == 0);
 		REQUIRE([controller pendingJournalWriteCount] == 0);

@@ -1602,14 +1602,17 @@ static NSFileHandle *NVOpenExistingRegularFile(int directoryFileDescriptor,
 	char *name = NULL;
 	if (!NVRootedLeafFileSystemName(directoryName, &name, error)) return NO;
 	int oldParentFD = openat(directoryFileDescriptor, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	int validationError = oldParentFD < 0 ? errno : EAGAIN;
 	int newParentFD = NVOpenDirectoryReferenceURL(destinationDirectoryURL, error);
 	struct stat rootStatus = { 0 }, oldNamedStatus = { 0 };
-	BOOL valid = oldParentFD >= 0 && newParentFD >= 0 &&
-		fstat(directoryFileDescriptor, &rootStatus) == 0 &&
-		fstatat(oldParentFD, name, &oldNamedStatus, AT_SYMLINK_NOFOLLOW) == 0 &&
-		rootStatus.st_dev == oldNamedStatus.st_dev && rootStatus.st_ino == oldNamedStatus.st_ino;
+	BOOL valid = oldParentFD >= 0 && newParentFD >= 0;
+	if (valid && (fstat(directoryFileDescriptor, &rootStatus) < 0 ||
+		fstatat(oldParentFD, name, &oldNamedStatus, AT_SYMLINK_NOFOLLOW) < 0)) {
+		validationError = errno;
+		valid = NO;
+	}
+	valid = valid && rootStatus.st_dev == oldNamedStatus.st_dev && rootStatus.st_ino == oldNamedStatus.st_ino;
 	if (!valid) {
-		int validationError = errno ?: EAGAIN;
 		if (oldParentFD >= 0) close(oldParentFD);
 		if (newParentFD >= 0) close(newParentFD);
 		free(name);

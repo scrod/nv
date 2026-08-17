@@ -197,15 +197,16 @@ static CFHashCode CFHashBytes(const uint8_t *bytes, CFIndex length) {
 //called frequently--each time the app comes to the foreground?
 - (BOOL)logFileStillExists {
     struct stat openFileInfo;
+	int fileDescriptor = [self _logFileDescriptor];
+	if (fileDescriptor < 0) return NO;
     
     //but really we shouldn't just fstat the fd because the file shouldn't be renamed or moved, either
     //on the other hand, what if another app deleted and re-created it? then any changes would be lost upon closing the fd
-	if (fstat([self _logFileDescriptor], &openFileInfo) < 0 ||
-		![directory fileHandle:logFileHandle isStillNamed:NVJournalFilename]) {
-	NSLog(@"logFileStillExists: fstat error: %s", strerror(errno));
-	
-	return NO;
-    }
+	if (fstat(fileDescriptor, &openFileInfo) < 0) {
+		NSLog(@"logFileStillExists: fstat error: %s", strerror(errno));
+		return NO;
+	}
+	if (![directory fileHandle:logFileHandle isStillNamed:NVJournalFilename]) return NO;
     
 	return openFileInfo.st_nlink > 0;
 }
