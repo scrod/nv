@@ -3539,6 +3539,46 @@ static void TestWALRecoveryWorkflows(void) {
 	directoryPath = CreateTemporaryDirectory();
 	delegate = [[NVTestControllerDelegate alloc] init];
 	@try {
+		NSData *staleDatabase = TestDatabaseData(@"epoch four stale database", 4, 0);
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		NSString *journalPath = [directoryPath stringByAppendingPathComponent:NVJournalFilename];
+		WriteTestFile(staleDatabase, databasePath, now - 10);
+		NSData *journal = CreateTestJournal(directoryPath,
+			[NSArray arrayWithObject:TestWALNote(@"epoch four WAL-only note")]);
+		NSUInteger failedPromptCount = failedWALRecoveryPromptCount;
+		NSUInteger legacyPromptCount = legacyRecoveryPromptCount;
+		NSUInteger warningCount = partialWALRecoveryWarningCount;
+
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		REQUIRE([controller totalNoteCount] == 2);
+		REQUIRE(NoteContaining(controller, @"epoch four stale database") != nil);
+		REQUIRE(NoteContaining(controller, @"epoch four WAL-only note") != nil);
+		REQUIRE(failedWALRecoveryPromptCount == failedPromptCount);
+		REQUIRE(legacyRecoveryPromptCount == legacyPromptCount);
+		REQUIRE(partialWALRecoveryWarningCount == warningCount);
+		NSData *freshJournal = [NSData dataWithContentsOfFile:journalPath];
+		REQUIRE(freshJournal != nil && ![freshJournal isEqualToData:journal]);
+		REQUIRE([FilenamesWithPrefix(directoryPath,
+			@"Interim Note-Changes (WAL recovery ") count] == 0);
+		NSData *migratedDatabase = [NSData dataWithContentsOfFile:databasePath];
+		REQUIRE(migratedDatabase != nil && ![migratedDatabase isEqualToData:staleDatabase]);
+
+		CloseController(&controller);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE([[controller notationPrefs] epochIteration] == EPOC_ITERATION);
+		REQUIRE([controller totalNoteCount] == 2);
+		REQUIRE(NoteContaining(controller, @"epoch four stale database") != nil);
+		REQUIRE(NoteContaining(controller, @"epoch four WAL-only note") != nil);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+		RemoveTemporaryDirectory(directoryPath);
+	}
+
+	directoryPath = CreateTemporaryDirectory();
+	delegate = [[NVTestControllerDelegate alloc] init];
+	@try {
 		NSData *database = TestDatabaseData(@"old database note", 5, 0);
 		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
 		WriteTestFile(database, databasePath, now - 10);
@@ -5850,6 +5890,47 @@ static void TestEpochFiveArchive(void) {
 	}
 }
 
+/* Hidden helper for tools/test-epoch4-v5-compatibility.sh.  Keep the writer
+ * here so the smoke test always creates its input with the current archive
+ * implementation instead of checking in a versioned database fixture. */
+static void TestWriteEpochFiveCompatibilityDatabase(void) {
+	NSString *directoryPath = [[[NSProcessInfo processInfo] environment]
+		objectForKey:@"NV_EPOCH5_DATABASE_DIRECTORY"];
+	REQUIRE([directoryPath length]);
+	NSError *error = nil;
+	REQUIRE([[NSFileManager defaultManager] createDirectoryAtPath:directoryPath
+		withIntermediateDirectories:YES attributes:nil error:&error]);
+	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
+	NVTestNotationController *controller = nil;
+	@try {
+		controller = CreateController(directoryPath, delegate);
+		[controller stopFileNotifications];
+		[[controller notationPrefs] setNotesStorageFormat:SingleDatabaseFormat];
+		NoteObject *note = [[NoteObject alloc] initWithNoteBody:
+			[[[NSAttributedString alloc] initWithString:
+				@"epoch five compatibility body"] autorelease]
+			title:@"Epoch Five Compatibility" format:SingleDatabaseFormat
+			labels:@"critical,epoch5"];
+		/* Keep these values stable so the historical reader checks the archived
+		 * metadata fields as well as the note's visible content. */
+		[note setSelectedRange:NSMakeRange(6, 4)];
+		[note setFilename:@"epoch-five-compatibility.txt" withExternalTrigger:NO];
+		note->fileEncoding = NSISOLatin1StringEncoding;
+		[controller addNewNote:note];
+		/* addNewNote marks the note dirty and refreshes modifiedDate, so set the
+		 * archived timestamps after it has performed that normal bookkeeping. */
+		[note setDateAdded:123456789.125];
+		[note setDateModified:123456999.875];
+		[note release];
+		REQUIRE([controller flushAllNoteChanges]);
+		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:databasePath]);
+	} @finally {
+		CloseController(&controller);
+		[delegate release];
+	}
+}
+
 static NSData *IntegrationTestAttribute(NSString *path) {
 	const char *name = "com.notationalvelocity.integration-test";
 	const char *filePath = [path fileSystemRepresentation];
@@ -6211,8 +6292,7 @@ static void VerifyExternalChanges(NVTestNotationController *controller, int form
 	[[controller notationPrefs] setConfirmsFileDeletion:NO];
 	REQUIRE([[NSFileManager defaultManager] removeItemAtPath:addedPath error:&error]);
 	REQUIRE([controller synchronizeNotesFromDirectory]);
-	[[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
-	REQUIRE([controller totalNoteCount] == 1);
+	WaitForNoteCount(controller, 1);
 	REQUIRE([AllNotes(controller) objectAtIndex:0] == original);
 	[original release];
 }
@@ -9572,6 +9652,8 @@ int main(int argc, const char *argv[]) {
 			TestUnsavedWriteRecoveryContract();
 		else if ([scenario isEqualToString:@"epoch-five-archive"])
 			TestEpochFiveArchive();
+		else if ([scenario isEqualToString:@"write-epoch-five-compatibility-database"])
+			TestWriteEpochFiveCompatibilityDatabase();
 		else if ([scenario isEqualToString:@"benchmark"])
 			BenchmarkBulkEnumeration();
 		else if ([scenario isEqualToString:@"lifecycle"])

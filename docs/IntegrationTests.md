@@ -16,6 +16,21 @@ Run test commands from the repository root. The test Makefile builds the Deploym
 - `make -C tests clean` removes the executables from `/tmp/notation-integration-tests`.
 - `./build.sh` must still be run after significant source changes, even when the tests pass.
 
+The historical compatibility smoke test is intentionally outside `run-core`:
+
+```sh
+tools/test-epoch4-v5-compatibility.sh
+```
+
+It creates a fresh epoch-5 `Notes & Settings` archive with the current test
+binary, builds a temporary checkout at
+`f4ada9d2e3c34fb816183bf9864074770605a4d3`, and has that epoch-4 reader load
+the archive while verifying the warning, critical note content, and the
+`createdDate`, `modifiedDate`, `filename`, `selectedRange`, `currentFormatID`,
+and `fileEncoding` fields. No database fixture is retained.
+Because the historical reader constructs an AppKit alert, run this smoke test
+in a normal logged-in macOS session rather than a restricted sandbox.
+
 For a normal change, run the narrowest relevant scenario first, then `make -C tests run-core` and `./build.sh`. Run `run-platform`, `stress`, `leak-check`, or `filesystem-image-stress` when the touched behavior falls in those areas. A sandbox denial involving Trash, FSEvents, `leaks`, or `hdiutil` should be rerun in a normal logged-in macOS session before being treated as a product failure.
 
 To run one scenario:
@@ -83,7 +98,7 @@ Storage formats, archives, and recovery:
 - `unsupported-journal-locks`: bookmark-resolved controller launches and WAL recovery tolerate unsupported advisory locking (`ENOTSUP` and regular-file `EINVAL`) while lock contention still fails closed.
 - `legacy-temporary-database-recovery`: after a journaling error, an epoch-4 database offers recovery from the newest qualifying legacy verified-write temporary file; nanosecond/lexical selection, age/size/epoch/filename gates, source preservation, rollback, declined choices, and clean relaunch are covered.
 - `wal-record-recovery`: exercises clean records, skippable archive/type/length failures, checksum/decryption/zlib hard stops, compression-stream resynchronization, unexpected short reads, and benign truncated tails while retaining every safely recovered note.
-- `wal-recovery-workflows`: covers partial-note merging, legacy-candidate merging before epoch upgrade, starting from the old database, one-write epoch upgrade, mutually exclusive alerts, preservation names, rename/sync/fresh-journal rollback, discarded-controller callback cancellation, and unrelated journaling errors.
+- `wal-recovery-workflows`: covers complete epoch-4 WAL replay before upgrade, partial-note merging, legacy-candidate merging before epoch upgrade, starting from the old database, one-write epoch upgrade, mutually exclusive alerts, preservation names, rename/sync/fresh-journal rollback, discarded-controller callback cancellation, and unrelated journaling errors.
 - `legacy-fixtures`: reads legacy keyed/non-keyed database fixtures and upgrades metadata safely.
 - `encryption`: encrypted database persistence plus real controller relaunch, encrypted WAL recovery, post-recovery editing, fresh-WAL replacement, clean WAL retirement, and shutdown/relaunch.
 - `wal-crash-recovery`: child-process WAL crash and relaunch recovery on the selected volume; normally run by the disk-image harness.

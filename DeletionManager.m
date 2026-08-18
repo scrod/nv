@@ -27,6 +27,8 @@
 
 @implementation DeletionManager
 
+static const double RenameReconcileDebounceInterval = 0.2;
+
 @synthesize notationController;
 
 - (id)init {
@@ -79,7 +81,7 @@
 			//canceling the delayed selector would not be necessary if updateForVerifiedExistingNote 
 			//did not have the potential to clear out deletedNotes before the selector posted to the next run loop
 			[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(processDeletedNotes) object:nil];
-			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
+			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:RenameReconcileDebounceInterval];
 		}
 		
 		BOOL didAddDeletedNote = NO;
@@ -102,7 +104,7 @@
 	if (aNote) {
 		if (![deletedNotes count]) {
 			[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(processDeletedNotes) object:nil];
-			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
+			[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:RenameReconcileDebounceInterval];
 		}
 		//filter dups or remove these notes from allNotes before adding them here!
 		if (![self noteFileIsAlreadyDeleted:aNote]) {
@@ -130,7 +132,7 @@
 	}
 	if (![oldNotes count] && [deletedNotes count]) {
 		[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(processDeletedNotes) object:nil];
-		[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:0];
+		[self performSelector:@selector(processDeletedNotes) withObject:nil afterDelay:RenameReconcileDebounceInterval];
 	}
 }
 
@@ -167,6 +169,9 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 
 
 - (void)processDeletedNotes {
+	if (![deletedNotes count]) return;
+
+	NSLog(@"DeletionManager: processDeletedNotes deletedNotes=%lu", (unsigned long)[deletedNotes count]);
 	
 	if ([[notationController notationPrefs] confirmFileDeletion]) {
 		[self showPanelForDeletedNotes];
@@ -240,6 +245,7 @@ void updateForVerifiedExistingNote(DeletionManager *self, NoteObject *goodNote) 
 }
 
 - (void)cancelPanelReturningCode:(NSInteger)code {
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(processDeletedNotes) object:nil];
 	[window close];
 }
 
