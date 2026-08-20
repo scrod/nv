@@ -3,24 +3,18 @@ build/*
 Vendor/*
 DerivedData/*
 DerivedDataAnalyze/*
+build.log
 *.pbxuser
 *.mode1v3
+xcuserdata
 *.mode1
 
 # Mac OS X specific
 .DS_Store
 profile
-English.lproj/MainMenu~.nib/classes.nib
-English.lproj/MainMenu~.nib/data.dependency
-English.lproj/MainMenu~.nib/info.nib
-English.lproj/MainMenu~.nib/keyedobjects.nib
-
-# BranchBox
-.branchbox/registry.json
-.branchbox/secure/
-.devcontainer/.branchbox.env
-.env
-.env.local
+*~.nib
 
 .cache
 CompilationDatabase
+
+tools/release.sh
