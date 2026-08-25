@@ -34,7 +34,7 @@ fi
 
 mkdir -p "$epoch4_checkout"
 git -C "$repo_root" archive "$epoch4_commit" | tar -x -C "$epoch4_checkout"
-cp "$repo_root/tools/Epoch4CompatibilitySmokeMain.m" "$epoch4_checkout/main.m"
+cp "$repo_root/tests/Epoch4CompatibilitySmokeMain.m" "$epoch4_checkout/main.m"
 
 echo "Building the epoch-4 reader from $epoch4_commit..."
 if ! /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \

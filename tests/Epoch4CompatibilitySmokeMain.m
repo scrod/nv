@@ -1,5 +1,5 @@
 /*
- * Command-line entry point used only by test-epoch4-v5-compatibility.sh.
+ * Historical reader entry point used only by test-epoch4-v5-compatibility.sh.
  * It is copied over main.m in a temporary checkout of the last epoch-4
  * sources, so the historical classes can load a database written by the
  * current sources without requiring a GUI or a checked-in database fixture.
