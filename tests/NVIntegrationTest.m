@@ -19,6 +19,7 @@
 #import "../NSFileManager_NV.h"
 #import "../NSData_transformations.h"
 #import "../ImportingUtils.h"
+#import <CommonCrypto/CommonCryptor.h>
 
 #include <sys/stat.h>
 #include <sys/attr.h>
@@ -5890,10 +5891,9 @@ static void TestEpochFiveArchive(void) {
 	}
 }
 
-/* Hidden helper for tools/test-epoch4-v5-compatibility.sh.  Keep the writer
- * here so the smoke test always creates its input with the current archive
- * implementation instead of checking in a versioned database fixture. */
-static void TestWriteEpochFiveCompatibilityDatabase(void) {
+/* TestEncryption's compatibility mode creates the historical reader's input
+ * with the current archive and encryption implementations. */
+static void WriteEncryptedEpochFiveCompatibilityDatabase(void) {
 	NSString *directoryPath = [[[NSProcessInfo processInfo] environment]
 		objectForKey:@"NV_EPOCH5_DATABASE_DIRECTORY"];
 	REQUIRE([directoryPath length]);
@@ -5922,9 +5922,15 @@ static void TestWriteEpochFiveCompatibilityDatabase(void) {
 		[note setDateAdded:123456789.125];
 		[note setDateModified:123456999.875];
 		[note release];
+		[[controller notationPrefs] setPassphraseData:EncryptionTestPassphrase() inKeychain:NO];
+		[[controller notationPrefs] setDoesEncryption:YES];
 		REQUIRE([controller flushAllNoteChanges]);
 		NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
-		REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:databasePath]);
+		NSData *databaseData = [NSData dataWithContentsOfFile:databasePath];
+		REQUIRE(databaseData != nil);
+		NSData *secretData = [@"epoch five compatibility body" dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([databaseData rangeOfData:secretData options:0
+			range:NSMakeRange(0, [databaseData length])].location == NSNotFound);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -8651,26 +8657,6 @@ static void TestLegacyFixtures(void) {
 		REQUIRE([labelsOfNote(note) rangeOfString:@"legacy"].location != NSNotFound);
 		CloseController(&controller);
 
-		NSData *encryptedDatabase = LegacyFixtureData(@"LegacyEncryptedNotesDatabase.base64");
-		NSData *secretData = [@"LEGACY-ENCRYPTED-CONTENT" dataUsingEncoding:NSUTF8StringEncoding];
-		REQUIRE([encryptedDatabase rangeOfData:secretData options:0
-			range:NSMakeRange(0, [encryptedDatabase length])].location == NSNotFound);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-		FrozenNotation *frozen = [NSKeyedUnarchiver unarchiveObjectWithData:encryptedDatabase];
-#pragma clang diagnostic pop
-		REQUIRE(frozen != nil);
-		NotationPrefs *prefs = [frozen notationPrefs];
-		NSData *passphrase = [@"legacy-fixture-passphrase" dataUsingEncoding:NSUTF8StringEncoding];
-		REQUIRE([prefs canLoadPassphraseData:passphrase]);
-		OSStatus status = noErr;
-		NSArray *notes = [frozen unpackedNotesWithPrefs:prefs returningError:&status];
-		REQUIRE(status == noErr);
-		REQUIRE([notes count] == 1);
-		note = [notes objectAtIndex:0];
-		REQUIRE([titleOfNote(note) isEqualToString:@"Legacy Encrypted Note"]);
-		REQUIRE([[[note contentString] string]
-			isEqualToString:@"LEGACY-ENCRYPTED-CONTENT-caf\u00e9-東京"]);
 	} @finally {
 		CloseController(&controller);
 		[delegate release];
@@ -8680,6 +8666,22 @@ static void TestLegacyFixtures(void) {
 
 static NSData *EncryptionTestPassphrase(void) {
 	return [@"integration-test-passphrase" dataUsingEncoding:NSUTF8StringEncoding];
+}
+
+static void TestMalformedPKCS7Padding(void) {
+	NSData *key = [NSMutableData dataWithLength:kCCKeySizeAES256];
+	NSMutableData *iv = [NSMutableData dataWithLength:kCCBlockSizeAES128];
+	NSMutableData *ciphertext = [NSMutableData dataWithData:
+		[@"1234567890123" dataUsingEncoding:NSASCIIStringEncoding]];
+	REQUIRE([ciphertext encryptAESDataWithKey:key iv:iv]);
+	REQUIRE([ciphertext length] == kCCBlockSizeAES128);
+
+	NSData *originalCiphertext = [NSData dataWithData:ciphertext];
+	/* The plaintext has three padding bytes. CBC makes changing IV byte 14
+	 * change only the middle padding byte, from 3 to 2. */
+	((uint8_t*)[iv mutableBytes])[14] ^= 1;
+	REQUIRE(![ciphertext decryptAESDataWithKey:key iv:iv]);
+	REQUIRE([ciphertext isEqualToData:originalCiphertext]);
 }
 
 static void TestEncryptedWALChild(void) {
@@ -8702,6 +8704,14 @@ static void TestEncryptedWALChild(void) {
 }
 
 static void TestEncryption(void) {
+	if ([[[[NSProcessInfo processInfo] environment]
+		objectForKey:@"NV_EPOCH5_DATABASE_DIRECTORY"] length]) {
+		WriteEncryptedEpochFiveCompatibilityDatabase();
+		return;
+	}
+
+	TestMalformedPKCS7Padding();
+
 	NSString *directoryPath = CreateTemporaryDirectory();
 	NVTestControllerDelegate *delegate = [[NVTestControllerDelegate alloc] init];
 	NVTestNotationController *controller = nil;
@@ -8739,6 +8749,46 @@ static void TestEncryption(void) {
 		REQUIRE(status == noErr);
 		REQUIRE([notes count] == 1);
 		REQUIRE([[[[notes objectAtIndex:0] contentString] string] isEqualToString:secret]);
+
+		CloseController(&controller);
+		RemoveTemporaryDirectory(directoryPath);
+		directoryPath = CreateTemporaryDirectory();
+
+		/* Exercise the real startup path for the last public encrypted database
+		 * epoch, including passphrase retrieval and the epoch-5 rewrite. */
+		NSData *legacyDatabase = LegacyFixtureData(@"LegacyEncryptedNotesDatabase.base64");
+		NSData *legacySecretData = [@"LEGACY-ENCRYPTED-CONTENT"
+			dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([legacyDatabase rangeOfData:legacySecretData options:0
+			range:NSMakeRange(0, [legacyDatabase length])].location == NSNotFound);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+		FrozenNotation *legacyFrozen = [NSKeyedUnarchiver unarchiveObjectWithData:legacyDatabase];
+#pragma clang diagnostic pop
+		REQUIRE(legacyFrozen != nil);
+		REQUIRE([[legacyFrozen notationPrefs] epochIteration] == 4);
+		REQUIRE([legacyDatabase writeToFile:
+			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName]
+			options:NSDataWritingAtomic error:NULL]);
+		InstallPassphraseRetrieverInjection();
+		injectedDatabasePassphrase = [@"legacy-fixture-passphrase"
+			dataUsingEncoding:NSUTF8StringEncoding];
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE([controller totalNoteCount] == 1);
+		NoteObject *legacyNote = [AllNotes(controller) objectAtIndex:0];
+		REQUIRE([titleOfNote(legacyNote) isEqualToString:@"Legacy Encrypted Note"]);
+		REQUIRE([[[legacyNote contentString] string]
+			isEqualToString:@"LEGACY-ENCRYPTED-CONTENT-caf\u00e9-東京"]);
+		REQUIRE([[controller notationPrefs] doesEncryption]);
+		REQUIRE([controller flushAllNoteChanges]);
+		CloseController(&controller);
+		NSData *upgradedDatabase = [NSData dataWithContentsOfFile:
+			[directoryPath stringByAppendingPathComponent:NotesDatabaseFileName]];
+		REQUIRE([upgradedDatabase rangeOfData:legacySecretData options:0
+			range:NSMakeRange(0, [upgradedDatabase length])].location == NSNotFound);
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE([[controller notationPrefs] epochIteration] == EPOC_ITERATION);
+		REQUIRE(NoteContaining(controller, @"LEGACY-ENCRYPTED-CONTENT") != nil);
 
 		CloseController(&controller);
 		RemoveTemporaryDirectory(directoryPath);
@@ -9652,8 +9702,6 @@ int main(int argc, const char *argv[]) {
 			TestUnsavedWriteRecoveryContract();
 		else if ([scenario isEqualToString:@"epoch-five-archive"])
 			TestEpochFiveArchive();
-		else if ([scenario isEqualToString:@"write-epoch-five-compatibility-database"])
-			TestWriteEpochFiveCompatibilityDatabase();
 		else if ([scenario isEqualToString:@"benchmark"])
 			BenchmarkBulkEnumeration();
 		else if ([scenario isEqualToString:@"lifecycle"])

@@ -12,6 +12,7 @@
 #import "NotationController.h"
 #import "NotationPrefs.h"
 #import "NoteObject.h"
+#import "PassphraseRetriever.h"
 
 #if EPOC_ITERATION != 4
 #error This smoke reader must be built from the epoch-4 checkout.
@@ -22,6 +23,8 @@ static BOOL unexpectedAlertWasShown = NO;
 static Method alertRunModalMethod = NULL;
 static Method smokeRunModalMethod = NULL;
 static BOOL alertMethodsSwizzled = NO;
+static IMP originalPassphraseRetrieverImplementation = NULL;
+static BOOL passphraseWasRequested = NO;
 
 static NSString *SmokeNewerDatabaseMessage(void) {
 	return NSLocalizedString(@"Warning: this database was created by a newer version of Notational Velocity. Continue anyway?", nil);
@@ -64,6 +67,33 @@ static void RestoreAlertSwizzle(void) {
 	}
 }
 
+static int SmokeLoadedUserPassphraseData(PassphraseRetriever *retriever, SEL selector) {
+	(void)selector;
+	passphraseWasRequested = YES;
+	Ivar prefsIvar = class_getInstanceVariable([PassphraseRetriever class], "notationPrefs");
+	NotationPrefs *prefs = object_getIvar(retriever, prefsIvar);
+	NSData *passphrase = [@"integration-test-passphrase" dataUsingEncoding:NSUTF8StringEncoding];
+	return [prefs canLoadPassphraseData:passphrase] ? 1 : 0;
+}
+
+static BOOL InstallPassphraseRetrieverSwizzle(void) {
+	Method method = class_getInstanceMethod([PassphraseRetriever class],
+		@selector(loadedUserPassphraseData));
+	if (!method) return NO;
+	originalPassphraseRetrieverImplementation = method_getImplementation(method);
+	method_setImplementation(method, (IMP)SmokeLoadedUserPassphraseData);
+	return YES;
+}
+
+static void RestorePassphraseRetrieverSwizzle(void) {
+	if (originalPassphraseRetrieverImplementation) {
+		Method method = class_getInstanceMethod([PassphraseRetriever class],
+			@selector(loadedUserPassphraseData));
+		method_setImplementation(method, originalPassphraseRetrieverImplementation);
+		originalPassphraseRetrieverImplementation = NULL;
+	}
+}
+
 static int Fail(const char *message, OSStatus status) {
 	fprintf(stderr, "epoch-4 compatibility smoke test: %s (status %d)\n",
 		message, (int)status);
@@ -96,9 +126,14 @@ int main(int argc, const char *argv[]) {
 		result = Fail("unable to swizzle NSAlert runModal", paramErr);
 		goto done;
 	}
+	if (!InstallPassphraseRetrieverSwizzle()) {
+		result = Fail("unable to swizzle passphrase retrieval", paramErr);
+		goto done;
+	}
 
 	controller = [[NotationController alloc] initWithDirectoryRef:&directoryRef error:&status];
 	RestoreAlertSwizzle();
+	RestorePassphraseRetrieverSwizzle();
 	if (!controller) {
 		result = Fail("historical controller could not load Notes & Settings", status);
 		goto done;
@@ -142,12 +177,18 @@ int main(int argc, const char *argv[]) {
 		result = Fail("historical controller showed an unexpected alert", noErr);
 		goto done;
 	}
+	if (!passphraseWasRequested || ![[controller notationPrefs] doesEncryption]) {
+		result = Fail("historical controller did not decode the encrypted database", noErr);
+		goto done;
+	}
 
 	fprintf(stdout, "epoch-4 compatibility smoke test loaded title=%s\n",
 		[title UTF8String]);
 	result = 0;
 
 done:
+	RestoreAlertSwizzle();
+	RestorePassphraseRetrieverSwizzle();
 	if (controller) {
 		[controller closeAllResources];
 		[controller release];

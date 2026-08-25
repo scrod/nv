@@ -381,80 +381,56 @@ NSData *ExecuteTransformWithInput(NSData *input, SecTransformRef transform) {
 		[self increaseLengthBy:(NSUInteger)difference];	
 }
 
-- (BOOL)encryptAESDataWithKey:(NSData*)key iv:(NSData*)iv {
-	// AES-256-CBC with PKCS7 padding to match OpenSSL EVP defaults
-	const size_t expectedKeyLen = kCCKeySizeAES256; // 32
-	const size_t expectedIVLen  = kCCBlockSizeAES128; // 16
-
-	if ([key length] != expectedKeyLen) {
-		NSLog(@"encryption key length was wrong size: %lu", (unsigned long)[key length]);
+static BOOL NVCryptAES256CBC(NSMutableData *data, CCOperation operation,
+	NSData *key, NSData *iv) {
+	BOOL encrypting = operation == kCCEncrypt;
+	if ([key length] != kCCKeySizeAES256) {
+		NSLog(@"%s key length was wrong size: %lu", encrypting ? "encryption" : "decryption",
+			(unsigned long)[key length]);
 		return NO;
 	}
-	if ([iv length] != expectedIVLen) {
+	if ([iv length] != kCCBlockSizeAES128) {
 		NSLog(@"initialization vector length was wrong size: %lu", (unsigned long)[iv length]);
 		return NO;
 	}
 
-	size_t dataInLength = [self length];
-	size_t outBufferSize = dataInLength + kCCBlockSizeAES128; // allow for padding
-	NSMutableData *outData = [NSMutableData dataWithLength:outBufferSize];
+	size_t bufferLength = [data length] + kCCBlockSizeAES128;
+	NSMutableData *buffer = [NSMutableData dataWithLength:bufferLength];
+	if (!buffer) return NO;
 
-	size_t outMoved = 0;
-	CCCryptorStatus status = CCCrypt(kCCEncrypt,
-									 kCCAlgorithmAES,
-									 kCCOptionPKCS7Padding, // CBC mode is default when IV provided
-									 [key bytes], expectedKeyLen,
-									 [iv bytes],
-									 [self bytes], dataInLength,
-									 [outData mutableBytes], outBufferSize,
-									 &outMoved);
-
+	/* CommonCrypto does not validate every PKCS#7 byte when decrypting. Keep
+	 * encryption compatible, but decrypt whole blocks and validate below. */
+	CCOptions options = encrypting ? kCCOptionPKCS7Padding : 0;
+	size_t bytesMoved = 0;
+	CCCryptorStatus status = CCCrypt(operation, kCCAlgorithmAES, options,
+		[key bytes], kCCKeySizeAES256, [iv bytes], [data bytes], [data length],
+		[buffer mutableBytes], bufferLength, &bytesMoved);
 	if (status != kCCSuccess) {
-		NSLog(@"Couldn't encrypt data (status=%d)", (int)status);
+		NSLog(@"Couldn't %s data (status=%d)", encrypting ? "encrypt" : "decrypt", (int)status);
 		return NO;
 	}
 
-	[outData setLength:outMoved];
-	[self setData:outData];
+	if (!encrypting) {
+		if (!bytesMoved || bytesMoved % kCCBlockSizeAES128) return NO;
+		const uint8_t *bytes = [buffer bytes];
+		uint8_t paddingLength = bytes[bytesMoved - 1];
+		if (!paddingLength || paddingLength > kCCBlockSizeAES128) return NO;
+		for (size_t i = bytesMoved - paddingLength; i < bytesMoved; i++)
+			if (bytes[i] != paddingLength) return NO;
+		bytesMoved -= paddingLength;
+	}
+
+	[buffer setLength:bytesMoved];
+	[data setData:buffer];
 	return YES;
 }
 
+- (BOOL)encryptAESDataWithKey:(NSData*)key iv:(NSData*)iv {
+	return NVCryptAES256CBC(self, kCCEncrypt, key, iv);
+}
+
 - (BOOL)decryptAESDataWithKey:(NSData*)key iv:(NSData*)iv {
-	// AES-256-CBC with PKCS7 padding to match OpenSSL EVP defaults
-	const size_t expectedKeyLen = kCCKeySizeAES256; // 32
-	const size_t expectedIVLen  = kCCBlockSizeAES128; // 16
-
-	if ([key length] != expectedKeyLen) {
-		NSLog(@"decryption key length was wrong size: %lu", (unsigned long)[key length]);
-		return NO;
-	}
-	if ([iv length] != expectedIVLen) {
-		NSLog(@"initialization vector length was wrong size: %lu", (unsigned long)[iv length]);
-		return NO;
-	}
-
-	size_t dataInLength = [self length];
-	// For decryption, output won't be bigger than input
-	NSMutableData *outData = [NSMutableData dataWithLength:dataInLength];
-
-	size_t outMoved = 0;
-	CCCryptorStatus status = CCCrypt(kCCDecrypt,
-									 kCCAlgorithmAES,
-									 kCCOptionPKCS7Padding, // must match encryption
-									 [key bytes], expectedKeyLen,
-									 [iv bytes],
-									 [self bytes], dataInLength,
-									 [outData mutableBytes], [outData length],
-									 &outMoved);
-
-	if (status != kCCSuccess) {
-		NSLog(@"Couldn't decrypt data (status=%d)", (int)status);
-		return NO;
-	}
-
-	[outData setLength:outMoved];
-	[self setData:outData];
-	return YES;
+	return NVCryptAES256CBC(self, kCCDecrypt, key, iv);
 }
 
 

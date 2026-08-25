@@ -231,23 +231,22 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 	if (!changedRange.length)
 			return;
 
-	NSError *error = nil;
-	NSDataDetector *detector = [NSDataDetector dataDetectorWithTypes:NSTextCheckingTypeLink error:&error];
-	if (!detector) {
+	static NSDataDetector *detector = nil;
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		NSError *error = nil;
+		detector = [[NSDataDetector alloc] initWithTypes:NSTextCheckingTypeLink error:&error];
+		if (!detector)
 			NSLog(@"Could not create link detector: %@", error);
-			return;
-	}
+	});
+	if (!detector)
+		return;
 
-	NSString *substring = [string substringWithRange:changedRange];
-	NSArray *matches = [detector matchesInString:substring options:0 range:NSMakeRange(0, [substring length])];
+	NSArray *matches = [detector matchesInString:string options:0 range:changedRange];
 	for (NSTextCheckingResult *result in matches) {
-			if ([result resultType] != NSTextCheckingTypeLink)
-					continue;
-			NSURL *URL = [result URL];
-			if (URL && !([URL isFileURL] && [[URL absoluteString] rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound)) {
-					NSRange linkRange = NSMakeRange(result.range.location + changedRange.location, result.range.length);
-					[self addAttribute:NSLinkAttributeName value:URL range:linkRange];
-			}
+		NSURL *URL = [result URL];
+		if (URL && !([URL isFileURL] && [[URL absoluteString] rangeOfString:@"/.file/" options:NSLiteralSearch].location != NSNotFound))
+			[self addAttribute:NSLinkAttributeName value:URL range:[result range]];
 	}
 
 	//also detect double-bracketed URLs here
@@ -257,13 +256,15 @@ static BOOL _StringWithRangeIsProbablyObjC(NSString *string, NSRange blockRange)
 - (void)_addDoubleBracketedNVLinkAttributesForRange:(NSRange)changedRange {
 	//add link attributes for [[wiki-style links to other notes or search terms]] 
 	
-	static NSMutableCharacterSet *antiInteriorSet = nil;
-	if (!antiInteriorSet) {
-		antiInteriorSet = [[NSMutableCharacterSet characterSetWithCharactersInString:@"[]"] retain];
-		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet whitespaceCharacterSet]];
-		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet illegalCharacterSet]];
-		[antiInteriorSet formUnionWithCharacterSet:[NSCharacterSet controlCharacterSet]];
-	}
+	static NSCharacterSet *antiInteriorSet = nil;
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		NSMutableCharacterSet *set = [NSMutableCharacterSet characterSetWithCharactersInString:@"[]"];
+		[set formUnionWithCharacterSet:[NSCharacterSet whitespaceCharacterSet]];
+		[set formUnionWithCharacterSet:[NSCharacterSet illegalCharacterSet]];
+		[set formUnionWithCharacterSet:[NSCharacterSet controlCharacterSet]];
+		antiInteriorSet = [set copy];
+	});
 	
 	NSString *string = [self string];
 	NSUInteger nextScanLoc = 0;

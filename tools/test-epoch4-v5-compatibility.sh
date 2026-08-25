@@ -22,7 +22,7 @@ echo "Building the current database writer..."
 make -C "$repo_root/tests" /tmp/notation-integration-tests/NVIntegrationTest
 NV_EPOCH5_DATABASE_DIRECTORY="$current_database" \
 	/tmp/notation-integration-tests/NVIntegrationTest \
-	write-epoch-five-compatibility-database
+	encryption
 
 # The reader test is about the Notes & Settings archive, not WAL compatibility.
 # A clean current shutdown normally retires this file; remove it if one is

@@ -22,12 +22,12 @@ The historical compatibility smoke test is intentionally outside `run-core`:
 tools/test-epoch4-v5-compatibility.sh
 ```
 
-It creates a fresh epoch-5 `Notes & Settings` archive with the current test
+It creates a fresh encrypted epoch-5 `Notes & Settings` archive with the current test
 binary, builds a temporary checkout at
 `f4ada9d2e3c34fb816183bf9864074770605a4d3`, and has that epoch-4 reader load
-the archive while verifying the warning, critical note content, and the
+and decrypt the archive while verifying the warning, critical note content, and the
 `createdDate`, `modifiedDate`, `filename`, `selectedRange`, `currentFormatID`,
-and `fileEncoding` fields. No database fixture is retained.
+and `fileEncoding` fields. No generated epoch-5 database fixture is retained.
 Because the historical reader constructs an AppKit alert, run this smoke test
 in a normal logged-in macOS session rather than a restricted sandbox.
 
@@ -100,7 +100,7 @@ Storage formats, archives, and recovery:
 - `wal-record-recovery`: exercises clean records, skippable archive/type/length failures, checksum/decryption/zlib hard stops, compression-stream resynchronization, unexpected short reads, and benign truncated tails while retaining every safely recovered note.
 - `wal-recovery-workflows`: covers complete epoch-4 WAL replay before upgrade, partial-note merging, legacy-candidate merging before epoch upgrade, starting from the old database, one-write epoch upgrade, mutually exclusive alerts, preservation names, rename/sync/fresh-journal rollback, discarded-controller callback cancellation, and unrelated journaling errors.
 - `legacy-fixtures`: reads legacy keyed/non-keyed database fixtures and upgrades metadata safely.
-- `encryption`: encrypted database persistence plus real controller relaunch, encrypted WAL recovery, post-recovery editing, fresh-WAL replacement, clean WAL retirement, and shutdown/relaunch.
+- `encryption`: encrypted database persistence plus real controller relaunch, modern loading and upgrading of an encrypted epoch-4 fixture, encrypted WAL recovery, post-recovery editing, fresh-WAL replacement, clean WAL retirement, and shutdown/relaunch. With `NV_EPOCH5_DATABASE_DIRECTORY` set, this scenario writes the encrypted current database consumed by the standalone epoch-4 compatibility smoke test.
 - `wal-crash-recovery`: child-process WAL crash and relaunch recovery on the selected volume; normally run by the disk-image harness.
 - `wal-crash-child`: helper subprocess for `wal-crash-recovery`; do not normally invoke directly (`NV_WAL_CRASH_DIRECTORY` is required).
 - `wal-history-recovery`: bookmark-resolved child crashes after interleaved updates and deletion; recovery keeps each UUID's newest state without resurrecting the deleted note.
