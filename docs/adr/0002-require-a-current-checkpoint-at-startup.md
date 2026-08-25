@@ -1,0 +1,5 @@
+# Require a provider-current checkpoint at startup
+
+When iCloud explicitly reports the canonical `Notes & Settings` or this Mac's mandatory recovery journal as stale or unmaterialized, NV will show startup progress instead of presenting the database as complete. If updating fails, the user may quit, choose another notes directory, or—only when the complete checkpoint and every mandatory legacy or active journal can be materialized, validated, and recovered—work offline and accept later reconciliation. Recovery checkpoint versions and unclaimed iCloud journals do not block startup; there is no read-only mode.
+
+Neither `ENOENT` nor an apparently empty existing cloud folder creates an empty collection implicitly. Silent initialization is limited to a root NV created in the current new-collection operation; otherwise the user must explicitly choose **Create a New Notes Collection Here**. If no canonical database checkpoint version can be trusted but first-class plaintext files have a complete exact provider fence, **Rebuild from Note Files** performs an exceptional all-or-nothing bootstrap reconstruction before presenting the editable UI.

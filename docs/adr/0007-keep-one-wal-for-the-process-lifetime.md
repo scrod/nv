@@ -1,0 +1,5 @@
+# Keep one WAL for the process lifetime
+
+During ordinary operation NV will not periodically checkpoint `Notes & Settings` or rotate its WAL. The WAL remains the durability record for the process lifetime; after editing stops during termination, NV synchronizes it, settles separate-file writes, and installs the complete checkpoint. It removes the WAL after ordinary local durability, or after exact-checkpoint iCloud upload confirmation.
+
+Recovery validates records sequentially and may consume only the complete valid prefix; a torn final record or corrupt interior stops replay and remains preserved. Exact-base journals replay normally, already-represented journals require only durable cleanup, and base-mismatched journals may contribute deterministic nondeletion conflict notes but never overwrite, delete, or restore settings. LSNs establish order only within one journal. Startup recovery may install a recovered checkpoint before creating a fresh WAL, and storage-format changes use a controlled restart, but NV adds no sealing, absorption ledger, terminal digest, successor chain, or routine database-version merge.

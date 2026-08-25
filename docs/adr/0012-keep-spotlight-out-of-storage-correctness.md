@@ -1,0 +1,7 @@
+# Keep Spotlight out of storage correctness
+
+NV will not use `NSMetadataQuery` or Spotlight to gate startup, reconciliation, rebuild, dirty clearing, or a current-known claim. Apple documents `NSMetadataQuery` as metadata search, but does not give it a bounded completion time or a complete, exact File Provider snapshot contract; disabled, excluded, rebuilding, or damaged Spotlight state therefore cannot be allowed to suspend NV's storage lifecycle.
+
+The authoritative discovery path is a coordinated shallow `NVRootedDirectoryCatalog` plus exact `NSFileVersion` enumeration for candidate URLs retained from the current catalog, live model, last accepted catalog, presenter move/version callbacks, and fixed NV artifact names. Two independently produced catalog/version observations still form the exact provider fence. Discovery failure makes the transaction incomplete and preserves dirty/evidence under the existing fail-closed rules.
+
+The initial implementation omits `NSMetadataQuery` entirely. A later implementation may use it only for advisory progress or wakeups whose absence, delay, or incorrect/incomplete results cannot alter publication, recovery, resolution, cleanup, or UI availability. The TLA+ models already abstract discovery as delivered candidates and exact fences, so this decision changes an environmental implementation input rather than any modeled state transition or safety predicate.

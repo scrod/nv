@@ -1,7 +1,23 @@
+# Introduction
+
 This is Notational Velocity, a legacy Objective-C Cocoa note-taking app targeting macOS 11.5 through the latest version of macOS. It uses manual reference counting (MRC) -- not ARC. The script `build.sh` builds the app using the current Xcode workspace and outputs any errors and warnings; run it after completing any significant set of changes. `docs/IntegrationTests.md` describes the integration test suite and how to run it. The `tests` directory contains the source code for the integration tests, which are built and run using the provided Makefile commands.
 
 The goal of Notational Velocity is to offer extremely low latency note-taking with a keyboard-centric experience with search being the primary interface; the UI is a single window with a search field at the top and a note list below it. The note list is filtered in real-time as the user types in the search field, and the selected note is displayed in an editable text view. The reasoning behind this design is to allow notes to become self-organizing, by showing related notes as the user types the title of a new note. Secondary goals include security, privacy, and data durability. Data is expected to be sensitive, and not visible to other applications by default.
 
+# Implementation details and Rationale
+
 To these ends, the app keeps all note data in memory, enabling a scenario where clear text note data never has to touche the disk. Its in-memory data store is authoritative even when the option to store notes as plain text files is enabled (changes to separate files are synced transactionally back to the in-memory data store -- see `NotationDirectoryManager.m`), and the authoritative in-memory data store is serialized atomically to disk (the "Notes & Settings" file) upon quitting, with a write-ahead log ("Interim Note-Changes") checkpointing mechanism to ensure that no data is lost in the event of a crash or power failure. All file access is intentionally path-independent, permitting for the notes directory to be moved anywhere on the volume with no PATH_MAX limit, and at any time without breaking file reading, saving, or renaming (see `NVRootedDirectory.m`). See `docs/Atomic-Note-Saves.md` for the "compare-and-swap" algorithm implemented in that class and the various file system limitations.
 
 Search results are currently updated as the user types, within the same runloop/view-refresh iteration, and the in-memory search algorithm is more than fast enough to support this. Any form of asynchronous/background search implementation decoupled or debounced from user input is strictly prohibited and is to be considered a violation of the app's design principles. Likewise, the app must be ready to accept user input as quickly as possible upon launch, and show its notes immediately. This combination of in-memory loading and searching generally rules out loading the full contents of all individual note files from disk at launch. The "Notes & Settings" file facilitates quick launch by way of its fast NSKeyedArchiver deserialization.
+
+# iCloud Drive synchronization
+
+`docs/iCloud-Drive-Support-Spec.md` is the normative design for first-class iCloud Drive support, including startup, note-file reconciliation, recovery evidence, journal ownership and recovery, provider fencing, quit ordering, upload confirmation, and storage transitions. `docs/adr` records the architectural decisions and rationale behind that design. `docs/tla/README.md` is the entry point for the associated TLA+ models, their coverage boundaries, configurations, exhaustive checks, and hybrid reconciliation checks. `CONTEXT.md` defines the canonical storage and reconciliation vocabulary used by the specification, ADRs, models, and implementation.
+
+Changes affecting iCloud Drive synchronization or durability must be checked against all four sources. Keep their terminology and assumptions aligned, update the relevant written requirements and models together when behavior changes, and run the applicable TLA+ configurations described in `docs/tla/README.md`; do not weaken or remove a modeled safety condition merely to make TLC pass.
+
+The current work-in-progress implementation design is under `docs/impl-proposal-3/README.md` and is intended to strictly follow the normative design and ADRs.
+
+# Backward compatibility
+
+There is no intermediate Notes & Settings epoch-5 compatibility necessary; the last public release was epoch-4. As a rule, if you don't see a commit on origin/master, then it hasn't been incorporated into a public release and no one is using it. A core subset of note content and metadata must be readable by epoch-4 NV versions and is tested by `tools/test-epoch4-v5-compatibility.sh` -- otherwise we are free to change what we want.
