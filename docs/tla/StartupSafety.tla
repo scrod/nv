@@ -3,6 +3,8 @@ EXTENDS FiniteSets, Naturals
 
 \* FileVersions are immutable persistent version identifiers. catalogToken
 \* values are opaque; Naturals and +1 only provide bounded fresh values.
+\* checkpointArtifactIncarnation is likewise an opaque equality token. BOOLEAN
+\* supplies only the original and one replacement incarnation, not an order.
 
 CONSTANTS
     FileVersions,
@@ -24,6 +26,7 @@ ASSUME
     /\ InitialCheckpoint \in CheckpointIDs
     /\ MaxCatalogToken >= 2
     /\ None \notin CheckpointIDs
+    /\ None \notin BOOLEAN
 
 VARIABLE state
 
@@ -31,36 +34,43 @@ vars == <<state>>
 
 CheckpointStatuses == {
     "current", "stale", "unmaterialized", "absent", "unavailable",
-    "corrupt"
+    "corrupt", "invalid"
 }
 ParentStatuses == {"current", "stale", "unavailable"}
 ByteStatuses == {"complete", "unavailable", "corrupt"}
 JournalStatuses == {"absent", "complete", "invalid", "unavailable"}
+RebuildScopes == {"none", "exact", "currentVisible"}
 Phases == {
     "checkingPause", "checkingCheckpoint", "materializing",
     "absentDecision", "recoveryChoices", "mandatory", "recoverLegacy",
-    "recoverActive", "loaded", "journalCreating", "journalHeader",
+    "recoverActive", "recoverRetained", "loaded", "journalCreating", "journalHeader",
     "journalClaimWritten", "journalReady", "editable", "rebuildGather",
     "rebuildFenced", "rebuildPrepared", "rebuildInstalled", "quit",
     "chooseRoot", "crashed"
 }
 Scenarios == {
     "currentClean", "currentLegacy", "currentBoth", "stale",
-    "unmaterialized", "absentOwned", "absentExisting",
-    "unavailableENOENT", "corruptRebuild", "offlineComplete",
+    "unmaterialized", "absentOwned", "absentExisting", "absentRebuild",
+    "unavailableENOENT", "corruptRebuild", "invalidRebuildFallback",
+    "offlineComplete",
     "offlineInvalidJournal", "pausedCurrent", "pausedFailure",
-    "currentInvalidMandatory"
+    "currentInvalidMandatory", "currentRetainedCovered",
+    "currentRetainedMismatch", "offlineInvalidRetained"
 }
 
 InitialStatus(scenario) ==
     CASE scenario \in {"currentClean", "currentLegacy", "currentBoth",
-            "pausedCurrent", "pausedFailure", "currentInvalidMandatory"}
+            "pausedCurrent", "pausedFailure", "currentInvalidMandatory",
+            "currentRetainedCovered", "currentRetainedMismatch"}
             -> "current"
       [] scenario \in {"stale", "offlineComplete",
-                        "offlineInvalidJournal"} -> "stale"
+                        "offlineInvalidJournal", "offlineInvalidRetained"}
+            -> "stale"
       [] scenario = "unmaterialized" -> "unmaterialized"
-      [] scenario \in {"absentOwned", "absentExisting"} -> "absent"
+      [] scenario \in {"absentOwned", "absentExisting", "absentRebuild"}
+            -> "absent"
       [] scenario = "corruptRebuild" -> "corrupt"
+      [] scenario = "invalidRebuildFallback" -> "invalid"
       [] OTHER -> "unavailable"
 
 InitialParentStatus(scenario) ==
@@ -68,7 +78,7 @@ InitialParentStatus(scenario) ==
 
 InitialBytes(scenario) ==
     CASE scenario \in {"unmaterialized", "absentOwned", "absentExisting",
-                        "unavailableENOENT"} -> "unavailable"
+                        "absentRebuild", "unavailableENOENT"} -> "unavailable"
       [] scenario = "corruptRebuild" -> "corrupt"
       [] OTHER -> "complete"
 
@@ -83,11 +93,23 @@ InitialActiveStatus(scenario) ==
             -> "invalid"
       [] OTHER -> "absent"
 
+InitialRetainedStatus(scenario) ==
+    CASE scenario \in {"currentRetainedCovered", "currentRetainedMismatch"}
+            -> "complete"
+      [] scenario = "offlineInvalidRetained" -> "invalid"
+      [] OTHER -> "absent"
+
 InitiallyPaused(scenario) ==
     scenario \in {"pausedCurrent", "pausedFailure"}
 
 InitialKnownFiles(scenario) ==
-    IF scenario = "corruptRebuild" THEN {FileVersion1} ELSE {}
+    IF scenario \in {"absentRebuild", "corruptRebuild",
+                      "invalidRebuildFallback"}
+    THEN {FileVersion1}
+    ELSE {}
+
+InitialStableUnsupported(scenario) ==
+    scenario = "invalidRebuildFallback"
 
 FileState(version) ==
     IF version = FileVersion1 THEN FileState1 ELSE FileState2
@@ -100,30 +122,67 @@ ActiveReady ==
     \/ state.activeStatus = "absent"
     \/ state.activeRecovered
 
+RetainedReady ==
+    \/ state.retainedStatus = "absent"
+    \/ /\ state.retainedStatus = "complete"
+       /\ state.retainedCoverageMatches
+    \/ state.retainedRecovered
+
 MandatoryInputsUsable ==
     /\ state.legacyStatus \in {"absent", "complete"}
     /\ state.activeStatus \in {"absent", "complete"}
+    /\ state.retainedStatus \in {"absent", "complete"}
+
+CheckpointAcceptableForOffline ==
+    /\ state.bytesStatus = "complete"
+    /\ state.checkpointStatus \in {"current", "stale", "unmaterialized"}
 
 RebuildSnapshotStable ==
     /\ state.rebuildSnapshot = state.rebuildSecondSnapshot
     /\ state.rebuildSnapshotCatalogToken = state.catalogToken
     /\ state.rebuildSecondCatalogToken = state.catalogToken
 
-InitializeEmpty(explicit) ==
+RebuildScopeQualified ==
+    \/ /\ state.rebuildScope = "exact"
+       /\ state.rebuildEnumerationComplete
+    \/ /\ state.rebuildScope = "currentVisible"
+       /\ state.rebuildStableUnsupported
+
+RebuildExpectedCheckpointStatusMatches ==
+    IF state.rebuildExpectedAbsence
+    THEN state.checkpointStatus = "absent"
+    ELSE state.checkpointStatus \in {"corrupt", "invalid"}
+
+RebuildExpectedCheckpointIdentityMatches ==
+    IF state.rebuildExpectedAbsence
+    THEN state.rebuildExpectedCheckpointIncarnation = None
+    ELSE state.rebuildExpectedCheckpointIncarnation =
+            state.checkpointArtifactIncarnation
+
+RebuildExpectedCheckpointMatches ==
+    /\ RebuildExpectedCheckpointStatusMatches
+    /\ RebuildExpectedCheckpointIdentityMatches
+
+InitializeEmpty(explicit, checkpoint) ==
     [state EXCEPT
         !.phase = "loaded",
         !.explicitCreateConfirmed = explicit,
         !.newCollectionInitialized = TRUE,
+        !.newCollectionCheckpointInstalled = TRUE,
         !.checkpointLoaded = TRUE,
         !.checkpointVerified = TRUE,
         !.liveStorePublished = TRUE,
         !.liveStore = {},
         !.lateExternalEvidence = @ \cup state.knownFileVersions,
+        !.installedCheckpoint = checkpoint,
+        !.usedCheckpointIDs = @ \cup {checkpoint},
+        !.checkpointInstallCount[checkpoint] = @ + 1,
         !.initializationWitnesses = @ \cup
             {<<state.checkpointStatus = "absent",
                state.parentStatus = "current",
                state.rootCreatedThisOperation \/ explicit,
-               state.checkpointStatus # "unavailable">>}
+               state.checkpointStatus # "unavailable",
+               checkpoint \notin state.usedCheckpointIDs>>}
                 ]
 
 Init ==
@@ -145,10 +204,17 @@ Init ==
             freshnessEvaluated |-> FALSE,
             legacyStatus |-> InitialLegacyStatus(scenario),
             activeStatus |-> InitialActiveStatus(scenario),
+            retainedStatus |-> InitialRetainedStatus(scenario),
+            retainedCoverageMatches |->
+                scenario = "currentRetainedCovered",
             legacyRecovered |-> FALSE,
             activeRecovered |-> FALSE,
+            retainedRecovered |-> FALSE,
             checkpointGeneration |-> 0,
+            checkpointArtifactIncarnation |-> FALSE,
+            checkpointArtifactReplacementOccurred |-> FALSE,
             activeRecoveryWitnesses |-> {},
+            retainedRecoveryWitnesses |-> {},
             recoveredWork |-> {},
             offlineRequested |-> FALSE,
             offlineStatusVisible |-> FALSE,
@@ -159,6 +225,7 @@ Init ==
             editable |-> FALSE,
             explicitCreateConfirmed |-> FALSE,
             newCollectionInitialized |-> FALSE,
+            newCollectionCheckpointInstalled |-> FALSE,
             initializationWitnesses |-> {},
             loadWitnesses |-> {},
             recoveryEvidencePresent |-> TRUE,
@@ -166,6 +233,8 @@ Init ==
             unclaimedJournalEvidencePresent |-> TRUE,
             knownFileVersions |-> knownFiles,
             catalogToken |-> 0,
+            rebuildStableUnsupported |-> InitialStableUnsupported(scenario),
+            rebuildScope |-> "none",
             rebuildEnumerationComplete |-> FALSE,
             rebuildSnapshot |-> {},
             rebuildSnapshotCatalogToken |-> 0,
@@ -175,11 +244,15 @@ Init ==
             rebuildSecondSnapshot |-> {},
             rebuildSecondCatalogToken |-> 0,
             stagedRebuild |-> {},
+            rebuildExpectedAbsence |-> FALSE,
+            rebuildExpectedCheckpointIncarnation |-> None,
+            rebuildInstallWitnesses |-> {},
             installedCheckpoint |-> InitialCheckpoint,
             usedCheckpointIDs |-> {InitialCheckpoint},
             checkpointInstallCount |-> [checkpoint \in CheckpointIDs |->
                 IF checkpoint = InitialCheckpoint THEN 1 ELSE 0],
             rebuildPublished |-> FALSE,
+            rebuildLimitedHistoryVisible |-> FALSE,
             rebuildWitnesses |-> {},
             freshJournalHeaderSynced |-> FALSE,
             freshJournalClaimWritten |-> FALSE,
@@ -231,7 +304,7 @@ ClassifyCheckpointAbsence ==
 
 FailClosedCheckpointClassification ==
     /\ state.phase = "checkingCheckpoint"
-    /\ \/ state.checkpointStatus \in {"unavailable", "corrupt"}
+    /\ \/ state.checkpointStatus \in {"unavailable", "corrupt", "invalid"}
        \/ state.parentStatus # "current"
     /\ state' = [state EXCEPT
         !.phase = "recoveryChoices",
@@ -250,7 +323,8 @@ MaterializeCheckpoint ==
 InitializeOwnedRoot ==
     /\ state.phase = "absentDecision"
     /\ state.rootCreatedThisOperation
-    /\ state' = InitializeEmpty(FALSE)
+    /\ \E checkpoint \in CheckpointIDs \ state.usedCheckpointIDs:
+        state' = InitializeEmpty(FALSE, checkpoint)
 
 RequireExplicitCreation ==
     /\ state.phase = "absentDecision"
@@ -262,7 +336,8 @@ ConfirmExplicitCreation ==
     /\ state.checkpointStatus = "absent"
     /\ state.parentStatus = "current"
     /\ ~state.rootCreatedThisOperation
-    /\ state' = InitializeEmpty(TRUE)
+    /\ \E checkpoint \in CheckpointIDs \ state.usedCheckpointIDs:
+        state' = InitializeEmpty(TRUE, checkpoint)
 
 StartLegacyRecovery ==
     /\ state.phase = "mandatory"
@@ -300,10 +375,33 @@ RecoverActiveJournal ==
         !.recoveredWork = @ \cup {FileState2}
                 ]
 
+StartRetainedRecovery ==
+    /\ state.phase = "mandatory"
+    /\ LegacyReady
+    /\ ActiveReady
+    /\ state.retainedStatus = "complete"
+    /\ ~state.retainedCoverageMatches
+    /\ ~state.retainedRecovered
+    /\ state' = [state EXCEPT !.phase = "recoverRetained"]
+
+RecoverRetainedJournal ==
+    /\ state.phase = "recoverRetained"
+    /\ LegacyReady
+    /\ ActiveReady
+    /\ state' = [state EXCEPT
+        !.phase = "mandatory",
+        !.retainedRecovered = TRUE,
+        !.retainedRecoveryWitnesses = @ \cup
+            {<<LegacyReady, ActiveReady>>},
+        !.checkpointGeneration = @ + 1,
+        !.recoveredWork = @ \cup {FileState2}
+                ]
+
 RejectInvalidMandatoryInput ==
     /\ state.phase = "mandatory"
     /\ \/ state.legacyStatus \in {"invalid", "unavailable"}
        \/ state.activeStatus \in {"invalid", "unavailable"}
+       \/ state.retainedStatus \in {"invalid", "unavailable"}
     /\ state' = [state EXCEPT !.phase = "recoveryChoices"]
 
 FinishCheckpointLoad ==
@@ -311,6 +409,7 @@ FinishCheckpointLoad ==
     /\ state.bytesStatus = "complete"
     /\ LegacyReady
     /\ ActiveReady
+    /\ RetainedReady
     /\ state' = [state EXCEPT
         !.phase = "loaded",
         !.checkpointLoaded = TRUE,
@@ -320,12 +419,13 @@ FinishCheckpointLoad ==
         !.offlineStatusVisible = state.offlineRequested,
         !.loadWitnesses = @ \cup
             {<<state.bytesStatus = "complete", LegacyReady, ActiveReady,
+               RetainedReady,
                ~state.offlineRequested \/ MandatoryInputsUsable>>}
                 ]
 
 ChooseWorkOffline ==
     /\ state.phase = "recoveryChoices"
-    /\ state.bytesStatus = "complete"
+    /\ CheckpointAcceptableForOffline
     /\ MandatoryInputsUsable
     /\ state' = [state EXCEPT
         !.phase = "mandatory",
@@ -337,20 +437,31 @@ ChooseWorkOffline ==
 
 BeginRebuild ==
     /\ state.phase = "recoveryChoices"
-    /\ state.checkpointStatus = "corrupt"
+    /\ state.checkpointStatus \in {"absent", "corrupt", "invalid"}
+    /\ (state.checkpointStatus = "absent" => state.parentStatus = "current")
     /\ state.knownFileVersions # {}
-    /\ \E complete \in BOOLEAN:
-        state' = [state EXCEPT
-            !.phase = "rebuildGather",
-            !.rebuildEnumerationComplete = complete,
-            !.rebuildSnapshot = state.knownFileVersions,
-            !.rebuildSnapshotCatalogToken = state.catalogToken,
-            !.rebuildRead = {},
-            !.rebuildUnreadable = {},
-            !.rebuildCandidate = {},
-            !.rebuildSecondSnapshot = {},
-            !.stagedRebuild = {}
-                ]
+    /\ \E scope \in {"exact", "currentVisible"}:
+        /\ scope = IF state.rebuildStableUnsupported
+                    THEN "currentVisible" ELSE "exact"
+        /\ \E complete \in BOOLEAN:
+            /\ scope = "currentVisible" => ~complete
+            /\ state' = [state EXCEPT
+                !.phase = "rebuildGather",
+                !.rebuildScope = scope,
+                !.rebuildEnumerationComplete = complete,
+                !.rebuildSnapshot = state.knownFileVersions,
+                !.rebuildSnapshotCatalogToken = state.catalogToken,
+                !.rebuildRead = {},
+                !.rebuildUnreadable = {},
+                !.rebuildCandidate = {},
+                !.rebuildSecondSnapshot = {},
+                !.stagedRebuild = {},
+                !.rebuildExpectedAbsence = state.checkpointStatus = "absent",
+                !.rebuildExpectedCheckpointIncarnation =
+                    IF state.checkpointStatus = "absent"
+                    THEN None
+                    ELSE state.checkpointArtifactIncarnation
+                    ]
 
 ReadRebuildVersion ==
     /\ state.phase = "rebuildGather"
@@ -392,28 +503,53 @@ DeliverFileVersion ==
                 THEN @ \cup {version} ELSE @
                 ]
 
+AppearCheckpointDuringAbsentRebuild ==
+    /\ state.phase \in {"rebuildGather", "rebuildFenced", "rebuildPrepared"}
+    /\ state.rebuildExpectedAbsence
+    /\ state.checkpointStatus = "absent"
+    /\ state' = [state EXCEPT
+        !.checkpointStatus = "current",
+        !.bytesStatus = "complete"
+                ]
+
+ReplaceUnacceptableCheckpointDuringRebuild ==
+    /\ state.phase \in {"rebuildGather", "rebuildFenced", "rebuildPrepared"}
+    /\ ~state.rebuildExpectedAbsence
+    /\ state.checkpointStatus \in {"corrupt", "invalid"}
+    /\ ~state.checkpointArtifactReplacementOccurred
+    /\ state' = [state EXCEPT
+        !.checkpointArtifactIncarnation = ~@,
+        !.checkpointArtifactReplacementOccurred = TRUE
+                ]
+
+RejectChangedRebuildPredecessor ==
+    /\ state.phase \in {"rebuildGather", "rebuildFenced", "rebuildPrepared"}
+    /\ ~RebuildExpectedCheckpointMatches
+    /\ state' = [state EXCEPT !.phase = "checkingCheckpoint"]
+
 RetryRebuild ==
     /\ state.phase \in {"rebuildFenced", "rebuildPrepared",
                          "rebuildInstalled"}
-    /\ \/ ~state.rebuildEnumerationComplete
+    /\ \/ ~RebuildScopeQualified
        \/ state.rebuildUnreadable # {}
        \/ ~RebuildSnapshotStable
     /\ \E complete \in BOOLEAN:
-        state' = [state EXCEPT
-            !.phase = "rebuildGather",
-            !.rebuildEnumerationComplete = complete,
-            !.rebuildSnapshot = state.knownFileVersions,
-            !.rebuildSnapshotCatalogToken = state.catalogToken,
-            !.rebuildRead = {},
-            !.rebuildUnreadable = {},
-            !.rebuildCandidate = {},
-            !.rebuildSecondSnapshot = {},
-            !.stagedRebuild = {}
-                ]
+        /\ state.rebuildScope = "currentVisible" => ~complete
+        /\ state' = [state EXCEPT
+                !.phase = "rebuildGather",
+                !.rebuildEnumerationComplete = complete,
+                !.rebuildSnapshot = state.knownFileVersions,
+                !.rebuildSnapshotCatalogToken = state.catalogToken,
+                !.rebuildRead = {},
+                !.rebuildUnreadable = {},
+                !.rebuildCandidate = {},
+                !.rebuildSecondSnapshot = {},
+                !.stagedRebuild = {}
+                    ]
 
 PrepareStableRebuild ==
     /\ state.phase = "rebuildFenced"
-    /\ state.rebuildEnumerationComplete
+    /\ RebuildScopeQualified
     /\ state.rebuildUnreadable = {}
     /\ state.rebuildRead = state.rebuildSnapshot
     /\ RebuildSnapshotStable
@@ -424,13 +560,18 @@ PrepareStableRebuild ==
 InstallRebuildCheckpoint ==
     /\ state.phase = "rebuildPrepared"
     /\ RebuildSnapshotStable
+    /\ RebuildExpectedCheckpointMatches
     /\ \E checkpoint \in CheckpointIDs \ state.usedCheckpointIDs:
         state' = [state EXCEPT
             !.phase = "rebuildInstalled",
             !.installedCheckpoint = checkpoint,
             !.usedCheckpointIDs = @ \cup {checkpoint},
             !.checkpointInstallCount[checkpoint] = @ + 1,
-            !.stagedRebuild = state.rebuildCandidate
+            !.stagedRebuild = state.rebuildCandidate,
+            !.rebuildInstallWitnesses = @ \cup
+                {<<state.rebuildExpectedAbsence,
+                   RebuildExpectedCheckpointStatusMatches,
+                   RebuildExpectedCheckpointIdentityMatches>>}
                 ]
 
 VerifyAndPublishRebuild ==
@@ -446,8 +587,10 @@ VerifyAndPublishRebuild ==
         !.liveStorePublished = TRUE,
         !.liveStore = state.stagedRebuild,
         !.rebuildPublished = TRUE,
+        !.rebuildLimitedHistoryVisible =
+            state.rebuildScope = "currentVisible",
         !.rebuildWitnesses = @ \cup
-            {<<state.rebuildEnumerationComplete,
+            {<<RebuildScopeQualified,
                state.rebuildUnreadable = {},
                state.rebuildRead = state.rebuildSnapshot,
                RebuildSnapshotStable,
@@ -529,6 +672,8 @@ Next ==
     \/ RecoverLegacyJournal
     \/ StartActiveRecovery
     \/ RecoverActiveJournal
+    \/ StartRetainedRecovery
+    \/ RecoverRetainedJournal
     \/ RejectInvalidMandatoryInput
     \/ FinishCheckpointLoad
     \/ ChooseWorkOffline
@@ -537,6 +682,9 @@ Next ==
     \/ MarkRebuildVersionUnreadable
     \/ TakeRebuildFence
     \/ DeliverFileVersion
+    \/ AppearCheckpointDuringAbsentRebuild
+    \/ ReplaceUnacceptableCheckpointDuringRebuild
+    \/ RejectChangedRebuildPredecessor
     \/ RetryRebuild
     \/ PrepareStableRebuild
     \/ InstallRebuildCheckpoint
@@ -553,7 +701,8 @@ Next ==
 
 StartupInternalProgress ==
     StartLegacyRecovery \/ RecoverLegacyJournal \/ StartActiveRecovery
-        \/ RecoverActiveJournal \/ RejectInvalidMandatoryInput
+        \/ RecoverActiveJournal \/ StartRetainedRecovery
+        \/ RecoverRetainedJournal \/ RejectInvalidMandatoryInput
         \/ FinishCheckpointLoad
 
 Spec ==
@@ -563,6 +712,7 @@ Spec ==
     /\ WF_vars(StartupInternalProgress)
     /\ WF_vars(ReadRebuildVersion)
     /\ WF_vars(TakeRebuildFence)
+    /\ WF_vars(RejectChangedRebuildPredecessor)
     /\ WF_vars(CreateFreshJournal)
     /\ WF_vars(SynchronizeFreshJournalHeader)
     /\ WF_vars(PublishFreshJournalClaim)
@@ -584,10 +734,16 @@ TypeOK ==
     /\ state.freshnessEvaluated \in BOOLEAN
     /\ state.legacyStatus \in JournalStatuses
     /\ state.activeStatus \in JournalStatuses
+    /\ state.retainedStatus \in JournalStatuses
+    /\ state.retainedCoverageMatches \in BOOLEAN
     /\ state.legacyRecovered \in BOOLEAN
     /\ state.activeRecovered \in BOOLEAN
+    /\ state.retainedRecovered \in BOOLEAN
     /\ state.checkpointGeneration \in Nat
+    /\ state.checkpointArtifactIncarnation \in BOOLEAN
+    /\ state.checkpointArtifactReplacementOccurred \in BOOLEAN
     /\ state.activeRecoveryWitnesses \subseteq (BOOLEAN \X BOOLEAN)
+    /\ state.retainedRecoveryWitnesses \subseteq (BOOLEAN \X BOOLEAN)
     /\ state.recoveredWork \subseteq FileStates
     /\ state.offlineRequested \in BOOLEAN
     /\ state.offlineStatusVisible \in BOOLEAN
@@ -598,15 +754,18 @@ TypeOK ==
     /\ state.editable \in BOOLEAN
     /\ state.explicitCreateConfirmed \in BOOLEAN
     /\ state.newCollectionInitialized \in BOOLEAN
+    /\ state.newCollectionCheckpointInstalled \in BOOLEAN
     /\ state.initializationWitnesses \subseteq
-        (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
+        (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
     /\ state.loadWitnesses \subseteq
-        (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
+        (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
     /\ state.recoveryEvidencePresent \in BOOLEAN
     /\ state.recoveryEvidencePreserved \in BOOLEAN
     /\ state.unclaimedJournalEvidencePresent \in BOOLEAN
     /\ state.knownFileVersions \subseteq FileVersions
     /\ state.catalogToken \in 0..MaxCatalogToken
+    /\ state.rebuildStableUnsupported \in BOOLEAN
+    /\ state.rebuildScope \in RebuildScopes
     /\ state.rebuildEnumerationComplete \in BOOLEAN
     /\ state.rebuildSnapshot \subseteq FileVersions
     /\ state.rebuildSnapshotCatalogToken \in 0..MaxCatalogToken
@@ -616,10 +775,15 @@ TypeOK ==
     /\ state.rebuildSecondSnapshot \subseteq FileVersions
     /\ state.rebuildSecondCatalogToken \in 0..MaxCatalogToken
     /\ state.stagedRebuild \subseteq FileStates
+    /\ state.rebuildExpectedAbsence \in BOOLEAN
+    /\ state.rebuildExpectedCheckpointIncarnation \in BOOLEAN \cup {None}
+    /\ state.rebuildInstallWitnesses \subseteq
+        (BOOLEAN \X BOOLEAN \X BOOLEAN)
     /\ state.installedCheckpoint \in CheckpointIDs
     /\ state.usedCheckpointIDs \subseteq CheckpointIDs
     /\ state.checkpointInstallCount \in [CheckpointIDs -> 0..1]
     /\ state.rebuildPublished \in BOOLEAN
+    /\ state.rebuildLimitedHistoryVisible \in BOOLEAN
     /\ state.rebuildWitnesses \subseteq
         (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
     /\ state.freshJournalHeaderSynced \in BOOLEAN
@@ -640,6 +804,14 @@ InitializationRequiresAuthoritativeAbsenceAndConsent ==
         /\ witness[2]
         /\ witness[3]
         /\ witness[4]
+        /\ witness[5]
+
+NewCollectionCheckpointPrecedesEditing ==
+    state.newCollectionInitialized =>
+        /\ state.newCollectionCheckpointInstalled
+        /\ state.installedCheckpoint # InitialCheckpoint
+        /\ state.checkpointLoaded
+        /\ state.checkpointVerified
 
 MandatoryRecoveryPrecedesPublication ==
     \A witness \in state.loadWitnesses:
@@ -647,9 +819,15 @@ MandatoryRecoveryPrecedesPublication ==
         /\ witness[2]
         /\ witness[3]
         /\ witness[4]
+        /\ witness[5]
 
 LegacyRecoveryPrecedesActiveRecovery ==
     \A witness \in state.activeRecoveryWitnesses:
+        /\ witness[1]
+        /\ witness[2]
+
+LegacyAndActiveRecoveryPrecedeRetainedRecovery ==
+    \A witness \in state.retainedRecoveryWitnesses:
         /\ witness[1]
         /\ witness[2]
 
@@ -659,6 +837,7 @@ OfflineEditingRequiresEveryMandatoryInput ==
     => /\ state.bytesStatus = "complete"
        /\ LegacyReady
        /\ ActiveReady
+       /\ RetainedReady
        /\ state.offlineStatusVisible
 
 EditingRequiresVerifiedStoreAndFreshJournal ==
@@ -669,6 +848,8 @@ EditingRequiresVerifiedStoreAndFreshJournal ==
         /\ state.freshJournalHeaderSynced
         /\ state.freshJournalClaimWritten
         /\ state.freshJournalClaimSynced
+        /\ (state.newCollectionInitialized =>
+               state.newCollectionCheckpointInstalled)
 
 StableCompleteRebuildIsTheOnlyRebuildPublication ==
     /\ state.rebuildPublished => state.rebuildWitnesses # {}
@@ -685,9 +866,33 @@ RebuildImportsEverySnapshottedReadableState ==
             \subseteq state.liveStore
 
 NoPartialRebuildStoreIsPublished ==
-    /\ state.scenario = "corruptRebuild"
+    /\ state.scenario \in {"corruptRebuild", "invalidRebuildFallback"}
     /\ ~state.rebuildPublished
     => ~state.liveStorePublished
+
+ExactRebuildRequiresCompleteEnumeration ==
+    /\ state.rebuildPublished
+    /\ state.rebuildScope = "exact"
+    => state.rebuildEnumerationComplete
+
+CurrentVisibleRebuildRequiresStableUnsupportedAndStatus ==
+    /\ state.rebuildPublished
+    /\ state.rebuildScope = "currentVisible"
+    => /\ state.rebuildStableUnsupported
+       /\ state.rebuildLimitedHistoryVisible
+
+EveryRebuildInstallMatchedExpectedCheckpoint ==
+    \A witness \in state.rebuildInstallWitnesses:
+        /\ witness[2]
+        /\ witness[3]
+
+AbsentCheckpointRebuildUsedExpectedAbsence ==
+    /\ state.scenario = "absentRebuild"
+    /\ state.rebuildPublished
+    => \E witness \in state.rebuildInstallWitnesses:
+        /\ witness[1]
+        /\ witness[2]
+        /\ witness[3]
 
 RecoveryEvidenceIsNeverConsumedByStartup ==
     /\ state.recoveryEvidencePresent
@@ -713,6 +918,7 @@ FreshJournalProgress ==
 
 RebuildGatherProgress ==
     state.phase = "rebuildGather"
-    ~> state.phase \in {"rebuildFenced", "recoveryChoices", "crashed"}
+    ~> state.phase \in
+        {"rebuildFenced", "checkingCheckpoint", "recoveryChoices", "crashed"}
 
 =============================================================================

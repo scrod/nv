@@ -1,0 +1,49 @@
+What is the philosophy behind the software?
+
+The purpose of Notational Velocity is to eliminate as many barriers to note-taking as possible, and to find notes as quickly as possible. It pursues these goals uncompromisingly, at the cost many features found in similar software.
+
+Some of the problems that I wanted Notational Velocity to avoid are:
+	Clumsy interfaces that treat each note as full-fledged document.
+	Being forced to place notes within a category or hierarchy.
+	Not knowing immediately whether a note covering the topic already exists.
+	Wasting time on the visual presentation of text (e.g., font, color, layout).
+	Manipulating the interface (e.g., dialog boxes, dragging, clicking).
+	Worrying whether and where a note was saved.
+	Worrying about identity theft in case of stolen computers and remote intrusion.
+
+In the original Mac OS I used the Note Pad desktop accessory heavily, and when OS X debuted I couldn't find a replacement--every app (including the original Note Pad itself) had at least some of these faults--so I had to write my own.
+
+Some problems were solved by committing every change to disk automatically, encrypting all data transparently, avoiding features specific to word processors, and using keyboard-driven interaction. The rest required a somewhat novel approach.
+
+
+How you do manage to achieve such simplicity?
+
+My favorite feature in Note Pad was Find-In-All-Notes (or something to that effect), so I created an interface that was simply an extension to searching, inspired by URL auto-completion in web browsers (Firefox 3's "awesome bar" is now even closer).
+
+The assumption is that it's inevitable that one will accumulate more notes than can feasibly be picked out from a list or managed using any sort of top-down system of categorization. The only alternative that scales is locating all notes via search.
+
+I realized that when searching occurs simultaneously with creating a note, the system becomes self-organizing. As the user begins titling a new note, he/she is presented with similar notes that already exist, and with the ability to switch between searching and editing these notes using just a few keystrokes, information can easily be filed in the most appropriate spot.
+
+Often I have to explain to users why multiple databases and categorization are unnecessary. It's usually futile, but this concept of self-organization is the core of Notational Velocity.
+
+Finally, I try to make program behaviors as consistent and predictable as possible, while striving toward modeless and monotononic interaction as described in Raskin's The Humane Interface (which I read several times during development).
+
+
+Which users are you targeting? (And what kind of feedback have you received?)
+
+I'm still the primary target user. The program is aimed at people who need to keep track of many small pieces of textual information, including web site accounts, various tokens and credentials (both on- and off-line), technical instructions, command line hints, phone conversations, contact data, and anything else of a sensitive yet enduring nature. Mostly these people seem to be system administrators, writers, technology consultants--generally people who deal in words and code. One person even used Notational Velocity to manage appointments at the front desk of a busy oncology clinic.
+
+I've deliberately avoided scrapbook-esque features such as image attachment and PDF archiving, as they are organizationally-oriented. Such applications tend to grow to incorporate every possible file type, with nested categories and labels, etc. My question is: Why reinvent the Finder? If the goal is to organize arbitrary files, use the file system. Furthermore, such files would not be editable from Notational Velocity anyway and would interrupt any keyboard-driven interaction.
+
+Many comments are requests for features of the latter variety, and seem to assume that "just this one small thing" could be added without pushing the program over the cliff of diminished usability. Though many are simply thank-you notes, too. I tremendously appreciate the feedback people have sent me over the years--it's helped me to know that time spent on Notational Velocity is worthwhile.
+
+
+What are your plans for the next release?
+
+The next release will fix some bugs and increase robustness. Following that some form of network synchronization is essential. Eventually I'd like to rewrite the application entirely to use a model that better fits Jef Raskin's ideas.
+
+
+Some words about yourself?
+
+I'm currently a software developer at Northwestern University in Chicago.
+

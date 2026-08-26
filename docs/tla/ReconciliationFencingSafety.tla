@@ -137,6 +137,8 @@ ChangeStructuralInput ==
     /\ ~state.structuralChanged
     /\ state' = [state EXCEPT !.structuralChanged = TRUE]
 
+\* A same-directory move under unchanged provider authority is stuttering here.
+\* An authority change is a fresh session incarnation, even with identical inputs.
 ReplaceRootSessionIncarnation ==
     /\ state.phase \in {"processing", "fenced"}
     /\ \E session \in Sessions \ state.usedSessions:

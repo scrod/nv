@@ -289,6 +289,8 @@ UserRenamesOriginal ==
             !.noteLSN = @ + 1
                 ]
 
+\* A same-directory move under unchanged provider authority is stuttering here.
+\* An authority change uses one of the fresh-session actions below.
 ModelStructureChanges ==
     /\ state.txnState \in {"processing", "fenced"}
     /\ state.structuralGeneration < MaxModelCounter

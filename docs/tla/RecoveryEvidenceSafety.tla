@@ -5,6 +5,9 @@ EXTENDS FiniteSets, Naturals
 \* values are opaque; Naturals and +1 only provide bounded fresh values.
 \* processedVersions records traversal only; provider-version representation and
 \* provider-version resolution eligibility are tracked separately.
+\* A complete Recover Notes run returns to idle with transient eligibility only.
+\* ReconciliationSafety models the shared later file/checkpoint/upload/resolve
+\* chain; duplicating it here would incorrectly imply a recovery checkpoint.
 
 CONSTANTS
     DatabaseVersions,
@@ -23,10 +26,7 @@ CONSTANTS
     Settings,
     LiveSettings,
     ForeignSettings,
-    CheckpointIDs,
-    InitialCheckpoint,
-    MaxCatalogToken,
-    None
+    MaxCatalogToken
 
 ASSUME
     /\ DatabaseVersions = {DatabaseVersion1, DatabaseVersion2}
@@ -38,9 +38,7 @@ ASSUME
     /\ RecoveryID1 # RecoveryID2
     /\ {LiveSettings, ForeignSettings} \subseteq Settings
     /\ LiveSettings # ForeignSettings
-    /\ InitialCheckpoint \in CheckpointIDs
     /\ MaxCatalogToken >= 2
-    /\ None \notin CheckpointIDs
 
 VARIABLE state
 
@@ -48,9 +46,8 @@ vars == <<state>>
 
 EvidenceVersions == DatabaseVersions \cup JournalVersions
 Kinds == {"note", "delete", "settings"}
-RootKinds == {"local", "icloud"}
 Phases == {
-    "idle", "recovering", "durability", "discarding", "crashed"
+    "idle", "recovering", "discarding", "crashed"
 }
 Scenarios == {"duplicates", "databaseSettings", "journalDeletion"}
 
@@ -72,18 +69,12 @@ DeterministicRecoveryID(noteState) ==
 
 KnownEvidence == state.knownDatabase \cup state.knownJournals
 VisibleDatabaseEvidence ==
-    state.knownDatabase \ (state.resolvedDatabase \cup state.discardedDatabase)
+    state.knownDatabase \ state.discardedDatabase
 RecoveryCandidates == VisibleDatabaseEvidence \cup state.knownJournals
 
 RecoveryInputsRepresented(version) ==
     state.versionContributions[version]
         \subseteq state.importedRecoveryIDs \cup state.intentionalTombstones
-
-ExactUploadedCoverage ==
-    /\ state.checkpointVerified
-    /\ state.verifiedCoverage = state.installedCoverage
-    /\ state.confirmedCheckpoint = state.installedCheckpoint
-    /\ state.confirmedCoverage = state.installedCoverage
 
 AccessChangeIsRelevant(version) ==
     \/ state.phase = "idle"
@@ -92,10 +83,8 @@ AccessChangeIsRelevant(version) ==
 
 Init ==
     \E scenario \in Scenarios:
-    \E rootKind \in RootKinds:
         state = [
             scenario |-> scenario,
-            rootKind |-> rootKind,
             phase |-> "idle",
             knownDatabase |-> {DatabaseVersion1},
             knownJournals |-> {JournalVersion1},
@@ -118,23 +107,10 @@ Init ==
             ignoredDeletes |-> {},
             ignoredSettings |-> {},
             resolutionEligibleVersions |-> {},
+            eligibilityWitnesses |-> {},
+            ineligibleRunWitnesses |-> {},
             partialSeen |-> FALSE,
             completionWitnesses |-> {},
-            fileDurableVersions |-> {},
-            installedCheckpoint |-> InitialCheckpoint,
-            usedCheckpointIDs |-> {InitialCheckpoint},
-            checkpointInstallCount |-> [checkpoint \in CheckpointIDs |->
-                IF checkpoint = InitialCheckpoint THEN 1 ELSE 0],
-            installedCoverage |-> {},
-            checkpointVerified |-> TRUE,
-            verifiedCoverage |-> {},
-            confirmedCheckpoint |-> None,
-            confirmedCoverage |-> {},
-            uploadCallbackObserved |-> FALSE,
-            resolvedDatabase |-> {},
-            resolutionWitnesses |-> {},
-            resolvedJournals |-> {},
-            deletedJournals |-> {},
             discardSnapshot |-> {},
             discardFailed |-> {},
             discardedDatabase |-> {},
@@ -231,7 +207,16 @@ CancelRecoverNotes ==
     /\ state.phase = "recovering"
     /\ state' = [state EXCEPT
         !.phase = "idle",
-        !.partialSeen = TRUE
+        !.partialSeen = TRUE,
+        !.ineligibleRunWitnesses = @ \cup
+            {state.resolutionEligibleVersions =
+                state.resolutionEligibleBeforeRun},
+        !.snapshot = {},
+        !.snapshotCatalogToken = 0,
+        !.enumerationComplete = FALSE,
+        !.processed = {},
+        !.failed = {},
+        !.resolutionEligibleBeforeRun = state.resolutionEligibleVersions
                 ]
 
 TombstoneImportedRecoveryNote ==
@@ -262,10 +247,26 @@ FinishRecoverNotes ==
             /\ state.snapshotCatalogToken = state.catalogToken
             /\ \A version \in state.snapshot:
                 RecoveryInputsRepresented(version)
+           nextEligibility ==
+                IF completeRun
+                THEN state.resolutionEligibleVersions
+                    \cup (state.snapshot \cap DatabaseVersions)
+                ELSE state.resolutionEligibleVersions
        IN state' = [state EXCEPT
-            !.phase = IF completeRun THEN "durability" ELSE "idle",
-            !.resolutionEligibleVersions =
-                IF completeRun THEN @ \cup state.snapshot ELSE @,
+            !.phase = "idle",
+            !.resolutionEligibleVersions = nextEligibility,
+            !.eligibilityWitnesses =
+                IF completeRun
+                THEN @ \cup
+                    {<<version, TRUE>>:
+                        version \in state.snapshot \cap DatabaseVersions}
+                ELSE @,
+            !.ineligibleRunWitnesses =
+                IF completeRun
+                THEN @
+                ELSE @ \cup
+                    {state.resolutionEligibleVersions =
+                        state.resolutionEligibleBeforeRun},
             !.partialSeen = IF completeRun THEN @ ELSE TRUE,
             !.completionWitnesses =
                 IF completeRun
@@ -276,92 +277,14 @@ FinishRecoverNotes ==
                        state.snapshotCatalogToken = state.catalogToken,
                        \A version \in state.snapshot:
                            RecoveryInputsRepresented(version)>>}
-                ELSE @
+                ELSE @,
+            !.snapshot = {},
+            !.snapshotCatalogToken = 0,
+            !.enumerationComplete = FALSE,
+            !.processed = {},
+            !.failed = {},
+            !.resolutionEligibleBeforeRun = nextEligibility
                 ]
-
-PersistRecoveredContributions ==
-    /\ state.phase = "durability"
-    /\ state.resolutionEligibleVersions \ state.fileDurableVersions # {}
-    /\ \A version \in state.resolutionEligibleVersions:
-        RecoveryInputsRepresented(version)
-    /\ state' = [state EXCEPT
-        !.fileDurableVersions = @ \cup state.resolutionEligibleVersions
-                ]
-
-InstallRecoveryCheckpoint ==
-    /\ state.phase = "durability"
-    /\ state.fileDurableVersions \ state.installedCoverage # {}
-    /\ \E checkpoint \in CheckpointIDs \ state.usedCheckpointIDs:
-        state' = [state EXCEPT
-            !.installedCheckpoint = checkpoint,
-            !.usedCheckpointIDs = @ \cup {checkpoint},
-            !.checkpointInstallCount[checkpoint] = @ + 1,
-            !.installedCoverage = state.fileDurableVersions,
-            !.checkpointVerified = FALSE,
-            !.verifiedCoverage = {},
-            !.confirmedCheckpoint = None,
-            !.confirmedCoverage = {},
-            !.uploadCallbackObserved = FALSE
-                ]
-
-VerifyRecoveryCheckpoint ==
-    /\ state.phase = "durability"
-    /\ state.installedCoverage # {}
-    /\ ~state.checkpointVerified
-    /\ state' = [state EXCEPT
-        !.checkpointVerified = TRUE,
-        !.verifiedCoverage = state.installedCoverage
-                ]
-
-ConfirmRecoveryCheckpointUpload ==
-    /\ state.phase = "durability"
-    /\ state.installedCoverage # {}
-    /\ state.checkpointVerified
-    /\ ~state.uploadCallbackObserved
-    /\ \E returned \in CheckpointIDs \cup {None}:
-        state' = [state EXCEPT
-            !.confirmedCheckpoint =
-                IF returned = state.installedCheckpoint THEN returned ELSE None,
-            !.confirmedCoverage =
-                IF returned = state.installedCheckpoint
-                THEN state.installedCoverage ELSE {},
-            !.uploadCallbackObserved = TRUE
-                ]
-
-ResolveDatabaseVersion ==
-    /\ state.phase = "durability"
-    /\ \E version \in
-            (DatabaseVersions \cap state.resolutionEligibleVersions
-                \cap state.installedCoverage) \ state.resolvedDatabase:
-        /\ state.checkpointVerified
-        /\ state.verifiedCoverage = state.installedCoverage
-        /\ version \in state.verifiedCoverage
-        /\ \/ state.rootKind = "local"
-           \/ /\ state.rootKind = "icloud"
-              /\ ExactUploadedCoverage
-              /\ version \in state.confirmedCoverage
-        /\ state' = [state EXCEPT
-            !.resolvedDatabase = @ \cup {version},
-            !.resolutionWitnesses = @ \cup
-                {<<version,
-                   version \in state.resolutionEligibleVersions,
-                   version \in state.fileDurableVersions,
-                   version \in state.installedCoverage,
-                   state.checkpointVerified
-                       /\ state.verifiedCoverage = state.installedCoverage
-                       /\ version \in state.verifiedCoverage,
-                   state.rootKind = "local"
-                       \/ /\ state.rootKind = "icloud"
-                          /\ ExactUploadedCoverage
-                          /\ version \in state.confirmedCoverage,
-                   state.installedCheckpoint>>}
-                ]
-
-FinishRecoveryDurability ==
-    /\ state.phase = "durability"
-    /\ DatabaseVersions \cap state.resolutionEligibleVersions
-        \subseteq state.resolvedDatabase
-    /\ state' = [state EXCEPT !.phase = "idle"]
 
 StartDiscard ==
     /\ state.phase = "idle"
@@ -392,7 +315,11 @@ FinishDiscard ==
     /\ state.phase = "discarding"
     /\ state.discardSnapshot
         \subseteq state.discardedDatabase \cup state.discardFailed
-    /\ state' = [state EXCEPT !.phase = "idle"]
+    /\ state' = [state EXCEPT
+        !.phase = "idle",
+        !.discardSnapshot = {},
+        !.discardFailed = {}
+        ]
 
 Crash ==
     /\ state.phase # "crashed"
@@ -409,12 +336,6 @@ Next ==
     \/ FailRecoveryEvidence
     \/ CancelRecoverNotes
     \/ FinishRecoverNotes
-    \/ PersistRecoveredContributions
-    \/ InstallRecoveryCheckpoint
-    \/ VerifyRecoveryCheckpoint
-    \/ ConfirmRecoveryCheckpointUpload
-    \/ ResolveDatabaseVersion
-    \/ FinishRecoveryDurability
     \/ StartDiscard
     \/ DiscardDatabaseVersion
     \/ FinishDiscard
@@ -433,7 +354,6 @@ Spec ==
 
 TypeOK ==
     /\ state.scenario \in Scenarios
-    /\ state.rootKind \in RootKinds
     /\ state.phase \in Phases
     /\ state.knownDatabase \subseteq DatabaseVersions
     /\ state.knownJournals \subseteq JournalVersions
@@ -455,32 +375,19 @@ TypeOK ==
     /\ state.intentionalTombstones \subseteq RecoveryIDs
     /\ state.ignoredDeletes \subseteq EvidenceVersions
     /\ state.ignoredSettings \subseteq EvidenceVersions
-    /\ state.resolutionEligibleVersions \subseteq EvidenceVersions
+    /\ state.resolutionEligibleVersions \subseteq DatabaseVersions
+    /\ state.eligibilityWitnesses \subseteq
+        (DatabaseVersions \X BOOLEAN)
+    /\ state.ineligibleRunWitnesses \subseteq BOOLEAN
     /\ state.partialSeen \in BOOLEAN
     /\ state.completionWitnesses \subseteq
         (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
-    /\ state.fileDurableVersions \subseteq EvidenceVersions
-    /\ state.installedCheckpoint \in CheckpointIDs
-    /\ state.usedCheckpointIDs \subseteq CheckpointIDs
-    /\ state.checkpointInstallCount \in [CheckpointIDs -> 0..1]
-    /\ state.installedCoverage \subseteq EvidenceVersions
-    /\ state.checkpointVerified \in BOOLEAN
-    /\ state.verifiedCoverage \subseteq EvidenceVersions
-    /\ state.confirmedCheckpoint \in CheckpointIDs \cup {None}
-    /\ state.confirmedCoverage \subseteq EvidenceVersions
-    /\ state.uploadCallbackObserved \in BOOLEAN
-    /\ state.resolvedDatabase \subseteq DatabaseVersions
-    /\ state.resolutionWitnesses \subseteq
-        (DatabaseVersions \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN
-            \X BOOLEAN \X CheckpointIDs)
-    /\ state.resolvedJournals \subseteq JournalVersions
-    /\ state.deletedJournals \subseteq JournalVersions
     /\ state.discardSnapshot \subseteq DatabaseVersions
     /\ state.discardFailed \subseteq DatabaseVersions
     /\ state.discardedDatabase \subseteq DatabaseVersions
     /\ state.discardWitnesses \subseteq
         (DatabaseVersions \X BOOLEAN \X BOOLEAN)
-    /\ state.resolutionEligibleBeforeRun \subseteq EvidenceVersions
+    /\ state.resolutionEligibleBeforeRun \subseteq DatabaseVersions
     /\ state.routineScans \in 0..2
 
 RecoveryNeverOverwritesOriginalOrSettings ==
@@ -516,24 +423,13 @@ CompleteRunsHadExactAllVersionSnapshots ==
         /\ witness[4]
         /\ witness[5]
 
-ResolvedDatabaseVersionsHadFullDurability ==
-    /\ state.resolvedDatabase =
-        {witness[1]: witness \in state.resolutionWitnesses}
-    /\ \A witness \in state.resolutionWitnesses:
-        /\ witness[2]
-        /\ witness[3]
-        /\ witness[4]
-        /\ witness[5]
-        /\ witness[6]
-
-CheckpointIDsAreNeverReused ==
-    \A checkpoint \in CheckpointIDs:
-        state.checkpointInstallCount[checkpoint] <= 1
+RecoveryEligibilityRequiredCompleteExactRecovery ==
+    /\ state.resolutionEligibleVersions =
+        {witness[1]: witness \in state.eligibilityWitnesses}
+    /\ \A witness \in state.eligibilityWitnesses: witness[2]
 
 UnclaimedJournalEvidenceWithPossibleWriterIsNeverConsumed ==
-    /\ state.resolvedJournals = {}
-    /\ state.deletedJournals = {}
-    /\ state.remoteWriterPossible \subseteq state.knownJournals
+    state.remoteWriterPossible \subseteq state.knownJournals
 
 DiscardNeverBroadensItsConfirmedSnapshot ==
     /\ state.discardedDatabase =
@@ -543,16 +439,30 @@ DiscardNeverBroadensItsConfirmedSnapshot ==
         /\ witness[3]
 
 PartialOrFailedRunsDoNotGainResolutionEligibility ==
-    state.failed \cap (state.resolutionEligibleVersions \ state.resolutionEligibleBeforeRun) = {}
+    state.ineligibleRunWitnesses \subseteq {TRUE}
+
+IdleScratchIsCanonical ==
+    state.phase = "idle" =>
+        /\ state.snapshot = {}
+        /\ state.snapshotCatalogToken = 0
+        /\ ~state.enumerationComplete
+        /\ state.processed = {}
+        /\ state.failed = {}
+        /\ state.resolutionEligibleBeforeRun =
+            state.resolutionEligibleVersions
+        /\ state.discardSnapshot = {}
+        /\ state.discardFailed = {}
+
+UnclaimedJournalEvidenceNeverGainsResolutionEligibility ==
+    state.resolutionEligibleVersions \cap JournalVersions = {}
 
 ExplicitRecoveryProgress ==
     state.phase = "recovering"
-    ~> state.phase \in {"durability", "idle", "crashed"}
+    ~> state.phase \in {"idle", "crashed"}
 
 RoutineSyncPreservesRecoveryEvidence ==
     [][RoutineSynchronization =>
         UNCHANGED <<state.liveOriginal, state.liveSettings,
-                    state.resolvedDatabase, state.resolvedJournals,
-                    state.deletedJournals>>]_vars
+                    state.discardedDatabase, state.knownJournals>>]_vars
 
 =============================================================================

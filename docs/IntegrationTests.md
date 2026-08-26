@@ -13,8 +13,65 @@ Run test commands from the repository root. The test Makefile builds the Deploym
 - `make -C tests stress` runs the concurrency, packed-record fuzzing, xattr, and ambiguous-matching stress cases.
 - `make -C tests leak-check` runs the resource lifecycle scenario under `/usr/bin/leaks`.
 - `make -C tests filesystem-image-stress` creates test-owned 192 MiB sparse disk images and runs the APFS, case-sensitive APFS, HFS+, case-sensitive HFS+, ExFAT, ENOSPC, bookmark-remount, live-detach, filesystem-metadata, and system-tag matrix. It uses `hdiutil`, mounts and detaches images, and may require running outside a restrictive sandbox. SMB/NFS and real iCloud/Finder process coordination remain manual.
+- `make -C tests run-icloud-api-contract` runs the focused real-provider probe as an ad-hoc-signed LaunchServices app in `~/Library/Mobile Documents/com~apple~CloudDocs/API_Contract_Testing`.
+- `make -C tests run-file-provider-api-contract` runs the same app-context probe in `~/Library/CloudStorage/Dropbox/API_Contract_Testing`. Override either root with `ICLOUD_API_TEST_ROOT=/path` or `FILE_PROVIDER_API_TEST_ROOT=/path`.
+- `make -C tests run-icloud-api-contract-legacy-upload` runs the exact pre-macOS-26 upload-transition/correlation probe. Run it on each required older OS.
+- `make -C tests run-icloud-api-contract-sync-control-probe` packages the focused macOS 26 pause/resume probe as an ad-hoc-signed, entitlement-free app and launches it through LaunchServices. A direct command-line run is not representative of NV for these controls.
+- `make -C tests run-icloud-api-contract-pause-lifecycle` launches the app twice to leave an identity-preserving local edit paused, then verify that a fresh app launch observes, resumes, uploads, and cleans it up. Override `ICLOUD_API_TEST_ROOT` to repeat this against another provider.
 - `make -C tests clean` removes the executables from `/tmp/notation-integration-tests`.
 - `./build.sh` must still be run after significant source changes, even when the tests pass.
+
+### Real cloud API contract probe
+
+The local cloud commands build and launch `ICloudAPIContractTest.app`, use only the fixed `nv-api-contract-local`, `nv-api-contract-path-a`, and `nv-api-contract-path-b` subtrees under the selected testing directory, exercise promised metadata, eviction/materialization, shallow and batch coordination, `NSFileVersion`, File Provider identity, presenter callbacks, root moves, capability advertisement versus actual outcomes, and the ordinary-sync fallbacks, then remove those subtrees. The AV-08 phase moves one retained root before and while catalog, asynchronous intent read, batch read, Foundation replacement, materialization, version, and sync-control operations execute. The iCloud command selects the first-class-required policy; Dropbox selects observational policy. Neither mode branches on provider brand at runtime. Fixed test names make crash cleanup possible without enumerating the user's directory; only one local run may use a given root at once. They are intentionally outside `run` and `run-platform`: results depend on the live account, provider, network, storage policy, OS, and signing configuration. `PASS` establishes only the scenario named by the output; `OBSERVE` and `SKIP` preserve an API-contract gap without turning it into a false test failure.
+
+After a crashed local or legacy-upload run, remove only the fixed local rendezvous names with:
+
+```sh
+/tmp/notation-integration-tests/ICloudAPIContractTest cleanup-local "/path/to/API_Contract_Testing"
+```
+
+For the remote create/edit/rename/delete and callback path, use two Macs on the same iCloud account. Start this on Mac A and leave it running:
+
+```sh
+make -C tests run-icloud-api-contract-remote-host
+```
+
+After it prints `READY`, run this once on Mac B:
+
+```sh
+make -C tests run-icloud-api-contract-remote-peer
+```
+
+The protocol uses one fixed `nv-api-contract-remote` rendezvous so no token or path must be copied. Only one remote run may be active in that testing directory. Its marker is only a wakeup: the host retains the dirty obligation and retries coordinated exact observations until the remote namespace/content converges or the test times out. It then verifies presenter activity and version enumeration, acknowledges the peer, removes and drains the presenter, launches a fresh child process to query retained pre-rename/pre-delete URLs, and removes the rendezvous. The default remote timeout is 15 minutes. After a crashed remote run, rebuild the executable and remove only that fixed rendezvous with:
+
+```sh
+/tmp/notation-integration-tests/ICloudAPIContractTest cleanup-remote "$HOME/Library/Mobile Documents/com~apple~CloudDocs/API_Contract_Testing"
+```
+
+Local provider and macOS 26 sync-control modes use the LaunchServices app wrapper; remote peer and cleanup modes may use the standalone executable. On macOS 26.6.1, the app run succeeded with no Team ID or entitlements while direct invocation of the same binary returned `NSFeatureUnsupportedError`. A normally launched release build remains a deployment smoke test, but Developer ID signing, notarization, and an iCloud entitlement are not API prerequisites established by this probe. See [Apple-API-Contract-Validation.md](Apple-API-Contract-Validation.md).
+
+For a real simultaneous conflict/nonlocal-version test, build the executable for both architectures, copy the x86_64 binary to the peer, and use the fixed `nv-api-contract-conflict` subtree:
+
+```sh
+export ICLOUD_API_TEST_ROOT="$HOME/Library/Mobile Documents/com~apple~CloudDocs/API_Contract_Testing"
+make -C tests /tmp/notation-integration-tests/ICloudAPIContractTest \
+  /tmp/notation-integration-tests/ICloudAPIContractTest-x86_64
+/tmp/notation-integration-tests/ICloudAPIContractTest conflict-prepare "$ICLOUD_API_TEST_ROOT"
+# On Mac B:
+/tmp/ICloudAPIContractTest conflict-materialize "$ICLOUD_API_TEST_ROOT"
+# Choose one epoch several seconds in the future, then run concurrently:
+/tmp/notation-integration-tests/ICloudAPIContractTest conflict-write "$ICLOUD_API_TEST_ROOT" host "$START_EPOCH"
+/tmp/ICloudAPIContractTest conflict-write "$ICLOUD_API_TEST_ROOT" peer "$START_EPOCH"
+# Run concurrently on both Macs:
+/tmp/notation-integration-tests/ICloudAPIContractTest conflict-inspect "$ICLOUD_API_TEST_ROOT"
+/tmp/ICloudAPIContractTest conflict-inspect "$ICLOUD_API_TEST_ROOT"
+/tmp/notation-integration-tests/ICloudAPIContractTest cleanup-conflict "$ICLOUD_API_TEST_ROOT"
+```
+
+The inspector requires exact before/after coordinated local-version fences with a registered presenter, reads every current/other/unresolved/nonlocal version, verifies both payloads, and checks that each nonlocal persistent identifier remains equal after materialization. It never resolves the conflicts. Cleanup removes only the fixed test subtree.
+
+The macOS 26 server-conflict probe uses `sync-conflict-host` and `sync-conflict-peer` in the same host/peer pattern, but the host must run from `ICloudAPIContractTest.app` through LaunchServices. If the item does not advertise both controls, or pause fails before acquisition, both sides verify the ordinary-sync fallback and exit cleanly. If pause succeeds, the diagnostic host performs an identity-preserving in-place edit, the peer uploads a newer server version, the host fetches and reads it while paused, fail-on-conflict must reject the stale local upload, and the host must preserve local bytes and resume before cleanup. This validates Apple's control APIs; it deliberately does not validate replacing NV's atomic checkpoint writer with an in-place write. Use `cleanup-sync-conflict` after an interrupted run.
 
 The historical compatibility smoke test is intentionally outside `run-core`:
 
@@ -45,6 +102,7 @@ To run one standalone test, build its `/tmp/notation-integration-tests/<TestName
 ### Standalone test executables
 
 - `NVIntegrationTest`: scenario-driven full-stack controller, directory, storage, reconciliation, lifecycle, and recovery tests listed below.
+- `ICloudAPIContractTest`: opt-in real-provider API probe and two-Mac host/peer protocol described above.
 
 ### `NVIntegrationTest` scenarios
 

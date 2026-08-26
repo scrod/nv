@@ -31,7 +31,8 @@ vars == <<state>>
 Phases == {
     "running", "quiescing", "awaitingDecision", "barrier", "drained",
     "paused", "installed", "verified", "uploading", "resuming", "cleanup",
-    "terminated", "aborted", "crashed"
+    "retainedRecordWritten", "retainedRecordSynced", "terminated",
+    "aborted", "crashed"
 }
 
 RootKinds == {"local", "icloud", "otherProvider", "unknown"}
@@ -87,8 +88,14 @@ Init ==
         localWriteGeneration |-> 0,
         journalExists |-> TRUE,
         activeRecord |-> TRUE,
+        retainedRecord |-> FALSE,
+        retainedRecordSynchronized |-> FALSE,
+        retainedCoverage |-> None,
+        demotionWitnesses |-> {},
         journalDeletionQualified |-> FALSE,
+        journalDeletionWasProvablyEmpty |-> FALSE,
         journalDeletionCheckpoint |-> None,
+        emptyDeletionWitnesses |-> {},
         installCount |-> 0,
         terminationRequests |-> 0,
         queuedCallbacks |-> {},
@@ -97,6 +104,13 @@ Init ==
         sessionClosing |-> FALSE,
         presenterDrained |-> FALSE
         ]
+
+CurrentJournalQualified ==
+    \/ state.rootKind = "local"
+    \/ /\ state.rootKind = "icloud"
+       /\ ~state.syncPaused
+       /\ state.confirmedCheckpoint = state.installedCheckpoint
+       /\ state.confirmedCheckpoint = state.verifiedCheckpoint
 
 UserEdit ==
     /\ state.phase = "running"
@@ -404,20 +418,39 @@ DeleteJournal ==
     /\ state.journalExists
     /\ state.checkpointVerified
     /\ state.durableHistory \subseteq state.durableCheckpoint
-    /\ LET qualified ==
-        \/ state.rootKind = "local"
-        \/ /\ state.rootKind = "icloud"
-           /\ ~state.syncPaused
-           /\ state.confirmedCheckpoint = state.installedCheckpoint
-           /\ state.confirmedCheckpoint = state.verifiedCheckpoint
-       IN /\ qualified
-          /\ state' = [state EXCEPT
+    /\ CurrentJournalQualified
+    /\ state' = [state EXCEPT
                 !.phase = "cleanup",
                 !.journalExists = FALSE,
                 !.journal = {},
-                !.journalDeletionQualified = qualified,
+                !.journalDeletionQualified = TRUE,
                 !.journalDeletionCheckpoint = state.verifiedCheckpoint
              ]
+
+DeleteProvablyEmptyJournal ==
+    /\ state.phase = "drained"
+    /\ state.presenterDrained
+    /\ state.journalExists
+    /\ state.activeRecord
+    /\ state.installCount = 0
+    /\ state.pendingJournal = {}
+    /\ state.journal = {}
+    /\ state.durableHistory = {}
+    /\ state.live = state.frozen
+    /\ state.fileCopies = state.frozen
+    /\ state' = [state EXCEPT
+        !.phase = "cleanup",
+        !.journalExists = FALSE,
+        !.journalDeletionQualified = FALSE,
+        !.journalDeletionWasProvablyEmpty = TRUE,
+        !.journalDeletionCheckpoint = None,
+        !.emptyDeletionWitnesses = @ \cup
+            {<<state.activeRecord,
+               state.pendingJournal = {},
+               state.journal = {},
+               state.durableHistory = {},
+               state.installCount = 0>>}
+        ]
 
 ClearActiveRecord ==
     /\ state.phase = "cleanup"
@@ -425,14 +458,46 @@ ClearActiveRecord ==
     /\ state.activeRecord
     /\ state' = [state EXCEPT
         !.phase = "terminated",
-        !.activeRecord = FALSE
+        !.activeRecord = FALSE,
+        !.retainedRecord = FALSE,
+        !.retainedRecordSynchronized = FALSE,
+        !.retainedCoverage = None
         ]
 
-QuitAnywayAfterInstall ==
+PublishRetainedRecord ==
     /\ state.phase = "verified"
     /\ ~state.syncPaused
     /\ state.journalExists
-    /\ state' = [state EXCEPT !.phase = "aborted"]
+    /\ ~CurrentJournalQualified
+    /\ state.checkpointVerified
+    /\ state.durableHistory \subseteq state.durableCheckpoint
+    /\ state' = [state EXCEPT
+        !.phase = "retainedRecordWritten",
+        !.retainedRecord = TRUE,
+        !.retainedRecordSynchronized = FALSE,
+        !.retainedCoverage = state.verifiedCheckpoint
+        ]
+
+SynchronizeRetainedRecord ==
+    /\ state.phase = "retainedRecordWritten"
+    /\ state.retainedRecord
+    /\ state' = [state EXCEPT
+        !.phase = "retainedRecordSynced",
+        !.retainedRecordSynchronized = TRUE
+        ]
+
+ClearDemotedActiveRecord ==
+    /\ state.phase = "retainedRecordSynced"
+    /\ state.activeRecord
+    /\ state.retainedRecordSynchronized
+    /\ state.retainedCoverage = state.verifiedCheckpoint
+    /\ state' = [state EXCEPT
+        !.phase = "aborted",
+        !.activeRecord = FALSE,
+        !.demotionWitnesses = @ \cup
+            {<<state.retainedRecordSynchronized,
+               state.retainedCoverage = state.verifiedCheckpoint>>}
+        ]
 
 ReentrantTerminate ==
     /\ state.phase \notin {"running", "terminated", "crashed"}
@@ -478,8 +543,11 @@ Next ==
     \/ LegacyExactReadback
     \/ InterveningLocalCheckpointWrite
     \/ DeleteJournal
+    \/ DeleteProvablyEmptyJournal
     \/ ClearActiveRecord
-    \/ QuitAnywayAfterInstall
+    \/ PublishRetainedRecord
+    \/ SynchronizeRetainedRecord
+    \/ ClearDemotedActiveRecord
     \/ ReentrantTerminate
     \/ Crash
 
@@ -491,6 +559,8 @@ Spec ==
     /\ WF_vars(FinishReconciliation)
     /\ WF_vars(DrainPresenter)
     /\ WF_vars(AttemptResume)
+    /\ WF_vars(SynchronizeRetainedRecord)
+    /\ WF_vars(ClearDemotedActiveRecord)
 
 TypeOK ==
     /\ state.phase \in Phases
@@ -537,8 +607,15 @@ TypeOK ==
     /\ state.localWriteGeneration \in 0..2
     /\ state.journalExists \in BOOLEAN
     /\ state.activeRecord \in BOOLEAN
+    /\ state.retainedRecord \in BOOLEAN
+    /\ state.retainedRecordSynchronized \in BOOLEAN
+    /\ state.retainedCoverage \in CheckpointIDs \cup {None}
+    /\ state.demotionWitnesses \subseteq (BOOLEAN \X BOOLEAN)
     /\ state.journalDeletionQualified \in BOOLEAN
+    /\ state.journalDeletionWasProvablyEmpty \in BOOLEAN
     /\ state.journalDeletionCheckpoint \in CheckpointIDs \cup {None}
+    /\ state.emptyDeletionWitnesses \subseteq
+        (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
     /\ state.installCount \in 0..2
     /\ state.terminationRequests \in 0..2
     /\ state.queuedCallbacks \subseteq Edits
@@ -552,16 +629,28 @@ DurableWorkIsAlwaysRecoverable ==
         (state.durableCheckpoint \cup
             (IF state.journalExists THEN state.journal ELSE {}))
 
-JournalCleanupIsHistoricallyQualified ==
+JournalCleanupIsQualifiedOrProvablyEmpty ==
     ~state.journalExists =>
-        /\ state.journalDeletionQualified
-        /\ state.journalDeletionCheckpoint = state.verifiedCheckpoint
-        /\ state.checkpointVerified
-        /\ state.durableHistory \subseteq state.durableCheckpoint
-        /\ \/ state.rootKind = "local"
-           \/ /\ state.rootKind = "icloud"
-              /\ state.confirmedCheckpoint = state.journalDeletionCheckpoint
-              /\ ~state.syncPaused
+        \/ /\ state.journalDeletionQualified
+              /\ state.journalDeletionCheckpoint = state.verifiedCheckpoint
+              /\ state.checkpointVerified
+              /\ state.durableHistory \subseteq state.durableCheckpoint
+              /\ \/ state.rootKind = "local"
+                 \/ /\ state.rootKind = "icloud"
+                    /\ state.confirmedCheckpoint =
+                        state.journalDeletionCheckpoint
+                    /\ ~state.syncPaused
+        \/ /\ state.journalDeletionWasProvablyEmpty
+              /\ state.journalDeletionCheckpoint = None
+              /\ state.durableHistory = {}
+
+ProvablyEmptyDeletionHadNoRecoveryWork ==
+    \A witness \in state.emptyDeletionWitnesses:
+        /\ witness[1]
+        /\ witness[2]
+        /\ witness[3]
+        /\ witness[4]
+        /\ witness[5]
 
 ExactConfirmationNamesCurrentCheckpoint ==
     state.confirmedCheckpoint # None =>
@@ -594,6 +683,7 @@ FailedExplicitPathRetainsRecoveryEvidence ==
         /\ state.confirmationKind = "none"
         /\ state.legacyStatus = "idle"
         /\ state.journalExists
+        /\ (state.activeRecord \/ state.retainedRecord)
 
 TerminalPausedPathAttemptedResume ==
     /\ state.pauseEverSucceeded
@@ -601,11 +691,23 @@ TerminalPausedPathAttemptedResume ==
     /\ state.syncPaused
     => state.resumeAttempted
 
-ActiveRecordClearsAfterJournal ==
-    ~state.activeRecord => ~state.journalExists
+JournalAlwaysHasAConservativeHostRecord ==
+    state.journalExists => state.activeRecord \/ state.retainedRecord
+
+RetainedRecordNamesExactlyVerifiedCoverage ==
+    state.retainedRecord =>
+        /\ state.checkpointVerified
+        /\ state.retainedCoverage = state.verifiedCheckpoint
+
+ActiveRecordDemotionFollowedRetainedSync ==
+    \A witness \in state.demotionWitnesses:
+        /\ witness[1]
+        /\ witness[2]
 
 UnqualifiedRootsRetainJournal ==
-    state.rootKind \in {"otherProvider", "unknown"} => state.journalExists
+    /\ state.rootKind \in {"otherProvider", "unknown"}
+    /\ ~state.journalDeletionWasProvablyEmpty
+    => state.journalExists
 
 CheckpointInstalledAtMostOnceDespiteReentry ==
     state.installCount <= 1

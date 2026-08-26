@@ -8,6 +8,8 @@ CONSTANTS
     Notes,
     CheckpointIDs,
     InitialCheckpoint,
+    CredentialIDs,
+    InitialCredentialID,
     OldKey,
     NewKey,
     MaxCatalogToken,
@@ -17,9 +19,13 @@ ASSUME
     /\ IsFiniteSet(Notes)
     /\ IsFiniteSet(CheckpointIDs)
     /\ InitialCheckpoint \in CheckpointIDs
+    /\ IsFiniteSet(CredentialIDs)
+    /\ InitialCredentialID \in CredentialIDs
+    /\ Cardinality(CredentialIDs) >= 2
     /\ OldKey # NewKey
     /\ MaxCatalogToken >= Cardinality(Notes)
     /\ None \notin CheckpointIDs
+    /\ None \notin CredentialIDs
 
 VARIABLE state
 
@@ -28,9 +34,12 @@ vars == <<state>>
 OldFormats == {"encrypted", "databaseOnly", "rtf", "html"}
 Formats == OldFormats \cup {"plaintext"}
 RootKinds == {"local", "icloud"}
+TransitionKinds == {"plaintextExport", "encryptedRekey"}
 Phases == {
     "running", "freezing", "oldInstalled", "oldVerified",
-    "oldJournalDeleted", "oldJournalCleared", "exporting", "fenced",
+    "oldJournalDeleted", "oldJournalCleared",
+    "targetCredentialProvisioned", "targetCredentialVerified",
+    "exporting", "fenced",
     "newInstalled", "newVerified", "restarting", "journalCreating",
     "journalHeader", "journalClaimWritten", "journalReady", "editable",
     "cancelled", "failed", "crashed"
@@ -66,10 +75,19 @@ Init ==
     \E oldFormat \in OldFormats:
     \E rootKind \in RootKinds:
     \E reason \in Reasons:
-        state = [
+    \E transitionKind \in TransitionKinds:
+      /\ (reason = "rootMovedIntoICloud" =>
+            /\ rootKind = "icloud"
+            /\ transitionKind = "plaintextExport")
+      /\ (transitionKind = "encryptedRekey" =>
+            /\ rootKind = "local"
+            /\ reason = "userConversion")
+      /\ state = [
             phase |-> "running",
             reason |-> reason,
             rootKind |-> rootKind,
+            transitionKind |-> transitionKind,
+            oldFormat |-> oldFormat,
             transitionStarted |-> FALSE,
             liveNotes |-> Notes,
             frozenNotes |-> {},
@@ -87,6 +105,7 @@ Init ==
                 IF checkpoint = InitialCheckpoint THEN 1 ELSE 0],
             checkpointFormat |-> oldFormat,
             checkpointKey |-> OldKey,
+            checkpointCredentialID |-> InitialCredentialID,
             checkpointNotes |-> Notes,
             encryptionEnabled |-> oldFormat # "plaintext",
             oldCheckpointVerified |-> FALSE,
@@ -106,6 +125,15 @@ Init ==
             newCheckpointVerified |-> FALSE,
             stagedNewNotes |-> {},
             newInstallWitnesses |-> {},
+            rekeyInstallWitnesses |-> {},
+            keychainBindings |-> {<<InitialCredentialID, OldKey>>},
+            usedCredentialIDs |-> {InitialCredentialID},
+            credentialProvisionCount |->
+                [credential \in CredentialIDs |->
+                    IF credential = InitialCredentialID THEN 1 ELSE 0],
+            oldCredentialID |-> InitialCredentialID,
+            stagedTargetCredentialID |-> None,
+            targetCredentialReadBackVerified |-> FALSE,
             loadedFormat |-> oldFormat,
             loadedKey |-> OldKey,
             freshJournalHeaderSynced |-> FALSE,
@@ -219,6 +247,7 @@ ClearOldActiveRecord ==
 
 BeginPlaintextExport ==
     /\ state.phase = "oldJournalCleared"
+    /\ state.transitionKind = "plaintextExport"
     /\ state.oldCheckpointVerified
     /\ ~state.oldJournalExists
     /\ ~state.oldActiveRecord
@@ -285,6 +314,7 @@ RetryPlaintextExport ==
 
 InstallPlaintextCheckpoint ==
     /\ state.phase = "fenced"
+    /\ state.transitionKind = "plaintextExport"
     /\ ExportFenceStable
     /\ state.exportedNotes = state.frozenNotes
     /\ state.divergentFiles \subseteq state.preservedDivergences
@@ -296,6 +326,7 @@ InstallPlaintextCheckpoint ==
             !.checkpointInstallCount[checkpoint] = @ + 1,
             !.checkpointFormat = "plaintext",
             !.checkpointKey = NewKey,
+            !.checkpointCredentialID = None,
             !.checkpointNotes = state.frozenNotes,
             !.encryptionEnabled = FALSE,
             !.stagedNewNotes = state.frozenNotes,
@@ -312,16 +343,101 @@ InstallPlaintextCheckpoint ==
 
 VerifyPlaintextCheckpoint ==
     /\ state.phase = "newInstalled"
+    /\ state.transitionKind = "plaintextExport"
     /\ state.newCheckpointInstalled
     /\ state.exportStartCatalogToken = state.exportFenceCatalogToken
     /\ state.stagedNewNotes = state.frozenNotes
     /\ state.checkpointNotes = state.stagedNewNotes
     /\ state.checkpointFormat = "plaintext"
     /\ state.checkpointKey = NewKey
+    /\ state.checkpointCredentialID = None
     /\ ~state.encryptionEnabled
     /\ state' = [state EXCEPT
         !.phase = "newVerified",
         !.newCheckpointVerified = TRUE
+                ]
+
+ProvisionTargetCredential ==
+    /\ state.phase = "oldJournalCleared"
+    /\ state.transitionKind = "encryptedRekey"
+    /\ <<state.oldCredentialID, OldKey>> \in state.keychainBindings
+    /\ \E credential \in CredentialIDs \ state.usedCredentialIDs:
+        state' = [state EXCEPT
+            !.phase = "targetCredentialProvisioned",
+            !.keychainBindings = @ \cup {<<credential, NewKey>>},
+            !.usedCredentialIDs = @ \cup {credential},
+            !.credentialProvisionCount[credential] = @ + 1,
+            !.stagedTargetCredentialID = credential,
+            !.targetCredentialReadBackVerified = FALSE
+                ]
+
+VerifyTargetCredential ==
+    /\ state.phase = "targetCredentialProvisioned"
+    /\ state.transitionKind = "encryptedRekey"
+    /\ state.stagedTargetCredentialID \in CredentialIDs
+    /\ <<state.stagedTargetCredentialID, NewKey>> \in
+        state.keychainBindings
+    /\ state' = [state EXCEPT
+        !.phase = "targetCredentialVerified",
+        !.targetCredentialReadBackVerified = TRUE
+                ]
+
+InstallRekeyedCheckpoint ==
+    /\ state.phase = "targetCredentialVerified"
+    /\ state.transitionKind = "encryptedRekey"
+    /\ state.targetCredentialReadBackVerified
+    /\ state.stagedTargetCredentialID \in CredentialIDs
+    /\ <<state.stagedTargetCredentialID, NewKey>> \in
+        state.keychainBindings
+    /\ <<state.oldCredentialID, OldKey>> \in state.keychainBindings
+    /\ \E checkpoint \in CheckpointIDs \ state.usedCheckpointIDs:
+        state' = [state EXCEPT
+            !.phase = "newInstalled",
+            !.checkpointID = checkpoint,
+            !.usedCheckpointIDs = @ \cup {checkpoint},
+            !.checkpointInstallCount[checkpoint] = @ + 1,
+            !.checkpointFormat = state.oldFormat,
+            !.checkpointKey = NewKey,
+            !.checkpointCredentialID = state.stagedTargetCredentialID,
+            !.checkpointNotes = state.frozenNotes,
+            !.encryptionEnabled = TRUE,
+            !.stagedNewNotes = state.frozenNotes,
+            !.newCheckpointInstalled = TRUE,
+            !.newCheckpointVerified = FALSE,
+            !.rekeyInstallWitnesses = @ \cup
+                {<<state.targetCredentialReadBackVerified,
+                   <<state.stagedTargetCredentialID, NewKey>> \in
+                        state.keychainBindings,
+                   <<state.oldCredentialID, OldKey>> \in
+                        state.keychainBindings,
+                   state.oldCheckpointVerified,
+                   ~state.oldJournalExists>>}
+                ]
+
+VerifyRekeyedCheckpoint ==
+    /\ state.phase = "newInstalled"
+    /\ state.transitionKind = "encryptedRekey"
+    /\ state.newCheckpointInstalled
+    /\ state.stagedNewNotes = state.frozenNotes
+    /\ state.checkpointNotes = state.stagedNewNotes
+    /\ state.checkpointFormat = state.oldFormat
+    /\ state.checkpointKey = NewKey
+    /\ state.checkpointCredentialID \in CredentialIDs
+    /\ <<state.checkpointCredentialID, NewKey>> \in
+        state.keychainBindings
+    /\ state.encryptionEnabled
+    /\ state' = [state EXCEPT
+        !.phase = "newVerified",
+        !.newCheckpointVerified = TRUE
+                ]
+
+DeleteOldCredential ==
+    /\ state.newCheckpointVerified
+    /\ state.checkpointCredentialID # state.oldCredentialID
+    /\ <<state.oldCredentialID, OldKey>> \in state.keychainBindings
+    /\ state' = [state EXCEPT
+        !.keychainBindings =
+            @ \ {<<state.oldCredentialID, OldKey>>}
                 ]
 
 BeginRestart ==
@@ -342,7 +458,7 @@ RestartFromNewCheckpoint ==
 
 SynchronizeFreshJournalHeader ==
     /\ state.phase = "journalCreating"
-    /\ state.journalFormat = "plaintext"
+    /\ state.journalFormat = state.checkpointFormat
     /\ state.journalKey = NewKey
     /\ state' = [state EXCEPT
         !.phase = "journalHeader",
@@ -385,12 +501,15 @@ CancelOrFailTransition ==
     /\ state.transitionStarted
     /\ state.phase \in {
         "freezing", "oldInstalled", "oldVerified", "oldJournalDeleted",
-        "oldJournalCleared", "exporting", "fenced"
+        "oldJournalCleared", "targetCredentialProvisioned",
+        "targetCredentialVerified", "exporting", "fenced"
                 }
     /\ \E outcome \in {"cancelled", "failed"}:
         state' = [state EXCEPT
             !.phase = outcome,
-            !.editable = FALSE
+            !.editable = FALSE,
+            !.stagedTargetCredentialID = None,
+            !.targetCredentialReadBackVerified = FALSE
                 ]
 
 Crash ==
@@ -398,7 +517,9 @@ Crash ==
     /\ state.phase \notin {"crashed", "editable"}
     /\ state' = [state EXCEPT
         !.phase = "crashed",
-        !.editable = FALSE
+        !.editable = FALSE,
+        !.stagedTargetCredentialID = None,
+        !.targetCredentialReadBackVerified = FALSE
                 ]
 
 RetryFromArtifacts ==
@@ -410,7 +531,9 @@ RetryFromArtifacts ==
             IF ResumePhaseFromArtifacts = "oldJournalCleared" THEN {} ELSE @,
         !.exportStartCatalogToken =
             IF ResumePhaseFromArtifacts = "oldJournalCleared"
-            THEN state.catalogToken ELSE @
+            THEN state.catalogToken ELSE @,
+        !.stagedTargetCredentialID = None,
+        !.targetCredentialReadBackVerified = FALSE
                 ]
 
 Next ==
@@ -431,6 +554,11 @@ Next ==
     \/ RetryPlaintextExport
     \/ InstallPlaintextCheckpoint
     \/ VerifyPlaintextCheckpoint
+    \/ ProvisionTargetCredential
+    \/ VerifyTargetCredential
+    \/ InstallRekeyedCheckpoint
+    \/ VerifyRekeyedCheckpoint
+    \/ DeleteOldCredential
     \/ BeginRestart
     \/ RestartFromNewCheckpoint
     \/ SynchronizeFreshJournalHeader
@@ -458,6 +586,8 @@ TypeOK ==
     /\ state.phase \in Phases
     /\ state.reason \in Reasons
     /\ state.rootKind \in RootKinds
+    /\ state.transitionKind \in TransitionKinds
+    /\ state.oldFormat \in OldFormats
     /\ state.transitionStarted \in BOOLEAN
     /\ state.liveNotes \subseteq Notes
     /\ state.frozenNotes \subseteq Notes
@@ -474,6 +604,7 @@ TypeOK ==
     /\ state.checkpointInstallCount \in [CheckpointIDs -> 0..1]
     /\ state.checkpointFormat \in Formats
     /\ state.checkpointKey \in {OldKey, NewKey}
+    /\ state.checkpointCredentialID \in CredentialIDs \cup {None}
     /\ state.checkpointNotes \subseteq Notes
     /\ state.encryptionEnabled \in BOOLEAN
     /\ state.oldCheckpointVerified \in BOOLEAN
@@ -496,6 +627,15 @@ TypeOK ==
     /\ state.stagedNewNotes \subseteq Notes
     /\ state.newInstallWitnesses \subseteq
         (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
+    /\ state.rekeyInstallWitnesses \subseteq
+        (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
+    /\ state.keychainBindings \subseteq
+        (CredentialIDs \X {OldKey, NewKey})
+    /\ state.usedCredentialIDs \subseteq CredentialIDs
+    /\ state.credentialProvisionCount \in [CredentialIDs -> 0..1]
+    /\ state.oldCredentialID \in CredentialIDs
+    /\ state.stagedTargetCredentialID \in CredentialIDs \cup {None}
+    /\ state.targetCredentialReadBackVerified \in BOOLEAN
     /\ state.loadedFormat \in Formats
     /\ state.loadedKey \in {OldKey, NewKey}
     /\ state.freshJournalHeaderSynced \in BOOLEAN
@@ -532,9 +672,12 @@ OldCheckpointIsTheRestartMarkerUntilNewInstall ==
     ~state.newCheckpointInstalled =>
         /\ state.checkpointFormat \in OldFormats
         /\ state.checkpointKey = OldKey
+        /\ state.checkpointCredentialID = state.oldCredentialID
+        /\ <<state.oldCredentialID, OldKey>> \in state.keychainBindings
 
 NewInstallRequiresCompleteStableExport ==
     /\ ( /\ state.newCheckpointInstalled
+         /\ state.transitionKind = "plaintextExport"
          /\ ~state.newCheckpointVerified
          => /\ state.newInstallWitnesses # {}
             /\ state.checkpointNotes = state.frozenNotes
@@ -547,6 +690,37 @@ NewInstallRequiresCompleteStableExport ==
         /\ witness[3]
         /\ witness[4]
         /\ witness[5]
+
+RekeyInstallRequiresReadBackFreshCredential ==
+    /\ ( /\ state.newCheckpointInstalled
+         /\ state.transitionKind = "encryptedRekey"
+         => /\ state.rekeyInstallWitnesses # {}
+            /\ state.checkpointFormat = state.oldFormat
+            /\ state.checkpointKey = NewKey
+            /\ state.checkpointCredentialID \in CredentialIDs
+            /\ <<state.checkpointCredentialID, NewKey>> \in
+                state.keychainBindings
+            /\ state.encryptionEnabled )
+    /\ \A witness \in state.rekeyInstallWitnesses:
+        /\ witness[1]
+        /\ witness[2]
+        /\ witness[3]
+        /\ witness[4]
+        /\ witness[5]
+
+EveryInstalledRememberedCheckpointHasItsCredential ==
+    state.checkpointFormat # "plaintext" =>
+        /\ state.checkpointCredentialID \in CredentialIDs
+        /\ <<state.checkpointCredentialID, state.checkpointKey>> \in
+            state.keychainBindings
+
+TargetProvisioningNeverInvalidatesAcceptedCredential ==
+    ~state.newCheckpointInstalled =>
+        <<state.oldCredentialID, OldKey>> \in state.keychainBindings
+
+OldCredentialCleanupIsPostCommit ==
+    <<state.oldCredentialID, OldKey>> \notin state.keychainBindings =>
+        state.newCheckpointVerified
 
 DivergentFilesForceRetryOrArePreservedBeforeVerification ==
     /\ (state.newCheckpointVerified =>
@@ -564,6 +738,9 @@ EditingRequiresOneConsistentArtifactContract ==
         /\ state.journalKey = state.checkpointKey
         /\ state.oldJournalExists
         /\ state.oldActiveRecord
+        /\ \/ state.checkpointFormat = "plaintext"
+           \/ <<state.checkpointCredentialID, state.checkpointKey>> \in
+                state.keychainBindings
         /\ \/ state.phase = "running"
            \/ /\ state.phase = "editable"
               /\ state.newCheckpointVerified
@@ -572,10 +749,18 @@ EditingRequiresOneConsistentArtifactContract ==
               /\ state.freshJournalClaimSynced
 
 FinalStorageModeIsDerivedFromArtifacts ==
-    /\ (state.newCheckpointVerified =>
-        /\ state.checkpointFormat = "plaintext"
-        /\ state.checkpointKey = NewKey
-        /\ ~state.encryptionEnabled)
+    /\ ( /\ state.newCheckpointVerified
+         /\ state.transitionKind = "plaintextExport"
+         => /\ state.checkpointFormat = "plaintext"
+            /\ state.checkpointKey = NewKey
+            /\ state.checkpointCredentialID = None
+            /\ ~state.encryptionEnabled)
+    /\ ( /\ state.newCheckpointVerified
+         /\ state.transitionKind = "encryptedRekey"
+         => /\ state.checkpointFormat = state.oldFormat
+            /\ state.checkpointKey = NewKey
+            /\ state.checkpointCredentialID \in CredentialIDs
+            /\ state.encryptionEnabled)
     /\ ( /\ state.newCheckpointVerified
          /\ state.rootKind = "icloud"
          => FirstClassMode )
@@ -586,6 +771,10 @@ NoMigrationPhaseLedger ==
 CheckpointIDsAreNeverReused ==
     \A checkpoint \in CheckpointIDs:
         state.checkpointInstallCount[checkpoint] <= 1
+
+CredentialIDsAreNeverReused ==
+    \A credential \in CredentialIDs:
+        state.credentialProvisionCount[credential] <= 1
 
 ExportProgress ==
     state.phase = "exporting"

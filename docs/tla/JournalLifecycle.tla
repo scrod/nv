@@ -1,6 +1,11 @@
 ------------------------- MODULE JournalLifecycle --------------------------
 EXTENDS FiniteSets, Naturals
 
+\* This is the crash/refinement model for one acting Mac. claims and
+\* retainedClaims are that Mac's kCFPreferencesCurrentHost values; shared
+\* journal artifacts and an abstract possible remote writer are environment
+\* inputs. HostLocalJournalOwnership separately checks the two-host boundary.
+
 CONSTANTS
     JournalIDs, Journal1, Journal2,
     RootIDs, Root1, Root2,
@@ -31,9 +36,10 @@ RootKinds == {"local", "icloud", "otherProvider", "unknown"}
 Phases == {
     "closed", "locked", "blocked", "creating", "headerSynced",
     "claimWritten", "freshClaimed", "claimed", "running", "discovered",
-    "recovered", "installed", "verified", "handoff", "deleted"
+    "recovered", "installed", "verified", "retainedClaimWritten",
+    "retainedClaimed", "deleted"
 }
-DiscoveryKinds == {"none", "claimed", "localBackup"}
+DiscoveryKinds == {"none", "claimed", "retained", "localBackup"}
 QualificationKinds == {"none", "local", "icloud"}
 Scenarios == {
     "fresh", "copiedFolder", "ambiguousClaims", "staleMatching",
@@ -80,6 +86,9 @@ InitialUsed(scenario) ==
 InitialUnresolvable(scenario) ==
     IF scenario = "unresolvableEntry" THEN {Journal1} ELSE {}
 
+InitialStaleClaims(scenario) ==
+    IF scenario = "staleMatching" THEN {Journal1} ELSE {}
+
 InitialRemoteWriters(scenario) ==
     IF scenario = "unclaimedICloud"
     THEN {<<Journal1, InitialRoot(scenario)>>}
@@ -110,8 +119,38 @@ ValidClaimedCandidates ==
         /\ journal \notin state.staleClaims
         /\ JournalRecoveryEligible(<<journal, state.openRoot>>)}
 
+ValidRetainedCandidates ==
+    {journal \in state.retainedClaims:
+        /\ state.retainedClaimRoots[journal] = state.openRoot
+        /\ journal \in state.syncedRetainedClaims
+        /\ JournalRecoveryEligible(<<journal, state.openRoot>>)}
+
+MandatoryRetainedCandidates ==
+    {journal \in ValidRetainedCandidates:
+        state.retainedCoverage[journal] # state.acceptedDatabaseCheckpoint}
+
+RetainedCleanupCandidates ==
+    {journal \in state.retainedClaims:
+        LET instance == <<journal, state.openRoot>>
+        IN /\ journal \in state.syncedRetainedClaims
+           /\ state.retainedClaimRoots[journal] = state.openRoot
+           /\ journal \in state.receiptJournals
+           /\ instance \in state.files
+           /\ state.contents[instance] \subseteq state.checkpoint
+           /\ instance \notin state.remoteWriterPossible}
+
+AbsentJournalInstancesNeedingDirectorySync ==
+    {instance \in Instances:
+        /\ instance[2] = state.openRoot
+        /\ instance \notin state.files
+        /\ \/ instance \in state.deleted
+           \/ /\ instance[1] \in state.claims
+              /\ state.claimRoots[instance[1]] = state.openRoot
+           \/ /\ instance[1] \in state.retainedClaims
+              /\ state.retainedClaimRoots[instance[1]] = state.openRoot}
+
 ValidUnclaimedCandidates ==
-    {journal \in JournalIDs \ state.claims:
+    {journal \in JournalIDs \ (state.claims \cup state.retainedClaims):
         JournalRecoveryEligible(<<journal, state.openRoot>>)}
 
 RecoverableEvidence ==
@@ -145,13 +184,19 @@ Init ==
                 THEN InitialClaimRoot(scenario, journal)
                 ELSE None],
             syncedClaims |-> initialClaims,
-            staleClaims |->
-                IF scenario = "staleMatching" THEN {Journal1} ELSE {},
+            retainedClaims |-> {},
+            retainedClaimRoots |-> [journal \in JournalIDs |-> None],
+            retainedCoverage |-> [journal \in JournalIDs |-> None],
+            syncedRetainedClaims |-> {},
+            retainedDeletionPending |-> {},
+            directoryDurableDeletions |-> {},
+            staleClaims |-> InitialStaleClaims(scenario),
             refreshPending |-> {},
             unresolvableEver |-> InitialUnresolvable(scenario),
             refreshedPairs |-> {},
             prunedClaims |-> {},
             pruneWitnesses |-> {},
+            claimClearWitnesses |-> {},
             current |-> None,
             oldJournal |-> None,
             writable |-> FALSE,
@@ -162,6 +207,8 @@ Init ==
             usedCheckpointIDs |-> {InitialCheckpoint},
             checkpointInstallCount |-> [checkpoint \in CheckpointIDs |->
                 IF checkpoint = InitialCheckpoint THEN 1 ELSE 0],
+            representedJournals |-> {},
+            receiptJournals |-> {},
             replacementCheckpoint |-> None,
             replacementInstalled |-> FALSE,
             replacementVerified |-> FALSE,
@@ -174,6 +221,7 @@ Init ==
                 IF journal \in initialUsed THEN 1 ELSE 0],
             deleted |-> {},
             deletionWitnesses |-> {},
+            demotionWitnesses |-> {},
             claimPublicationWitnesses |-> {},
             discoveryKind |-> "none",
             discoveryWitnesses |-> {},
@@ -209,7 +257,7 @@ RefreshMatchingStaleClaim ==
             !.syncedClaims = @ \ {journal},
             !.refreshPending = @ \cup {journal},
             !.refreshedPairs = @ \cup
-                {<<journal, state.openRoot, TRUE, TRUE>>}
+                {<<journal, state.claimRoots[journal]>>}
                 ]
 
 SynchronizeRefreshedClaim ==
@@ -220,24 +268,60 @@ SynchronizeRefreshedClaim ==
             !.syncedClaims = @ \cup {journal}
                 ]
 
+SynchronizeAbsentJournalDirectory ==
+    /\ state.phase \in {"locked", "verified", "deleted"}
+    /\ state.lockHeld
+    /\ (state.phase = "locked" => state.catalogCurrent)
+    /\ LET pending == AbsentJournalInstancesNeedingDirectorySync
+            \ state.directoryDurableDeletions
+       IN /\ pending # {}
+          /\ state' = [state EXCEPT
+                !.directoryDurableDeletions = @ \cup pending
+                    ]
+
 PruneCoordinatedMissingClaim ==
     /\ state.phase = "locked"
     /\ state.catalogCurrent
     /\ \E journal \in state.claims:
-        /\ state.claimRoots[journal] = state.openRoot
-        /\ <<journal, state.openRoot>> \notin state.files
-        /\ state' = [state EXCEPT
-            !.claims = @ \ {journal},
-            !.syncedClaims = @ \ {journal},
-            !.staleClaims = @ \ {journal},
-            !.refreshPending = @ \ {journal},
-            !.claimRoots[journal] = None,
-            !.prunedClaims = @ \cup {journal},
-            !.pruneWitnesses = @ \cup
-                {<<journal, state.openRoot, state.catalogCurrent,
-                   state.claimRoots[journal] = state.openRoot,
-                   <<journal, state.openRoot>> \notin state.files>>}
-                ]
+        LET instance == <<journal, state.openRoot>>
+        IN /\ state.claimRoots[journal] = state.openRoot
+           /\ instance \notin state.files
+           /\ instance \in state.directoryDurableDeletions
+           /\ state' = [state EXCEPT
+                !.claims = @ \ {journal},
+                !.syncedClaims = @ \ {journal},
+                !.staleClaims = @ \ {journal},
+                !.refreshPending = @ \ {journal},
+                !.claimRoots[journal] = None,
+                !.prunedClaims = @ \cup {journal},
+                !.pruneWitnesses = @ \cup
+                    {<<"active", journal, state.claimRoots[journal],
+                       state.openRoot, state.catalogCurrent,
+                       instance \in state.directoryDurableDeletions>>},
+                !.claimClearWitnesses = @ \cup {instance}
+                    ]
+
+PruneCoordinatedMissingRetainedClaim ==
+    /\ state.phase = "locked"
+    /\ state.catalogCurrent
+    /\ \E journal \in state.retainedClaims:
+        LET instance == <<journal, state.openRoot>>
+        IN /\ state.retainedClaimRoots[journal] = state.openRoot
+           /\ instance \notin state.files
+           /\ instance \in state.directoryDurableDeletions
+           /\ state' = [state EXCEPT
+                !.retainedClaims = @ \ {journal},
+                !.syncedRetainedClaims = @ \ {journal},
+                !.retainedClaimRoots[journal] = None,
+                !.retainedCoverage[journal] = None,
+                !.prunedClaims = @ \cup {journal},
+                !.pruneWitnesses = @ \cup
+                    {<<"retained", journal,
+                       state.retainedClaimRoots[journal], state.openRoot,
+                       state.catalogCurrent,
+                       instance \in state.directoryDurableDeletions>>},
+                !.claimClearWitnesses = @ \cup {instance}
+                    ]
 
 DiscoverClaimedJournal ==
     /\ state.phase = "locked"
@@ -248,10 +332,27 @@ DiscoverClaimedJournal ==
             !.current = journal,
             !.discoveryKind = "claimed",
             !.discoveryWitnesses = @ \cup
-                {<<journal, state.openRoot,
+                {<<journal, state.openRoot, "claimed",
                    journal \in ValidClaimedCandidates,
                    state.lockHeld,
-                   state.rootKind \in RootKinds>>}
+                   state.rootKind>>}
+                ]
+
+DiscoverRetainedJournal ==
+    /\ state.phase = "locked"
+    /\ ValidClaimedCandidates = {}
+    /\ PotentialMatchingClaims = {}
+    /\ MandatoryRetainedCandidates # {}
+    /\ LET journal == CHOOSE candidate \in MandatoryRetainedCandidates: TRUE
+       IN state' = [state EXCEPT
+            !.phase = "discovered",
+            !.current = journal,
+            !.discoveryKind = "retained",
+            !.discoveryWitnesses = @ \cup
+                {<<journal, state.openRoot, "retained",
+                   journal \in MandatoryRetainedCandidates,
+                   state.lockHeld,
+                   state.rootKind>>}
                 ]
 
 DiscoverRestoredLocalJournal ==
@@ -267,10 +368,10 @@ DiscoverRestoredLocalJournal ==
                 !.current = journal,
                 !.discoveryKind = "localBackup",
                 !.discoveryWitnesses = @ \cup
-                    {<<journal, state.openRoot,
+                    {<<journal, state.openRoot, "localBackup",
                        journal \in ValidUnclaimedCandidates,
                        state.lockHeld,
-                       state.rootKind = "local">>}
+                       state.rootKind>>}
                 ]
 
 BlockAmbiguousClaims ==
@@ -279,12 +380,14 @@ BlockAmbiguousClaims ==
     /\ state' = [state EXCEPT !.phase = "blocked"]
 
 CreateFreshJournal ==
-    /\ \/ /\ state.phase = "locked"
-           /\ ValidClaimedCandidates = {}
-           /\ PotentialMatchingClaims = {}
-           /\ ~(state.rootKind = "local"
-                /\ Cardinality(ValidUnclaimedCandidates) = 1)
-       \/ state.phase = "handoff"
+    /\ state.phase = "locked"
+    /\ ValidClaimedCandidates = {}
+    /\ PotentialMatchingClaims = {}
+    /\ MandatoryRetainedCandidates = {}
+    /\ RetainedCleanupCandidates = {}
+    /\ state.retainedDeletionPending = {}
+    /\ ~(state.rootKind = "local"
+         /\ Cardinality(ValidUnclaimedCandidates) = 1)
     /\ \E journal \in JournalIDs \ state.used:
         LET instance == <<journal, state.openRoot>>
         IN /\ instance \notin state.files
@@ -297,6 +400,7 @@ CreateFreshJournal ==
                 !.headerBases[instance] = state.acceptedDatabaseCheckpoint,
                 !.contents[instance] = {},
                 !.creationCount[journal] = @ + 1,
+                !.oldJournal = None,
                 !.writable = FALSE
                 ]
 
@@ -322,10 +426,7 @@ PublishClaim ==
         !.syncedClaims = @ \ {state.current},
         !.staleClaims = @ \ {state.current},
         !.claimPublicationWitnesses = @ \cup
-            {<<CurrentInstance,
-               CurrentInstance \in state.syncedHeaders,
-               state.headerIDs[CurrentInstance] = state.current,
-               state.lockHeld>>}
+            {<<CurrentInstance, state.lockHeld>>}
                 ]
 
 SynchronizePublishedClaim ==
@@ -341,19 +442,6 @@ FinishInitialClaim ==
     /\ state.oldJournal = None
     /\ ValidClaimedCandidates = {state.current}
     /\ state' = [state EXCEPT !.phase = "claimed"]
-
-RemoveSupersededClaim ==
-    /\ state.phase = "freshClaimed"
-    /\ state.oldJournal # None
-    /\ state.oldJournal \in state.claims
-    /\ state.current \in ValidClaimedCandidates
-    /\ <<state.oldJournal, state.openRoot>> \in state.files
-    /\ state' = [state EXCEPT
-        !.phase = "claimed",
-        !.claims = @ \ {state.oldJournal},
-        !.syncedClaims = @ \ {state.oldJournal},
-        !.claimRoots[state.oldJournal] = None
-                ]
 
 EnableEditing ==
     /\ state.phase = "claimed"
@@ -382,6 +470,7 @@ Crash ==
         !.current = None,
         !.oldJournal = None,
         !.writable = FALSE,
+        !.discoveryKind = "none",
         !.catalogCurrent = FALSE
                 ]
 
@@ -419,6 +508,8 @@ VerifyReplacementCheckpoint ==
     /\ state' = [state EXCEPT
         !.phase = "verified",
         !.acceptedDatabaseCheckpoint = state.replacementCheckpoint,
+        !.representedJournals = @ \cup {state.current},
+        !.receiptJournals = state.representedJournals \cup {state.current},
         !.replacementVerified = TRUE
                 ]
 
@@ -450,8 +541,10 @@ DeleteRecoveredJournal ==
     /\ state.replacementQualified
     /\ CurrentInstance \in state.files
     /\ state.contents[CurrentInstance] \subseteq state.checkpoint
+    /\ state.current \in state.receiptJournals
     /\ \/ state.discoveryKind = "localBackup"
        \/ state.current \in state.claims
+       \/ state.current \in state.retainedClaims
     /\ CurrentInstance \notin state.remoteWriterPossible
     /\ LET instance == CurrentInstance
        IN state' = [state EXCEPT
@@ -465,35 +558,137 @@ DeleteRecoveredJournal ==
                    state.replacementQualified,
                    state.contents[instance] \subseteq state.checkpoint,
                    state.discoveryKind = "localBackup"
-                       \/ state.current \in state.claims,
+                       \/ state.current \in state.claims
+                       \/ state.current \in state.retainedClaims,
                    instance \notin state.remoteWriterPossible,
+                   state.current \in state.receiptJournals,
                    state.replacementCheckpoint>>}
                 ]
+
+DeleteCoveredRetainedJournal ==
+    /\ state.phase \in {"verified", "locked"}
+    /\ state.replacementVerified
+    /\ state.replacementQualified
+    /\ \E journal \in RetainedCleanupCandidates:
+        LET instance == <<journal, state.openRoot>>
+        IN /\ journal # state.current
+           /\ journal \in state.syncedRetainedClaims
+           /\ state.retainedClaimRoots[journal] = state.openRoot
+           /\ journal \in state.receiptJournals
+           /\ instance \in state.files
+           /\ state.contents[instance] \subseteq state.checkpoint
+           /\ instance \notin state.remoteWriterPossible
+           /\ state' = [state EXCEPT
+                !.files = @ \ {instance},
+                !.syncedHeaders = @ \ {instance},
+                !.deleted = @ \cup {instance},
+                !.retainedDeletionPending = @ \cup {journal},
+                !.deletionWitnesses = @ \cup
+                    {<<instance,
+                       state.replacementVerified,
+                       state.replacementQualified,
+                       state.contents[instance] \subseteq state.checkpoint,
+                       journal \in state.retainedClaims,
+                       instance \notin state.remoteWriterPossible,
+                       journal \in state.receiptJournals,
+                       state.replacementCheckpoint>>}
+                ]
+
+ClearDeletedRetainedClaim ==
+    /\ state.phase \in {"verified", "locked"}
+    /\ \E journal \in state.retainedDeletionPending:
+        LET instance == <<journal, state.openRoot>>
+        IN /\ instance \notin state.files
+           /\ instance \in state.directoryDurableDeletions
+           /\ state' = [state EXCEPT
+                !.retainedDeletionPending = @ \ {journal},
+                !.retainedClaims = @ \ {journal},
+                !.syncedRetainedClaims = @ \ {journal},
+                !.retainedClaimRoots[journal] = None,
+                !.retainedCoverage[journal] = None,
+                !.claimClearWitnesses = @ \cup {instance}
+                    ]
 
 ClearDeletedClaim ==
     /\ state.phase = "deleted"
     /\ CurrentInstance \notin state.files
+    /\ CurrentInstance \in state.directoryDurableDeletions
     /\ state' = [state EXCEPT
         !.phase = "locked",
         !.claims = @ \ {state.current},
         !.syncedClaims = @ \ {state.current},
         !.staleClaims = @ \ {state.current},
         !.claimRoots[state.current] = None,
+        !.retainedClaims = @ \ {state.current},
+        !.syncedRetainedClaims = @ \ {state.current},
+        !.retainedClaimRoots[state.current] = None,
+        !.retainedCoverage[state.current] = None,
+        !.retainedDeletionPending = @ \ {state.current},
+        !.claimClearWitnesses = @ \cup {CurrentInstance},
         !.current = None,
         !.discoveryKind = "none"
                 ]
 
-BeginOfflineHandoff ==
+BeginRetainedHandoff ==
     /\ state.phase = "verified"
-    /\ state.rootKind = "icloud"
+    /\ state.rootKind # "local"
     /\ ~state.replacementQualified
     /\ state.current \in state.claims
     /\ CurrentInstance \in state.files
     /\ state' = [state EXCEPT
-        !.phase = "handoff",
+        !.phase = "retainedClaimWritten",
         !.oldJournal = state.current,
+        !.retainedClaims = @ \cup {state.current},
+        !.retainedClaimRoots[state.current] = state.openRoot,
+        !.retainedCoverage[state.current] = state.replacementCheckpoint,
+        !.syncedRetainedClaims = @ \ {state.current},
         !.offlineEvidence = @ \cup {CurrentInstance},
-        !.current = None
+        !.current = state.current
+                ]
+
+SynchronizeRetainedClaim ==
+    /\ state.phase = "retainedClaimWritten"
+    /\ state.current \in state.retainedClaims
+    /\ state' = [state EXCEPT
+        !.phase = "retainedClaimed",
+        !.syncedRetainedClaims = @ \cup {state.current}
+                ]
+
+RemoveDemotedActiveClaim ==
+    /\ state.phase = "retainedClaimed"
+    /\ state.current = state.oldJournal
+    /\ state.current \in state.claims
+    /\ state.current \in state.syncedRetainedClaims
+    /\ state.retainedCoverage[state.current] = state.replacementCheckpoint
+    /\ state' = [state EXCEPT
+        !.phase = "locked",
+        !.claims = @ \ {state.current},
+        !.syncedClaims = @ \ {state.current},
+        !.claimRoots[state.current] = None,
+        !.demotionWitnesses = @ \cup
+            {<<state.current,
+               state.current \in state.syncedRetainedClaims,
+               state.retainedCoverage[state.current]
+                   = state.replacementCheckpoint>>},
+        !.current = None,
+        !.oldJournal = None,
+        !.discoveryKind = "none"
+                ]
+
+PreserveRecoveredRetainedJournal ==
+    /\ state.phase = "verified"
+    /\ state.rootKind # "local"
+    /\ ~state.replacementQualified
+    /\ state.current \in state.retainedClaims
+    /\ state.current \in state.syncedRetainedClaims
+    /\ CurrentInstance \in state.files
+    /\ state' = [state EXCEPT
+        !.phase = "locked",
+        !.retainedCoverage[state.current] = state.replacementCheckpoint,
+        !.offlineEvidence = @ \cup {CurrentInstance},
+        !.current = None,
+        !.oldJournal = None,
+        !.discoveryKind = "none"
                 ]
 
 Next ==
@@ -502,8 +697,11 @@ Next ==
     \/ CompleteCatalog
     \/ RefreshMatchingStaleClaim
     \/ SynchronizeRefreshedClaim
+    \/ SynchronizeAbsentJournalDirectory
     \/ PruneCoordinatedMissingClaim
+    \/ PruneCoordinatedMissingRetainedClaim
     \/ DiscoverClaimedJournal
+    \/ DiscoverRetainedJournal
     \/ DiscoverRestoredLocalJournal
     \/ BlockAmbiguousClaims
     \/ CreateFreshJournal
@@ -511,7 +709,6 @@ Next ==
     \/ PublishClaim
     \/ SynchronizePublishedClaim
     \/ FinishInitialClaim
-    \/ RemoveSupersededClaim
     \/ EnableEditing
     \/ AppendDurableEdit
     \/ Crash
@@ -520,9 +717,14 @@ Next ==
     \/ VerifyReplacementCheckpoint
     \/ QualifyLocalReplacement
     \/ ObserveICloudUpload
+    \/ DeleteCoveredRetainedJournal
+    \/ ClearDeletedRetainedClaim
     \/ DeleteRecoveredJournal
     \/ ClearDeletedClaim
-    \/ BeginOfflineHandoff
+    \/ BeginRetainedHandoff
+    \/ SynchronizeRetainedClaim
+    \/ RemoveDemotedActiveClaim
+    \/ PreserveRecoveredRetainedJournal
 
 Spec ==
     /\ Init
@@ -531,6 +733,8 @@ Spec ==
     /\ WF_vars(SynchronizeHeader)
     /\ WF_vars(PublishClaim)
     /\ WF_vars(SynchronizePublishedClaim)
+    /\ WF_vars(SynchronizeRetainedClaim)
+    /\ WF_vars(RemoveDemotedActiveClaim)
 
 TypeOK ==
     /\ state.scenario \in Scenarios
@@ -546,14 +750,21 @@ TypeOK ==
     /\ state.claims \subseteq JournalIDs
     /\ state.claimRoots \in [JournalIDs -> RootIDs \cup {None}]
     /\ state.syncedClaims \subseteq JournalIDs
+    /\ state.retainedClaims \subseteq JournalIDs
+    /\ state.retainedClaimRoots \in [JournalIDs -> RootIDs \cup {None}]
+    /\ state.retainedCoverage \in [JournalIDs -> CheckpointIDs \cup {None}]
+    /\ state.syncedRetainedClaims \subseteq JournalIDs
+    /\ state.retainedDeletionPending \subseteq JournalIDs
+    /\ state.directoryDurableDeletions \subseteq Instances
     /\ state.staleClaims \subseteq JournalIDs
     /\ state.refreshPending \subseteq JournalIDs
     /\ state.unresolvableEver \subseteq JournalIDs
-    /\ state.refreshedPairs \subseteq
-        (JournalIDs \X RootIDs \X BOOLEAN \X BOOLEAN)
+    /\ state.refreshedPairs \subseteq Instances
     /\ state.prunedClaims \subseteq JournalIDs
     /\ state.pruneWitnesses \subseteq
-        (JournalIDs \X RootIDs \X BOOLEAN \X BOOLEAN \X BOOLEAN)
+        ({"active", "retained"} \X JournalIDs
+            \X RootIDs \X RootIDs \X BOOLEAN \X BOOLEAN)
+    /\ state.claimClearWitnesses \subseteq Instances
     /\ state.current \in JournalIDs \cup {None}
     /\ state.oldJournal \in JournalIDs \cup {None}
     /\ state.writable \in BOOLEAN
@@ -562,6 +773,8 @@ TypeOK ==
     /\ state.acceptedDatabaseCheckpoint \in CheckpointIDs
     /\ state.usedCheckpointIDs \subseteq CheckpointIDs
     /\ state.checkpointInstallCount \in [CheckpointIDs -> 0..1]
+    /\ state.representedJournals \subseteq JournalIDs
+    /\ state.receiptJournals \subseteq JournalIDs
     /\ state.replacementCheckpoint \in CheckpointIDs \cup {None}
     /\ state.replacementInstalled \in BOOLEAN
     /\ state.replacementVerified \in BOOLEAN
@@ -573,12 +786,15 @@ TypeOK ==
     /\ state.deleted \subseteq Instances
     /\ state.deletionWitnesses \subseteq
         (Instances \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN
-            \X BOOLEAN \X CheckpointIDs)
+            \X BOOLEAN \X BOOLEAN \X CheckpointIDs)
+    /\ state.demotionWitnesses \subseteq
+        (JournalIDs \X BOOLEAN \X BOOLEAN)
     /\ state.claimPublicationWitnesses \subseteq
-        (Instances \X BOOLEAN \X BOOLEAN \X BOOLEAN)
+        (Instances \X BOOLEAN)
     /\ state.discoveryKind \in DiscoveryKinds
     /\ state.discoveryWitnesses \subseteq
-        (JournalIDs \X RootIDs \X BOOLEAN \X BOOLEAN \X BOOLEAN)
+        (JournalIDs \X RootIDs \X DiscoveryKinds
+            \X BOOLEAN \X BOOLEAN \X RootKinds)
     /\ state.offlineEvidence \subseteq Instances
     /\ state.remoteWriterPossible \subseteq Instances
     /\ state.catalogCurrent \in BOOLEAN
@@ -599,26 +815,51 @@ AmbiguityBlocksEditing ==
 ClaimPublicationFollowedDurableHeader ==
     \A witness \in state.claimPublicationWitnesses:
         /\ witness[2]
-        /\ witness[3]
-        /\ witness[4]
+        /\ state.headerIDs[witness[1]] = witness[1][1]
+        /\ state.headerBases[witness[1]] # None
+        /\ witness[1] \in state.syncedHeaders \cup state.deleted
 
 OnlyMatchingStaleBookmarksWereRefreshed ==
-    \A witness \in state.refreshedPairs:
-        /\ witness[3]
-        /\ witness[4]
+    \A instance \in state.refreshedPairs:
+        /\ instance \in {
+            <<journal, state.openRoot>>:
+                journal \in InitialStaleClaims(state.scenario)}
+        /\ instance[1] \notin state.staleClaims
+        /\ \/ instance[1] \in state.refreshPending
+           \/ instance[1] \in state.syncedClaims
+           \/ instance[1] \notin state.claims
 
 MissingClaimsWerePrunedConservatively ==
     /\ state.unresolvableEver \cap state.prunedClaims = {}
+    /\ state.prunedClaims =
+        {witness[2]: witness \in state.pruneWitnesses}
     /\ \A witness \in state.pruneWitnesses:
-        /\ witness[3]
-        /\ witness[4]
+        /\ witness[3] = witness[4]
         /\ witness[5]
+        /\ witness[6]
+        /\ <<witness[2], witness[4]>> \notin state.files
+        /\ IF witness[1] = "active"
+           THEN witness[2] \notin state.claims
+           ELSE witness[2] \notin state.retainedClaims
+
+ClaimsWereClearedOnlyAfterDirectoryDurability ==
+    state.claimClearWitnesses \subseteq state.directoryDurableDeletions
 
 DiscoveryWasRootAndLockValidated ==
-    \A witness \in state.discoveryWitnesses:
-        /\ witness[3]
-        /\ witness[4]
-        /\ witness[5]
+    /\ (state.discoveryKind # "none" =>
+        \E witness \in state.discoveryWitnesses:
+            /\ witness[1] = state.current
+            /\ witness[2] = state.openRoot
+            /\ witness[3] = state.discoveryKind)
+    /\ \A witness \in state.discoveryWitnesses:
+        LET instance == <<witness[1], witness[2]>>
+        IN /\ witness[3] # "none"
+           /\ witness[4]
+           /\ witness[5]
+           /\ instance \in state.files \cup state.deleted
+           /\ state.headerIDs[instance] = witness[1]
+           /\ state.headerBases[instance] # None
+           /\ (witness[3] = "localBackup" => witness[6] = "local")
 
 LocalBackupIsTheOnlyUnclaimedAutomaticRecovery ==
     state.discoveryKind = "localBackup" => state.rootKind = "local"
@@ -638,8 +879,9 @@ DeletedJournalsHadDurableQualifiedReplacement ==
         /\ witness[4]
         /\ witness[5]
         /\ witness[6]
+        /\ witness[7]
 
-OfflineHandoffPreservesOrQualifiesOldEvidence ==
+RetainedHandoffPreservesOrQualifiesOldEvidence ==
     \A instance \in state.offlineEvidence:
         \/ instance \in state.files
         \/ \E witness \in state.deletionWitnesses:
@@ -652,7 +894,20 @@ PossibleRemoteWriterEvidenceIsNeverDeleted ==
     state.remoteWriterPossible \cap state.deleted = {}
 
 RegistryOnlyNamesKnownIDs ==
-    state.claims \subseteq state.used
+    state.claims \cup state.retainedClaims \subseteq state.used
+
+RetainedClaimsNeverBecomeUnclaimed ==
+    ValidUnclaimedCandidates \cap state.retainedClaims = {}
+
+SynchronizedRetainedClaimsHaveCoverage ==
+    \A journal \in state.syncedRetainedClaims:
+        /\ journal \in state.retainedClaims
+        /\ state.retainedCoverage[journal] # None
+
+ActiveClaimsWereRemovedOnlyAfterRetainedPublication ==
+    \A witness \in state.demotionWitnesses:
+        /\ witness[2]
+        /\ witness[3]
 
 HeadersOnlyBecomeDurableForExistingFiles ==
     state.syncedHeaders \subseteq state.files
@@ -665,10 +920,12 @@ ClaimPublicationProgress ==
     state.phase = "claimWritten"
     ~> state.phase \in {"freshClaimed", "closed"}
 
-OfflineHandoffProgressWhileFreshIDExists ==
-    /\ state.phase = "handoff"
-    /\ JournalIDs \ state.used # {}
-    ~> \/ state.phase \in {"creating", "closed"}
-       \/ JournalIDs \ state.used = {}
+RetainedClaimPublicationProgress ==
+    state.phase = "retainedClaimWritten"
+    ~> state.phase \in {"retainedClaimed", "closed"}
+
+RetainedDemotionProgress ==
+    state.phase = "retainedClaimed"
+    ~> state.phase \in {"locked", "closed"}
 
 =============================================================================

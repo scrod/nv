@@ -7,14 +7,22 @@ APP_OBJECT_DIR := $(DERIVED_DATA)/Build/Intermediates.noindex/ArchiveIntermediat
 APP_OBJECTS = $(shell find "$(APP_OBJECT_DIR)" -maxdepth 1 -name '*.o' ! -name main.o ! -name '*_vers.o')
 NV_INTEGRATION_APP_OBJECTS = $(filter-out %/NVRootedDirectory.o,$(APP_OBJECTS))
 APP_FRAMEWORKS := -F.. -Wl,-rpath,$(abspath ..) -Wl,-sectcreate,__TEXT,__info_plist,../Info.plist -framework Sparkle -framework Cocoa -framework Carbon -framework CoreServices -framework SecurityInterface -framework Security -framework WebKit -framework ApplicationServices -framework SystemConfiguration -framework IOKit -framework UniformTypeIdentifiers -lz
+ICLOUD_API_TEST_ROOT ?= $(HOME)/Library/Mobile Documents/com~apple~CloudDocs/API_Contract_Testing
+FILE_PROVIDER_API_TEST_ROOT ?= $(HOME)/Library/CloudStorage/Dropbox/API_Contract_Testing
+ICLOUD_API_TEST_APP := $(BUILD_DIR)/ICloudAPIContractTest.app
 TARGETS := \
 	$(BUILD_DIR)/AppearanceColorTest \
 	$(BUILD_DIR)/GlobalPrefsArchiveMigrationTest \
+	$(BUILD_DIR)/ICloudAPIContractTest \
 	$(BUILD_DIR)/ModernStickiesImportTest \
 	$(BUILD_DIR)/WebArchiveImportIntegrationTest \
 	$(BUILD_DIR)/NVIntegrationTest
 
-.PHONY: all run run-core run-platform stress leak-check filesystem-image-stress clean app-objects
+.PHONY: all run run-core run-platform run-icloud-api-contract run-file-provider-api-contract \
+	run-icloud-api-contract-remote-host run-icloud-api-contract-remote-peer \
+	run-icloud-api-contract-legacy-upload run-icloud-api-contract-sync-control-probe \
+	run-icloud-api-contract-pause-lifecycle \
+	stress leak-check filesystem-image-stress clean app-objects
 
 all: $(TARGETS)
 
@@ -26,6 +34,18 @@ $(BUILD_DIR)/GlobalPrefsArchiveMigrationTest: GlobalPrefsArchiveMigrationTest.m 
 
 $(BUILD_DIR)/AppearanceColorTest: AppearanceColorTest.m Makefile app-objects | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
+
+$(BUILD_DIR)/ICloudAPIContractTest: ICloudAPIContractTest.m Makefile | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) -fblocks $< -framework Foundation -framework FileProvider -o $@
+
+$(BUILD_DIR)/ICloudAPIContractTest-x86_64: ICloudAPIContractTest.m Makefile | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) -arch x86_64 -fblocks $< -framework Foundation -framework FileProvider -o $@
+
+$(ICLOUD_API_TEST_APP): $(BUILD_DIR)/ICloudAPIContractTest ICloudAPIContractTest-Info.plist
+	mkdir -p $@/Contents/MacOS
+	cp $(BUILD_DIR)/ICloudAPIContractTest $@/Contents/MacOS/ICloudAPIContractTest
+	cp ICloudAPIContractTest-Info.plist $@/Contents/Info.plist
+	codesign --force --sign - --timestamp=none $@
 
 app-objects:
 	/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild install -project ../Notation.xcodeproj -scheme Notation -configuration Deployment -derivedDataPath $(DERIVED_DATA) -destination generic/platform=macOS CODE_SIGNING_ALLOWED=NO -quiet
@@ -105,6 +125,57 @@ run-platform: all
 	$(BUILD_DIR)/NVIntegrationTest trash
 	$(BUILD_DIR)/NVIntegrationTest fsevents-live
 
+run-icloud-api-contract: $(ICLOUD_API_TEST_APP)
+	rm -f $(BUILD_DIR)/ICloudAPIContractTest-icloud-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-icloud-stderr.txt
+	open -n -W --stdout $(BUILD_DIR)/ICloudAPIContractTest-icloud-stdout.txt \
+		--stderr $(BUILD_DIR)/ICloudAPIContractTest-icloud-stderr.txt $(ICLOUD_API_TEST_APP) \
+		--args local "$(ICLOUD_API_TEST_ROOT)" required
+	cat $(BUILD_DIR)/ICloudAPIContractTest-icloud-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-icloud-stderr.txt
+	! grep -q '^FAIL ' $(BUILD_DIR)/ICloudAPIContractTest-icloud-stdout.txt
+
+run-file-provider-api-contract: $(ICLOUD_API_TEST_APP)
+	rm -f $(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-provider-stderr.txt
+	open -n -W --stdout $(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt \
+		--stderr $(BUILD_DIR)/ICloudAPIContractTest-provider-stderr.txt $(ICLOUD_API_TEST_APP) \
+		--args local "$(FILE_PROVIDER_API_TEST_ROOT)" observe
+	cat $(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-provider-stderr.txt
+	! grep -q '^FAIL ' $(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt
+
+run-icloud-api-contract-legacy-upload: $(BUILD_DIR)/ICloudAPIContractTest
+	$(BUILD_DIR)/ICloudAPIContractTest legacy-upload "$(ICLOUD_API_TEST_ROOT)"
+
+run-icloud-api-contract-sync-control-probe: $(ICLOUD_API_TEST_APP)
+	rm -f $(BUILD_DIR)/ICloudAPIContractTest-app-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-app-stderr.txt
+	open -n -W --stdout $(BUILD_DIR)/ICloudAPIContractTest-app-stdout.txt \
+		--stderr $(BUILD_DIR)/ICloudAPIContractTest-app-stderr.txt $(ICLOUD_API_TEST_APP) \
+		--args sync-control-probe "$(ICLOUD_API_TEST_ROOT)"
+	cat $(BUILD_DIR)/ICloudAPIContractTest-app-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-app-stderr.txt
+	! grep -q '^FAIL ' $(BUILD_DIR)/ICloudAPIContractTest-app-stdout.txt
+
+run-icloud-api-contract-pause-lifecycle: $(ICLOUD_API_TEST_APP)
+	rm -f $(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stderr.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stderr.txt
+	open -n -W --stdout $(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stdout.txt \
+		--stderr $(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stderr.txt $(ICLOUD_API_TEST_APP) \
+		--args pause-lifecycle-prepare "$(ICLOUD_API_TEST_ROOT)"
+	open -n -W --stdout $(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stdout.txt \
+		--stderr $(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stderr.txt $(ICLOUD_API_TEST_APP) \
+		--args pause-lifecycle-repair "$(ICLOUD_API_TEST_ROOT)"
+	cat $(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stderr.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stderr.txt
+	! grep -q '^FAIL ' $(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stdout.txt
+
+run-icloud-api-contract-remote-host: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=900 $(BUILD_DIR)/ICloudAPIContractTest remote-host "$(ICLOUD_API_TEST_ROOT)"
+
+run-icloud-api-contract-remote-peer: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=900 $(BUILD_DIR)/ICloudAPIContractTest remote-peer "$(ICLOUD_API_TEST_ROOT)"
+
 stress: $(BUILD_DIR)/NVIntegrationTest
 	$(BUILD_DIR)/NVIntegrationTest snapshot-stress
 	$(BUILD_DIR)/NVIntegrationTest snapshot-boundary-races
@@ -121,4 +192,15 @@ filesystem-image-stress: $(BUILD_DIR)/NVIntegrationTest
 	../tools/run_filesystem_image_tests.sh $(BUILD_DIR)/NVIntegrationTest
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(TARGETS) $(BUILD_DIR)/ICloudAPIContractTest-x86_64 \
+		$(BUILD_DIR)/ICloudAPIContractTest-icloud-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-icloud-stderr.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-provider-stderr.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-app-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-app-stderr.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stderr.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-repair-stderr.txt
+	rm -rf $(ICLOUD_API_TEST_APP)
