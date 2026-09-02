@@ -24,14 +24,19 @@ There is no production `NSDataWritingAtomic` branch and no permanent parallel pr
 
 ## Why the migration is plausible
 
-Apple defines [`replaceItemAtURL:`](https://developer.apple.com/documentation/foundation/filemanager/replaceitem%28at%3Awithitemat%3Abackupitemname%3Aoptions%3Aresultingitemurl%3A%29) as its non-`NSDocument` safe-save primitive, recommends an OS-provided same-volume replacement directory, and permits a retained backup of the original item. The focused macOS 26.6.1 iCloud test established the narrower provider contract needed by NV:
+Apple defines [`replaceItemAtURL:`](https://developer.apple.com/documentation/foundation/filemanager/replaceitem%28at%3Awithitemat%3Abackupitemname%3Aoptions%3Aresultingitemurl%3A%29) as its non-`NSDocument` safe-save primitive, recommends an OS-provided same-volume replacement directory, and permits a retained backup of the original item. Focused iCloud tests on macOS 14.8.9 and 26.6.1 established the narrower provider contract needed by NV:
 
 - a file-reference URL is accepted as the existing destination;
 - replacement preserves opaque File Provider item/domain identity;
 - exact-version upload and resume remain operable after replacement;
 - the old file-reference URL becomes invalid because it identifies the displaced filesystem object;
-- Foundation returns a pathname URL; and
-- a fresh reference can be generated from a separately held or canonical pathname URL.
+- Foundation returns a pathname URL;
+- a fresh reference can be generated from a newly constructed canonical pathname URL;
+- concurrent uncoordinated readers observed only complete old or new byte streams across repeated replacements;
+- `NSFileManagerItemReplacementWithoutDeletingBackupItem` retained the exact displaced bytes; and
+- the tested custom xattr survived options-`0` replacement.
+
+The focused test also demonstrated that reconstructing the URL is mandatory, not stylistic: asking for the next replacement directory through URL state retained from before the previous replacement failed before coordination. Each replacement attempt must therefore start with a newly constructed canonical pathname URL and derive a fresh operation-local file-reference URL from it. Metadata finalization remains required because one xattr on two tested OS releases does not establish all note-owned metadata and date behavior.
 
 Production code must not depend on that pathname result. It reopens and verifies the destination relative to the rooted-directory descriptor, then generates any later operation-local file-reference URL from the rooted directory and leaf name. The returned URL and `NSFileOriginalItemLocationKey`, when present on error, are candidate evidence only.
 
@@ -51,7 +56,7 @@ On the root session's serial provider lane:
 
 The initial check is an optimization and early failure boundary, not the final conditional-write decision. The displaced file remains the authoritative race witness.
 
-Checkpoint replacement has a distinct mandatory precondition supplied by `NVCheckpointTransaction`: expected absence for creation, or exact coherent current bytes plus the current local `NSFileVersion.persistentIdentifier` when available. Recheck that evidence inside the coordinated accessor immediately before namespace mutation. A mismatch returns `NVCheckpointInstallCurrentChanged` without invoking Foundation replacement; it does not use the note writer's install-then-preserve conditional path.
+Checkpoint replacement has a distinct mandatory precondition supplied by `NVCheckpointTransaction`: expected absence for creation, or one exact checkpoint-current witness captured in a single coordinated accessor—complete bytes, the existing `NVFileObservation`, and the current local `NSFileVersion.persistentIdentifier` when available. Recheck every captured component inside the coordinated accessor immediately before namespace mutation. A mismatch returns `NVCheckpointInstallCurrentChanged` without invoking Foundation replacement; it does not use the note writer's install-then-preserve conditional path. The typed result returns the same coherent witness to the checkpoint caller for the specification's complete-note-set/base-relative-deletion reconciliation. Failure to capture that snapshot remains a no-write failure and never weakens the replacement precondition. The persistent identifier is supplemental: macOS 14 and 26 contract probes kept it equal across same-bytes Foundation replacement while `NVFileObservation` changed.
 
 ### 2. Staging
 
@@ -95,7 +100,7 @@ After the accessor returns:
 7. Read authoritative xattrs, dates, and other snapshot metadata from that verified descriptor.
 8. Generate a fresh operation-local file-reference URL from the rooted directory and leaf when later Foundation or provider work needs one.
 
-A provider-managed checkpoint additionally verifies its decoded `checkpointID`, captures its exact installed local `NSFileVersion`, and follows the separate pause/upload/resume protocol. These checks remain outside the coordinator accessor.
+A provider-managed checkpoint additionally verifies its decoded `checkpointID` and captures its exact installed local `NSFileVersion`. Provider upload status is presentation only and remains outside the coordinator accessor and replacement success predicate.
 
 ### 5. Conditional compare-after-replace
 
@@ -118,9 +123,9 @@ Foundation can fail before, during, or after moving one of the items. Reobserve 
 - requested bytes are installed but the old item, backup, stage cleanup, metadata, or identity is uncertain: `NVFileWriteInstalledNeedsReconciliation`;
 - installation identity cannot be established: retain candidate artifacts, fail closed, and require reconciliation.
 
-If the error supplies `NSFileOriginalItemLocationKey`, coordinate and inspect that URL as one candidate for the displaced original. Never log it, delete it from path equality alone, or reinstall it over a destination that has not been identity-checked. Checkpoint ambiguity retains the journal and active claim.
+If the error supplies `NSFileOriginalItemLocationKey`, coordinate and inspect that URL as one candidate for the displaced original. Never log it, delete it from path equality alone, or reinstall it over a destination that has not been identity-checked. Checkpoint ambiguity retains the matching host-local WAL.
 
-After a verified namespace change, retain the existing best-effort directory synchronization. Checked directory synchronization remains at the explicit WAL/checkpoint/recovery transaction boundaries already defined by the storage specification.
+After a verified namespace change, retain the existing best-effort root-directory synchronization. Checked synchronization of the separate Application Support Recovery Journals directory remains at the local WAL create/delete boundaries defined by the storage specification.
 
 ## Preservation of the Atomic Note Saves contract
 
@@ -180,17 +185,17 @@ Use it first through deterministic tests and the focused API-contract app. Do no
 
 ### Phase 2 — Adopt for every checkpoint replacement
 
-Route provider-paused and ordinary checkpoint replacement through the same Foundation backend. Provider-paused installation remains coordinated by `NVCheckpointTransaction`; ordinary-local checkpoints use the same replacement primitive without pause/upload controls. Every existing-file checkpoint installation at the canonical semantic boundaries—including the final-format replacement after a **Save Current Collection As…** bootstrap—routes through that transaction and therefore receives the same implementation.
+Route every checkpoint replacement through the same Foundation backend and `NVCheckpointTransaction`; no authority classification adds pause/upload controls to replacement. Every existing-file checkpoint installation at the canonical semantic boundaries—including the final-format replacement after a **Save Current Collection As…** bootstrap—routes through that transaction and therefore receives the same implementation.
 
-At every such boundary the transaction captures expected-current evidence and the backend rechecks it inside the accessor. Appearance, disappearance, exact-byte change, or available local-version change returns the typed pre-install mismatch with no replacement. Caller policy is not part of the replacement backend: the normative `CKPT-01` matrix in [Robust iCloud Drive Support](iCloud-Drive-Support-Spec.md) decides whether that caller retries, cancels, preserves the predecessor, or takes an explicit override. An ambiguous possible-install result never authorizes publication or cleanup.
+At every such boundary the transaction captures expected-current evidence and the backend rechecks it inside the accessor. Appearance, disappearance, exact-byte change, `NVFileObservation` change, or available local-version change returns the typed pre-install mismatch with no replacement. Caller policy is not part of the replacement backend: the normative `CKPT-01` matrix in [Robust iCloud Drive Support](iCloud-Drive-Support-Spec.md) decides whether that caller performs complete-note-set/base-relative-deletion reconciliation, retries, cancels, preserves the predecessor, or takes an explicit override. The backend never decodes checkpoints or merges notes, preferences, or database metadata. An ambiguous possible-install result never authorizes publication or cleanup.
 
-Checkpoint creation when `Notes & Settings` is absent remains the existing exclusive-create operation, including the complete single-database bootstrap in a newly and exclusively created **Save Current Collection As…** destination. A remembered-encrypted Save-As target provisions and validates its fresh independent Keychain item before entering this operation; an ambiguous creation result retains that item because the checkpoint may name it. Any installation ambiguity also retains the applicable same-root journal and active claim; a target receipt never claims coverage of an inaccessible source-root journal.
+Checkpoint creation when `Notes & Settings` is absent remains the existing exclusive-create operation, including the complete single-database bootstrap in a newly and exclusively created **Save Current Collection As…** destination. A remembered-encrypted Save-As target provisions and validates its fresh independent Keychain item before entering this operation; an ambiguous creation result retains that item because the checkpoint may name it. Any installation ambiguity also retains the applicable host-local WAL. An exactly verified Save-As destination may retire the old host-local WAL only because its frozen checkpoint represents the old live store; no WAL is copied into the destination.
 
 ### Phase 3 — Adopt unconditional existing-file replacement
 
 Route `overwriteFileNamed:` and `overwriteNoteFileNamed:` to Foundation only when the destination exists. Storage conversion and ordinary overwrite callers retain the same return dispositions and metadata contract. Absent destinations continue through exclusive creation.
 
-Do not advance while any ordinary-local or provider-managed caller has to branch around the helper to regain old semantics.
+Do not advance while any checkpoint caller has to branch around the helper to regain old semantics.
 
 ### Phase 4 — Adopt conditional note replacement
 
@@ -236,7 +241,7 @@ The complete migration requires:
 
 This migration is intended to refine, not change, the specification or TLA+ state machines. Atomic replacement remains an environmental assumption in the models. No model change is required while all current observable guarantees and failure classifications remain intact. If Foundation cannot establish one of those guarantees and the proposed response would alter publication, preservation, checkpoint verification, journal retention, or recovery behavior, stop the migration and update the normative specification, applicable ADRs, and models before changing production semantics.
 
-ADRs 0001, 0004, 0008, 0010, and 0011 directly depend on the preserved separate-file, checkpoint, provider-lane, upload, and storage-transition behavior. The remaining ADRs were reviewed and introduce no alternate replacement semantics. This plan does not alter journal identity/lifecycle, startup authority, recovery-evidence classification, Spotlight independence, or the provider capability policy.
+Every ADR that invokes checkpoint or separate-file installation is subordinate to this backend and introduces no alternate replacement semantics. This plan does not alter local WAL identity/lifecycle, startup authority, current-visible reconciliation, embedded unresolved-version disposition, Spotlight independence, or provider classification. Resolver actions use this migration's ordinary separate-file installation result as a local durability gate; they never use `NSFileVersion` replacement.
 
 ## Completion criteria
 

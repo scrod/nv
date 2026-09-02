@@ -1,376 +1,147 @@
------------------- MODULE ReconciliationDecisionSafety --------------------
-EXTENDS FiniteSets, ReconciliationInterface
-
-\* Versions are immutable persistent version identifiers.
-\* processedVersions records traversal; representedVersions records
-\* provider-version representation.
-
-CONSTANTS
-    Versions,
-    CanonicalVersion,
-    UnresolvedVersion,
-    NonlocalVersion,
-    States,
-    BaseState,
-    LocalState,
-    RemoteState,
-    OtherState,
-    MergedState,
-    Deleted,
-    Names,
-    BaseName,
-    LocalName,
-    RemoteName,
-    EnabledScenarios
-
-ASSUME
-    /\ Versions = {CanonicalVersion, UnresolvedVersion, NonlocalVersion}
-    /\ {BaseState, LocalState, RemoteState, OtherState, MergedState, Deleted}
-        \subseteq States
-    /\ Cardinality({BaseState, LocalState, RemoteState, OtherState,
-                     MergedState, Deleted}) = 6
-    /\ {BaseName, LocalName, RemoteName} \subseteq Names
-    /\ Cardinality({BaseName, LocalName, RemoteName}) = 3
-
-Scenarios == {
-    "fastForward", "twoEditsMerge", "missingBase", "unsafeMerge",
-    "deleteEdit", "localDeleteRemoteEdit", "renameRace", "renameOnlyRace",
-    "renameRemoteEdit", "unmatchedIdentity", "ambiguousIdentity",
-    "pathTimestampIdentity", "filenameContentIdentity", "multiVersion",
-    "localEditRemoteUnchanged", "remoteRenameLocalEdit",
-    "remoteRenameOnly", "localRenameRemoteUnchanged",
-    "localRenameRemoteDelete", "localDeleteRemoteRename",
-    "localRenameTwoEditsMerge", "remoteRenameTwoEditsMerge"
-}
-
-ASSUME
-    /\ EnabledScenarios \subseteq Scenarios
-    /\ EnabledScenarios # {}
-
-Outcomes == {
-    "pending", "same", "canonicalSelected", "merged", "preserved", "deleteEdit",
-    "unmatched", "localWins"
-}
-Artifacts == States \X Names
-
-Artifact(noteState, name) == <<noteState, name>>
-
-InitialOriginalState(scenario) ==
-    CASE scenario \in {"fastForward", "filenameContentIdentity"} -> BaseState
-      [] scenario \in {
-            "localDeleteRemoteEdit", "localDeleteRemoteRename"
-         } -> Deleted
-      [] scenario = "multiVersion" -> BaseState
-      [] scenario \in {
-            "renameRace", "renameOnlyRace", "renameRemoteEdit",
-            "remoteRenameOnly", "localRenameRemoteUnchanged",
-            "localRenameRemoteDelete"
-         } -> BaseState
-      [] OTHER -> LocalState
-
-InitialOriginalName(scenario) ==
-    IF scenario \in {
-        "renameRace", "renameOnlyRace", "renameRemoteEdit",
-        "localRenameRemoteUnchanged", "localRenameRemoteDelete",
-        "localRenameTwoEditsMerge"
-    }
-    THEN LocalName ELSE BaseName
-
-SnapshotArtifact(scenario) ==
-    Artifact(InitialOriginalState(scenario), InitialOriginalName(scenario))
-
-BaseAvailable(scenario) == scenario # "missingBase"
-
-MergeIsSafe(scenario) == scenario \in {
-    "twoEditsMerge", "localRenameTwoEditsMerge",
-    "remoteRenameTwoEditsMerge"
-}
-
-ExternalState(scenario, version) ==
-    CASE scenario \in {
-            "localEditRemoteUnchanged", "remoteRenameLocalEdit",
-            "remoteRenameOnly", "localRenameRemoteUnchanged",
-            "localDeleteRemoteRename", "renameOnlyRace"
-         } /\ version = CanonicalVersion -> BaseState
-      [] scenario = "deleteEdit" /\ version = CanonicalVersion -> Deleted
-      [] scenario = "multiVersion" /\ version = CanonicalVersion -> Deleted
-      [] scenario = "localRenameRemoteDelete"
-            /\ version = CanonicalVersion -> Deleted
-      [] version = UnresolvedVersion -> OtherState
-      [] version = NonlocalVersion -> RemoteState
-      [] OTHER -> RemoteState
-
-ExternalName(scenario, version) ==
-    IF scenario \in {
-        "renameRace", "renameOnlyRace", "remoteRenameLocalEdit",
-        "remoteRenameOnly", "localDeleteRemoteRename",
-        "remoteRenameTwoEditsMerge"
-    } /\ version = CanonicalVersion
-    THEN RemoteName
-    ELSE BaseName
-
-ExternalArtifact(scenario, version) ==
-    Artifact(ExternalState(scenario, version), ExternalName(scenario, version))
-
-IdentityEvidence(scenario) ==
-    CASE scenario = "unmatchedIdentity" -> {}
-      [] scenario = "ambiguousIdentity" -> {"filename", "content"}
-      [] scenario = "pathTimestampIdentity" -> {"path", "timestamp"}
-      [] scenario = "filenameContentIdentity" ->
-            {"filename", "content", "unambiguous"}
-      [] OTHER -> {"stable"}
-
-IdentityMatches(scenario, version) ==
-    /\ version \in Versions
-    /\ \/ "stable" \in IdentityEvidence(scenario)
-       \/ {"filename", "content", "unambiguous"}
-            \subseteq IdentityEvidence(scenario)
-
-Represents(artifact, candidate, conflicts, mergedInputs) ==
-    \/ artifact = candidate
-    \/ /\ artifact[1] = Deleted
-       /\ candidate[1] = Deleted
-    \/ artifact \in conflicts
-    \/ artifact \in mergedInputs
-
-Decision(scenario, version, candidate, conflicts, mergedInputs) ==
-    LET snapshot == SnapshotArtifact(scenario)
-        external == ExternalArtifact(scenario, version)
-        externalState == external[1]
-        externalName == external[2]
-        snapshotState == snapshot[1]
-        snapshotName == snapshot[2]
-        withConflict == conflicts \cup {external}
-        withMergeInputs == mergedInputs \cup {snapshot, external}
-    IN
-    IF ~IdentityMatches(scenario, version)
-    THEN [outcome |-> "unmatched", candidate |-> candidate,
-          conflicts |-> withConflict, mergedInputs |-> mergedInputs]
-    ELSE IF external = snapshot
-    THEN [outcome |-> "same", candidate |-> candidate,
-          conflicts |-> conflicts, mergedInputs |-> mergedInputs]
-    ELSE IF version # CanonicalVersion
-    THEN [outcome |-> "preserved", candidate |-> candidate,
-          conflicts |-> withConflict, mergedInputs |-> mergedInputs]
-    ELSE IF
-        /\ externalName # snapshotName
-        /\ snapshotName # BaseName
-        /\ externalName # BaseName
-    THEN [outcome |-> "preserved", candidate |-> candidate,
-          conflicts |-> withConflict, mergedInputs |-> mergedInputs]
-    ELSE IF
-        /\ snapshotName # BaseName
-        /\ externalName = BaseName
-        /\ snapshotState = BaseState
-        /\ externalState # Deleted
-    THEN [outcome |-> "merged",
-          candidate |-> Artifact(externalState, candidate[2]),
-          conflicts |-> conflicts, mergedInputs |-> withMergeInputs]
-    ELSE IF
-        /\ snapshotName = BaseName
-        /\ externalName # BaseName
-        /\ externalState = BaseState
-        /\ snapshotState # BaseState
-        /\ snapshotState # Deleted
-    THEN [outcome |-> "merged",
-          candidate |-> Artifact(candidate[1], externalName),
-          conflicts |-> conflicts, mergedInputs |-> withMergeInputs]
-    ELSE IF
-        /\ externalState = snapshotState
-        /\ snapshotName = BaseName
-    THEN [outcome |-> "canonicalSelected",
-          candidate |-> Artifact(candidate[1], externalName),
-          conflicts |-> conflicts, mergedInputs |-> mergedInputs]
-    ELSE IF
-        /\ externalState = Deleted
-        /\ snapshotState = BaseState
-        /\ snapshotName = BaseName
-    THEN [outcome |-> "canonicalSelected",
-          candidate |-> Artifact(Deleted, candidate[2]),
-          conflicts |-> conflicts, mergedInputs |-> mergedInputs]
-    ELSE IF
-        /\ externalState = Deleted
-        /\ snapshotState # Deleted
-    THEN [outcome |-> "deleteEdit",
-          candidate |-> Artifact(Deleted, candidate[2]),
-          conflicts |-> conflicts \cup {snapshot},
-          mergedInputs |-> mergedInputs]
-    ELSE IF
-        /\ snapshotState = Deleted
-        /\ externalState # Deleted
-    THEN [outcome |-> "deleteEdit",
-          candidate |-> Artifact(Deleted, candidate[2]),
-          conflicts |-> withConflict, mergedInputs |-> mergedInputs]
-    ELSE IF ~BaseAvailable(scenario)
-    THEN [outcome |-> "preserved", candidate |-> candidate,
-          conflicts |-> withConflict, mergedInputs |-> mergedInputs]
-    ELSE IF
-        /\ snapshotState = BaseState
-        /\ externalState # Deleted
-    THEN [outcome |-> "canonicalSelected", candidate |-> external,
-          conflicts |-> conflicts, mergedInputs |-> mergedInputs]
-    ELSE IF
-        /\ externalState = BaseState
-        /\ snapshotState # Deleted
-    THEN [outcome |-> "localWins", candidate |-> candidate,
-          conflicts |-> conflicts, mergedInputs |-> withMergeInputs]
-    ELSE IF MergeIsSafe(scenario)
-    THEN [outcome |-> "merged",
-          candidate |-> Artifact(
-              MergedState,
-              IF /\ snapshotName = BaseName
-                 /\ externalName # BaseName
-              THEN externalName ELSE candidate[2]),
-          conflicts |-> conflicts, mergedInputs |-> withMergeInputs]
-    ELSE [outcome |-> "preserved", candidate |-> candidate,
-          conflicts |-> withConflict, mergedInputs |-> mergedInputs]
-
-VARIABLE state
-
-vars == <<state>>
-
+-------------------- MODULE ReconciliationDecisionSafety --------------------
+EXTENDS Naturals, FiniteSets
+\* PUB-01 current-file decision table. No historical traversal/UUID xattrs.
+\* One note and one immutable current input. An unrelated automatic recovery
+\* candidate is included to check that its status cannot suppress routine
+\* preservation or be overwritten by a fresh ordinary conflict note.
+\* "merged" abstracts NVMergedText; its byte-level correctness is not proved.
+Pairs == {<<"base","base">>, <<"base","remote">>, <<"local","base">>,
+ <<"local","remote">>, <<"same","same">>, <<"local","absent">>,
+ <<"base","absent">>, <<"absent","remote">>, <<"absent","absent">>}
+Bodies == {"base","local","remote","same","absent","merged"}
+Names == {"base","local","remote"}
+Evidence == {"document","wrongVolume","file","wrongSession","duplicate",
+             "fallback","changedIDFallback","pathTimestamp","none"}
+BaseOrigins == {"file","settledCheckpoint","unsettledCheckpoint","none"}
+Slots == {"free","exact","modified","retired","inconsistent"}
+A(body,name) == <<body,name>>
+Pristine == A("base","base")
+VARIABLE s
+vars == <<s>>
 Init ==
-    \E scenario \in EnabledScenarios:
-        state = [
-            scenario |-> scenario,
-            processedVersions |-> {},
-            representedVersions |-> {},
-            outcomes |-> [version \in Versions |-> "pending"],
-            candidate |-> SnapshotArtifact(scenario),
-            conflicts |-> {},
-            mergedInputs |-> {}
-        ]
-
-ProcessVersion ==
-    \E version \in Versions \ state.processedVersions:
-        LET decision == Decision(
-                state.scenario, version, state.candidate,
-                state.conflicts, state.mergedInputs)
-            processed == state.processedVersions \cup {version}
-            represented == {
-                processedVersion \in processed:
-                    Represents(
-                        ExternalArtifact(state.scenario, processedVersion),
-                        decision.candidate, decision.conflicts,
-                        decision.mergedInputs)
-            }
-        IN state' = [state EXCEPT
-            !.processedVersions = processed,
-            !.representedVersions = represented,
-            !.outcomes[version] = decision.outcome,
-            !.candidate = decision.candidate,
-            !.conflicts = decision.conflicts,
-            !.mergedInputs = decision.mergedInputs
-        ]
-
-Next == ProcessVersion
-
-Spec ==
-    /\ Init
-    /\ [][Next]_vars
-    /\ WF_vars(ProcessVersion)
-
+ \E pair \in Pairs, ln \in Names, rn \in Names, evidence \in Evidence,
+    origin \in BaseOrigins, safe \in BOOLEAN, slot \in Slots:
+  s = [local |-> A(pair[1],ln), remote |-> A(pair[2],rn),
+    evidence |-> evidence, origin |-> origin, safe |-> safe,
+    automaticSlot |-> slot, phase |-> "idle", drift |-> "none",
+    candidate |-> A(pair[1],ln), preserved |-> {}, imports |-> {},
+    live |-> A(pair[1],ln), livePreserved |-> {}, liveImports |-> {},
+    dirty |-> TRUE]
+Associated == s.evidence \in {"document","file","fallback","changedIDFallback"}
+TrustworthyBase == s.origin \in {"file","settledCheckpoint"}
+NameConflict ==
+ s.local[2] # "base" /\ s.remote[2] # "base" /\ s.local[2] # s.remote[2]
+BothBodiesChanged ==
+ s.local[1] # "base" /\ s.remote[1] # "base" /\ s.local[1] # s.remote[1]
+CombinedName == IF s.local[2] = "base" THEN s.remote[2] ELSE s.local[2]
+Decision ==
+ IF s.remote[1] = "absent" THEN
+   [note |-> A("absent",s.local[2]), imports |-> {},
+    preserve |-> IF s.local[1] # "absent" /\
+                     (s.local # Pristine \/ ~TrustworthyBase)
+                 THEN {s.local} ELSE {}]
+ ELSE IF s.local[1] = "absent" \/ ~Associated THEN
+   [note |-> s.local, imports |-> {s.remote}, preserve |-> {}]
+ ELSE IF s.local = s.remote THEN
+   [note |-> s.local, imports |-> {}, preserve |-> {}]
+ ELSE IF ~TrustworthyBase \/ NameConflict THEN
+   [note |-> s.local, imports |-> {}, preserve |-> {s.remote}]
+ ELSE IF s.local[1] = s.remote[1] THEN
+   [note |-> A(s.local[1],CombinedName), imports |-> {}, preserve |-> {}]
+ ELSE IF s.local[1] = "base" THEN
+   [note |-> A(s.remote[1],CombinedName), imports |-> {}, preserve |-> {}]
+ ELSE IF s.remote[1] = "base" THEN
+   [note |-> A(s.local[1],CombinedName), imports |-> {}, preserve |-> {}]
+ ELSE IF s.safe THEN
+   [note |-> A("merged",CombinedName), imports |-> {}, preserve |-> {}]
+ ELSE [note |-> s.local, imports |-> {}, preserve |-> {s.remote}]
+Prepare ==
+ /\ s.phase = "idle"
+ /\ LET d == Decision
+    IN s' = [s EXCEPT !.phase = "prepared", !.candidate = d.note,
+      !.imports = d.imports, !.preserved = d.preserve]
+Invalidate(kind) ==
+ /\ s.phase = "prepared" /\ s.drift = "none"
+ /\ kind \in {"root","note","structure","catalog"}
+ /\ s' = [s EXCEPT !.drift = kind]
+Publish ==
+ /\ s.phase = "prepared" /\ s.drift = "none"
+ /\ s' = [s EXCEPT !.phase = "published", !.live = s.candidate,
+      !.liveImports = s.imports,
+      !.livePreserved = s.preserved,
+      !.dirty = FALSE]
+Reject ==
+ /\ s.phase = "prepared" /\ s.drift # "none"
+ /\ s' = [s EXCEPT !.phase = "rejected"]
+Next == Prepare \/ Publish \/ Reject \/
+        (\E kind \in {"root","note","structure","catalog"}: Invalidate(kind))
+Spec == Init /\ [][Next]_vars
+\* Independent table oracle decomposes identity, deletion, naming, and body
+\* decisions. It does not use Decision or the result's own provenance flags.
+ImportsExpected ==
+ IF s.remote[1] # "absent" /\ (s.local[1] = "absent" \/ ~Associated)
+ THEN {s.remote} ELSE {}
+Deletion == s.remote[1] = "absent"
+KeepsLocal ==
+ ~Deletion /\ (ImportsExpected # {} \/ s.local = s.remote \/
+   ~TrustworthyBase \/ NameConflict \/ (BothBodiesChanged /\ ~s.safe))
+BodyExpected ==
+ IF Deletion THEN "absent"
+ ELSE IF KeepsLocal THEN s.local[1]
+ ELSE IF s.local[1] = "base" THEN s.remote[1]
+ ELSE IF s.remote[1] = "base" \/ s.remote[1] = s.local[1] THEN s.local[1]
+ ELSE "merged"
+NameExpected ==
+ IF Deletion \/ KeepsLocal THEN s.local[2]
+ ELSE IF s.local[2] # "base" THEN s.local[2] ELSE s.remote[2]
+PreservationExpected ==
+ IF Deletion THEN
+   IF s.local[1] # "absent" /\ (s.local # Pristine \/ ~TrustworthyBase)
+   THEN {s.local} ELSE {}
+ ELSE IF ImportsExpected = {} /\ s.local # s.remote /\ KeepsLocal
+      THEN {s.remote} ELSE {}
 TypeOK ==
-    /\ state.scenario \in Scenarios
-    /\ state.processedVersions \subseteq Versions
-    /\ state.representedVersions \subseteq Versions
-    /\ state.outcomes \in [Versions -> Outcomes]
-    /\ state.candidate \in Artifacts
-    /\ state.conflicts \subseteq Artifacts
-    /\ state.mergedInputs \subseteq Artifacts
-
-EveryProcessedVersionIsRepresented ==
-    AllSelectedRepresented(
-        state.processedVersions, state.representedVersions)
-
-SnapshotIsRepresentedWhenItDiffersFromPristineBase ==
-    \/ SnapshotArtifact(state.scenario) = Artifact(BaseState, BaseName)
-    \/ Represents(SnapshotArtifact(state.scenario), state.candidate,
-                  state.conflicts, state.mergedInputs)
-
-ArtifactsHaveProcessedProvenance ==
-    LET sources ==
-        {ExternalArtifact(state.scenario, version):
-            version \in state.processedVersions}
-            \cup {SnapshotArtifact(state.scenario)}
-    IN
-    /\ state.conflicts \subseteq sources
-    /\ state.mergedInputs \subseteq sources
-
-IdentityPolicyIsExact ==
-    \A version \in Versions:
-        IdentityMatches(state.scenario, version)
-        <=> state.scenario \notin {
-            "unmatchedIdentity", "ambiguousIdentity", "pathTimestampIdentity"
-        }
-
-LocalWinsRecordsBaseAncestry ==
-    \A version \in state.processedVersions:
-        state.outcomes[version] = "localWins" =>
-            {SnapshotArtifact(state.scenario),
-             ExternalArtifact(state.scenario, version)}
-                \subseteq state.mergedInputs
-
-ExpectedCanonicalOutcome(scenario) ==
-    CASE scenario \in {
-            "fastForward", "filenameContentIdentity", "multiVersion",
-            "remoteRenameOnly"
-         } -> "canonicalSelected"
-      [] scenario \in {
-            "twoEditsMerge", "renameRemoteEdit", "remoteRenameLocalEdit",
-            "localRenameRemoteUnchanged", "localRenameTwoEditsMerge",
-            "remoteRenameTwoEditsMerge"
-         } -> "merged"
-      [] scenario \in {
-            "missingBase", "unsafeMerge", "renameRace", "renameOnlyRace"
-         } -> "preserved"
-      [] scenario \in {
-            "deleteEdit", "localDeleteRemoteEdit", "localRenameRemoteDelete",
-            "localDeleteRemoteRename"
-         } -> "deleteEdit"
-      [] scenario = "localEditRemoteUnchanged" -> "localWins"
-      [] scenario \in {
-            "unmatchedIdentity", "ambiguousIdentity", "pathTimestampIdentity"
-         } -> "unmatched"
-
-ExpectedCanonicalArtifact(scenario) ==
-    CASE scenario \in {"fastForward", "filenameContentIdentity"} ->
-            Artifact(RemoteState, BaseName)
-      [] scenario = "twoEditsMerge" -> Artifact(MergedState, BaseName)
-      [] scenario \in {
-            "missingBase", "unsafeMerge", "unmatchedIdentity",
-            "ambiguousIdentity", "pathTimestampIdentity",
-            "localEditRemoteUnchanged"
-         } -> Artifact(LocalState, BaseName)
-      [] scenario \in {
-            "deleteEdit", "localDeleteRemoteEdit", "multiVersion",
-            "localDeleteRemoteRename"
-         } -> Artifact(Deleted, BaseName)
-      [] scenario \in {"renameRace", "renameOnlyRace"} ->
-            Artifact(BaseState, LocalName)
-      [] scenario = "renameRemoteEdit" -> Artifact(RemoteState, LocalName)
-      [] scenario = "remoteRenameLocalEdit" -> Artifact(LocalState, RemoteName)
-      [] scenario = "remoteRenameOnly" -> Artifact(BaseState, RemoteName)
-      [] scenario = "localRenameRemoteUnchanged" ->
-            Artifact(BaseState, LocalName)
-      [] scenario = "localRenameRemoteDelete" -> Artifact(Deleted, LocalName)
-      [] scenario = "localRenameTwoEditsMerge" ->
-            Artifact(MergedState, LocalName)
-      [] scenario = "remoteRenameTwoEditsMerge" ->
-            Artifact(MergedState, RemoteName)
-
-ScenarioDecisionsMatchIndependentOracle ==
-    /\ (CanonicalVersion \in state.processedVersions =>
-        /\ state.outcomes[CanonicalVersion] =
-            ExpectedCanonicalOutcome(state.scenario)
-        /\ state.candidate = ExpectedCanonicalArtifact(state.scenario))
-    /\ \A version \in
-            state.processedVersions \ {CanonicalVersion}:
-        state.outcomes[version] =
-            IF IdentityMatches(state.scenario, version)
-            THEN "preserved" ELSE "unmatched"
-
-AllVersionsEventuallyProcessed ==
-    <> (state.processedVersions = Versions)
-
+ /\ s.phase \in {"idle","prepared","published","rejected"}
+ /\ s.local \in Bodies \X Names /\ s.remote \in Bodies \X Names
+ /\ s.candidate \in Bodies \X Names /\ s.live \in Bodies \X Names
+ /\ s.automaticSlot \in Slots
+ /\ s.preserved \subseteq Bodies \X Names /\ s.imports \subseteq Bodies \X Names
+ /\ s.livePreserved \subseteq Bodies \X Names /\ s.liveImports \subseteq Bodies \X Names
+ /\ s.evidence \in Evidence /\ s.origin \in BaseOrigins
+ /\ s.safe \in BOOLEAN /\ s.dirty \in BOOLEAN
+ /\ s.drift \in {"none","root","note","structure","catalog"}
+PreparedDecisionMatchesIndependentTable ==
+ s.phase # "idle" =>
+   s.candidate = A(BodyExpected,NameExpected) /\
+   s.imports = ImportsExpected /\ s.preserved = PreservationExpected
+PublicationMatchesRoutineDecision ==
+ s.phase = "published" =>
+   /\ s.live = A(BodyExpected,NameExpected) /\ s.liveImports = ImportsExpected
+   /\ s.livePreserved = PreservationExpected
+UnmatchedFileNeverReattachesDeletedUUID ==
+ s.phase = "published" /\ s.local[1] = "absent" /\ s.remote[1] # "absent" =>
+   s.live[1] = "absent" /\ s.liveImports = {s.remote}
+NoMergeFromUnsettledCheckpointBase ==
+ s.phase = "published" /\ s.origin \in {"none","unsettledCheckpoint"} =>
+   s.live[1] # "merged"
+UnqualifiedIdentityAlwaysImportsFresh ==
+ s.phase = "published" /\ s.remote[1] # "absent" /\
+ s.evidence \in {"wrongVolume","wrongSession","duplicate","pathTimestamp","none"} =>
+   s.live = s.local /\ s.liveImports = {s.remote}
+ConflictingRenamesPreserveRemote ==
+ s.phase = "published" /\ s.local[1] # "absent" /\ s.remote[1] # "absent" /\
+ s.evidence \in {"document","file","fallback","changedIDFallback"} /\
+ s.local[2] # "base" /\ s.remote[2] # "base" /\ s.local[2] # s.remote[2] =>
+   s.live = s.local /\ s.livePreserved = {s.remote}
+RoutineDeletionPreservesChangedLocal ==
+ s.phase = "published" /\ s.remote[1] = "absent" /\
+ s.local[1] # "absent" /\ s.local # Pristine =>
+   s.live[1] = "absent" /\ s.livePreserved = {s.local}
+RejectedCandidateNeverPublishes ==
+ s.phase = "rejected" =>
+   s.live = s.local /\ s.liveImports = {} /\ s.livePreserved = {} /\ s.dirty
+PublicationRequiresEveryCurrentFence ==
+ [][Publish => s.drift = "none"]_vars
+RoutinePreservationLeavesAutomaticCandidateUntouched ==
+ [][Publish => UNCHANGED s.automaticSlot]_vars
 =============================================================================

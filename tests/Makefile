@@ -20,8 +20,13 @@ TARGETS := \
 
 .PHONY: all run run-core run-platform run-icloud-api-contract run-file-provider-api-contract \
 	run-icloud-api-contract-remote-host run-icloud-api-contract-remote-peer \
+	run-icloud-api-contract-xattr-host run-icloud-api-contract-xattr-peer \
+	run-icloud-api-contract-foundation run-icloud-api-contract-manifest-host \
+	run-icloud-api-contract-manifest-peer run-icloud-api-contract-conflict-disposition \
+	run-icloud-api-contract-conflict-edit-delete-inspect \
 	run-icloud-api-contract-legacy-upload run-icloud-api-contract-sync-control-probe \
 	run-icloud-api-contract-pause-lifecycle \
+	run-root-lock-probe-control run-directory-lock-probe-control \
 	stress leak-check filesystem-image-stress clean app-objects
 
 all: $(TARGETS)
@@ -35,10 +40,10 @@ $(BUILD_DIR)/GlobalPrefsArchiveMigrationTest: GlobalPrefsArchiveMigrationTest.m 
 $(BUILD_DIR)/AppearanceColorTest: AppearanceColorTest.m Makefile app-objects | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
-$(BUILD_DIR)/ICloudAPIContractTest: ICloudAPIContractTest.m Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/ICloudAPIContractTest: ICloudAPIContractTest.m ICloudRootLockProbe.h Makefile | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) -fblocks $< -framework Foundation -framework FileProvider -o $@
 
-$(BUILD_DIR)/ICloudAPIContractTest-x86_64: ICloudAPIContractTest.m Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/ICloudAPIContractTest-x86_64: ICloudAPIContractTest.m ICloudRootLockProbe.h Makefile | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) -arch x86_64 -fblocks $< -framework Foundation -framework FileProvider -o $@
 
 $(ICLOUD_API_TEST_APP): $(BUILD_DIR)/ICloudAPIContractTest ICloudAPIContractTest-Info.plist
@@ -141,6 +146,35 @@ run-file-provider-api-contract: $(ICLOUD_API_TEST_APP)
 	cat $(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-provider-stderr.txt
 	! grep -q '^FAIL ' $(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt
 
+# Local synthetic controls only; all live provider scenarios are explicitly invoked.
+run-root-lock-probe-control: $(BUILD_DIR)/ICloudAPIContractTest
+	probe_dir=$$(mktemp -d /tmp/nv-root-lock-control.XXXXXX) && \
+		NV_ICLOUD_API_TEST_TIMEOUT=15 $(BUILD_DIR)/ICloudAPIContractTest root-lock-control "$$probe_dir"
+
+run-directory-lock-probe-control: $(BUILD_DIR)/ICloudAPIContractTest
+	probe_dir=$$(mktemp -d /tmp/nv-directory-lock-control.XXXXXX) && \
+		NV_ICLOUD_API_TEST_TIMEOUT=15 $(BUILD_DIR)/ICloudAPIContractTest root-lock-directory "$$probe_dir"
+
+run-icloud-api-contract-foundation: $(ICLOUD_API_TEST_APP)
+	rm -f $(BUILD_DIR)/ICloudAPIContractTest-foundation-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-foundation-stderr.txt
+	open -n -W --stdout $(BUILD_DIR)/ICloudAPIContractTest-foundation-stdout.txt \
+		--stderr $(BUILD_DIR)/ICloudAPIContractTest-foundation-stderr.txt $(ICLOUD_API_TEST_APP) \
+		--args foundation "$(ICLOUD_API_TEST_ROOT)" required
+	cat $(BUILD_DIR)/ICloudAPIContractTest-foundation-stdout.txt $(BUILD_DIR)/ICloudAPIContractTest-foundation-stderr.txt
+	! grep -q '^FAIL ' $(BUILD_DIR)/ICloudAPIContractTest-foundation-stdout.txt
+
+run-icloud-api-contract-manifest-host: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=1800 $(BUILD_DIR)/ICloudAPIContractTest manifest-host "$(ICLOUD_API_TEST_ROOT)"
+
+run-icloud-api-contract-manifest-peer: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=1800 $(BUILD_DIR)/ICloudAPIContractTest manifest-peer "$(ICLOUD_API_TEST_ROOT)"
+
+run-icloud-api-contract-conflict-disposition: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=900 $(BUILD_DIR)/ICloudAPIContractTest conflict-disposition "$(ICLOUD_API_TEST_ROOT)" required
+
+run-icloud-api-contract-conflict-edit-delete-inspect: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=900 $(BUILD_DIR)/ICloudAPIContractTest conflict-edit-delete-inspect "$(ICLOUD_API_TEST_ROOT)"
+
 run-icloud-api-contract-legacy-upload: $(BUILD_DIR)/ICloudAPIContractTest
 	$(BUILD_DIR)/ICloudAPIContractTest legacy-upload "$(ICLOUD_API_TEST_ROOT)"
 
@@ -176,6 +210,12 @@ run-icloud-api-contract-remote-host: $(BUILD_DIR)/ICloudAPIContractTest
 run-icloud-api-contract-remote-peer: $(BUILD_DIR)/ICloudAPIContractTest
 	NV_ICLOUD_API_TEST_TIMEOUT=900 $(BUILD_DIR)/ICloudAPIContractTest remote-peer "$(ICLOUD_API_TEST_ROOT)"
 
+run-icloud-api-contract-xattr-host: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=900 $(BUILD_DIR)/ICloudAPIContractTest xattr-host "$(ICLOUD_API_TEST_ROOT)"
+
+run-icloud-api-contract-xattr-peer: $(BUILD_DIR)/ICloudAPIContractTest
+	NV_ICLOUD_API_TEST_TIMEOUT=900 $(BUILD_DIR)/ICloudAPIContractTest xattr-peer "$(ICLOUD_API_TEST_ROOT)"
+
 stress: $(BUILD_DIR)/NVIntegrationTest
 	$(BUILD_DIR)/NVIntegrationTest snapshot-stress
 	$(BUILD_DIR)/NVIntegrationTest snapshot-boundary-races
@@ -197,6 +237,8 @@ clean:
 		$(BUILD_DIR)/ICloudAPIContractTest-icloud-stderr.txt \
 		$(BUILD_DIR)/ICloudAPIContractTest-provider-stdout.txt \
 		$(BUILD_DIR)/ICloudAPIContractTest-provider-stderr.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-foundation-stdout.txt \
+		$(BUILD_DIR)/ICloudAPIContractTest-foundation-stderr.txt \
 		$(BUILD_DIR)/ICloudAPIContractTest-app-stdout.txt \
 		$(BUILD_DIR)/ICloudAPIContractTest-app-stderr.txt \
 		$(BUILD_DIR)/ICloudAPIContractTest-lifecycle-prepare-stdout.txt \

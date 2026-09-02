@@ -1,9 +1,0 @@
-# Treat database versions as recovery evidence
-
-Under the first-class provider-managed storage contract, separate note files—not conflicting `Notes & Settings` versions—perform routine cross-Mac note convergence. The accepted database checkpoint is the only database source of settings and metadata. NV catalogs noncanonical database versions as recovery evidence and exposes only **Recover Notes** and explicit **Discard**; it neither exports nor installs recovery checkpoints or restores their settings.
-
-One recovery action processes a coordinated persistent version identifier snapshot of every known local and nonlocal recovery version without asking the user to choose among database files. It imports each unique differing note state as a conflict note whose ordinary note UUID is deterministically derived from the archived source UUID and a versioned canonical title/body/labels digest. Retries and duplicate states are therefore idempotent without changing existing or epoch-4 note identities or adding a recovery ledger. Failed, newly arrived, and incompletely enumerated versions remain pending. This omits checkpoint ancestry, a retained database merge base, field-level database merging, database tombstone inference, and whole-checkpoint recovery transactions without risking silent overwrite.
-
-A complete **Recover Notes** run contributes its exact version identifiers to the same transient resolution-eligibility map as routine exact reconciliation. The next root-closing checkpoint receipt freezes only eligible identifiers whose separate-file or tombstone representations remain durable in its frozen store; provider-managed automatic resolution additionally waits for exact upload qualification of that receipt. Per-version failure leaves the recovery version intact and does not block closure. Explicit **Discard** remains the sole direct destructive path outside this coverage rule.
-
-Normative requirements: `REC-01`, `DUR-01`, `CLEAN-01`.

@@ -16,5 +16,6 @@ profile
 
 .cache
 CompilationDatabase
+tmp
 
 tools/release.sh

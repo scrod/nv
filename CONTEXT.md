@@ -4,170 +4,170 @@ Vocabulary for NV's note storage and reconciliation domain.
 
 ## Language
 
-**Live note store**:
-The complete in-memory collection of notes, settings, metadata, and tombstones that is authoritative while NV is running.
+**Live note store**
+The complete in-memory collection of notes, settings, metadata, pending deletion records, and retired deterministic conflict identities that is authoritative while NV runs.
 _Avoid_: Memory cache, local cache
 
-**Database checkpoint**:
-A complete durable representation of the live note store used for fast startup and recovery. The user-visible file is named `Notes & Settings`; its note records are not a routine cross-device synchronization input.
+**Database checkpoint**
+The complete durable representation of the live note store used for fast startup and same-Mac recovery. The user-visible file is named `Notes & Settings`; its note records are not a routine cross-device synchronization input.
 _Avoid_: Cache file, sync database
 
-**Accepted database checkpoint**:
-The canonical database checkpoint used as the live-store and journal-recovery base after required validation. Recovery checkpoint versions are never accepted database checkpoints.
+**Accepted database checkpoint**
+The canonical checkpoint used as the live-store and WAL-recovery base after validation. Noncanonical provider versions are not accepted or recovered by NV.
 _Avoid_: Winning database branch, newest database
 
-**Checkpoint identity**:
-A fresh, never-reused random `checkpointID` that identifies one installed database checkpoint.
-_Avoid_: Checkpoint version, checkpoint revision
+**Checkpoint identity**
+A fresh, never-reused random `checkpointID` identifying one installed database checkpoint. It has equality semantics only.
+_Avoid_: Checkpoint revision, ancestry
 
-**Durability journal**:
-The ordered record of changes made during one editable root-session lifetime since its startup checkpoint. One process may therefore use successive journals while recovering or switching roots. The user-visible filename begins with `Interim Note-Changes`.
-_Avoid_: Cloud log, synchronization database
-
-**Journal identity**:
-A random, never-reused identifier for one durability-journal generation.
-_Avoid_: Writer identity, machine identity
-
-**Checkpoint base identity**:
-The exact accepted database checkpoint from which a durability journal begins. It is the checkpoint identity, or for an unchanged epoch-4 checkpoint a tagged SHA-256 digest of the exact loaded bytes.
+**Checkpoint base identity**
+The exact accepted checkpoint from which a local durability journal begins: its checkpoint identity, or a tagged SHA-256 digest of exact unchanged epoch-4 bytes.
 _Avoid_: Database ancestry, writer identity
 
-**Covering checkpoint**:
-The exactly installed database checkpoint whose frozen live store represents a named journal's valid durable work. A retained claim records only that checkpoint's equality-only identity; a mismatch with the accepted checkpoint requires conservative recovery and never implies older/newer ancestry.
-_Avoid_: Checkpoint ancestor, newer checkpoint
+**Checkpoint-scoped state**
+Every live-store value serialized into `Notes & Settings` whose change can require a new checkpoint, including note records, the compact retired-deterministic-identity set, `NotationPrefs`, selection/UI state, and database-level metadata. An ordinary completed deletion is represented by omission from the complete note set, not by a permanent tombstone. The root session tracks divergence from the accepted checkpoint independently of WAL/file obligations; “nothing checkpoint-scoped changed” means that exact dirty generation still equals its accepted-checkpoint baseline.
+_Avoid_: Whatever the WAL happens to contain, checkpoint-only metadata
 
-**Active journal**:
-An opened notes directory's durability journal that this Mac expects to own and recover after an interrupted NV session. A Mac may have active-journal records for multiple notes directories; append ownership is separate from journal recovery eligibility.
-_Avoid_: Local journal, writer journal
+**Durability journal / WAL**
+The ordered host-local record of changes during one editable root-session lifetime. Modern WALs live under the current user's Application Support directory, never in the notes directory or provider namespace. They protect same-Mac crash recovery and are not a synchronization representation.
+_Avoid_: Cloud log, provider journal
 
-**Retained journal**:
-A closed durability journal that this Mac still owns for recovery and cleanup because its exactly covering local checkpoint has not yet obtained the applicable upload qualification. Its current-host retained claim records the rooted-directory bookmark and covering checkpoint identity; it is not appendable, unclaimed, or proof of cloud durability.
-_Avoid_: Foreign journal, sealed journal, uploaded journal
+**Journal identity**
+A random, never-reused identifier for one local WAL generation.
+_Avoid_: Writer identity, machine identity
 
-**Retained claim**:
-The synchronized `NVRetainedJournal.<journalID>` current-host preference that records same-host recovery and cleanup ownership, the rooted-directory bookmark, and the exact covering checkpoint identity. It grants neither append authority nor upload qualification.
-_Avoid_: Upload receipt, shared journal owner
+**Local WAL recovery evidence**
+A self-describing Application Support WAL whose header bookmark resolves to the selected root. Every matching WAL is mandatory startup evidence until its valid work is represented by an exactly verified checkpoint or conservatively recovered. There are no active/retained preference claims or remote journals.
+_Avoid_: Shared journal, retained claim
 
-**Represented-journal set**:
-The exact active and retained journal identities represented by the accepted live store in one root session. A checkpoint receipt freezes this set as its journal coverage; it is reconstructed from claims and completed recovery rather than persisted as shared history.
-_Avoid_: Journal ledger, checkpoint ancestry
+**Journal recovery eligibility**
+Classification of a structurally valid local WAL against the accepted checkpoint as exact-base replay, already-represented cleanup, or base-mismatch salvage. LSN ordering proves order only within one WAL.
+_Avoid_: Provider-version resolution eligibility
 
-**Journal ownership transition**:
-The ordered crash-safe change between active, retained, and absent ownership. `demoting` means the retained claim is synchronized before the active claim is removed. `deleting/pending-durability` means removal succeeded or is ambiguous while the claim remains; `deleting/durable` begins only after root-directory synchronization succeeds following the current absence validation, and only then may the claim be removed.
-_Avoid_: Journal sealing, journal absorption
-
-**Unclaimed journal**:
-A durability journal that is neither active nor retained in this Mac's current-host registry for its notes directory. It may contain recoverable work, but in a shared folder it may still belong to NV on another Mac.
-_Avoid_: Foreign journal, abandoned journal
-
-**Journal recovery eligibility**:
-The classification of a structurally valid journal against the accepted database checkpoint as exact-base replay, already-represented cleanup, or base-mismatch salvage. LSN ordering proves order only within one journal.
-_Avoid_: Journal ownership, provider-version resolution eligibility
-
-**Separate note file**:
-An interoperable representation of one note synchronized with the live note store. Under the first-class provider-managed storage contract these are unencrypted plain-text files and are the routine cross-device representation of note changes, while the live note store remains authoritative during a session.
+**Separate note file**
+An interoperable representation of one note synchronized with the live note store. Under the first-class provider-managed contract these are unencrypted plain-text files and the routine cross-device representation.
 _Avoid_: Authoritative note, database branch
 
-**Persistent version identifier**:
-An opaque provider identity for one immutable file version within a current-known snapshot.
-_Avoid_: Version timestamp, version number, arrival order
-
-**Provider catalog token**:
-NV's immutable exact catalog-equality witness for one coordinated catalog observation. Despite the historical name, it is not a provider-issued revision. It has no ordering or increment semantics and may be projected into independent note and NV-artifact catalogs before use by their respective transactions.
+**Provider catalog token**
+NV's immutable equality witness for one coordinated shallow catalog observation. It is not provider-issued, ordered, or monotonic.
 _Avoid_: Catalog revision, scan timestamp
 
-**Authoritative candidate URL set**:
-The URLs eligible for exact version discovery, partitioned by purpose. The authoritative note candidate set contains current coordinated note-file children, retained live-model and last-note-catalog identities, presenter-delivered note move/version URLs, and visible conflict-recovery note files. The separate NV-artifact candidate set contains the fixed checkpoint, journal and lock names plus hidden operation residue under its normative name shape. The partitions may reuse one enumeration and provider lane but have independent catalog projections, dirty generations, completion, and retry state; an artifact failure cannot block routine note reconciliation. Spotlight results are not members solely by virtue of appearing in a query.
-_Avoid_: Metadata-query results, global cloud inventory
+**Authoritative current note candidate set**
+The current coordinated direct-child note files plus live-model/last-catalog identities and note URLs delivered by presenter move callbacks. Hidden NV artifacts and `Notes & Settings` are excluded. Spotlight results are never authoritative inputs.
+_Avoid_: Cloud inventory, metadata-query results
 
-**Exact provider fence**:
-Equality of both the provider catalog token and the exact set of persistent version identifiers across a reconciliation transaction.
-_Avoid_: Current flag, catalog timestamp
+**Current-visible reconciliation**
+A transaction over a complete coordinated current namespace and the selected current-file snapshots. Equal before/after catalogs and unchanged root/model inputs permit publication. It makes no claim about undisclosed provider history.
+_Avoid_: Current-known, fully synchronized
 
-**Reconciliation transaction**:
-A fenced note candidate derived from one current-known or explicitly current-visible provider snapshot. A complete transaction may publish its candidate atomically; an incomplete transaction may preserve only additive conflict evidence. Explicit database **Recover Notes** uses the same exact provider-fence machinery but is a distinct recovery producer, not routine reconciliation.
+**Reconciliation transaction**
+A detached current-visible candidate that may affect the live store only after its catalog, root-session, structural-generation, and note UUID/LSN fences still match.
 _Avoid_: Rescan, refresh
 
-**Provider-version representation**:
-The durable account of a selected provider state as the candidate original, a conflict note, an intentional tombstone, or explicit decision ancestry. Observation or output equality alone is not representation.
-_Avoid_: Processed version, observed version
+**Checkpoint-current note reconciliation**
+The no-write recovery path after `NVCheckpointInstallCurrentChanged`: NV compares the retained accepted checkpoint, the complete live note set, and the exact complete current `Notes & Settings`. A UUID present in the base and absent from a complete branch is that branch's deletion; no other absence is deletion evidence. NV publishes only reconciled note states, base-relative deletion outcomes, and the union of retired deterministic conflict identities. Preferences and database-scoped metadata from the competing checkpoint are ignored. Any retry uses that exact current checkpoint as its expected predecessor.
+_Avoid_: Database merge, historical checkpoint recovery
 
-**Preservation**:
-Additive retention of an otherwise unselected nondeletion state as a conflict note, or retention of a deletion as an identity-bound intentional tombstone. Preservation does not by itself confer provider-version resolution eligibility.
-_Avoid_: Acceptance, resolution
+**Checkpoint-current witness**
+One host-local, root-session-scoped snapshot captured inside the same coordinated accessor: exact complete checkpoint bytes, the existing `NVFileObservation` fields, and the current local `NSFileVersion.persistentIdentifier` when Apple supplies one. The persistent identifier is supplemental rather than a generation counter; live tests on macOS 14 and 26 kept it equal across a same-bytes Foundation replacement while the filesystem observation changed. Expected-current comparison rechecks every captured component, and a changed component rejects the write. The witness is never persisted or compared across machines.
+_Avoid_: Provider revision, portable version identity
 
-**Provider-version resolution eligibility**:
-The transient status a provider version gains only from either a complete exact routine reconciliation transaction or a complete exact database **Recover Notes** run representing every selected version. Partial/canceled recovery, unclaimed-journal recovery, preservation, **Discard**, and current-visible fallback never add it. Automatic resolution additionally requires local durability of its separate-file or tombstone representation, inclusion in an exactly verified checkpoint's resolution coverage, and, under provider management, exact upload qualification of that checkpoint. Upload confirmation for each separate note file is not required because the uploaded complete checkpoint is the recovery backstop.
-_Avoid_: Preservation, processed version, accepted version
+**Preservation**
+Additive retention of a differing visible state as an ordinary conflict note. A delete/edit race omits the deleted source UUID and preserves the edited state under a distinct note identity only when that edited state is an available local/current-file or complete-checkpoint input. Routine current-file preservation uses the existing ordinary-note creation rules and fresh random version-4 identities; it never consults deterministic recovery candidates or their retirement to suppress that state. Checkpoint-current reconciliation and base-mismatched WAL salvage instead use the automatic deterministic identity and its reuse/retirement policy. If provider deletion removes the current file and Apple discloses no unresolved edited version, the current-visible design has no state to preserve; this says nothing about provider data not exposed through those inputs. Preservation never authorizes modification of Apple version history.
+_Avoid_: Resolution
 
-**Intentional tombstone**:
-A durable deletion bound to a stable note or deterministic recovery-note identity rather than to a filename or path.
-_Avoid_: Deleted filename, missing file
+**Unresolved provider version**
+An `NSFileVersion` Apple reports as unresolved for a currently visible note file. It is manual conflict-disposition input only. NV does not infer that the returned set is complete or persist its identifiers. Only an explicit action in the conflict resolver view may mark a disclosed member resolved; NV never removes one from the version store.
+_Avoid_: Complete history, recovery checkpoint
 
-**Root session**:
-The fresh, never-reused authority incarnation of one opened notes directory. A verified same-directory move under unchanged provider authority retains it. A confirmed authority/account change fences the old incarnation, transfers local durability resources to a provisional successor, attaches successor observation, and atomically makes that successor active only after namespace and journal revalidation. The provisional interval may continue healthy WAL durability but publishes no provider-derived result and refines to stuttering in the reconciliation models. Confirmed namespace deletion or replacement cancels the old or provisional incarnation and makes any later opening a fresh session. Resource teardown may wait while **Save Current Collection As** constructs an unattached destination, but no work may publish through a canceled or provisional incarnation. Asynchronous work may affect the live store only while its captured incarnation is active.
-_Avoid_: Global notes path, root generation number
+**Conflict resolver view**
+The user-invoked, nonmodal read-only view swapped into the editor split-view subview in place of `LinkingEditor` when the user clicks a conflicted note's alert badge. Its **Conflicts** menu contains **Current** plus the unresolved versions Apple disclosed for the operation. Selecting a member previews its immutable file contents; selecting **Current** previews the authoritative live note body. Its close **×** always restores `LinkingEditor` and dismisses only the view: per-version operations may continue in the background, re-presenting automatically starts a fresh bounded pass for parked operations without duplicating running ones, and only a fresh empty unresolved query clears the badge. It has no explicit Retry action.
+_Avoid_: Historical version browser, automatic recovery
 
-**Confirmed root loss**:
-Positive evidence that the opened root directory object has been removed from the filesystem namespace and that no identity-equivalent logical provider item remains there: a validated vnode-delete notification on confirmed ordinary-local storage, or that event plus an AV-08-validated reverse File Provider lookup returning exact-domain `NoSuchItem` for the captured item. A missing path, stale bookmark, unavailable provider, revoked volume, presenter deletion accommodation, provider eviction, failed identity lookup, missing domain, or any other provider error is inconclusive; NV does not attempt to count other processes' open descriptors.
-_Avoid_: Missing notes path, last file descriptor
+**Use this version**
+The explicit winner choice in the conflict resolver view. **Current** keeps the authoritative live body; another selection copies only its body into the current note through the ordinary mutation path. After the resulting current-note WAL and exact separate-file obligations settle and remain exact inside coordinated revalidation, every unresolved member in that operation snapshot may be marked resolved. The original note identity, filename, title, labels, and database metadata remain unchanged.
+_Avoid_: Replace version file, restore checkpoint
 
-**Journal durability suspension**:
-The transient durability reason that selects NV's shared edit-admission gate when NV cannot establish recoverable local durability through the active journal descriptor and namespace, including vnode deletion or revocation, deletion accommodation, or journal append/barrier-sync failure. Already admitted edits remain in the live store and pending journal outbox; editing resumes only after rooted identity is revalidated and those records become barrier-synchronized. Provider-authority uncertainty alone does not select this state while local journal durability remains available.
-_Avoid_: Read-only mode, provider offline
+**Recovery key and slot**
+The stable idempotency identity for **Save as new note**: a fixed versioned namespace plus source note UUID and canonical recovered body. Mutable title, labels, format, filename, provider identifier, and collision suffix are excluded. Candidate note UUIDs add a deterministic nonnegative slot; exact live-body candidates are reusable, while modified candidates and UUIDs in the retired deterministic conflict identity set occupy their slot and are never overwritten or resurrected.
+_Avoid_: Recovered filename identity, provider-version ledger
 
-**Edit-admission gate**:
-The single authoritative main-thread mutation check. Independent lifecycle-quiescing and journal-durability-suspension reasons may select it; either blocks a mutation, and clearing one reason never clears the other. Sharing the check does not merge the owners or semantics of those reasons.
-_Avoid_: WAL gate, termination gate
+**Save as new note**
+The per-member additive disposition in the conflict resolver view. A selected conflicting version becomes one ordinary collision-adjusted `Title (conflict)` note using the captured source title/labels and previewed body. Only after its exact body/generation is WAL-durable, its separate file is exactly installed, and source/member applicability is coordinately revalidated may that selected provider member be marked resolved. **Current** cannot be saved through this action.
+_Avoid_: Recover all versions, automatic conflict copy
 
-**Save Current Collection As**:
-Exceptional one-way construction of a new, exclusively created notes directory from NV's frozen authoritative in-memory store after the active root becomes unusable. It neither adopts nor reconciles an existing directory and gives the destination no authority over the inaccessible source.
-_Avoid_: Root replacement, cross-root reconciliation
-
-**Structural generation**:
-A live-store generation that changes when note-to-file structure or its storage contract changes, including note addition or removal, filename rename, or serialization/storage-format change. It fences detached reconciliation commits independently of note content generations. A verified move of the same open root under unchanged provider authority changes neither note-to-file structure nor this generation; an authority change is fenced by a replacement session, while confirmed root loss cancels the old session and any reopened or newly saved directory starts a fresh one.
-_Avoid_: Scan timestamp
-
-**Provider visibility witness**:
-Exact catalog/version evidence that a provider change callback has become observable. A generic callback remains dirty until a later exact observation differs from its saved pre-callback projection; a version callback is witnessed when its persistent identifier is present in the exact version set.
-_Avoid_: Callback arrival time, polling timeout
-
-**Current-known reconciliation**:
-A reconciliation transaction over every authoritative candidate URL and every version returned for it by the required provider APIs within one exact fenced snapshot. It proves consistency of disclosed evidence, not the absence of undisclosed remote work.
-_Avoid_: Fully synchronized, globally current
-
-**Current-visible fallback reconciliation**:
-A session-scoped best-effort transaction selected only by the operation-scoped stable-unsupported result defined by `CAP-01`. It fences the coordinated current namespace and visible current-file snapshots, may settle that visible work, and may consume its operational dirty generation, but never claims current-known completeness, confers provider-version resolution eligibility, or resolves provider versions. The limitation is session-continuous, not persisted.
-_Avoid_: Complete reconciliation, provider mode
-
-**Bootstrap reconstruction**:
-The exceptional reconstruction of a replacement live note store when no acceptable canonical checkpoint can produce startup state. It is a fenced recovery operation, not the ordinary authority relationship between the live store and separate files. Its accepted discovery scopes, storage-format selection, checkpoint installation, and limited-history presentation are governed by `START-01`, `CAP-01`, and `CKPT-01` in the normative specification.
-_Avoid_: Normal startup, reverse synchronization
-
-**Recovery checkpoint version**:
-A noncanonical or conflicting `Notes & Settings` version preserved as evidence for explicit recovery, not consumed during routine note synchronization.
-_Avoid_: Database branch, sync replica
-
-**Conflict note**:
-An ordinary note with a new identity that preserves one irreconcilable version of a note while leaving it searchable and editable.
+**Conflict note**
+An ordinary note with a distinct identity preserving an alternate visible or explicitly recovered state while remaining searchable and editable.
 _Avoid_: Hidden version, conflict record
 
-**Provider-current**:
-A local cloud item that the provider reports as the newest version known to this Mac. It does not prove that no unseen remote edit exists.
-_Avoid_: Globally current, fully synchronized
+**Pending deletion record**
+The UUID/LSN `DeletedNoteObject` retained in the pending set and host-local WAL until covered by a verified complete checkpoint. Ordinarily it records an intentional logical deletion. For a reserved version-8 UUID it also carries an idempotent retirement assertion. Ordinary conflict-note deletion admits only that UUID; the exceptional checkpoint-current reconciliation reasserts the complete merged retired set because its checkpoint predecessors have been displaced. Its legacy `syncServicesMD` has no modern semantics. It never identifies or authorizes deletion of a plain-text file; only the original exact-snapshot deletion operation may remove the represented file.
+_Avoid_: Permanent tombstone, deleted filename
 
-**Provider-managed root**:
-An opened notes directory for which positive ubiquitous-item or File Provider domain evidence shows that a provider manages the selected item or an existing ancestor reached by the bounded same-volume authority walk. This identifies a storage authority boundary, not the provider's vendor or product name.
-_Avoid_: Confirmed iCloud root, provider-name classification
+**Retired deterministic conflict identity**
+A UUID from the reserved RFC 9562 version-8 deterministic namespace that once identified an explicit recovery note or automatic conflict-preservation note and was later deleted. Retired identities are stored as a compact monotonic checkpoint set and prevent deterministic retry from overwriting or recreating deleted conflict notes. They never identify or authorize deletion of a separate file.
+_Avoid_: General note tombstone, provider-version ledger
 
-**Working offline**:
-An explicit mode in which NV permits edits against an available local database checkpoint without first obtaining a provider-current checkpoint, accepting later reconciliation.
+**Filesystem identity evidence**
+Optional candidate-association evidence: a nonzero document ID qualified by an equal volume UUID, or a nonzero file ID limited to one active root session. Either must be unique on both sides. Generation count is revision metadata. Missing or changed identity after eviction, rematerialization, replacement, or restart is an ordinary fallback condition, never proof of a different note by itself.
+_Avoid_: Note identity, provider-stable identifier
+
+**Root session**
+A fresh authority incarnation for one opened notes directory. A verified move of the same rooted directory, with the same positive provider identity when one is available, retains it. A positive authority change fences the old incarnation. Loss of positive continuity makes the session unavailable until positive evidence restores it or an explicit user action ends it. Asynchronous work may publish only while its captured incarnation remains active and available.
+_Avoid_: Global notes path
+
+**Root continuity unavailable**
+The nonterminal state entered when NV cannot positively establish that the opened rooted directory remains reachable as the same object. Missing paths, vnode deletion/revoke, stale bookmarks, provider unavailability, and lookup errors never prove deletion. Positive same-root evidence may restore the session, and positive changed-authority evidence takes the provisional-successor path; otherwise only explicit **Save Current Collection As…**, **Re-open from Disk**, collection abandonment, or quit ends it.
+_Avoid_: Confirmed root loss, missing notes path
+
+**Root-directory lock**
+The nonblocking exclusive advisory `flock` on the already-open directory descriptor retained by the root session. It excludes cooperating local writers of that same directory object from startup/WAL discovery through local close and observer teardown, including gap-free same-root authority/controller handoff. It is not a lock file, a WAL lock, root-identity evidence, or a cross-Mac lease; a different directory at the old pathname is a different lock resource.
+_Avoid_: Provider lock, pathname lock, journal ownership claim
+
+**Journal durability suspension**
+The transient edit-blocking reason selected when the local Application Support WAL cannot append or barrier-sync, or its association with the active root cannot be validated. Provider/network uncertainty alone does not select it.
+_Avoid_: Read-only mode, provider offline
+
+**Edit-admission gate**
+The single main-thread mutation check. Acceptance mutates the live model and inserts the note or pending deletion record in the existing pending set but performs no archive or I/O; its current UUID/LSN is captured at the later coalescing or forced-durability boundary. Deleting a reserved deterministic conflict UUID also inserts it into the retired set. Independent lifecycle-quiescing and local-WAL-durability reasons may select the gate; either blocks later mutation.
+_Avoid_: WAL gate, termination gate
+
+**Structural generation**
+A live-store generation changed by note addition/removal, note-file rename, or serialization/storage-format change. It fences detached commits independently of note content LSNs.
+_Avoid_: Scan timestamp
+
+**Provider visibility witness**
+Current catalog/file evidence that accounts for a provider callback. Callback arrival alone is only a wakeup and never a fence.
+_Avoid_: Callback timestamp
+
+**Provider-current**
+A local cloud item the provider reports as the newest version known to this Mac. It does not prove no unseen remote edit exists.
+_Avoid_: Globally current
+
+**Provider-managed root**
+An opened directory for which positive ubiquitous-item or File Provider domain evidence establishes provider management. This identifies an authority boundary, not a vendor.
+_Avoid_: iCloud-branded root
+
+**Unclassified root authority**
+An opened directory for which NV has no positive provider-management evidence. Absence, delay, lookup failure, and negative results do not establish that the root is ordinary local; they authorize only the generic conservative filesystem path.
+_Avoid_: Confirmed ordinary-local root, noncloud root
+
+**Working offline**
+An explicit mode permitting edits against a complete local checkpoint and every matching local WAL without first obtaining a provider-current checkpoint.
 _Avoid_: Read-only mode
 
-**Credential cutover**:
-The copy-on-write controlled restart for a passphrase, encryption, or storage-format change. The accepted preferences and Keychain item remain usable while an isolated target preferences snapshot and any fresh add-only target Keychain item are prepared and verified; exact target-checkpoint installation is the commit point, and old-item cleanup occurs only afterward.
-_Avoid_: Live passphrase mutation, Keychain/checkpoint transaction
+**Save Current Collection As**
+Exceptional construction of a new, exclusively created notes directory from the frozen live store after the active root becomes unusable. An exactly verified destination checkpoint may cover and retire the old host-local WAL; no WAL is copied to the destination.
+_Avoid_: Root replacement, WAL transplant
 
-**Upload confirmation**:
-A matched result for the pending upload transaction whose returned `NSFileVersion` identifies the exact installed local checkpoint version and checkpoint identity, including that receipt's provider-version resolution and represented-journal coverage. On older systems, only conservative upload qualification is available; any ambiguity retains the recovery evidence.
-_Avoid_: Upload flag, cloud durable
+**Bootstrap reconstruction**
+All-or-nothing reconstruction of a replacement live store from a stable current-visible separate-file snapshot when no acceptable canonical checkpoint can produce startup state.
+_Avoid_: Historical recovery, reverse synchronization
+
+**Credential cutover**
+The copy-on-write controlled restart for a passphrase, encryption, or storage-format change. The accepted checkpoint/Keychain pair remains usable until the isolated target pair is verified.
+_Avoid_: Live passphrase mutation
+
+**Upload status**
+Provider-reported progress used for presentation and the existing quit UI. It is not a WAL-cleanup, provider-version-removal, manual conflict-disposition, or local-durability precondition.
+_Avoid_: Cloud durability proof

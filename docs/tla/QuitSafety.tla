@@ -1,769 +1,189 @@
------------------------------ MODULE QuitSafety -----------------------------
-EXTENDS FiniteSets, Naturals
-
-\* Admitted model mutations are operation IDs. A delete is an operation too.
-\* LocalPersistentVersionIdentifiers are persistent version identifiers for
-\* the installed checkpoint's local NSFileVersion snapshots.
-CONSTANTS
-    Edits,
-    CheckpointIDs,
-    LocalPersistentVersionIdentifiers,
-    UploadRequestIDs,
-    InitialCheckpoint,
-    InitialLocalVersion,
-    None
-
-ASSUME
-    /\ IsFiniteSet(Edits)
-    /\ IsFiniteSet(CheckpointIDs)
-    /\ IsFiniteSet(LocalPersistentVersionIdentifiers)
-    /\ IsFiniteSet(UploadRequestIDs)
-    /\ InitialCheckpoint \in CheckpointIDs
-    /\ InitialLocalVersion \in LocalPersistentVersionIdentifiers
-    /\ None \notin CheckpointIDs
-    /\ None \notin LocalPersistentVersionIdentifiers
-    /\ None \notin UploadRequestIDs
-
-VARIABLE state
-
-vars == <<state>>
-
-Phases == {
-    "running", "quiescing", "awaitingDecision", "barrier", "drained",
-    "paused", "installed", "verified", "uploading", "resuming", "cleanup",
-    "retainedRecordWritten", "retainedRecordSynced", "terminated",
-    "aborted", "crashed"
-}
-
-RootKinds == {"local", "icloud", "otherProvider", "unknown"}
-LegacyStatuses == {"idle", "pending", "uploaded", "complete"}
-ConfirmationKinds == {"none", "explicit", "legacy"}
-
+------------------------------ MODULE QuitSafety ------------------------------
+EXTENDS Naturals, FiniteSets
+\* DUR-01 / CLEAN-01 / CKPT-01 / WAIT-01. One close operation, one automatic
+\* current-change retry, one callback and one external-editor final read.
+\* current is the FULL same-accessor witness; same bytes/version identifier
+\* can have a different filesystem observation. Provider upload is absent.
+\* rootLocked is the retained directory-descriptor lock, distinct from the
+\* WAL descriptor. RemovePresenter abstracts completed observer/operation
+\* draining, including vnode cancellation; only then may the root owner close.
+VARIABLE s
+vars == <<s>>
 Init ==
-    \E kind \in RootKinds:
-    \E supported \in BOOLEAN:
-    state = [
-        phase |-> "running",
-        rootKind |-> kind,
-        controlsSupported |-> supported,
-        live |-> {},
-        pendingJournal |-> {},
-        journal |-> {},
-        durableHistory |-> {},
-        fileCopies |-> {},
-        frozen |-> {},
-        stagedCheckpoint |-> {},
-        durableCheckpoint |-> {},
-        installedCheckpoint |-> InitialCheckpoint,
-        usedCheckpointIDs |-> {InitialCheckpoint},
-        checkpointInstallCount |-> [checkpoint \in CheckpointIDs |->
-            IF checkpoint = InitialCheckpoint THEN 1 ELSE 0],
-        verifiedCheckpoint |-> InitialCheckpoint,
-        installedLocalVersion |-> InitialLocalVersion,
-        verifiedLocalVersion |-> InitialLocalVersion,
-        uploadRequest |-> None,
-        requestCheckpoint |-> None,
-        requestLocalVersion |-> None,
-        explicitUploadAttempted |-> FALSE,
-        explicitUploadFailed |-> FALSE,
-        returnedRequest |-> None,
-        returnedCheckpoint |-> None,
-        returnedLocalVersion |-> None,
-        confirmedCheckpoint |-> None,
-        confirmationKind |-> "none",
-        readbackCheckpoint |-> None,
-        readbackLocalVersion |-> None,
-        checkpointVerified |-> TRUE,
-        syncPaused |-> FALSE,
-        pauseAttempted |-> FALSE,
-        pauseFailedBeforeAcquisition |-> FALSE,
-        pauseEverSucceeded |-> FALSE,
-        resumeAttempted |-> FALSE,
-        resumeFailed |-> FALSE,
-        postResumePhase |-> "verified",
-        legacyStatus |-> "idle",
-        legacyCheckpoint |-> None,
-        legacyLocalVersion |-> None,
-        legacyGeneration |-> 0,
-        localWriteGeneration |-> 0,
-        journalExists |-> TRUE,
-        activeRecord |-> TRUE,
-        retainedRecord |-> FALSE,
-        retainedRecordSynchronized |-> FALSE,
-        retainedCoverage |-> None,
-        demotionWitnesses |-> {},
-        journalDeletionQualified |-> FALSE,
-        journalDeletionWasProvablyEmpty |-> FALSE,
-        journalDeletionCheckpoint |-> None,
-        emptyDeletionWitnesses |-> {},
-        installCount |-> 0,
-        terminationRequests |-> 0,
-        queuedCallbacks |-> {},
-        discardedCallbacks |-> {},
-        dirty |-> FALSE,
-        sessionClosing |-> FALSE,
-        presenterDrained |-> FALSE
-        ]
-
-CurrentJournalQualified ==
-    \/ state.rootKind = "local"
-    \/ /\ state.rootKind = "icloud"
-       /\ ~state.syncPaused
-       /\ state.confirmedCheckpoint = state.installedCheckpoint
-       /\ state.confirmedCheckpoint = state.verifiedCheckpoint
-
-UserEdit ==
-    /\ state.phase = "running"
-    /\ \E edit \in Edits \ (state.live \cup state.queuedCallbacks):
-        state' = [state EXCEPT
-            !.live = @ \cup {edit},
-            !.pendingJournal = @ \cup {edit}
-        ]
-
-QueueProviderCallback ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ ~state.sessionClosing
-    /\ \E edit \in Edits \ (state.live \cup state.queuedCallbacks):
-        state' = [state EXCEPT
-            !.queuedCallbacks = @ \cup {edit},
-            !.dirty = TRUE
-        ]
-
-FinishProviderCallback ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ ~state.sessionClosing
-    /\ \E edit \in state.queuedCallbacks:
-        state' = [state EXCEPT
-            !.queuedCallbacks = @ \ {edit},
-            !.live = @ \cup {edit},
-            !.pendingJournal = @ \cup {edit},
-            !.dirty = TRUE
-        ]
-
-ProviderNotification ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ ~state.sessionClosing
-    /\ ~state.dirty
-    /\ state' = [state EXCEPT !.dirty = TRUE]
-
-SynchronizeJournal ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ state.pendingJournal # {}
-    /\ state.journalExists
-    /\ state' = [state EXCEPT
-        !.journal = @ \cup state.pendingJournal,
-        !.durableHistory = @ \cup state.pendingJournal,
-        !.pendingJournal = {}
-        ]
-
-SettleSeparateFiles ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ state.fileCopies # state.live
-    /\ state' = [state EXCEPT !.fileCopies = state.live]
-
-FinishReconciliation ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ state.queuedCallbacks = {}
-    /\ state.dirty
-    /\ state' = [state EXCEPT !.dirty = FALSE]
-
-BeginQuit ==
-    /\ state.phase = "running"
-    /\ state' = [state EXCEPT
-        !.phase = "quiescing",
-        !.terminationRequests = 1
-        ]
-
-PreinstallFailure ==
-    /\ state.phase = "quiescing"
-    /\ state' = [state EXCEPT !.phase = "awaitingDecision"]
-
-RetryPreinstallWork ==
-    /\ state.phase = "awaitingDecision"
-    /\ state' = [state EXCEPT !.phase = "quiescing"]
-
-QuitAnywayBeforeInstall ==
-    /\ state.phase = "awaitingDecision"
-    /\ state.installCount = 0
-    /\ state' = [state EXCEPT !.phase = "aborted"]
-
-ReachProviderBarrier ==
-    /\ state.phase = "quiescing"
-    /\ state.queuedCallbacks = {}
-    /\ ~state.dirty
-    /\ state.pendingJournal = {}
-    /\ state.durableHistory = state.live
-    /\ state.fileCopies = state.live
-    /\ state' = [state EXCEPT
-        !.phase = "barrier",
-        !.frozen = state.live,
-        !.sessionClosing = TRUE
-        ]
-
-LateCallbackAfterClose ==
-    /\ state.sessionClosing
-    /\ state.phase \notin {"terminated", "crashed"}
-    /\ \E edit \in Edits \ state.discardedCallbacks:
-        state' = [state EXCEPT !.discardedCallbacks = @ \cup {edit}]
-
-DrainPresenter ==
-    /\ state.phase = "barrier"
-    /\ state.sessionClosing
-    /\ state' = [state EXCEPT
-        !.phase = "drained",
-        !.presenterDrained = TRUE
-        ]
-
-PauseCheckpoint ==
-    /\ state.phase = "drained"
-    /\ state.rootKind = "icloud"
-    /\ state.controlsSupported
-    /\ ~state.syncPaused
-    /\ state' = [state EXCEPT
-        !.phase = "paused",
-        !.syncPaused = TRUE,
-        !.pauseAttempted = TRUE,
-        !.pauseFailedBeforeAcquisition = FALSE,
-        !.pauseEverSucceeded = TRUE,
-        !.resumeAttempted = FALSE,
-        !.resumeFailed = FALSE
-        ]
-
-PauseCheckpointFailedBeforeAcquisition ==
-    /\ state.phase = "drained"
-    /\ state.rootKind = "icloud"
-    /\ state.controlsSupported
-    /\ ~state.pauseAttempted
-    /\ state' = [state EXCEPT
-        !.pauseAttempted = TRUE,
-        !.pauseFailedBeforeAcquisition = TRUE
-        ]
-
+ \E metadataDirty \in BOOLEAN, notePending \in BOOLEAN:
+  s = [phase |-> "running", note |-> IF notePending THEN 1 ELSE 0,
+   metadataDirty |-> metadataDirty, walDurable |-> 0, fileInstalled |-> 0,
+   wal |-> TRUE, walRecords |-> FALSE, descriptor |-> TRUE, rootLocked |-> TRUE,
+   callbacks |-> 0, serviced |-> 0, dirty |-> FALSE, externalPending |-> TRUE,
+   frozenNote |-> 0, frozenMetadata |-> FALSE, frozenCallbacks |-> 0,
+   expected |-> 0, current |-> 0, replacements |-> 0, attempt |-> 0,
+   invoked |-> {}, installs |-> 0, remoteNeeded |-> FALSE,
+   remoteDurable |-> FALSE, remoteFile |-> FALSE,
+   cpNote |-> 0, cpMetadata |-> FALSE, cpRemote |-> FALSE,
+   verified |-> FALSE, emptyCleanup |-> FALSE, directoryDurable |-> FALSE,
+   presenter |-> TRUE, rootAvailable |-> TRUE, override |-> FALSE]
+Settled ==
+ s.walDurable = s.note /\ s.fileInstalled = s.note /\
+ (~s.remoteNeeded \/ (s.remoteDurable /\ s.remoteFile))
+BeginClose ==
+ /\ s.phase = "running"
+ /\ s' = [s EXCEPT !.phase = "drain"]
+FinalExternalRead ==
+ /\ s.phase = "drain" /\ s.externalPending
+ /\ s' = [s EXCEPT !.externalPending = FALSE, !.note = @ + 1]
+CallbackArrives ==
+ /\ s.phase \in {"running","drain","frozen"} /\ s.callbacks = 0
+ /\ s' = [s EXCEPT !.callbacks = 1, !.dirty = TRUE]
+ServiceCallback ==
+ /\ s.phase = "drain" /\ s.serviced < s.callbacks /\ s.presenter
+ /\ s' = [s EXCEPT !.serviced = s.callbacks, !.note = @ + 1, !.dirty = FALSE]
+NoExternalChanges ==
+ /\ s.phase = "drain" /\ s.externalPending
+ /\ s' = [s EXCEPT !.externalPending = FALSE]
+SettleWAL ==
+ /\ s.phase \in {"running","drain","frozen"} /\ s.walDurable # s.note
+ /\ s' = [s EXCEPT !.walDurable = s.note, !.walRecords = TRUE]
+SettleFiles ==
+ /\ s.phase \in {"running","drain","frozen"} /\ s.fileInstalled # s.note
+ /\ s' = [s EXCEPT !.fileInstalled = s.note]
+SettleRetirementWAL ==
+ /\ s.phase = "drain" /\ s.remoteNeeded /\ ~s.remoteDurable
+ /\ s' = [s EXCEPT !.remoteDurable = TRUE, !.walRecords = TRUE]
+SettleRemoteFiles ==
+ /\ s.phase = "drain" /\ s.remoteNeeded /\ ~s.remoteFile
+ /\ s' = [s EXCEPT !.remoteFile = TRUE]
+FreezeBarrier ==
+ /\ s.phase = "drain" /\ ~s.externalPending /\ s.serviced = s.callbacks
+ /\ ~s.dirty /\ s.presenter /\ s.rootAvailable
+ /\ s' = [s EXCEPT !.phase = "frozen", !.frozenNote = s.note,
+      !.frozenMetadata = s.metadataDirty, !.frozenCallbacks = s.callbacks]
+RepeatBarrier ==
+ /\ s.phase = "frozen" /\ (s.dirty \/ s.callbacks # s.frozenCallbacks)
+ /\ s' = [s EXCEPT !.phase = "drain"]
+EmptyClose ==
+ /\ s.phase = "frozen" /\ Settled /\ ~s.dirty
+ /\ s.callbacks = s.frozenCallbacks /\ s.rootAvailable
+ /\ ~s.walRecords /\ ~s.metadataDirty /\ ~s.remoteNeeded
+ /\ s' = [s EXCEPT !.emptyCleanup = TRUE, !.phase = "cleanup"]
+InvokeCheckpoint ==
+ /\ s.phase = "frozen" /\ Settled /\ ~s.dirty /\ s.rootAvailable
+ /\ s.callbacks = s.frozenCallbacks
+ /\ (s.walRecords \/ s.metadataDirty \/ s.remoteNeeded)
+ /\ s.attempt \notin s.invoked
+ /\ s' = [s EXCEPT !.invoked = @ \cup {s.attempt}, !.phase = "accessor"]
 InstallCheckpoint ==
-    /\ \/ state.phase = "paused"
-       \/ /\ state.phase = "drained"
-          /\ \/ state.rootKind # "icloud"
-             \/ ~state.controlsSupported
-             \/ state.pauseFailedBeforeAcquisition
-    /\ state.presenterDrained
-    /\ state.installCount = 0
-    /\ \E checkpoint \in CheckpointIDs \ state.usedCheckpointIDs:
-       \E localVersion \in LocalPersistentVersionIdentifiers \ {state.installedLocalVersion}:
-        state' = [state EXCEPT
-            !.phase = "installed",
-            !.stagedCheckpoint = state.frozen,
-            !.installedCheckpoint = checkpoint,
-            !.usedCheckpointIDs = @ \cup {checkpoint},
-            !.checkpointInstallCount[checkpoint] = @ + 1,
-            !.installedLocalVersion = localVersion,
-            !.checkpointVerified = FALSE,
-            !.confirmedCheckpoint = None,
-            !.confirmationKind = "none",
-            !.installCount = @ + 1,
-            !.localWriteGeneration = @ + 1
-        ]
-
-VerifyExactCheckpoint ==
-    /\ state.phase = "installed"
-    /\ state.stagedCheckpoint = state.frozen
-    /\ state' = [state EXCEPT
-        !.phase = "verified",
-        !.durableCheckpoint = state.stagedCheckpoint,
-        !.verifiedCheckpoint = state.installedCheckpoint,
-        !.verifiedLocalVersion = state.installedLocalVersion,
-        !.checkpointVerified = TRUE
-        ]
-
-CheckpointVerificationFailed ==
-    /\ state.phase = "installed"
-    /\ state' = [state EXCEPT
-        !.phase = IF state.syncPaused THEN "resuming" ELSE "aborted",
-        !.postResumePhase = "aborted",
-        !.checkpointVerified = FALSE,
-        !.confirmedCheckpoint = None,
-        !.confirmationKind = "none"
-        ]
-
-StartExplicitUpload ==
-    /\ state.phase = "verified"
-    /\ state.rootKind = "icloud"
-    /\ state.syncPaused
-    /\ state.checkpointVerified
-    /\ \E request \in UploadRequestIDs:
-        state' = [state EXCEPT
-            !.phase = "uploading",
-            !.uploadRequest = request,
-            !.requestCheckpoint = state.installedCheckpoint,
-            !.requestLocalVersion = state.installedLocalVersion,
-            !.explicitUploadAttempted = TRUE,
-            !.explicitUploadFailed = FALSE,
-            !.returnedRequest = None,
-            !.returnedCheckpoint = None,
-            !.returnedLocalVersion = None
-        ]
-
-ExplicitUploadCallback ==
-    /\ state.phase = "uploading"
-    /\ \E returnedRequest \in UploadRequestIDs \cup {None}:
-       \E returnedCheckpoint \in CheckpointIDs \cup {None}:
-       \E returnedLocalVersion \in LocalPersistentVersionIdentifiers \cup {None}:
-        LET matches ==
-            /\ returnedRequest = state.uploadRequest
-            /\ returnedCheckpoint = state.requestCheckpoint
-            /\ returnedCheckpoint = state.installedCheckpoint
-            /\ returnedCheckpoint = state.verifiedCheckpoint
-            /\ returnedLocalVersion = state.requestLocalVersion
-            /\ returnedLocalVersion = state.installedLocalVersion
-            /\ returnedLocalVersion = state.verifiedLocalVersion
-            /\ state.checkpointVerified
-        IN state' = [state EXCEPT
-            !.phase = "resuming",
-            !.postResumePhase = "verified",
-            !.returnedRequest = returnedRequest,
-            !.returnedCheckpoint = returnedCheckpoint,
-            !.returnedLocalVersion = returnedLocalVersion,
-            !.explicitUploadFailed = ~matches,
-            !.confirmedCheckpoint = IF matches THEN returnedCheckpoint ELSE None,
-            !.confirmationKind = IF matches THEN "explicit" ELSE "none"
-        ]
-
-CancelExplicitPath ==
-    /\ state.phase = "verified"
-    /\ state.syncPaused
-    /\ state' = [state EXCEPT
-        !.phase = "resuming",
-        !.postResumePhase = "verified",
-        !.explicitUploadAttempted = TRUE,
-        !.explicitUploadFailed = TRUE,
-        !.confirmedCheckpoint = None,
-        !.confirmationKind = "none"
-        ]
-
-AttemptResume ==
-    /\ state.phase = "resuming"
-    /\ state.syncPaused
-    /\ \/ state' = [state EXCEPT
-            !.phase = state.postResumePhase,
-            !.syncPaused = FALSE,
-            !.resumeAttempted = TRUE,
-            !.resumeFailed = FALSE
-        ]
-       \/ state' = [state EXCEPT
-            !.phase = "aborted",
-            !.resumeAttempted = TRUE,
-            !.resumeFailed = TRUE
-        ]
-
-BeginLegacyQualification ==
-    /\ state.phase = "verified"
-    /\ state.rootKind = "icloud"
-    /\ ~state.syncPaused
-    /\ state.confirmedCheckpoint = None
-    /\ ~state.explicitUploadAttempted
-    /\ state.legacyStatus = "idle"
-    /\ state' = [state EXCEPT
-        !.legacyStatus = "pending",
-        !.legacyCheckpoint = state.installedCheckpoint,
-        !.legacyLocalVersion = state.installedLocalVersion,
-        !.legacyGeneration = state.localWriteGeneration
-        ]
-
-ObserveLegacyUploaded ==
-    /\ state.phase = "verified"
-    /\ state.legacyStatus = "pending"
-    /\ state' = [state EXCEPT !.legacyStatus = "uploaded"]
-
-LegacyExactReadback ==
-    /\ state.phase = "verified"
-    /\ state.legacyStatus = "uploaded"
-    /\ \E readbackCheckpoint \in CheckpointIDs \cup {None}:
-       \E readbackLocalVersion \in LocalPersistentVersionIdentifiers \cup {None}:
-        LET matches ==
-            /\ state.localWriteGeneration = state.legacyGeneration
-            /\ readbackCheckpoint = state.legacyCheckpoint
-            /\ readbackCheckpoint = state.installedCheckpoint
-            /\ readbackCheckpoint = state.verifiedCheckpoint
-            /\ readbackLocalVersion = state.legacyLocalVersion
-            /\ readbackLocalVersion = state.installedLocalVersion
-            /\ readbackLocalVersion = state.verifiedLocalVersion
-            /\ state.checkpointVerified
-        IN state' = [state EXCEPT
-            !.legacyStatus = "complete",
-            !.readbackCheckpoint = readbackCheckpoint,
-            !.readbackLocalVersion = readbackLocalVersion,
-            !.confirmedCheckpoint = IF matches THEN readbackCheckpoint ELSE None,
-            !.confirmationKind = IF matches THEN "legacy" ELSE "none"
-        ]
-
-InterveningLocalCheckpointWrite ==
-    /\ state.phase = "verified"
-    /\ state.legacyStatus \in {"pending", "uploaded"}
-    /\ state.localWriteGeneration = state.legacyGeneration
-    /\ \E checkpoint \in CheckpointIDs \ state.usedCheckpointIDs:
-       \E localVersion \in LocalPersistentVersionIdentifiers \ {state.installedLocalVersion}:
-        state' = [state EXCEPT
-            !.installedCheckpoint = checkpoint,
-            !.usedCheckpointIDs = @ \cup {checkpoint},
-            !.checkpointInstallCount[checkpoint] = @ + 1,
-            !.verifiedCheckpoint = checkpoint,
-            !.installedLocalVersion = localVersion,
-            !.verifiedLocalVersion = localVersion,
-            !.localWriteGeneration = @ + 1,
-            !.confirmedCheckpoint = None,
-            !.confirmationKind = "none"
-        ]
-
-DeleteJournal ==
-    /\ state.phase = "verified"
-    /\ state.journalExists
-    /\ state.checkpointVerified
-    /\ state.durableHistory \subseteq state.durableCheckpoint
-    /\ CurrentJournalQualified
-    /\ state' = [state EXCEPT
-                !.phase = "cleanup",
-                !.journalExists = FALSE,
-                !.journal = {},
-                !.journalDeletionQualified = TRUE,
-                !.journalDeletionCheckpoint = state.verifiedCheckpoint
-             ]
-
-DeleteProvablyEmptyJournal ==
-    /\ state.phase = "drained"
-    /\ state.presenterDrained
-    /\ state.journalExists
-    /\ state.activeRecord
-    /\ state.installCount = 0
-    /\ state.pendingJournal = {}
-    /\ state.journal = {}
-    /\ state.durableHistory = {}
-    /\ state.live = state.frozen
-    /\ state.fileCopies = state.frozen
-    /\ state' = [state EXCEPT
-        !.phase = "cleanup",
-        !.journalExists = FALSE,
-        !.journalDeletionQualified = FALSE,
-        !.journalDeletionWasProvablyEmpty = TRUE,
-        !.journalDeletionCheckpoint = None,
-        !.emptyDeletionWitnesses = @ \cup
-            {<<state.activeRecord,
-               state.pendingJournal = {},
-               state.journal = {},
-               state.durableHistory = {},
-               state.installCount = 0>>}
-        ]
-
-ClearActiveRecord ==
-    /\ state.phase = "cleanup"
-    /\ ~state.journalExists
-    /\ state.activeRecord
-    /\ state' = [state EXCEPT
-        !.phase = "terminated",
-        !.activeRecord = FALSE,
-        !.retainedRecord = FALSE,
-        !.retainedRecordSynchronized = FALSE,
-        !.retainedCoverage = None
-        ]
-
-PublishRetainedRecord ==
-    /\ state.phase = "verified"
-    /\ ~state.syncPaused
-    /\ state.journalExists
-    /\ ~CurrentJournalQualified
-    /\ state.checkpointVerified
-    /\ state.durableHistory \subseteq state.durableCheckpoint
-    /\ state' = [state EXCEPT
-        !.phase = "retainedRecordWritten",
-        !.retainedRecord = TRUE,
-        !.retainedRecordSynchronized = FALSE,
-        !.retainedCoverage = state.verifiedCheckpoint
-        ]
-
-SynchronizeRetainedRecord ==
-    /\ state.phase = "retainedRecordWritten"
-    /\ state.retainedRecord
-    /\ state' = [state EXCEPT
-        !.phase = "retainedRecordSynced",
-        !.retainedRecordSynchronized = TRUE
-        ]
-
-ClearDemotedActiveRecord ==
-    /\ state.phase = "retainedRecordSynced"
-    /\ state.activeRecord
-    /\ state.retainedRecordSynchronized
-    /\ state.retainedCoverage = state.verifiedCheckpoint
-    /\ state' = [state EXCEPT
-        !.phase = "aborted",
-        !.activeRecord = FALSE,
-        !.demotionWitnesses = @ \cup
-            {<<state.retainedRecordSynchronized,
-               state.retainedCoverage = state.verifiedCheckpoint>>}
-        ]
-
-ReentrantTerminate ==
-    /\ state.phase \notin {"running", "terminated", "crashed"}
-    /\ state.terminationRequests < 2
-    /\ state' = [state EXCEPT !.terminationRequests = @ + 1]
-
+ /\ s.phase = "accessor" /\ s.rootAvailable /\ s.current = s.expected
+ /\ Settled /\ s.frozenNote = s.note /\ s.frozenMetadata = s.metadataDirty
+ /\ s' = [s EXCEPT !.phase = "installed", !.installs = @ + 1,
+      !.cpNote = s.note, !.cpMetadata = s.metadataDirty,
+      !.cpRemote = s.remoteNeeded, !.current = 3]
+CurrentChanged ==
+ /\ s.phase = "accessor" /\ s.rootAvailable /\ s.current # s.expected
+ /\ s' = [s EXCEPT
+      !.phase = IF s.attempt = 0 THEN "drain" ELSE "paused",
+      !.expected = s.current, !.attempt = 1,
+      !.remoteNeeded = TRUE]
+PossibleInstallFailure ==
+ /\ s.phase = "accessor"
+ /\ s' = [s EXCEPT !.phase = "paused"]
+Verify ==
+ /\ s.phase = "installed" /\ s.current = 3 /\ s.rootAvailable
+ /\ s.cpNote = s.note /\ s.cpMetadata = s.metadataDirty
+ /\ s.cpRemote = s.remoteNeeded
+ /\ s' = [s EXCEPT !.verified = TRUE, !.phase = "cleanup"]
+FailedReadback ==
+ /\ s.phase = "installed"
+ /\ s' = [s EXCEPT !.phase = "paused"]
+UnlinkWAL ==
+ /\ s.phase = "cleanup" /\ (s.verified \/ s.emptyCleanup)
+ /\ s' = [s EXCEPT !.descriptor = FALSE, !.wal = FALSE, !.phase = "unlinked"]
+SyncDirectory ==
+ /\ s.phase = "unlinked"
+ /\ s' = [s EXCEPT !.directoryDurable = TRUE, !.phase = "barrier"]
+Override ==
+ /\ s.phase \in {"paused","drain","frozen","installed"} /\ ~s.verified
+ /\ s' = [s EXCEPT !.override = TRUE, !.descriptor = FALSE, !.phase = "barrier"]
+RemovePresenter ==
+ /\ s.phase = "barrier" /\ ~s.descriptor
+ /\ (s.directoryDurable \/ (s.override /\ s.wal))
+ /\ s' = [s EXCEPT !.presenter = FALSE, !.phase = "release"]
+ReleaseRootDescriptor ==
+ /\ s.phase = "release"
+ /\ s' = [s EXCEPT !.rootLocked = FALSE, !.phase = "closed"]
+Cancel ==
+ /\ s.phase = "paused" /\ s.installs = 0
+ /\ s' = [s EXCEPT !.phase = "canceled"]
+ReplaceCurrent ==
+ /\ s.replacements < 2 /\ s.phase \notin {"closed","crashed","canceled"}
+ /\ s' = [s EXCEPT !.replacements = @ + 1, !.current = s.replacements + 1]
+LoseRoot ==
+ /\ s.rootAvailable /\ s.phase \notin {"closed","crashed","canceled"}
+ /\ s' = [s EXCEPT !.rootAvailable = FALSE]
+ReentrantQuit ==
+ /\ s.phase \notin {"running","crashed"}
+ /\ UNCHANGED s
+WillTerminate ==
+ /\ s.phase = "closed" /\ UNCHANGED s
 Crash ==
-    /\ state.phase \notin {"terminated", "crashed"}
-    /\ state' = [state EXCEPT
-        !.phase = "crashed",
-        !.live = state.durableCheckpoint \cup
-            (IF state.journalExists THEN state.journal ELSE {}),
-        !.pendingJournal = {},
-        !.queuedCallbacks = {}
-        ]
-
-Next ==
-    \/ UserEdit
-    \/ QueueProviderCallback
-    \/ FinishProviderCallback
-    \/ ProviderNotification
-    \/ SynchronizeJournal
-    \/ SettleSeparateFiles
-    \/ FinishReconciliation
-    \/ BeginQuit
-    \/ PreinstallFailure
-    \/ RetryPreinstallWork
-    \/ QuitAnywayBeforeInstall
-    \/ ReachProviderBarrier
-    \/ LateCallbackAfterClose
-    \/ DrainPresenter
-    \/ PauseCheckpoint
-    \/ PauseCheckpointFailedBeforeAcquisition
-    \/ InstallCheckpoint
-    \/ VerifyExactCheckpoint
-    \/ CheckpointVerificationFailed
-    \/ StartExplicitUpload
-    \/ ExplicitUploadCallback
-    \/ CancelExplicitPath
-    \/ AttemptResume
-    \/ BeginLegacyQualification
-    \/ ObserveLegacyUploaded
-    \/ LegacyExactReadback
-    \/ InterveningLocalCheckpointWrite
-    \/ DeleteJournal
-    \/ DeleteProvablyEmptyJournal
-    \/ ClearActiveRecord
-    \/ PublishRetainedRecord
-    \/ SynchronizeRetainedRecord
-    \/ ClearDemotedActiveRecord
-    \/ ReentrantTerminate
-    \/ Crash
-
-Spec ==
-    /\ Init
-    /\ [][Next]_vars
-    /\ WF_vars(SynchronizeJournal)
-    /\ WF_vars(FinishProviderCallback)
-    /\ WF_vars(FinishReconciliation)
-    /\ WF_vars(DrainPresenter)
-    /\ WF_vars(AttemptResume)
-    /\ WF_vars(SynchronizeRetainedRecord)
-    /\ WF_vars(ClearDemotedActiveRecord)
-
+ /\ s.phase \notin {"closed","crashed","canceled"}
+ /\ \E remains \in IF s.phase = "unlinked" THEN BOOLEAN ELSE {s.wal}:
+      s' = [s EXCEPT !.phase = "crashed", !.wal = remains,
+           !.descriptor = FALSE, !.presenter = FALSE, !.rootLocked = FALSE]
+Next == BeginClose \/ FinalExternalRead \/ NoExternalChanges \/ CallbackArrives \/
+ ServiceCallback \/ SettleWAL \/ SettleFiles \/ SettleRetirementWAL \/
+ SettleRemoteFiles \/ FreezeBarrier \/ RepeatBarrier \/ EmptyClose \/
+ InvokeCheckpoint \/ InstallCheckpoint \/ CurrentChanged \/ PossibleInstallFailure \/
+ Verify \/ FailedReadback \/ UnlinkWAL \/ SyncDirectory \/ Override \/
+ RemovePresenter \/ ReleaseRootDescriptor \/ Cancel \/ ReplaceCurrent \/ LoseRoot \/ ReentrantQuit \/
+ WillTerminate \/ Crash
+Spec == Init /\ [][Next]_vars
 TypeOK ==
-    /\ state.phase \in Phases
-    /\ state.rootKind \in RootKinds
-    /\ state.controlsSupported \in BOOLEAN
-    /\ state.live \subseteq Edits
-    /\ state.pendingJournal \subseteq Edits
-    /\ state.journal \subseteq Edits
-    /\ state.durableHistory \subseteq Edits
-    /\ state.fileCopies \subseteq Edits
-    /\ state.frozen \subseteq Edits
-    /\ state.stagedCheckpoint \subseteq Edits
-    /\ state.durableCheckpoint \subseteq Edits
-    /\ state.installedCheckpoint \in CheckpointIDs
-    /\ state.usedCheckpointIDs \subseteq CheckpointIDs
-    /\ state.checkpointInstallCount \in [CheckpointIDs -> 0..1]
-    /\ state.verifiedCheckpoint \in CheckpointIDs
-    /\ state.installedLocalVersion \in LocalPersistentVersionIdentifiers
-    /\ state.verifiedLocalVersion \in LocalPersistentVersionIdentifiers
-    /\ state.uploadRequest \in UploadRequestIDs \cup {None}
-    /\ state.requestCheckpoint \in CheckpointIDs \cup {None}
-    /\ state.requestLocalVersion \in LocalPersistentVersionIdentifiers \cup {None}
-    /\ state.explicitUploadAttempted \in BOOLEAN
-    /\ state.explicitUploadFailed \in BOOLEAN
-    /\ state.returnedRequest \in UploadRequestIDs \cup {None}
-    /\ state.returnedCheckpoint \in CheckpointIDs \cup {None}
-    /\ state.returnedLocalVersion \in LocalPersistentVersionIdentifiers \cup {None}
-    /\ state.confirmedCheckpoint \in CheckpointIDs \cup {None}
-    /\ state.confirmationKind \in ConfirmationKinds
-    /\ state.readbackCheckpoint \in CheckpointIDs \cup {None}
-    /\ state.readbackLocalVersion \in LocalPersistentVersionIdentifiers \cup {None}
-    /\ state.checkpointVerified \in BOOLEAN
-    /\ state.syncPaused \in BOOLEAN
-    /\ state.pauseAttempted \in BOOLEAN
-    /\ state.pauseFailedBeforeAcquisition \in BOOLEAN
-    /\ state.pauseEverSucceeded \in BOOLEAN
-    /\ state.resumeAttempted \in BOOLEAN
-    /\ state.resumeFailed \in BOOLEAN
-    /\ state.postResumePhase \in {"verified", "aborted"}
-    /\ state.legacyStatus \in LegacyStatuses
-    /\ state.legacyCheckpoint \in CheckpointIDs \cup {None}
-    /\ state.legacyLocalVersion \in LocalPersistentVersionIdentifiers \cup {None}
-    /\ state.legacyGeneration \in 0..1
-    /\ state.localWriteGeneration \in 0..2
-    /\ state.journalExists \in BOOLEAN
-    /\ state.activeRecord \in BOOLEAN
-    /\ state.retainedRecord \in BOOLEAN
-    /\ state.retainedRecordSynchronized \in BOOLEAN
-    /\ state.retainedCoverage \in CheckpointIDs \cup {None}
-    /\ state.demotionWitnesses \subseteq (BOOLEAN \X BOOLEAN)
-    /\ state.journalDeletionQualified \in BOOLEAN
-    /\ state.journalDeletionWasProvablyEmpty \in BOOLEAN
-    /\ state.journalDeletionCheckpoint \in CheckpointIDs \cup {None}
-    /\ state.emptyDeletionWitnesses \subseteq
-        (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
-    /\ state.installCount \in 0..2
-    /\ state.terminationRequests \in 0..2
-    /\ state.queuedCallbacks \subseteq Edits
-    /\ state.discardedCallbacks \subseteq Edits
-    /\ state.dirty \in BOOLEAN
-    /\ state.sessionClosing \in BOOLEAN
-    /\ state.presenterDrained \in BOOLEAN
-
-DurableWorkIsAlwaysRecoverable ==
-    state.durableHistory \subseteq
-        (state.durableCheckpoint \cup
-            (IF state.journalExists THEN state.journal ELSE {}))
-
-JournalCleanupIsQualifiedOrProvablyEmpty ==
-    ~state.journalExists =>
-        \/ /\ state.journalDeletionQualified
-              /\ state.journalDeletionCheckpoint = state.verifiedCheckpoint
-              /\ state.checkpointVerified
-              /\ state.durableHistory \subseteq state.durableCheckpoint
-              /\ \/ state.rootKind = "local"
-                 \/ /\ state.rootKind = "icloud"
-                    /\ state.confirmedCheckpoint =
-                        state.journalDeletionCheckpoint
-                    /\ ~state.syncPaused
-        \/ /\ state.journalDeletionWasProvablyEmpty
-              /\ state.journalDeletionCheckpoint = None
-              /\ state.durableHistory = {}
-
-ProvablyEmptyDeletionHadNoRecoveryWork ==
-    \A witness \in state.emptyDeletionWitnesses:
-        /\ witness[1]
-        /\ witness[2]
-        /\ witness[3]
-        /\ witness[4]
-        /\ witness[5]
-
-ExactConfirmationNamesCurrentCheckpoint ==
-    state.confirmedCheckpoint # None =>
-        /\ state.checkpointVerified
-        /\ state.confirmedCheckpoint = state.installedCheckpoint
-        /\ state.confirmedCheckpoint = state.verifiedCheckpoint
-        /\ state.installedLocalVersion = state.verifiedLocalVersion
-
-ExplicitConfirmationMatchedRequest ==
-    state.confirmationKind = "explicit" =>
-        /\ state.returnedRequest = state.uploadRequest
-        /\ state.returnedCheckpoint = state.requestCheckpoint
-        /\ state.returnedCheckpoint = state.installedCheckpoint
-        /\ state.returnedLocalVersion = state.requestLocalVersion
-        /\ state.returnedLocalVersion = state.installedLocalVersion
-
-LegacyConfirmationFollowedExactTransition ==
-    state.confirmationKind = "legacy" =>
-        /\ state.legacyStatus = "complete"
-        /\ state.localWriteGeneration = state.legacyGeneration
-        /\ state.readbackCheckpoint = state.legacyCheckpoint
-        /\ state.readbackCheckpoint = state.installedCheckpoint
-        /\ state.readbackLocalVersion = state.legacyLocalVersion
-        /\ state.readbackLocalVersion = state.installedLocalVersion
-
-FailedExplicitPathRetainsRecoveryEvidence ==
-    state.explicitUploadFailed =>
-        /\ state.explicitUploadAttempted
-        /\ state.confirmedCheckpoint = None
-        /\ state.confirmationKind = "none"
-        /\ state.legacyStatus = "idle"
-        /\ state.journalExists
-        /\ (state.activeRecord \/ state.retainedRecord)
-
-TerminalPausedPathAttemptedResume ==
-    /\ state.pauseEverSucceeded
-    /\ state.phase \in {"aborted", "terminated"}
-    /\ state.syncPaused
-    => state.resumeAttempted
-
-JournalAlwaysHasAConservativeHostRecord ==
-    state.journalExists => state.activeRecord \/ state.retainedRecord
-
-RetainedRecordNamesExactlyVerifiedCoverage ==
-    state.retainedRecord =>
-        /\ state.checkpointVerified
-        /\ state.retainedCoverage = state.verifiedCheckpoint
-
-ActiveRecordDemotionFollowedRetainedSync ==
-    \A witness \in state.demotionWitnesses:
-        /\ witness[1]
-        /\ witness[2]
-
-UnqualifiedRootsRetainJournal ==
-    /\ state.rootKind \in {"otherProvider", "unknown"}
-    /\ ~state.journalDeletionWasProvablyEmpty
-    => state.journalExists
-
-CheckpointInstalledAtMostOnceDespiteReentry ==
-    state.installCount <= 1
-
-CheckpointIDsAreNeverReused ==
-    \A checkpoint \in CheckpointIDs:
-        state.checkpointInstallCount[checkpoint] <= 1
-
-InstalledCheckpointHadStableDrainedBarrier ==
-    state.installCount = 1 =>
-        /\ state.presenterDrained
-        /\ state.sessionClosing
-        /\ state.queuedCallbacks = {}
-        /\ ~state.dirty
-        /\ state.frozen \subseteq state.durableHistory
-        /\ state.fileCopies = state.frozen
-        /\ state.pendingJournal = {}
-
-SupportedICloudInstallAttemptedPause ==
-    /\ state.installCount = 1
-    /\ state.rootKind = "icloud"
-    /\ state.controlsSupported
-    => /\ state.pauseAttempted
-       /\ (state.pauseEverSucceeded \/
-           state.pauseFailedBeforeAcquisition)
-
-PostCloseModelIsFrozen ==
-    /\ state.sessionClosing
-    /\ state.phase # "crashed"
-    => state.live = state.frozen
-
-PresenterDrainsOnlyAfterClose ==
-    state.presenterDrained => state.sessionClosing
-
-DurabilityProgress ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ state.pendingJournal # {}
-    ~> \/ state.pendingJournal = {}
-       \/ state.phase \notin {"running", "quiescing"}
-
-CallbackProgress ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ state.queuedCallbacks # {}
-    ~> \/ state.queuedCallbacks = {}
-       \/ state.phase \notin {"running", "quiescing"}
-
-DirtyFollowupProgress ==
-    /\ state.phase \in {"running", "quiescing"}
-    /\ state.dirty
-    /\ state.queuedCallbacks = {}
-    ~> \/ ~state.dirty
-       \/ state.queuedCallbacks # {}
-       \/ state.phase \notin {"running", "quiescing"}
-
-ResumeProgress ==
-    state.phase = "resuming"
-    ~> state.resumeAttempted \/ state.phase = "crashed"
-
+ /\ s.phase \in {"running","drain","frozen","accessor","installed","paused",
+      "cleanup","unlinked","barrier","release","closed","canceled","crashed"}
+ /\ s.note \in 0..3 /\ s.walDurable \in 0..3 /\ s.fileInstalled \in 0..3
+ /\ s.cpNote \in 0..3 /\ s.current \in 0..3 /\ s.expected \in 0..3
+ /\ s.attempt \in 0..1 /\ s.invoked \subseteq {0,1}
+ /\ s.installs \in 0..2 /\ s.replacements \in 0..2
+ /\ s.callbacks \in 0..1 /\ s.serviced \in 0..1
+ /\ s.frozenNote \in 0..3 /\ s.frozenCallbacks \in 0..1
+ /\ \A b \in {s.metadataDirty,s.wal,s.walRecords,s.descriptor,s.dirty,
+      s.externalPending,s.frozenMetadata,s.remoteNeeded,s.remoteDurable,
+      s.remoteFile,s.cpMetadata,s.cpRemote,s.verified,s.emptyCleanup,
+      s.directoryDurable,s.presenter,s.rootAvailable,s.override,s.rootLocked}: b \in BOOLEAN
+AtMostOneInstallationPerClose == s.installs <= 1
+WALRemovalHasActualCheckpointOrEmptyProof ==
+ ~s.wal =>
+   (s.verified /\ s.cpNote = s.note /\ s.cpMetadata = s.metadataDirty /\
+       s.cpRemote = s.remoteNeeded) \/
+   (s.emptyCleanup /\ s.note = 0 /\ ~s.metadataDirty /\ ~s.remoteNeeded)
+DurableLocalWorkRemainsRecoverable ==
+ s.wal \/ (s.cpNote >= s.walDurable /\ (~s.remoteDurable \/ s.cpRemote))
+TerminalCleanupIsDirectoryDurable ==
+ s.phase = "closed" => ~s.presenter /\ ~s.descriptor /\
+   (s.directoryDurable \/ (s.override /\ s.wal))
+UnverifiedOverridePreservesWAL == s.override => s.wal
+RootLockSpansClose ==
+ s.rootLocked = (s.phase \notin {"closed","crashed"})
+RootLockReleaseFollowsLocalClose ==
+ [][(s.rootLocked /\ ~s'.rootLocked /\ s'.phase # "crashed") =>
+   s.phase = "release" /\ ~s.presenter /\ ~s.descriptor /\
+   (s.directoryDurable \/ (s.override /\ s.wal))]_vars
+EmptyCloseRequiresAllCheckpointScopedStateUnchanged ==
+ [][EmptyClose => ~s.metadataDirty /\ s.note = 0 /\ ~s.remoteNeeded]_vars
+EveryInstallUsesExactSettledLiveInput ==
+ [][InstallCheckpoint =>
+   /\ s.current = s.expected /\ s.rootAvailable
+   /\ s.walDurable = s.note /\ s.fileInstalled = s.note
+   /\ (s.remoteNeeded => s.remoteDurable /\ s.remoteFile)
+   /\ s.frozenNote = s.note /\ s.frozenMetadata = s.metadataDirty
+   /\ ~s.externalPending /\ s.callbacks = s.serviced /\ ~s.dirty
+   /\ s.presenter]_vars
+MismatchAndReentryNeverWrite ==
+ [][(CurrentChanged \/ ReentrantQuit \/ WillTerminate) =>
+   UNCHANGED <<s.cpNote,s.cpMetadata,s.cpRemote,s.installs>>]_vars
+SecondMismatchCannotAutomaticallyRetry ==
+ [][CurrentChanged /\ s.attempt = 1 => s'.phase = "paused"]_vars
+PresenterRemovalFollowsLocalClose ==
+ [][RemovePresenter => ~s.descriptor /\
+    (s.directoryDurable \/ (s.override /\ s.wal))]_vars
 =============================================================================

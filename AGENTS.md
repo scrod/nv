@@ -12,13 +12,13 @@ Search results are currently updated as the user types, within the same runloop/
 
 # iCloud Drive synchronization
 
-`docs/iCloud-Drive-Support-Spec.md` is the normative design for first-class iCloud Drive support, including startup, note-file reconciliation, recovery evidence, journal ownership and recovery, provider fencing, quit ordering, upload confirmation, and storage transitions. `docs/adr` records the architectural decisions and rationale behind that design. `docs/tla/README.md` is the entry point for the associated TLA+ models, their coverage boundaries, configurations, exhaustive checks, and hybrid reconciliation checks. `CONTEXT.md` defines the canonical storage and reconciliation vocabulary used by the specification, ADRs, models, and implementation.
+`docs/iCloud-Drive-Support-Spec.md` is the normative design for first-class iCloud Drive support, including startup, note-file reconciliation, recovery evidence, journal ownership and recovery, provider fencing, quit ordering, upload confirmation, and storage transitions. `docs/adr` records the architectural decisions and rationale behind that design. `docs/tla/README.md` is the entry point for the associated TLA+ models, their coverage boundaries, configurations, exhaustive checks, and model-specific negative controls. `CONTEXT.md` defines the canonical storage and reconciliation vocabulary used by the specification, ADRs, models, and implementation.
 
 Changes affecting iCloud Drive synchronization or durability must be checked against all four sources. Keep their terminology and assumptions aligned, update the relevant written requirements and models together when behavior changes, and run the applicable TLA+ configurations described in `docs/tla/README.md`; do not weaken or remove a modeled safety condition merely to make TLC pass.
 
 Additionally, check `docs/Apple-API-Contract-Validation.md` whenever a change relies on or alters an Apple/File Provider behavior or fallback, and check `docs/Foundation-Safe-Replacement-Migration.md` whenever a change affects existing-file replacement or a checkpoint-installation caller. These are conditional implementation-contract checks, not additional normative authorities for unrelated synchronization edits.
 
-The current work-in-progress implementation design is under `docs/impl-proposal-3/README.md` and is intended to strictly follow the normative design and ADRs.
+The current work-in-progress implementation design is under `docs/impl-proposal-4/README.md` and is intended to strictly follow the normative design and ADRs.
 
 # Backward compatibility
 

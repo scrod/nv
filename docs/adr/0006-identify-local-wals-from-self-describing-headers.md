@@ -1,0 +1,15 @@
+# Identify local WALs from self-describing headers
+
+Status: accepted.
+
+Each modern WAL is an exclusively created `Interim Note-Changes.<journalID>` file in `NSApplicationSupportDirectory/Notational Velocity/Recovery Journals`. Its random journal ID is never reused. Its integrity-checked version-2 header is the sole identity record and contains that ID, the exact checkpoint-base identity it extends, and a bookmark for the protected root. NV barrier-synchronizes the immutable header and then synchronizes the Recovery Journals directory entry before the WAL becomes append-capable.
+
+Startup validates a candidate's exact filename, header length, UUID/name equality, base encoding, bookmark bound, record offset, and CRC before resolving its bookmark. Bookmark resolution is followed by independent directory-identity validation; bookmark bytes, path equality, or saved preferences alone never associate a WAL with a root. Every positively matching WAL is mandatory recovery evidence. Unrelated, unavailable, malformed, and unsupported candidates remain preserved and grant no recovery or cleanup authority. A stale but positively matching bookmark is refreshed only in the next WAL; an open WAL header is never rewritten.
+
+Before WAL discovery/recovery or mutation, apply `flock(LOCK_EX | LOCK_NB)` to the already-open validated root-directory descriptor. Retain its owner through checkpoint verification, local WAL cleanup, and observer/operation teardown; same-root authority/controller handoffs transfer that owner without closing/reopening it. A canceled close retains the lock. Contention, unsupported locking, or other acquisition failure admits no writer. A separately created Save As destination obtains its own directory lock before installation.
+
+No `.nv-root.lock` file exists in the design. Direct directory locking avoids a provider-visible child's creation, eviction, conflict, and replacement lifecycle and remains independent of per-session WAL creation/deletion. WAL association and the root lock are independent evidence: neither substitutes for the other. A different directory at the old pathname is independently lockable and requires the existing root-continuity fencing. No `CFPreferences` registry, active/retained claim, provider-visible journal, provider-version lookup, machine identity, or covering receipt exists. The [AV-16 contract matrix](../Apple-API-Contract-Validation.md#av-16--root-directory-lock-contract) records tested filesystems and remaining provider/OS boundaries; it is not a distributed-lock guarantee.
+
+Cleanup requires either exact local checkpoint coverage or startup proof that every valid record is already represented, followed by WAL removal and Application Support directory synchronization. A missing or ambiguous namespace result is not durable cleanup. A valid header-only WAL may use the same local removal barrier after append has stopped. Provider upload never participates.
+
+Normative requirements: `AUTH-01`, `START-01`, `DUR-01`, `CLEAN-01`, `ROOT-01`.

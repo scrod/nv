@@ -1,403 +1,284 @@
-# Apple API contract validation for iCloud Drive support
+# Apple API Contract Validation
 
-Status: required implementation-validation ledger; the behavior specification remains [Robust iCloud Drive Support](iCloud-Drive-Support-Spec.md)
+This document records Apple/File Provider behaviors that the implementation and TLA+ models cannot prove. It follows the current-visible/local-WAL design in ADR-0013 and ADR-0014.
 
-This document records Apple-framework behavior that the NV design needs but that the TLA+ models, mocks, and API type signatures cannot prove. Each condition must be established from current Apple documentation, a focused real-provider test—including iCloud for every first-class contract—or both before code relies on it. An unestablished condition is not silently assumed: the listed fail-closed behavior applies.
-
-No elapsed-time threshold proves freshness, absence, completeness, upload, or conflict resolution (`WAIT-01`). A UX delay may expose Retry, Work Offline, Choose Folder, Quit, or the caller-specific cancel action, but it never turns unknown state into success. Cancellation waits for NV's accessor/completion ownership to return before applying `ROOT-01` or `CKPT-01`. Every potentially blocking probe runs on the provider queue.
+No elapsed-time threshold proves freshness, catalog completeness, conflict absence, upload, or root continuity (`WAIT-01`). Tests distinguish documented API contract, observed provider behavior, and application policy. Every inconclusive result fails closed for the operation that needed it.
 
 ## Capability and provider-identification policy
 
-NV follows Apple's operation-scoped capability pattern rather than attempting to identify a provider's brand:
-
-1. Availability checks establish only that an API exists on this OS.
-2. An explicit resource value or option set, such as `NSURLUbiquitousItemSupportedSyncControlsKey`, authorizes attempting only the advertised operation on that item.
-3. The actual asynchronous operation result is authoritative. Advertised support, selector availability, a prior success, or a successful operation on another item never converts a failure into success.
-4. APIs without an explicit capability flag are called normally and their documented unsupported, unavailable, transient, and conflict results are handled. Preflight cannot replace this because provider and item state can change between the check and the operation.
-5. Capability observations may be retained as root-session optimization hints, but are not persisted as provider profiles and are not safety evidence for a later operation. For historical-version discovery, only `NSCocoaErrorDomain/NSFeatureUnsupportedError` returned by the required nonlocal-version call for an authoritative note candidate selects current-visible scope. One such result is sufficient for that root session because exact all-candidate discovery is then impossible; it says nothing about other operations or URLs. Every fresh root session retries. Transient, ambiguous, differently scoped, or ordinary failures remain incomplete.
-6. `NSFileCoordinator` and `NSFilePresenter` have no provider-capability preflight. NV uses them for applicable local/provider operations and handles each coordination result.
-
-NV does not require a general `iCloud`/`Dropbox`/other-vendor classifier. `NSURLIsUbiquitousItemKey` and successful File Provider URL identity are positive evidence that an item is provider-managed; the latter's opaque item/domain identifiers are used only for equality and authority-change detection. A failed File Provider lookup does not prove ordinary local storage. `-[NSFileManager ubiquityIdentityToken]` describes the active iCloud account, not ownership of an arbitrary selected URL, while `URLForUbiquityContainerIdentifier:` identifies only an app-entitled container that NV does not use. Container/domain display names are presentation strings. NV must not parse paths, raw domain identifiers, private extended attributes, or display names to infer provider type.
-
-iCloud Drive remains the tested and documented first-class configuration. Dropbox and other providers remain best-effort even though they automatically benefit from standard operations they support. This support policy is not a runtime correctness input.
+- NV never identifies a provider by path, display name, raw domain identifier, private metadata, or persisted brand/profile.
+- Positive ubiquitous-item or File Provider item/domain identity establishes provider management and opaque authority equality. Absence, failure, and ambiguity leave the root unclassified; NV does not attempt to prove ordinary-local authority.
+- Advertised capabilities authorize one attempt; the actual operation result controls that attempt.
+- Routine reconciliation and rebuild do not require historical/nonlocal `NSFileVersion` support. Historical API failure cannot block current-visible synchronization.
+- `NVCheckpointInstallCurrentChanged` may use only an exact coordinated snapshot of the canonical current checkpoint. It is not permission to enumerate or recover historical checkpoint versions.
+- Unresolved-version APIs are optional input to the badge-invoked embedded conflict resolver. Failure leaves the affected version unavailable/retryable for the attempt and does not change the current file or routine dirty state. Resolution is attempted only after exact local WAL and separate-file installation; upload status is irrelevant.
+- A stronger cross-machine no-silent-branch-loss claim is conditional: when one stale-base publication displaces a different current body, the displaced body must remain current or be returned as unresolved. Current-visible synchronization itself does not depend on that claim.
+- Provider upload status is presentation only. It authorizes no WAL cleanup or provider-version destruction.
 
 ## Acceptance summary
 
-| ID | Required Apple behavior | Needed for | If not established |
+| ID | Required behavior | Needed for | If not established |
 | --- | --- | --- | --- |
-| AV-01 | Ubiquity and exact-item download status identify a provider-managed item and a provider-current checkpoint | Fast normal startup | Treat authority/status as `unknown`; do not claim current startup |
-| AV-02 | Explicit materialization plus coordinated read yields the requested exact item or an error | Stale/unmaterialized startup and selected note reads | Keep progress/offline choices; never publish partial bytes |
-| AV-03 | Coordinated shallow enumeration discloses the current direct-child namespace without reading child contents and supports exact note/artifact projections | Routine reconciliation, checkpoint-absence classification, and rebuild | Snapshot is incomplete; no complete commit, creation choice, resolution, cleanup, or rebuild publication |
-| AV-04 | Batch preparation and nested coordinated reads have the required accessor/completion behavior | Efficient selected-version reads | Fall back to serial per-URL coordinated reads |
-| AV-05 | `NSFileVersion` calls produce a stable, complete set for each known candidate URL | Current-known reconciliation, exact rebuild, and recovery | Preserve known states, retain dirty, and confer no resolution eligibility; only the `CAP-01` result may select current-visible reconciliation or rebuild |
-| AV-06 | Historical versions remain discoverable for retained URLs after rename/deletion, or presenter callbacks supply a usable URL | Deleted/renamed version recovery | Treat undiscoverable history as unseen remote work; never claim it was resolved |
-| AV-07 | Presenter callbacks and later exact observations can discharge callback-before-visibility obligations | Reconciliation liveness | Retain dirty with bounded-backoff retry; safety remains intact |
-| AV-08 | Root callbacks/vnode events and rooted identity distinguish a verified same-domain move, positive namespace deletion, and inconclusive availability while higher-level APIs remain bound across the move | Path-independent provider access and correct root-loss presentation | Freeze publication while continuity is inconclusive; never retarget or suppress Retry without positive evidence; replace the session only for changed authority, or cancel it after confirmed loss |
-| AV-09 | File Provider URL identity works for ordinary consumer apps as opaque domain-membership and authority-continuity evidence, and a separate positive ordinary-local exclusion recipe can be validated | Provider-managed versus ordinary-local/unknown authority | Success may confirm provider management; ordinary-local shortcuts remain disabled unless the complete negative-walk/local-filesystem recipe passes; every ambiguous failure remains `unknown` |
-| AV-10 | macOS 26 pause/upload/resume and returned-version correlation behave as specified | Optimized exact checkpoint upload barrier | Use ordinary provider sync and retain journal/claim until conservatively qualified |
-| AV-11 | Legacy upload resource-key transitions are observable with the stated meaning | macOS 11.5–15 compatibility cleanup | Upload remains pending/unknown and journal/claim remain |
-| AV-12 | Spotlight failure cannot affect any required path | Startup and reconciliation availability | Ship blocker if a required path still references `NSMetadataQuery` |
-| AV-13 | A LaunchServices-launched NV app with a stable bundle identity can use the required iCloud APIs on a user-selected external iCloud Drive root without an API-specific entitlement | Deployment and signing | Treat a bundleless-process result as nonrepresentative; fail closed on a real app authorization error |
-| AV-14 | A fresh generic-password Keychain item can be added without changing another collection's accepted item, read back exactly, and deleted independently | Copy-on-write remembered-credential cutover and encrypted Save As | Keep every accepted checkpoint/item pair; do not install a target checkpoint that names an unverified or shared item |
+| AV-01 | Ubiquity and exact-item status identify provider management and a provider-current checkpoint | Fast startup | Treat authority/status as unknown and use startup choices |
+| AV-02 | Explicit materialization plus coordinated read yields the requested exact current item or an error | Startup, selected current note reads, and checkpoint-current note reconciliation | Publish no partial bytes; retain retry/offline/close choices |
+| AV-03 | Coordinated shallow enumeration discloses the current direct-child namespace and optional filesystem identity/revision values without reading child contents | Routine reconciliation, absence classification, rebuild | Snapshot incomplete; no `DISC-01`/`PUB-01` commit or rebuild; unusable identity values fall back conservatively |
+| AV-04 | Batch preparation and nested coordinated reads obey accessor/completion ownership | Efficient selected current reads | Use serial per-URL coordination |
+| AV-05 | Apple-reported unresolved versions can be snapshot/read immutably, `resolved = YES` makes only the designated members leave a fresh unresolved query without changing the current file, and tested stale-base simultaneous nondeletion publications retain the displaced body as current or unresolved | Embedded conflict disposition and the conditional cross-machine nondeletion displaced-body preservation claim | Keep the badge/version retryable; routine sync continues, but do not claim preservation for a branch whose only remaining evidence would have been provider conflict history |
+| AV-06 | Retired: absent-current historical discovery | No current requirement | No test gate; NV accepts the current-visible ceiling |
+| AV-07 | Presenter callbacks plus later current observations provide reconciliation liveness | Continuous current-visible sync | Retain dirty and bounded-backoff retry |
+| AV-08 | Root callbacks/vnode events plus rooted and optional forward-provider identity distinguish positive same-root recovery, positive authority change, and one unavailable fallback | Path independence and root-unavailable UI | Retain or fence the session only from positive evidence; otherwise freeze publication and never infer deletion or retarget by path |
+| AV-09 | Forward File Provider URL identity works in a consumer app as a positive provider/equality witness | Positive provider classification and candidate-URL validation | Leave the root unclassified; grant no provider-specific inference |
+| AV-10 | Retired: macOS 26 exact upload optimization | No current requirement | Use ordinary provider synchronization/status |
+| AV-11 | Retired: pre-macOS-26 upload qualification | No current requirement | Use ordinary provider synchronization/status |
+| AV-12 | Spotlight failure cannot affect required paths | Startup and reconciliation availability | Ship blocker if required code uses `NSMetadataQuery` |
+| AV-13 | A normally launched app can use required APIs on a user-selected external iCloud root without an API-specific entitlement | Deployment/signing | Fail closed on real authorization error |
+| AV-14 | Copy-on-write Keychain target items remain independent and exactly readable | Encrypted cutover and Save As | Preserve accepted checkpoint/item pair; do not install unverified target |
+| AV-15 | Application Support bookmark creation/resolution and local directory durability support self-describing WAL association | Same-Mac crash recovery | Block editing for unmatched/uncertain local WAL evidence |
+| AV-16 | A continuously retained root-directory descriptor lock excludes another cooperating local writer of that same directory object | Root-session mutual exclusion from startup through teardown | Acquisition failure admits no writer; root replacement/revoke requires positive continuity fencing, never pathname retargeting; no child-lock/WAL fallback |
 
-AV-01, AV-02, AV-03, AV-05, AV-07, AV-08, and AV-13 are first-class-iCloud ship conditions. AV-04 and AV-10 are optimizations with specified fallbacks. AV-06 defines the discoverability ceiling of current-known and never authorizes loss or resolution of unseen evidence. AV-09 must pass before URL-domain results participate in authority discovery; it never identifies a provider vendor, and no negative result alone confirms ordinary local storage.
-AV-14 is a ship condition for remembered-passphrase changes and encrypted **Save Current Collection As…**, not for unencrypted first-class storage. NV assumes no transaction spanning Keychain Services and checkpoint replacement.
+AV-01, AV-02, AV-03, AV-07, AV-08, AV-13, and AV-15 are first-class iCloud ship conditions. AV-04 is an optimization. AV-05 gates the optional embedded resolver; its displaced-current subcase also gates the conditional cross-machine branch-preservation claim, not routine current-visible sync. AV-09 must pass before forward File Provider identity is enabled. AV-14 gates remembered-passphrase changes and encrypted Save As.
 
 ## AV-01 — provider management and checkpoint currentness
 
-APIs:
+Validate from a LaunchServices-launched app:
 
-- `NSURLIsUbiquitousItemKey`
-- `NSURLUbiquitousItemDownloadingStatusKey`
-- `NSURLUbiquitousItemDownloadingErrorKey`
-- `NSURLUbiquitousItemIsSyncPausedKey` on macOS 26+
-- `NSFileCoordinatorReadingImmediatelyAvailableMetadataOnly`
-- `-[NSURL promisedItemResourceValuesForKeys:error:]`
+1. `NSURLIsUbiquitousItemKey` supplies positive provider evidence without identifying a vendor.
+2. Exact checkpoint promised metadata can be obtained without downloading note contents.
+3. Provider-current, stale, downloading, unavailable, and error states are distinguishable without Spotlight.
+4. Account/network changes return explicit changed/error/unknown evidence rather than false currentness.
 
-NV requires all of the following:
+An ordinary current checkpoint may open before any note catalog is collected.
 
-1. A user-selected directory inside iCloud Drive can be positively identified as provider-managed without reading note contents by querying the resolved existing item first, then—only for a prospective or not-yet-identified child—walking existing directory ancestors nearest-first on the same volume until the first positive ubiquitous-item result or the volume root. The walk never crosses a volume boundary. This result does not identify the provider as iCloud; current Dropbox also returns it in the focused tests.
-2. A coordinated metadata-only accessor using promised-item resource values can read the exact root/checkpoint authority and status keys without materializing file content or waiting for content availability. NV never attempts a content read or directory enumeration under this option.
-3. Reading the canonical checkpoint's download-status keys does not itself materialize its content.
-4. `NSURLUbiquitousItemDownloadingStatusCurrent` means that complete local content exists and is the newest version the provider has disclosed to this Mac. It need not mean globally current.
-5. A missing, nil, erroring, or unknown status is distinguishable from `Current` and never treated as current or absent.
-6. On macOS 26+, paused status is observable before freshness evaluation and resume failure remains distinguishable from success.
+## AV-02 — exact-item materialization and read
 
-Validate nested iCloud Drive roots, Optimize Mac Storage with an evicted checkpoint, offline launch, account sign-out/change, a root moved into or out of provider management, and a checkpoint replaced remotely immediately before launch. Compare metadata-only and ordinary coordinated probes and record whether either triggers materialization or waits for content. If the metadata-only option is unavailable or insufficient, use ordinary coordination on the provider queue. If provider-management or status evidence remains inconclusive, the authority/status is `unknown`; startup follows the specified progress/offline/folder/quit choices.
+For a current checkpoint or selected current note file:
 
-## AV-02 — exact-item materialization and read completion
+1. Request materialization when required.
+2. Read only from the coordinated accessor URL.
+3. Treat request acceptance as a start, not completion.
+4. Accept only exact readable bytes or an error.
+5. Exercise offline, eviction, cancellation, provider restart, rename, deletion, and replacement during access.
+6. When checkpoint expected-current evidence mismatches, return either one coherent checkpoint-current witness—complete bytes, `NVFileObservation`, and current local version identity when available—or an explicit no-write failure. A later replacement that changes any observed witness component must fail the fresh retry CAS rather than let stale evidence authorize installation. Do not use `NSFileVersion.persistentIdentifier` as the sole replacement generation: same-bytes Foundation replacement kept it equal on macOS 14 and 26 while the filesystem observation changed.
 
-APIs:
+## AV-03 — coordinated shallow current namespace
 
-- `-[NSFileManager startDownloadingUbiquitousItemAtURL:error:]`
-- ubiquitous-item download status/error keys
-- `NSFileCoordinator` coordinated reads
+The current-visible design requires one complete shallow direct-child snapshot. Validate that:
 
-NV requires all of the following:
+- placeholders and names are returned without reading unchanged child contents;
+- an evicted directory and large child sets produce either the complete current set or an explicit failure, never a silent prefix;
+- create/edit/rename/delete before, during, and after enumeration are caught by the double-catalog fence or a retained callback obligation;
+- the checkpoint, legacy WAL, hidden replacement residue, directories, and ordinary note files can be projected independently; the directory lock creates no artifact;
+- nonzero volume-qualified document IDs, session file IDs, and generation counts can be observed without content reads across rename, coordinated replacement, eviction, rematerialization, and restart. Record whether each stays equal or changes, but require neither outcome: document ID is used only with an equal volume UUID, file ID only within one active root session, generation only for invalidation, and every value must be unique on both association sides;
+- Spotlight disabled, excluded, rebuilding, or unavailable changes nothing.
 
-1. Requesting download for the exact checkpoint or selected note/version returns promptly enough to be called on the provider queue and does not require main-thread waiting.
-2. A successful request does not itself count as completion; a later exact-item status/error observation or coordinated-access result does.
-3. Once the item reports `Current`, a coordinated read returns the complete bytes for that version or an error. Short/partial data is never exposed as a successful read.
-4. Cancellation and provider/account/network failures eventually permit NV to stop its own operation even if the provider has no completion deadline.
+Use a two-Mac test-owned manifest for empty, small, and thousand-file roots. A marker file is only a wakeup; it is not a cross-file ordering fence.
 
-The startup `NSProgress` is app-owned and indeterminate by default. A percentage may be displayed only if an exact-item API supplies a value with validated semantics; percentage is never a correctness input. Test offline-to-online recovery, cancellation at each phase, eviction during a request, remote replacement during download, corrupt local bytes, and thousands of selected note versions. Failure retains the old store/evidence and leaves the operation retryable.
-
-## AV-03 — coordinated shallow namespace catalog
-
-APIs:
-
-- `NSFileCoordinator` reading the root directory
-- the existing descriptor-relative `NVRootedDirectory`/`NVRootedDirectoryCatalog` enumeration
-- cheap `NSURL`/`stat` identity and revision metadata used by that catalog
-
-NV requires all of the following:
-
-1. Inside a coordinated root accessor, enumerating direct children discloses every current child name/placeholder the provider has made known to this Mac for that observation.
-2. Listing a dataless directory may wait for namespace availability, but it does not download unchanged child file contents.
-3. Enumeration failure, an unavailable directory, a provider error, or a partially returned listing is detectable as incomplete rather than indistinguishable from an empty directory.
-4. Two independently created catalogs compare equal exactly when all namespace/cheap-revision inputs relevant to candidate selection compare equal. The token is equality-only.
-5. Root coordination is not assumed to coordinate child contents; selected children are prepared and read separately.
-6. Projecting the same catalog by exact reserved-artifact names yields independent authoritative-note and artifact-status catalogs. Artifact-only changes cannot change note-catalog equality, while every current non-artifact child remains in the note projection.
-7. For startup absence classification, one complete catalog that omits `Notes & Settings`, followed by the AV-05 fixed-name current/other/unresolved/nonlocal queries, is sufficient to present the explicit creation choice. The eventual checkpoint transaction must still recheck expected absence; catalog observation alone never authorizes installation.
-
-Validate with 0, 1, 1,000, and 10,000 files; every file evicted; remote create/delete/rename during each fence; artifact-only creation/deletion during a note transaction; filename collision and Unicode/case variants; deep roots; an evicted directory placeholder; network loss during enumeration; and Spotlight enabled, disabled, excluded, rebuilding, and damaged. Record whether listing materializes child contents and whether errors distinguish incomplete from empty. Until this contract passes, routine processing may preserve known alternatives but cannot report a complete current-known transaction; rebuild cannot publish and checkpoint absence remains unknown.
+Extend the existing `foundation`/manifest modes to record these optional identity fields before and after rename, replacement, eviction, rematerialization, and restart. The test passes when each observation is complete and the evaluator selects the documented identity or fallback tier; it must not require an identifier to remain stable.
 
 ## AV-04 — selected-item batch preparation
 
-APIs:
+Validate nested coordinated reads and completion exactly once on success, failure, cancellation, exception, duplicate URLs, provider delay, and a root move. If any ownership rule cannot be established, use serial asynchronous per-URL coordination with identical inputs and fences.
 
-- `-[NSFileCoordinator prepareForReadingItemsAtURLs:options:writingItemsAtURLs:options:error:byAccessor:]`
-- asynchronous coordination with `NSFileAccessIntent`
-- nested coordinated reads of current and historical version URLs
-
-NV requires all of the following:
-
-1. Batch preparation requests materialization only for the selected URLs and does not implicitly fetch unchanged siblings.
-2. Accessor URLs remain valid for the synchronous accesses completed before the accessor's supplied completion handler is called.
-3. Nested coordinated reads of `NSFileVersion.URL` do not deadlock the serial provider queue and expose provider-prepared content.
-4. NV can invoke the supplied completion handler exactly once on success, error, cancellation, and Objective-C exception paths without abandoning coordinated access.
-
-Validate mixed local/nonlocal versions, duplicate URLs, one failing URL, cancellation before and during the accessor, provider delay, historical URLs outside the root, and presenter callbacks arriving while preparation waits. If batch behavior fails any condition, use the already-correct serial per-URL asynchronous coordination path. This affects latency, not publication semantics.
-
-## AV-05 — per-candidate `NSFileVersion` completeness and identity
+## AV-05 — unresolved-version disclosure, immutable reads, and disposition
 
 APIs:
 
-- `+[NSFileVersion currentVersionOfItemAtURL:]`
-- `+[NSFileVersion otherVersionsOfItemAtURL:]`
+- `NSURLUbiquitousItemHasUnresolvedConflictsKey`
 - `+[NSFileVersion unresolvedConflictVersionsOfItemAtURL:]`
-- `+[NSFileVersion getNonlocalVersionsOfItemAtURL:completionHandler:]`
-- `persistentIdentifier`, `URL`, and `hasLocalContents`
+- `NSFileVersion.URL` and coordinated reading of that URL
 
-Apple's SDK directs clients that need all local and nonlocal versions to register an `NSFilePresenter` and invoke the version APIs within one coordinated read. NV requires:
+For one visible note file with a real two-Mac conflict, validate the API contract separately from the NV UI:
 
-1. Every completion returns exactly one success set or an error; nil/error ambiguity is treated as incomplete.
-2. The union of current, other, unresolved, and returned nonlocal versions is complete for that candidate URL at the fenced observation.
-3. `persistentIdentifier` remains equal for the same immutable version as it moves between nonlocal and local caches and is suitable for equality across process launches/checkpoint archives.
-4. Distinct immutable versions do not compare equal, and no ordering is inferred from identifiers.
-5. A coordinated read of a nonlocal version's supplied URL yields that immutable version, not whichever file later occupies the current path.
-6. Invoking the four version queries for every authoritative note candidate is practical without materializing unchanged content; only candidates selected after metadata comparison need AV-04 preparation and content reads.
+1. For both locally ordered stale-base nondeletion schedules, every distinct edited body remains either the current body or a member returned by `unresolvedConflictVersionsOfItemAtURL:` after convergence. Separately record edit racing deletion as a ceiling probe. Report Current, unresolved, other, and nonlocal visibility independently; do not infer either retention or destruction from an undisclosed body when deletion removes the visible file.
+2. A positive conflict status leads to a nonempty disclosed set or an explicit retryable ambiguity. A nil result or query error is never treated as an empty set.
+3. Each retained member's supplied URL yields that member's immutable bytes when coordinated, including after the current file changes again. Eviction, materialization, and process restart never justify substituting current-file bytes.
+4. Setting one retained member's `resolved` property to `YES` leaves the current file bytes unchanged and causes only that member to disappear from a fresh `unresolvedConflictVersionsOfItemAtURL:` result unless setting fails. Other unresolved members remain disclosed.
+5. Marking every still-applicable member of one captured snapshot resolved makes a fresh unresolved result empty only when no new member arrived. A member created after that snapshot remains unresolved.
+6. A stale member, per-member setter failure/exception, cancellation, or provider restart produces a partial or ambiguous result that a fresh query exposes; it never silently authorizes resolver dismissal.
+7. Repeated `resolved = YES` for an already-resolved member is harmless, and duplicate disclosed versions can be dispositioned independently without changing the current file.
+8. Resolution neither requires nor proves provider upload and never calls `removeOtherVersionsOfItemAtURL:`, an individual removal API, or `replaceItemAtURL:options:error:`.
 
-Validate two-Mac simultaneous edits, multiple unresolved versions, remote versions not cached locally, eviction and rematerialization, version resolution/removal during enumeration, process restart, unchanged current files whose version sets change, all-candidate metadata enumeration without content download, and independent catalog-only/version-only changes. Any failed callback/read or unstable identity marks enumeration incomplete, permits additive preservation only, retains the note dirty obligation, and confers no provider-version resolution eligibility. Exactly `NSCocoaErrorDomain/NSFeatureUnsupportedError` from the required nonlocal-version call may instead select current-visible reconciliation or bootstrap-rebuild scope for the current root session and avoid repeating that unavailable facility. One result is enough even if another URL could succeed: exact all-candidate completeness is already impossible for this session, while current-visible scope does not claim that every URL or unrelated operation is unsupported. Both fallback forms require the complete stable current snapshot established by AV-03; neither claims current-known completeness, resolves provider versions, or qualifies provider-managed journal cleanup, and a current-visible rebuild enters the UI with session-continuous limited-history status.
+The current SDK documents that the `resolved` setter has no error result, cannot be reversed to `NO`, and has operating-system effects beyond disappearance from the unresolved query that are subject to change. Therefore perform setters inside a short coordinated `NSFileCoordinatorWritingForMerging` accessor and accept only a later fresh query as success evidence. Validate presenter callbacks as wakeups, never as proof.
 
-The macOS 26.6.1 LaunchServices retest did not change the provider split: iCloud completed nonlocal enumeration, while Dropbox again returned `NSCocoaErrorDomain/3328`. Dropbox's result is therefore a provider capability limit in the tested configuration, not a bundleless-test artifact.
+Do not require historical `persistentIdentifier` values to be portable across machines or across a current-to-conflict transition. Apple's documented contract is narrower: a saved identifier recreates an equivalent version object through `versionOfItemAtURL:forPersistentIdentifier:`. The focused Foundation probe tests that round trip directly and treats identifier turnover after ordinary replacement as observational because Foundation does not promise that every file replacement creates a new `NSFileVersion`. The two-Mac semantic probe matched revisions by unique synthetic payload, archives each identifier, decodes it in a new process, compares it with the later local identifier, and passes it to that lookup API. A post-conflict archive round trip on its originating Mac passed equality and lookup for all eight current and all eight historical entries, establishing the documented same-version persistence. Exchanging those post-conflict archives between Macs passed all eight current entries but zero of eight historical entries in both directions. Capturing each writer's identifier immediately while its branch was current, then comparing after conflict convergence, likewise passed every branch that remained current but zero branches that became historical—even on the originating Mac. The observed conflict representation therefore did not preserve the former Current identifier for the losing content. This rejects proposal #3's broader shared `providerVersionRepresentationsV1` ancestry assumption without claiming an Apple contract violation. Treat a persistent identifier as an opaque key for one already-disclosed `NSFileVersion` entry; never use it as a portable content-revision identity or serialize it into a shared checkpoint/WAL expecting another Mac to recognize it.
 
-## AV-06 — renamed, deleted, and absent-current historical versions
+Then validate the application ordering around that contract:
 
-There is no public directory-wide `NSFileVersion` enumeration API. NV therefore retains candidate URLs from the live model and last accepted catalog and adds URLs delivered by presenter move/version callbacks.
+- **Current** is a frozen copy of the authoritative in-memory body, including admitted edits absent from disk.
+- A selected member preview is published only for the still-current resolver operation and remains read-only.
+- A changed note LSN, structural generation, or root-session incarnation after preview prevents **Use this version** from mutating or resolving anything.
+- Killing NV before the disposition's WAL barrier or exact separate-file installation leaves every member unresolved.
+- Killing NV after both local gates but before/during resolution leaves either an unresolved retry or a resolved member whose chosen note contents are already locally recoverable.
+- **Use this version** revalidates its exact installed generation inside coordinated resolution and resolves only its captured snapshot; **Save as new note** revalidates source/member applicability and resolves only its selected member; every completion performs a fresh unresolved query.
+- Recovery-key vectors prove title, labels, extension, filename, collision suffix, and provider identifiers do not affect identity; source UUID or canonical body changes do. Duplicate provider members with equal decoded bodies reuse one exact live-body slot.
+- Crashes and injected failures at mutation admission, WAL barrier, exact file installation, coordinated resolution, and fresh-query completion preserve the implementation proposal's per-version status/button behavior and never create another note for an exact reusable slot.
+- Editing or deleting a recovery note before provider resolution invalidates its install evidence. The resolver never overwrites or resurrects that slot, and only a later explicit **Save as new note** may choose the next deterministic slot.
+- The alert badge alone swaps `ConflictResolverView` into the editor split-view subview in place of `LinkingEditor`; conflict discovery never presents it automatically. The close **×** remains enabled during preview, WAL, file-install, resolution, and fresh-query waits, restores `LinkingEditor`, and never cancels or authorizes the underlying operation.
+- Closing during **Use this version** and then editing the source invalidates stale exact-generation resolution authority. Closing during **Save as new note** permits background completion only while the recovery note and source/member/root applicability remain exact.
+- Waiting/error state is isolated to the affected member while other members remain selectable. One automatic retry pass is finite, its operation may finish while the resolver is dismissed, and exhaustion parks at **Retry when reopened** without clearing the badge or polling forever. Re-presenting the resolver starts exactly one fresh pass for every parked item on that note and coalesces rather than duplicates running attempts; the resolver exposes no Retry action.
 
-NV needs at least one of these behaviors for a historical version whose current file is gone:
+No test attempts to prove a complete historical set, global identifier uniqueness, cross-Mac identifier portability, discoverability after the current file disappears, retention or reclamation of resolved history, or immediate cross-device propagation of resolution. Those are not implementation assumptions.
 
-1. Calling the version APIs with the retained pre-delete/pre-rename URL still returns the historical versions; or
-2. `NSFilePresenter` supplies a URL that can be used to enumerate/read those versions.
+The required stale-base probe is the gate for the specified simultaneous nondeletion round under both locally ordered host schedules. The inspector records Apple's Current winner but does not equate it with unknowable internal server publication order. The edit/delete probe is observational: the macOS 14/26 run exposed zero of eight edited bodies as Current or unresolved on either host after deletion won, so that stronger current-visible claim is excluded. `otherVersionsOfItemAtURL:` also exposed none, and every nonlocal request for the deleted original URL completed with `NSCocoaErrorDomain/4`; these results do not prove provider-side destruction. Until the required nondeletion modes pass on each supported OS, the corresponding displaced-current claim remains conditional rather than established. `MultiRoundCrossMachineSafety` applies the nondeletion contract independently at each bounded modeled displacement; its passing result is not evidence that Apple preserves displaced bodies across an arbitrary or repeated publication sequence. Any stronger product claim requires a separate repeated-round live-provider test.
 
-Validate remote delete, local delete, remote rename, local rename, delete followed by recreation at the same name, and restart before and after each callback. If neither behavior holds, document the resulting discovery ceiling: the version is undisclosed remote work and is outside current-known until Apple exposes it through a candidate source. NV must never resolve, discard, or claim representation of that unseen version.
+## AV-06 — retired historical discovery
 
-Repeating the synthetic current-deletion test from a LaunchServices app still redisclosed no historical version on either iCloud Drive or Dropbox. App identity does not raise this discovery ceiling.
+Earlier probes showed that retained pre-rename/pre-delete URLs did not redisclose historical versions in fresh processes. The current design accepts that ceiling: a version not reported as unresolved for a currently visible file is unavailable to NV. AV-06 remains numbered only so older notes and test output are intelligible.
 
-## AV-07 — presenter notification visibility and liveness
+## AV-07 — presenter visibility and liveness
 
-APIs:
+Register one presenter for the root directory. Exercise coordinated and ordinary external create/edit/rename/delete, direct-child and version/ubiquity callbacks, callback coalescing, callback-before-catalog visibility, sleep/wake, App Nap, network flap, provider restart, and relaunch. Reader/writer relinquishment and deletion accommodation must invoke Apple's supplied block exactly once and promptly; an external coordinated accessor must not remain blocked. A callback schedules/retries current-visible observation; it never proves the corresponding mutation visible. A later stable double-catalog transaction or a newer dirty generation must prevent permanent loss of the wakeup. Extend the focused presenter harness with a coordinated peer to enforce the acknowledgement/blocking case.
 
-- root-directory `NSFilePresenter` subitem appearance/change/move/deletion callbacks
-- gain/lose/resolve-version callbacks
-- `presentedItemDidChangeUbiquityAttributes:`
-- relinquish/accommodation callbacks
+## AV-08 — root moves, authority changes, and unavailability
 
-NV does not assume that callback delivery and provider catalog visibility are atomic. It requires this eventual condition only for liveness: after a generic callback, a later coordinated catalog/version observation either differs from the saved pre-callback projection, or a later callback carries exact version evidence that appears in the version set. A callback that arrives during a transaction must remain a newer dirty generation and cannot be consumed by that transaction.
+Validate same-volume provider/Finder moves while catalog, current read, batch preparation, Foundation replacement, and current-version CAS are in flight. Candidate URLs may come only from the rooted descriptor, presenter callback, file-reference URL, or bookmark. Rooted identity and any available forward item/domain identity must positively identify the same directory before retaining the session.
 
-Validate both orders—state visible before callback and callback before state visible—for remote create, content edit, rename, delete, conflict gain/loss/resolution, materialization, and root ubiquity changes. Also test uncoordinated external editors, NV's own coordinated writes, provider restarts, callback coalescing, and presenter removal/drain at quit. If visibility never advances, NV keeps one coalesced dirty obligation and retries with bounded backoff; it does not spin, fabricate completion, or block the UI/WAL. This is the implementation refinement of the TLA+ dirty invariant, not a modeled fairness promise about Apple.
+Separately test deletion, replacement with identical bytes, revoke/unmount, eviction, stale bookmarks, deep roots, provider/account change, and network failure. Positive changed-authority evidence fences into the provisional successor. Every result lacking positive same-root or changed-authority evidence enters root-continuity-unavailable state, leaves Retry and the explicit Save As/Re-open/quit choices, and forbids path retargeting or automatic session cancellation. Positive later evidence may restore or fence the session; an explicit user choice may end it. There is no deletion-proof recipe.
 
-## AV-08 — root moves, namespace loss, and path independence
+The focused macOS 14.8.9 and 26.6.1 iCloud tests rejected consumer-side reverse lookup. Forward `getIdentifierForUserVisibleFileAtURL:` succeeded, but looking up the matching domain and calling `getUserVisibleURLForItemIdentifier:` failed with `NSFileProviderErrorProviderNotFound`; macOS 26 additionally disclosed `NSFileProviderErrorApplicationExtensionNotFound`. `NSFileProviderManager`'s instance API is scoped to the provider extension and its containing/related processes, not an unrelated consumer such as NV. Production code must not enumerate provider domains, call or wait for this reverse API, or classify its errors. The recorded result is design evidence, not a continuing release gate.
 
-APIs:
+WAL durability is now independent: provider authority uncertainty may leave editing enabled while the local Application Support WAL remains healthy. Root/WAL association uncertainty still blocks editing.
 
-- `presentedItemDidMoveToURL:`
-- `accommodatePresentedItemDeletionWithCompletionHandler:`
-- `DISPATCH_SOURCE_TYPE_VNODE` with `DISPATCH_VNODE_DELETE`, `DISPATCH_VNODE_RENAME`, and `DISPATCH_VNODE_REVOKE`
-- FSEvents `kFSEventStreamCreateFlagWatchRoot`/`kFSEventStreamEventFlagRootChanged`
-- synchronous and asynchronous `NSFileCoordinator`, `NSFileAccessIntent`, and batch preparation
-- `-[NSFileManager startDownloadingUbiquitousItemAtURL:error:]` and macOS 26 sync controls
-- `NSFileVersion` current/nonlocal-version operations
-- Foundation safe replacement through `-[NSFileManager replaceItemAtURL:withItemAtURL:backupItemName:options:resultingItemURL:error:]`
-- `+[NSFileProviderManager getIdentifierForUserVisibleFileAtURL:completionHandler:]`
-- `+[NSFileProviderManager getDomainsWithCompletionHandler:]`, `+managerForDomain:`, and `-getUserVisibleURLForItemIdentifier:completionHandler:`
-- file-reference URLs and bookmarks
-- the existing open rooted-directory descriptor and filesystem identity checks
+## AV-09 — positive File Provider identity from a consumer app
 
-NV requires all of the following:
+`getIdentifierForUserVisibleFileAtURL:` can report `NSFileNoSuchFileError` both outside a provider and before a provider assigns an identifier. Validate positive identities for iCloud and other providers, equality continuity when an independently supplied candidate URL names the same moved item, and changed identity across authority change. By itself, every negative, failed, delayed, or ambiguous result leaves the root unclassified and authorizes no local-only or deletion inference; it does not erase separate current positive ubiquitous-item evidence.
 
-1. A provider/Finder move callback's URL is verifiable as the directory already held open, including across a rename or move within the same provider domain. The open descriptor, root file-reference URL, resolved bookmark, and opaque File Provider item/domain identity must agree on that object; path equality is insufficient.
-2. Ordinary shallow catalogs, asynchronous intent reads, batch preparation with nested reads, and Foundation safe replacement either finish against that object or return an error when a root move is initiated inside the accessor. Correctness cannot depend on ancestor coordination delaying the move: a successful completion never silently addresses an unrelated item at the vacated path.
-3. A download requested for an evicted child before the move may complete at the moved root. Current and nonlocal `NSFileVersion` operations remain attached to the intended item, subject to the AV-05 stable-unsupported fallback.
-4. On the macOS 26 optimized checkpoint path, pause may be acquired before the root move, but replacement, exact upload when advertised, and resume must continue using a freshly derived post-move child reference with the same opaque item/domain identity. Operation-local leaf references invalidated by replacement are never reused.
-5. A verified same-directory, same-domain move does not advance structural generation or replace the root session. An accessor result remains eligible to publish under its ordinary provider, session, structural, and UUID/LSN fences; path text is not an additional transaction input.
-6. A provider-domain/account change is not a path-only move and replaces the old session incarnation before authority-scoped evidence may publish or authorize cleanup.
-7. On a filesystem that supplies vnode lifecycle events, renaming the opened root produces rename evidence without false delete evidence; unlinking/removing it produces delete evidence on the descriptor for the removed object; and revoke remains distinguishable from delete. Event coalescing preserves every reported bit. Delete alone is sufficient only after ordinary-local authority is confirmed; under provider management, File Provider identity must distinguish logical deletion from eviction or same-item vnode replacement.
-8. `accommodatePresentedItemDeletionWithCompletionHandler:` is delivered before coordinated deletion and can be completed promptly after NV quiesces mutations without waiting for UI or network work. It does not itself prove that deletion subsequently completed.
-9. A different-identity directory placed at the former pathname never makes the old descriptor, file reference, bookmark, or operation-local child reference identify that replacement, even when every copied byte and filename is identical. Confirmed deletion cancels old-session publication; reopening the replacement creates a fresh session.
-10. A missing path, stale or failed bookmark, `ENOENT`, FSEvents root-change notification, provider unavailability, vnode revoke, `st_nlink`, and `F_GETPATH` are not interpreted individually as positive deletion evidence. No correctness or UI decision depends on enumerating other processes' descriptors.
-11. Provider-authority uncertainty alone does not imply journal failure while the rooted descriptor remains usable. Vnode delete or revoke, deletion accommodation, or an actual append/outbox/barrier failure is distinguishable and suspends editing; editing may resume only after rooted identity, journal namespace recoverability, the active descriptor/header/claim, complete outbox drainage, and a successful barrier are revalidated. A permanently unlinked or revoked descriptor does not become recoverable merely because its former path or bookmark resolves again.
-12. After vnode-delete evidence for a provider-managed root, an ordinary consumer app can enumerate the captured domain, obtain its manager, and reverse-resolve the captured item identifier. A returned URL can be security-scope/coordinated as a directory and round-tripped to the same item/domain pair to prove logical survival across eviction, move, or vnode replacement; filesystem identity distinguishes an ordinary move from a new vnode but is not required to remain equal for survival. Only `NSFileProviderErrorDomain`/`NSFileProviderErrorNoSuchItem` carrying that exact item from that exact domain manager is positive deletion corroboration. Missing domains, unsupported/unavailable managers, nil or mismatched URLs, account/network/provider errors, and all other failures remain inconclusive.
+The live harness owns only those raw API observations. The table-driven [forward-provider/root evaluation matrix](impl-proposal-4/README.md#forward-providerroot-evaluation-matrix) injects them into `NVRootSession` and verifies retention, provisional-successor fencing, unavailable fallback, retry, and every prohibited inference without requiring a provider failure for each policy row.
 
-Validate moves before, during, and after every operation above; nested and deep roots; provider-domain and iCloud-account changes; temporary-folder instances; stale bookmark refresh; and a copied directory with identical contents. Separately perform coordinated and uncoordinated `rm -rf`, plain `rmdir`, rename, volume revoke/unmount, provider eviction, remote deletion, and same-path replacement while NV has an open root descriptor and in-flight work. For each provider-backed case, exercise the complete reverse-identity recipe from the ordinary NV app context and verify exact `NoSuchItem` error domain/code/identifier payload, same-pair URL round trip, security scope, and coordination; inject domain removal, account loss, provider restart, network failure, timeout, mismatched URL/identity, and unsupported-manager results. Inject append, short-write/outbox, and barrier failures around each event. A verified same-directory, same-domain move keeps the session and does not invalidate detached work. Authority-only uncertainty leaves WAL-durable editing available while publication is frozen. Vnode delete/revoke, deletion accommodation, or actual durability failure gates later edits, preserves and urgently drains admitted work, and cannot resume without rooted identity, namespace recoverability, journal revalidation, and a successful barrier. A changed authority replaces the session so old authority-scoped work is discarded. Confirmed root loss cancels old-session publication and suppresses Retry; physical teardown follows the selected disposition. Every missing or unsupported positive signal remains inconclusive and retains Retry rather than guessing.
+Do not generalize successful forward identity into access to a domain manager. Remove `provider-reverse-child` from the regular harness when implementing this plan; the two-OS observation above is sufficient for an API production code deliberately does not use. If Apple later documents consumer reverse access and a concrete product need appears, design and validate that behavior afresh in a disposable process because reverse lookup changes that process's later materialization behavior.
 
-The macOS 26.6.1 LaunchServices matrix establishes the online, same-volume, same-provider-identity case on both iCloud Drive and Dropbox. In each run, a child-process move reached the registered root presenter while the original directory descriptor, root file-reference URL, pre-move bookmark, and opaque root/child item/domain identities continued to identify the moved directory. Ordinary post-move catalog, promised metadata, coordinated read, and current-version lookup succeeded. The harness initiated a move inside each asynchronous-read, shallow-catalog, batch-preparation/nested-read, and Foundation-replacement accessor. Read, catalog, and replacement coordination delayed the ancestor move (`move-waited=1`), but batch preparation did not (`move-waited=0`); the retained child reference still yielded exact bytes after that move completed inside the accessor. Every operation retained rooted/provider identity. An evicted 8 MiB child was not current before the move and completed materialization afterward. iCloud's nonlocal-version request was pending when the move began and completed afterward; Dropbox returned its previously established stable `NSFeatureUnsupportedError`. Finally, pause, safe replacement, root move, exact upload when advertised, and resume preserved one checkpoint item identity; Dropbox advertised pause but not exact upload and took that operation-scoped fallback. These results support retaining the root session and structural generation across a verified same-authority move; they do not establish cross-domain/account behavior.
+## AV-10 and AV-11 — retired upload qualification
 
-The expanded iCloud matrix also passed from an ad-hoc-signed LaunchServices app on macOS 14.8.9/x86_64. It produced the same accessor scheduling result (`move-waited=1` for read/catalog/replacement and `0` for batch), completed evicted-child materialization and a pending nonlocal-version request across moves, and skipped only the unavailable macOS 26 sync controls. A narrow ad hoc ordinary-APFS probe on macOS 26.6.1 observed `DISPATCH_VNODE_DELETE` for `rmdir` of an open directory and only `DISPATCH_VNODE_RENAME` for rename; after `rmdir`, `st_nlink` remained `2` and `F_GETPATH` still returned the former path, confirming that neither is a deletion predicate. This does not establish provider-backed delete/revoke delivery or the consumer-app reverse-identity recipe, cross-domain/account moves, copied/deleted/replaced provider roots, stale-bookmark refresh after process restart, deep provider roots, remote initiation, daemon/network failure, or macOS 15. Those cases remain open ship-matrix work rather than inferred successes, provider-managed `confirmedGone` remains disabled, and the implementation must keep the inconclusive fallback until the complete recipe passes.
-
-## AV-09 — File Provider domain identity from a consumer app
-
-API:
-
-- `+[NSFileProviderManager getIdentifierForUserVisibleFileAtURL:completionHandler:]`
-
-The SDK says that a URL outside the applicable provider/domain **or** an item not yet assigned an identifier can both produce `NSFileNoSuchFileError`. NV therefore cannot currently treat that error as positive proof of ordinary local storage.
-
-Before relying on this API, validate from a normal NV process—not a File Provider extension—that:
-
-1. A Dropbox/other-provider root and a newly created coordinated child return stable item and domain identifiers.
-2. iCloud, ordinary APFS, removable local, network, unavailable, and unassigned provider items produce results whose positive and inconclusive cases can be distinguished.
-3. Domain identifiers remain equality-stable for the open root and change when provider authority changes.
-4. The normative root-first, nearest-ancestor, same-volume walk stops on the first positive provider result, never crosses the volume root, and returns `unknown` after any missing, inaccessible, changing, or erroring step rather than skipping it to manufacture a local result.
-5. A separate candidate ordinary-local recipe combines a completed non-provider ancestor walk with positive local-filesystem evidence and a documented or empirically stable File Provider exclusion result. Exercise ordinary APFS, removable local media, network volumes, provider roots whose child identifier assignment is delayed, provider restart/account loss, and a provider-managed item stored physically on APFS. The recipe passes only if no provider-managed case is misclassified local.
-
-Success establishes provider management and an opaque domain equality token; it does not reveal whether the provider is iCloud, Dropbox, or another vendor. Every error or nil pair remains `unknown` unless the complete separate ordinary-local recipe above passes. Exhausting only the ubiquitous-item ancestor walk is insufficient. Failure to validate provider identity does not block first-class iCloud when ubiquitous-item evidence is positive, but it disables domain-continuity claims. Failure to validate the ordinary-local recipe keeps those roots `unknown` and disables ordinary-local journal cleanup, unclaimed-journal recovery, and other local-only shortcuts.
-
-The LaunchServices full-suite retest again returned stable item/domain identity for both iCloud Drive and Dropbox, including domain equality between each selected root and its coordinated child. The earlier success was not dependent on command-line process identity.
-
-Do not use `NSFileProviderDomain.displayName`, `NSURLUbiquitousItemContainerDisplayNameKey`, `NSFileProviderManager.providerIdentifier`, raw domain-ID parsing, path prefixes, or private metadata as a vendor classifier. A provider-specific SDK or `NSFileProviderService` contract may identify its own service for an explicit integration, but NV has no such integration in this design.
-
-Do not use `enumeratorForMaterializedItems`; it is a provider-domain management API, enumerates only materialized items, and cannot establish NV's complete note namespace.
-
-## AV-10 — macOS 26 exact checkpoint upload optimization
-
-APIs:
-
-- `NSURLUbiquitousItemSupportedSyncControlsKey`
-- pause and resume sync controls
-- `-[NSFileManager uploadLocalVersionOfUbiquitousItemAtURL:withConflictResolutionPolicy:completionHandler:]`
-- returned `NSFileVersion`
-
-NV requires all of the following when the controls are advertised:
-
-1. The local write preserves the paused provider-item identity; a pathname that merely continues to report the paused resource key is insufficient.
-2. Fail-on-conflict upload either accepts the exact stable local version or returns a distinguishable conflict/error.
-3. The callback's returned version can be correlated by persistent identifier to the locally installed version and by decoded `checkpointID` to the immutable receipt.
-4. Resume-with-preserve-local-changes is safe and callable on every success/error/cancellation path; next launch can observe and repair a failed resume.
-5. No coordinator accessor must remain open while waiting for network upload.
-
-Validate pause failure before acquisition, app exit after pause, replacement while paused, stale callback from an older request, identifier/checkpoint mismatches, remote conflict, cancellation, upload success, resume failure, and next-launch repair. Race a coordinated external checkpoint replacement before and during NV's accessor and prove that an expected-current mismatch calls no replacement primitive and returns the typed pre-install failure. A provider may return `EBUSY` while applying changes even after upload-status keys look settled; retry pause with bounded backoff until the operation succeeds or the user-visible timeout expires. Any unsupported control or pre-pause failure uses ordinary sync. Any ambiguity after pause retains journal/claim and reports pending/error through `SyncSessionController`.
-
-Run this validation from an app bundle with a stable `CFBundleIdentifier`, launched through LaunchServices. On macOS 26.6.1, an otherwise identical bundleless command-line invocation returned `NSFeatureUnsupportedError` even though the item advertised both required controls; the ad-hoc-signed, entitlement-free app invocation paused and resumed the same kind of flat file successfully. Initializing `NSApplication` was not required. A command-line result is therefore not authoritative for NV's app-process behavior.
-
-The broader app-context retest established the control APIs themselves on iCloud Drive: pause followed by an identity-preserving in-place write and explicit upload returned the exact installed `NSFileVersion`; a two-Mac run fetched the newer remote version, rejected the stale local upload with `NSFileProviderErrorLocalVersionConflictingWithServer`, preserved both payloads, and resumed; and a separate LaunchServices launch observed and resumed a pause left by the previous launch. Dropbox's advertised pause control likewise survived an in-place edit and a second app launch.
-
-Atomic replacement depends on the installation primitive. On both tested providers, `NSDataWritingAtomic` inside an `NSFileCoordinatorWritingForReplacing` accessor left `NSURLUbiquitousItemIsSyncPausedKey` reporting true but made resume for the pathname return `NSFeatureUnsupportedError`; iCloud's explicit upload did as well. In contrast, Foundation's safe-save primitive passed on macOS 26.6.1: NV created the staged file in the same-volume `NSItemReplacementDirectory`, coordinated the destination with `NSFileCoordinatorWritingForReplacing` and the staged source with `NSFileCoordinatorWritingForMoving`, called `-[NSFileManager replaceItemAtURL:withItemAtURL:backupItemName:options:resultingItemURL:error:]` with replacement options `0`, and used the returned resulting URL thereafter. The destination input may be a file-reference URL. The tested replacement invalidated that old reference and returned a pathname URL; regenerating a reference from either the original pathname URL or a canonical pathname URL identified the replacement, while asking the returned URL object itself for `fileReferenceURL` returned no usable reference. Code must therefore treat every leaf reference as operation-local, revalidate the result against the rooted directory, and regenerate any later reference rather than expecting replacement to retarget the old one. iCloud retained the same opaque File Provider item/domain identity, fail-on-conflict upload returned the exact installed `NSFileVersion`, exact bytes read back, and resume succeeded. Dropbox retained its opaque identity and resumed; it did not advertise fail-on-conflict upload. Therefore the macOS 26 optimization must use this Foundation safe-save sequence, not `NSDataWritingAtomic` or NV's lower-level namespace replacement. Any safe-save, identity, exact-version, read-back, or resume failure retains the journal and uses the existing pending/error behavior.
-
-## AV-11 — pre-macOS-26 upload qualification
-
-APIs:
-
-- `NSURLUbiquitousItemIsUploadedKey`
-- `NSURLUbiquitousItemIsUploadingKey`
-- `NSURLUbiquitousItemUploadingErrorKey`
-- coordinated exact checkpoint read-back and local `NSFileVersion`
-
-For compatibility only, validate whether one post-install not-uploaded/uploading-to-uploaded transition can be observed without polling on the main thread and without confusing an earlier or later checkpoint. The full transition, unchanged local version, exact bytes, and matching `checkpointID` are all required. A status already observed as uploaded, a missed transition, or any error is pending/unknown. This contract is intentionally conservative; retaining the journal is the fallback.
+Keep existing harness modes as observational compatibility probes if useful, but remove them from release gates and production cleanup decisions. The app may present provider upload progress through existing status APIs. It does not pause an item, request fail-on-conflict upload, correlate an upload receipt, retain a WAL for upload, or infer cloud durability from legacy status transitions.
 
 ## AV-12 — Spotlight independence
 
-API:
+Run startup, rebuild, current-visible reconciliation, conflict-copy status, root moves, and quit with Spotlight healthy, disabled, excluded, rebuilding, and unavailable. Required paths must not construct or wait for `NSMetadataQuery`.
 
-- `NSMetadataQuery`
+## AV-13 — application identity and entitlements
 
-There is no NV correctness requirement on this API. The initial implementation must contain no `NSMetadataQuery` object and no wait for `NSMetadataQueryDidFinishGatheringNotification`. Validate that all required startup, reconciliation, rebuild, recovery, status, and quit tests behave the same when:
+Run the focused suite from the actual app context with stable bundle identity on a user-selected root outside an app-owned ubiquitous container. Record API authorization errors separately from provider/network errors. Retain one release-signed smoke test; provider behavior does not depend on parsing signature identity.
 
-- indexing is enabled and healthy;
-- the notes root is excluded from indexing;
-- indexing is disabled;
-- the metadata index is rebuilding or unavailable; and
-- a query, in a diagnostic build, returns late, empty, duplicated, or stale results.
+## AV-14 — copy-on-write Keychain cutover
 
-If `NSMetadataQuery` is ever added for determinate progress or extra wakeups, deleting that optional component must leave every state transition and safety decision unchanged. Its result set may request a retry, but may never add authoritative candidates, establish absence/completeness, discharge a visibility witness, or clear dirty.
+Retain the existing focused matrix: fresh add, exact read-back/KDF validation, target checkpoint installation, old-item deletion after commit, Save-As source independence, crashes at every boundary, duplicate account, denied access, malformed bytes, read mismatch, deletion failure, and two independently openable destinations.
 
-## AV-13 — application identity, signing, and entitlement contract for a user-selected iCloud root
+## AV-15 — local WAL bookmark and directory durability
 
-Capabilities and APIs:
+This is primarily a deterministic Foundation/filesystem contract, not a provider contract. Validate:
 
-- `com.apple.developer.icloud-services` / iCloud Documents capability when required
-- the app's effective code-signing entitlements
-- ubiquitous-item resource keys, `NSFileCoordinator`, `NSFilePresenter`, `NSFileVersion`, and macOS 26 sync controls on a user-selected iCloud Drive URL
+- user-domain Application Support lookup and the exact `Notational Velocity/Recovery Journals` child;
+- restrictive directory/file permissions and non-following of malicious symlinks;
+- bookmark resolution after root rename/move, stale-bookmark handling, copied root, deleted root, unavailable volume, and permission failure;
+- resolved directory identity comparison rather than bookmark/path equality;
+- file and directory barrier behavior across header creation, append, checkpoint verification, WAL deletion, process `_exit`, and machine restart;
+- unrelated/malformed WALs remain untouched and never become authority for a selected root.
 
-NV selects an existing user-visible directory; it does not call `URLForUbiquityContainerIdentifier:`, own a ubiquity container, or migrate the notes folder into one. Validate from a normal unsandboxed app bundle launched through LaunchServices. The app must have a stable `CFBundleIdentifier`; a standalone executable is not a valid sync-control probe even if it contains the same code. On each supported OS family, establish whether the app can obtain positive provider-managed evidence for the selected root and use every required first-class API, including version discovery and sync controls where available.
+## AV-16 — root-directory lock contract
 
-The macOS 26.6.1 focused test passed pause/resume from an app bearing only an ad-hoc signature: it had no Team ID, entitlements, hardened runtime, or notarization ticket. The same item and binary returned `NSFeatureUnsupportedError` when invoked directly with no process bundle identity. This establishes that Developer ID signing, notarization, and iCloud Documents entitlements are not prerequisites for this operation; normal app identity is. NV still follows ordinary distribution signing, hardened-runtime, and notarization requirements, but those are deployment protections rather than iCloud sync-control capabilities. Add no iCloud entitlement and do not introduce an app-owned storage location or key-value-store entitlement. Any authorization failure from the real app remains `unknown`/actionable setup failure rather than silently dropping to ordinary POSIX behavior.
+The adopted design locks the already-open root-directory descriptor before WAL discovery and retains its owner through local cleanup and observer/operation teardown. It creates no provider-visible lock file and does not substitute a per-session WAL lock. Apple's [`flock` contract](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/flock.2.html) provides advisory object locking, not pathname reservation, provider coordination, or a cross-Mac lease. A directory recreated at an old pathname is a different lock resource and remains subject to the existing positive-continuity fence.
 
-## AV-14 — copy-on-write Keychain credential cutover
+The [directory-descriptor probe](IntegrationTests.md#root-directory-descriptor-lock-probe) checks independent-process contention and descriptor lifetime, including rename/move, child replacement, and process death. All local contenders opening the same directory must address the same exclusion resource regardless of their WAL IDs. `JournalLifecycle` and `QuitSafety` check NV's abstract retention/release ordering; they do not prove platform behavior.
 
-APIs:
+Remaining real-system cases: positively dataless-directory open/materialization; delivered remote-origin root moves/replacement/revoke; case-sensitive filesystem variants and detach/remount; older supported macOS releases, cross-user access, and other configured providers/network filesystems. Some can use this two-Mac setup; the dataless-directory stimulus has not yet been reproduced. Require observed transitions and fresh independent contenders, not eviction-request acceptance, peer install success, or elapsed time. Root replacement is expected to require identity fencing, not a lock magically transferring to the replacement. Tests must verify conservative no-retarget behavior and production ownership through controller/authority/storage handoffs, failed cleanup, and vnode cancellation before broadening the guarantee.
 
-- `SecItemAdd`
-- `SecItemCopyMatching`
-- `SecItemDelete`
-- `kSecClassGenericPassword` with NV's existing service and a fresh account identifier
+Observations on 2026-09-03:
 
-NV requires all of the following:
+| Scenario | Observation and limit |
+| --- | --- |
+| APFS local and iCloud directories, macOS 14.8.9 Intel and 26.6.1 arm64 | Read-only directory `flock(LOCK_EX | LOCK_NB)` succeeded. Independently opened contenders returned `EWOULDBLOCK`. Exclusion and local inode identity survived coordinated child creation/Foundation replacement, directory rename, and movement to another parent. |
+| Descriptor lifetime, both Macs | Closing a separately opened scan descriptor did not release the lock. A duplicate retained it after the original closed; closing the last descriptor released it. Killing a pipe-confirmed independent holder released it for the next process. |
+| Recreated old pathname, both Macs | The new directory had a different identity and was independently lockable while the moved original remained locked. Root-continuity checks are still required; `flock` is not a pathname reservation. |
+| Directory eviction requests, both Macs | With no holder, the request succeeded and the child became not-downloaded, but directory `SF_DATALESS` was not observed during the 15-second check. Opening/locking that directory took under 1 ms. This did **not** establish cold dataless-directory behavior. |
+| Child eviction/rematerialization while the directory was locked, both Macs | Exact coordinated payload reads succeeded, same-directory identity was retained, and independent contenders remained excluded. A subsequent directory-eviction request while locked again evicted the child without an observed dataless directory; exact rematerialization and exclusion passed again. Both provider runs returned 2 to preserve the unexercised directory-placeholder case. |
+| HFS+ disk image, macOS 26 | All local directory-lock controls passed. No provider behavior is exercised by this volume. |
+| ExFAT disk image, macOS 26.6.2 (25G83) | Retry with the existing filesystem harness's 192 MiB sparse-image settings and `NVEXFAT` volume label succeeded; `diskutil` confirmed the mounted filesystem was ExFAT. All local directory-lock controls passed: contention, separate scan close, child Foundation replacement, rename/move, recreated-path independence, duplicate handoff, final close, and `SIGKILL` release. The earlier image-creation error did not recur; its cause is unconfirmed, and the retry ran on a newer OS build. Provider eviction is inapplicable to this local image. |
 
-1. Adding a generic-password item under a fresh random account leaves the accepted account and bytes unchanged; `errSecDuplicateItem` is distinguishable and causes that candidate identifier to be burned rather than updated.
-2. A successful add is followed by an exact `SecItemCopyMatching` read-back whose bytes can be validated against the isolated target `NotationPrefs` KDF/verifier before the target checkpoint is installed.
-3. The accepted item remains readable after target add/read-back failure and after process termination at every pre-install boundary.
-4. Once an exactly verified target checkpoint names the new account, a new process can retrieve that account and decrypt the checkpoint without process-local migration state.
-5. Deleting the old account cannot delete or mutate the fresh target account, and deletion failure remains distinguishable so NV can issue a nonfatal credential-cleanup warning.
-6. Two independently installed encrypted Save-As collections that use the same passphrase have distinct account identifiers and remain decryptable after either collection performs a later passphrase cutover and deletes only its own former item.
+The specification and ADR-0006 adopt this mechanism with continuous single-owner retention and no alternate lock-file/WAL fallback. The untested boundaries above remain open; success on these volumes is not a universal provider guarantee. Acquisition failure grants no writer authority, and a fresh open is not a lock transfer. No production implementation is supplied by the probe.
 
-Test remembered-passphrase rekeying, disabling encryption, and remembered-encrypted Save As with a crash or forced termination after target-item add, target-item read-back, target-checkpoint creation/replacement, target-checkpoint verification, and any same-collection old-item deletion. Also inject duplicate-account, user-denied Keychain access, missing item, malformed bytes, read-back mismatch, and deletion failure. A cutover pre-install failure or crash must leave the old checkpoint/item pair usable; a post-install crash must leave the target pair usable. Save As must leave the source pair unchanged at every boundary, must retain a target item after ambiguous installation, and may best-effort remove only its exact item after proven noninstallation. Open two surviving Save-As destinations, change one passphrase, and prove the other still decrypts. An interrupted pre-install attempt may leave an unreferenced item, which NV neither discovers nor deletes automatically. These tests validate the item/checkpoint orderings separately; they do not assume a cross-resource transaction or Keychain reference counting.
+### Comparison only: child lock-file interference
 
-## Focused test harness and preliminary observations
+The retained [child-lock probe](IntegrationTests.md#root-lock-interference-probe) explains the rejected `.nv-root.lock` approach; its unexercised scenarios are not acceptance gates for the directory-descriptor design. Local replacement/unlink controls deliberately reproduce a second acquisition on a new child inode while the old one remains locked. They do not establish spontaneous iCloud replacement or an Apple contract violation. No provider version history was changed.
 
-`tests/ICloudAPIContractTest.m` is an MRC Foundation probe. Local provider suites and sync-control modes are packaged with `ICloudAPIContractTest-Info.plist`, ad-hoc signed, and launched through LaunchServices; peer/cleanup modes that do not call identity-sensitive controls may remain standalone. It creates only fixed-name test-owned subtrees, uses child processes and a fixed marker to initiate each root move at the chosen accessor boundary, records whether coordination delayed that move, and removes its artifacts on success. Its current AV-08 phase retains the pre-move descriptor/reference/bookmark/opaque identity and exercises post-move access plus in-flight catalog, read, batch, replacement, materialization, version, and sync-control cases; the coordinated/uncoordinated delete, revoke, eviction, and replacement matrix above remains to be added. It has no `NSMetadataQuery` dependency. The Makefile supplies one-command app-context runs for iCloud Drive, Dropbox, pause lifecycle, and the narrow sync-control probe, plus a standalone legacy-upload probe and host/peer modes for remote namespace changes, simultaneous conflicting writes, and macOS 26 sync-control conflicts. Tests select a first-class-required or observational policy; they do not identify or branch on provider brand. Every capability-sensitive result reports API availability/advertisement separately from the attempted operation's actual result and verifies the applicable fallback.
+Comparison observations, 2026-09-03:
 
-The first local run was performed on macOS 26.6.1 (25G76), arm64, with the ad-hoc-signed standalone executable and no iCloud entitlement. These are preliminary observations, not completion of the real-system matrix:
+| Scenario | Observation and limit |
+| --- | --- |
+| Local controls, macOS 14.8.9 and 26.6.1 | All six passed on both Macs. Deliberate same-byte replacement and unlink/recreation displaced the held inode and allowed a second local lock. A separate macOS 26 monitor-plus-injected-replacement run emitted `HAZARD` and exited 1, validating the monitoring path too. |
+| Cold evicted empty lock, macOS 26 | Eviction was positively observed. Raw open completed in under 1 ms while the file remained dataless; all five subsequent local contenders were rejected. Eviction does not necessarily make opening an empty lock block or fail. |
+| Eviction requested while held, macOS 26 | Rejected with `NSCocoaErrorDomain/255`, underlying `NSPOSIXErrorDomain/16` (`EBUSY`). Exclusion remained intact, but this did not exercise eviction of a held file. |
+| Already-dataless lock rematerialized while held, macOS 26 | Coordinated exact empty read succeeded, the dataless flag cleared without changing the inode, and all eleven contenders were rejected across the 12-second watch. |
+| Concurrent empty creation, macOS 14 and 26 | Both Macs proved exclusive local creation at the scheduled start and held concurrently for 35 seconds. Each rejected all 32 local contenders; neither observed a changed inode, extra sibling, or unresolved member. This is not proof of completed server reconciliation or future stability. |
+| Empty Foundation replacement on macOS 14 while macOS 26 held | Peer installation succeeded, but the receiving Mac observed no inode change in its 40-second watch; all 37 contenders were rejected. **Inconclusive for delivered replacement**: no payload change identifies delivery, and local upload/install status cannot substitute for an observed receiving-side change. |
 
-| ID | iCloud Drive observation | Dropbox observation | Present conclusion |
-| --- | --- | --- | --- |
-| AV-01 | The selected root reported ubiquitous; promised metadata for an evicted 1 MiB child returned without materializing it. | The root also reported ubiquitous and exposed the same status/materialization behavior. | Exact metadata probing is promising. The ubiquitous-item result establishes provider-managed evidence, not provider brand, and is sufficient for that narrower role. |
-| AV-02 | Explicit download, `Current`, and coordinated byte read succeeded for an evicted item. | The same probe succeeded. | Established only for the online single-item case on this OS/provider version. |
-| AV-03 | A coordinated five-item shallow catalog remained complete while three child contents stayed evicted. | The same probe succeeded. | The no-child-download behavior is established for this small online case; scale, fault, remote-race, and dataless-directory cases remain. |
-| AV-04 | Batch preparation materialized the selected evicted file and left an evicted sibling untouched. | The same probe succeeded. | Basic batch/nested-read behavior passed; cancellation, errors, historical URLs, and provider delay remain. |
-| AV-05 | Current-version identity was repeat-stable and survived an archive round trip. In eight simultaneous two-Mac forks, both payloads were readable for every item; the two replicas respectively exposed 7/8 other and unresolved versions, each observed 16 nonlocal versions, and all 16 identifiers survived materialization into local version storage. | Nonlocal-version enumeration returned `NSCocoaErrorDomain/3328` (`NSFeatureUnsupportedError`) again from the LaunchServices app. | The tested iCloud conflict/nonlocal and identifier-migration cases pass using an ordinary coordinated read, a registered presenter, and exact before/after local-version fences. Faults, resolution during enumeration, and additional OS versions remain; this facility is genuinely unavailable in the tested Dropbox configuration. |
-| AV-06 | A deliberately added historical version was not redisclosed after current deletion in either standalone or LaunchServices app runs. In the two-Mac test, presenter callbacks supplied the remote rename/deletion candidate URLs, but a fresh process querying the retained pre-rename and pre-delete URLs received `NSCocoaErrorDomain/4` and no readable history; the renamed current URL remained readable. | The app-context synthetic-delete ceiling was the same. | Callback URLs are usable candidate evidence while delivered, but retained old URLs cannot recover rename/delete history after restart in the tested configurations. The specification's undisclosed-history ceiling is required. |
-| AV-07 | A child process's coordinated create/edit/rename/delete reached the directory presenter. | The same probe succeeded. | A later two-Mac run observed callback/marker delivery before exact cross-file visibility and eventual convergence under retry. Uncoordinated writers, coalescing, daemon restart, and quit drain remain. |
-| AV-08 | The expanded same-provider move matrix passed on macOS 26.6.1 and 14.8.9: rooted/reference/bookmark/File Provider identity, post-move access, accessor-boundary catalog/read/batch/safe-replace, materialization, and version cases all held; macOS 26 pause/replace/upload/resume also passed. | The macOS 26.6.1 matrix passed; nonlocal-version history remained stably unsupported and exact upload was not advertised, so those operation-specific fallbacks applied. | Online same-volume moves are established on current and fallback iCloud OS versions. A narrow ordinary-APFS probe distinguished vnode delete from rename and disproved link-count/`F_GETPATH` deletion tests. Provider-backed delete/revoke, cross-domain/account, copied/replaced roots, restart-stale bookmarks, deep roots, faults, and macOS 15 remain. |
-| AV-09 | The LaunchServices consumer app returned stable item/domain identity for iCloud and the test child shared the root domain. | It did the same for Dropbox. | Success establishes File Provider domain membership and equality continuity. Provider naming is neither established nor required. Ordinary-local negative interpretation remains unestablished. |
-| AV-10 | App-context in-place edit/upload, exact returned-version correlation, two-Mac fetch/fail-on-conflict/resume, separate-launch pause repair, and coordinated Foundation safe-save/exact-upload/resume passed. `NSDataWritingAtomic` replacement alone broke operational pause ownership. | Advertised pause, in-place edit, separate-launch repair, no-edit pause/resume, and coordinated Foundation safe-save/resume passed. `NSDataWritingAtomic` replacement broke operational pause ownership; fail-on-conflict was not advertised. | Use `NSFileManager` safe replacement from `NSItemReplacementDirectory`, preserve original metadata with replacement options `0`, and continue with its resulting URL. Do not substitute `NSDataWritingAtomic` or a lower-level rename/swap in the paused-item path. |
-| AV-11 | On macOS 26.6.1 and 14.8.9, the dedicated probe observed a post-install pending/uploading state followed by uploaded/not-uploading for one unchanged persistent version and exact byte receipt. A rapid second replacement could not satisfy the first receipt. | Not exercised. | The exact legacy transition/correlation algorithm passed on the tested macOS 14 and 26 configurations. A macOS 15 run is still required for the stated release matrix. |
-| AV-12 | The focused paths completed without constructing or waiting for a metadata query. | The same probe succeeded. | The harness is Spotlight-independent; full-app startup/reconciliation scenarios remain. |
-| AV-13 | The LaunchServices probe passed with an ad-hoc signature, stable bundle identifier, no Team ID, and no entitlements; initializing AppKit made no difference. Other required APIs had already succeeded without iCloud entitlements. | Not applicable to the iCloud entitlement question. | No API-specific entitlement, Developer ID signature, or notarization requirement was observed. Keep a release-build smoke test, not an entitlement matrix. |
-| AV-14 | Not yet exercised. | Not provider-specific. | Keep the accepted checkpoint and Keychain item unchanged until the focused crash matrix passes. |
+## Existing focused harness evidence
 
-The host/peer protocol passed both its same-Mac self-check and repeated real two-Mac runs between macOS 26.6.1 on arm64 and macOS 14.8.9 on x86_64 using one iCloud account. The remote peer's coordinated edit, rename, deletion, and completion marker uploaded successfully. On the host, the marker and presenter activity arrived before the edit/rename/delete set was simultaneously visible; repeated coordinated exact observations then converged, version enumeration completed, the acknowledgement reached the peer, and cleanup succeeded. This directly confirms that a separate uploaded file is only a wakeup—not a cross-file ordering fence—and that AV-07's retained dirty obligation is necessary. The fresh-process history phase establishes the AV-06 ceiling described above.
+`tests/ICloudAPIContractTest.m` already supplies LaunchServices app-context provider probes, two-Mac host/peer mutation, simultaneous conflict generation, current-item materialization, shallow catalogs, batch reads, root moves, Spotlight independence, and historical observations. Retain those useful modes while changing the required policy:
 
-The simultaneous-fork protocol first materialized eight identical bases on both Macs and then scheduled divergent coordinated writes for the same instant. Every resulting snapshot was complete on both replicas; both user payloads remained readable for all eight files; other and unresolved conflict versions were exposed; and each replica returned 16 nonlocal identifiers that remained equal after coordinated materialization moved them into local version storage. This establishes the exercised online AV-05 conflict/nonlocal identity contract without relying on provider naming, timestamps, or synthetic vector clocks. It does not establish behavior under network/account faults or version resolution concurrent with enumeration.
+- the previous all-version AV-05 fence and identifier migration results become exploratory only;
+- the simultaneous-conflict setup should feed the new unresolved-version immutable-read/disposition test, including one-member and snapshot-wide `resolved = YES` behavior;
+- exact current checkpoint replacement should feed a `NVCheckpointInstallCurrentChanged` test that decodes complete note sets, infers deletion only relative to the exact base, unions retired deterministic identities, ignores competing preferences/other database metadata, and rejects another replacement before retry;
+- pause/upload and legacy qualification modes become observational only;
+- the local suite must fail when a required current-design case reports `SKIP` or `OBSERVE` rather than `PASS`.
 
-The full local probe also passed on the macOS 14.8.9 peer: promised metadata left content evicted; exact and batch materialization succeeded; current-version identity survived archival; the expanded AV-08 move matrix passed as described above; and the suite remained Spotlight-independent. Historical versions again were not redisclosed after current deletion. AV-10 was unavailable by OS version. The separate AV-11 probe passed there as described above.
+The focused harness now also supplies:
 
-This host has no valid development signing identity, but the weaker ad-hoc app result is sufficient to show that Developer ID or Apple Development signing is not an API prerequisite. A release-signed NV run remains a final deployment smoke test, not a blocker on the sync-control contract. The standalone signed-executable target is not a substitute because the deciding observed property is LaunchServices app identity, not certificate strength.
+- `foundation`, which checks coherent current bytes/version evidence, the documented same-version persistent-identifier lookup, and observational same-bytes replacement behavior across both `NSFileVersion` and the existing filesystem observation; it also checks dual-URL coordination, old-or-new concurrent visibility, retained displaced bytes, provider/root identity, custom xattrs, and the local AV-15 Application Support create/append/delete barriers. Every replacement obtains a fresh file-reference URL from a newly constructed canonical pathname URL; deliberately reusing pre-replacement URL state is not accepted. `wal-reboot-prepare` and `wal-reboot-verify` bracket a real machine restart without letting elapsed time stand in for durability.
+- `manifest-host` / `manifest-peer`, which use a 1,000-item two-Mac manifest, explicitly evict a sample on the peer, require an exact stable post-mutation catalog, and treat causal marker files only as wakeups.
+- `conflict-disposition`, which changes the current file after capturing an unresolved member, proves immutable member bytes, sets only that member's `resolved` property inside merging coordination, requires fresh-query disappearance with unchanged current bytes, repeats the setter, and dispositions the rest of the captured snapshot without removal APIs.
+- `conflict-export-identifiers` / `conflict-compare-identifiers`, which exchange identifier archives outside the provider root and compare only counts for the same synthetic payload-defined revisions; identifier values are never logged.
+- an uncoordinated POSIX writer, so AV-07 records presenter activity separately from the later exact catalog/read observation.
 
-These observations do not change any TLA+ transition or safety invariant. They determine whether concrete Apple behavior can refine the models' abstract authority, catalog, version-set, callback, and upload inputs. The models do not contain provider-brand state. AV-01 and AV-09 can therefore refine positive provider management and opaque authority continuity without solving provider naming; inconclusive local/provider results still take the existing fail-closed path.
+The exploratory `xattr-host` / `xattr-peer` probe on iCloud Drive between macOS 26.6.1 and macOS 14.8.9 found:
 
-## Real-system validation matrix
+- all five 16-byte values whose names were generated with `XATTR_FLAG_SYNCABLE` arrived in both synchronization directions;
+- the UUID remained readable through metadata-only coordination while the file body stayed evicted, and remained equal after materialization and rename;
+- actual Finder duplication and a TextEdit save preserved the UUID when run in an interactive logged-in session; SSH-launched Apple-event automation could not establish those GUI results and is therefore bounded and observational;
+- a generic `NSDataWritingAtomic` replacement removed the UUID on both systems (`ENOATTR` on the installed replacement), so an NV replacement must put the UUID on its prepared replacement before installation rather than depend on destination metadata preservation; and
+- both systems disclosed both bodies for all eight simultaneous-write conflicts. A follow-up eliminated the initial write/restamp interval by putting the UUID on each staged replacement before one coordinated Foundation installation; half used default replacement metadata handling and half used `NSFileManagerItemReplacementUsingNewMetadataOnly`. All eight current files retained their UUID, but zero conflicts exposed it on both body-bearing versions under either replacement mode. Only the current winner's body exposed the UUID. `NSFileVersion.URL` must therefore not be assumed to carry branch-specific custom xattrs.
 
-Run the ship-condition cases on at least macOS 15 and the current macOS release, using two Macs on one iCloud account where remote ordering matters. Repeat provider-membership, domain-continuity, and operation-capability cases with current Dropbox and at least one other File Provider, but record those as best-effort observations rather than iCloud guarantees.
+These observations support a syncable UUID only as optional current-file identity evidence. They do not authorize UUID-based current-file deletion, identify historical resolver members, or make a missing/malformed/duplicate xattr destructive evidence. UUID xattrs remain outside the normative design unless the specification and ADR-0014 explicitly adopt that policy.
 
-For every case, capture only content-free diagnostics: OS build, operation ID, item count, elapsed phase, status enum, error domain/code, and whether each required condition passed. Never record paths, filenames, note text, persistent version identifiers, account identity, or bookmark bytes.
+On iCloud Drive, the 1,000-item macOS 26/macOS 14 run returned the complete initial and mutated catalogs while all 16 explicitly evicted sample bodies stayed unmaterialized. The focused empty/small double-catalog fence also detected coordinated create, edit, rename, and delete on both systems. The real simultaneous-edit run disclosed both bodies for all eight files, and the required per-member disposition sequence passed. The edit/delete run exposed zero of eight edited bodies as Current or unresolved on either host after deletion won; this establishes only the current-visible ceiling, not provider-side destruction. Foundation replacement and AV-15 local barriers passed on both OS versions. On both, a same-bytes Foundation replacement kept the current `NSFileVersion.persistentIdentifier` equal while the filesystem witness changed; different replacement bytes were returned coherently. Identifier equality is compatible with Apple's same-version lookup contract and is not interpreted as a replacement-generation guarantee. The retired reverse-domain attempt failed on both versions as recorded under AV-08 and is no longer part of the regular suite.
 
-The minimum fault matrix is:
+Content-free diagnostics remain mandatory: OS build, operation ID, item count, phase, status enum, and error domain/code only. Never log paths, filenames, note text, bookmarks, provider identifiers, or account identity.
 
-- online, offline, reconnecting, and iCloud account transition;
-- Optimize Mac Storage on/off with files and directory evicted;
-- remote mutation before first fence, between fences, after second fence, and before callback visibility;
-- File Provider daemon restart and app crash at each accessor/completion boundary;
-- Spotlight healthy, disabled, excluded, rebuilding, and unavailable;
-- root moved, renamed, copied, deleted, and replaced while work is in flight;
-- normal quit, explicit quit override, pause/upload/resume failure, and next-launch recovery; and
-- a release-signed NV smoke test, launched normally with no iCloud entitlement, on user-selected roots inside and outside iCloud Drive.
+## Real-system matrix
 
-An API/OS result is accepted only when the test demonstrates the required condition, not merely because the operation eventually appeared to work in Finder. Record the result beside the relevant AV identifier before enabling that path.
+Run first-class ship conditions on macOS 15 and the current release, using two Macs on one iCloud account where ordering matters. Run the legacy-root-WAL migration on the oldest supported macOS. Repeat provider membership, current catalog, move, and optional unresolved-version cases with current Dropbox and one additional File Provider as best-effort observations.
 
-## Relationship to the TLA+ models
+Minimum faults:
 
-The models begin from abstract delivered candidates, catalog tokens, version sets, callbacks, and success/failure results. They prove what NV may do with those values; they do not prove that Apple disclosed every candidate, that a callback is catalog-visible, or that an upload result identifies remote durability.
+- online, offline, reconnecting, and account transition;
+- Optimize Mac Storage on/off with current files and directory evicted;
+- remote mutation before the first catalog, between catalogs, after the second catalog, and before callback visibility;
+- current checkpoint replacement before the quit CAS and again before its one permitted retry;
+- provider daemon restart and app crash at every accessor/completion boundary;
+- root moved, copied, deleted, replaced, revoked, and unavailable, with only positive same-root evidence restoring publication and no automatic loss classification;
+- local WAL append/barrier/directory-sync failures independently of provider state;
+- normal quit, explicit override, local checkpoint ambiguity, and next-launch recovery.
 
-Removing `NSMetadataQuery` therefore does not violate or alter a tested model: no model contains a query-gathering state or assumes Spotlight fairness. Provider brand is likewise absent from the models; operation-specific evidence refines their existing success, failure, complete, incomplete, current, and unknown inputs. AV-03, AV-05, AV-06, and AV-07 define how real Apple behavior refines the discovery and dirty inputs to `ReconciliationSafety` and `ReconciliationFencingSafety`; AV-01 and AV-02 refine `StartupSafety`; AV-08 establishes whether a concrete root event is a stuttering move, an authority/session boundary, positive root loss, or inconclusive availability and supplies the implementation-only edit gate when local durability cannot be established; AV-10 and AV-11 refine `QuitSafety`; AV-14 refines `StorageTransitionSafety`'s abstract fresh add/read-back/delete credential actions, which encrypted Save As reuses without source-item deletion. AV-13 is a deployment precondition outside the state models. If an implementation change needs a different modeled transition—for example, allowing a complete commit from incomplete discovery—the specification and affected model must change and pass TLC before the implementation is accepted. This document does not authorize such a change.
+An API/OS result is accepted only when the required condition is demonstrated, not because Finder eventually appeared correct.
+
+## Relationship to TLA+
+
+The migrated startup, creation, replay, quit, decision, and storage-transition models consume the same confirmed boundaries: positive association/classification, truthful local synchronization, complete current snapshots, exact full checkpoint witnesses, and independently validated Keychain items. They assume neither provider progress nor historical completeness, cross-machine version identifiers, reverse lookup, UUID xattrs, or atomic Keychain/checkpoint cutover. Same-bytes replacement may invalidate the filesystem component while the current persistent identifier stays equal. Their negative-control runner mutates synthetic TLA+ models only; it is not another live Apple contract test. Byte-level recovery, real crash persistence, and production callback/admission wiring remain integration obligations.
+
+The executable `ReconciliationDurabilityBridge` and `StorageStartupBridge` carry actual model payloads through those boundaries and reopen crash-surviving artifacts using the startup actions. Their same-bytes replacement event changes the full local witness, not a presumed provider generation counter. They neither require an old process's success acknowledgement to survive a crash nor infer successful decryption, root association, provider-format compatibility, or upload from that acknowledgement. Fresh concrete validation still supplies each API/decoder fact; failures remove the applicable success path. Their witness traces demonstrate reachable reopen paths, not provider liveness.
+
+The active models begin after Apple/Foundation supplies the environmental inputs above. `CurrentVisibleReconciliationSafety` consumes complete current catalogs and immutable selected current snapshots. `UnresolvedVersionResolutionSafety` consumes only the snapshot Apple disclosed for one visible file, exact local-install results, retired deterministic copy identities, and truthful later unresolved queries; it assumes no historical completeness. `CurrentCheckpointNoteMergeSafety` consumes exact retained/live/current complete note sets, retired deterministic identity sets, and exact current-version equality for the retry. `CrossMachineCurrentVisibleSafety` composes two hosts with independent current-file/checkpoint delivery and exposes displaced-current retention as a configuration constant rather than hiding it in the algorithm. `LocalWALSafety` consumes truthful local append/checkpoint/directory-durability results and contains no provider action capable of deleting a WAL.
+
+If an environmental input cannot be established, the implementation removes the corresponding success transition and retains dirty/evidence. Models for historical completeness, automatic/provider-wide resolution, shared journals, and upload-qualified cleanup are retired with their superseded design.
 
 ## Primary Apple references
 
-- [NSMetadataQuery](https://developer.apple.com/documentation/foundation/nsmetadataquery)
 - [NSFileCoordinator](https://developer.apple.com/documentation/foundation/nsfilecoordinator)
-- [`NSFileCoordinatorReadingImmediatelyAvailableMetadataOnly`](https://developer.apple.com/documentation/foundation/nsfilecoordinator/readingoptions/immediatelyavailablemetadataonly)
-- [Asynchronous coordination](https://developer.apple.com/documentation/foundation/nsfilecoordinator/coordinate%28with%3Aqueue%3Abyaccessor%3A%29)
-- [Batch coordination](https://developer.apple.com/documentation/foundation/nsfilecoordinator/prepare%28forreadingitemsat%3Aoptions%3Awritingitemsat%3Aoptions%3Aerror%3Abyaccessor%3A%29)
-- [Coordinating a replacement](https://developer.apple.com/documentation/foundation/nsfilecoordinator/writingoptions/forreplacing)
 - [NSFilePresenter](https://developer.apple.com/documentation/foundation/nsfilepresenter)
-- [Presenter deletion accommodation](https://developer.apple.com/documentation/foundation/nsfilepresenter/accommodatepresenteditemdeletion%28completionhandler%3A%29)
-- [Dispatch vnode events](https://developer.apple.com/documentation/dispatch/dispatch_source_vnode_flags_t)
 - [NSFileVersion](https://developer.apple.com/documentation/foundation/nsfileversion)
-- [Nonlocal versions](https://developer.apple.com/documentation/foundation/nsfileversion/getnonlocalversionsofitem%28at%3Acompletionhandler%3A%29)
-- [Start downloading an ubiquitous item](https://developer.apple.com/documentation/foundation/filemanager/startdownloadingubiquitousitem%28at%3A%29)
+- [NSFileVersion persistentIdentifier](https://developer.apple.com/documentation/foundation/nsfileversion/persistentidentifier)
+- [iCloud file-version conflict handling](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/iCloud/iCloud.html)
+- [File Provider item identity](https://developer.apple.com/documentation/fileprovider/nsfileprovidermanager/getidentifierforuservisiblefile%28at%3Acompletionhandler%3A%29)
 - [iCloud download status](https://developer.apple.com/documentation/foundation/urlubiquitousitemdownloadingstatus)
-- [iCloud account identity token](https://developer.apple.com/documentation/foundation/filemanager/ubiquityidentitytoken)
-- [App-entitled ubiquity-container URL](https://developer.apple.com/documentation/foundation/filemanager/url%28forubiquitycontaineridentifier%3A%29)
-- [File Provider URL identity](https://developer.apple.com/documentation/fileprovider/nsfileprovidermanager/getidentifierforuservisiblefile%28at%3Acompletionhandler%3A%29)
-- [File Provider domains](https://developer.apple.com/documentation/fileprovider/nsfileprovidermanager/getdomainswithcompletionhandler%28_%3A%29)
-- [File Provider reverse item lookup](https://developer.apple.com/documentation/fileprovider/nsfileprovidermanager/getuservisibleurl%28for%3Acompletionhandler%3A%29)
-- [File Provider implementation identifier](https://developer.apple.com/documentation/fileprovider/nsfileprovidermanager/provideridentifier)
-- [Supported sync controls](https://developer.apple.com/documentation/foundation/nsfilemanagersupportedsynccontrols)
-- [Pause sync for an ubiquitous item](https://developer.apple.com/documentation/foundation/filemanager/pausesyncforubiquitousitem%28at%3Acompletionhandler%3A%29)
-- [Version-returning iCloud upload](https://developer.apple.com/documentation/foundation/filemanager/uploadlocalversionofubiquitousitem%28at%3Awithconflictresolutionpolicy%3Acompletionhandler%3A%29)
-- [iCloud services entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.icloud-services)
-- [Entitlements catalog](https://developer.apple.com/documentation/bundleresources/entitlements)
-- [Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
-- [Keychain Services](https://developer.apple.com/documentation/security/keychain-services)
-- [Updating and deleting Keychain items](https://developer.apple.com/documentation/security/updating-and-deleting-keychain-items)
+- [Application Support directory](https://developer.apple.com/documentation/foundation/filemanager/searchpathdirectory/applicationsupportdirectory)
+- [Bookmark resolution](https://developer.apple.com/documentation/foundation/nsurl/urlbyresolvingbookmarkdata%28_%3Aoptions%3Arelativetourl%3Abookmarkdataisstale%3A%29)
+- [File Provider syncable extended attributes](https://developer.apple.com/documentation/fileprovider/nsfileprovideritemprotocol/extendedattributes)
