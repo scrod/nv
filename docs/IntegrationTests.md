@@ -22,6 +22,38 @@ Run test commands from the repository root. The test Makefile builds the Deploym
 - `make -C tests clean` removes the executables from `/tmp/notation-integration-tests`.
 - `./build.sh` must still be run after significant source changes, even when the tests pass.
 
+### Exploratory incarnation metadata probe
+
+This is a policy experiment, not a gate or implementation of UUID xattrs in NV:
+
+```sh
+make -C tests /tmp/notation-integration-tests/ICloudAPIContractTest \
+  /tmp/notation-integration-tests/ICloudAPIContractTest-x86_64
+/tmp/notation-integration-tests/ICloudAPIContractTest metadata-probe "/path/to/API_Contract_Testing"
+# On either Mac, using the exact READY session directory (the Intel binary can run on the peer):
+/tmp/notation-integration-tests/ICloudAPIContractTest metadata-inspect "/path/to/API_Contract_Testing/nv-api-metadata-UUID"
+```
+
+`metadata-probe` owns a fresh UUID-named subtree with synthetic bodies and six flagged xattrs. It compares the public copy/save/share/sync/backup intent evaluator with Foundation copy, APFS clone, rename, in-place/atomic writes, and Foundation replacement with and without staged fresh metadata under both replacement options. `PASS` checks intent evaluation and positive/negative digest binding; preservation and provider behavior are `OBSERVE`, not universal contract assertions. It reuses the existing replacement helper, not an implementation of NV's proposed safe-save backend.
+
+`metadata-inspect` reads the generated `origin.plist` and each named file independently, reporting attribute/body hashes and hashed forward provider item/domain comparisons. It queries the manifest's exact originating attribute names: older runtimes can omit unknown flag bits when encoding names. Older manifests lacking names are rejected; generate a fresh fixture. Manifest arrival is only a wakeup, not a complete-sync barrier; missing bodies/attributes remain observations and can require another inspection. Snapshot fields come from separate reads, not one atomic production admission snapshot. Both modes enumerate public File Provider service names without opening XPC connections or invoking any service. The service/identity callbacks have bounded waits; synchronous coordinated file reads have no cancellation/deadline guarantee. No Finder/TextEdit GUI is opened.
+
+The unique subtree is **retained** for peer inspection; the fixed-name `cleanup-local` command does not remove it. Inspect the printed exact path before manually removing a completed synthetic session. These probes may need execution outside a restrictive sandbox for Foundation coordination. See [incarnation metadata results and limits](tla/Incarnation-Metadata-Experiments.md); local observations do not establish cross-Mac portability, an uncopyable identity, or body/metadata delivery atomicity.
+
+For the two-Mac lifecycle/intent-order experiment, copy the Intel binary into a new temporary directory on the Mini, then run:
+
+```sh
+python3 tests/run-incarnation-experiments.py \
+  --remote-binary /tmp/your-test-directory/ICloudAPIContractTest \
+  --key /tmp/scrodmini_ed25519 --host scrod@scrodmini.local
+```
+
+Override `--root` if needed; this runner uses the same root path on both hosts. It drives the harness's `binding ROOT prepare` and `binding SESSION ACTION [LEAF]` modes, touching only fixed synthetic leaves below a UUID-named `nv-api-binding-` subtree. Twenty-three stages cover fresh-process observation, bidirectional rename/safe save, metadata-preserving copy, eviction/rematerialization, test-subdirectory Trash restoration, external deletion/restoration, explicit fresh birth, atomic replacement, and intent-before/after-absence schedules. Each child has a 55-second outer timeout; peer convergence has a 60-second polling budget checked between calls (an in-flight child may extend it). A timeout is inconclusive, never a freshness proof. JSON results, every child output, and fixtures remain available. NV itself is not launched; no actual NV database or WAL is tested by this driver.
+
+Add `--handshake` to run 11 nonce-exchange stages instead: a clean challenge/reply/ack, a metadata-preserving independent copy, then three **explicit** metadata relays between the distinct original/copy endpoints. Fixed `#S` metadata is transferred through public coordinated xattr calls; neither body is changed. The check requires distinct source/copy local provider IDs on each observer and verifies they remain stable during the relays. This tests primitives, not an adopted association protocol or universal provider identity guarantee. Add `--local` (and omit `--remote-binary`) for fresh-process observers on one Mac; JSON explicitly records `localOnly: true`, and this must never be reported as cross-Mac validation.
+
+For a fixture prepared on either host but not yet exercised, `--handshake --session /absolute/root/nv-api-binding-UUID` reuses that fixture after it has appeared on both hosts. The session must be directly below `--root`; this is not partial-run resume, and an existing `copy.bin` will cause the copy stage to fail rather than overwrite it. On 2026-09-04, both the same-Mac and two-Mac 11-stage nonce runs completed. Two earlier initial-delivery timeouts remained inconclusive; the successful cross-Mac run used a subsequently synchronized Mini-origin fixture. See the [combination report](tla/Protocol-Combination-Experiments.md) for results and retained artifacts.
+
 ### Real cloud API contract probe
 
 The local cloud commands build and launch `ICloudAPIContractTest.app`, use only the fixed `nv-api-contract-local`, `nv-api-contract-path-a`, and `nv-api-contract-path-b` subtrees under the selected testing directory, exercise promised metadata, eviction/materialization, shallow and batch coordination, `NSFileVersion`, File Provider identity, presenter callbacks, root moves, capability advertisement versus actual outcomes, and the ordinary-sync fallbacks, then remove those subtrees. The AV-08 phase moves one retained root before and while catalog, asynchronous intent read, batch read, Foundation replacement, materialization, version, and sync-control operations execute. The iCloud command selects the first-class-required policy; Dropbox selects observational policy. Neither mode branches on provider brand at runtime. Fixed test names make crash cleanup possible without enumerating the user's directory; only one local run may use a given root at once. They are intentionally outside `run` and `run-platform`: results depend on the live account, provider, network, storage policy, OS, and signing configuration. `PASS` establishes only the scenario named by the output; `OBSERVE` and `SKIP` preserve an API-contract gap without turning it into a false test failure.

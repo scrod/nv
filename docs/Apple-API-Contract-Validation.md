@@ -4,6 +4,18 @@ This document records Apple/File Provider behaviors that the implementation and 
 
 No elapsed-time threshold proves freshness, catalog completeness, conflict absence, upload, or root continuity (`WAIT-01`). Tests distinguish documented API contract, observed provider behavior, and application policy. Every inconclusive result fails closed for the operation that needed it.
 
+## Exploratory incarnation metadata observations (not adopted policy)
+
+The [2026-09-04 metadata experiments](tla/Incarnation-Metadata-Experiments.md) add local APFS/iCloud probes and a separate causal-incarnation model. They do not change the spec's prohibition on UUID xattrs or create a new release gate.
+
+On macOS 26.6.2, `SYNCABLE | ONLY_SAVING` had the desired public intent-policy values but was nevertheless preserved by both Foundation copy and raw APFS clone. In-place writes retained stale body-bound envelopes; digest validation rejected them. Foundation replacement options `0` installed a freshly staged `#SX` or `#CS` value in the tested cases. This is post-operation evidence only, not the full replacement visibility/durability contract. Copied files had different independently queried local provider item IDs; the initial local-only run did not test cross-host portability.
+
+Public File Provider service enumeration succeeded for the synthetic iCloud item. The returned sharing/collaboration and private service names establish no supported NV identity/deletion protocol. No private service was invoked. A custom `NSFileProviderService` protocol requires explicit provider cooperation; provider-side `userInfo`, version fields, and modification scheduling are not a generic consumer metadata/CAS channel. Details, primary sources, test instructions, and the completed two-Mac follow-up are in the report.
+
+The later [two-Mac follow-up](tla/Incarnation-Metadata-Experiments.md#two-mac-follow-up-measured-binding-and-intent-transport) on 14.8.9/26.6.2 established different opaque item **and** domain values for the same synchronized file across hosts; do not use their cross-host equality as a portable note key. Local identity survived tested rename, safe replacement, eviction, and moving into/out of an ordinary Trash subdirectory. Backup-copy restoration created new local item identities while reproducing old body/xattr bytes. Corrected exact-name probes delivered syncable metadata both ways. The initial apparent loss of `#SX` attributes was a harness bug: macOS 14's name encoder omitted the unsupported `ONLY_SAVING` bit. The harness now carries exact origin names, and makes no Apple-contract violation claim. These results change no adopted no-xattr requirement.
+
+The subsequent [protocol-combination experiments](tla/Protocol-Combination-Experiments.md) add a nonce/relay primitive probe. Both same-Mac and two-Mac (14.8.9/26.6.2) 11-stage runs completed: a clean challenge/reply/ack, followed by a fresh exchange carried between distinct files through three explicit coordinated xattr copies. At each stage body/attribute digests matched across observers; source/copy retained distinct, unchanged local provider identities on each Mac. This is not spontaneous provider cross-item delivery. Two earlier initial-fixture delivery timeouts were inconclusive; the completed two-Mac run used a subsequently synchronized Mini-origin fixture. A completed copyable transcript alone is not a portable identity certificate. The associated retirement model's pinned bootstrap snapshot is an explicit external input obligation, not a newly assumed Apple freshness or membership API.
+
 ## Capability and provider-identification policy
 
 - NV never identifies a provider by path, display name, raw domain identifier, private metadata, or persisted brand/profile.

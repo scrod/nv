@@ -40,10 +40,10 @@ $(BUILD_DIR)/GlobalPrefsArchiveMigrationTest: GlobalPrefsArchiveMigrationTest.m 
 $(BUILD_DIR)/AppearanceColorTest: AppearanceColorTest.m Makefile app-objects | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
-$(BUILD_DIR)/ICloudAPIContractTest: ICloudAPIContractTest.m ICloudRootLockProbe.h Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/ICloudAPIContractTest: ICloudAPIContractTest.m ICloudRootLockProbe.h ICloudMetadataProbe.h Makefile | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) -fblocks $< -framework Foundation -framework FileProvider -o $@
 
-$(BUILD_DIR)/ICloudAPIContractTest-x86_64: ICloudAPIContractTest.m ICloudRootLockProbe.h Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/ICloudAPIContractTest-x86_64: ICloudAPIContractTest.m ICloudRootLockProbe.h ICloudMetadataProbe.h Makefile | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) -arch x86_64 -fblocks $< -framework Foundation -framework FileProvider -o $@
 
 $(ICLOUD_API_TEST_APP): $(BUILD_DIR)/ICloudAPIContractTest ICloudAPIContractTest-Info.plist

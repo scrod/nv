@@ -3985,10 +3985,14 @@ static int RunLocal(NSURL *rootURL, NSString *testPolicy, NSTimeInterval timeout
 }
 
 #include "ICloudRootLockProbe.h"
+#include "ICloudMetadataProbe.h"
 
 static void PrintUsage(void) {
 	fprintf(stderr, "usage: ICloudAPIContractTest local ROOT [required|observe]\n"
 		"       ICloudAPIContractTest foundation ROOT [required|observe]\n"
+		"       ICloudAPIContractTest metadata-probe ROOT\n"
+		"       ICloudAPIContractTest metadata-inspect SESSION\n"
+		"       ICloudAPIContractTest binding ROOT prepare | binding SESSION ACTION [LEAF]\n"
 		"       ICloudAPIContractTest root-lock-control LOCAL_TEST_ROOT\n"
 		"       ICloudAPIContractTest root-lock-directory TEST_ROOT\n"
 		"       ICloudAPIContractTest root-lock-prepare ROOT UPPERCASE_RUN_UUID\n"
@@ -4037,7 +4041,14 @@ int main(int argc, const char *argv[]) {
 		NSTimeInterval timeout = [[[NSProcessInfo processInfo] environment][@"NV_ICLOUD_API_TEST_TIMEOUT"] doubleValue];
 		if (timeout <= 0.0)
 			timeout = 180.0;
-		if ([mode hasPrefix:@"root-lock-"])
+		if ([mode isEqualToString:@"binding"] && argc >= 4)
+			status = RunBindingProbe(firstURL, [NSString stringWithUTF8String:argv[3]],
+				argc >= 5 ? [NSString stringWithUTF8String:argv[4]] : @"note.bin", timeout);
+		else if ([mode isEqualToString:@"metadata-probe"])
+			status = RunMetadataProbe(firstURL, timeout);
+		else if ([mode isEqualToString:@"metadata-inspect"])
+			status = RunMetadataInspect(firstURL, timeout);
+		else if ([mode hasPrefix:@"root-lock-"])
 			status = RunRootLockProbe(mode, firstURL, argc, argv, timeout);
 		else if ([mode isEqualToString:@"child-mutate"])
 			status = ChildMutate(firstURL);

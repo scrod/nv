@@ -2,6 +2,27 @@
 
 The active models refine the current-visible/local-WAL design in `docs/iCloud-Drive-Support-Spec.md`, ADR-0013, and ADR-0014. They deliberately omit complete provider-history discovery, automatic version resolution, provider-visible WALs, active/retained claims, upload-qualified cleanup, and automatic root-loss classification because those behaviors are no longer requirements.
 
+## Experimental UUID reconciliation — not adopted policy
+
+[`UUIDAssignmentRace.tla`](UUIDAssignmentRace.tla) explores two independent imports of one external file, competing UUID/xattr assignments, checkpoint-current merging, and old-UUID WAL replay. [`UUIDAssociationLab.tla`](UUIDAssociationLab.tla) compares association and deletion-intent rules across copies, stripped attributes, restoration, and observationally indistinguishable inputs. The [experiment report](UUID-Reconciliation-Experiments.md) records the rule matrix, counterexamples, conditional passing rules, and remaining evidence requirements.
+
+[`CausalIncarnationSafety.tla`](CausalIncarnationSafety.tla) separately tests fresh birth tokens, observed-remove causal context, delayed deletion, and crash recovery against an overwritable metadata register. Its [metadata experiment report](Incarnation-Metadata-Experiments.md) connects these rules to live xattr/copy/replacement probes and the consumer/provider API boundary. Birth association and local durability are inputs to this small model, not proved by it; complete-exchange agreement is not unconditional provider convergence. The shared runner's `--only Causal` option selects its 12 checks.
+
+The two-Mac follow-up adds a concrete `currentSnapshot` comparison to `UUIDAssociationLab` (`--only currentSnapshot`), plus [`DeletionIntentTransportSafety.tla`](DeletionIntentTransportSafety.tla) (`--only DeletionIntent`). The former never reads the lab's `proof` input: it compares item IDs only within one verified local observation frame and explicitly defers independent cross-host imports. Its passing checks are not cross-host alias convergence. The latter assumes already-correct birth binding and tests independent source/artifact delivery, receipt durability, artifact purge, restoration, and one crash. Its purged-before-observation witness rules out claiming guaranteed intent discovery. These experiments share the runner; the [follow-up report](Incarnation-Metadata-Experiments.md#two-mac-follow-up-measured-binding-and-intent-transport) records actual API observations, test corrections, proof boundaries, and retained artifacts.
+
+The [protocol-combination report](Protocol-Combination-Experiments.md) compares three further experimental models. [`LiveBindingHandshake.tla`](LiveBindingHandshake.tla) tests actual nonce/message transitions, copies between steps, local endpoint fences, and explicitly relayed transcripts. [`BindingIntentComposition.tla`](BindingIntentComposition.tla) instantiates those transitions and feeds their result into deletion/receipt/restoration/recovery rules; binding and lifecycle execution are deliberately phased, and its checkpoint is not the full competing-checkpoint model. [`IntentRetirementLab.tla`](IntentRetirementLab.tla) tests acknowledgment gaps, collection, newcomers, and restored-backup rejoining; its passing pinned-bootstrap policy requires an independently selected complete snapshot reference. Use `--only LiveBinding`, `--only BindingIntent`, or `--only IntentRetirement`. These bring the shared experimental runner to seven models; none establishes unconditional automatic identity discovery or bounded total metadata. The report separates safety, conditional progress, negative controls, and the unresolved product/authority choices.
+
+These are policy experiments, not additional proofs of the current no-xattr design. The active checkpoint/cross-host models already identify the logical source note; they do not establish that independent imports receive or discover the same UUID. Nor does exact checkpoint-current equality establish the ancestry of its records. The experimental models expose these boundaries without changing the normative spec or proposal #4. Their positive association input is a conditional contract, not a newly assumed Apple API.
+
+Run the hypotheses, assertion-specific mutations, and non-vacuity witnesses with:
+
+```sh
+python3 docs/tla/check-uuid-experiments.py \
+  --java /path/to/java --jar /path/to/tla2tools.jar
+```
+
+An expected counterexample rejects that hypothesis; it does **not** mean the policy is safe. The runner requires exhaustive completion for passing assertions and the designated failure for counterexamples. Logs and traces remain in a fresh temporary directory. See the report before interpreting any green result.
+
 ## Active models
 
 | Model | Scope |
