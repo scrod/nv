@@ -1,5 +1,7 @@
 # iCloud Drive implementation proposal 4
 
+Status: retired implementation reference. The current normative specification and ADRs adopt [proposal 5](../impl-proposal-5/README.md). This document's active-WAL/shared-checkpoint/automatic-absence rules are not instructions for segment collections; retain it only for source/migration comparisons and the explicitly retired model suite.
+
 This proposal implements the normative [iCloud Drive specification](../iCloud-Drive-Support-Spec.md), including ADR-0013's host-local WAL and ADR-0014's current-visible synchronization with explicit embedded conflict disposition.
 
 ## Design in one page
@@ -362,9 +364,7 @@ The Apple API contract harness stops at coordinated bytes, version objects, prov
 
 ### Contract and model verification
 
-The seven formerly retained proposal-3 models are now current-design checks: `JournalRecoverySafety`, `MultiJournalRecoverySafety`, `StartupSafety`, `JournalLifecycle`, `QuitSafety`, `StorageTransitionSafety`, and `ReconciliationDecisionSafety`. Run their exhaustive configurations and assertion-specific negative controls with [check-migrated-models.py](../tla/check-migrated-models.py), alongside the existing focused/cross-machine suite. Use [the documented bounds and interfaces](../tla/README.md#migrated-lifecycle-and-decision-models), not the models' filenames, to decide which claims apply. These checks do not replace production-code tests of WAL bytes/CRC/decoding, actual candidate association/UUID derivation, `NVMergedText`, Keychain read-back/KDF checks, AppKit admission/undo, exact filesystem witnesses, or restart/crash points. The verified-completion interfaces between independent models still require integration tests.
-
-Two [executable handoff bridges](../tla/README.md#executable-handoff-bridges) now reuse the component actions: `ReconciliationDurabilityBridge` checks that exact note/removal/conflict payloads survive pending-set admission, WAL/file completion, checkpoint serialization, and startup after cleanup or crash; `StorageStartupBridge` checks reopening the surviving source/destination checkpoint with its own credential and root-associated WAL. Keep equivalent production integration tests: abstract completion flags are insufficient if serialized rows, root association, or decoder output disagree. After a transition crash, validate the actual installed checkpoint rather than a lost in-memory success flag; an old encrypted/database-only checkpoint found under provider management remains a conversion input, not permission to enable provider-mode editing. The bridges exercise that existing requirement without adding a migration ledger or changing product behavior.
+The retired formal-model inventory, bounds, results and runner instructions are consolidated in the [proposal-4 model archive](../tla/retired/impl-proposal-4/README.md). They are historical comparison material, not current implementation acceptance checks.
 
 - WAL header/bookmark and automatic-preservation identity vectors; unchanged encrypted/compressed note/deletion-record vectors; coalesced capture versus forced exact-generation barriers; root-directory lock contention/retention; backup-exclusion metadata; burned journal IDs; and every Application Support create/append/checkpoint/delete crash point;
 - unrelated, copied, stale-bookmark, malformed, and multiple matching local WALs;

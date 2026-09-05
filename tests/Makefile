@@ -31,6 +31,28 @@ TARGETS := \
 
 all: $(TARGETS)
 
+.PHONY: run-swift-storage
+SWIFT ?= swift
+SWIFT_STORAGE_TEST_FLAGS ?=
+run-swift-storage:
+	$(SWIFT) test --package-path ../NVStorage $(SWIFT_STORAGE_TEST_FLAGS)
+
+.PHONY: run-native-undo-probes
+$(BUILD_DIR)/NativeUndoProbe: NativeUndoProbe.m Makefile | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) -fblocks $< -framework Cocoa -o $@
+
+$(BUILD_DIR)/NativeUndoProbe-x86_64: NativeUndoProbe.m Makefile | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) -arch x86_64 -fblocks $< -framework Cocoa -o $@
+
+run-native-undo-probes: $(BUILD_DIR)/NativeUndoProbe
+	python3 ../tools/run-native-undo-probes.py --binary $(BUILD_DIR)/NativeUndoProbe
+
+$(BUILD_DIR)/FSEventsHistoryProbe: FSEventsHistoryProbe.m Makefile | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) -fblocks $< -framework Foundation -framework CoreServices -o $@
+
+$(BUILD_DIR)/FSEventsHistoryProbe-x86_64: FSEventsHistoryProbe.m Makefile | $(BUILD_DIR)
+	$(CLANG) $(CFLAGS) -arch x86_64 -fblocks $< -framework Foundation -framework CoreServices -o $@
+
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 

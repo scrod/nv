@@ -1,7 +1,7 @@
 ---------------- MODULE CurrentVisibleReconciliationSafety ----------------
 EXTENDS FiniteSets, Naturals
 
-CONSTANTS Files, RepresentativeFile, Sessions, InitialSession, MaxGeneration, None
+CONSTANTS Files, RepresentativeFile, Sessions, InitialSession, MaxGeneration, None, Policy
 
 ASSUME
     /\ IsFiniteSet(Files)
@@ -11,6 +11,7 @@ ASSUME
     /\ InitialSession \in Sessions
     /\ MaxGeneration = 2
     /\ None \notin Sessions
+    /\ Policy \in {"safe", "skipDirtyFence", "skipRepresentation", "publishAllFiles", "wrongPublishedOutput"}
 
 Phases == {"idle", "reading", "fenced"}
 
@@ -38,7 +39,7 @@ Init ==
         secondFiles |-> {},
         publishedFiles |-> {},
         commitWitnesses |-> {},
-        dirtyWitnesses |-> {}
+        publicationWitnesses |-> {}
         ]
 
 DeliverCurrentFile ==
@@ -60,6 +61,12 @@ RemoveCurrentFile ==
             !.dirty = TRUE,
             !.catalogChanged = state.phase # "idle"
         ]
+
+\* A delivered invalidation can arrive after the serviced generation without
+\* changing this fixture's file set. It must not be cleared by older work.
+DeliverDirtyHint ==
+    /\ state.dirtyGeneration < MaxGeneration
+    /\ state' = [state EXCEPT !.dirtyGeneration = @ + 1, !.dirty = TRUE]
 
 MakeUnreadable ==
     /\ \E file \in state.currentFiles \ state.unreadableFiles:
@@ -135,8 +142,8 @@ StableCurrentVisibleFence ==
     /\ state.snapshotSession = state.activeSession
     /\ ~state.structuralChanged
     /\ ~state.noteChanged
-    /\ state.snapshotFiles \subseteq state.representedFiles
-    /\ state.dirtyGeneration = state.servicedGeneration
+    /\ (state.snapshotFiles \subseteq state.representedFiles \/ Policy = "skipRepresentation")
+    /\ (state.dirtyGeneration = state.servicedGeneration \/ Policy = "skipDirtyFence")
 
 Commit ==
     /\ state.phase = "fenced"
@@ -144,7 +151,8 @@ Commit ==
     /\ state' = [state EXCEPT
         !.phase = "idle",
         !.dirty = FALSE,
-        !.publishedFiles = @ \cup state.snapshotFiles,
+        !.publishedFiles = IF Policy \in {"publishAllFiles", "wrongPublishedOutput"}
+            THEN Files ELSE state.snapshotFiles,
         !.commitWitnesses = @ \cup
             {<<state.snapshotFiles \cap state.unreadableFiles = {},
                ~state.catalogChanged,
@@ -154,7 +162,9 @@ Commit ==
                ~state.noteChanged,
                state.snapshotFiles \subseteq state.representedFiles,
                state.dirtyGeneration = state.servicedGeneration>>},
-        !.dirtyWitnesses = @ \cup {<<TRUE, FALSE>>},
+        !.publicationWitnesses = @ \cup
+            {<<IF Policy = "publishAllFiles" THEN Files ELSE state.snapshotFiles,
+               state.snapshotFiles, state.representedFiles, state.secondFiles>>},
         !.snapshotFiles = {},
         !.snapshotSession = None,
         !.processedFiles = {},
@@ -178,6 +188,7 @@ Retry ==
 Next ==
     \/ DeliverCurrentFile
     \/ RemoveCurrentFile
+    \/ DeliverDirtyHint
     \/ MakeUnreadable
     \/ MakeReadable
     \/ BeginTransaction
@@ -218,19 +229,41 @@ TypeOK ==
     /\ state.commitWitnesses \subseteq
         (BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN
             \X BOOLEAN \X BOOLEAN \X BOOLEAN \X BOOLEAN)
-    /\ state.dirtyWitnesses \subseteq (BOOLEAN \X BOOLEAN)
+    /\ state.publicationWitnesses \subseteq
+        ((SUBSET Files) \X (SUBSET Files) \X (SUBSET Files) \X (SUBSET Files))
 
 EveryCommitHadStableCurrentVisibleEvidence ==
     state.commitWitnesses \subseteq
         {<<TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE>>}
 
 CommitConsumedOnlyServicedDirtyGeneration ==
-    state.dirtyWitnesses \subseteq {<<TRUE, FALSE>>}
+    [][(state.dirty /\ ~state'.dirty) =>
+        /\ state.phase = "fenced"
+        /\ state.servicedGeneration = state.dirtyGeneration
+        /\ state'.dirtyGeneration = state.dirtyGeneration]_vars
 
 PublishedInputsWereCurrentAndRepresented ==
-    state.publishedFiles \subseteq Files
+    \A w \in state.publicationWitnesses:
+        /\ w[1] = w[2]
+        /\ w[1] \subseteq w[3]
+        /\ w[2] = w[4]
+
+\* Unlike the historical tuple above, inspect the actual published post-state.
+\* A witness copied from a preparation expression cannot certify its output.
+PublicationMatchesCapturedInputs ==
+    [][((state.dirty /\ ~state'.dirty) \/
+         state'.publishedFiles # state.publishedFiles) =>
+        /\ state.phase = "fenced"
+        /\ state'.publishedFiles = state.snapshotFiles
+        /\ state'.publishedFiles \subseteq state.representedFiles
+        /\ state'.publishedFiles = state.secondFiles
+        /\ state'.publishedFiles = state.currentFiles]_vars
 
 ActiveTransactionEventuallyEnds ==
     state.phase # "idle" ~> state.phase = "idle"
+
+NeverPublishedRepresentedFile == state.publicationWitnesses = {}
+NeverRetainedLaterDirtyHint == ~(state.phase = "fenced" /\ state.dirty
+    /\ state.dirtyGeneration > state.servicedGeneration /\ ~state.catalogChanged)
 
 =============================================================================

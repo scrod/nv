@@ -5,6 +5,11 @@ EXTENDS FiniteSets
 \* A filename, body, checkpoint omission, or retired identity never identifies
 \* the file to delete; the exact accepted file incarnation does. Absence origin
 \* distinguishes an environmental removal from NV's authorized deletion.
+\* Shared component: the caller supplies the complete Delete/action/parent
+\* segment barrier. The replacement is an independently classified new-file
+\* fixture; assigning FreshNoteID here does not bypass IMPORT-01's classifier
+\* for arbitrary replacements, contradictory provenance or repair candidates.
+\* This does not prove encoding, root identity, or crash-time token invalidation.
 
 CONSTANTS
     Incarnations, InitialIncarnation, ReplacementIncarnation,
@@ -27,6 +32,7 @@ Init ==
         originalNoteLive |-> TRUE,
         logicalDeletionAdmitted |-> FALSE,
         pendingDeletion |-> FALSE,
+        deletionDurable |-> FALSE,
         expectedIncarnation |-> InitialIncarnation,
         filePresent |-> TRUE,
         fileIncarnation |-> InitialIncarnation,
@@ -78,8 +84,14 @@ ExternalRecreateSameName ==
         !.replacementCreated = TRUE
         ]
 
+CompleteLocalDeletionBarrier ==
+    /\ state.logicalDeletionAdmitted
+    /\ ~state.deletionDurable
+    /\ state' = [state EXCEPT !.deletionDurable = TRUE]
+
 RemoveExactAcceptedIncarnation ==
     /\ state.pendingDeletion
+    /\ state.deletionDurable
     /\ state.filePresent
     /\ state.fileIncarnation = state.expectedIncarnation
     /\ state' = [state EXCEPT
@@ -126,6 +138,7 @@ RecordRetiredIdentity ==
 
 Next ==
     \/ AdmitLogicalDeletion
+    \/ CompleteLocalDeletionBarrier
     \/ ExternalReplaceSameName
     \/ ExternalRemoveCurrentFile
     \/ ExternalRecreateSameName
@@ -142,6 +155,7 @@ TypeOK ==
     /\ state.originalNoteLive \in BOOLEAN
     /\ state.logicalDeletionAdmitted \in BOOLEAN
     /\ state.pendingDeletion \in BOOLEAN
+    /\ state.deletionDurable \in BOOLEAN
     /\ state.expectedIncarnation \in Incarnations
     /\ state.filePresent \in BOOLEAN
     /\ state.fileIncarnation \in Incarnations \cup {None}
@@ -177,6 +191,9 @@ EveryPhysicalAbsenceHasAuthorizedOrigin ==
     state.absenceOrigin = "explicitDeletion" =>
         /\ state.logicalDeletionAdmitted
         /\ InitialIncarnation \in state.removedIncarnations
+
+RemovalFollowsLocalDurability == state.removedIncarnations # {} => state.deletionDurable
+NeverRemovedDurableOriginal == ~(InitialIncarnation \in state.removedIncarnations /\ state.deletionDurable)
 
 PhysicalFileStateUnchanged ==
     /\ state'.filePresent = state.filePresent

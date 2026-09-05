@@ -107,11 +107,9 @@ Important exclusions:
 
 - Binding and lifecycle execution are phased, not fully interleaved. This is a
   real output-to-input bridge, not a proof of concurrent binding and deletion.
-- The checkpoint action is a local covering-checkpoint abstraction. It is not
-  proposal #4's competing-checkpoint CAS/three-input merge. Existing checkpoint
-  models and `UUIDAssignmentRace` retain that separate coverage; the full
-  alias-bearing checkpoint/recovery implementation is not proved by combining
-  their test counts.
+- The checkpoint action is a local covering-summary abstraction, not the
+  adopted immutable segment graph or a complete alias-bearing recovery
+  implementation. Combining independent test counts does not prove that link.
 - One modeled receipt/operation is not a general exactly-once delivery service.
 - No receiver action removes a physical file. Current-file replacement and
   removal retain their existing separate model/API obligations.
@@ -187,15 +185,13 @@ recovery, replay, retirement, rejoin, and stale-snapshot rejection. Mutations
 remove endpoint/nonce fences, recovered aliases, bootstrap validation, and the
 rejoin gate without changing their assertions.
 
-The addition contains 58 checks across three models. All 183 expected outcomes
-in the shared experimental matrix were verified, including the preceding 125
-regressions: 49 exhaustive passes, 76 rejected hypotheses/properties, 36
-reachability witnesses, and 22 mutation controls. After making the handshake's
-local-handle/hidden-item distinction explicit, all 43 affected handshake and
-composition checks were rerun successfully. Representative exhaustive
+The three retained families contain 58 checks. Their original run passed, and
+all 43 affected handshake/composition checks were rerun after making the
+local-handle/hidden-item distinction explicit. Representative exhaustive
 state counts are 19,952 (handshake/retarget), 23,052 (combined ordinary lifecycle),
 46,479 (combined retarget), and 407 (retirement with stale reads). No exploration
-is cut off by a state/depth constraint.
+is cut off by a state/depth constraint. Historical totals that included retired
+models are recorded only in the archive; they are not today's runner inventory.
 
 - Full matrix: `/var/folders/0c/0qwr3g9n3vb8_1pn33g2xcxh0000gp/T/notation-tla-uuid-av3ujy18`.
 - Final 43-check local-handle clarification rerun: `/var/folders/0c/0qwr3g9n3vb8_1pn33g2xcxh0000gp/T/notation-tla-uuid-ycjvr20r`.

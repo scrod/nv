@@ -19,3 +19,8 @@ CompilationDatabase
 tmp
 
 tools/release.sh
+docs/tla/__pycache__/*
+tools/__pycache__/
+NVStorage/.build/
+NVStorage/.swiftpm/
+NVStorage/.deps/

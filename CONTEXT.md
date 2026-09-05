@@ -1,173 +1,559 @@
-# Notational Velocity
+# Notational Velocity: terminology
 
-Vocabulary for NV's note storage and reconciliation domain.
+Canonical vocabulary for the adopted immutable-segment design. This is a glossary: product rules live in the [specification](docs/iCloud-Drive-Support-Spec.md), algorithms in [Protocol](docs/impl-proposal-5/Protocol.md), and storage/field mappings in [proposal 5](docs/impl-proposal-5/README.md). Legacy-only terms are separated at the end.
+
+## Concept hierarchy
+
+Read from the thing the user owns toward its representations and effects. A collection has repository/local-store copies; its history contains operations grouped into actions and transported in objects; relationships between those records determine Current, conflicts and Undo/Redo. Files and provider observations are a separate representation/evidence layer, and physical authority governs operations on those copies.
+
+- [1. Collections and their copies](#1-collections-and-their-copies)
+- [2. History records and stored objects](#2-history-records-and-stored-objects)
+- [3. History relationships and derived views](#3-history-relationships-and-derived-views)
+- [4. Change processing and durability](#4-change-processing-and-durability)
+- [5. Notes, deletion and conflict evidence](#5-notes-deletion-and-conflict-evidence)
+- [6. Actions, undo and editing](#6-actions-undo-and-editing)
+- [7. Note files and provider observations](#7-note-files-and-provider-observations)
+- [8. Explicit conflict choices](#8-explicit-conflict-choices)
+- [9. Authority, repair and transitions](#9-authority-repair-and-transitions)
+- [10. Legacy-only vocabulary](#10-legacy-only-vocabulary)
+
+Names listed under _Avoid_ are not forbidden English words: they are unsafe substitutes for that particular concept. Exact code identifiers and wire fields remain spelled as specified in their annexes.
 
 ## Language
 
-**Live note store**
-The complete in-memory collection of notes, settings, metadata, pending deletion records, and retired deterministic conflict identities that is authoritative while NV runs.
-_Avoid_: Memory cache, local cache
+### 1. Collections and their copies
 
-**Database checkpoint**
-The complete durable representation of the live note store used for fast startup and same-Mac recovery. The user-visible file is named `Notes & Settings`; its note records are not a routine cross-device synchronization input.
-_Avoid_: Cache file, sync database
+Definition sources: [storage and ownership](docs/iCloud-Drive-Support-Spec.md#storage-identity-and-ownership), [proposal layout](docs/impl-proposal-5/README.md). For the bounded startup interpretation, see [SegmentBootstrapSafety](docs/tla/SegmentBootstrapSafety.tla).
 
-**Accepted database checkpoint**
-The canonical checkpoint used as the live-store and WAL-recovery base after validation. Noncanonical provider versions are not accepted or recovered by NV.
-_Avoid_: Winning database branch, newest database
+**Collection**:
+The logical set of notes and their retained NV history, independent of the folder or Mac holding a copy.
+_Avoid_: Folder identity, one database file
 
-**Checkpoint identity**
-A fresh, never-reused random `checkpointID` identifying one installed database checkpoint. It has equality semantics only.
-_Avoid_: Checkpoint revision, ancestry
+**Segment collection**:
+An NV collection whose retained immutable operation history supplies recovery and synchronization, with an explicit plaintext-file or encrypted-segment profile.
 
-**Checkpoint base identity**
-The exact accepted checkpoint from which a local durability journal begins: its checkpoint identity, or a tagged SHA-256 digest of exact unchanged epoch-4 bytes.
-_Avoid_: Database ancestry, writer identity
+**Collection identity**:
+The identity of one collection's bootstrap and history, shared by its legitimate copies. It does not identify or authorize access to a particular physical folder.
+_Avoid_: Root identity, device identity
 
-**Checkpoint-scoped state**
-Every live-store value serialized into `Notes & Settings` whose change can require a new checkpoint, including note records, the compact retired-deterministic-identity set, `NotationPrefs`, selection/UI state, and database-level metadata. An ordinary completed deletion is represented by omission from the complete note set, not by a permanent tombstone. The root session tracks divergence from the accepted checkpoint independently of WAL/file obligations; “nothing checkpoint-scoped changed” means that exact dirty generation still equals its accepted-checkpoint baseline.
-_Avoid_: Whatever the WAL happens to contain, checkpoint-only metadata
+**Collection profile**:
+The collection-wide choice of plaintext-file or encrypted-segment representation and its required content rules.
+_Avoid_: Provider brand, a remotely synchronized preference
 
-**Durability journal / WAL**
-The ordered host-local record of changes during one editable root-session lifetime. Modern WALs live under the current user's Application Support directory, never in the notes directory or provider namespace. They protect same-Mac crash recovery and are not a synchronization representation.
-_Avoid_: Cloud log, provider journal
+**PlaintextFilesV1**:
+The collection profile with interoperable plaintext note files and visible retained NV history.
 
-**Journal identity**
-A random, never-reused identifier for one local WAL generation.
-_Avoid_: Writer identity, machine identity
+**EncryptedSegmentsV1**:
+The collection profile with authenticated encrypted provider history and no plaintext note projection in that provider folder.
 
-**Local WAL recovery evidence**
-A self-describing Application Support WAL whose header bookmark resolves to the selected root. Every matching WAL is mandatory startup evidence until its valid work is represented by an exactly verified checkpoint or conservatively recovered. There are no active/retained preference claims or remote journals.
-_Avoid_: Shared journal, retained claim
+**Repository**:
+The user-selected collection folder and its contents: required NV Data history plus separate note files when the collection profile provides them. A repository is a physical copy of a collection, not all private application state.
+_Avoid_: NV Data alone, Application Support
 
-**Journal recovery eligibility**
-Classification of a structurally valid local WAL against the accepted checkpoint as exact-base replay, already-represented cleanup, or base-mismatch salvage. LSN ordering proves order only within one WAL.
-_Avoid_: Provider-version resolution eligibility
+**NV Data**:
+The visible repository subdirectory holding required portable history and collection/key descriptors.
+_Avoid_: Disposable sync metadata, the entire repository
 
-**Separate note file**
-An interoperable representation of one note synchronized with the live note store. Under the first-class provider-managed contract these are unencrypted plain-text files and the routine cross-device representation.
-_Avoid_: Authoritative note, database branch
+**Local store**:
+One private host copy of retained history and private state, including changes not yet published to the provider. “Private store” is the same concept.
+_Avoid_: Expendable cache, repository
 
-**Provider catalog token**
-NV's immutable equality witness for one coordinated shallow catalog observation. It is not provider-issued, ordered, or monotonic.
-_Avoid_: Catalog revision, scan timestamp
+**Live note store**:
+The complete current in-memory note collection and its pending admitted changes, authoritative during use.
 
-**Authoritative current note candidate set**
-The current coordinated direct-child note files plus live-model/last-catalog identities and note URLs delivered by presenter move callbacks. Hidden NV artifacts and `Notes & Settings` are excluded. Spotlight results are never authoritative inputs.
-_Avoid_: Cloud inventory, metadata-query results
+**Local State**:
+The local store's required settings, collection/root association, history-loss evidence, local observations and pending-file references/operation reservations. These are logically separate from portable history and disposable acceleration, even when stored in the same private database.
+_Avoid_: Synced preferences, startup cache
 
-**Current-visible reconciliation**
-A transaction over a complete coordinated current namespace and the selected current-file snapshots. Equal before/after catalogs and unchanged root/model inputs permit publication. It makes no claim about undisclosed provider history.
-_Avoid_: Current-known, fully synchronized
+**Current-state materialization**:
+The private database's derived current-note rows and authoring context, maintained through an exact prefix of accepted history. It is not a second history archive or the live store's pending user input.
 
-**Reconciliation transaction**
-A detached current-visible candidate that may affect the live store only after its catalog, root-session, structural-generation, and note UUID/LSN fences still match.
-_Avoid_: Rescan, refresh
+**Local acceptance batch**:
+One atomic addition of validated, complete history to a local store, including its required bookkeeping. Its local sequence orders materialization catch-up, not causality, provider delivery or cross-machine identity.
 
-**Checkpoint-current note reconciliation**
-The no-write recovery path after `NVCheckpointInstallCurrentChanged`: NV compares the retained accepted checkpoint, the complete live note set, and the exact complete current `Notes & Settings`. A UUID present in the base and absent from a complete branch is that branch's deletion; no other absence is deletion evidence. NV publishes only reconciled note states, base-relative deletion outcomes, and the union of retired deterministic conflict identities. Preferences and database-scoped metadata from the competing checkpoint are ignored. Any retry uses that exact current checkpoint as its expected predecessor.
-_Avoid_: Database merge, historical checkpoint recovery
+**Local tail**:
+Locally retained history not represented by the current materialization or a provider snapshot. It need not be unpublished or belong to only one writer.
+_Avoid_: Only unsynced edits, highest sequence number
 
-**Checkpoint-current witness**
-One host-local, root-session-scoped snapshot captured inside the same coordinated accessor: exact complete checkpoint bytes, the existing `NVFileObservation` fields, and the current local `NSFileVersion.persistentIdentifier` when Apple supplies one. The persistent identifier is supplemental rather than a generation counter; live tests on macOS 14 and 26 kept it equal across a same-bytes Foundation replacement while the filesystem observation changed. Expected-current comparison rechecks every captured component, and a changed component rejects the write. The witness is never persisted or compared across machines.
-_Avoid_: Provider revision, portable version identity
+### 2. History records and stored objects
 
-**Preservation**
-Additive retention of a differing visible state as an ordinary conflict note. A delete/edit race omits the deleted source UUID and preserves the edited state under a distinct note identity only when that edited state is an available local/current-file or complete-checkpoint input. Routine current-file preservation uses the existing ordinary-note creation rules and fresh random version-4 identities; it never consults deterministic recovery candidates or their retirement to suppress that state. Checkpoint-current reconciliation and base-mismatched WAL salvage instead use the automatic deterministic identity and its reuse/retirement policy. If provider deletion removes the current file and Apple discloses no unresolved edited version, the current-visible design has no state to preserve; this says nothing about provider data not exposed through those inputs. Preservation never authorizes modification of Apple version history.
-_Avoid_: Resolution
+Definition sources: [protocol identities](docs/impl-proposal-5/Protocol.md#identities-and-the-causal-graph), [object envelopes and keys](docs/impl-proposal-5/Encryption.md), [repair/pin decision](docs/adr/0016-repair-from-validated-immutable-copies.md). [SegmentActionRecoverySafety](docs/tla/SegmentActionRecoverySafety.tla) couples action records to note values; it does not prove the byte format.
 
-**Unresolved provider version**
-An `NSFileVersion` Apple reports as unresolved for a currently visible note file. It is manual conflict-disposition input only. NV does not infer that the returned set is complete or persist its identifiers. Only an explicit action in the conflict resolver view may mark a disclosed member resolved; NV never removes one from the version store.
-_Avoid_: Complete history, recovery checkpoint
+**Operation**:
+One recorded logical change, such as creating a note, replacing its value, deleting its birth, or retiring a conflict identity. Operations carry causal relationships; they are not filesystem commands.
+_Avoid_: Action group, file write
 
-**Conflict resolver view**
-The user-invoked, nonmodal read-only view swapped into the editor split-view subview in place of `LinkingEditor` when the user clicks a conflicted note's alert badge. Its **Conflicts** menu contains **Current** plus the unresolved versions Apple disclosed for the operation. Selecting a member previews its immutable file contents; selecting **Current** previews the authoritative live note body. Its close **×** always restores `LinkingEditor` and dismisses only the view: per-version operations may continue in the background, re-presenting automatically starts a fresh bounded pass for parked operations without duplicating running ones, and only a fresh empty unresolved query clears the badge. It has no explicit Retry action.
-_Avoid_: Historical version browser, automatic recovery
+**Operation identity**:
+The identity of a canonical change including its causal inputs, independent of its enclosing transport envelope.
 
-**Use this version**
-The explicit winner choice in the conflict resolver view. **Current** keeps the authoritative live body; another selection copies only its body into the current note through the ordinary mutation path. After the resulting current-note WAL and exact separate-file obligations settle and remain exact inside coordinated revalidation, every unresolved member in that operation snapshot may be marked resolved. The original note identity, filename, title, labels, and database metadata remain unchanged.
-_Avoid_: Replace version file, restore checkpoint
+**Action group**:
+One meaningful user action and its member operations, described by one action record. Several complete action groups may share a segment, but a group is not split across segments in v1.
+_Avoid_: One segment per action, serialized undo invocation
 
-**Recovery key and slot**
-The stable idempotency identity for **Save as new note**: a fixed versioned namespace plus source note UUID and canonical recovered body. Mutable title, labels, format, filename, provider identifier, and collision suffix are excluded. Candidate note UUIDs add a deterministic nonnegative slot; exact live-body candidates are reusable, while modified candidates and UUIDs in the retired deterministic conflict identity set occupy their slot and are never overwritten or resurrected.
-_Avoid_: Recovered filename identity, provider-version ledger
+**Action record**:
+The retained description of an action group's membership, before/after values, undo scope and compensation relationships.
+_Avoid_: Another stream of note mutations, executable command
 
-**Save as new note**
-The per-member additive disposition in the conflict resolver view. A selected conflicting version becomes one ordinary collision-adjusted `Title (conflict)` note using the captured source title/labels and previewed body. Only after its exact body/generation is WAL-durable, its separate file is exactly installed, and source/member applicability is coordinately revalidated may that selected provider member be marked resolved. **Current** cannot be saved through this action.
-_Avoid_: Recover all versions, automatic conflict copy
+**Immutable object**:
+A complete retained unit of exact bytes whose identity does not change on copying or retransmission. Repository objects include segments and collection/key descriptors; not every object is a note revision.
+_Avoid_: Note, mutable current file
 
-**Conflict note**
-An ordinary note with a distinct identity preserving an alternate visible or explicitly recovered state while remaining searchable and editable.
-_Avoid_: Hidden version, conflict record
+**Object envelope**:
+The encoded outer container that identifies and protects a payload's kind and collection/local scope. Provider segments use this container; private SQLite current/state rows have separate local protection and are not provider envelopes.
+_Avoid_: Segment payload, every envelope is synced
 
-**Pending deletion record**
-The UUID/LSN `DeletedNoteObject` retained in the pending set and host-local WAL until covered by a verified complete checkpoint. Ordinarily it records an intentional logical deletion. For a reserved version-8 UUID it also carries an idempotent retirement assertion. Ordinary conflict-note deletion admits only that UUID; the exceptional checkpoint-current reconciliation reasserts the complete merged retired set because its checkpoint predecessors have been displaced. Its legacy `syncServicesMD` has no modern semantics. It never identifies or authorizes deletion of a plain-text file; only the original exact-snapshot deletion operation may remove the represented file.
-_Avoid_: Permanent tombstone, deleted filename
+**Compression profile**:
+The byte-level rules for optional compression, separate from encryption and logical
+history identity. New storage uses zstd; provider envelope tag `1` means exactly
+one bounded, dictionary-free frame. Private current-row dictionaries have their
+own local codec metadata. Zlib is legacy epoch-4 database/WAL compatibility only.
+See the [exact acceptance rules](docs/impl-proposal-5/Encryption.md#compression-profile).
+_Avoid_: SQLCipher page encryption, a shared stream across segments
 
-**Retired deterministic conflict identity**
-A UUID from the reserved RFC 9562 version-8 deterministic namespace that once identified an explicit recovery note or automatic conflict-preservation note and was later deleted. Retired identities are stored as a compact monotonic checkpoint set and prevent deterministic retry from overwriting or recreating deleted conflict notes. They never identify or authorize deletion of a separate file.
-_Avoid_: General note tombstone, provider-version ledger
+**Segment**:
+An immutable history object containing either complete operation/action groups or a typed provider-snapshot root/page payload. A segment's transport identity is distinct from the identities of the operations inside it.
+_Avoid_: Active journal, file patch, private startup cache
 
-**Filesystem identity evidence**
-Optional candidate-association evidence: a nonzero document ID qualified by an equal volume UUID, or a nonzero file ID limited to one active root session. Either must be unique on both sides. Generation count is revision metadata. Missing or changed identity after eviction, rematerialization, replacement, or restart is an ordinary fallback condition, never proof of a different note by itself.
-_Avoid_: Note identity, provider-stable identifier
+**Segment locator**:
+A reference identifying the exact retained segment containing required evidence. It locates bytes; an operation identity identifies the logical change inside them.
+_Avoid_: Mutable path, latest segment
 
-**Root session**
-A fresh authority incarnation for one opened notes directory. A verified move of the same rooted directory, with the same positive provider identity when one is available, retains it. A positive authority change fences the old incarnation. Loss of positive continuity makes the session unavailable until positive evidence restores it or an explicit user action ends it. Asynchronous work may publish only while its captured incarnation remains active and available.
-_Avoid_: Global notes path
+**Writer epoch**:
+A fresh namespace for allocating sealed objects during an editable session. It is separate from action-origin provenance, collection identity and device identity.
+_Avoid_: Machine ID, action origin
 
-**Root continuity unavailable**
-The nonterminal state entered when NV cannot positively establish that the opened rooted directory remains reachable as the same object. Missing paths, vnode deletion/revoke, stale bookmarks, provider unavailability, and lookup errors never prove deletion. Positive same-root evidence may restore the session, and positive changed-authority evidence takes the provisional-successor path; otherwise only explicit **Save Current Collection As…**, **Re-open from Disk**, collection abandonment, or quit ends it.
-_Avoid_: Confirmed root loss, missing notes path
+**Collection bootstrap**:
+The collection's founding identity, profile and initial-import commitment, anchored by genesis and a bootstrap descriptor. Bootstrapping means establishing that foundation on a local store, not choosing the newest remote history.
+_Avoid_: Ordinary app launch, empty-directory inference
 
-**Root-directory lock**
-The nonblocking exclusive advisory `flock` on the already-open directory descriptor retained by the root session. It excludes cooperating local writers of that same directory object from startup/WAL discovery through local close and observer teardown, including gap-free same-root authority/controller handoff. It is not a lock file, a WAL lock, root-identity evidence, or a cross-Mac lease; a different directory at the old pathname is a different lock resource.
-_Avoid_: Provider lock, pathname lock, journal ownership claim
+**Genesis**:
+The founding operation recording the collection's profile and commitment to its initial note set. Initial import completion is separate evidence that the promised set has arrived intact.
+_Avoid_: An editable empty fallback
 
-**Journal durability suspension**
-The transient edit-blocking reason selected when the local Application Support WAL cannot append or barrier-sync, or its association with the active root cannot be validated. Provider/network uncertainty alone does not select it.
-_Avoid_: Read-only mode, provider offline
+**Bootstrap/key descriptor**:
+An immutable record identifying the collection's bootstrap and, for encrypted collections, its wrapped-key unlocking information. It is not a note's merge or projection descriptor.
+_Avoid_: Mutable key pointer, private association
 
-**Edit-admission gate**
-The single main-thread mutation check. Acceptance mutates the live model and inserts the note or pending deletion record in the existing pending set but performs no archive or I/O; its current UUID/LSN is captured at the later coalescing or forced-durability boundary. Deleting a reserved deterministic conflict UUID also inserts it into the retired set. Independent lifecycle-quiescing and local-WAL-durability reasons may select the gate; either blocks later mutation.
-_Avoid_: WAL gate, termination gate
+**Bootstrap pin**:
+The local association's commitment to a particular collection bootstrap, profile and key identity. It answers which collection this store belongs to, not how much history it has accepted.
+_Avoid_: Retained-history pin, newest-history proof
 
-**Structural generation**
-A live-store generation changed by note addition/removal, note-file rename, or serialization/storage-format change. It fences detached commits independently of note content LSNs.
-_Avoid_: Scan timestamp
+**Retained-history pin**:
+Private evidence naming the history and descriptors that this local store has already accepted and must still possess. It can expose loss of previously accepted local history, but cannot expose a branch this store never learned about.
+_Avoid_: Undo cursor, upload receipt, all-devices watermark
 
-**Provider visibility witness**
-Current catalog/file evidence that accounts for a provider callback. Callback arrival alone is only a wakeup and never a fence.
-_Avoid_: Callback timestamp
+**Provider snapshot**:
+An immutable snapshot of note values and indexes at a stated operation frontier, available as retained provider objects. Its snapshot root lists the snapshot pages; this root is not a filesystem root.
+_Avoid_: Startup cache, latest database, canonical checkpoint
 
-**Provider-current**
-A local cloud item the provider reports as the newest version known to this Mac. It does not prove no unseen remote edit exists.
-_Avoid_: Globally current
+**Encryption recovery key**:
+Secret key material supplied by the user to unlock an encrypted collection through its validated bootstrap. It is unrelated to a deterministic conflict recovery key.
+_Avoid_: Conflict-copy identity, password hint
 
-**Provider-managed root**
-An opened directory for which positive ubiquitous-item or File Provider domain evidence establishes provider management. This identifies an authority boundary, not a vendor.
-_Avoid_: iCloud-branded root
+**Password-free collection**:
+A collection with no secret required to recover its stored notes; it makes no at-rest confidentiality promise. Remembered password unlocking of an encrypted collection is a different mode.
+_Avoid_: Keychain-only encryption, remembered encrypted collection
 
-**Unclassified root authority**
-An opened directory for which NV has no positive provider-management evidence. Absence, delay, lookup failure, and negative results do not establish that the root is ordinary local; they authorize only the generic conservative filesystem path.
-_Avoid_: Confirmed ordinary-local root, noncloud root
+**Envelope scope**:
+The distinction between provider-shareable and host-private encoded objects, with private objects bound to their local store. This cryptographic/storage scope is not an Undo scope.
+_Avoid_: Action scope, resolver scope
 
-**Working offline**
-An explicit mode permitting edits against a complete local checkpoint and every matching local WAL without first obtaining a provider-current checkpoint.
-_Avoid_: Read-only mode
+### 3. History relationships and derived views
 
-**Save Current Collection As**
-Exceptional construction of a new, exclusively created notes directory from the frozen live store after the active root becomes unusable. An exactly verified destination checkpoint may cover and retire the old host-local WAL; no WAL is copied to the destination.
-_Avoid_: Root replacement, WAL transplant
+Definition sources: [causal values](docs/iCloud-Drive-Support-Spec.md#causal-values-conflicts-and-deletion), [protocol graph distinctions](docs/impl-proposal-5/Protocol.md#identities-and-the-causal-graph), [SegmentMergeSafety](docs/tla/SegmentMergeSafety.tla). Model variable names have [specific abstraction boundaries](docs/tla/README.md#reading-model-names-against-the-specification).
 
-**Bootstrap reconstruction**
-All-or-nothing reconstruction of a replacement live store from a stable current-visible separate-file snapshot when no acceptable canonical checkpoint can produce startup state.
-_Avoid_: Historical recovery, reverse synchronization
+**Causal parents**:
+An operation's direct references to the operations it was based on or observed. Following these references backward gives its causal ancestry, which can include unresolved note alternatives.
+_Avoid_: All revisions this operation replaces
 
-**Credential cutover**
-The copy-on-write controlled restart for a passphrase, encryption, or storage-format change. The accepted checkpoint/Keychain pair remains usable until the isolated target pair is verified.
-_Avoid_: Live passphrase mutation
+**Note predecessors**:
+The note revisions that a new value explicitly replaces. These describe note supersession, not everything its author knows.
+_Avoid_: All causal parents, all known heads
 
-**Upload status**
-Provider-reported progress used for presentation and the existing quit UI. It is not a WAL-cleanup, provider-version-removal, manual conflict-disposition, or local-durability precondition.
-_Avoid_: Cloud durability proof
+**Scope parents**:
+The maximal action records represented by a new action's captured undo-scope history. These order actions for Undo/Redo; they are neither note predecessors nor compensation targets.
+_Avoid_: Arrival-ordered stack, operation-parent list
+
+**Accepted history**:
+Validated, dependency-complete history adopted and durably retained by the local store. Merely receiving an object does not make its contents accepted history.
+_Avoid_: Every downloaded object, applied live state
+
+**Accepted frontier**:
+The maximal operation identities in accepted dependency-closed history. Qualify it as accepted, applied or represented when the distinction matters.
+_Avoid_: Largest sequence, all-devices watermark
+
+**Applied frontier**:
+The maximal operation identities in the history already incorporated into the live model, including its known alternatives. It excludes received-but-unapplied history; locally admitted pending changes can already be applied, and known alternatives need not be represented by Current.
+_Avoid_: All received objects, Current's note heads
+
+**Represented frontier**:
+The operation frontier whose history a particular snapshot, materialization or prepared result represents. A segment frontier instead names segment locators, and an action frontier names action IDs; these are different reference sets.
+_Avoid_: Unqualified frontier, globally latest state
+
+**Dependency closure**:
+All exact ancestors and referenced evidence needed to validate and interpret specified NV history. “Complete closure” is complete relative to those inputs, not proof of everything on other Macs.
+_Avoid_: Whatever files arrived, global completeness
+
+**Reduction**:
+Computing the current notes, conflicts and derived indexes from validated retained operations. The reducer interprets history; it does not create a new user action merely by displaying a result.
+_Avoid_: Replay of executable remote commands, new save
+
+**Derived state**:
+A value or index reconstructible from retained evidence, such as a merge result or undo-candidate index. Derived does not mean unimportant, but means it is not the only copy of the underlying evidence.
+_Avoid_: New independent user operation
+
+### 4. Change processing and durability
+
+Definition sources: [local admission and recovery](docs/iCloud-Drive-Support-Spec.md#local-admission-sealing-and-recovery), [protocol persistence boundary](docs/impl-proposal-5/Protocol.md#admission-sealing-and-durability-without-a-second-wal), [ImmutableSegmentDurabilitySafety](docs/tla/ImmutableSegmentDurabilitySafety.tla) and [SegmentDeletionSafety](docs/tla/SegmentDeletionSafety.tla). Their installation/acceptance abstractions differ; see the model-name guide linked above.
+
+**Admitted change**:
+A mutation accepted into the live note store and pending work. It is visible immediately but may not yet be locally durable.
+_Avoid_: Accepted history, saved, acknowledged
+
+**Captured change**:
+A frozen value and its exact action/causal inputs prepared for asynchronous persistence or another guarded operation. Later edits are different generations, not modifications to the capture.
+_Avoid_: Disk write, fresh permission forever
+
+**Sealed object**:
+An object whose final encoded and integrity-protected bytes have been fixed for installation and retry. Sealed bytes can still exist only in memory.
+_Avoid_: Locally durable, uploaded
+
+**Locally durable history**:
+Complete validated final objects and their dependencies retained across the claimed local crash boundary.
+
+**Local durability barrier**:
+The complete local persistence boundary required before NV acknowledges a change as crash-durable. A completed file write or final-name installation alone is not that entire boundary.
+_Avoid_: Upload completion, save callback
+
+**Durability acknowledgment**:
+NV's confirmation that a specific captured change and its required local history have crossed the local durability barrier.
+_Avoid_: Provider receipt, mere admission
+
+**Parked object**:
+A received object retained while required dependencies, keys or supported decoding remain unavailable. Parking is not live application or an empty change.
+_Avoid_: Rejected history, applied state
+
+**Provider publication**:
+Making an exact locally durable history object available in the selected provider repository. It is separate from publishing a prepared change into the live model.
+_Avoid_: Atomic model publication, proof of peer receipt
+
+**Reconciliation transaction**:
+The preparation and validation of a proposed live-model change from captured history or file observations, ending in atomic model publication when still applicable.
+_Avoid_: Cross-file transaction, cloud commit
+
+**Atomic model publication**:
+Making a validated reconciliation result and its dependent live indexes visible together, or making none of them visible. It describes one local live-model transition, not atomic files or a simultaneous cross-Mac commit.
+_Avoid_: Provider publication, cross-file transaction
+
+### 5. Notes, deletion and conflict evidence
+
+Definition sources: [causal deletion and preservation](docs/iCloud-Drive-Support-Spec.md#causal-values-conflicts-and-deletion), [reduction and conflict identities](docs/impl-proposal-5/Protocol.md#note-reduction-concurrent-edits-and-intentional-deletion), [SegmentDeletionSafety](docs/tla/SegmentDeletionSafety.tla) and [SegmentMergeSafety](docs/tla/SegmentMergeSafety.tla). Recently Deleted list membership has separate [integration requirements](docs/impl-proposal-5/Verification.md#required-history-feature-integration-matrix), not a complete model proof.
+
+**Note birth**:
+The logical identity of one creation; restoration after deletion is a different birth.
+
+**Note revision**:
+One retained note-value operation in a birth's history. Revisions can coexist as alternatives rather than forming one timestamp-ordered list.
+_Avoid_: Physical file version, latest timestamp
+
+**Note head**:
+A note revision not superseded by another applicable revision in the evaluated history. Several heads may exist for one birth.
+_Avoid_: Newest timestamp, filesystem HEAD
+
+**Represented revisions**:
+The exact revisions embodied by a note's Current value: one revision, an equal-value set, or the inputs of a validated derived merge. Knowing another alternative does not mean Current represents it.
+_Avoid_: All known revisions
+
+**Current**:
+The note value shown for ordinary editing, representing a particular revision or identified derived state. Capitalized Current is not the provider's current file version.
+While local editing temporarily pins its own head, keep that displayed value paired with its actual represented revisions. This presentation pin is not the retained-history durability pin. Once releasable, schedule generation-fenced reduction even without another provider event; identical causal frontiers alone do not prove that two captured Current values or represented-input sets match. See [note reduction](docs/impl-proposal-5/Protocol.md#note-reduction-concurrent-edits-and-intentional-deletion) and [CompensationOverlapBridge](docs/tla/CompensationOverlapBridge.tla).
+_Avoid_: All known heads, provider-current
+
+**Logical Delete**:
+An explicit causal command making its target birth absent, distinct from disappearance of a plaintext file.
+
+**External-deletion candidate**:
+A verified current-file disappearance with no applicable logical Delete, awaiting the configured confirmation decision.
+
+**Conflict note**:
+An ordinary separately identified note preserving a differing or explicitly recovered value.
+
+**Preservation**:
+Retention of differing source evidence, and where required an ordinary conflict note, without permission to destroy or overwrite unrelated work.
+
+**Automatic preservation**:
+A derived conflict note representing still-uncovered concurrent work. Unlike an explicit copy or independent user edit, its untouched presence can cease to be needed when more deletion evidence arrives.
+_Avoid_: Automatically committed recovery
+
+**Retired deterministic conflict identity**:
+An explicitly retired conflict-copy/preservation birth whose deterministic recreation is suppressed by retained history.
+
+**Conflict recovery key**:
+A deterministic identity for the selected conflict-copy content from a particular source note. It is not an encryption secret; mutable title, labels and filename do not define this key.
+_Avoid_: Encryption recovery key, provider-version ledger
+
+**Recovery slot**:
+One candidate conflict-copy identity associated with a conflict recovery key and an ordinal. Distinct slots allow safe handling of an occupied or previously retired candidate.
+_Avoid_: Filename collision suffix, Apple version ID
+
+**Derived merge**:
+A deterministic current view computed from exact retained heads and a base, not a new user operation.
+
+**Merge descriptor**:
+The identity and provenance of a derived merge's algorithm, exact inputs/base and result.
+
+**Restoration**:
+An explicit fresh-birth creation referring to a previously deleted birth or historical value.
+
+**Note History**:
+The inspectable retained NV revisions, actions and merge provenance known for a note, not all Apple versions.
+
+**Recently Deleted**:
+The view of applicable logical deletions and recoverable prior values, excluding source entries already explicitly restored by durable restoration evidence. Deleting a restored fresh birth creates its own entry, not revival of the original one.
+_Avoid_: Filesystem Trash, permanent erase
+
+### 6. Actions, undo and editing
+
+Definition sources: [history and undo policy](docs/iCloud-Drive-Support-Spec.md#note-history-recently-deleted-and-undo), [action-record rules](docs/impl-proposal-5/Protocol.md#action-records-and-cross-launch-undo), [CausalUndoRules](docs/tla/CausalUndoRules.tla) and [ConcurrentUndoExecutionSafety](docs/tla/ConcurrentUndoExecutionSafety.tla). Native spans and attached views have separate bounded checks in [NativeUndoSpanSafety](docs/tla/NativeUndoSpanSafety.tla) and [SharedNoteViewOwnershipSafety](docs/tla/SharedNoteViewOwnershipSafety.tla); none reconstructs AppKit's executable undo objects from history.
+
+**Action origin**:
+Recorded provenance grouping the actions authored in one editable collection session. It is retained with action history but is not a private continuation owner or an authenticated person/device.
+_Avoid_: Undo owner, writer epoch, machine ID
+
+**Undo scope**:
+The note or collection context in which an action participates in Undo/Redo candidate selection. It is not the set of note revisions a resolver may dispose or the encryption envelope's local scope.
+_Avoid_: Global stack, envelope scope
+
+**Action frontier**:
+The maximal represented actions within one undo scope. The authoring frontier used to record new scope parents is distinct from a lazily loaded history-view index.
+_Avoid_: Operation frontier, displayed history rows
+
+**Undo/redo candidate**:
+An action eligible for consideration by the requested command, subject to current-value and admission checks. A candidate needing review is not silently skipped in favor of an older easier action.
+_Avoid_: Automatically executable command
+
+**Portable causal undo**:
+Repository-derived Undo/Redo eligibility across all validated action origins in one note or collection scope. A unique causally maximal applicable candidate may proceed; incomparable or overlapping candidates require explicit review rather than arrival-time ordering.
+
+**Compensation**:
+A new action reversing an applicable earlier effect against current values without rewriting that earlier history. Compensation targets identify the actual action being reversed, independently of causal ordering; Undo after Redo targets that actual Redo.
+
+**Compensation target**:
+The actual action reversed by an Undo/Redo action. A target link says what was reversed; scope-parent links say what was observed.
+_Avoid_: Original forward action in every redo cycle
+
+**Compensation family**:
+An independent whole action and its descendants through compensation-target links; scope-parent observation alone does not join families. Partial-native coverage can relate a command to several saved-action families.
+_Avoid_: Scope-wide conflict flag, globally consumed undo branch
+
+**Command-relative ambiguity**:
+Uncertainty involving the requested Undo/Redo candidates, their compensation families or affected current values. An unrelated historical fork is not a permanent conflict flag on the entire note.
+_Avoid_: Scope-wide conflict flag
+
+**Reviewed compensation**:
+An explicitly approved continuation of a captured Undo/Redo request that records the actual before/after reversal. It is not independent historical recovery or a provider-version disposition.
+_Avoid_: New edit merely because a review view was used
+
+**Undo/redo branch**:
+The derived eligible causal sequence in one note or collection scope. An independent causal descendant supersedes redo eligibility in that scope even when that descendant is later undone/redone; compensation commands preserve the remaining eligible redo sequence. Concurrent arrivals preserve alternatives for review. Retained immutable history remains.
+
+**Native typing undo**:
+Fine-grained in-session AppKit undo associated with the current editable text state. Its executable objects, grouping and selections are neither serialized nor portable, though durable remaining effects are represented by action records.
+
+**Remaining effect**:
+The part of a saved action not yet reversed by fine-grained native undo. Remaining-effect coverage connects native undo to durable action history without claiming an entire action was reversed.
+_Avoid_: Reconstructed keystroke stack
+
+**Note view attachment**:
+A window's generation-tagged presentation of a shared live note, not an owner of an independent note model, pending save or undo branch. Its query/layout/live selection is independent; the note's remembered cursor range takes the most recent update.
+
+**Committed editing state**:
+Text accepted through normal input handling and eligible for ordinary action capture. Here committed distinguishes completed input from composition, not acknowledged disk durability. The shared-view probe/model retains a separate snapshot as one candidate adapter; the [input contract](docs/iCloud-Drive-Support-Spec.md#input-and-content-scope) does not require that buffer or an NV-owned composition state machine.
+_Avoid_: Every text-storage notification, locally durable
+
+**Marked draft**:
+AppKit-managed provisional input-method text that can be visible in the shared text storage. Its presence is not by itself a completed user action, synchronization conflict, or reason to prompt. NV must preserve standard input behavior; no separate durable draft format or universal rule about crash-snapshot contents is adopted.
+_Avoid_: Saved edit, acknowledged history
+
+### 7. Note files and provider observations
+
+Definition sources: [separate-file policy](docs/iCloud-Drive-Support-Spec.md#separate-plaintext-files), [projection stamp and decision matrix](docs/impl-proposal-5/Protocol.md#projection-stamp-and-delayed-history-handling), [ProjectionStampSafety](docs/tla/ProjectionStampSafety.tla). Physical observations are constrained by the [Apple API evidence](docs/Apple-API-Contract-Validation.md), not inferred from logical history.
+
+**Separate note file / projection**:
+An interoperable current representation of a note that can accept external edits, distinct from retained NV history.
+
+**Projection descriptor**:
+A claim relating a note revision to intended path/format/exact bytes, not proof that any physical installation occurred.
+
+**Projection stamp**:
+Advisory metadata carried with a separate note file that identifies its claimed NV source revision and exact projected bytes.
+
+**Projection receipt**:
+Private evidence of a particular locally verified note-file installation or association. Unlike a projection descriptor or stamp, it records a local observation and needs fresh validation before another physical operation.
+_Avoid_: Portable deletion permission, upload receipt
+
+**File observation**:
+An exact locally rooted snapshot whose applicability depends on fresh identity/revision checks.
+
+**Filesystem identity evidence**:
+Optional locally scoped association evidence, not a note birth or a guaranteed provider-stable identifier.
+
+**Provider catalog token**:
+An equality witness for one coordinated shallow current namespace observation.
+
+**Current-visible reconciliation**:
+A fenced transaction over current plaintext-file observations, not enumeration of complete NV or Apple history.
+
+**Repair-needed file relationship**:
+A live note's missing or uncertain association under fresh reconciliation evidence. A known placeholder, temporary unreadability, an initial write still owed by NV, or a failed/incomplete root scan does not by itself mean the relationship is lost.
+
+**Active projection comparison set**:
+The captured note generation's concrete intended filename/format/bytes, plus the last accepted representation still being updated or moved by an unfinished save/rename/format transition. The prior representation leaves this set when the newer projection verifies and the transition settles; arbitrary history is excluded.
+
+**Accepted projection / provisional relationship claim**:
+The accepted projection is the last locally verified output/association receipt, including completed source accounting for a move. A provisional claim instead reserves a note's relationship during admitted repair; it fences competing choices but is neither installation proof nor deletion authority. Settling B can replace accepted A while intended C stays pending. Both serialized receipts and reconstructed transitions require fresh physical validation after restart.
+
+**Plausible repair candidate**:
+One live note needing relationship repair that independently matches the external file's active path or exact nonempty active projection bytes. This justifies an association question, not automatic identity assignment. Evidence is never pooled between notes.
+
+**Pending-file item / latest pending snapshot**:
+A private, nonblocking decision/recovery item and its latest successfully read and validated local file snapshot. New snapshots durably replace old preview inputs; disappearance/read failure does not erase the last readable input. It is not an archive of every external save, an Apple conflict, or committed note history.
+
+**Operation reservation / frozen pending input**:
+Private retry identity allocated before admission, and the exact snapshot an admitted operation must continue to use. A reservation is not consent or a committed command. Frozen inputs are independent of later preview updates; recover against actual durable operations before importing again.
+
+A content-neutral association references existing represented history rather than inventing a note operation. A settled observation records that its Import/repair was handled; later editing/deleting the imported birth does not undo that fact. The [commit/recovery records](docs/impl-proposal-5/Protocol.md#pending-file-commit-and-recovery-records) define storage ownership and release, including old/new reference generations during an uncertain replacement.
+
+These definitions implement [IMPORT-01](docs/iCloud-Drive-Support-Spec.md#separate-plaintext-files). The [decision, active-state and retention rules](docs/impl-proposal-5/Protocol.md#current-file-decision-matrix) define their precedence, local storage and scope. [ExternalImportPolicyLab](docs/tla/ExternalImportPolicyLab.tla) compares observable signals; [ExternalImportAdmissionLab](docs/tla/ExternalImportAdmissionLab.tla) checks late-history admission; [Verification](docs/impl-proposal-5/Verification.md#external-file-admission-and-pending-recovery--adopted-policy) distinguishes lifecycle checks from production integration.
+
+**Structural generation**:
+The live-store generation distinguishing structural changes independently of an individual note's content generation.
+
+**Provider visibility witness**:
+Observed current file/catalog evidence accounting for a wakeup, distinct from the callback itself.
+
+**Provider-current**:
+The file version a provider reports as current to this observer. It is neither NV's editable Current nor proof of globally newest history.
+_Avoid_: All devices current
+
+**Materialized file**:
+A provider file whose required content bytes are available locally for reading. An entry or placeholder can be visible without its body being materialized.
+_Avoid_: Uploaded, globally synchronized
+
+**Disclosed evidence**:
+A particular object, file or version the provider has made known to this observer. An undisclosed branch cannot be inferred absent just because the local listing is quiet.
+_Avoid_: Globally complete inventory
+
+**Upload status**:
+Advisory provider progress, distinct from local durability, another NV's receipt and repository completeness.
+
+### 8. Explicit conflict choices
+
+Definition sources: [resolver and Apple disposition](docs/iCloud-Drive-Support-Spec.md#conflict-resolver-and-apple-disposition), [implementation UI states](docs/impl-proposal-5/Implementation.md#conflict-resolver-and-asynchronous-operations), [disposition ADR](docs/adr/0014-distinguish-logical-deletion-projections-and-conflict-disposition.md). The [coverage map](docs/tla/Proposal5-Coverage.md) distinguishes shared Apple-disposition checks from [NVConflictCopySafety](docs/tla/NVConflictCopySafety.tla)'s representation-only copy policy; the [verification plan](docs/impl-proposal-5/Verification.md#nv-conflict-copy-disposition--adopted-policy) lists remaining integration boundaries.
+
+**Unresolved provider version**:
+An Apple-disclosed unresolved member for a visible note file, usable only within explicit scoped disposition.
+
+**Conflict resolver view**:
+The user-invoked dismissible read-only editor replacement showing Current and separately identified NV-head/Apple conflicts.
+
+**Use this version**:
+An explicit captured body choice for the original birth, with source-specific scoped disposition and unchanged title/labels.
+
+**Save as new note**:
+An explicit conflict copy into an exact reusable/new deterministic slot, or a fresh ordinary birth when invoked from general Note History. For NV conflicts, completion acknowledges only the copied revision without choosing, superseding or deleting the original's contents.
+
+**Disposition**:
+An acknowledgment limited to explicitly identified conflict evidence. NV causal disposition and Apple-member disposition have different evidence and completion rules; neither means global resolution or erasure of retained history.
+_Avoid_: Global resolution, history removal
+
+**NV causal disposition**:
+Retained evidence that an explicit choice or copy represented particular NV conflict revisions. It does not cover an unobserved descendant or implicitly delete the original birth.
+_Avoid_: Apple resolved flag, automatic Delete
+
+**Representation-only copy disposition**:
+Completed evidence that one exact NV conflict revision was preserved separately, removing its unresolved-attention entry without changing source-head reduction or Current selection. It remains valid after later copy modification/deletion; an empty unresolved list does not mean an absent or blank original.
+_Avoid_: Implicit Keep Current, source supersession
+
+**Apple-member disposition**:
+The explicit resolution of a selected Apple-disclosed unresolved file-version member after its required local note/file checks. It is not a portable NV history operation.
+_Avoid_: Complete historical-version cleanup
+
+**Disposition scope**:
+The exact source heads or Apple members captured for one explicit conflict choice or copy. This is distinct from an Undo scope and does not grow automatically when new evidence arrives.
+_Avoid_: All future versions, undo scope
+
+### 9. Authority, repair and transitions
+
+Definition sources: [damage/repair policy](docs/iCloud-Drive-Support-Spec.md#repository-and-private-store-damage-and-repair), [repair protocol](docs/impl-proposal-5/Protocol.md#repository-and-private-store-repair-protocol), [RepositoryRepairSafety](docs/tla/RepositoryRepairSafety.tla). That model assumes a finite required-object set; it does not establish globally complete provider discovery.
+
+**Root session**:
+One period of positively established authority over a particular physical collection directory and the work bound to it. “Root” here is the selected directory, not genesis or a snapshot-root object.
+_Avoid_: Global notes path, collection identity
+
+**Physical authority**:
+Positive evidence and ownership permitting an operation on a particular local filesystem resource. Logical collection identity and authenticated history do not by themselves grant that permission.
+_Avoid_: Matching path, valid ciphertext
+
+**Generation fence**:
+A check that captured note, store, root or lifecycle generations still match before using asynchronous results. The relevant generation is local validity evidence, not a distributed clock.
+_Avoid_: Timestamp, permanent permission
+
+**Root continuity unavailable**:
+The nonterminal absence of positive same-root evidence, not proof that the folder was deleted.
+
+**Root-directory lock**:
+Local cooperating-writer exclusion on the opened directory object, not its pathname or a remote provider lease.
+
+**Provider-managed root**:
+A selected root with positive provider-management evidence, without a provider-brand-dependent storage policy.
+
+**Unclassified authority**:
+A root without positive provider classification, not a proven ordinary-local directory.
+
+**Edit-admission gate**:
+The shared decision whether a new mutation may enter the live store given independent local-health, startup/lock and lifecycle reasons.
+
+**Local durability suspension**:
+The temporary admission block caused by invalid local ownership/association/key or inability to make admitted history durable.
+
+**Working offline**:
+Use of complete positively associated local history without waiting for provider availability.
+
+**Repair union**:
+The exact independently validated immutable objects available across the selected repair sources. It combines intact evidence, not damaged byte fragments or whichever file appears newest.
+_Avoid_: Newest copy, merged damaged bytes
+
+**Save Current Collection As**:
+An explicit history-preserving repository copy to another location, distinct from export of only current note values.
+
+**Repository copy**:
+A copy of all available NV Data contents and associated note files, preserving their retained history without requiring private local state or unpublished work.
+
+**Current-notes export**:
+An explicitly current-state-only output, including legacy-format export or fresh-collection conversion, distinct from a history-preserving repository copy.
+
+**Credential cutover**:
+The verified transition to independently provisioned credentials/association while the source remains recoverable.
+
+### 10. Legacy-only vocabulary
+
+Definition sources: [legacy compatibility](docs/impl-proposal-5/README.md), [retired-model boundaries](docs/tla/README.md). The modern durability/deletion models call their derived state `materialization`; it is not a legacy checkpoint. Interpret other model identifiers through the model-name guide.
+
+**Legacy database checkpoint**:
+The complete Notes & Settings archive used by legacy stores and explicit epoch-4 exports.
+
+**Accepted checkpoint / checkpoint base identity**:
+The exact predecessor evidence used by legacy checkpoint/WAL recovery, not segment ancestry.
+
+**Checkpoint-scoped state**:
+The old archive's serialized state, a retired-model concept rather than the ownership rule for segment settings/history.
+
+**Legacy WAL / journal recovery evidence**:
+An ordered old-format recovery artifact associated with its legacy store, not an active segment-collection log.
+
+**Checkpoint-current note reconciliation**:
+The retired proposal-4 shared-checkpoint mismatch merge, absent from segment synchronization.
+
+**Checkpoint-current witness**:
+Exact local predecessor evidence for legacy/export mutable-checkpoint replacement, not a portable Apple revision or modern sync authority.

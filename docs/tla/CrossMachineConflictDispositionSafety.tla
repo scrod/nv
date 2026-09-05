@@ -1,14 +1,17 @@
 --------------- MODULE CrossMachineConflictDispositionSafety ---------------
 EXTENDS FiniteSets, Naturals
+\* Shared Apple-disposition component. Proposal 5 must supply its exact
+\* complete segment/action/parent barrier as its abstract local durability input.
+\* This is not a proof of segment encoding, action recovery or transport.
 
 \* Two hosts may snapshot and dispose the same Apple-reported unresolved
 \* members concurrently.  Source notes, saved-copy candidates, and their exact
 \* generations are host-local; deterministic recovery identities are shared by
 \* construction.  One later member and one intervening local source/copy edit
-\* expose snapshot-scope and stale-evidence errors.  Current-file publication
-\* and reconciliation remain in CrossMachineCurrentVisibleSafety.
+\* expose snapshot-scope and stale-evidence errors. Current-file publication,
+\* reconciliation and segment transport are outside this focused component.
 
-CONSTANTS
+CONSTANTS Policy,
     Hosts, HostA, HostB,
     Members, Member1, Member2,
     Bodies, Body1, Body2, CurrentBody,
@@ -17,6 +20,7 @@ CONSTANTS
     MaxSourceVersion, MaxCandidateGeneration
 
 ASSUME
+    /\ Policy \in {"safe", "saveAll", "staleSaved", "earlySaved", "staleUse"}
     /\ Hosts = {HostA, HostB}
     /\ HostA # HostB
     /\ Members = {Member1, Member2}
@@ -84,6 +88,8 @@ Init ==
         candidateBody |->
             [host \in Hosts |-> [id \in RecoveryIDs |-> NoBody]],
         candidateGeneration |->
+            [host \in Hosts |-> [id \in RecoveryIDs |-> 0]],
+        installedCopyGeneration |->
             [host \in Hosts |-> [id \in RecoveryIDs |-> 0]],
         modifiedCandidateIDs |-> [host \in Hosts |-> {}],
         pendingCopyID |-> [host \in Hosts |-> NoID],
@@ -169,21 +175,25 @@ InstallSavedCopy(host) ==
        IN /\ state.candidateBody[host][id] = state.targetBody[host]
           /\ state.candidateGeneration[host][id]
                 = state.pendingCopyGeneration[host]
-    /\ state' = [state EXCEPT !.phase[host] = "saveInstalled"]
+    /\ state' = [state EXCEPT !.phase[host] = "saveInstalled",
+        !.installedCopyGeneration[host][state.pendingCopyID[host]]
+            = state.pendingCopyGeneration[host]]
 
 ResolveSavedMember(host) ==
-    /\ state.phase[host] = "saveInstalled"
+    /\ (state.phase[host] = "saveInstalled" \/
+          (Policy = "earlySaved" /\ state.phase[host] = "savePrepared"))
     /\ LET member == SelectedMember(host)
            id == state.pendingCopyID[host]
        IN /\ member \in state.unresolved
           /\ id = RecoveryID(member)
-          /\ state.candidateBody[host][id] = MemberBody(member)
-          /\ state.candidateGeneration[host][id]
-                = state.pendingCopyGeneration[host]
+          /\ (Policy = "staleSaved" \/
+                (state.candidateBody[host][id] = MemberBody(member)
+                 /\ state.candidateGeneration[host][id]
+                      = state.pendingCopyGeneration[host]))
           /\ state' = [state EXCEPT
                 !.phase[host] = "done",
-                !.unresolved = @ \ {member},
-                !.resolved = @ \cup {member}
+                !.unresolved = IF Policy = "saveAll" THEN {} ELSE @ \ {member},
+                !.resolved = @ \cup IF Policy = "saveAll" THEN state.unresolved ELSE {member}
                 ]
 
 ObserveSavedMemberAlreadyResolved(host) ==
@@ -260,8 +270,9 @@ InstallUsedCurrent(host) ==
 
 ResolveUseSnapshot(host) ==
     /\ state.phase[host] = "useInstalled"
-    /\ state.sourceVersion[host] = state.operationSourceVersion[host]
-    /\ state.sourceBody[host] = state.targetBody[host]
+    /\ (Policy = "staleUse" \/
+          (state.sourceVersion[host] = state.operationSourceVersion[host]
+           /\ state.sourceBody[host] = state.targetBody[host]))
     /\ LET applicable == state.snapshot[host] \cap state.unresolved
        IN state' = [state EXCEPT
             !.phase[host] = "done",
@@ -336,6 +347,8 @@ TypeOK ==
         \in [Hosts -> [RecoveryIDs -> CandidateStates]]
     /\ state.candidateGeneration
         \in [Hosts -> [RecoveryIDs -> 0..MaxCandidateGeneration]]
+    /\ state.installedCopyGeneration
+        \in [Hosts -> [RecoveryIDs -> 0..MaxCandidateGeneration]]
     /\ state.modifiedCandidateIDs
         \in [Hosts -> SUBSET RecoveryIDs]
     /\ state.pendingCopyID
@@ -369,9 +382,10 @@ ConcurrentSavesOfOneMemberShareIdentity ==
         => state.pendingCopyID[first] = state.pendingCopyID[second]
 
 ExactSavedCopyReusePreservesLocalGeneration ==
-    \A host \in Hosts:
-        [][LET id == RecoveryID(SelectedMember(host))
-           IN /\ PrepareOrReuseSavedCopy(host)
+    [][\A host \in Hosts:
+        LET id == RecoveryID(SelectedMember(host))
+           IN /\ state.phase[host] = "saveSelected"
+              /\ state'.phase[host] = "savePrepared"
               /\ state.candidateBody[host][id]
                     = MemberBody(SelectedMember(host))
               => state'.candidateGeneration[host][id]
@@ -380,47 +394,63 @@ ExactSavedCopyReusePreservesLocalGeneration ==
 ResolutionIsMonotonic ==
     [][state.resolved \subseteq state'.resolved]_vars
 
+\* Identify an observed setter effect independently of its producer's guards.
+SavedSetter(host) == state.phase[host] \in SavePhases
+    /\ state'.phase[host] = "done" /\ state'.resolved \ state.resolved # {}
+UseSetter(host) == state.phase[host] \in UsePhases
+    /\ state'.phase[host] = "done" /\ state'.resolved \ state.resolved # {}
+
 SavedResolutionIsSelectedMemberOnly ==
-    \A host \in Hosts:
-        [][ResolveSavedMember(host) =>
+    [][\A host \in Hosts: SavedSetter(host) =>
             state'.resolved \ state.resolved = state.selected[host]]_vars
 
 SavedResolutionRequiresExactInstalledCopy ==
-    \A host \in Hosts:
-        [][ResolveSavedMember(host) =>
+    [][\A host \in Hosts: SavedSetter(host) =>
             /\ state.phase[host] = "saveInstalled"
             /\ state.pendingCopyID[host]
                 = RecoveryID(SelectedMember(host))
             /\ state.candidateBody[host][state.pendingCopyID[host]]
                 = MemberBody(SelectedMember(host))
             /\ state.candidateGeneration[host][state.pendingCopyID[host]]
+                = state.pendingCopyGeneration[host]
+            /\ state.installedCopyGeneration[host][state.pendingCopyID[host]]
                 = state.pendingCopyGeneration[host]]_vars
 
 UseResolutionIsExactlySnapshotScoped ==
-    \A host \in Hosts:
-        [][ResolveUseSnapshot(host) =>
+    [][\A host \in Hosts: UseSetter(host) =>
             state'.resolved \ state.resolved =
                 state.snapshot[host] \cap state.unresolved]_vars
 
 UseResolutionRequiresExactInstalledCurrent ==
-    \A host \in Hosts:
-        [][ResolveUseSnapshot(host) =>
+    [][\A host \in Hosts: UseSetter(host) =>
             /\ state.phase[host] = "useInstalled"
             /\ state.sourceVersion[host]
                 = state.operationSourceVersion[host]
             /\ state.sourceBody[host] = state.targetBody[host]]_vars
 
 SourceBodyChangesOnlyThroughExplicitChoiceOrEdit ==
-    \A host \in Hosts:
-        [][state'.sourceBody[host] # state.sourceBody[host] =>
-            \/ EditSourceAfterChoice(host)
-            \/ ApplySelectedVersion(host)]_vars
+    [][\A host \in Hosts:
+        state'.sourceBody[host] # state.sourceBody[host] =>
+            /\ state'.sourceVersion[host] = state.sourceVersion[host] + 1
+            /\ \/ (state.phase[host] = "useSelected"
+                   /\ state'.phase[host] = "useApplied"
+                   /\ state'.sourceBody[host] = state.targetBody[host])
+               \/ (host \notin state.sourceEditUsed
+                   /\ host \in state'.sourceEditUsed
+                   /\ state'.sourceBody[host] = CurrentBody)]_vars
 
 LocalChoiceDoesNotMutateOtherHostSource ==
-    \A host \in Hosts:
+    [][\A host \in Hosts:
       \A other \in Hosts \ {host}:
-        [][ApplySelectedVersion(host) =>
+        (state.phase[host] = "useSelected" /\ state'.phase[host] = "useApplied") =>
             /\ state'.sourceBody[other] = state.sourceBody[other]
             /\ state'.sourceVersion[other] = state.sourceVersion[other]]_vars
+
+NeverSavedOnBoth == ~(\A h \in Hosts: state.phase[h] = "done"
+    /\ state.selected[h] = {Member1} /\ state.pendingCopyGeneration[h] > 0
+    /\ state.installedCopyGeneration[h][RecoveryID1] = state.pendingCopyGeneration[h])
+NeverParkedChangedCopy == ~(\E h \in Hosts: state.phase[h] = "parked"
+    /\ state.modifiedCandidateIDs[h] # {})
+NeverKeptLaterMember == ~(Member1 \in state.resolved /\ Member2 \in state.unresolved)
 
 =============================================================================

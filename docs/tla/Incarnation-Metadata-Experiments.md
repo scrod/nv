@@ -158,7 +158,7 @@ The model therefore does not select between Trash and a record merely on safety 
 
 ### Follow-up verification and artifacts
 
-The expanded matrix verified all **125 expected outcomes** (16 additions): 33 passing configurations, 53 rejected policy/property hypotheses, 22 reachability witnesses, and 17 mutation controls. The new combined baselines visited 396 states (`currentSnapshot`) and 192 states (intent transport), with no depth/state truncation. These are exhaustive finite-model checks, not unbounded proofs. Both harness architectures compiled and `./build.sh` succeeded, with Xcode environment warnings.
+The retained follow-up's 16 added checks passed. Its combined baselines visited 396 states (`currentSnapshot`) and 192 states (intent transport), with no depth/state truncation. These are exhaustive finite-model checks, not unbounded proofs. Historical aggregate counts including retired models are recorded only in the archive. Both harness architectures compiled and `./build.sh` succeeded, with Xcode environment warnings.
 
 - Lifecycle: `/var/folders/0c/0qwr3g9n3vb8_1pn33g2xcxh0000gp/T/nv-binding-results-v5b01teb/results.json`, `calls.jsonl`, and `eviction.txt`.
 - Final lifecycle fixture: `API_Contract_Testing/nv-api-binding-FAD82BE6-C39C-484A-8FE3-11747F429B0B`; preliminary 16-stage fixture: `nv-api-binding-B0741F66-E3A5-4F82-9B8C-F3B22E531EB2`.

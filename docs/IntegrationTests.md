@@ -8,7 +8,9 @@ Run test commands from the repository root. The test Makefile builds the Deploym
 
 - `make -C tests` builds every test executable without running it.
 - `make -C tests run-core` runs the headless/default integration suite.
+- `make -C tests run-swift-storage` runs the standalone Swift package's implemented scalar/plaintext-value and operation-record/identity tests without building NV. It requires a Swift 6 toolchain and initial resolution of the pinned Swift Crypto dependency; `SWIFT_STORAGE_TEST_FLAGS` can select a scratch directory or optimized build. After building, `python3 tools/test-swift-storage-types.py --modules <build-bin-path>/Modules` checks the ordinary-client type boundaries (see the [first-save test contract](impl-proposal-5/plan/first-save-reopen-contract.md#6-tests-and-next-implementation-gate)). This is not yet a save/reopen or provider integration suite. The test runner's OS availability is separate from the library's declared macOS 11.5 deployment target.
 - `make -C tests run-platform` runs tests that depend on live macOS services such as WebKit/AppKit, FSEvents, or Trash.
+- `make -C tests run-native-undo-probes` runs 51 isolated synthetic AppKit undo/shared-view experiments without building or opening NV. It is intentionally opt-in; see the [results, limits and interactive commands](impl-proposal-5/Native-Undo-Experiments.md). `--only shared-` on the runner selects the 20 new cases; `--interactive-shared` opens two opt-in keyboard/IME windows. `OBSERVE` denotes an observation-only run, not an assertion proof; passing concrete checks never promotes every accompanying observation. No notes, cloud files, general clipboard or UI-automation permission is used. A denied private pasteboard service requires a normal logged-in execution context, not a false Apple-contract failure.
 - `make -C tests run` runs `run-core` followed by `run-platform`.
 - `make -C tests stress` runs the concurrency, packed-record fuzzing, xattr, and ambiguous-matching stress cases.
 - `make -C tests leak-check` runs the resource lifecycle scenario under `/usr/bin/leaks`.
@@ -21,6 +23,15 @@ Run test commands from the repository root. The test Makefile builds the Deploym
 - `make -C tests run-icloud-api-contract-xattr-host` and `run-icloud-api-contract-xattr-peer` run the two-Mac syncable-UUID-xattr probe described below.
 - `make -C tests clean` removes the executables from `/tmp/notation-integration-tests`.
 - `./build.sh` must still be run after significant source changes, even when the tests pass.
+
+### Private SQLite transaction experiment
+
+The opt-in [private SQLite transaction experiment](impl-proposal-5/plan/sqlite-collection-transaction-validation.md)
+runs with `python3 tests/run-sqlite-collection-protocol.py`; add
+`--sqlcipher-build /path/to/sqlcipher` for encryption. It creates synthetic
+temporary DBs/files, kills child processes at named transaction boundaries and
+checks designated mutations. It neither builds NV nor opens a real collection;
+it is a candidate storage-mapping test, not a production adapter or provider test.
 
 ### Exploratory incarnation metadata probe
 
@@ -53,6 +64,22 @@ Override `--root` if needed; this runner uses the same root path on both hosts. 
 Add `--handshake` to run 11 nonce-exchange stages instead: a clean challenge/reply/ack, a metadata-preserving independent copy, then three **explicit** metadata relays between the distinct original/copy endpoints. Fixed `#S` metadata is transferred through public coordinated xattr calls; neither body is changed. The check requires distinct source/copy local provider IDs on each observer and verifies they remain stable during the relays. This tests primitives, not an adopted association protocol or universal provider identity guarantee. Add `--local` (and omit `--remote-binary`) for fresh-process observers on one Mac; JSON explicitly records `localOnly: true`, and this must never be reported as cross-Mac validation.
 
 For a fixture prepared on either host but not yet exercised, `--handshake --session /absolute/root/nv-api-binding-UUID` reuses that fixture after it has appeared on both hosts. The session must be directly below `--root`; this is not partial-run resume, and an existing `copy.bin` will cause the copy stage to fail rather than overwrite it. On 2026-09-04, both the same-Mac and two-Mac 11-stage nonce runs completed. Two earlier initial-delivery timeouts remained inconclusive; the successful cross-Mac run used a subsequently synchronized Mini-origin fixture. See the [combination report](tla/Protocol-Combination-Experiments.md) for results and retained artifacts.
+
+### Historical FSEvents probe
+
+This opt-in standalone probe changes only a fresh synthetic subtree under the specified parent:
+
+```sh
+make -C tests /tmp/notation-integration-tests/FSEventsHistoryProbe \
+  /tmp/notation-integration-tests/FSEventsHistoryProbe-x86_64
+/tmp/notation-integration-tests/FSEventsHistoryProbe run /private/tmp
+# Read a retained fixture's scoped history in a fresh process:
+/tmp/notation-integration-tests/FSEventsHistoryProbe replay /path/to/nv-fsevents-history-XXXXXX
+```
+
+It tests rename, rename-out/back, POSIX staged replacement, copy/clone, hard-link rename and unlink/recreation. The run captures a per-device cursor/FSEvents database UUID, records live hints and actual file snapshots, then invokes another process for historical replay with file events, extended file/document IDs, FullHistory and MarkSelf. Ten-second observation budgets bound event waits, not arbitrary synchronous filesystem/service calls. It creates no app watcher, reads no raw system event database and never purges historical events. The per-run `manifest.plist`, `observations.jsonl` and synthetic files are retained. Exit 0 reports fixture/replay completion, not one-event-per-operation fidelity; exit 3 is unavailable/inconclusive history and exit 1 is setup/fixture failure.
+
+An explicitly authorized provider **testing** folder may replace `/private/tmp`; that tests local FSEvents there, not cross-Mac propagation or remote user intent. For Intel macOS use the `-x86_64` executable. See [observations, retained results and policy limits](tla/CoAdd-Policy-Experiments.md#historical-fsevents-follow-up). Historical hints never replace current rooted/catalog checks or supply logical deletion/UUID authority.
 
 ### Real cloud API contract probe
 

@@ -1,11 +1,11 @@
-# Give iCloud Drive first-class support
+# Give iCloud Drive provider-agnostic segment support
 
 Status: accepted.
 
-NV provides tested first-class iCloud Drive support when the selected root uses unencrypted `PlainTextFormat` separate-file storage. Entering that contract requires a complete plain-text export and the existing formatting-loss disclosure. The live in-memory store remains authoritative while NV runs; separate note files are the routine cross-Mac representation, and `Notes & Settings` remains the complete fast-start checkpoint and sole database source of settings and metadata. Modern WALs are private host-local Application Support artifacts and never a synchronization representation.
+NV supports ordinary user-selected provider folders through two explicit immutable collection profiles: PlaintextFilesV1 keeps interoperable plaintext notes alongside visible NV Data; EncryptedSegmentsV1 transports encrypted history without plaintext files in that folder. Separate-file support remains a product feature, not a requirement to expose encrypted notes. Existing rich content must survive an encrypted migration or receive explicit unsupported/conversion handling.
 
-Runtime correctness does not depend on identifying a provider vendor. Current positive ubiquitous-item or forward File Provider evidence establishes provider management; absence, failure, or ambiguity leaves authority unclassified and grants no ordinary-local inference. iCloud Drive is validated as a ship target. Dropbox and other providers receive compatible best-effort behavior under the same plaintext contract. NV stores no provider-brand mode or persistent capability profile, and advertised capabilities authorize only the corresponding attempted operation.
+The live in-memory store and synchronous search remain authoritative during use. Immutable NV history carries committed values/identities/deletion intent; exact durable local copies and later provider copies have different roles. No shared Notes & Settings, dedicated iCloud container, CloudKit service, custom provider extension or provider-brand mode is required. iCloud is the first-class tested target; other providers get the same conservative behavior within established contracts.
 
-Routine synchronization is current-visible and uses coordinated catalogs and current note files. Apple-reported unresolved versions for a visible note are available only through explicit embedded conflict disposition. NV does not use provider history to claim completeness, automatically recover or resolve it, qualify local WAL cleanup, or establish cloud durability. Provider upload status is presentation state. Encrypted, database-only, RTF, HTML, and hypothetical third-party compatibility formats remain outside the first-class provider-managed contract.
+Positive provider evidence can authorize an attempted operation, never a global synchronization claim. Unknown classification does not prove ordinary-local storage. Encryption protects payloads from a provider without the key, not availability, undisclosed branches, authorized malicious writers or a compromised unlocked Mac.
 
-Normative requirements: `AUTH-01`, `START-01`, `DISC-01`, `PUB-01`.
+Normative requirements: AUTH-01, START-01, DUR-01, CRYPT-01, BACKUP-01.

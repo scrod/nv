@@ -1,12 +1,17 @@
 ----------------- MODULE UnresolvedVersionResolutionSafety -----------------
 EXTENDS FiniteSets, Naturals
+\* Shared member-disposition component, not a segment transport/restart proof.
+\* For proposal 5, pendingHistoryDurable means an exact complete segment/parent
+\* barrier supplied by the caller; this module does not establish that input.
 
-CONSTANTS
+CONSTANTS Policy,
     Versions, Version1, Version2, DuplicateVersion,
     NoteStates, InitialCurrentState, ConflictState1, ConflictState2,
     RecoveryIDs, RecoveryID1, RecoveryID2
 
 ASSUME
+    /\ Policy \in {"safe", "earlySavedResolution", "reuseRetiredCopy",
+                   "chooseLaterMembers", "earlyChosenResolution"}
     /\ Versions = {Version1, Version2, DuplicateVersion}
     /\ {InitialCurrentState, ConflictState1, ConflictState2} \subseteq NoteStates
     /\ Cardinality({InitialCurrentState, ConflictState1, ConflictState2}) = 3
@@ -38,7 +43,7 @@ Init ==
         pendingTargetState |-> InitialCurrentState,
         pendingKind |-> "none",
         chosenBodyApplied |-> FALSE,
-        pendingWALDurable |-> FALSE,
+        pendingHistoryDurable |-> FALSE,
         pendingFileInstalled |-> FALSE,
         currentState |-> InitialCurrentState,
         appliedChosenStates |-> {},
@@ -52,6 +57,7 @@ Init ==
         savedResolvedVersions |-> {},
         chosenResolvedVersions |-> {},
         savedResolutionWitnesses |-> {},
+        deletedSharedPendingCopy |-> FALSE,
         chosenResolutionWitnesses |-> {},
         removedVersions |-> {}
         ]
@@ -89,60 +95,60 @@ BeginSaveAsNew ==
             (state.snapshot \cap state.readableVersions) \ state.resolvedVersions:
         LET noteState == VersionState(version)
             recoveryID == RecoveryID(noteState)
-        IN /\ recoveryID \notin state.retiredCopyIDs
+        IN /\ (Policy = "reuseRetiredCopy" \/ recoveryID \notin state.retiredCopyIDs)
            /\ state' = [state EXCEPT
             !.phase = "saving",
             !.pendingVersion = {version},
             !.pendingTargetState = noteState,
             !.pendingKind = "save",
             !.chosenBodyApplied = FALSE,
-            !.pendingWALDurable = recoveryID \in state.durableCopyIDs,
+            !.pendingHistoryDurable = recoveryID \in state.durableCopyIDs,
             !.pendingFileInstalled = recoveryID \in state.installedCopyIDs
             ]
 
 DurabilizeSavedCopy ==
     /\ state.phase = "saving"
-    /\ ~state.pendingWALDurable
+    /\ ~state.pendingHistoryDurable
     /\ state' = [state EXCEPT
         !.copiedStates = @ \cup {state.pendingTargetState},
         !.durableCopyIDs = @ \cup {RecoveryID(state.pendingTargetState)},
-        !.pendingWALDurable = TRUE
+        !.pendingHistoryDurable = TRUE
         ]
 
 InstallSavedCopy ==
     /\ state.phase = "saving"
-    /\ state.pendingWALDurable
+    /\ state.pendingHistoryDurable
     /\ ~state.pendingFileInstalled
     /\ state' = [state EXCEPT
         !.installedCopyIDs = @ \cup {RecoveryID(state.pendingTargetState)},
         !.pendingFileInstalled = TRUE
         ]
 
-DeleteSavedCopyBeforeResolution ==
-    /\ state.phase = "saving"
-    /\ state.pendingWALDurable
-    /\ \E version \in state.pendingVersion \ state.resolvedVersions:
-        LET recoveryID == RecoveryID(state.pendingTargetState)
-        IN /\ recoveryID \notin
-                    {RecoveryID(VersionState(resolved)):
-                        resolved \in state.savedResolvedVersions}
-           /\ state' = [state EXCEPT
-                !.phase = "selecting",
-                !.retiredCopyIDs = @ \cup {recoveryID},
-                !.durableCopyIDs = @ \ {recoveryID},
-                !.installedCopyIDs = @ \ {recoveryID},
-                !.pendingVersion = {},
-                !.pendingTargetState = state.currentState,
-                !.pendingKind = "none",
-                !.chosenBodyApplied = FALSE,
-                !.pendingWALDurable = FALSE,
-                !.pendingFileInstalled = FALSE
-                ]
+\* A completed disposition records historical evidence, not permanent copy
+\* liveness. Deletion is legal before OR after disposition, including while a
+\* duplicate member is using the same copy. Slot allocation is out of scope.
+DeleteSavedCopy ==
+    \E recoveryID \in state.durableCopyIDs:
+        LET invalidatesPending == state.phase = "saving"
+                /\ recoveryID = RecoveryID(state.pendingTargetState)
+        IN state' = [state EXCEPT
+            !.deletedSharedPendingCopy = @ \/ (invalidatesPending
+                /\ state.pendingVersion = {DuplicateVersion}
+                /\ Version1 \in state.savedResolvedVersions),
+            !.retiredCopyIDs = @ \cup {recoveryID},
+            !.durableCopyIDs = @ \ {recoveryID},
+            !.installedCopyIDs = @ \ {recoveryID},
+            !.phase = IF invalidatesPending THEN "selecting" ELSE @,
+            !.pendingVersion = IF invalidatesPending THEN {} ELSE @,
+            !.pendingKind = IF invalidatesPending THEN "none" ELSE @,
+            !.pendingHistoryDurable = IF invalidatesPending THEN FALSE ELSE @,
+            !.pendingFileInstalled = IF invalidatesPending THEN FALSE ELSE @
+            ]
 
 ResolveSavedMember ==
     /\ state.phase = "saving"
-    /\ state.pendingWALDurable
-    /\ state.pendingFileInstalled
+    /\ (Policy = "earlySavedResolution" \/
+          (state.pendingHistoryDurable /\ state.pendingFileInstalled))
     /\ \E version \in state.pendingVersion \ state.resolvedVersions:
         state' = [state EXCEPT
             !.resolvedVersions = @ \cup {version},
@@ -153,7 +159,7 @@ ResolveSavedMember ==
 
 FinishSaveDisposition ==
     /\ state.phase = "saving"
-    /\ state.pendingWALDurable
+    /\ state.pendingHistoryDurable
     /\ state.pendingFileInstalled
     /\ LET remaining == state.providerVersions \ state.resolvedVersions
        IN state' = [state EXCEPT
@@ -163,7 +169,7 @@ FinishSaveDisposition ==
             !.pendingTargetState = state.currentState,
             !.pendingKind = "none",
             !.chosenBodyApplied = FALSE,
-            !.pendingWALDurable = FALSE,
+            !.pendingHistoryDurable = FALSE,
             !.pendingFileInstalled = FALSE
             ]
 
@@ -175,7 +181,7 @@ BeginUseCurrent ==
         !.pendingTargetState = state.currentState,
         !.pendingKind = "use",
         !.chosenBodyApplied = TRUE,
-        !.pendingWALDurable = FALSE,
+        !.pendingHistoryDurable = FALSE,
         !.pendingFileInstalled = FALSE
         ]
 
@@ -189,7 +195,7 @@ BeginUseVersion ==
             !.pendingTargetState = VersionState(version),
             !.pendingKind = "use",
             !.chosenBodyApplied = FALSE,
-            !.pendingWALDurable = FALSE,
+            !.pendingHistoryDurable = FALSE,
             !.pendingFileInstalled = FALSE
             ]
 
@@ -205,15 +211,15 @@ ApplyChosenBody ==
 DurabilizeChosenBody ==
     /\ state.phase = "using"
     /\ state.chosenBodyApplied
-    /\ ~state.pendingWALDurable
+    /\ ~state.pendingHistoryDurable
     /\ state' = [state EXCEPT
         !.durableCurrentStates = @ \cup {state.pendingTargetState},
-        !.pendingWALDurable = TRUE
+        !.pendingHistoryDurable = TRUE
         ]
 
 InstallChosenBody ==
     /\ state.phase = "using"
-    /\ state.pendingWALDurable
+    /\ state.pendingHistoryDurable
     /\ ~state.pendingFileInstalled
     /\ state' = [state EXCEPT
         !.installedCurrentStates = @ \cup {state.pendingTargetState},
@@ -222,9 +228,11 @@ InstallChosenBody ==
 
 ResolveOneChosenMember ==
     /\ state.phase = "using"
-    /\ state.pendingWALDurable
-    /\ state.pendingFileInstalled
-    /\ \E version \in state.snapshot \ state.resolvedVersions:
+    /\ (Policy = "earlyChosenResolution" \/
+          (state.pendingHistoryDurable /\ state.pendingFileInstalled))
+    /\ \E version \in
+         (IF Policy = "chooseLaterMembers" THEN state.providerVersions ELSE state.snapshot)
+             \ state.resolvedVersions:
         state' = [state EXCEPT
             !.resolvedVersions = @ \cup {version},
             !.chosenResolvedVersions = @ \cup {version},
@@ -234,7 +242,7 @@ ResolveOneChosenMember ==
 
 FinishUseDisposition ==
     /\ state.phase = "using"
-    /\ state.pendingWALDurable
+    /\ state.pendingHistoryDurable
     /\ state.pendingFileInstalled
     /\ LET remaining == state.providerVersions \ state.resolvedVersions
        IN state' = [state EXCEPT
@@ -244,7 +252,7 @@ FinishUseDisposition ==
             !.pendingTargetState = state.currentState,
             !.pendingKind = "none",
             !.chosenBodyApplied = FALSE,
-            !.pendingWALDurable = FALSE,
+            !.pendingHistoryDurable = FALSE,
             !.pendingFileInstalled = FALSE
             ]
 
@@ -257,7 +265,7 @@ Next ==
     \/ BeginSaveAsNew
     \/ DurabilizeSavedCopy
     \/ InstallSavedCopy
-    \/ DeleteSavedCopyBeforeResolution
+    \/ DeleteSavedCopy
     \/ ResolveSavedMember
     \/ FinishSaveDisposition
     \/ BeginUseCurrent
@@ -289,7 +297,8 @@ TypeOK ==
     /\ state.pendingTargetState \in NoteStates
     /\ state.pendingKind \in Kinds
     /\ state.chosenBodyApplied \in BOOLEAN
-    /\ state.pendingWALDurable \in BOOLEAN
+    /\ state.pendingHistoryDurable \in BOOLEAN
+    /\ state.deletedSharedPendingCopy \in BOOLEAN
     /\ state.pendingFileInstalled \in BOOLEAN
     /\ state.currentState \in NoteStates
     /\ state.appliedChosenStates \subseteq NoteStates
@@ -314,16 +323,31 @@ ResolutionIsExplicitlyPartitioned ==
         state.savedResolvedVersions \cup state.chosenResolvedVersions
 
 SavedResolutionHasInstalledCopy ==
-    \A witness \in state.savedResolutionWitnesses:
-        /\ witness[1] \in state.savedResolvedVersions
-        /\ RecoveryID(witness[2]) \in state.installedCopyIDs
-        /\ RecoveryID(witness[2]) \in state.durableCopyIDs
+    [][(state'.savedResolvedVersions \ state.savedResolvedVersions # {}) =>
+        /\ state.phase = "saving"
+        /\ state.pendingHistoryDurable
+        /\ state.pendingFileInstalled
+        /\ RecoveryID(state.pendingTargetState) \in state.installedCopyIDs
+        /\ RecoveryID(state.pendingTargetState) \in state.durableCopyIDs
+        /\ state'.savedResolvedVersions \ state.savedResolvedVersions
+              \subseteq state.pendingVersion]_vars
 
 ChosenResolutionHasInstalledCurrent ==
     \A witness \in state.chosenResolutionWitnesses:
         /\ witness[1] \in state.chosenResolvedVersions
         /\ witness[2] \in state.installedCurrentStates
         /\ witness[2] \in state.durableCurrentStates
+
+ChosenResolutionUsesCapturedInstalledCurrent ==
+    [][(state'.chosenResolvedVersions \ state.chosenResolvedVersions # {}) =>
+        /\ state.phase = "using"
+        /\ state.pendingHistoryDurable
+        /\ state.pendingFileInstalled
+        /\ state.currentState = state.pendingTargetState
+        /\ state.pendingTargetState \in state.installedCurrentStates
+        /\ state.pendingTargetState \in state.durableCurrentStates
+        /\ state'.chosenResolvedVersions \ state.chosenResolvedVersions
+              \subseteq state.snapshot]_vars
 
 EverySavedResolutionHasWitness ==
     state.savedResolvedVersions =
@@ -344,5 +368,12 @@ RetiredCopiesAreNeverReused ==
 
 CurrentBodyChangesOnlyThroughChoice ==
     state.currentState \in {InitialCurrentState} \cup state.appliedChosenStates
+
+NeverDeletedCompletedCopy ==
+    ~\E version \in state.savedResolvedVersions:
+        RecoveryID(VersionState(version)) \in state.retiredCopyIDs
+
+NeverDeletedSharedPendingCopy ==
+    ~state.deletedSharedPendingCopy
 
 =============================================================================
