@@ -40,6 +40,11 @@ has the qualification boundaries recorded in the Phase 2 report. [SQLite types](
 
 ## Tables and indexed access
 
+`operations_action(action_id, operation_id)` bounds reverse checks for the existing
+deferred action foreign key. The [ordinary-save measurements](current-basis-validation.md)
+found a history-sized scan without it. This is an index over existing facts; all
+record layouts and schema fields remain unchanged.
+
 | Tables | Purpose |
 | --- | --- |
 | `store_header` | Local-store/collection/profile/key/codec/bootstrap binding. Compare with the positively selected owner; these claims are not physical authority. |
@@ -47,6 +52,7 @@ has the qualification boundaries recorded in the Phase 2 report. [SQLite types](
 | `acceptance_batches`, `accepted_objects` | Object membership in a transactionally assigned local batch. Indexed suffix lookup by sequence avoids reading old BLOBs. |
 | `accepted_dependencies` | Complete validated object-evidence edges, including snapshot/descriptor dependencies where applicable. Both endpoints must be accepted by commit. |
 | `object_waits`, `ready_objects` | Missing prerequisites and durable unique candidates. Reverse lookup wakes dependents; readiness permits validation, not acceptance. |
+| `rejected_objects` | One versioned reason for an exact retained, unaccepted receive object. Rejection and removal of its ready/wait entries share a transaction; its bytes remain in `objects`. |
 | `operations`, `operation_occurrences` | One logical operation and all exact accepted object/section-index occurrences. First sequence is local acceptance order, not a cross-Mac clock. |
 | `operation_parents`, `note_predecessors` | Separate causal-knowledge and value-supersession graphs, each with forward/reverse lookup. Knowing A and B while replacing A must not replace B. |
 | `actions`, `action_occurrences`, `action_members`, `action_scope_parents` | Logical actions, exact occurrences, ordered members and scope ancestry. Origin/predecessor/scope indexes support lazy access; no mutable undo cursor. Null `scope_birth` means collection scope, not unknown scope. |
@@ -64,6 +70,15 @@ Do **not** add uniqueness on `(writer_epoch, sequence)`, action origin, or previ
 origin action: restored/cloned writers or origins can fork. Preserve exact objects;
 causal validation exposes alternatives without picking a winner from an SQL error.
 Contradictory content under one canonical identity is instead an integrity failure.
+
+`rejected_objects.validator_version=1` binds the classification to the currently
+supported validator. Reason codes 1–7 identify unsupported/ordinary semantic
+failures; 20–37 identify the canonical input failures in `ReceiveRejection`.
+Unknown versions/reasons require explicit unsupported handling. Missing
+prerequisites, transient storage errors and accepted-history damage never become
+permanent receive rejections. A future validator upgrade must explicitly reconsider
+its retained unsupported candidates. The unreleased schema now requires this table
+on returning opens; existing incomplete layouts are not initialized over.
 
 ## Initialization and connections
 

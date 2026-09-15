@@ -73,6 +73,13 @@ CREATE TABLE ready_objects (
     object_id BLOB PRIMARY KEY REFERENCES objects(object_id)
 ) WITHOUT ROWID;
 
+-- Preserved candidates rejected by the named validator revision.
+CREATE TABLE rejected_objects (
+    object_id BLOB PRIMARY KEY REFERENCES objects(object_id),
+    validator_version INTEGER NOT NULL CHECK (validator_version = 1),
+    reason INTEGER NOT NULL CHECK (reason BETWEEN 1 AND 7 OR reason BETWEEN 20 AND 37)
+) WITHOUT ROWID;
+
 -- Wakeups are part of the accepting transaction, not post-commit callbacks.
 -- Waking on ANY parent is intentional; validation rechecks ALL prerequisites.
 CREATE TRIGGER accepted_object_ready AFTER INSERT ON accepted_objects BEGIN
@@ -106,6 +113,8 @@ CREATE TABLE operations (
 ) WITHOUT ROWID;
 CREATE INDEX operations_batch ON operations(first_seq, operation_id);
 CREATE INDEX operations_birth ON operations(birth, operation_id);
+-- Bound reverse foreign-key checks when inserting an action with deferred members.
+CREATE INDEX operations_action ON operations(action_id, operation_id);
 CREATE TABLE operation_occurrences (
     object_id BLOB NOT NULL REFERENCES accepted_objects(object_id),
     record_index INTEGER NOT NULL CHECK (typeof(record_index) = 'integer' AND record_index BETWEEN 0 AND 4294967295),

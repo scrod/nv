@@ -23,6 +23,13 @@ The package has functional `NVStorageCore` and `NVStorageRuntime` targets using 
 
 An initial development implementation may report richer operations, derived-state variants and native compensation as unsupported until implemented. It must never skip them and expose an incomplete collection as editable. This is a development milestone, not a new reduced-capability production profile or permission to ship without proposal-5 features.
 
+The [actor-owned database](actor-database-adoption.md) keeps complete synchronous
+SQL turns on its serial executor. The general Core `OrdinaryHistoryV1.validate`
+entrypoint and its lookup callbacks are asynchronous; current-basis and bootstrap
+checks retain synchronous shared reference/action rules. Runtime client methods,
+encoded formats, acknowledgment and retry contracts remain unchanged. Async
+history validation rechecks the accepted prefix at each read and at final commit.
+
 ## 2. Common scalar rules
 
 These rules are for new payloads; the existing envelope/header and conflict-identity encodings retain their specified widths/domains.
@@ -127,6 +134,17 @@ Action IDs are allocated, not hashes. Compare duplicate action claims using full
 `checkExternalReferences(at:resolve:)` checks **direct** references at the exact locator, section index and expected identity, rejecting external self-reference and missing dependencies. It checks referenced value/Delete types, births, action scopes and origins; no fallback search by ID is permitted. The resolver's payloads and their locator bindings must ultimately come from authenticated objects. This API does not authenticate caller-supplied labels, walk transitive closure or issue a validated-history capability.
 
 `InitialBootstrapValidationV1` supplies transitive/exact-reference, duplicate-claim, fresh-import, causal-coverage, scope-maximum and commitment checks for the initial-import-only history described below. `OrdinaryHistoryV1` now validates Create/Put/Delete groups against the declared writer history, including saved edits, rename and labels, complete before/after state, scope maxima and observed previous-origin links. It checks the actual final member, not merely membership of the claimed after-state. Runtime invokes these checks before acceptance. Concurrent/derived states, compensation and richer actions still require later reducers; the first path rejects unsupported reduction rather than exposing a partial collection. Neither a decoded payload nor SQL constraints substitute for semantic validation.
+
+For an eligible single ordinary group, Runtime may obtain the prior state from the
+complete current materialization under the same serialized acceptance transaction.
+The [checked-current-basis contract](current-basis-validation.md) specifies exact
+parent/frontier, affected-row, fresh-birth and context checks. The same ordinary
+semantic checks and exact-reference checks still validate the new group. Older,
+divergent or incompletely materialized inputs retain full declared-history validation.
+Retained object and authoring operation frontiers advance by adding genuinely new
+records and removing their direct parents; duplicate records leave logical effects
+unchanged. These changes apply equally to recovery catch-up and introduce no new
+record format or persistent validation cache.
 
 `ChangesPayloadV1Tests.swift` uses independently assembled literal action/payload bytes, every truncation of the short payload, targeted malformed group/reference cases, multi-birth groups, transport-remapped action equality and aggregate-limit rejection. A deliberately framed but invalid-history case documents the boundary between decoding and later validation. These tests do not prove bootstrap, cryptographic composition, durable commits or the model's abstract before/after agreement.
 
@@ -278,6 +296,21 @@ The host freezes the capture before transfer, keeps its existing pending UUID/LS
 
 Runtime has one local owner/sealer and an independently owned provider lane. `persist` reservations serialize sealing and acceptance transactions; actor reentrancy cannot start a second sealer. No blocking filesystem operation executes on the main actor or cooperative executor. Reuse a small serial blocking-I/O adapter with separate local/provider resources. A slow provider accessor owns its buffers/handles until actually finished, even after a deadline or view dismissal. No general job scheduler is introduced.
 
+An owned `receive` continues after two history-prefix interruptions: wait only
+while a local save is active, using existing actor-isolated completion waiters,
+then retry full validation. Recheck after each wake; an already-finished save needs
+no notification. Cancellation/quiescing preserve owned inputs and the reservation.
+Pending failed-save handles alone do not prevent progress. Other failure categories
+remain explicit outcomes. Reopening recovers the durable ready queue.
+
+`receivedObjectStatus(at:)` reports acceptance, pending validation, waiting, or blocked prerequisites
+for an exact retained candidate. Blocked results include direct unaccepted locators
+and deduplicated transitive rejected-root IDs/reasons. Descendants remain retained
+and unaccepted until their own complete validation succeeds. Recording one object's
+rejection atomically settles only its own queue/wait entries; crash/I/O failure
+preserves either that complete result or retryable bytes. These diagnostics grant
+no receipt, editing, or physical-file authority. See [tests](validation-resumption-results.md).
+
 ### Commit states and failures
 
 | State/event | Required next behavior |
@@ -306,7 +339,7 @@ complete storage engine:
 
 1. Extend the ordinary validator/reducer to concurrent/derived Current, conflict preservation and portable compensation. Keep the existing semantic/transport/bootstrap/ordinary fixtures. Exercise actual legacy label-token capture independently of the case-insensitive UI index during application bridging.
 2. Qualify the implemented envelope/descriptor crypto composition and remaining platforms. Preserve AAD/KDF/header, wrong-context and exact compressed-stream tests. No cleartext encrypted-profile scratch files.
-3. Qualify large-import/resumable ancestry scheduling, the adopted zstd physical codec and final selected-store activation. Preserve the existing acceptance/ready/pin/VFS/second-crash tests and indexed [fast-start contract](../LocalStore.md); do not recreate the removed private file/pin installation gap.
+3. Extend the [ordinary-history scheduling/isolation checks](phase2-hardening-validation.md) to large bootstrap/imports and later reducers; qualify the adopted zstd physical codec and final selected-store activation. Preserve acceptance/ready/pin/VFS/second-crash tests and the indexed [fast-start contract](../LocalStore.md).
 4. Extend the now-tested E barrier → held completion → newer F edit/Delete schedules through actual application capture and publication, including the later provider/undo adapters. Recovery continues to receive only surviving files and normal unlock inputs.
 
 The source's label behavior was checked directly in [LabelObject](../../../LabelObject.m) and [NoteObject](../../../NoteObject.m); Unicode default case conversion is distinct from case folding in the [Unicode SpecialCasing data](https://www.unicode.org/Public/15.0.0/ucd/SpecialCasing.txt). That reference illustrates why neither operation should be silently introduced into stored-value identity. The existing [model coverage](../../tla/README.md) supplies bounded semantic/crash obligations, not a codec or filesystem certificate. Do not change an assertion to accommodate a faulty encoder/installer.

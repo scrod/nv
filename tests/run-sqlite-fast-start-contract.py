@@ -4,45 +4,18 @@
 Reads the normative DDL. Transaction rollback is tested here; actual process/VFS
 crash and SQLCipher checks live in run-sqlite-collection-protocol.py.
 """
-import hashlib
 import json
 from pathlib import Path
 import sqlite3
-import struct
 import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DDL = (ROOT / "docs/impl-proposal-5/LocalStore.md").read_text().split("```sql\n", 1)[1].split("```", 1)[0]
-SCOPE = b"fixture/store/profile/reducer-v1"
+DDL = (ROOT / "docs/impl-proposal-5/plan/sqlite-local-schema.sql").read_text()
 
 
 def token(n):
     return n.to_bytes(16, "big")
-
-
-def canonical(rows):
-    # Fixture cell bytes stand for the entire value AND authoring context.
-    result = b"fixture-current-state-v1" + struct.pack(">Q", len(rows))
-    for birth, cell in sorted(rows.items()):
-        result += struct.pack(">Q", len(birth)) + birth
-        result += struct.pack(">Q", len(cell)) + cell
-    return result
-
-
-def digest(data):
-    return hashlib.sha256(data).digest()
-
-
-def packed(rows):
-    # JSON is deliberately only a probe codec, not StartupCacheV1.
-    return json.dumps([[k.hex(), v.hex()] for k, v in sorted(rows.items())]).encode()
-
-
-def unpack(data):
-    pairs = [(bytes.fromhex(k), bytes.fromhex(v)) for k, v in json.loads(data)]
-    assert pairs == sorted(pairs) and len(dict(pairs)) == len(pairs)
-    return dict(pairs)
 
 
 class Store:
@@ -63,23 +36,23 @@ class Store:
             CREATE TABLE fixture_ready(id INTEGER PRIMARY KEY);
         """)
         with self.db:
-            self.db.execute("INSERT INTO view_meta VALUES(1,?,0,0,0,?)", (token(100), b"empty"))
+            self.db.execute("INSERT INTO view_meta VALUES(1,?,1,0,?)", (token(100), b"empty"))
 
     def meta(self):
-        return self.db.execute("SELECT epoch,through_seq,cache_epoch,delta_floor,authoring_context FROM view_meta").fetchone()
+        return self.db.execute("SELECT epoch,through_seq,authoring_context FROM view_meta").fetchone()
 
     def high(self):
         return self.db.execute("SELECT COALESCE(MAX(seq),0) FROM acceptance_batches").fetchone()[0]
 
     def rows(self):
-        return dict(self.db.execute("SELECT birth,cell FROM current_notes ORDER BY birth"))
+        return dict(self.db.execute("SELECT birth,cell FROM current_notes ORDER BY rowid"))
 
-    def accept(self, changes, branch=0):
+    def accept(self, changes):
         seq = self.high() + 1
         mutation = json.dumps([[k.hex(), v.hex() if v is not None else None] for k, v in changes.items()]).encode()
         with self.db:
             self.db.execute("INSERT INTO fixture_history VALUES(?,?)", (seq, mutation))
-            self.db.execute("INSERT INTO acceptance_batches VALUES(?,?)", (seq, token(branch * 100 + seq)))
+            self.db.execute("INSERT INTO acceptance_batches VALUES(?)", (seq,))
         return seq
 
     def materialize(self, mutation="safe", fail=False):
@@ -91,87 +64,35 @@ class Store:
                     birth = bytes.fromhex(key)
                     cell = None if val is None else bytes.fromhex(val)
                     if cell is None:
+                        if mutation == "omitDelete":
+                            continue
                         self.db.execute("DELETE FROM current_notes WHERE birth=?", (birth,))
-                    else:
-                        self.db.execute("INSERT INTO current_notes VALUES(?,?,?) ON CONFLICT(birth) DO UPDATE SET cell=excluded.cell, changed_seq=excluded.changed_seq", (birth, cell, seq))
-                    if not (mutation == "omitDelete" and cell is None) and mutation != "omitContext":
-                        self.db.execute("INSERT INTO view_changes VALUES(?,?)", (seq, birth))
+                    elif mutation != "omitContext":
+                        self.db.execute("INSERT INTO current_notes VALUES(?,?) ON CONFLICT(birth) DO UPDATE SET cell=excluded.cell", (birth, cell))
                 self.db.execute("UPDATE view_meta SET through_seq=?,authoring_context=?", (seq, token(seq)))
                 if fail:
                     raise OSError("injected materialization failure")
 
-    def capture(self):
+    def prepare(self, concurrent=None):
+        # Normal owner startup fence excludes concurrent acceptance; the test
+        # deliberately permits it to exercise read consistency and final checks.
         self.db.execute("BEGIN")
         try:
-            epoch, cut, cache_epoch, _, _ = self.meta()
-            bt = self.db.execute("SELECT token FROM acceptance_batches WHERE seq=?", (cut,)).fetchone()[0]
-            rows = self.rows()
-            return dict(scope=SCOPE, epoch=epoch, cut=cut, cache_epoch=cache_epoch,
-                        token=bt, count=len(rows), source=digest(canonical(rows)), payload=packed(rows))
-        finally:
-            self.db.rollback()
-
-    def publish_cache(self, cap, mutation="safe"):
-        rows = unpack(cap["payload"])
-        if mutation != "trustOutput" and (len(rows) != cap["count"] or digest(canonical(rows)) != cap["source"]):
-            return False
-        with self.db:
-            epoch, through, cache_epoch, floor, _ = self.meta()
-            bt = self.db.execute("SELECT token FROM acceptance_batches WHERE seq=?", (cap["cut"],)).fetchone()
-            old = self.db.execute("SELECT through_seq FROM startup_cache").fetchone()
-            if cap["scope"] != SCOPE or cap["epoch"] != epoch or cap["cut"] > through:
-                return False
-            if mutation != "staleBuilder" and (cap["cache_epoch"] != cache_epoch or cap["cut"] < floor):
-                return False
-            if not bt or bt[0] != cap["token"] or (old and old[0] > cap["cut"]):
-                return False
-            source = digest(canonical(rows)) if mutation == "trustOutput" else cap["source"]
-            self.db.execute("INSERT OR REPLACE INTO startup_cache VALUES(1,?,?,?,?,?,?,?,?)", (
-                cap["scope"], cap["epoch"], cap["cut"], cap["token"], cap["count"], source,
-                digest(cap["payload"]), cap["payload"]))
-        return True
-
-    def discard_cache(self):
-        with self.db:
-            self.db.execute("DELETE FROM startup_cache")
-            self.db.execute("UPDATE view_meta SET cache_epoch=cache_epoch+1,delta_floor=through_seq")
-            self.db.execute("DELETE FROM view_changes WHERE seq <= (SELECT delta_floor FROM view_meta)")
-
-    def prepare(self, mutation="safe"):
-        # Caller owns startup admission fence; test can deliberately violate it.
-        assert self.meta()[1] == self.high(), "materialization not caught up"
-        self.db.execute("BEGIN")
-        try:
-            epoch, through, _, floor, context = self.meta()
-            cache = self.db.execute("SELECT scope,view_epoch,through_seq,batch_token,row_count,state_digest,payload_digest,payload FROM startup_cache").fetchone()
-            rows, used = None, False
-            if cache:
-                scope, ce, cut, bt, count, sd, pd, data = cache
-                actual = self.db.execute("SELECT token FROM acceptance_batches WHERE seq=?", (cut,)).fetchone()
-                valid = scope == SCOPE and ce == epoch and floor <= cut <= through and actual
-                valid = valid and (mutation == "ignoreToken" or actual[0] == bt)
-                if valid and digest(data) == pd:
-                    try:
-                        candidate = unpack(data)
-                    except (ValueError, TypeError, AssertionError):
-                        candidate = None
-                    if candidate is not None and len(candidate) == count and digest(canonical(candidate)) == sd:
-                        rows, used = candidate, True
-                        for (birth,) in self.db.execute("SELECT DISTINCT birth FROM view_changes WHERE seq>? AND seq<=?", (cut, through)):
-                            row = self.db.execute("SELECT cell FROM current_notes WHERE birth=?", (birth,)).fetchone()
-                            if row:
-                                rows[birth] = row[0]
-                            else:
-                                rows.pop(birth, None)
-            if rows is None:
-                rows = self.rows()
-            return dict(rows=rows, context=context, epoch=epoch, through=through, used=used)
+            epoch, through, context = self.meta()
+            assert through == self.high(), "materialization not caught up"
+            if concurrent:
+                concurrent()
+            return dict(rows=self.rows(), context=context, epoch=epoch, through=through)
         finally:
             self.db.rollback()
 
     def publish_model(self, result, mutation="safe"):
-        epoch, through, _, _, _ = self.meta()
-        return result["epoch"] == epoch and result["through"] == through and (mutation == "staleStartup" or through == self.high())
+        # Runs under the exclusive serial owner. Physical/lifecycle association
+        # checks belong to the adapter, not this synthetic SQL fixture.
+        epoch, through, _ = self.meta()
+        return ((mutation == "staleEpoch" or result["epoch"] == epoch)
+                and result["through"] == through
+                and (mutation == "staleStartup" or through == self.high()))
 
 
 def run():
@@ -180,7 +101,7 @@ def run():
         def fresh(name):
             s = Store(str(Path(directory) / name))
             s.create()
-            s.accept({b"a": b"A/context1", b"b": b"B/context1"})
+            s.accept({token(1): b"A/context1", token(2): b"B/context1"})
             s.materialize()
             return s
 
@@ -189,61 +110,46 @@ def run():
             checks.append(name)
 
         s = fresh("main.sqlite")
-        cap = s.capture()
-        check("publish captured cache", s.publish_cache(cap))
-        s.accept({b"a": None})
-        s.accept({b"b": b"B/context3"})  # Displayed body unchanged, context advanced.
+        s.accept({token(1): None})
+        s.accept({token(2): b"B/context3"})
         try:
             s.materialize(fail=True)
         except OSError:
             pass
-        check("view rollback does not undo acceptance", s.high() == 3 and s.meta()[1] == 1 and b"a" in s.rows())
+        check("rollback preserves acceptance and complete old view", s.high() == 3 and s.meta()[1] == 1 and s.rows() == {token(1): b"A/context1", token(2): b"B/context1"})
         s.db.close()
         s = Store(str(Path(directory) / "main.sqlite"))
         s.materialize()
         result = s.prepare()
-        check("cache catches deletion and metadata after reopen", result["used"] and result["rows"] == {b"b": b"B/context3"} and result["context"] == token(3))
-        check("fresh startup publication", s.publish_model(result))
-        s.accept({b"fresh-restored-birth": b"A/context4"})
-        check("reject stale startup result", not s.publish_model(result))
-        check("negative control stale publication", s.publish_model(result, "staleStartup"))
+        check("reopen catches deletion and body-equal context", result["rows"] == {token(2): b"B/context3"} and result["context"] == token(3))
+        check("fresh publication", s.publish_model(result))
+        s.accept({token(3): b"A/context4"})
+        check("reject newer unmaterialized acceptance", not s.publish_model(result))
+        check("negative control stale startup", s.publish_model(result, "staleStartup"))
         s.materialize()
-        check("restoration uses distinct birth", s.prepare()["rows"] == {b"b": b"B/context3", b"fresh-restored-birth": b"A/context4"})
-        delayed = s.capture()
-        s.accept({b"b": b"new/context5"})
-        s.materialize()
-        s.discard_cache()
-        check("reject builder after delta pruning", not s.publish_cache(delayed))
-        check("negative control stale builder", s.publish_cache(delayed, "staleBuilder"))
-        check("reader floor guard rejects resurrected cache", not s.prepare()["used"])
-        s.discard_cache()
-        check("cacheless current rows", s.prepare()["rows"][b"b"] == b"new/context5")
-        bad = s.capture()
-        bad["payload"] = packed({b"b": b"wrong", b"fresh-restored-birth": b"A/context4"})
-        check("reject semantically wrong but encodable cache", not s.publish_cache(bad))
-        check("negative control trusting own output", s.publish_cache(bad, "trustOutput") and s.prepare()["rows"][b"b"] == b"wrong")
-        check("good builder replaces bad cache", s.publish_cache(s.capture()) and s.prepare()["rows"][b"b"] == b"new/context5")
+        check("restoration uses fresh birth", s.prepare()["rows"] == {token(2): b"B/context3", token(3): b"A/context4"})
+        result = s.prepare()
         with s.db:
-            s.db.execute("UPDATE startup_cache SET batch_token=?", (token(999),))
-        check("reject equal-number other-branch cache", not s.prepare()["used"])
-        check("negative control numerical coverage only", s.prepare("ignoreToken")["used"])
-        check("rebuild cache", s.publish_cache(s.capture()))
-        with s.db:
-            s.db.execute("UPDATE startup_cache SET payload_digest=?", (bytes(32),))
-        check("corrupt optional cache falls back", not s.prepare()["used"] and b"b" in s.prepare()["rows"])
-        with s.db:
-            s.db.execute("UPDATE startup_cache SET payload=?,payload_digest=?", (b"invalid-json", digest(b"invalid-json")))
-        check("valid-hash malformed cache falls back", not s.prepare()["used"])
-        with s.db:
-            s.db.execute("UPDATE startup_cache SET scope=?", (b"foreign",))
-        check("foreign cache falls back", not s.prepare()["used"])
-
-        for mutant, changes in (("omitDelete", {b"a": None}), ("omitContext", {b"b": b"B/context2"})):
+            s.db.execute("UPDATE view_meta SET epoch=?", (token(101),))
+        check("reject old epoch at identical prefix", not s.publish_model(result))
+        check("negative control stale epoch", s.publish_model(result, "staleEpoch"))
+        check("fresh recapture succeeds", s.publish_model(s.prepare()))
+        writer = Store(str(Path(directory) / "main.sqlite"))
+        def advance():
+            writer.accept({token(2): b"new/context5"})
+            writer.materialize()
+        captured = s.prepare(advance)
+        check("read transaction cannot mix old prefix with new cells", captured["through"] == 4 and captured["rows"][token(2)] == b"B/context3")
+        check("reject consistent but now stale capture", not s.publish_model(captured))
+        writer.db.close()
+        for mutant, changes, expected in (
+            ("omitDelete", {token(1): None}, {token(2): b"B/context1"}),
+            ("omitContext", {token(2): b"B/context2"}, {token(1): b"A/context1", token(2): b"B/context2"}),
+        ):
             m = fresh(mutant)
-            m.publish_cache(m.capture())
             m.accept(changes)
             m.materialize(mutant)
-            check("negative control " + mutant, m.prepare()["rows"] != m.rows())
+            check("negative control " + mutant, m.prepare()["rows"] != expected)
             m.db.close()
 
         # Multi-parent wakeup is a candidate queue, not authority to accept.
@@ -273,7 +179,6 @@ def run():
 
         # Query/read boundaries, not a misleading cached-I/O speed benchmark.
         # Unread old BLOBs represent history already validated at acceptance.
-        s.publish_cache(s.capture())
         with s.db:
             s.db.execute("CREATE TABLE fixture_old_objects(id INTEGER PRIMARY KEY, bytes BLOB)")
             s.db.executemany("INSERT INTO fixture_old_objects VALUES(?,zeroblob(4096))", [(i,) for i in range(10000)])
@@ -285,12 +190,14 @@ def run():
                     return sqlite3.SQLITE_DENY
             return sqlite3.SQLITE_OK
         s.db.set_authorizer(authorize)
-        check("healthy fast path reads no old object/history rows", s.prepare()["used"])
-        s.discard_cache()
-        check("cacheless fast path reads no old object/history rows", not s.prepare()["used"])
-        plans = s.db.execute("EXPLAIN QUERY PLAN SELECT DISTINCT birth FROM view_changes WHERE seq > ? AND seq <= ?", (1, 5)).fetchall()
-        check("delta query uses bounded primary-key search", any("SEARCH view_changes USING PRIMARY KEY" in p[3] for p in plans))
+        check("healthy startup reads no old object/history rows", s.prepare()["rows"] == {token(2): b"new/context5", token(3): b"A/context4"})
+        check("no packed cache or delta tables", not s.db.execute("SELECT name FROM sqlite_master WHERE name IN ('startup_cache','view_changes')").fetchall())
         s.db.set_authorizer(None)
+        plans = s.db.execute("EXPLAIN QUERY PLAN SELECT seq,mutation FROM fixture_history WHERE seq>? ORDER BY seq", (4,)).fetchall()
+        check("catch-up uses indexed range search", any("SEARCH fixture_history USING INTEGER PRIMARY KEY" in p[3] for p in plans))
+        plans = s.db.execute("EXPLAIN QUERY PLAN SELECT birth,cell FROM current_notes ORDER BY rowid").fetchall()
+        check("startup scans current table without UUID index or sorting", any(p[3] == "SCAN current_notes" for p in plans)
+              and not any("USING INDEX" in p[3] or "TEMP B-TREE" in p[3] for p in plans))
         s.db.close()
     print(json.dumps({"sqlite_version": sqlite3.sqlite_version, "checked": len(checks), "checks": checks}, indent=2))
 

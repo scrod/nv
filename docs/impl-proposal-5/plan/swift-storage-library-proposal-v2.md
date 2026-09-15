@@ -340,6 +340,19 @@ A mock backend that simply returns `DurableObjectBytes` is a powerful test seam 
 
 Keep one local ownership coordinator and one repository/root coordinator per open collection, rather than creating actors for every note, operation, or record. They may own explicit state machines and immutable messages; the deterministic reducers themselves need no actor.
 
+Evaluate actor-based ownership when implementing or revisiting a mutable-state
+boundary, especially where it makes the implementation both simpler and safer.
+Prefer compiler-checked isolation over manually enforced queue confinement when
+the complete design reduces trusted plumbing. A small dispatch-backed actor
+executor can preserve dedicated blocking-I/O execution while its actor owns the
+connection and mutable state. Include asynchronous history lookups, resource
+cleanup, cancellation and deployment support in that comparison. Keep synchronous
+transactions and existing generation/admission checks intact. The adopted
+[database actor](actor-database-adoption.md) follows the initial
+[isolated experiment](actor-database-prototype.md): compiler-isolated live
+connection state, synchronous database turns and asynchronous ancestry reads.
+Release-only C-handle disposal remains a narrowly documented FFI responsibility.
+
 **Actor isolation does not serialize an entire asynchronous transaction.** Actor-isolated synchronous work runs without another actor job interleaving, but assumptions may change across `await`. Apple’s guidance explicitly calls for rechecking them. [S10]
 
 Before suspending, reserve the in-flight operation and freeze its operation ID, bytes, store incarnation, and relevant generations. On completion, match that operation before changing state. One local sealer must remain an explicit invariant, not an assumption about actor mailbox ordering. Multiple pin updates must not race and replace newer accepted history with an older captured pin.

@@ -55,6 +55,7 @@ def main():
                 intervention()
                 stdout, stderr = proc.communicate('\n', timeout=30)
                 assert proc.returncode == 0, (stdout, stderr)
+                return json.loads(stdout)
             else:
                 proc.kill(); proc.wait(timeout=10)
                 assert proc.returncode == -signal.SIGKILL
@@ -106,7 +107,7 @@ def main():
             else: interrupt(['transaction',db,'preview',file],cut)
             check(f'{mode}/preview/{cut}',db,{'latest':2 if cut=='after-commit' else 1,'frozen':1,'imported':0})
 
-        # C arrived before the snapshot, P arrives after it; crash at acceptance.
+        # C arrived before materialization, P arrives after it; crash at acceptance.
         for cut in ('before-commit','after-commit'):
             db,file=fixture(mode); tx(db,file,'parent')
             interrupt(['transaction',db,'child',file],cut)
@@ -131,10 +132,10 @@ def main():
             interrupt(['transaction',db,'parent',file],cut)
             check(f'{mode}/parent-and-queue/{cut}',db,{'values':[0,2 if cut=='after-commit' else 0,7]})
 
-        for cache_op in ('cache','drop-cache','foreign-cache'):
-            db,file=fixture(mode); tx(db,file,'reserve'); tx(db,file,'import'); tx(db,file,cache_op)
+        for view_op in ('current_view','invalidate-view','foreign-view'):
+            db,file=fixture(mode); tx(db,file,'reserve'); tx(db,file,'import'); tx(db,file,view_op)
             tx(db,file,'delete')
-            check(f'{mode}/{cache_op}',db,{'values':[0,0,7],'deleted':1,'status':1})
+            check(f'{mode}/{view_op}',db,{'values':[0,0,7],'deleted':1,'status':1})
 
         # A committed import, a newer pending preview, then a crash in settlement.
         for cut in ('after-receipt','before-commit','after-commit'):
@@ -178,30 +179,35 @@ def main():
         check(f'{mode}/source-changes-after-admission',db,{'values':[4,0,7],'latest':2,'frozen':1,'associated':0,'status':1})
 
         # One consistent read transaction captures both values and coverage;
-        # compression/publication can lag another acceptance transaction.
+        # detached reduction/installation can lag another acceptance transaction.
         db,file=fixture(mode); tx(db,file,'parent')
-        interrupt(['delayed-cache',db],'after-capture',lambda:tx(db,file,'child'))
-        check(f'{mode}/delayed-cache',db,{'values':[0,2,7],'through':3})
+        interrupt(['delayed-materialization',db],'after-capture',lambda:tx(db,file,'child'))
+        check(f'{mode}/delayed-materialization',db,{'values':[0,2,7],'through':3})
         db,file=fixture(mode); tx(db,file,'parent')
-        interrupt(['delayed-cache',db],'after-capture',lambda:tx(db,file,'child'),policy='split-coverage')
+        def advance_view():
+            tx(db,file,'child'); tx(db,file,'current_view')
+        assert interrupt(['delayed-materialization',db],'after-capture',advance_view) == {'materialized':False}
+        check(f'{mode}/reject-regressing-materialization',db,{'values':[0,2,7],'through':3})
+        db,file=fixture(mode); tx(db,file,'parent')
+        interrupt(['delayed-materialization',db],'after-capture',lambda:tx(db,file,'child'),policy='split-coverage')
         assert run('recover',db)['values'] != [0,2,7]
         result['controls'].append(f'{mode}/split-coverage')
         if mode=='WAL':
             # WAL permits the other writer to commit while our read transaction
             # is still between value extraction and coverage extraction.
             db,file=fixture(mode); tx(db,file,'parent')
-            interrupt(['delayed-cache',db],'after-values',lambda:tx(db,file,'child'))
+            interrupt(['delayed-materialization',db],'after-values',lambda:tx(db,file,'child'))
             check(f'{mode}/consistent-read-during-writer',db,{'values':[0,2,7],'through':3})
             db,file=fixture(mode); tx(db,file,'parent')
-            interrupt(['delayed-cache',db],'after-values',lambda:tx(db,file,'child'),policy='split-read')
+            interrupt(['delayed-materialization',db],'after-values',lambda:tx(db,file,'child'),policy='split-read')
             assert run('recover',db)['values'] != [0,2,7]
             result['controls'].append(f'{mode}/split-read')
 
-        db,file=fixture(mode); tx(db,file,'parent'); tx(db,file,'cache'); tx(db,file,'child')
-        interrupt(['transaction',db,'cache',file],'before-commit')
-        check(f'{mode}/failed-cache-rebuild',db,{'values':[0,2,7],'through':3})
+        db,file=fixture(mode); tx(db,file,'parent'); tx(db,file,'current_view'); tx(db,file,'child')
+        interrupt(['transaction',db,'current_view',file],'before-commit')
+        check(f'{mode}/failed-materialization-rebuild',db,{'values':[0,2,7],'through':3})
 
-        # One connected trace: lost import callback, old captured snapshot,
+        # One connected trace: lost import callback, old captured materialization,
         # ready-but-unaccepted C, later Delete, newer preview and a replaced
         # root. Two further crashes must not lose C or repeat the deleted I.
         db,file=fixture(mode); tx(db,file,'reserve')
@@ -209,14 +215,14 @@ def main():
         def overlapping_changes():
             tx(db,file,'delete'); run('source',file,8)
             tx(db,file,'preview'); tx(db,file,'root')
-        interrupt(['delayed-cache',db],'after-capture',overlapping_changes)
+        interrupt(['delayed-materialization',db],'after-capture',overlapping_changes)
         interrupt(['recover',db],'recovery-after-apply')
         expected={'values':[0,2,7],'through':5,'status':1,'latest':2,'frozen':1,'associated':0}
         check(f'{mode}/combined/ready-recovery',db,expected)
         interrupt(['settle',db,file],'before-commit')
         check(f'{mode}/combined/receipt-rollback',db,expected)
-        run('settle',db,file); tx(db,file,'drop-cache')
-        check(f'{mode}/combined/settled-rebuild',db,dict(expected,status=2,frozen=0,cache_used=0))
+        run('settle',db,file); tx(db,file,'invalidate-view')
+        check(f'{mode}/combined/settled-rebuild',db,dict(expected,status=2,frozen=0,materialization_used=0))
 
         for mutation in ('insert-order','replay-consent','live-only','forget-link','stale-receipt'):
             db,file=fixture(mode); tx(db,file,'reserve')

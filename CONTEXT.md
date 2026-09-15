@@ -71,6 +71,14 @@ The private database's derived current-note rows and authoring context, maintain
 **Local acceptance batch**:
 One atomic addition of validated, complete history to a local store, including its required bookkeeping. Its local sequence orders materialization catch-up, not causality, provider delivery or cross-machine identity.
 
+**Blocked receive candidate**
+
+Retained, unaccepted incoming bytes whose dependency chain includes an object with
+a recorded rejection. The diagnostic identifies those prerequisites and reasons;
+the candidate's own validation awaits usable prerequisites. Missing data,
+unsupported prerequisite data and damage to already accepted history remain
+distinct. See [local receive handling](docs/impl-proposal-5/LocalStore.md).
+
 **Local tail**:
 Locally retained history not represented by the current materialization or a provider snapshot. It need not be unpublished or belong to only one writer.
 _Avoid_: Only unsynced edits, highest sequence number

@@ -25,6 +25,8 @@ Each listed state-machine module has a same-named configuration unless stated ot
 
 | Module | Disposition for proposal 5 |
 | --- | --- |
+| `ReceiveResumptionSafety` | Active finite receive/save/quiesce scheduling check; actual notification enables resumption, with runnable-work fairness, stale-prefix fencing, cancellation and pending-handle cases. |
+| `ReceiveRejectionSafety` | Active finite rejection/dependency/crash check; exact retained input, candidate-local rejection, durable scheduling and conditional recovery progress. SQL atomicity and intrinsic validity remain assumed. See [source mapping/results](../impl-proposal-5/plan/receive-model-validation.md). |
 | `ImmutableSegmentDurabilitySafety` | Active; strengthened to recover installed bytes even without acknowledgment. |
 | `SegmentDeletionSafety` | Active; retain explicit-intent/dependency/restoration and cross-host checks. |
 | `SegmentBootstrapSafety` | New active focused startup/materialization/trust check. |

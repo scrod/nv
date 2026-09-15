@@ -1,0 +1,5 @@
+module CSQLCipher [system] {
+    header "shim.h"
+    link "sqlcipher"
+    export *
+}

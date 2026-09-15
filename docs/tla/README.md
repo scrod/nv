@@ -111,6 +111,45 @@ designated mutation controls and three reachability witnesses. The
 no old-history reads on healthy startup and multi-parent ready work. The cache
 format, builders, batch tokens, changed-birth log and pruning floors are removed.
 
+The [Runtime hardening tests](../impl-proposal-5/plan/phase2-hardening-validation.md)
+now map catch-up directly to `Materialize`'s one-complete-batch step. They separately
+exercise off-writer validation, rejection of unaccepted input, stale-history
+rechecks and failed damage-marker writes. These models retain their complete-valid-
+input and committed-damage-observation assumptions; neither worker scheduling nor
+durable quarantine is claimed proved by the existing state graphs.
+
+The [resumption/rejection follow-up](../impl-proposal-5/plan/validation-resumption-results.md)
+tests actual actor wake-ups after finite save interference, SQL rejection rollback/
+crash outcomes and transitive blocked-prerequisite diagnostics. Two additional
+focused models now check the logical scheduling and rejection boundaries.
+
+The [actor-owned database implementation](../impl-proposal-5/plan/actor-database-adoption.md)
+maps the same boundaries to synchronous database-actor turns and asynchronous,
+generation-checked history reads. Its executor, cleanup and compiler-isolation
+checks are runtime/compiler qualifications; the logical model transitions remain
+unchanged.
+
+| Model | Scope and assumptions |
+| --- | --- |
+| [`ReceiveResumptionSafety`](ReceiveResumptionSafety.tla) | Two interrupted checks, separate commit/completion, atomic waiter registration, a new save before resumption, pending handles, cancellation and quiesce. Weak fairness covers runnable work, while actual notifications enable sleeping continuations. Zero/two/three-save configurations; healthy receive work is already admitted. |
+| [`ReceiveRejectionSafety`](ReceiveRejectionSafety.tla) | Two-level and multi-parent dependency fixtures, staged rejection transaction, exact input retention, duplicates, parent wakeups, unsupported/invalid/valid companions, unrelated progress, and up to two crashes/two storage failures. Recovery progress assumes an explicit caller retry/reopen; SQL atomicity and truthful input classification remain inputs. |
+
+Run `python3 docs/tla/check-receive-models.py --java /path/to/java --jar /path/to/tla2tools.jar`;
+`--only resumption` or `--only rejection` selects a family. The
+[source mapping and results](../impl-proposal-5/plan/receive-model-validation.md)
+record 47 completed outcomes: 12 exhaustive configurations, 22 targeted mutation
+counterexamples and 13 reachability witnesses. These are complementary finite
+checks, not an `INSTANCE` composition with the SQLite models or a proof of actual
+Swift executor scheduling, SQLCipher I/O, arbitrary graphs or future upgrades.
+The existing SQLite models still assume complete valid accepted input; the failed
+damage-marker persistence gap remains separate.
+
+The [current-basis implementation checks](../impl-proposal-5/plan/current-basis-validation.md)
+qualify ordinary-save reuse of that complete materialization and direct-parent
+frontier updates. Their independent finite-DAG oracle and malformed/stale-input
+tests exercise the concrete algorithm. The models retain their complete-validation
+and accurate-materialization obligations; they do not prove the Swift optimization.
+
 Physical page locality, per-cell compression and the optional read-ahead candidate
 are tested by the [clean-quit executable experiments](../impl-proposal-5/plan/clean-quit-locality-strategy.md),
 not proved by these logical models. A physical hint cannot establish represented

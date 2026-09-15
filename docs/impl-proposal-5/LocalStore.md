@@ -336,6 +336,58 @@ the local history barrier, and indexed catch-up restores the current view:
    transaction may lag accepted history; its failure does not undo acceptance.
    It must catch up before an editable startup result is published.
 
+The first ordinary Runtime path also supports [checked-current-state validation](plan/current-basis-validation.md)
+within the serialized acceptance transaction: when the current materialization
+covers all accepted history and the incoming group's exact parents, before-states
+and scope frontiers match it, reuse that prior state and validate the new action
+with the shared semantic checks. Other histories retain full validation. This
+ordinary path uses an actor-owned connection on a dedicated serial executor.
+A separate worker prepares incoming envelopes; the full asynchronous validator
+retains traversal/cycle state while awaiting one indexed-read actor turn at a
+time. Transactions stay synchronous within the owner. Outer acceptance,
+ready-drain, dependency-diagnostic and catch-up loops execute outside that actor
+and await individual turns, preserving opportunities for local saves. Explicit
+close and abandoned-owner disposal release C resources on the database queue.
+See the [actor implementation and qualification](plan/actor-database-adoption.md).
+Acceptance consumes the completed
+check only after rechecking the exact accepted prefix and owner. A changed prefix
+restarts validation. After two interrupted captures, an owned receive waits for
+any active local save through the existing completion waiters, then starts a fresh
+pass. It rechecks the active-save condition on every wake and retries immediately
+if the save already ended. Cancellation and quiescing preserve its reservation.
+Finite interference followed by healthy local processing requires progress without
+another arrival. Local persist/retry retains its pending handle and public busy
+outcome for this contention. Database/I/O failures remain explicit errors.
+Object and operation frontiers advance separately
+by adding genuinely new records and removing their direct parents.
+
+Ready work yields between candidates; materialization yields between complete
+acceptance batches. Each derived transaction advances rows, authoring context and
+coverage together. Returning open repairs invalid derived state before ready work
+can update it. A received candidate with a definite unsupported or invalid
+payload is retained with a versioned rejection reason, atomically removing its
+ready/wait entries. Unchanged rejected bytes reuse that classification across
+restart. Missing dependencies remain parked; database/I/O/ownership failures and
+damage to accepted history retain their distinct failure paths. See the
+[scheduling and isolation qualification](plan/phase2-hardening-validation.md).
+
+Rejection recording and removal of that candidate's ready/wait entries share one
+transaction. Failure or crash leaves either the complete rejection or its retained
+retryable candidate. Exact bytes and accepted history survive both outcomes.
+Dependent candidates retain their bytes and waits; rejection applies only to the
+object actually checked. Diagnostic queries follow indexed waiting edges to report
+direct/transitive rejected prerequisites, including unsupported input that a future
+validator may understand, separately from the candidate's own validity. Shared
+ancestors are deduplicated and each object gets a separate writer turn. Results
+include direct unaccepted locators and exact rejected-root IDs/reasons; they are
+current diagnostics, not acceptance evidence or global completeness claims.
+No descendant rejection rows or additional stored scheduling state are introduced.
+See [resumption and rejection validation](plan/validation-resumption-results.md).
+The complementary [bounded receive models](plan/receive-model-validation.md)
+check notification/shutdown ordering and durable rejection/dependency scheduling.
+An undisclosed intermediate dependency can conceal a rejected ancestor; complete
+blocker reporting requires that intermediate evidence and settled inspection.
+
 Pending retention/reservation and physical-receipt settlement use their own
 generation-checked transactions from [the pending protocol](Protocol.md#pending-file-retention-and-retry-identity).
 The DB does not atomically commit a filesystem effect. Fresh rooted file evidence

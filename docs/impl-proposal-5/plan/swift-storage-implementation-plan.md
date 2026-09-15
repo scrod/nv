@@ -91,7 +91,7 @@ Tests arrive with each implementation, not in phase 8. A minimal headless comman
 
 **Tests / exit**
 
-Build a positive ordinary client and separate-client negative cases against actual available APIs, without `@testable`. Match intended diagnostics; unrelated build errors do not pass. Exercise debug/optimized builds and run a representative actual macOS 11.5 executable as soon as that environment is available. Record missing environments as blocked qualification, not a reason to abandon portable development.
+Build a positive ordinary client and separate-client negative cases against actual available APIs, without `@testable`. Match intended diagnostics; unrelated build errors do not pass. Exercise debug/optimized builds and run a representative actual macOS 11 executable as soon as that environment is available. Record missing environments as blocked qualification, not a reason to abandon portable development.
 
 Deliver a short symbol/requirement/test map and a first-slice format checklist. `TC-STATIC-01–04` are implemented progressively as those APIs exist; an absent issuer cannot already have passed its contract test.
 
@@ -128,6 +128,29 @@ platform, physical-power-loss and later-reducer gates. The checks run through
 `make -C tests run-swift-storage-phase2`; `--configuration release --mutations`
 selects the complete optimized challenge campaign. The raw-cell baseline leaves
 the adopted zstd candidate intact for the next physical-codec qualification task.
+
+The [current-basis increment](current-basis-validation.md) reuses complete current
+rows for eligible ordinary saves and maintains frontiers through direct parents.
+Its growing-ancestry measurements and exact eligibility tests supplement Phase 2.
+The [hardening increment](phase2-hardening-validation.md) adds off-writer ancestry
+validation with one-read writer turns, one-batch materialization, durable receive
+rejection and seeded two-store crash/retry schedules. It records remaining release
+qualification separately from these implemented ordinary-history behaviors.
+
+The implemented [automatic continuation after interfering saves](validation-resumption-plan.md)
+keeps the existing receive operation alive and reuses its durable queue and local
+save-completion waiters. It adds no stored scheduling state. The
+[follow-up results](validation-resumption-results.md) cover race/lifecycle tests,
+atomic rejection failures and derived blocked-prerequisite diagnostics.
+
+When revisiting concurrency boundaries, consider actor-based ownership wherever
+it can simplify the implementation and strengthen compiler-enforced safety
+together. The [database-actor adoption](actor-database-adoption.md) implements the
+dispatch-backed owner and asynchronous history lookups explored by the
+[isolated prototype](actor-database-prototype.md). Preserve synchronous SQL
+transactions, admission/generation fences, save progress during history work and
+shutdown ownership. Qualification includes the complete shared validator and
+resource cleanup; actual macOS 11 execution remains a platform gate.
 
 **Implement**
 

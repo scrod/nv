@@ -9,3 +9,9 @@ Plaintext projection and provider publication are independent follow-on obligati
 Existing-file projections retain rooted expected-snapshot safe replacement and preservation of displaced work. Immutable provider objects use exclusive creation and exact verification. Privately, one [SQLite acceptance transaction](../impl-proposal-5/LocalStore.md) retains exact bytes, complete accepted membership, pin advancement and dependency wakeups together. A committed operation whose callback was lost is recovered by exact identity, not by asking whether its note is still live. Current materialization may lag; its failure does not retract committed history. SQLite atomicity does not supply filesystem authority or prove reducer correctness.
 
 Normative requirements: DUR-01, DELETE-01, REC-01, CKPT-01.
+
+Incoming rejection records and the rejected candidate's queue settlement also
+commit atomically, preserving exact received bytes. A failed transaction leaves
+the prior retryable candidate. Descendants retain their own bytes and waiting
+edges; a prerequisite's rejection supplies a diagnostic, not a rejection of those
+descendants or permission to alter accepted history.

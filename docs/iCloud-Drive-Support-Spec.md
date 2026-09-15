@@ -48,6 +48,16 @@ IDs describe the current contract below. An older model using the same ID is not
 
 Principal ordering is admission → complete local segment/parent barrier → independent provider/projection work. Reception is exact local installation → dependency completion/validation → generation-fenced reduction. Neither path passes through a shared Notes & Settings transaction.
 
+An owned receive interrupted by concurrent local saves resumes after those saves
+settle, without requiring another provider event. Each attempt retains complete
+validation and ownership checks; storage failures remain distinct from contention.
+Definite rejection of retained incoming input atomically settles that candidate's
+queue state while preserving its bytes and accepted history. After failure or
+crash, the candidate is either durably rejected or retryable. Its dependents remain
+retained and unaccepted, with rejected-prerequisite diagnostics distinct from
+missing data and from a rejection of the dependents themselves. Unsupported
+prerequisites may become usable under a future validator.
+
 ## Storage, identity and ownership
 
     Application Support/Notational Velocity/Collections/<localStoreID>/

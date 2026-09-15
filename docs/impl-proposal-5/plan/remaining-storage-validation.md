@@ -353,6 +353,14 @@ truncated frontier, timestamp/high-water substitute or age-based pruning.
 
 Initial Runtime work budgets (scheduling parameters, **not wire validity**):
 
+The ordinary-history [Runtime implementation](phase2-hardening-validation.md)
+uses an even smaller database scheduling slice: one historical lookup per writer
+turn, one ready candidate per turn, and one complete materialization batch per
+transaction. Iterative ancestry state stays on a dedicated worker between reads.
+Always yielding at these boundaries replaces counting up to the limits below;
+it does not promise preemption within SQLite, envelope decoding or an indivisible
+action/acceptance transaction. Large-bootstrap scheduling remains separate.
+
 | Work | Per owner/pass bound | Exhaustion |
 | --- | --- | --- |
 | Graph validation / ready draining | 256 records or 8 MiB decoded work, checked between records; yield after 10 ms elapsed | Persist continuation/work queue, reschedule fairly; one individually valid larger record may finish in its own worker turn |

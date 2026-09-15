@@ -1,7 +1,9 @@
 /* Candidate SQLite transaction mapping, NOT production formats or Apple CAS.
  * Reuses the qualified fixture VFS. Each object is one complete synthetic
  * action; envelope decoding, full causal merging and UI admission are outside
- * this probe. No real NV/provider data. */
+ * this probe. No real NV/provider data.
+ * current_view's three fixture bytes abstract one atomic current-row update,
+ * not a packed startup format. Real row/schema tests live in the Python checks. */
 #define main OriginalSQLiteProbeMain
 #include "SQLiteLocalStoreProbe.c"
 #undef main
@@ -57,10 +59,10 @@ static void apply_object(sqlite3 *db,int id) {
     if (!broken("no-ready")) execf(db,"INSERT OR IGNORE INTO ready SELECT id FROM objects WHERE parent=%d AND id NOT IN (SELECT id FROM applications)",id,0);
     sql(db,"UPDATE private_state SET through=(SELECT max(seq) FROM applications)");
 }
-static void cache(sqlite3 *db) {
+static void current_view(sqlite3 *db) {
     unsigned char state[3]={0}; replay(db,state,0);
     int through=(int)scalar(db,"SELECT through FROM private_state");
-    sqlite3_stmt *q=prepare(db,"INSERT OR REPLACE INTO cache VALUES(1,'store-A',?,?)");
+    sqlite3_stmt *q=prepare(db,"INSERT OR REPLACE INTO current_view VALUES(1,'store-A',?,?)");
     sqlite3_bind_int(q,1,through); sqlite3_bind_blob(q,2,state,3,SQLITE_TRANSIENT); done(db,q); sqlite3_finalize(q);
 }
 static int same_stat(struct stat a,struct stat b) {
@@ -104,15 +106,15 @@ static void init(const char *path,const char *mode,const char *file) {
      "CREATE INDEX dependencies_by_parent ON objects(parent);"
      "CREATE TABLE ready(id INTEGER PRIMARY KEY REFERENCES objects(id));"
      "CREATE TABLE private_state(id INTEGER PRIMARY KEY,scope TEXT,through INTEGER,settings TEXT,root_generation INTEGER);"
-     "CREATE TABLE cache(id INTEGER PRIMARY KEY,scope TEXT,through INTEGER,bytes BLOB);"
+     "CREATE TABLE current_view(id INTEGER PRIMARY KEY,scope TEXT,through INTEGER,bytes BLOB);"
      "CREATE TABLE snapshots(id INTEGER PRIMARY KEY,bytes BLOB,device INTEGER,inode INTEGER,mtime INTEGER,ctime INTEGER);"
      "CREATE TABLE pending(id INTEGER PRIMARY KEY,latest INTEGER REFERENCES snapshots(id),frozen INTEGER REFERENCES snapshots(id),operation INTEGER);"
      "CREATE TABLE receipts(id INTEGER PRIMARY KEY,operation INTEGER REFERENCES actions(id),associated INTEGER,root_generation INTEGER);"
      "CREATE TRIGGER immutable_update BEFORE UPDATE ON objects BEGIN SELECT RAISE(ABORT,'immutable'); END;"
      "CREATE TRIGGER immutable_delete BEFORE DELETE ON objects BEGIN SELECT RAISE(ABORT,'immutable'); END;"
      "BEGIN IMMEDIATE; INSERT INTO private_state VALUES(1,'store-A',0,'private-preference',0)");
-    object(db,1); apply_object(db,1); object(db,2); /* child parked before first cache */
-    retain(db,file,1); sql(db,"INSERT INTO pending VALUES(1,1,NULL,NULL)"); cache(db);
+    object(db,1); apply_object(db,1); object(db,2); /* child parked before first materialization */
+    retain(db,file,1); sql(db,"INSERT INTO pending VALUES(1,1,NULL,NULL)"); current_view(db);
     sql(db,"COMMIT"); check(db,sqlite3_close(db)); puts("{\"initialized\":true}");
 }
 static void transaction(const char *path,const char *what,const char *file) {
@@ -138,9 +140,9 @@ static void transaction(const char *path,const char *what,const char *file) {
     } else if (!strcmp(what,"parent")) { object(db,3); apply_object(db,3); }
     else if (!strcmp(what,"child")) apply_object(db,2);
     else if (!strcmp(what,"delete")) { object(db,5); apply_object(db,5); }
-    else if (!strcmp(what,"cache")) cache(db);
-    else if (!strcmp(what,"drop-cache")) sql(db,"DELETE FROM cache");
-    else if (!strcmp(what,"foreign-cache")) sql(db,"UPDATE cache SET scope='foreign-store'");
+    else if (!strcmp(what,"current_view")) current_view(db);
+    else if (!strcmp(what,"invalidate-view")) sql(db,"DELETE FROM current_view");
+    else if (!strcmp(what,"foreign-view")) sql(db,"UPDATE current_view SET scope='foreign-store'");
     else if (!strcmp(what,"root")) sql(db,"UPDATE private_state SET root_generation=root_generation+1");
     else { fprintf(stderr,"bad transaction\n"); exit(2); }
     at("before-commit");
@@ -182,17 +184,20 @@ static void settle(const char *path,const char *file) {
     printf("{\"history\":%d,\"fresh\":%d,\"deleted\":%d}\n",history,fresh,deleted);
     check(db,sqlite3_close(db));
 }
-static void delayed_cache(const char *path) {
+static void delayed_materialization(const char *path) {
     sqlite3 *db=open_db(path,0); if (!broken("split-read")) sql(db,"BEGIN");
     unsigned char values[3]={0}; replay(db,values,0);
     at("after-values");
     int through=(int)scalar(db,"SELECT through FROM private_state");
     if (!broken("split-read")) sql(db,"COMMIT");
     at("after-capture"); sql(db,"BEGIN IMMEDIATE");
-    sqlite3_stmt *q=prepare(db,"INSERT OR REPLACE INTO cache VALUES(1,'store-A',?,?)");
+    if (through<scalar(db,"SELECT coalesce(max(through),0) FROM current_view")) {
+        sql(db,"COMMIT"); check(db,sqlite3_close(db)); puts("{\"materialized\":false}"); return;
+    }
+    sqlite3_stmt *q=prepare(db,"INSERT OR REPLACE INTO current_view VALUES(1,'store-A',?,?)");
     sqlite3_bind_int(q,1,broken("split-coverage")?(int)scalar(db,"SELECT through FROM private_state"):through);
     sqlite3_bind_blob(q,2,values,3,SQLITE_TRANSIENT); done(db,q); sqlite3_finalize(q);
-    sql(db,"COMMIT"); check(db,sqlite3_close(db)); puts("{\"cached\":true}");
+    sql(db,"COMMIT"); check(db,sqlite3_close(db)); puts("{\"materialized\":true}");
 }
 static void recover(const char *path) {
     sqlite3 *db=open_db(path,0);
@@ -206,19 +211,22 @@ static void recover(const char *path) {
         }
     }
     sql(db,"BEGIN");
-    unsigned char state[3]={0}; int through=0,cacheUsed=0;
-    sqlite3_stmt *q=prepare(db,"SELECT through,bytes FROM cache WHERE scope='store-A'");
+    unsigned char state[3]={0}; int through=0,materializationUsed=0;
+    sqlite3_stmt *q=prepare(db,"SELECT through,bytes FROM current_view WHERE scope='store-A'");
     if (sqlite3_step(q)==SQLITE_ROW) {
         assert(sqlite3_column_bytes(q,1)==3); through=sqlite3_column_int(q,0);
         assert(through<=scalar(db,"SELECT through FROM private_state"));
-        memcpy(state,sqlite3_column_blob(q,1),3); cacheUsed=1;
+        memcpy(state,sqlite3_column_blob(q,1),3); materializationUsed=1;
     }
     sqlite3_finalize(q);
-    if (broken("insert-order") && cacheUsed) {
+    if (broken("insert-order") && materializationUsed) {
         q=prepare(db,"SELECT a.id FROM applications a JOIN objects o ON a.id=o.id WHERE o.row>? ORDER BY a.seq");
-        sqlite3_bind_int(q,1,2); /* max stored row at the initial snapshot, C included */
+        sqlite3_bind_int(q,1,2); /* max stored row at the initial materialization, C included */
         while (sqlite3_step(q)==SQLITE_ROW) reduce(state,sqlite3_column_int(q,0)); sqlite3_finalize(q);
     } else replay(db,state,through);
+    q=prepare(db,"INSERT OR REPLACE INTO current_view VALUES(1,'store-A',?,?)");
+    sqlite3_bind_int(q,1,(int)scalar(db,"SELECT through FROM private_state"));
+    sqlite3_bind_blob(q,2,state,3,SQLITE_TRANSIENT); done(db,q); sqlite3_finalize(q);
     int imported=exists(db,"applications",4), deleted=exists(db,"applications",5);
     int pending=(int)scalar(db,"SELECT count(*) FROM pending WHERE operation=4");
     int receipts=(int)scalar(db,"SELECT count(*) FROM receipts");
@@ -234,8 +242,8 @@ static void recover(const char *path) {
     int status=imported?(receipts?2:1):0; /* undecided / resume settlement / settled */
     if (broken("replay-consent") && !imported && pending) status=1;
     if (broken("live-only") && deleted) status=0;
-    printf("{\"imported\":%d,\"deleted\":%d,\"status\":%d,\"latest\":%d,\"frozen\":%d,\"receipts\":%d,\"associated\":%d,\"cache_used\":%d,\"through\":%lld,\"values\":[%d,%d,%d]}\n",
-        imported,deleted,status,latest,frozen,receipts,associated,cacheUsed,(long long)scalar(db,"SELECT through FROM private_state"),state[0],state[1],state[2]);
+    printf("{\"imported\":%d,\"deleted\":%d,\"status\":%d,\"latest\":%d,\"frozen\":%d,\"receipts\":%d,\"associated\":%d,\"materialization_used\":%d,\"through\":%lld,\"values\":[%d,%d,%d]}\n",
+        imported,deleted,status,latest,frozen,receipts,associated,materializationUsed,(long long)scalar(db,"SELECT through FROM private_state"),state[0],state[1],state[2]);
     sql(db,"COMMIT"); check(db,sqlite3_close(db));
 }
 int main(int argc,char **argv) {
@@ -249,7 +257,7 @@ int main(int argc,char **argv) {
     else if (argc==5 && !strcmp(argv[1],"init")) init(argv[2],argv[3],argv[4]);
     else if (argc==5 && !strcmp(argv[1],"transaction")) transaction(argv[2],argv[3],argv[4]);
     else if (argc==4 && !strcmp(argv[1],"settle")) settle(argv[2],argv[3]);
-    else if (argc==3 && !strcmp(argv[1],"delayed-cache")) delayed_cache(argv[2]);
+    else if (argc==3 && !strcmp(argv[1],"delayed-materialization")) delayed_materialization(argv[2]);
     else if (argc==3 && !strcmp(argv[1],"recover")) recover(argv[2]);
     else return 2;
     return 0;

@@ -31,11 +31,28 @@ TARGETS := \
 
 all: $(TARGETS)
 
-.PHONY: run-swift-storage
+.PHONY: run-swift-storage run-swift-storage-mutations
 SWIFT ?= swift
 SWIFT_STORAGE_TEST_FLAGS ?=
+ifeq ($(shell uname -s),Linux)
+SWIFT_STORAGE_DRIVER_FLAGS := --use-integrated-swift-driver --disable-build-manifest-caching
+SWIFT_STORAGE_LINK_FLAGS := -Xswiftc -use-ld=lld -Xlinker -z -Xlinker relro -Xlinker -z -Xlinker now
+endif
+export PKG_CONFIG_PATH := $(abspath ../NVStorage/.deps/sqlcipher/lib/pkgconfig):$(PKG_CONFIG_PATH)
 run-swift-storage:
-	$(SWIFT) test --package-path ../NVStorage $(SWIFT_STORAGE_TEST_FLAGS)
+	@test -f ../NVStorage/.deps/sqlcipher/lib/libsqlcipher.a || { echo 'Run bash tools/build-storage-deps.sh from the repository root first.'; exit 1; }
+	$(SWIFT) test --build-system native $(SWIFT_STORAGE_DRIVER_FLAGS) --package-path ../NVStorage $(SWIFT_STORAGE_LINK_FLAGS) $(SWIFT_STORAGE_TEST_FLAGS)
+
+run-swift-storage-mutations:
+	python3 ../tools/test-bootstrap-mutations.py $(SWIFT_STORAGE_MUTATION_FLAGS)
+
+.PHONY: run-swift-storage-phase2
+run-swift-storage-phase2:
+	python3 ../tools/test-storage-phase2.py $(SWIFT_STORAGE_PHASE2_FLAGS)
+
+.PHONY: run-sqlite-schema
+run-sqlite-schema:
+	python3 run-sqlite-schema-contract.py
 
 .PHONY: run-native-undo-probes
 $(BUILD_DIR)/NativeUndoProbe: NativeUndoProbe.m Makefile | $(BUILD_DIR)

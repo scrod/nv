@@ -12,9 +12,11 @@ import subprocess
 import tempfile
 
 CASES = (
+    "large-note-65536", "large-note-1048576", "large-note-4194304", "large-note-16777216",
     "typing", "capture-passive", "capture-break", "marker-first", "marker-every", "marker-before",
     "metadata", "metadata-first", "metadata-before", "selection-backspace", "paste-format", "composition", "replacement",
     "remote-storage", "remote-notified", "remote-reset", "remote-title",
+    "remote-registered-prefix", "remote-registered-replace", "remote-registered-multi", "remote-registered-branch", "remote-registered-followup",
     "refusal-inside", "refusal-preflight", "nested-command",
     "auto-marker-typing", "auto-marker-selection", "auto-marker-format",
     "auto-marker-capture", "auto-marker-replacement", "auto-marker-composition",

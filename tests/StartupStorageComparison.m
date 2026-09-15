@@ -14,6 +14,7 @@
 #include <sys/mman.h>
 #include <libproc.h>
 #include <errno.h>
+#include <pthread.h>
 
 /* Reuse the previous experiment's SQLite/VFS plumbing, not another framework. */
 #define main NVSQLiteProbeMain
@@ -22,16 +23,23 @@
 
 static int inputFD = -1, uncached;
 static uint64_t requestedBytes, systemReadBytes, systemReads;
+static uint64_t directEncodedBytes;
 static double ioSeconds;
 static void *bounce;
 static size_t bounceSize;
 static sqlite3_io_methods readMethods;
+static void (*readObserver)(off_t, size_t);
+static pthread_mutex_t measurementLock=PTHREAD_MUTEX_INITIALIZER;
 
 static ssize_t measuredRead(int fd, void *buffer, size_t length, off_t offset) {
     double start = now(); ssize_t n;
     do { n = pread(fd, buffer, length, offset); } while (n < 0 && errno == EINTR);
-    ioSeconds += now()-start; systemReads++;
+    double elapsed=now()-start;
+    pthread_mutex_lock(&measurementLock);
+    ioSeconds += elapsed; systemReads++;
+    if (readObserver && n > 0) readObserver(offset, (size_t)n);
     if (n > 0) systemReadBytes += (uint64_t)n;
+    pthread_mutex_unlock(&measurementLock);
     return n;
 }
 static int sqliteRead(sqlite3_file *file, void *buffer, int length, sqlite3_int64 offset) {
@@ -63,10 +71,9 @@ static int sqliteRead(sqlite3_file *file, void *buffer, int length, sqlite3_int6
 }
 static int comparisonOpen(sqlite3_vfs *v, const char *name, sqlite3_file *f, int flags, int *outFlags) {
     int rc = vOpen(v,name,f,flags,outFlags);
-    if (rc == SQLITE_OK) {
+    if (rc == SQLITE_OK && (flags & SQLITE_OPEN_MAIN_DB)) {
         /* Immutable, closed fixtures ONLY. Normal SQLite owns metadata/locking;
          * its content reads use our independently opened read-only descriptor. */
-        assert(flags & SQLITE_OPEN_MAIN_DB);
         f->pMethods = &readMethods;
     }
     return rc;
@@ -140,20 +147,23 @@ static NSString *takeString(const unsigned char **cursor, const unsigned char *e
     NSString *s=[[[NSString alloc] initWithBytes:*cursor length:n encoding:NSUTF8StringEncoding] autorelease];
     assert(s); *cursor+=n; return s;
 }
-static NSMutableArray *decodeFlat(NSData *data) {
-    const unsigned char *p=[data bytes], *end=p+[data length]; assert(end-p>=8);
-    uint64_t count; memcpy(&count,p,8); p+=8; count=CFSwapInt64LittleToHost(count);
-    assert(count<=1000000);
-    NSMutableArray *notes=[NSMutableArray arrayWithCapacity:(NSUInteger)count];
-    for (uint64_t i=0;i<count;i++) {
+static NoteObject *decodeNote(const unsigned char **cursor, const unsigned char *end) {
+        const unsigned char *p=*cursor;
         assert(end-p>=32); CFUUIDBytes uuid; double dates[2];
         memcpy(&uuid,p,16); memcpy(dates,p+16,16); p+=32;
         NSString *title=takeString(&p,end), *labels=takeString(&p,end), *body=takeString(&p,end);
         NoteObject *note=[[[NoteObject alloc] initWithNoteBody:[[[NSAttributedString alloc]
             initWithString:body] autorelease] title:title format:SingleDatabaseFormat labels:labels] autorelease];
         assert(note); memcpy([note uniqueNoteIDBytes],&uuid,16);
-        [note setDateAdded:dates[0]]; [note setDateModified:dates[1]]; [notes addObject:note];
-    }
+        [note setDateAdded:dates[0]]; [note setDateModified:dates[1]];
+        *cursor=p; return note;
+}
+static NSMutableArray *decodeFlat(NSData *data) {
+    const unsigned char *p=[data bytes], *end=p+[data length]; assert(end-p>=8);
+    uint64_t count; memcpy(&count,p,8); p+=8; count=CFSwapInt64LittleToHost(count);
+    assert(count<=1000000);
+    NSMutableArray *notes=[NSMutableArray arrayWithCapacity:(NSUInteger)count];
+    for (uint64_t i=0;i<count;i++) [notes addObject:decodeNote(&p,end)];
     assert(p==end); return notes;
 }
 static NSMutableArray *decodeFrozen(NSData *data) {
@@ -222,7 +232,7 @@ static void seedComparison(NSString *root, NSUInteger count, NSUInteger length, 
         @"frozen_bytes":@([frozen length]),@"flat_bytes":@([flat length]),@"compressed_bytes":@([compressed length]),
         @"db_bytes":@(dbSize),@"page_size":@(pageSize),@"expected_digest":[NSString stringWithFormat:@"%016llx",(unsigned long long)touch([flat bytes],(int)[flat length])]});
 }
-static NSData *readSQLite(NSString *root, NSString *kind, NSUInteger count) {
+static NSData *readSQLite(NSString *root, NSString *kind, NSUInteger count, NSMutableArray *directNotes) {
     NSString *file=path(root,@"store.sqlite"); inputFD=open([file fileSystemRepresentation],O_RDONLY); assert(inputFD>=0);
     assert(fcntl(inputFD,F_NOCACHE,uncached)==0);
     readMethods=methods; readMethods.xRead=sqliteRead; counting.xOpen=comparisonOpen;
@@ -230,7 +240,16 @@ static NSData *readSQLite(NSString *root, NSString *kind, NSUInteger count) {
     key_db(db);
     sql(db,"PRAGMA mmap_size=0; PRAGMA cache_size=-4096; PRAGMA temp_store=MEMORY; BEGIN");
     NSMutableData *result=[NSMutableData data]; sqlite3_stmt *q;
-    if ([kind isEqualToString:@"rows"]) {
+    if (directNotes) {
+        directEncodedBytes=8;
+        q=prepare(db,"SELECT value FROM current ORDER BY id"); int rc;
+        while ((rc=sqlite3_step(q))==SQLITE_ROW) {
+            const unsigned char *p=sqlite3_column_blob(q,0), *end=p+sqlite3_column_bytes(q,0);
+            directEncodedBytes+=(uint64_t)sqlite3_column_bytes(q,0);
+            [directNotes addObject:decodeNote(&p,end)]; assert(p==end);
+        }
+        assert(rc==SQLITE_DONE && [directNotes count]==count);
+    } else if ([kind isEqualToString:@"rows"]) {
         uint64_t n=CFSwapInt64HostToLittle(count); [result appendBytes:&n length:8];
         q=prepare(db,"SELECT value FROM current ORDER BY id"); int rc; NSUInteger rows=0;
         while ((rc=sqlite3_step(q))==SQLITE_ROW) { [result appendBytes:sqlite3_column_blob(q,0) length:(NSUInteger)sqlite3_column_bytes(q,0)]; rows++; }
@@ -245,14 +264,26 @@ static NSData *readSQLite(NSString *root, NSString *kind, NSUInteger count) {
 }
 static void measureComparison(NSString *root, NSString *kind, int noCache, NSUInteger count) {
     uncached=noCache; ioSeconds=0; requestedBytes=systemReadBytes=systemReads=0;
+    NSMutableArray *direct=[kind isEqual:@"rows-direct"] ? [NSMutableArray arrayWithCapacity:count] : nil;
     uint64_t before=diskReadCount(); double begin=now(); NSData *data;
     if ([kind hasSuffix:@"-file"]) data=readFile(path(root,[kind hasPrefix:@"frozen"]?@"frozen.dat":@"flat.dat"),noCache);
-    else data=readSQLite(root,kind,count);
+    else data=readSQLite(root,kind,count,direct);
     double loaded=now(); uint64_t afterRead=diskReadCount();
     NSArray *notes;
-    if ([kind hasPrefix:@"frozen"]) notes=decodeFrozen(data);
+    if (direct) notes=direct;
+    else if ([kind hasPrefix:@"frozen"]) notes=decodeFrozen(data);
     else notes=decodeFlat([kind isEqualToString:@"compressed"]?[data uncompressedData]:data);
     double decoded=now(); assert([notes count]==count);
+    // Exercise the real initialized search strings equally; no asynchronous search.
+    uint64_t searchHits=0; double searchStart=now();
+    for (NoteObject *note in notes) {
+        [note updateContentCacheCStringIfNecessary];
+        assert(note->cContents && note->cTitle && note->cLabels);
+        searchHits += strstr(note->cContents,"coffee")!=NULL;
+        searchHits += strstr(note->cTitle,"research")!=NULL;
+        searchHits += strstr(note->cLabels,"topic")!=NULL;
+    }
+    double searched=now();
     uint64_t afterDecode=diskReadCount(); struct rusage usage; assert(getrusage(RUSAGE_SELF,&usage)==0);
     /* Exact normalized common-field comparison, outside the timing interval. */
     NSMutableData *actual=[NSMutableData data]; uint64_t n=CFSwapInt64HostToLittle(count); [actual appendBytes:&n length:8];
@@ -260,12 +291,16 @@ static void measureComparison(NSString *root, NSString *kind, int noCache, NSUIn
     NSData *expectedBytes=[NSData dataWithContentsOfFile:path(root,@"flat.dat")];
     assert(expectedBytes && [actual isEqualToData:expectedBytes]);
     emit(@{@"kind":kind,@"nocache":@(noCache),@"notes":@(count),@"load_ms":@((loaded-begin)*1000),
-        @"decode_ms":@((decoded-loaded)*1000),@"total_ms":@((decoded-begin)*1000),@"pread_ms":@(ioSeconds*1000),
+        @"decode_ms":@((decoded-loaded)*1000),@"total_ms":@((searched-begin)*1000),@"pread_ms":@(ioSeconds*1000),
+        @"search_ms":@((searched-searchStart)*1000),@"search_hits":@(searchHits),@"direct_row_decode":@(direct!=nil),
         @"pread_calls":@(systemReads),@"requested_bytes":@(requestedBytes),@"pread_bytes":@(systemReadBytes),
         @"kernel_read_bytes":@(afterRead-before),@"decode_kernel_read_bytes":@(afterDecode-afterRead),
-        @"rss_high_water_bytes":@(usage.ru_maxrss),@"encoded_bytes":@([data length]),
+        @"rss_high_water_bytes":@(usage.ru_maxrss),@"encoded_bytes":@(direct?directEncodedBytes:[data length]),
         @"digest":[NSString stringWithFormat:@"%016llx",(unsigned long long)touch([actual bytes],(int)[actual length])]});
 }
+#ifdef NV_STARTUP_EMBED
+#define main NVLegacyStartupComparisonMain
+#endif
 int main(int argc, char **argv) {
     @autoreleasepool {
         setup_vfs();
@@ -283,3 +318,6 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
+#ifdef NV_STARTUP_EMBED
+#undef main
+#endif

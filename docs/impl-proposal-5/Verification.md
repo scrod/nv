@@ -24,6 +24,17 @@ under the system temporary directory. The runner now recognizes TLC 2026.09.12's
 named temporal-failure diagnostic; no modeled safety condition changed. Abstract
 pin/activation steps do not prove the SQL or selected-store-record mapping.
 
+## Receive scheduling and rejection models — 2026-09-16
+
+The [receive-model report](plan/receive-model-validation.md) records 47 completed
+outcomes for two focused models: 12 exhaustive safe configurations, 22 designated
+mutation counterexamples and 13 reachability witnesses. They cover notification/
+resumption/quiesce ordering and rejection/dependency/recovery state, respectively.
+Runnable-work fairness does not invent a lost notification; storage-error recovery
+assumes a real retry/reopen request. Byte validation, SQL atomicity, runtime
+scheduling and general graph/reducer behavior retain their separate proof/test
+boundaries. No product-policy change was required by the resulting checks.
+
 ## Packed-cache removal validation — 2026-09-14
 
 The [current-row SQL/model report](plan/sqlite-fast-start-validation.md) and

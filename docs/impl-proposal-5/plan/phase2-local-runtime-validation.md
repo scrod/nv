@@ -18,6 +18,16 @@ and records fresh codec/runtime evidence. Earlier counts below remain dated runs
 
 ## Implemented path
 
+The [current-basis follow-up](current-basis-validation.md) adds ordinary-save reuse
+of the checked current rows, direct-parent frontier maintenance and measurements
+against growing **ancestral** histories. Its qualification results supplement the
+original campaign below. The [hardening follow-up](phase2-hardening-validation.md)
+records off-writer branch validation, bounded writer turns, receive rejection,
+generated failure schedules and the newer sanitizer/linker qualification.
+The [resumption and rejection follow-up](validation-resumption-results.md) records
+automatic continuation after local-save interference, transitive blocked-input
+diagnostics and fresh-process rejection-write failure qualification.
+
 | Responsibility | Implementation |
 | --- | --- |
 | Frozen bootstrap, real Genesis/Imports/ImportComplete/descriptor/pages/root | `InitialCollectionV1`, existing `InitialBootstrapValidationV1` |
@@ -239,12 +249,12 @@ part of the full campaign.
 
 ## Qualification boundaries and next increment
 
-The implementation has now also passed the [platform process campaigns](phase2-platform-and-type-audit.md)
+The original implementation also passed the [platform process campaigns](phase2-platform-and-type-audit.md)
 on macOS 11.7.11 and 14.8.9 with an 11.5-targeted executable, and natively on Ubuntu
 arm64 with Swift 6.1.3 and SQLCipher/OpenSSL. The Linux optimized process campaign
 used ext4; its separate Runtime compiler-probe campaign now passes with the
 approved exact alternative diagnostic. The exact macOS 11.5 point release and physical
-power failure remain unqualified. AddressSanitizer exercises the Swift/C adapters and vendored
+power failure remain unqualified. In that earlier campaign, AddressSanitizer exercised the Swift/C adapters and vendored
 package C code; the separately compiled SQLCipher archive and system crypto are
 not fully sanitizer-instrumented. Strict-memory warnings at the reviewed C boundary
 are not a claim of compiler-proven memory safety. The two narrowly scoped unchecked
@@ -262,11 +272,13 @@ archive. Raw database pointers are neither Sendable nor exposed by public APIs.
 The runtime has no fixed-nonce production seal entrypoint. Literal fixed-nonce
 fixtures are reader vectors; writer tests use fresh nonces and independent crypto
 checks. Test VFS/completion controls are separate targets, excluded from the Runtime
-product. A complete release dependency/security review remains separate.
+product. The [hardening report](phase2-hardening-validation.md) records the scoped
+dependency review and instruments SQLCipher itself, including a deliberate
+library-internal sanitizer failure. System crypto remains an external boundary.
 
 This first reducer supports ordinary single-valued histories, empty host settings
-and raw current cells. Large-bootstrap/resumable ancestry scheduling, exhaustive
-generated fault histories, full receive-quarantine handling, complete later record
+and raw current cells. Large-bootstrap scheduling, broader-than-ordinary generated
+histories, unknown outer-format provider quarantine, complete later record
 layouts and context paging remain
 development gates. This is not a shippable reduced-feature provider profile.
 The next increment extends the existing two-store byte exchange to general concurrent
