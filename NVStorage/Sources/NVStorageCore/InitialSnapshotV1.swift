@@ -113,9 +113,7 @@ public struct InitialSnapshotRootV1: Equatable, Sendable {
         }.sorted { $0.1.bytes.lexicographicallyPrecedes($1.1.bytes) }
         guard Set(refs.map(\.1)).count == refs.count,
               refs.contains(where: { $0.0 == completion }) else { throw CanonicalEncodingError.noncanonicalSet }
-        let size: UInt64 = 8 + 2 + 16 + 8 + 32 + 4 + 56 * UInt64(dependencies.entries.count)
-            + 41 + 4 + 41 * UInt64(frontier.count) + 4 + 64 * UInt64(pages.count)
-        guard size <= ObjectLimitsV1.decodedPayloadBytes else { throw CanonicalEncodingError.lengthLimit }
+        _ = try Self.checkedPayloadSize(dependencies: dependencies.entries.count, frontier: frontier.count, pages: pages.count)
         var count: UInt64 = 0
         for (i, page) in pages.enumerated() {
             guard UInt64(page.index) == UInt64(i), page.rowCount > 0 else { throw CanonicalEncodingError.invalidPayload }
@@ -124,6 +122,17 @@ public struct InitialSnapshotRootV1: Equatable, Sendable {
         guard count == initialCount, Set(pages.map(\.locator)).count == pages.count else { throw CanonicalEncodingError.invalidPayload }
         self.importID = importID; self.initialCount = initialCount; self.digest = digest; self.dependencies = dependencies
         self.completion = completion; self.frontier = refs.map(\.0); self.pages = pages
+    }
+
+    /// Computes the canonical flat-manifest byte budget from wire-count-sized inputs.
+    package static func checkedPayloadSize(dependencies: Int, frontier: Int, pages: Int) throws -> UInt64 {
+        guard [dependencies, frontier, pages].allSatisfy({ $0 >= 0 && UInt64($0) <= UInt32.max }) else {
+            throw CanonicalEncodingError.lengthLimit
+        }
+        let size: UInt64 = 8 + 2 + 16 + 8 + 32 + 4 + 56 * UInt64(dependencies)
+            + 41 + 4 + 41 * UInt64(frontier) + 4 + 64 * UInt64(pages)
+        guard size <= ObjectLimitsV1.decodedPayloadBytes else { throw CanonicalEncodingError.lengthLimit }
+        return size
     }
 
     public func encodedV1() throws -> [UInt8] {

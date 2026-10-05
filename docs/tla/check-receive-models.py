@@ -14,6 +14,29 @@ HERE = Path(__file__).resolve().parent
 
 
 def cases():
+    model = 'ReceiveSnapshotAssemblySafety'
+    inv = ['ExactInputsRetained', 'OriginalHistoryPreserved', 'AcceptanceHasBytes', 'HistoryClosure',
+           'CompleteRoot', 'OwnRejectionOnly', 'RejectionSettled', 'EffectsExactlyOnce', 'QueueAccounted', 'EligibleRunnable']
+    def assembly(name, policy='safe', shared=False, unsupported=False, crashes=0, failures=0,
+                 invariants=None, properties=None, expected=None):
+        props = ['RootCompletes', 'UnrelatedCompletes'] if properties is None else properties
+        return dict(name='assembly-' + name, model=model, policy=policy,
+                    constants=f'Shared = {str(shared).upper()} UnsupportedPage = {str(unsupported).upper()} MaxCrashes = {crashes} MaxFailures = {failures}',
+                    invariants=inv if invariants is None else invariants, properties=props,
+                    fair=bool(props), expected=expected)
+    for shared, unsupported, crashes, failures in [(False, False, 0, 0), (False, False, 1, 1),
+            (False, False, 2, 2), (True, False, 1, 1), (True, True, 1, 1)]:
+        yield assembly(f'safe-{shared}-{unsupported}-{crashes}-{failures}', shared=shared,
+                       unsupported=unsupported, crashes=crashes, failures=failures)
+    for policy, prop, temporal in [('lostArrival', 'EligibleRunnable', False), ('stalePark', 'EligibleRunnable', False),
+            ('candidateAccepted', 'CompleteRoot', False), ('circular', 'RootCompletes', True), ('inherit', 'OwnRejectionOnly', False)]:
+        yield assembly('mutation-' + policy, policy=policy, shared=policy == 'inherit', unsupported=policy == 'inherit',
+                       invariants=[] if temporal else [prop], properties=[prop] if temporal else [], expected=prop)
+    for prop in ['NeverArrivalDuringPark', 'NeverRetainedHistoryWait', 'NeverCompleteRoot',
+                 'NeverBlockedAndIndependent', 'NeverRecoveredAfterTwoFailures']:
+        yield assembly('witness-' + prop, unsupported=prop == 'NeverBlockedAndIndependent',
+                       crashes=2 if 'TwoFailures' in prop else 0, failures=2 if 'TwoFailures' in prop else 0,
+                       invariants=[prop], properties=[], expected=prop)
     model = 'ReceiveResumptionSafety'
     invariants = ['CurrentValidation', 'ReadyAccounted', 'ClosedAfterOwnedWork',
                   'ReceiveReservation', 'CompletionHasAcceptance']

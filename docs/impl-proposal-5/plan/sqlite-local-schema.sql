@@ -6,7 +6,7 @@
 
 CREATE TABLE store_header (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-    schema_version INTEGER NOT NULL CHECK (schema_version = 1),
+    schema_version INTEGER NOT NULL CHECK (schema_version = 3),
     local_store_id BLOB NOT NULL CHECK (typeof(local_store_id) = 'blob' AND length(local_store_id) = 16),
     collection_id BLOB NOT NULL CHECK (typeof(collection_id) = 'blob' AND length(collection_id) = 16),
     profile INTEGER NOT NULL CHECK (profile IN (1, 2)),
@@ -77,7 +77,7 @@ CREATE TABLE ready_objects (
 CREATE TABLE rejected_objects (
     object_id BLOB PRIMARY KEY REFERENCES objects(object_id),
     validator_version INTEGER NOT NULL CHECK (validator_version = 1),
-    reason INTEGER NOT NULL CHECK (reason BETWEEN 1 AND 7 OR reason BETWEEN 20 AND 37)
+    reason INTEGER NOT NULL CHECK (typeof(reason) = 'integer' AND (reason BETWEEN 1 AND 7 OR reason BETWEEN 20 AND 37))
 ) WITHOUT ROWID;
 
 -- Wakeups are part of the accepting transaction, not post-commit callbacks.
@@ -95,14 +95,14 @@ END;
 -- The representative occurrence supplies bounded, lazy access to its original record.
 CREATE TABLE operations (
     operation_id BLOB PRIMARY KEY CHECK (typeof(operation_id) = 'blob' AND length(operation_id) = 32),
-    kind INTEGER NOT NULL CHECK (kind IN (1, 2, 3, 4, 5, 6)),
+    kind INTEGER NOT NULL CHECK (typeof(kind) = 'integer' AND kind BETWEEN 1 AND 9),
     birth BLOB,
     action_id BLOB REFERENCES actions(action_id) DEFERRABLE INITIALLY DEFERRED,
     source_object BLOB NOT NULL,
     source_index INTEGER NOT NULL CHECK (typeof(source_index) = 'integer' AND source_index BETWEEN 0 AND 4294967295),
     first_seq INTEGER NOT NULL,
     CHECK ((kind IN (1, 2) AND birth IS NULL AND action_id IS NULL)
-        OR (kind BETWEEN 3 AND 6 AND typeof(birth) = 'blob' AND length(birth) = 16
+        OR (kind BETWEEN 3 AND 9 AND typeof(birth) = 'blob' AND length(birth) = 16
             AND typeof(action_id) = 'blob' AND length(action_id) = 16)),
     UNIQUE (operation_id, action_id),
     FOREIGN KEY (source_object, first_seq) REFERENCES accepted_objects(object_id, seq),
@@ -113,6 +113,8 @@ CREATE TABLE operations (
 ) WITHOUT ROWID;
 CREATE INDEX operations_batch ON operations(first_seq, operation_id);
 CREATE INDEX operations_birth ON operations(birth, operation_id);
+-- Lazy Recently Deleted enumeration seeks through explicit Delete identities.
+CREATE INDEX operations_deletions ON operations(operation_id) WHERE kind=6;
 -- Bound reverse foreign-key checks when inserting an action with deferred members.
 CREATE INDEX operations_action ON operations(action_id, operation_id);
 CREATE TABLE operation_occurrences (
@@ -144,7 +146,7 @@ CREATE TABLE actions (
     origin_id BLOB NOT NULL CHECK (typeof(origin_id) = 'blob' AND length(origin_id) = 16),
     previous_origin_action BLOB REFERENCES actions(action_id) DEFERRABLE INITIALLY DEFERRED,
     scope_birth BLOB CHECK (scope_birth IS NULL OR (typeof(scope_birth) = 'blob' AND length(scope_birth) = 16)),
-    kind INTEGER NOT NULL CHECK (kind IN (1, 2, 3, 4, 5)),
+    kind INTEGER NOT NULL CHECK (typeof(kind) = 'integer' AND kind BETWEEN 1 AND 12),
     source_object BLOB NOT NULL,
     source_index INTEGER NOT NULL CHECK (typeof(source_index) = 'integer' AND source_index BETWEEN 0 AND 4294967295),
     first_seq INTEGER NOT NULL,
@@ -154,6 +156,7 @@ CREATE TABLE actions (
         REFERENCES action_occurrences(object_id, record_index, action_id) DEFERRABLE INITIALLY DEFERRED
 ) WITHOUT ROWID;
 CREATE INDEX actions_batch ON actions(first_seq, action_id);
+CREATE INDEX actions_conflict_copies ON actions(first_seq, action_id) WHERE kind=9;
 CREATE INDEX actions_scope ON actions(scope_birth, action_id);
 CREATE INDEX actions_origin ON actions(origin_id, action_id);
 CREATE INDEX actions_previous_origin ON actions(previous_origin_action, action_id);
@@ -183,6 +186,16 @@ CREATE TABLE action_scope_parents (
 ) WITHOUT ROWID;
 CREATE INDEX action_scope_parents_reverse ON action_scope_parents(parent, child);
 
+-- First accepted restoration per source entry; full provenance stays in action records.
+CREATE TABLE restorations (
+    source_birth BLOB NOT NULL CHECK (typeof(source_birth) = 'blob' AND length(source_birth) = 16),
+    deletion_action BLOB NOT NULL REFERENCES actions(action_id) DEFERRABLE INITIALLY DEFERRED,
+    action_id BLOB NOT NULL REFERENCES actions(action_id) DEFERRABLE INITIALLY DEFERRED,
+    PRIMARY KEY (source_birth, deletion_action)
+) WITHOUT ROWID;
+CREATE INDEX restorations_action ON restorations(action_id);
+CREATE INDEX restorations_deletion ON restorations(deletion_action);
+
 -- The required pin is not derived from current notes or publication flags.
 CREATE TABLE retained_frontier (
     object_id BLOB PRIMARY KEY REFERENCES accepted_objects(object_id),
@@ -203,6 +216,49 @@ CREATE TABLE private_groups (
 );
 
 -- Current-row startup; no packed representation or cache-only delta tables.
+-- Retained previews and frozen decisions have independent indexed owners.
+CREATE TABLE pending_payloads (
+    snapshot_id BLOB NOT NULL UNIQUE CHECK (typeof(snapshot_id)='blob' AND length(snapshot_id)=16),
+    codec INTEGER NOT NULL CHECK (typeof(codec)='integer' AND codec>0),
+    encoded BLOB NOT NULL CHECK (typeof(encoded)='blob' AND length(encoded) BETWEEN 1 AND 67108864)
+);
+CREATE TRIGGER pending_payloads_immutable BEFORE UPDATE ON pending_payloads BEGIN
+    SELECT RAISE(ABORT, 'immutable pending input');
+END;
+CREATE TABLE pending_items (
+    item_id BLOB PRIMARY KEY CHECK (typeof(item_id)='blob' AND length(item_id)=16),
+    generation INTEGER NOT NULL CHECK (typeof(generation)='integer' AND generation>0),
+    latest BLOB REFERENCES pending_payloads(snapshot_id),
+    status INTEGER NOT NULL CHECK (typeof(status)='integer' AND status IN (1,2,3)),
+    CHECK (latest IS NOT NULL OR status=3)
+) WITHOUT ROWID;
+CREATE INDEX pending_items_latest ON pending_items(latest);
+CREATE TABLE pending_reservations (
+    reservation_id BLOB NOT NULL UNIQUE CHECK (typeof(reservation_id)='blob' AND length(reservation_id)=16),
+    item_id BLOB NOT NULL REFERENCES pending_items(item_id),
+    snapshot_id BLOB NOT NULL REFERENCES pending_payloads(snapshot_id),
+    operation_id BLOB CHECK (operation_id IS NULL OR (typeof(operation_id)='blob' AND length(operation_id)=32)),
+    codec INTEGER NOT NULL CHECK (typeof(codec)='integer' AND codec>0),
+    encoded BLOB NOT NULL CHECK (typeof(encoded)='blob' AND length(encoded) BETWEEN 1 AND 67108864)
+);
+CREATE INDEX pending_reservations_item ON pending_reservations(item_id,reservation_id);
+CREATE UNIQUE INDEX pending_reservations_observation ON pending_reservations(item_id,snapshot_id);
+CREATE INDEX pending_reservations_snapshot ON pending_reservations(snapshot_id);
+CREATE INDEX pending_reservations_operation ON pending_reservations(operation_id);
+-- Historical consumed-observation links survive payload release and later note Delete.
+CREATE TABLE pending_settlements (
+    item_id BLOB NOT NULL REFERENCES pending_items(item_id),
+    snapshot_id BLOB NOT NULL CHECK (typeof(snapshot_id)='blob' AND length(snapshot_id)=16),
+    reservation_id BLOB NOT NULL CHECK (typeof(reservation_id)='blob' AND length(reservation_id)=16),
+    operation_id BLOB CHECK (operation_id IS NULL OR (typeof(operation_id)='blob' AND length(operation_id)=32)),
+    birth BLOB NOT NULL CHECK (typeof(birth)='blob' AND length(birth)=16),
+    decision_digest BLOB NOT NULL CHECK (typeof(decision_digest)='blob' AND length(decision_digest)=32),
+    observation_codec INTEGER NOT NULL CHECK (typeof(observation_codec)='integer' AND observation_codec>0),
+    observation BLOB NOT NULL CHECK (typeof(observation)='blob' AND length(observation)<=67108864),
+    PRIMARY KEY(item_id,snapshot_id)
+);
+CREATE INDEX pending_settlements_operation ON pending_settlements(operation_id);
+
 CREATE TABLE view_meta (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
     epoch BLOB NOT NULL CHECK (typeof(epoch) = 'blob' AND length(epoch) = 16),
@@ -214,3 +270,16 @@ CREATE TABLE current_notes (
     birth BLOB NOT NULL UNIQUE CHECK (typeof(birth) = 'blob' AND length(birth) = 16),
     cell BLOB NOT NULL CHECK (typeof(cell) = 'blob')
 );
+
+-- Derived immutable codec metadata; current cells carry the complete digest.
+CREATE TABLE current_dictionaries (
+    dictionary_id BLOB NOT NULL UNIQUE CHECK (typeof(dictionary_id) = 'blob' AND length(dictionary_id) = 32),
+    encoded BLOB NOT NULL CHECK (typeof(encoded) = 'blob' AND length(encoded) BETWEEN 8 AND 8192)
+);
+CREATE TRIGGER current_dictionaries_no_update BEFORE UPDATE ON current_dictionaries BEGIN
+    SELECT RAISE(ABORT, 'immutable current dictionary');
+END;
+CREATE TRIGGER current_dictionaries_no_replace BEFORE INSERT ON current_dictionaries
+WHEN EXISTS (SELECT 1 FROM current_dictionaries WHERE dictionary_id = NEW.dictionary_id) BEGIN
+    SELECT RAISE(ABORT, 'compare existing current dictionary');
+END;

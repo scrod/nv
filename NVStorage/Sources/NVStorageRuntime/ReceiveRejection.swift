@@ -10,33 +10,68 @@ public enum ReceiveRejection: Int64, Sendable {
     case wrongScope, authenticationFailure
 
     init?(_ error: any Error) {
+        if let error = error as? StorageError { self.init(storage: error) }
+        else if let error = error as? OrdinaryHistoryError { self.init(history: error) }
+        else if let error = error as? CanonicalEncodingError { self.init(encoding: error) }
+        else if let error = error as? GeneralSnapshotError {
+            switch error {
+            case .invalidManifest: self = .invalidPayload
+            case .invalidState: self = .invalidBeforeAfter
+            case .missingObject: return nil
+            }
+        }
+        else if let error = error as? InitialBootstrapValidationError {
+            switch error {
+            case .missingObject: return nil
+            case .cyclicDependencies, .invalidCausalHistory: self = .invalidCausality
+            case .conflictingClaim: self = .conflictingClaim
+            case .invalidCommitment, .invalidSnapshot: self = .invalidPayload
+            case .invalidActionHistory: self = .invalidAction
+            case .requiresGeneralHistoryValidation: self = .laterReducer
+            }
+        }
+        else { return nil }
+    }
+
+    private init?(storage error: StorageError) {
         switch error {
-        case StorageError.unsupported: self = .unsupported
-        case OrdinaryHistoryError.conflictingClaim: self = .conflictingClaim
-        case OrdinaryHistoryError.invalidCausality: self = .invalidCausality
-        case OrdinaryHistoryError.invalidAction: self = .invalidAction
-        case OrdinaryHistoryError.invalidBeforeAfter: self = .invalidBeforeAfter
-        case OrdinaryHistoryError.reusedBirth: self = .reusedBirth
-        case OrdinaryHistoryError.requiresLaterReducer: self = .laterReducer
-        case CanonicalEncodingError.truncated: self = .truncated
-        case CanonicalEncodingError.trailingBytes: self = .trailingBytes
-        case CanonicalEncodingError.lengthLimit: self = .lengthLimit
-        case CanonicalEncodingError.invalidUTF8: self = .invalidUTF8
-        case CanonicalEncodingError.invalidDate: self = .invalidDate
-        case CanonicalEncodingError.noncanonicalDate: self = .noncanonicalDate
-        case CanonicalEncodingError.noncanonicalLabels: self = .noncanonicalLabels
-        case CanonicalEncodingError.unsupportedFormat: self = .unsupportedFormat
-        case CanonicalEncodingError.invalidIdentifier: self = .invalidIdentifier
-        case CanonicalEncodingError.invalidDiscriminant: self = .invalidDiscriminant
-        case CanonicalEncodingError.noncanonicalSet: self = .noncanonicalSet
-        case CanonicalEncodingError.invalidReference: self = .invalidReference
-        case CanonicalEncodingError.invalidOperation: self = .invalidOperation
-        case CanonicalEncodingError.identityMismatch: self = .identityMismatch
-        case CanonicalEncodingError.invalidAction: self = .invalidCanonicalAction
-        case CanonicalEncodingError.invalidPayload: self = .invalidPayload
-        case CanonicalEncodingError.wrongScope: self = .wrongScope
-        case CanonicalEncodingError.authenticationFailure: self = .authenticationFailure
-        default: return nil
+        case .unsupported: self = .unsupported
+        case .ownership, .database, .wrongContext, .incomplete, .integrity, .closed, .busy, .staleCapture, .limit: return nil
+        }
+    }
+
+    private init(history error: OrdinaryHistoryError) {
+        switch error {
+        case .conflictingClaim: self = .conflictingClaim
+        case .invalidCausality: self = .invalidCausality
+        case .invalidAction: self = .invalidAction
+        case .invalidBeforeAfter: self = .invalidBeforeAfter
+        case .reusedBirth: self = .reusedBirth
+        case .requiresLaterReducer: self = .laterReducer
+        }
+    }
+
+    private init?(encoding error: CanonicalEncodingError) {
+        switch error {
+        case .truncated: self = .truncated
+        case .trailingBytes: self = .trailingBytes
+        case .lengthLimit: self = .lengthLimit
+        case .invalidUTF8: self = .invalidUTF8
+        case .invalidDate: self = .invalidDate
+        case .noncanonicalDate: self = .noncanonicalDate
+        case .noncanonicalLabels: self = .noncanonicalLabels
+        case .unsupportedFormat: self = .unsupportedFormat
+        case .invalidIdentifier: self = .invalidIdentifier
+        case .invalidDiscriminant: self = .invalidDiscriminant
+        case .noncanonicalSet: self = .noncanonicalSet
+        case .invalidReference: self = .invalidReference
+        case .invalidOperation: self = .invalidOperation
+        case .identityMismatch: self = .identityMismatch
+        case .invalidAction: self = .invalidCanonicalAction
+        case .invalidPayload: self = .invalidPayload
+        case .wrongScope: self = .wrongScope
+        case .authenticationFailure: self = .authenticationFailure
+        case .missingDependency, .keyDerivationFailure: return nil
         }
     }
 

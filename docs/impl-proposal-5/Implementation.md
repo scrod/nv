@@ -324,7 +324,14 @@ Use owned fresh destination paths, exclusive creation, exact readback/hash check
 
 ## Ordered delivery plan
 
-The detailed [Swift implementation and testing plan](plan/swift-storage-implementation-plan.md) refines this broad sequence: direct Swift identifiers/enums/limits and fixed-header encoding first, followed promptly by complete minimal records and a real local save/pin/reopen path. It requires no CUE, ConcreteIR or schema generator. `NVStorage` contains tested portable Core codecs/fixtures, not a production storage adapter. Recheck source and the phase-specific validation report before claiming completion; build artifacts alone are not evidence. New rich-format work remains deferred under the adopted content scope.
+The detailed [Swift implementation and testing plan](plan/swift-storage-implementation-plan.md) refines this broad sequence: direct Swift identifiers/enums/limits and fixed-header encoding first, followed promptly by complete minimal records and a real local save/pin/reopen path. It requires no CUE, ConcreteIR or schema generator. `NVStorage` now contains portable Core codecs and the local SQLCipher Runtime; the [Phase 3 report](plan/phase3-validation.md) records its enabled semantics and qualification boundaries. Recheck source and the phase-specific validation report before claiming completion; build artifacts alone are not evidence. New rich-format work remains deferred under the adopted content scope.
+
+The two plans number their phases independently. General post-edit snapshot-tail
+recovery in broad Phase 3 and fresh-sibling repair in broad Phase 2 are scheduled
+in [Swift Phase 4](plan/phase4-startup-recovery-plan.md), before provider adapters.
+Its first bundle completes snapshot verification, multi-batch bootstrap and
+snapshot-plus-history current-row reconstruction; this is retained work, not an
+omission from the completed portable action/reducer increment.
 
 | Phase | Deliverable and exit condition |
 | --- | --- |

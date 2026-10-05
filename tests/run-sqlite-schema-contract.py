@@ -181,6 +181,12 @@ class SchemaContract(unittest.TestCase):
             accept_rows(self.db, CHILD, (PARENT[0],), (OP, ACTION, BIRTH, 3))
         self.reject("UPDATE operations SET kind=3.5 WHERE operation_id=?", (OP,))
         self.reject("UPDATE actions SET kind=4.5 WHERE action_id=?", (ACTION,))
+        with self.db:
+            retain(self.db, LATE)
+            self.db.execute("INSERT INTO rejected_objects VALUES(?,1,1)", (LATE[0],))
+        self.reject("UPDATE rejected_objects SET reason=1.5 WHERE object_id=?", (LATE[0],))
+        self.reject("UPDATE rejected_objects SET reason=20.5 WHERE object_id=?", (LATE[0],))
+        self.assertEqual(self.db.execute("SELECT reason FROM rejected_objects WHERE object_id=?", (LATE[0],)).fetchone(), (1,))
 
     def test_wire_uint64_and_forked_writer_slot_survive(self):
         one = fixture_object("fork one", sequence=2**64 - 1)
@@ -207,6 +213,34 @@ class SchemaContract(unittest.TestCase):
         self.assertEqual(self.db.execute("SELECT count(*) FROM acceptance_batches").fetchone(), (1,))
         self.reject("UPDATE objects SET encoded=? WHERE object_id=?", (b"changed", PARENT[0]))
         self.reject("INSERT OR REPLACE INTO objects VALUES(?,?,?,?,?)", (*PARENT[:4], b"changed"))
+
+    def test_pending_latest_frozen_and_consumed_reference_constraints(self):
+        a, b, item, reservation = ident(101), ident(102), ident(103), ident(104)
+        with self.db:
+            self.db.execute("INSERT INTO pending_payloads VALUES(?,1,?)", (a, b"synthetic A"))
+            self.db.execute("INSERT INTO pending_items VALUES(?,1,?,1)", (item, a))
+            self.db.execute("INSERT INTO pending_reservations VALUES(?,?,?,NULL,1,?)", (reservation, item, a, b"synthetic reservation"))
+        self.reject("INSERT INTO pending_reservations VALUES(?,?,?,NULL,1,?)", (ident(105), item, a, b"duplicate observation"))
+        self.reject("UPDATE pending_payloads SET encoded=? WHERE snapshot_id=?", (b"changed A", a))
+        self.reject("DELETE FROM pending_payloads WHERE snapshot_id=?", (a,))
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.db:
+                self.db.execute("INSERT INTO pending_payloads VALUES(?,1,?)", (b, b"synthetic B"))
+                self.db.execute("UPDATE pending_items SET generation=2,latest=? WHERE item_id=?", (ident(999), item))
+        self.assertEqual(self.db.execute("SELECT latest FROM pending_items").fetchone(), (a,))
+        self.assertEqual(self.db.execute("SELECT count(*) FROM pending_payloads").fetchone(), (1,))
+        with self.db:
+            self.db.execute("INSERT INTO pending_payloads VALUES(?,1,?)", (b, b"synthetic B"))
+            self.db.execute("UPDATE pending_items SET generation=2,latest=? WHERE item_id=?", (b, item))
+        self.reject("DELETE FROM pending_payloads WHERE snapshot_id=?", (a,))
+        with self.db:
+            self.db.execute("INSERT INTO pending_settlements VALUES(?,?,?,NULL,?,?,1,?)", (item, a, reservation, BIRTH, ident(106, 32), b"observed"))
+            self.db.execute("DELETE FROM pending_reservations WHERE reservation_id=?", (reservation,))
+            self.db.execute("DELETE FROM pending_payloads WHERE snapshot_id=?", (a,))
+        self.assertEqual(self.db.execute("SELECT snapshot_id,birth FROM pending_settlements").fetchone(), (a, BIRTH))
+        self.assertEqual(self.db.execute("SELECT latest FROM pending_items").fetchone(), (b,))
+        plan = self.db.execute("EXPLAIN QUERY PLAN SELECT * FROM pending_reservations WHERE item_id=? AND snapshot_id=?", (item, a)).fetchall()
+        self.assertTrue(any('pending_reservations_observation' in row[3] for row in plan), plan)
         self.reject("DELETE FROM objects WHERE object_id=?", (PARENT[0],))
         with self.assertRaisesRegex(ValueError, "contradictory"):
             retain(self.db, (*PARENT[:4], b"changed"))
@@ -356,9 +390,12 @@ class SchemaContract(unittest.TestCase):
             ("SELECT object_id FROM accepted_objects WHERE seq>? ORDER BY seq", (1,), "accepted_objects_batch"),
             ("SELECT child FROM object_waits WHERE prerequisite=?", (PARENT[0],), "object_waits_reverse"),
             ("SELECT operation_id FROM operations WHERE first_seq>?", (1,), "operations_batch"),
+            ("SELECT operation_id FROM operations WHERE birth=? AND operation_id>? ORDER BY operation_id LIMIT 65", (BIRTH, G), "operations_birth"),
+            ("SELECT operation_id FROM operations WHERE kind=6 AND operation_id>? ORDER BY operation_id LIMIT 65", (G,), "operations_deletions"),
             ("SELECT object_id FROM operation_occurrences WHERE operation_id=?", (G,), "operation_occurrences_identity"),
             ("SELECT child FROM note_predecessors WHERE predecessor=?", (G,), "note_predecessors_reverse"),
             ("SELECT action_id FROM actions WHERE scope_birth=?", (BIRTH,), "actions_scope"),
+            ("SELECT action_id FROM restorations WHERE source_birth=? AND deletion_action=?", (BIRTH, ACTION), "PRIMARY KEY"),
         ]
         for sql, args, index in queries:
             with self.subTest(index=index):

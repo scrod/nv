@@ -3,30 +3,28 @@ import Testing
 import NVStorageCore
 @testable import NVStorageRuntime
 
-/// Stops the first two real history checks on their dedicated worker.
-private final class HistoryCheckGate: @unchecked Sendable {
-    private let condition = NSCondition()
+/// Suspends captured history checks while the database and preparation workers remain available.
+actor HistoryCheckGate {
     private var entered = 0, released = 0
     private var observers: [(Int, CheckedContinuation<Void, Never>)] = []
-    func check() {
-        condition.lock()
+    private var checks: [(Int, CheckedContinuation<Void, Never>)] = []
+    func check() async {
         entered += 1
         let pass = entered
         let ready = observers.filter { $0.0 <= entered }
         observers.removeAll { $0.0 <= entered }
         for (_, observer) in ready { observer.resume() }
-        while pass <= 2 && released < pass { condition.wait() }
-        condition.unlock()
+        if pass <= 2 && released < pass { await withCheckedContinuation { checks.append((pass, $0)) } }
     }
     func waitFor(_ pass: Int) async {
         await withCheckedContinuation { continuation in
-            condition.lock()
             if entered >= pass { continuation.resume() } else { observers.append((pass, continuation)) }
-            condition.unlock()
         }
     }
     func release(_ pass: Int) {
-        condition.lock(); released = pass; condition.broadcast(); condition.unlock()
+        released = pass
+        let ready = checks.filter { $0.0 <= released }; checks.removeAll { $0.0 <= released }
+        for (_, check) in ready { check.resume() }
     }
 }
 
@@ -49,6 +47,52 @@ private actor AcceptanceGate {
 
 enum ResumptionExit: CaseIterable, Sendable { case alreadyFinished, active, cancel, quiesce, pendingCommit }
 
+@Test(.timeLimit(.minutes(1)), arguments: [false, true])
+func connectedParkedCopyResumesAfterFiniteSaveInterference(encrypted: Bool) async throws {
+    let (initial, protection) = try testInitial(encrypted)
+    let left = try await newSession(initial, protection), right = try await newSession(initial, protection), receiver = try await newSession(initial, protection)
+    let a = try NoteBirth(bytes: Array(repeating: 1, count: 16)), b = try NoteBirth(bytes: Array(repeating: 2, count: 16))
+    let l = try await put("Left", birth: a, generation: 1, session: left), r = try await put("Right", birth: a, generation: 1, session: right)
+    _ = try await left.receive(right.retainedObject(at: r.object))
+    let rID = try #require(try await right.snapshot().notes.first { $0.birth == a }).revision.id
+    let copy = try await left.copyVersion(for: a, revision: rID, generation: 2)
+    let child = try requireReceipt(await left.persist(capture: copy)), childBytes = try await left.retainedObject(at: child.object)
+    guard case .waiting(let both) = try await receiver.receive(childBytes) else { Issue.record("The copy must actually park"); return }
+    #expect(Set(both) == [.acceptedHistory(l.object), .acceptedHistory(r.object)])
+    _ = try await receiver.receive(left.retainedObject(at: l.object))
+    guard case .waiting(let last) = try await receiver.receivedObjectStatus(at: child.object) else { Issue.record("One prerequisite must keep the copy parked"); return }
+    #expect(last == [.acceptedHistory(r.object)])
+    let lane = await receiver.lane, history = HistoryCheckGate(), completion = AcceptanceGate()
+    defer { Task { await history.release(2) } }
+    try await lane.perform { db in db.work = StorageWork(); db.work?.historyCheck = { await history.check() } }
+    let bytes = try await right.retainedObject(at: r.object)
+    let receiving = Task { try await receiver.receive(bytes) }
+    await history.waitFor(1)
+    _ = try await put("local 1", birth: b, generation: 1, session: receiver)
+    await history.release(1); await history.waitFor(2)
+    let captured = try await CapturedActionGroup(snapshot: receiver.snapshot(), kind: .savedEdit, changes: [.put(.init(birth: b, generation: 2), testValue("local 2"))])
+    try await lane.perform { db in db.work?.acceptanceCompletion = { _ in await completion.hold() } }
+    let saving = Task { try await receiver.persist(capture: captured) }
+    await completion.wait(); await history.release(2)
+    try #require(try await eventually { await receiver.validationWaitIsRegistered }, "The postponed receive must be waiting on the finite save")
+    await completion.release(); _ = try requireReceipt(await saving.value)
+    try #require(try await eventually { await receiver.receiveFinished }, "The complete copy must resume without another delivery")
+    if case .accepted = try await receiving.value {} else { Issue.record("The final prerequisite must accept") }
+    if case .accepted = try await receiver.receivedObjectStatus(at: child.object) {} else { Issue.record("Its durable wakeup must also accept the copy") }
+    #expect(try await receiver.snapshot().notes.first { $0.birth == copy.covered[0].birth }?.value.body.string == "Right")
+    #expect(try await receiver.snapshot().notes.first { $0.birth == b }?.value.body.string == "local 2")
+    let members = try await lane.perform { try $0.rows("SELECT COUNT(*) FROM actions") }
+    let repackaged = try ObjectEnvelopeV1.seal(payload: ObjectEnvelopeV1.open(childBytes, collection: initial.descriptor.collection, protection: protection).payload,
+        kind: .changes, collection: initial.descriptor.collection, writer: .init(bytes: Array(repeating: 73, count: 16)), sequence: 0, protection: protection)
+    _ = try await receiver.receive(repackaged)
+    #expect(try await lane.perform { try $0.rows("SELECT COUNT(*) FROM actions") } == members)
+    #expect(try await receiver.retainedObject(at: child.object) == childBytes)
+    let selection = await receiver.selection; try await receiver.quiesce()
+    let reopened = try await LocalStoreSession.open(selection: selection, protection: protection)
+    #expect(try await reopened.snapshot().notes.first { $0.birth == copy.covered[0].birth }?.value.body.string == "Right")
+    try await reopened.quiesce(); try await left.quiesce(); try await right.quiesce()
+}
+
 /// A watchdog observes the required state; the gates arrange the schedule.
 private func eventually(_ condition: () async -> Bool) async throws -> Bool {
     let deadline = Date().addingTimeInterval(10)
@@ -69,15 +113,15 @@ func validationResumesAfterTwoInterferingSaves(encrypted: Bool, exit: Resumption
     let bytes = try await source.retainedObject(at: remote.object)
     _ = try await put("local 0", birth: a, generation: 1, session: receiver)
     let lane = await receiver.lane, history = HistoryCheckGate(), completion = AcceptanceGate()
-    defer { history.release(2) }
+    defer { Task { await history.release(2) } }
     try await lane.perform { db in
         db.work = StorageWork()
-        db.work?.historyCheck = { history.check() }
+        db.work?.historyCheck = { await history.check() }
     }
     let receiving = Task { try await receiver.receive(bytes) }
     await history.waitFor(1)
     let first = try await put("local 1", birth: a, generation: 2, session: receiver)
-    history.release(1)
+    await history.release(1)
     await history.waitFor(2)
     let capture = try await CapturedActionGroup(snapshot: receiver.snapshot(), kind: .savedEdit,
         changes: [.put(CapturedNoteGeneration(birth: a, generation: 3), testValue("local 2"))])
@@ -94,7 +138,7 @@ func validationResumesAfterTwoInterferingSaves(encrypted: Bool, exit: Resumption
     let saving = Task { try await receiver.persist(capture: capture) }
     if holdLastCompletion { await completion.wait() }
     else { _ = try requireReceipt(await saving.value) }
-    history.release(2)
+    await history.release(2)
     var closing: Task<Void, Error>?
     if holdLastCompletion {
         var waiting = try await eventually { await receiver.validationWaitIsRegistered }

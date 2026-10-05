@@ -100,7 +100,7 @@ public enum PrivateDatabaseKeyV1 {
             guard key.bitCount == 256 else { throw CanonicalEncodingError.invalidPayload }
             let derived = HKDF<SHA256>.deriveKey(inputKeyMaterial: key, salt: collection.bytes + id.bytes,
                 info: Array("NV private database key\0v1\0".utf8), outputByteCount: 32)
-            return derived.withUnsafeBytes { Array($0) }
+            return unsafe derived.withUnsafeBytes { unsafe Array($0) }
         }
     }
 }

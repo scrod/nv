@@ -6,9 +6,31 @@ Run test commands from the repository root. The test Makefile builds the Deploym
 
 ### Common commands
 
+The [phase-3 schedule and observation matrix](impl-proposal-5/plan/phase3-schedule-observation-matrix.md)
+tracks connected semantic qualification for editable merges, deletion/preservation,
+source choices/copies, historical recovery and portable compensation. It specifies
+expected states and race/failure witnesses; the [connected qualification report](impl-proposal-5/plan/phase3-validation.md)
+records executed dimensions and remaining platform/application boundaries.
+The [derived-state subrecord checks](impl-proposal-5/plan/phase3-derived-state-validation.md)
+add canonical equal/merge bytes and exact dependency reconstruction to the package
+suite and qualification driver. Their runtime consumers now preserve those inputs
+through authoring, acceptance, current-row installation and fresh editable reopen.
+
+The [first Phase 4A snapshot checks](impl-proposal-5/plan/phase4-general-snapshot-validation.md)
+add independently specified root/page bytes, bounded manifest assembly and
+verification of real post-edit history cuts. `SWIFT_STORAGE_TEST_FLAGS='--filter
+generalSnapshot'` selects these cases. The [S3/S4 checks](impl-proposal-5/plan/phase4-bootstrap-reconstruction-validation.md)
+add resumable complete bootstrap and real snapshot-plus-all-branches
+reconstruction. The common storage driver includes their 26 fresh-process
+fault schedules. `NV_STORAGE_RESOURCE_CAMPAIGN=1` with
+`SWIFT_STORAGE_TEST_FLAGS='--no-parallel --filter measuredBootstrapResourceCampaign'`
+runs the opt-in 64/256/1,024/2,048-note resource campaign for both profiles.
+
 - `make -C tests` builds every test executable without running it.
 - `make -C tests run-core` runs the headless/default integration suite.
-- `make -C tests run-swift-storage` runs the standalone Swift package's Core and local SQLCipher Runtime tests without building NV. First run `bash tools/build-storage-deps.sh` from the repository root; SwiftPM resolves the pinned Swift Crypto dependency. `SWIFT_STORAGE_TEST_FLAGS` selects an optimized/sanitized build. `make -C tests run-swift-storage-phase2` additionally verifies fresh-process recovery, independent envelopes/fixtures, schema equality, C diagnostics and ordinary/same-module compiler boundaries. Set `SWIFT_STORAGE_PHASE2_FLAGS='--configuration release --mutations'` for the optimized isolated challenge campaigns. See the [Phase 2 report](impl-proposal-5/plan/phase2-local-runtime-validation.md) for exact coverage and fault classes. These use synthetic private stores, not real user collections or providers. The test runner's availability is separate from the library's declared macOS 11.5 deployment target.
+- `make -C tests run-swift-storage` runs the standalone Swift package's Core and local SQLCipher Runtime tests without building NV. First run `bash tools/build-storage-deps.sh` from the repository root; SwiftPM resolves the pinned Swift Crypto dependency. `SWIFT_STORAGE_TEST_FLAGS` selects an optimized/sanitized build. `make -C tests run-swift-storage-phase2` additionally verifies fresh-process recovery, independent envelopes/fixtures, schema equality, C diagnostics and ordinary/same-module compiler boundaries. It includes the [Phase 3 connected checks](impl-proposal-5/plan/phase3-validation.md): independent stores exchanging real bytes, editable multi-head Current, exact source-entry exclusion, conflict-copy dispositions, actual compensation inverses and failure/restart schedules. Set `SWIFT_STORAGE_PHASE2_FLAGS='--configuration release --mutations'` for the optimized isolated challenge campaigns. The [Phase 2 report](impl-proposal-5/plan/phase2-local-runtime-validation.md) records underlying acceptance/fault coverage. These use synthetic private stores, not real user collections or providers. The test runner's availability is separate from the library's declared macOS 11.5 deployment target.
+- [Phase 4 improvements](impl-proposal-5/plan/phase-4-improvements/validation.md) add strict replay-request, per-envelope occurrence and coalesced-recovery checks to that common driver. `tools/test-storage-review-process.py` exercises repeated real diagnosis/settlement write failures and fresh reopening. For scaling comparisons, set `NV_STORAGE_IMPROVEMENT_BENCHMARK=1` and filter `packedReaderImprovementMeasurements|recoveryWorkAcrossHistoryAndLag`; ordinary test runs keep those larger measurements opt-in.
+- [Phase 4C–4E](impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md) adds nonempty private settings/pending codecs, keyed fixed-cut backup, actual encrypted-page salvage, complementary repair, verified selection and repository-copy/export checks. `tools/test-storage-private-process.py --binary <probe>` runs 40 fresh-process schedules with independent history inspection; `--ssh-target`, `--ssh-key` and `--remote-env` run the same children on a test host while keeping the observer local. `tools/test-storage-private-types.py --modules <build>/Modules` checks 29 ordinary/same-module boundaries. The common driver includes both, the independent private fixtures and exact schema tests.
 - `make -C tests run-platform` runs tests that depend on live macOS services such as WebKit/AppKit, FSEvents, or Trash.
 - `make -C tests run-native-undo-probes` runs 51 isolated synthetic AppKit undo/shared-view experiments without building or opening NV. It is intentionally opt-in; see the [results, limits and interactive commands](impl-proposal-5/Native-Undo-Experiments.md). `--only shared-` on the runner selects the 20 new cases; `--interactive-shared` opens two opt-in keyboard/IME windows. `OBSERVE` denotes an observation-only run, not an assertion proof; passing concrete checks never promotes every accompanying observation. No notes, cloud files, general clipboard or UI-automation permission is used. A denied private pasteboard service requires a normal logged-in execution context, not a false Apple-contract failure.
 - `make -C tests run` runs `run-core` followed by `run-platform`.

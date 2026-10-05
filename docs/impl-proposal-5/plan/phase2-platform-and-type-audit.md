@@ -32,8 +32,17 @@ or system installation. SwiftPM's cross build used:
 ```sh
 PKG_CONFIG_PATH=/tmp/<cross-build>/lib/pkgconfig swift build \
   --package-path NVStorage --scratch-path /tmp/<cross-build>/swift \
-  --triple x86_64-apple-macosx11.5 -c release --product NVStorageProbe
+  --triple x86_64-apple-macosx11.5 \
+  -Xswiftc -target -Xswiftc x86_64-apple-macosx11.5 \
+  -Xcc -target -Xcc x86_64-apple-macosx11.5 \
+  -c release --product NVStorageProbe
 ```
+
+The explicit compiler-target flags are needed with SDK 27: the declared package
+floor and `--triple` alone produced a macOS 12 binary in the later Phase-3 build.
+Inspect the finished Mach-O deployment target before calling a build macOS-11
+qualified. Availability checking remains enabled. See the subsequent
+[review qualification](phase3-review-corrections.md).
 
 The deployed bundle contains the executable, its schema resource bundle, Apple's
 `libswift_Concurrency.dylib`, test scripts and synthetic fixtures. It contains no

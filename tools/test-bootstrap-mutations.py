@@ -21,28 +21,28 @@ SOURCE = Path("Sources/NVStorageCore/InitialBootstrapValidationV1.swift")
 TESTS = Path("Tests/NVStorageCoreTests/InitialBootstrapValidationTests.swift")
 # Each assertion has a valid companion in the same filtered baseline.
 MUTATIONS = [
-    ("M07-incomplete-frontier", "guard Set(action.scopeParents) == maxima else {",
-     "guard Set(action.scopeParents).isSubset(of: maxima) else {",
+    ("M07-incomplete-frontier", "guard Set(action.scopeParents) == maxima,",
+     "guard Set(action.scopeParents).isSubset(of: maxima),",
      "scopeClaimsNeedTheirCompleteDeclaredCausalBasis", "missingMaximum",
      "#expect(throws: InitialBootstrapValidationError.invalidActionHistory)"),
-    ("snapshot-wrong-body", "value == row.value else", "true else",
+    ("snapshot-wrong-body", "try row.value.digestV1() == imported.1 else", "true else",
      "snapshotMustMatchExactImportedRecord", "wrongBody",
      "#expect(throws: InitialBootstrapValidationError.invalidSnapshot)"),
-    ("completion-missing-branch", "represented == Set(operations.keys)",
-     "represented.isSubset(of: Set(operations.keys))",
+    ("completion-missing-branch", "let completion = try exact(root.completion), represented = try ancestors([completion])",
+     "let completion = try exact(root.completion), represented = Set(operations.keys)",
      "authenticatedInitialHistoryCanStillBeWrong", "coverage", "#expect(throws: expected)"),
-    ("unchecked-values-digest", "guard try hasher.finish() == digest, UInt64(rows.count) == count else {",
-     "guard UInt64(rows.count) == count else {",
+    ("unchecked-values-digest", "guard try hasher.finish() == digest else {",
+     "guard true else {",
      "authenticatedInitialHistoryCanStillBeWrong", "digest", "#expect(throws: expected)"),
-    ("wrong-genesis-pin", "              payloads[descriptor.genesis]!.operations.contains(where: { $0.operation.id == genesis.id }),\n", "",
+    ("wrong-genesis-pin", "              occurrences[genesis]?.contains(first.key) == true,\n", "",
      "exactDescriptorGenesisIsNotJustAnyObjectFromTheCollection", None,
      "#expect(throws: InitialBootstrapValidationError.invalidCommitment)"),
-    ("wrong-descriptor-key", "guard descriptor.collection == expectedCollection,\n              (descriptor.keyID?.bytes ?? [UInt8](repeating: 0, count: 16)) == protection.keyIDBytes else {",
-     "guard descriptor.collection == expectedCollection else {",
+    ("wrong-descriptor-key", "guard descriptor.collection == collection,\n              (descriptor.keyID?.bytes ?? [UInt8](repeating: 0, count: 16)) == protection.keyIDBytes else {",
+     "guard descriptor.collection == collection else {",
      "matchingEncryptedObjectsCannotBlessADifferentDescriptorKeyID", None,
      "#expect(throws: CanonicalEncodingError.wrongScope)"),
-    ("M22-reject-valid-context", "guard descriptor.collection == expectedCollection,",
-     "guard descriptor.collection != expectedCollection,",
+    ("M22-reject-valid-context", "guard descriptor.collection == collection,",
+     "guard descriptor.collection != collection,",
      "authenticatedInitialHistoryCanStillBeWrong", "valid", "#require(try? f.validate(root))"),
 ]
 REQUIRED = sorted({m[3] for m in MUTATIONS} | {"completeInitialImportValidatesAcrossObjects"})
@@ -61,7 +61,7 @@ def replace_once(text, before, after):
 def assertion_line(source, function, assertion):
     lines = source.splitlines()
     start = next(i for i, s in enumerate(lines) if re.search(rf"\bfunc {re.escape(function)}\(", s))
-    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("@Test")), len(lines))
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].lstrip().startswith("@Test")), len(lines))
     hits = [i + 1 for i in range(start, end) if assertion in lines[i]]
     if len(hits) != 1:
         raise ValueError(f"Ambiguous/missing assertion for {function}: {hits}")
@@ -69,7 +69,11 @@ def assertion_line(source, function, assertion):
 
 
 def discovered(log):
-    return set(re.findall(r"Test (\w+)\([^\n]*\) started\.", log))
+    """Recognize execution from an intact Swift Testing start or completion record."""
+    return set(re.findall(
+        r"Test (\w+)\([^\n]*\) (?:started\.|"
+        r"(?:with [1-9][0-9]* test cases? )?(?:passed|failed) after "
+        r"[0-9]+(?:\.[0-9]+)? seconds\b)", log))
 
 
 def classify(code, log, function, line, argument, positive=False):
@@ -90,6 +94,25 @@ def classify(code, log, function, line, argument, positive=False):
 
 
 def self_test():
+    # Reduced fixtures preserve both observed warning positions in test-start output.
+    name = "wrongStoreAndOldSessionCapturesAreRejectedByPersist"
+    warning = "warning: '--build-system native' has been deprecated\n"
+    interrupted = [f"Test wrongStoreA{warning}ndOldSessionCapturesAreRejectedByPersist() started.\n",
+                   f"Test{warning} {name}() started.\n"]
+    for start in interrupted:
+        assert discovered(start) == set()
+        for completion in [f"Test {name}() passed after 0.148 seconds.",
+                           f"Test {name}() failed after 1 seconds with 1 issue.",
+                           f"Test {name}(encrypted:) with 4 test cases failed after 3.601 seconds with 8 issues.",
+                           f"Test {name}(encrypted:) with 1 test case passed after 0.001 seconds."]:
+            assert discovered(start + completion) == {name}
+    assert discovered(f"Test {name}() started.") == {name}
+    for unrelated in [f"Test {name}() skipped.",
+                      f"Test {name}() recorded an issue at Tests.swift:66:13: Expectation failed: false",
+                      f"Test {name}() passed after", f"Test {name}() passed after unknown seconds.",
+                      f"Test {name}() with 0 test cases passed after 0.001 seconds.",
+                      "Test run with 29 tests failed after 1 seconds."]:
+        assert discovered(unrelated) == set()
     for before, after, text in [("x", "x", "x"), ("x", "y", "xx"), ("x", "y", "z")]:
         try:
             replace_once(text, before, after)
@@ -107,6 +130,10 @@ def self_test():
     assert classify(1, "compiler unavailable", REQUIRED[0], 123, None) == "unrelated failure"
     assert classify(0, "Build complete!\nTest run started.", REQUIRED[0], 123, None).startswith("inconclusive")
     assert assertion_line('@Test func example() {\n    #expect(true)\n}', "example", "#expect(true)") == 2
+    nested = ('@Suite struct Cases {\n    @Test func first() {\n        #expect(true)\n    }\n'
+              '    @Test func second() {\n        #expect(true)\n    }\n}')
+    assert assertion_line(nested, 'first', '#expect(true)') == 3
+    assert assertion_line(nested, 'second', '#expect(true)') == 6
 
 
 def main():

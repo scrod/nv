@@ -122,8 +122,15 @@ public struct ChangesPayloadV1: Equatable, Sendable {
                     throw CanonicalEncodingError.invalidAction
                 }
                 switch (action.kind, op.effect) {
-                case (.createImportBatch, .create), (.createImportBatch, .importNote),
-                     (.deleteBatch, .delete), (.savedEdit, .put), (.rename, .put), (.labels, .put): break
+                case (.restoreBatch, .create), (.createImportBatch, .create), (.createImportBatch, .importNote),
+                     (.deleteBatch, .delete), (.deleteBatch, .retireConflict),
+                     (.savedEdit, .put), (.rename, .put), (.labels, .put),
+                     (.savedEdit, .adoptAutomatic), (.rename, .adoptAutomatic), (.labels, .adoptAutomatic),
+                     (.historicalRecovery, .put), (.historicalRecovery, .create), (.historicalRecovery, .adoptAutomatic),
+                     (.conflictChoice, .put), (.conflictCopy, .recoverCopy),
+                     (.undo, .create), (.undo, .put), (.undo, .delete), (.undo, .retireConflict),
+                     (.redo, .create), (.redo, .put), (.redo, .delete), (.redo, .retireConflict),
+                     (.nativeUndo, .put): break
                 default: throw CanonicalEncodingError.invalidAction
                 }
                 memberBirths.insert(birth)
@@ -139,20 +146,42 @@ public struct ChangesPayloadV1: Equatable, Sendable {
                 case .freshBirthAbsence: throw CanonicalEncodingError.invalidAction
                 case .value(let id), .deleted(let id):
                     guard members.contains(id) else { throw CanonicalEncodingError.invalidAction }
+                case .derived, .automatic: throw CanonicalEncodingError.invalidAction
                 }
-                if action.kind == .createImportBatch {
+                if action.kind == .createImportBatch || action.kind == .restoreBatch {
                     guard entry.before == .freshBirthAbsence else { throw CanonicalEncodingError.invalidAction }
                 } else {
                     switch entry.before {
-                    case .freshBirthAbsence: throw CanonicalEncodingError.invalidAction
+                    case .freshBirthAbsence:
+                        guard [.conflictCopy, .historicalRecovery, .undo, .redo].contains(action.kind) else { throw CanonicalEncodingError.invalidAction }
                     case .value(let id), .deleted(let id):
                         guard !members.contains(id) else { throw CanonicalEncodingError.invalidAction }
+                    case .derived(let state):
+                        guard Set(state.inputs).isDisjoint(with: members) else { throw CanonicalEncodingError.invalidAction }
+                    case .automatic(let source):
+                        guard !members.contains(source.revision) else { throw CanonicalEncodingError.invalidAction }
                     }
                 }
             }
             for entry in record.affectedReferences {
                 try checkStateReference(entry.before, birth: entry.birth, local: preceding)
                 try checkStateReference(entry.after, birth: entry.birth, local: preceding)
+            }
+            for source in record.restorationReferences {
+                if case .external(let locator, _, _) = source.deletionAction { _ = try dependencies.index(of: locator) }
+                let referenceBirth: NoteBirth
+                if case .automatic(let state) = source.priorState { referenceBirth = state.birth }
+                else { referenceBirth = source.sourceBirth }
+                try checkStateReference(.value(source.revision), birth: referenceBirth, local: preceding)
+                if let state = source.priorState { try checkStateReference(state, birth: source.sourceBirth, local: preceding) }
+            }
+            if let details = record.detailsReference {
+                for ref in details.operationReferences {
+                    if case .external(let locator, _, _) = ref { _ = try dependencies.index(of: locator) }
+                }
+                for ref in details.actionReferences {
+                    if case .external(let locator, _, _) = ref { _ = try dependencies.index(of: locator) }
+                }
             }
             earlierActions.append(action)
         }
@@ -177,6 +206,11 @@ public struct ChangesPayloadV1: Equatable, Sendable {
         switch state {
         case .freshBirthAbsence: return
         case .value(let r), .deleted(let r): ref = r
+        case .derived(let state):
+            for ref in state.references { try checkStateReference(.value(ref), birth: birth, local: local) }
+            return
+        case .automatic(let source):
+            try checkStateReference(.value(source.revision), birth: source.birth, local: local); return
         }
         switch ref {
         case .external(let locator, _, _): _ = try dependencies.index(of: locator)
@@ -188,7 +222,8 @@ public struct ChangesPayloadV1: Equatable, Sendable {
                                          target: IdentifiedOperation) throws {
         guard target.effect.targetBirth == birth else { throw CanonicalEncodingError.invalidAction }
         switch (state, target.effect) {
-        case (.value, .create), (.value, .importNote), (.value, .put), (.deleted, .delete): break
+        case (.value, .create), (.value, .importNote), (.value, .put), (.value, .recoverCopy),
+             (.value, .adoptAutomatic), (.deleted, .delete): break
         default: throw CanonicalEncodingError.invalidAction
         }
     }
@@ -234,11 +269,13 @@ public struct ChangesPayloadV1: Equatable, Sendable {
         case state(OperationReference, ActionStateReference, NoteBirth)
         case origin(ActionReference, ActionOriginID)
         case scope(ActionReference, ActionScopeV1)
+        case deletion(ActionReference, NoteBirth)
+        case action(ActionReference)
         var locator: SegmentLocator? {
             switch self {
             case .operation(let ref), .state(let ref, _, _):
                 if case .external(let locator, _, _) = ref { return locator }
-            case .origin(let ref, _), .scope(let ref, _):
+            case .origin(let ref, _), .scope(let ref, _), .deletion(let ref, _), .action(let ref):
                 if case .external(let locator, _, _) = ref { return locator }
             }
             return nil
@@ -258,13 +295,29 @@ public struct ChangesPayloadV1: Equatable, Sendable {
         for record in actions {
             if let ref = record.previousOriginReference { checks.append(.origin(ref, record.action.origin)) }
             checks += record.scopeReferences.map { .scope($0, record.action.scope) }
+            for source in record.restorationReferences {
+                checks.append(.deletion(source.deletionAction, source.sourceBirth))
+                if case .automatic(let state) = source.priorState {
+                    checks.append(.state(source.revision, .value(source.revision), state.birth))
+                } else { checks.append(.state(source.revision, .value(source.revision), source.sourceBirth)) }
+                if case .derived(let state) = source.priorState {
+                    checks += state.references.map { .state($0, .value($0), source.sourceBirth) }
+                }
+            }
             for entry in record.affectedReferences {
                 for state in [entry.before, entry.after] {
                     switch state {
                     case .freshBirthAbsence: break
                     case .value(let ref), .deleted(let ref): checks.append(.state(ref, state, entry.birth))
+                    case .derived(let derived):
+                        checks += derived.references.map { .state($0, .value($0), entry.birth) }
+                    case .automatic(let source): checks.append(.state(source.revision, .value(source.revision), source.birth))
                     }
                 }
+            }
+            if let details = record.detailsReference {
+                checks += details.operationReferences.map { .operation($0) }
+                checks += details.actionReferences.map { .action($0) }
             }
         }
         return checks
@@ -298,6 +351,10 @@ public struct ChangesPayloadV1: Equatable, Sendable {
             guard try action(ref).origin == origin else { throw CanonicalEncodingError.invalidAction }
         case .scope(let ref, let scope):
             guard try action(ref).scope == scope else { throw CanonicalEncodingError.invalidAction }
+        case .deletion(let ref, let birth):
+            guard let entry = try action(ref).affected.first(where: { $0.birth == birth }),
+                  case .deleted = entry.after else { throw CanonicalEncodingError.invalidAction }
+        case .action(let ref): _ = try action(ref)
         }
     }
 }

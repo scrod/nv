@@ -111,8 +111,36 @@ designated mutation controls and three reachability witnesses. The
 no old-history reads on healthy startup and multi-parent ready work. The cache
 format, builders, batch tokens, changed-birth log and pruning floors are removed.
 
+[`SnapshotReconstructionSafety`](SnapshotReconstructionSafety.tla) adds the
+S3/S4 bridge from retained incomplete input to complete atomic bootstrap,
+snapshot-seeded outside-cut reduction, guarded installation, publication and
+crash/reopen. Its fixed graph has two imports, a represented edit, an earlier-
+or later-arriving independent branch, Delete and a body-equal continuation.
+Transport packing varies independently of the logical operation cut. A second
+worker can replace the view at the same accepted prefix while the first is held.
+Independent expected rows and frontier checks detect omitted operations and lost
+continuation, rather than merely comparing two uses of the same reducer.
+
+Run `python3 docs/tla/check-reconstruction-model.py --java /path/to/java --jar
+/path/to/tla2tools.jar`. The completed campaign has **six exhaustive safe cases**
+(162; 838; 26,598; 27,065; 21,540; 91,602 states), **nine designated guard
+counterexamples** and **five reachability witnesses**. Positive cases check
+history preservation, current install applicability and eventual completion under
+weak fairness and finite delivery/faults. Controls separately challenge early
+bootstrap, omitted/sequence/object-based tails, stale history/epoch installation,
+stale publication, pending clearing and private-state reset. Witnesses reach an
+earlier branch, a shared-envelope extra group, stale refusal, same-prefix epoch
+interference and two failures. No state/depth constraint hides those paths.
+
+The [S3/S4 report](../impl-proposal-5/plan/phase4-bootstrap-reconstruction-validation.md#model-correspondence)
+maps these boundaries to actual Swift/SQL entrypoints. The model assumes valid
+complete immutable groups, atomic SQL transactions and the independently tested
+reducers. Its pending bit represents retained owned work, rather than unpersisted
+typing. It proves the stated finite scheduling cases, not arbitrary DAGs,
+cryptography, executor implementation or physical power-loss durability.
+
 The [Runtime hardening tests](../impl-proposal-5/plan/phase2-hardening-validation.md)
-now map catch-up directly to `Materialize`'s one-complete-batch step. They separately
+map live catch-up to `Materialize`'s one-complete-batch step. They separately
 exercise off-writer validation, rejection of unaccepted input, stale-history
 rechecks and failed damage-marker writes. These models retain their complete-valid-
 input and committed-damage-observation assumptions; neither worker scheduling nor
@@ -133,6 +161,7 @@ unchanged.
 | --- | --- |
 | [`ReceiveResumptionSafety`](ReceiveResumptionSafety.tla) | Two interrupted checks, separate commit/completion, atomic waiter registration, a new save before resumption, pending handles, cancellation and quiesce. Weak fairness covers runnable work, while actual notifications enable sleeping continuations. Zero/two/three-save configurations; healthy receive work is already admitted. |
 | [`ReceiveRejectionSafety`](ReceiveRejectionSafety.tla) | Two-level and multi-parent dependency fixtures, staged rejection transaction, exact input retention, duplicates, parent wakeups, unsupported/invalid/valid companions, unrelated progress, and up to two crashes/two storage failures. Recovery progress assumes an explicit caller retry/reopen; SQL atomicity and truthful input classification remain inputs. |
+| [`ReceiveSnapshotAssemblySafety`](ReceiveSnapshotAssemblySafety.tla) | Separate retained-page/accepted-history requirements, root/two-page/two-history assembly, discovery versus atomic parking, arrival versus acceptance wakeups, shared pages, own versus prerequisite rejection, unrelated work, close/reopen, and up to two crashes/two write failures. Complete accepted history is never inferred from retained bytes. |
 
 Run `python3 docs/tla/check-receive-models.py --java /path/to/java --jar /path/to/tla2tools.jar`;
 `--only resumption` or `--only rejection` selects a family. The
@@ -141,8 +170,54 @@ record 47 completed outcomes: 12 exhaustive configurations, 22 targeted mutation
 counterexamples and 13 reachability witnesses. These are complementary finite
 checks, not an `INSTANCE` composition with the SQLite models or a proof of actual
 Swift executor scheduling, SQLCipher I/O, arbitrary graphs or future upgrades.
-The existing SQLite models still assume complete valid accepted input; the failed
-damage-marker persistence gap remains separate.
+The existing SQLite models still assume complete valid accepted input. The focused
+verification model below covers interrupted damage-marker recording separately.
+
+### Verification replay and coalesced unpublished recovery
+
+[`VerificationRecoverySafety`](VerificationRecoverySafety.tla) separates committed
+verification admission, reading, final checks, exact settlement, damage discovery,
+failed marker transactions, cancellation, sibling completion and startup replay.
+Three finite scenarios cover healthy checks, damaged bytes and late semantic
+failure, with two possible crashes/two marker-write failures. Safety asserts that
+discovered damage retains an obligation or marker and that startup cannot publish
+before required replay. Progress assumes weak fairness and finite faults. Exact
+request identity prevents a successful sibling from settling another operation.
+
+[`CoalescedRecoverySafety`](CoalescedRecoverySafety.tla) represents five distinct
+accepted batches, intermediate compensation/context effects, worker preparation,
+guarded current-row installation, independently changing settings, equal-prefix
+epoch replacement, publication and two crashes. Its independent expected-value
+table checks complete final rows/context against actual intermediate actions;
+omitting an Undo is challenged separately. Coalescing is scoped to unpublished
+opening. Live per-batch behavior remains in the earlier models.
+
+Run `python3 docs/tla/check-improvement-models.py --java /path/to/java --jar
+/path/to/tla2tools.jar`. The initial completed campaign checks **four exhaustive
+safe cases**, **eight designated mutation counterexamples** and **six reachability
+witnesses** (18 outcomes). No state/depth constraints, simulation, symmetry or
+hidden disabled transition make these runs pass. Safety controls challenge missing
+admission, early settlement, sibling settlement, skipped replay, omitted middle
+effects and stale target/epoch/private settings. Witnesses require interrupted
+checks to replay and stale recovery to recapture before succeeding.
+
+The [Phase 4 improvement report](../impl-proposal-5/plan/phase-4-improvements/validation.md)
+maps the concrete Swift boundaries and independently inspected SQL/VFS schedules.
+These models assume atomic SQL transactions, truthful finite input classification
+and the validated reducer rules. They neither prove byte authentication, arbitrary
+history/DAGs, eventual progress under persistent storage failure nor physical
+power-loss durability. At-most-once decoding is separately asserted by real
+per-attempt/per-SegmentID decoder observations, with complete coverage on success.
+
+`--only assembly --timeout 300` selects the snapshot bridge. Its five exhaustive
+configurations, five exact mutation counterexamples and five reachability witnesses
+are documented in [S2's source mapping and results](../impl-proposal-5/plan/phase4-received-snapshot-validation.md#model-correspondence).
+The largest completed configuration explores 1,122,253 distinct states. Progress
+assumes finite intake (each input plus one arbitrary duplicate), finite failures,
+reopen/retry and weak fairness of enabled work. It does not promise fairness under
+unbounded redelivery, validate byte codecs/cryptography, model actual SQLCipher
+pages or prove snapshot-based current-row rebuilding. SQL commits are atomic;
+precommit discovery, parking races and failed transactions remain separate steps.
 
 The [current-basis implementation checks](../impl-proposal-5/plan/current-basis-validation.md)
 qualify ordinary-save reuse of that complete materialization and direct-parent
@@ -194,17 +269,37 @@ receipt cannot authorize source deletion after restart.
 
 [`ImmutableSegmentDurabilitySafety.tla`](ImmutableSegmentDurabilitySafety.tla) separates local sealing, single-writer transaction staging, atomic SQLite acceptance and callback delivery, exact pending generations, materialization loss, crash recovery and independent provider publication. Its stable payload is the committed history, not a private segment-file directory. [`SegmentDeletionSafety.tla`](SegmentDeletionSafety.tla) checks two established note births across two hosts, explicit causal deletion versus concurrent edit preservation, fresh restoration, dependency-closed application/restart, and expected-original-only physical removal. These check [proposal 5](../impl-proposal-5/README.md), whose durable local segments replace the separate mutable WAL. Separate files are projection inputs/outputs, not the authoritative history transport.
 
-Run `python3 docs/tla/check-segment-models.py --java /path/to/java --jar /path/to/tla2tools.jar`. The default runner contains 554 cases, including shared components, the undo/window/repair families, 16 projection-stamp checks and 75 checks across the four pending-file families above, plus 64 compound bridge checks and 21 SQLite transaction checks and 9 focused fast-start checks. This is the runnable inventory, not a claim that every family was rerun in the latest edit. `--only sqlite-collection`, `--only bridge-`, `--only bootstrap`, `--only action`, `--only merge`, `--only nv-copy-`, `--only ordering`, `--only stamp`, `--only external-file`, `--only pending-reference`, `--only association`, `--only projection-transition`, `--only repository`, `--only repair-`, `--only portable-`, `--only undo-`, `--only undo-execution-`, `--only review-`, `--only shared-view-`, `--only file-` and `--only local-lane` isolate families. All positive merge scenarios check safety plus rank/progress obligations on their full graph; `--full-temporal --only merge-converges-third --timeout 900` additionally runs the expensive direct three-head convergence check. The [results and boundary report](../impl-proposal-5/Verification.md#model-results) records actual outcomes, state counts, timeouts, fairness and unmodeled work. A green expected counterexample rejects that policy or reaches its named witness; it is not a safety proof of a broken rule.
+Run `python3 docs/tla/check-segment-models.py --java /path/to/java --jar /path/to/tla2tools.jar`. The default runner contains 568 cases, including shared components, the undo/window/repair families, 16 projection-stamp checks and 75 checks across the four pending-file families above, plus 64 compound bridge checks, 21 SQLite transaction checks, 9 focused fast-start checks and 14 native/causal-undo bridge checks. This is the runnable inventory, not a claim that every family was rerun in the latest edit. `--only sqlite-collection`, `--only bridge-`, `--only bootstrap`, `--only action`, `--only merge`, `--only nv-copy-`, `--only ordering`, `--only stamp`, `--only external-file`, `--only pending-reference`, `--only association`, `--only projection-transition`, `--only repository`, `--only repair-`, `--only portable-`, `--only undo-`, `--only native-causal-`, `--only undo-execution-`, `--only review-`, `--only shared-view-`, `--only file-` and `--only local-lane` isolate families. `--only` takes one substring; use separate invocations or `--model ModuleName` for distinct modules. All positive merge scenarios check safety plus rank/progress obligations on their full graph; `--full-temporal --only merge-converges-third --timeout 900` additionally runs the expensive direct three-head convergence check. The [results and boundary report](../impl-proposal-5/Verification.md#model-results) records actual outcomes, state counts, timeouts, fairness and unmodeled work. A green expected counterexample rejects that policy or reaches its named witness; it is not a safety proof of a broken rule.
 
 [`SegmentActionRecoverySafety.tla`](SegmentActionRecoverySafety.tla) checks complete action-record/note-value persistence, guarded undo/redo, fresh restoration, crash, peer delivery and peer eligibility after receiving complete compensations. [`SegmentMergeSafety.tla`](SegmentMergeSafety.tla) checks concrete two-field values and actual finite ancestry, ambiguous bases/third heads, stale prepared publication, explicit edit provenance and conditional convergence. Neither claims exact native typing undo or proves arbitrary text merging. [History-rule reference checks](../impl-proposal-5/Verification.md#executed-history-rule-reference-checks) exercise the LF kernel in Python; codec, UI and actual file/segment bridges remain necessary.
 
 Recently Deleted's default-list exclusion after a durable Restore is a derived UI/index rule, not an asserted list-membership property in these models. Fresh-birth restoration and atomic action persistence provide adjacent coverage; exact source-entry provenance, restart/remote index rebuild and delete-after-restore visibility need the [restored-entry integration cases](../impl-proposal-5/Verification.md#required-history-feature-integration-matrix). Do not interpret retained deletion history as a requirement to keep a restored row visible, or the existing model passes as proof of the new list predicate.
+
+The portable [Restore increment](../impl-proposal-5/plan/phase3-restoration-validation.md)
+now exercises those codec/SQL/peer/process boundaries for direct single-value
+Delete inputs. Its concrete results supplement these unchanged models; alternate
+branches, compensation and the actual Recently Deleted UI remain later gates.
 
 [`NVConflictCopySafety.tla`](NVConflictCopySafety.tla) checks the adopted representation-only NV Save as new note policy: source-head selection is independent of completed copy dispositions, while unresolved attention excludes only exact copied revisions. Two hosts author reciprocal copies, deliver records independently, settle temporary differing Current pins and recover one crashed host. Separate cases extend the source or modify/delete a completed copy. `--only nv-copy-` runs 5 positives (including conditional transport/recovery progress), 7 mutation controls and 5 witnesses. Positive graphs finish at 816–1,336 states, without constraints/cutoffs. The [result/boundary report](../impl-proposal-5/Verification.md#nv-conflict-copy-disposition--adopted-policy) records evidence and required UI/codec tests. Valid payload binding and complete local installation are assumed; this is not Apple disposition, slot-allocation, arbitrary merge or full installer/UI composition coverage.
 
 [`NativeUndoSpanSafety.tla`](NativeUndoSpanSafety.tla) checks two saved spans' exact remaining effects through partial native undo/redo, asynchronous capture/completion and one crash; native commands do not continue after recovery. [`UndoHistoryHandoffSafety.tla`](UndoHistoryHandoffSafety.tla) checks old-index/new-action ordering on one already-selected causal branch, refused commands, guarded remote/current-value compensation and note/derived-position recovery. Its remote input is a value/frontier invalidation, not the complete portable candidate set. These **integration experiments** assume correct native span attribution and a complete local barrier. They are not AppKit models or an `INSTANCE` bridge to peer transport. The [two-OS experiment report](../impl-proposal-5/Native-Undo-Experiments.md) separates confirmed call sequences, candidate UX compromises and required actual-editor tests. `--only undo-handoff-` and `--only undo-spans` together run 8 positives, 12 mutations and 9 transition-specific witnesses; `--only undo-` also includes the execution family below. No arbitrary text rebase is claimed.
 
 [`PortableCausalUndoSafety.tla`](PortableCausalUndoSafety.tla) checks two hosts deriving Undo/Redo from the same validated action graph despite independent delivery/index order. Per-scope causal parents order candidates; separate compensation edges identify actual Undo/Redo targets. Concrete expected-ID tables check walking backward, repeated Undo/Redo, retained redo sequences, competing compensation branches, command-relative ambiguity after an independent edit, suppression by an independent causal descendant, scope isolation and private-state rebuild. `--only portable-` runs 25 positives, 10 mutations and 9 witnesses across twenty-one finite scenarios. Safety has no fairness premise; four progress checks assume eventual fixture delivery, indexing/rebuild and invocation. Invoke selects a candidate without executing its note-value compensation. The shared reducer is exercised dynamically below; production decoding/native routing remain integration gates, and equal-history agreement alone is only consistency, not an independent semantic oracle.
+
+[`NativeCausalUndoBridge.tla`](NativeCausalUndoBridge.tla) connects a saved 0→2
+group to native partial 2→1 and concurrent complete 2→0 coverage, actual coarse
+Undo/Redo/inverses, no-effect review, one restart and peer delivery. Action-scope
+ancestry, note predecessors and inverse targets remain separate. Three fixture
+orders test ordered coverage and either conflicting Current selection. Six
+safety/progress cases finish at 63–81 states; six mutation controls and two
+transition witnesses reach their named failures. Safety is included in progress
+configurations. Fairness covers eventual available delivery/recovery, with finite
+command slots; it never assumes user approval. Atomic accepted records abstract
+the separately checked SQL closure/commit boundary. AppKit attribution, exact
+bytes, arbitrary text/graphs and multiple independent scopes remain outside this
+focused bridge. [Concrete phase-3 checks](../impl-proposal-5/plan/phase3-validation.md)
+test received native eligibility, per-group coverage and actual remaining/inverse
+values through the portable Runtime.
 
 [`ConcurrentUndoExecutionSafety.tla`](ConcurrentUndoExecutionSafety.tla) imports the same pure [`CausalUndoRules.tla`](CausalUndoRules.tla) reducer and uses its results to author actual finite note/action changes. Two hosts can undo A concurrently; the joined history continues through reviewed redo/undo/redo or an independent edit/undo/redo. Separate scenarios cover a no-op sibling, distinct restoration births, and an incoming other-note edit invalidating review or surviving pending completion. Prepare/approve/admit/encode/complete-install/ack, parked receipt/application, and one crash/recovery are separate transitions. Independent concrete-value/candidate assertions, exact-admission/recovery/presentation action properties and completion witnesses prevent a selection-only or success-flag claim. `--only undo-execution-` selects 5 positives, 9 mutations and 9 witnesses. The sole temporal check assumes eventual local settlement/recovery and dependency delivery/application; no user approval is fair. Finite request plans, one joined intervention point, scalar/birth operations and an abstract complete installation barrier keep the graph bounded without depth/state constraints. This bridges candidate selection to effects in that scope, not arbitrary text, native multi-family coverage, actual codecs/filesystem operations or a refinement of every adjacent model. Read [Verification](../impl-proposal-5/Verification.md#what-these-checks-do-not-prove) before extending the claims.
 
@@ -219,11 +314,37 @@ parts of this model's validity assumptions; they do not prove local installation
 tail application, final startup publication or arbitrary-history refinement.
 The initial-only validator is not called on healthy current-row startup.
 
+The [portable merge engine checks](../impl-proposal-5/plan/phase3-merge-validation.md)
+exercise the concrete LF kernel, note-ancestry head/base selection, represented
+inputs and deterministic provenance beneath `SegmentMergeSafety`'s field-level
+abstraction. They include independent graph/text oracles and persisted two-store
+inputs. The [connected implementation](../impl-proposal-5/plan/phase3-validation.md)
+adds editable merged current rows, edit capture and generation-fenced publication
+through real acceptance/reopen. The detached preview remains only one component
+of that evidence.
+The [derived-state subrecord checks](../impl-proposal-5/plan/phase3-derived-state-validation.md)
+add canonical equal/merge encodings, exact occurrence resolution and reconstruction
+against a supplied complete graph. Complete writer-history admission and
+generation-fenced editable consumers are now connected under the
+[phase-3 record contract](../impl-proposal-5/plan/phase3-connected-record-contract.md);
+the [matrix](../impl-proposal-5/plan/phase3-schedule-observation-matrix.md) identifies
+their concrete schedules and independent observations.
+
 The ordinary-conflict scenario in `SegmentMergeSafety` deliberately lets an edit know both heads while replacing only Current; separate causal and note-predecessor graphs prevent implicit resolution. [`SegmentDeletionOrderingSafety.tla`](SegmentDeletionOrderingSafety.tla) fixes the source DAG D₀ concurrent with E→D₁, optionally extended by E→F concurrent with D₁, and explores both observers' deliveries/publications plus independent copy edits and a view restart. It rejects sticky temporary copies, per-Delete unions, overbroad descendant suppression and erased independent work. Its accepted history is already durable; it complements rather than replaces the installer/crash model.
 
 [`ProjectionStampSafety.tla`](ProjectionStampSafety.tla) independently varies current bytes, stamp and retained history. It checks waiting for referenced evidence, exact/unique association, and preservation of explicit Imports; hashes/schema/root fences are assumptions to verify in concrete callers. [`RepositoryCopySafety.tla`](RepositoryCopySafety.tla) copies a captured available inventory including historical/deleted and unimported data with no source private store. Its progress mutation rejects a private-state prerequisite; its retention mutation rejects current-only export. Neither model proves actual xattr transport, Finder behavior, filesystem atomicity or globally complete history. The spec's copy scope is the available repository, not all application state.
 
 [`RepositoryRepairSafety.tla`](RepositoryRepairSafety.tla) separates observable provider/private damage from presumed cause and splits exact-copy construction, verification, private pinning and activation. Eighteen finite scenarios include disclosure during an already editable session and positively disclosed newer/unmaterialized provider evidence to missing/partial/inaccessible/foreign provider data, root replacement, missing/partial/unreadable/unwritable private data, complementary copies and shared loss. Its controls reject a manual top-level `NV Data` restore gate, Work Offline for generic failure, foreign overwrite, incomplete/fabricated claims, stale-root use, provider-gated ordinary editing, revoking active editing on disclosure, incremental republishing before complete local repair, and destructive local repair. The repair union, positive disclosure classification, exact-byte validation, permission results and retained frontier are trusted finite inputs; actual filesystem/API tests remain required.
+
+The [Phase 4C–4E implementation report](../impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md)
+maps these repair/copy and pending-reference obligations to the real private
+SQLCipher path: fixed-cut backup, latest/frozen reference transactions, committed
+provenance separated from orphan bytes, complementary reconstruction, fresh-open
+replacement evidence and expected-generation selection readback. Independent
+fixtures, compiler probes, real encrypted-page damage and fresh-process I/O/crash
+schedules qualify those controlled local boundaries. Provider disclosure/root
+authority, application consent and physical power loss retain the limits above;
+no model assumption is widened by a successful local filesystem test.
 
 [`SharedNoteViewOwnershipSafety.tla`](SharedNoteViewOwnershipSafety.tla) is the entry point for shared-window ownership: view prepare/admit versus observer/render callbacks, note-bound undo, detach/close-all/reopen, committed state versus a marked draft, and asynchronous local capture/recovery. `--only shared-view- --timeout 300` runs 4 exhaustive checks, 9 mutation controls and 8 witnesses. The largest full graph has 2,056,617 states; scenario splitting bounds routing and composition separately without state/depth constraints. Native attribution, actual input-context completion and complete imported remote state are explicit inputs. Its composition scenario tests the separate-snapshot adapter only: it does not require that production mechanism, model normal focus transfer, or prohibit every alternative draft-recovery design. Retain its note/action-agreement assertions; do not promote adapter-specific coverage into a platform contract. Its command cursor is not a caret or serialized native stack. Read it alongside the span/handoff, review and action/recovery models, not as their formal composition. The [shared-window report](../impl-proposal-5/Native-Undo-Experiments.md#shared-window-follow-up) connects each tested obligation to concrete probes and remaining NV integration work.
 

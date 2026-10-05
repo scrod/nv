@@ -109,7 +109,7 @@ func durableDependencyWakeupsAndRepackagedOperations(encrypted: Bool, order: [In
         let outcome = try await destination.receive(objects[index])
         if order.first == index && index == 2 {
             guard case .waiting(let missing) = outcome else { Issue.record("child accepted without prerequisites"); return }
-            #expect(Set(missing) == Set([e.object, f.object]))
+            #expect(Set(missing) == Set([e.object, f.object].map(ObjectRequirement.acceptedHistory)))
             #expect(try await destination.snapshot().through == 1)
         }
         try await destination.quiesce()

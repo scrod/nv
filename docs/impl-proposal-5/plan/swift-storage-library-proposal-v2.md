@@ -77,6 +77,13 @@ Use **Swift 6 language mode** for new first-party Swift targets. Swift 6 enables
 
 Add **strict memory-safety checking** on a pinned toolchain that supports it. Swift’s SE-0458, implemented in Swift 6.2, adds `-strict-memory-safety` and diagnostics that can be escalated with `-Werror StrictMemorySafety`. The mode identifies unsafe constructs; an `unsafe` acknowledgment is an audit marker, not a proof of correctness. [S2]
 
+The package now requires Swift 6.4 or newer, explicitly selects Swift 6 language
+mode, and enables strict memory-safety checking with warnings as errors for Core
+and Runtime using typed SwiftPM settings. The
+[qualification report](swift64-platform-qualification.md) inventories the audited
+C/crypto/executor boundaries and exercises the actual issuer and consumer code.
+The macOS 11.5 library deployment target remains separately qualified.
+
 Proposed build rules:
 
 - Core targets have no unexplained `@unchecked Sendable`, `nonisolated(unsafe)`, unchecked casts, or arbitrary pointer manipulation. Necessary C/OS interoperation is confined to named adapters with an inventory of assumptions and tests.
@@ -92,6 +99,13 @@ A nominal wrapper only carries a useful guarantee when its construction and muta
 `internal` means the whole module can use the declaration; it is not an issuer-only boundary. Use private/file-private construction where appropriate and explicitly identify any larger trusted module. Swift’s access controls are documented language boundaries, not protection against malicious code using unsafe memory operations. [S3]
 
 Test the public boundary from a separate client target without `@testable import`. Use normal unit tests for internal algorithms, but do not let an internal testing shortcut become the only route by which tests obtain validated values.
+
+The [storage review implementation](storage-review-follow-up.md) applies this
+boundary to `RetainedGraph`: checked store reads issue complete prefixes and a
+graph's causal-cut method issues complete subgraphs. Current values carry one
+`CurrentNoteProvenanceV1` variant, and reducer routing switches exhaustively over
+supported action/effect cases. Independent bytes and ordinary/same-module
+construction probes qualify these representations.
 
 ## 3. Parser choice: borrow the safety model, not necessarily the package
 
@@ -238,6 +252,20 @@ bounded exact bytes ── integrity/authentication ── structure ── depe
 
 The join checks that all facts describe the **same objects, collection, private store, and store incarnation**. Merely receiving two correctly typed arguments is insufficient: a proof about segment A must not bless bytes B, and a receipt issued by store X must not authorize operations in store Y.
 
+The concrete Runtime acceptance boundary uses a private `ValidatedHistoryBatch`.
+Its issuing factories perform bootstrap, current-basis or complete declared-history
+validation; each object keeps its exact bytes and decoded payload together.
+Dependency edges come from that payload. The acceptance transaction consumes the
+same batch after checking the owner/header and, for asynchronous validation, the
+captured accepted prefix. This narrows the issuer without adding stored evidence.
+
+`CapturedActionIntent` carries each command's required provenance in one enum
+variant. `AutomaticCompensation` and `CompensationReview` have distinct consumers;
+the reviewed consumer is the explicit approval action. Both revalidate the same
+captured whole-command context. Normal commands can intentionally enter review
+through `forReview()`. Referenced values still require their existing semantic
+checks; these types constrain composition, rather than replace validation.
+
 ### Immutable evidence versus revocable authority
 
 Hash validity and a record’s relationship to its declared immutable ancestors are evidence about fixed data. Root ownership, unlock state, selected collection, current undo candidates, and expected file generations are revocable session facts. Do not serialize the latter as reusable permission.
@@ -365,6 +393,18 @@ Represent the control plane as a small closed state/event transition function wh
 
 Effects execute outside that pure transition and return typed completion events. Keep this specific to storage phases; do not introduce a generic workflow engine. A pending local commit can be distinct from independent provider requests, so provider delay has no transition that revokes a healthy local edit gate.
 
+The concrete local coordinator uses `LocalStoreLifecycle` for open, quiescing and
+closed admission. `LocalCommitState` distinguishes idle, pending and running
+work; its owned value contains either the frozen capture or that capture's exact
+sealed envelope. Reserving running work precedes suspension. Failure retains the
+same owned work as pending, while successful acceptance releases it. A definitive
+pre-seal encoding rejection releases the slot and returns the captured input in
+its handle. Quiescing drains active work and returns to open admission when an
+owned retry still requires attention. These enums replace independent flags and
+the single-entry commit dictionary without introducing persistent state. The
+[typed-boundary report](typed-runtime-boundaries-validation.md) records the actual
+construction and consumer checks.
+
 ### Do not block the cooperative executor on provider work
 
 Blocking syscalls and coordinated provider access need appropriately isolated execution. `Task.detached` alone does not create a dedicated blocking-I/O thread pool. Swift’s concurrency runtime expects forward progress from its cooperative threads. [S11]
@@ -390,6 +430,11 @@ Do not make immutable history facts, normal IDs, or retained sealed bytes noncop
 Noncopyability gives **at-most-once consumption**, not guaranteed eventual execution. A value may be dropped; process termination may bypass cleanup. Do not use `deinit` to promise a fallible durability commit, callback acknowledgment, or exactly-once external effect. Duplicate logical actions remain controlled by retained identities and idempotent installation, not by a transient Swift ownership feature.
 
 For a one-shot approval or operation ticket, retain sufficient identity/context in the coordinator to detect a stale or duplicate runtime request as well. Two separately constructed tickets can still describe the same action unless the issuer prevents it.
+
+The direct noncopyable cleanup prototype required additional ownership plumbing
+across the synchronous dispatch callback. Runtime therefore retains its existing
+actor-owned C resources and narrowly scoped synchronous disposal bridge. The
+typed-boundary report records that experiment and the retained lifetime checks.
 
 ## 14. Crypto, compression, secrets, and document adapters
 

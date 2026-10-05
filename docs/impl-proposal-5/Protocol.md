@@ -210,6 +210,18 @@ In-session fine-grained typing undo remains native while its text-state epoch an
 
 Native typing undo can reverse only part of a previously captured saved-edit group, or span several captured groups within one note. Do not mark a partially reversed group wholly undone or expose it again as a duplicate coarse command. That explicit native compensation records coverage and the remaining after-state reference for each affected saved-edit action, alongside its actual before/after note operations. The next cross-launch coarse undo targets the remaining effect against the original before-state; redo targets the actual compensation, not the entire original saved edit. These remaining-effect indexes rebuild from action records and obey the same atomic barrier. Partial-native coverage is not permission to silently execute only part of a named/bulk undo, and does not require recording every original keystroke or selection.
 
+For each saved group, compare native coverage claims by their action ancestry.
+Ordered claims use the newest remaining state. Incomparable maximal claims retain
+their alternatives and require command-relative review; the group is fully
+consumed only when **every** maximal claim is complete. Prepare its remaining
+reversal from the claims represented by actual Current note lineage: one represented
+claim supplies its remaining state, a joined Current supplies the combined state,
+and a Current still representing the original effect uses that original state.
+A complete competing claim alone cannot erase a still-partial claim. Capture and
+received-record validation both require the first native step to cover the unique
+automatic causal candidate in its declared writer inputs. Actual AppKit attribution
+of those steps remains an application integration obligation.
+
 To undo a complete action, capture the requested scope, selected candidate ID, complete maximal candidate set, current action frontier, affected births/heads/live UUID/LSNs and exact values. Prepare compensating values against the selected action's actual before/after states. Preserve fields it did not change. A changed scalar can be reversed automatically when the current value still equals the action's after-value; a conflicting later value requires review. Plain-text reversal may use the same conservative kernel with base = action-after, one branch = action-before, and the other = current, retaining unrelated later edits. Automatic rich-content reversal requires an unchanged after-value; explicit reviewed replacement requires the exact disclosed replacement and compatible format. An already absent effect is no longer applicable, not a blind redo opportunity.
 
 Undoing a Create/Import is not permission to delete a subsequently changed note: require that birth's action result still be its unmodified current state, or ask for an explicit reviewed choice. Undoing Delete or recovery of a deleted birth creates a fresh ordinary birth and records `restoredFrom`; it never removes the old Delete or retirement. Redo reverses the **actual compensating action**, using its resulting birth mapping, not a stale original UUID or replay of the original operation ID. A subsequent Undo targets that actual Redo action with its actual before/after values, not the original forward action. Follow compensation edges separately from scope-parent ancestry: causal parents alone do not say which effect was reversed. These checks concern logical values; physical file removal still requires a separately captured exact current snapshot and the local segment barrier.

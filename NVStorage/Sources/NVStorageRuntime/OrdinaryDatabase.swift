@@ -1,7 +1,33 @@
 import NVStorageCore
 
+/// Opening can coalesce derived replacements before the first editable model is issued.
+enum CatchUpPurpose: Sendable { case live, opening }
+enum CatchUpScope {
+    @TaskLocal static var purpose: CatchUpPurpose = .live
+}
+
+enum GeneralReductionRequired: Error { case noteGraph }
+
+/// Selects the current-row reducer or the complete note-graph reducer for each supported record.
+enum MaterializationRoute {
+    case currentRows, noteGraph
+    static func forAction(_ kind: ActionKindV1) -> Self {
+        switch kind {
+        case .savedEdit, .rename, .labels, .createImportBatch, .deleteBatch, .restoreBatch: .currentRows
+        case .historicalRecovery, .conflictChoice, .conflictCopy, .undo, .redo, .nativeUndo: .noteGraph
+        }
+    }
+    static func forEffect(_ effect: OperationEffectV1) -> Self {
+        switch effect {
+        case .genesis, .importComplete, .create, .importNote, .put, .delete: .currentRows
+        case .recoverCopy, .retireConflict, .adoptAutomatic: .noteGraph
+        }
+    }
+}
+
 extension Database {
     func operation(_ id: OperationID, selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> IdentifiedOperation? {
+        try verifying(.history(acceptedThrough())) {
         if try rows("SELECT 1 FROM operations WHERE operation_id=?", [.blob(id.bytes)]).isEmpty { return nil }
         return try checkingRetainedHistory {
             let ref = try operationOccurrence(id)
@@ -11,8 +37,10 @@ extension Database {
             }
             return p.operations[Int(ref.index.rawValue)].operation
         }
+        }
     }
     func action(_ id: ActionID, selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> ActionV1? {
+        try verifying(.history(acceptedThrough())) {
         if try rows("SELECT 1 FROM actions WHERE action_id=?", [.blob(id.bytes)]).isEmpty { return nil }
         return try checkingRetainedHistory {
             let ref = try actionOccurrence(id)
@@ -22,13 +50,15 @@ extension Database {
             }
             return p.actions[Int(ref.index.rawValue)].action
         }
+        }
     }
     /// Advances one complete acceptance batch in a guarded current-state transaction.
     @discardableResult
     func catchUp(selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> Bool {
-        try measuring(.materialization) {
+        if try rows("SELECT through_seq FROM view_meta WHERE singleton=1") == [[.integer(acceptedThrough())]] { return true }
+        return try verifying(.history(acceptedThrough())) { try measuring(.materialization) {
             try materializeAcceptedSuffix(selection: selection, protection: protection)
-        }
+        } }
     }
 
     private func materializeAcceptedSuffix(selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> Bool {
@@ -44,12 +74,17 @@ extension Database {
                 let (locator, p) = try self.checkingRetainedHistory {
                     self.countWork { $0.historyReads += 1; $0.envelopeDecodes += 1 }
                     let locator = try SegmentLocator.decodeV1(r[0].bytes + r[1].bytes + r[2].bytes)
-                    let opened = try ObjectEnvelopeV1.open(r[3].bytes, collection: selection.descriptor.collection,
+                    let bytes = try r[3].bytes
+                    let opened = try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection,
                         protection: protection, expectedLocator: locator)
+                    self.countWork { $0.historyEncodedBytes += bytes.count; $0.historyDecodedBytes += opened.payload.count }
                     return try (locator, ChangesPayloadV1.decodeV1(opened.payload))
                 }
                 for (index, record) in p.actions.enumerated() {
                     let a = record.action
+                    if MaterializationRoute.forAction(a.kind) == .noteGraph || p.operations.contains(where: { MaterializationRoute.forEffect($0.operation.effect) == .noteGraph }) {
+                        throw GeneralReductionRequired.noteGraph
+                    }
                     let first = try self.rows("SELECT source_object,first_seq FROM actions WHERE action_id=?", [.blob(a.id.bytes)])
                     guard first == [[.blob(locator.segmentID.bytes), r[4]]] else { continue }
                     let occurrence = StoredActionReferenceV1(locator: locator, index: ActionIndex(UInt32(index)), id: a.id)
@@ -57,20 +92,24 @@ extension Database {
                         let old = try self.rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(entry.birth.bytes)])
                         let cell = try old.first.map { try CurrentNoteCellV1.decodeV1($0[0].bytes) }
                         switch entry.before {
-                        case .freshBirthAbsence: guard cell == nil else { throw StorageError.unsupported }
-                        case .value(let id): guard cell?.revision.id == id else { throw StorageError.unsupported }
-                        case .deleted: throw StorageError.unsupported
+                        case .freshBirthAbsence: guard cell == nil else { throw GeneralReductionRequired.noteGraph }
+                        case .value(let id):
+                            guard cell?.revision.id == id, cell?.heads.count == 1 else { throw GeneralReductionRequired.noteGraph }
+                        case .derived, .automatic, .deleted: throw GeneralReductionRequired.noteGraph
                         }
                         switch entry.after {
                         case .freshBirthAbsence: throw StorageError.integrity
+                        case .derived, .automatic: throw StorageError.integrity
                         case .deleted:
                             try self.run("DELETE FROM current_notes WHERE birth=?", [.blob(entry.birth.bytes)])
                         case .value(let id):
                             guard let op = p.operations.first(where: { $0.operation.id == id })?.operation,
                                   let value = op.effect.noteValue else { throw StorageError.integrity }
                             let scope = a.scope == .note(entry.birth) ? [occurrence] : (cell?.scopeFrontier ?? [])
-                            let next = try CurrentNoteCellV1(birth: entry.birth, value: value,
-                                revision: self.operationOccurrence(id), scopeFrontier: scope)
+                            let currentValue = try PlaintextNoteValue(title: value.title, body: value.body,
+                                labels: value.labels, created: cell?.value.created ?? value.created, modified: value.modified)
+                            let next = try CurrentNoteCellV1(birth: entry.birth, value: currentValue,
+                                revision: self.operationOccurrence(id), scopeFrontier: scope, identity: cell?.identity)
                             try self.run("INSERT INTO current_notes VALUES(?,?) ON CONFLICT(birth) DO UPDATE SET cell=excluded.cell",
                                 [.blob(entry.birth.bytes), .blob(next.encodedV1())])
                         }
@@ -99,12 +138,11 @@ extension Database {
 extension DatabaseLane {
     /// Yields the database lane between complete materialized prefixes.
     nonisolated func catchUp(selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws {
-        while try await !perform({ try $0.catchUp(selection: selection, protection: protection) }) { }
-    }
-}
-
-extension OperationEffectV1 {
-    var noteValue: PlaintextNoteValue? {
-        switch self { case .create(_, _, let value), .put(_, _, let value), .importNote(_, _, let value): value; default: nil }
+        while true {
+            do {
+                do { if try await perform({ try $0.catchUp(selection: selection, protection: protection) }) { return } }
+                catch GeneralReductionRequired.noteGraph { try await materializeGraphBatch(selection: selection, protection: protection) }
+            } catch StorageError.staleCapture { continue }
+        }
     }
 }

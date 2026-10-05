@@ -83,6 +83,9 @@ Tests arrive with each implementation, not in phase 8. A minimal headless comman
 
 - Inventory the actual mutation and replacement callers using [Implementation's source map](../Implementation.md#concrete-source-changes): `NotationController`, `NoteObject`, `NotationDirectoryManager`, `DeletionManager`, `ExternalEditingSession`, `AppController`, `FrozenNotation` and `NVRootedDirectory`. Record which existing contract is reused and which segment-mode branch changes it. Do not rewrite search, selection or the responder chain as preparation.
 - Establish a small package/client test, pinned Swift toolchain and dependency revisions, Swift 6 language mode and available strict memory-safety diagnostics. Reject safety-disabling release options; document each necessary unsafe/FFI exception locally. Keep compiler, SDK, language mode and deployment target distinct.
+  The adopted package baseline is Swift 6.4 or newer: Core and Runtime enable
+  strict memory-safety checking with warnings as errors, alongside Swift 6
+  concurrency checking. See the [compiler/platform qualification](swift64-platform-qualification.md).
 - Use an owned-byte bounded cursor as the low-dependency baseline. An upstream parser is optional only if a short real compatibility probe shows a smaller maintained surface; no parser fork project.
 - Qualify the proposed Swift Crypto, existing/pinned Argon2 and zstd dependencies for the required build/runtime combination. Reuse stdlib/Foundation where their semantics suffice; optional Swift System/Collections/normalization dependencies need a concrete reason. Resolve reproducible passphrase normalization with fixtures and a documented Unicode policy, not assumed host equivalence.
 - Add proposed Makefile entrypoints for package/static/scenario tests without changing existing test meaning. Confirm the production library can be exercised in a standalone executable on the oldest supported OS even if the package's test runner cannot.
@@ -177,6 +180,34 @@ Use the real SQLite engine with controlled effects **below** the acceptance API,
 
 ## 7. Phase 3 — Portable semantics through two independent stores
 
+**Status (2026-10-01): complete.** The portable exit gate is qualified through
+real independent stores on arm64 and Intel macOS. The
+[qualification report](phase3-validation.md) records exact execution scope,
+corrected test-driver/schema failures and outstanding macOS 11/Linux release
+qualification. Provider, physical-file and application integration remain in
+their subsequent phases.
+
+The [first history-reader increment](phase3-history-validation.md) implements
+paged retained revisions, detached previews and logical deletion-entry inputs
+through real independent stores. The [Restore increment](phase3-restoration-validation.md)
+adds fresh births, exact deletion provenance and durable Recently Deleted exclusion.
+The [merge engine increment](phase3-merge-validation.md) implements the pinned
+plaintext algorithm, note-ancestry head/base selection, deterministic provenance
+and detached accepted-history previews. The [derived-state reference increment](phase3-derived-state-validation.md)
+adds canonical equal/merge subrecords, exact dependency reconstruction and
+file-private checked-result issuance. The [connected record contract](phase3-connected-record-contract.md)
+now integrates those states into editable current rows, complete writer-history
+validation, ordinary saves, deletion/preservation, source choices/copies, historical
+recovery and causal compensation. The [phase-3 qualification report](phase3-validation.md)
+records the complete portable increment and its executed checks, separately from
+later provider/application integration and outstanding platform qualification.
+
+The [phase-3 schedule and observation matrix](phase3-schedule-observation-matrix.md)
+defines the connected lifecycle gates, exact intermediate observations, bounded
+delivery/crash schedules, valid companions and targeted mutations. Its coverage
+map links each supported row to the executed report; selected combinations and
+exhaustively enumerated dimensions are reported separately.
+
 **Implement**
 
 - Dependency parking/resumption and complete writer-context validation through actual envelopes. Scope parents are all maxima of declared writer inputs, including applicable pending ancestry, not receiver Current or the lazy history UI index.
@@ -197,10 +228,101 @@ Add reciprocal copy → copy edit/Delete → later source descendant schedules; 
 
 ## 8. Phase 4 — Startup, repair, repository copy and private state
 
+The [detailed Phase 4 plan](phase4-startup-recovery-plan.md) starts with general
+post-edit snapshots, large multi-batch bootstrap and snapshot-plus-history
+recovery/current-row reconstruction as one correctness bundle. Required private
+formats, backup/salvage/activation, repository copy/export and physical startup
+qualification follow as separate gated increments. Existing healthy current-row
+startup remains the normal launch path.
+
+The [4C–4E private-state, repair and copy plan](phase4-private-state-repair-copy-plan.md)
+orders complete private codecs/transactions and damage classification before
+consistent backup, working-copy salvage, verified fresh-sibling activation and
+repository copy/export. Its production fault matrix, independent observations
+and Swift issuer/consumer probes qualify preservation of unique private work as
+well as accepted history; application/provider surfaces retain their later gates.
+The [4C–4E report](phase4-private-state-repair-copy-validation.md) records the
+implemented private codecs/reference transactions, fixed-cut keyed backup,
+complementary reconstruction, verified selection and distinct copy/export paths.
+It separates executed local failure schedules from provider/UI integration and
+physical power-loss qualification.
+
+Its [data-safety testing and Swift boundary plan](phase4-data-safety-contracts.md)
+prioritizes committed-history preservation, required-data-loss classification,
+private input ownership, consistent backup and verified selection cutover. Each
+gate couples restricted evidence issuance with actual consumer/failure tests;
+actor isolation alone does not establish applicability after suspension.
+
+The [first executable snapshot increment](phase4-general-snapshot-validation.md)
+provides paged canonical records, complete previews and semantic verification
+against real accepted post-edit history. [Durable local root/page acceptance](phase4-snapshot-acceptance-validation.md)
+now connects those checks to the existing history transaction, retained pin and
+fresh-process ready recovery. [Received snapshot assembly](phase4-received-snapshot-validation.md)
+now handles exact candidate intake, waits and complete acceptance.
+[Complete bootstrap and all-branch reconstruction](phase4-bootstrap-reconstruction-validation.md)
+complete the S3/S4 production paths of the first bundle; the
+[durable snapshot acceptance/recovery plan](phase4-snapshot-acceptance-recovery-plan.md)
+defines their ordered executable gates, bounded candidate wakeups, complete
+bootstrap, all-branch recovery, fresh-process faults and Swift evidence consumers.
+
+The implemented [received-snapshot S2 plan](phase4-received-snapshot-plan.md) covers
+exact root/page intake, retained-byte versus accepted-history waits, atomic arrival
+wakeups/parking, isolated rejection and bounded-work qualification. Its tests
+preserve S1's exact receipts/ownership and make the separate S3/S4 recovery gates
+explicit rather than counting snapshot acceptance as completed reconstruction.
+
+The implemented [S3/S4 bootstrap and reconstruction plan](phase4-bootstrap-reconstruction-plan.md) provides:
+store-backed complete initial construction, then snapshot-seeded reduction of
+all accepted outside-cut history and guarded current-row installation. Its
+risk-ranked matrix, fresh-process fault cuts, language boundaries and focused
+model bridge have their executed evidence and limits in the
+[S3/S4 report](phase4-bootstrap-reconstruction-validation.md). Their companion
+[4C–4E increment](phase4-private-state-repair-copy-validation.md) now implements
+private formats and local backup/salvage/activation. Physical current-cell
+optimization and real provider/application integration retain their own gates.
+
+Follow the [remaining Phase 4 plan](phase4-current-row-locality-maintenance-plan.md)
+for production baseline measurements, zstd current cells/dictionaries, initial
+checked-capture reuse, separately qualified cipher geometry/read-ahead and safe
+idle full-VACUUM. Its LOC01–LOC18 matrix connects byte, crash, recovery, lifetime,
+performance and compiler checks. Outstanding review findings retain explicit
+API/policy/format gates; physical optimization does not count them as fixed.
+
+The [4F contract](private-current-row-codec.md) and
+[report](phase4-current-row-locality-maintenance-validation.md) now record
+current framing/dictionaries, one-shot checked opening capture and explicit
+maintenance/cancellation. Keep 4-KiB cipher geometry and ordinary no-hint SQL
+startup; alternative geometry, read-ahead and automatic maintenance remain
+separate gates. No automatic recoding/training schedule is enabled.
+
+The [storage review follow-up](storage-review-follow-up.md) adds executable work-
+growth and interrupted-diagnosis witnesses plus stronger compiler construction
+boundaries. All seven issues now have implemented remedies; general-v2
+[snapshot retention coverage](phase-4-improvements/snapshot-retention-coverage.md)
+addresses sequential root growth through exact accepted parent links. Its
+[qualification report](phase-4-improvements/snapshot-retention-coverage-validation.md)
+separates executed checks from remaining concurrent-width and physical-I/O limits. The
+[Phase 4 improvements](phase-4-improvements/README.md) implement a
+[durable verification recovery plan](phase-4-improvements/durable-verification-recovery.md)
+for interrupted diagnoses, followed by
+[at-most-once envelope decoding](phase-4-improvements/at-most-once-envelope-decoding.md)
+within captured history traversals and their snapshot occurrence checks, then
+[one checked graph for recovery catch-up](phase-4-improvements/recovery-graph-reuse.md)
+across unapplied general-reducer batches before editable publication. The
+[validation report](phase-4-improvements/validation.md) records executed checks,
+performance observations and remaining qualification limits. The
+[startup/scoped-query increment](phase-4-improvements/startup-and-scoped-queries.md)
+then defers independent optional snapshots until successful host publication and
+selects note-specific Undo/conflict records before decoding, while preserving
+collection-wide copied-version IDs. Its
+[report](phase-4-improvements/startup-and-scoped-queries-validation.md) records
+qualification. The [benchmark backlog](phase-4-improvements/benchmark-backlog.md)
+keeps independent concurrent snapshot width and further workload measurements separate.
+
 **Implement**
 
 - Expand the initial bootstrap to large multi-batch imports and general post-edit provider snapshots. The minimum complete initial snapshot belongs to phases 1–2. General snapshot acceleration requires its complete format and applicability verification; authentication alone cannot certify derived contents. The private packed startup cache is removed from the design.
-- Implement [the concrete fast-start algorithm](../LocalStore.md#concrete-returning-launch-algorithm): exact acceptance prefix, durable ready draining, current-row catch-up and final publication fence. Only invalid materialization/bootstrap/repair requires exceptional history rebuilding. Keep full current bodies/compact authoring frontiers in memory before editing.
+- Implement [the concrete fast-start algorithm](../LocalStore.md#concrete-returning-launch-algorithm): exact acceptance prefix, required ready-work draining, current-row catch-up and final publication fence; independent optional snapshots drain after successful checked publication. Only invalid materialization/bootstrap/repair requires exceptional history rebuilding. Keep full current bodies/compact authoring frontiers in memory before editing.
 - The [equivalent-load benchmark](remaining-storage-validation.md#startup-remove-the-packed-cache) selects current rows alone. Omit packing, cache/delta tables and cache-only bookkeeping. Retain production workload/fragmentation measurements as release qualification.
 - Qualify the [clean-quit locality candidate](clean-quit-locality-strategy.md): independently compressed current cells, page geometry and optional bounded physical-page read-ahead, measured separately and together. The candidate's producer/invalidation/reader/failure cuts are specified there; the synthetic probe does not implement them all. Do not impose whole-history VACUUM or unconditional table rebuilding on quit, freeze cipher geometry from startup results alone, or treat an I/O hint as current-state/history coverage. Keep normal startup correct with no hint.
 - Implement the [opportunistic full-VACUUM policy](clean-quit-locality-strategy.md#adopted-opportunistic-full-vacuum-policy) only after qualification: healthy idle owner, cooldown plus measured fragmentation, temporary-space/work budget, required-write priority, settled cancellation and durable hint invalidation. Calibrate thresholds with realistic post-compaction aging; test resumed-input to durable-commit latency, interruption/crash/space failures and exact history/private-state retention. This is optional maintenance, not a new startup/quit barrier or SQLite auto-vacuum mode.

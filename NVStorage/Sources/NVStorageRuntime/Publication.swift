@@ -26,7 +26,8 @@ extension LocalStoreSession {
         return try await lane.perform { db in
             let s = change.snapshot
             let meta = try db.rows("SELECT epoch,through_seq FROM view_meta WHERE singleton=1")
-            guard meta == [[.blob(s.viewEpoch), .integer(s.through)]], try db.acceptedThrough() == s.through else {
+            guard meta == [[.blob(s.viewEpoch), .integer(s.through)]], try db.acceptedThrough() == s.through,
+                  db.presentationEpoch == s.presentationEpoch else {
                 throw StorageError.staleCapture
             }
             return try apply(s)

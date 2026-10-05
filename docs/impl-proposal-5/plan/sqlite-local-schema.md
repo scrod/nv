@@ -4,19 +4,36 @@ Status: executable schema contract, 2026-09-13. The [DDL](sqlite-local-schema.sq
 is exercised by [real-SQL tests](../../../tests/run-sqlite-schema-contract.py).
 The DDL alone establishes neither semantic validity nor durability. The
 [Phase 2 Runtime](phase2-local-runtime-validation.md) now uses this exact schema
-with the ordinary validator and real SQLCipher/VFS tests. It implements the first-save portion of [LocalStore](../LocalStore.md),
-using the [first record subset](first-save-reopen-contract.md#3-first-record-layouts).
+with complete validation and real SQLCipher/VFS tests. The [Phase 3 connected contract](phase3-connected-record-contract.md)
+extends operation/action tags, current-cell codecs and the restoration index for
+portable merge/conflict/deletion/compensation commands. It implements the local
+acceptance/current-row portion of [LocalStore](../LocalStore.md), using the
+[record contracts](first-save-reopen-contract.md#3-first-record-layouts).
 The specification, ADRs and causal/file policies are unchanged.
+
+Private revision 3 includes revision 2's [current-row frame/dictionary role](private-current-row-codec.md)
+and the derived `actions_conflict_copies(first_seq, action_id) WHERE kind=9`
+partial index. This supplies the conflict query's collection-wide copied-version
+IDs without scanning ordinary actions. New candidates install it in the versioned
+DDL; returning open checks its exact definition and never silently builds an
+unbounded index. Otherwise complete revision 1/2 inputs are preserved
+with an explicit unsupported outcome; missing required tables/header state keeps
+the separate incomplete outcome. This unreleased format has no mixed-writer
+promise. Initialize only newly owned candidates. Provider object layouts and
+epoch-4 application compatibility are unchanged.
 
 ## Scope and physical choices
 
 This increment covers immutable objects, accepted operation/action indexes,
 dependency readiness, the retained-history pin, independently versioned private
 groups and current-row startup. The packed cache, its delta log, unused per-current-row change sequence and random batch tokens are removed from the design. Dedicated
-pending-payload/reservation/receipt, publication and projection tables follow with
-their first actual feature. Do not hide those reference graphs in `private_groups`
-as a shortcut. Later operation/action kinds require codecs and schema extensions
-before enabling their commands.
+pending-payload/reservation/settlement tables are now enabled by the
+[4C–4E increment](phase4-private-state-repair-copy-validation.md); publication and
+projection tables follow with their actual adapters. Keep those reference graphs
+queryable rather than hiding them in `private_groups`
+as a shortcut. Supported operation/action kinds have complete codecs and validators;
+additional kinds require their own validation and schema qualification before
+enabling their commands.
 
 Keys retain canonical raw bytes: 16-byte identities, 32-byte hashes, 56-byte segment
 locators. Wire unsigned 64-bit sequences use eight-byte big-endian BLOBs, not signed
@@ -33,7 +50,8 @@ index is needed: NV still loads current notes and searches synchronously in memo
 History values are not duplicated into an operation BLOB table; exact envelopes
 retain them, and indexed occurrences locate them.
 
-Explicit storage-class checks enforce BLOBs and bounded counters; ordinary SQLite
+Explicit storage-class checks enforce BLOBs, integral operation/action/rejection
+tags and bounded counters; ordinary SQLite
 type declarations alone do not enforce these types. The DDL does not require
 `STRICT` tables or a system SQLite upgrade. The pinned production SQLCipher build
 has the qualification boundaries recorded in the Phase 2 report. [SQLite types](https://sqlite.org/datatype3.html).
@@ -44,6 +62,19 @@ has the qualification boundaries recorded in the Phase 2 report. [SQLite types](
 deferred action foreign key. The [ordinary-save measurements](current-basis-validation.md)
 found a history-sized scan without it. This is an index over existing facts; all
 record layouts and schema fields remain unchanged.
+
+`operations_birth(birth, operation_id)` supplies paged per-note history;
+`operations_deletions(operation_id) WHERE kind=6` supplies paged logical Delete
+entries. Both seek by operation ID under a captured acceptance prefix. This is
+stable enumeration, not chronological or causal ordering. Selected previews load
+the exact representative envelopes; metadata listing reads no historical bodies.
+The scope index supplies complete note-scoped Undo action selection, including
+compensation/native coverage. The copy-action partial index supplies global
+dispositions, independently of which note is queried. Selection binds to the same
+accepted prefix as the checked current capture; selected complete envelopes still
+undergo exact occurrence/link/member checks. The deletion index supplies Recently Deleted inputs; the `restorations` primary key
+looks up the first accepted restoration for each inspected entry. Exclusion is bounded
+to the listing's accepted prefix and survives deletion of the restored birth.
 
 | Tables | Purpose |
 | --- | --- |
@@ -56,9 +87,15 @@ record layouts and schema fields remain unchanged.
 | `operations`, `operation_occurrences` | One logical operation and all exact accepted object/section-index occurrences. First sequence is local acceptance order, not a cross-Mac clock. |
 | `operation_parents`, `note_predecessors` | Separate causal-knowledge and value-supersession graphs, each with forward/reverse lookup. Knowing A and B while replacing A must not replace B. |
 | `actions`, `action_occurrences`, `action_members`, `action_scope_parents` | Logical actions, exact occurrences, ordered members and scope ancestry. Origin/predecessor/scope indexes support lazy access; no mutable undo cursor. Null `scope_birth` means collection scope, not unknown scope. |
+| `restorations` | First accepted restoration action per source birth/deletion action, committed atomically with complete action membership. Raw action records retain every result/revision mapping and reconstruct this index; current-row rebuild preserves it. One source-key lookup answers the list predicate independently of the resulting note's current existence. See [record contract](restoration-record-contract.md). |
 | `retained_frontier`, `retained_descriptors` | Non-disposable required evidence advanced with acceptance. Frontier rows retain full locators independently of object metadata, so a surviving pin still locates missing bytes. |
 | `private_groups` | Generation-checked independent settings/association groups. Bounded binary keys are not SQL identifiers or user paths. Only explicitly supported group codecs are usable. |
+| `pending_payloads` | Immutable canonical snapshot BLOBs, independently referenced by latest and frozen owners. |
+| `pending_items` | Expected-generation latest reference and classification state for each retained external observation. |
+| `pending_reservations` | One exact captured reservation per item/snapshot, with reserved birth/action/operation inputs and frozen-payload ownership. |
+| `pending_settlements` | Durable observation/committed-identity linkage after matching reference transfer; historical snapshots remain named after payload cleanup. |
 | `view_meta`, `current_notes` | Derived current values and compact authoring context through one exact accepted prefix; not every past note value. |
+| `current_dictionaries` | Immutable full-digest-addressed zstd dictionary bytes, installed atomically with their referencing derived current cells. Readers load named generations; unused rows can safely remain. |
 
 `source_object`/`source_index` selects an actual representative occurrence. Deferred
 composite foreign keys require that occurrence to name the same logical record and
@@ -201,21 +238,60 @@ WHERE group_key = :key AND generation = :expected_generation AND codec = :codec;
 ```
 
 Require exactly one changed row; check `next = expected + 1` without overflow. A stale
-aggregate never overwrites unrelated groups. The first headless caller still supports
-only its explicitly empty settings codec, not AppKit preferences/cursor migration.
+aggregate never overwrites unrelated groups. The headless caller supports empty
+settings codec 1 and bounded nonempty codec 2 from the
+[private-record contract](private-record-contract.md). Platform interpretation and
+legacy preference migration remain the host's responsibility.
 Required state codec failure is not merely derived-row damage or permission to erase that group.
 
-An observed failure of positively identified accepted-history bytes immediately
-blocks the session's publication/mutation gate. After the failing operation unwinds,
-the owner attempts an independent transaction inserting `private_groups` key
-`history-damage` (exact UTF-8), generation1, codec1 and an empty payload. Presence
-requires repair on reopen; ordinary code never clears it. Malformed incoming bytes,
-an unaccepted/missing dependency, a caller's mismatched locator and transient busy/I/O
-failure do not by themselves establish corrupt accepted history. If recording fails,
-keep the live gate blocked and preserve the original failure. A crash before the
-marker commits can lose the observation; this marker does not certify detection of
-all undisclosed historical damage. Qualified repair of retained evidence, not a
-current-row rebuild or settings write, is required before activating a healthy store.
+The required `bootstrap` group has codec 1. Its empty payload records a newly
+owned construction whose initial root has not yet been chosen. A nonempty payload
+is exactly the canonical `SegmentLocator` of the selected initial root. Choosing
+it increments this group's generation transactionally; retries compare the same
+root. Staging this address is separate from accepting complete bootstrap history.
+Ordinary opening requires the selected root and complete committed evidence.
+`BootstrapCandidate.resume` may reopen the positively selected incomplete candidate
+with the existing store/descriptor/profile checks. S3 adds these staged semantics
+within the existing group codec and schema; it adds no table or on-wire field.
+
+Protected accepted-history checks commit a versioned request in `private_groups`
+before inspecting retained evidence. Admission uses its existing unique-key index
+and allows at most 64 outstanding requests; a full range returns `busy` before the
+check starts. Nested reads share a covering request. Exact settlement removes only
+the completing request, after final graph/reducer checks.
+
+| Verification field | V1 encoding |
+| --- | --- |
+| Group key | UTF-8 `verification/` (13 bytes), then fresh 16-byte verification identity |
+| Group generation / codec | `1` / `1` |
+| Payload prefix | `NVVRFY1\n` (8 bytes) |
+| Bound context | LocalStoreID (16), CollectionID (16), descriptor digest (32) |
+| Exact-object recipe | Tag `1`, then SegmentLocator (56); total payload 129 bytes |
+| Accepted-prefix recipe | Tag `2`, positive signed-range UInt64 big-endian prefix; total 81 bytes |
+| Bootstrap recipe | Tag `3`, then SegmentLocator (56); total payload 129 bytes |
+
+Unknown codecs/tags return `unsupported`; malformed lengths, generations or bound
+context return `integrity`. Missing named accepted scope returns `incomplete`.
+[Independent byte fixtures](phase-4-improvements/verification-fixtures.json) and
+`tools/check-verification-fixtures.py` freeze these private layouts. Decoded
+records become replay requests; connection-bound admitted handles and successful
+completion values have restricted issuers.
+
+Discovered accepted-history damage immediately blocks the session. The owner then
+attempts an independent transaction inserting `history-damage` (exact UTF-8),
+generation1, codec1, empty payload, and removing the affected verification request.
+At most one diagnosis attempt occurs per actor turn; a later turn may retry. Either
+the request survives or the marker commits. Presence of that marker requires repair
+on reopen. Invalid incoming claims and transient failures retain their distinct
+classification. Reopening repeats pending exact requests before publication;
+retained framing failures are reported as recovery `integrity`. One automatic
+live replay may settle a transiently interrupted check; another failure leaves its
+request for explicit retry/reopening, preserving bounded retry behavior.
+
+This records observed/unfinished checks, rather than certifying every unread byte.
+Qualified repair of retained evidence remains the authority for a healthy replacement.
+Backups include requests; fresh-store repair must prove scope equivalence before
+rebinding an original store's prefix.
 
 ## Boundaries of SQL enforcement
 

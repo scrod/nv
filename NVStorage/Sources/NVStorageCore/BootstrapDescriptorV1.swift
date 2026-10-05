@@ -34,12 +34,12 @@ public struct BootstrapDescriptorV1: Sendable {
         return try decodeV1(header + Array(SHA256.hash(data: publicDomain + header)))
     }
 
-/// Wraps the existing collection key with a password-derived key and fresh salt/nonce
+    /// Wraps the existing collection key with a password-derived key and fresh salt/nonce
     /// on a blocking worker. Retain the exact result for retries; the collection key
     /// and its derived private-database key remain stable across password changes.
     public static func wrap(collection: CollectionID, keyID: CollectionKeyID, genesis: SegmentLocator,
                             collectionKey: SymmetricKey, passphrase: String) throws -> Self {
-        let salt = SymmetricKey(size: .bits128).withUnsafeBytes { Array($0) }
+        let salt = unsafe SymmetricKey(size: .bits128).withUnsafeBytes { unsafe Array($0) }
         let wrappingKey = try Argon2idV1.wrappingKey(passphrase: passphrase, salt: salt)
         return try wrap(collection: collection, keyID: keyID, genesis: genesis, collectionKey: collectionKey,
                         wrappingKey: wrappingKey, salt: salt, nonce: AES.GCM.Nonce())
@@ -52,8 +52,9 @@ public struct BootstrapDescriptorV1: Sendable {
             throw CanonicalEncodingError.invalidPayload
         }
         let header = header(collection: collection, keyID: keyID, genesis: genesis, salt: salt, nonce: Array(nonce))
-        let box = try collectionKey.withUnsafeBytes {
-            try AES.GCM.seal($0, using: wrappingKey, nonce: nonce, authenticating: wrapDomain + header)
+        // The synchronous seal consumes the key's initialized bytes during their scoped borrow.
+        let box = try unsafe collectionKey.withUnsafeBytes {
+            try unsafe AES.GCM.seal($0, using: wrappingKey, nonce: nonce, authenticating: wrapDomain + header)
         }
         return try decodeV1(header + Array(box.ciphertext) + Array(box.tag))
     }

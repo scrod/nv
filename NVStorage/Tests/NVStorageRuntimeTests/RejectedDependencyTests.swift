@@ -39,11 +39,11 @@ func rejectedPrerequisitesRemainDistinctFromMissingAndInvalidDescendants(encrypt
         #expect(Set(roots.map(\.object)) == Set([future.1.segmentID, malformed.1.segmentID]))
         #expect(roots.first { $0.object == future.1.segmentID }?.reason == .unsupportedFormat)
         #expect(roots.first { $0.object == malformed.1.segmentID }?.reason == .truncated)
-        #expect(Set(unaccepted) == Set([lower.1, future.1]))
+        #expect(Set(unaccepted) == Set([lower.1, future.1].map(ObjectRequirement.acceptedHistory)))
         guard case .blocked(_, let direct) = try await receiver.receive(lower.0) else {
             Issue.record("repeated blocked receive must keep its diagnostic"); return
         }
-        #expect(Set(direct) == Set([future.1, malformed.1, missing.1]))
+        #expect(Set(direct) == Set([future.1, malformed.1, missing.1].map(ObjectRequirement.acceptedHistory)))
         let lane = await receiver.lane
         let state = try await lane.perform { db in
             (try db.rows("SELECT object_id FROM rejected_objects"),
@@ -65,6 +65,6 @@ func rejectedPrerequisitesRemainDistinctFromMissingAndInvalidDescendants(encrypt
     #expect(try await receiver.snapshot().through == 2)
     let wrong = SegmentLocator(writerEpoch: try WriterEpoch(bytes: Array(repeating: 99, count: 16)),
         sequence: upper.1.sequence, segmentID: upper.1.segmentID)
-    await #expect(throws: CanonicalEncodingError.identityMismatch) { try await receiver.receivedObjectStatus(at: wrong) }
+    await #expect(throws: CanonicalEncodingError.invalidReference) { try await receiver.receivedObjectStatus(at: wrong) }
     try await receiver.quiesce(); try await source.quiesce()
 }

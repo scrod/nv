@@ -19,23 +19,37 @@ public struct StoreSnapshot: Sendable {
     public let viewEpoch: [UInt8]
     public let notes: [CurrentNoteCellV1]
     public let context: AuthoringContextV1
+    let presentationEpoch: UUID
     fileprivate init(session: UUID, store: LocalStoreID, through: Int64, viewEpoch: [UInt8],
-                     notes: [CurrentNoteCellV1], context: AuthoringContextV1) {
-        self.session = session; self.store = store; self.through = through; self.viewEpoch = viewEpoch; self.notes = notes; self.context = context
+                     notes: [CurrentNoteCellV1], context: AuthoringContextV1, presentationEpoch: UUID) {
+        self.session = session; self.store = store; self.through = through; self.viewEpoch = viewEpoch; self.notes = notes; self.context = context; self.presentationEpoch = presentationEpoch
     }
 }
+
+/// Collection admission remains open until quiescing finishes or a pending commit requires retry.
+enum LocalStoreLifecycle: Sendable { case open, quiescing, closed }
+
+/// Receive admission distinguishes an owned write from optional snapshot preparation.
+enum ReceiveWorkState: Sendable { case idle, retaining, history, optional }
 
 public actor LocalStoreSession {
     public let selection: LocalStoreSelection
     let lane: DatabaseLane
     let protection: ObjectProtectionV1
     let incarnation = UUID()
-    var closed = false
-    var quiescing = false
-    var inFlight = false
-    var receiving = false
+    private(set) var lifecycle: LocalStoreLifecycle = .open
+    var closed: Bool { lifecycle == .closed }
+    var quiescing: Bool { lifecycle == .quiescing }
+    var inFlight: Bool { commitState.isRunning }
+    var receiveState: ReceiveWorkState = .idle
+    var receiving: Bool { receiveState != .idle }
+    var requiredReceiveInFlight: Bool { receiveState == .retaining || receiveState == .history }
     var drained: [CheckedContinuation<Void, Never>] = []
-    var commits: [UUID: OwnedCommit] = [:]
+    var commitState: LocalCommitState = .idle
+    var snapshotState: LocalSnapshotState = .idle
+    var backupInFlight = false
+    var pendingPreparationInFlight = false
+    private var activationInFlight = false
     var writer = try! WriterEpoch(bytes: uuidBytes())
     let origin = try! ActionOriginID(bytes: uuidBytes())
     var sequence: UInt64 = 0
@@ -47,74 +61,131 @@ public actor LocalStoreSession {
 
     public static func create(directory: String, initial: InitialCollectionV1,
                               protection: ObjectProtectionV1, storeID: LocalStoreID? = nil) async throws -> LocalStoreSession {
-        try await create(directory: directory, initial: initial, protection: protection, storeID: storeID, lane: DatabaseLane())
+        let store = try storeID ?? LocalStoreID(bytes: uuidBytes())
+        let selection = LocalStoreSelection(directory: directory, store: store, descriptor: initial.descriptor)
+        let candidate = try await BootstrapCandidate.create(selection: selection, snapshot: initial.snapshot, protection: protection)
+        do {
+            for bytes in initial.objects.values { _ = try await candidate.retain(bytes) }
+            return try await candidate.complete(snapshot: initial.snapshot)
+        } catch { try? await candidate.close(); throw error }
     }
 
     /// Seals frozen initial values and initializes a newly owned candidate on its I/O worker.
     public static func create(directory: String, collection: CollectionID, notes: [(NoteBirth, PlaintextNoteValue)],
                               protection: ObjectProtectionV1, passphrase: String? = nil) async throws -> LocalStoreSession {
-        let lane = DatabaseLane()
-        let initial = try await lane.prepare {
-            try InitialCollectionV1.build(collection: collection, notes: notes, protection: protection, passphrase: passphrase)
-        }
-        return try await create(directory: directory, initial: initial, protection: protection, storeID: nil, lane: lane)
-    }
-
-    private static func create(directory: String, initial: InitialCollectionV1, protection: ObjectProtectionV1,
-                               storeID: LocalStoreID?, lane: DatabaseLane) async throws -> LocalStoreSession {
-        let store = try storeID ?? LocalStoreID(bytes: uuidBytes())
-        let selection = LocalStoreSelection(directory: directory, store: store, descriptor: initial.descriptor)
-        try await lane.open(directory: directory, create: true,
-            key: PrivateDatabaseKeyV1.derive(collection: initial.descriptor.collection, protection: protection))
-        do {
-            try await lane.perform { db in
-                try db.initialize(store: store, descriptor: initial.descriptor, snapshot: initial.snapshot)
-                let checked = try db.acceptBootstrap(initial, selection: selection, protection: protection)
-                try db.materializeBootstrap(checked)
-            }
-            return LocalStoreSession(selection: selection, lane: lane, protection: protection)
-        } catch { await lane.close(); throw error }
+        try await createIncrementally(directory: directory, collection: collection, notes: notes,
+                                      protection: protection, passphrase: passphrase)
     }
 
     public static func open(selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws -> LocalStoreSession {
+        try await open(selection: selection, protection: protection, measuring: nil)
+    }
+
+    /// Runs the normal returning-open path with optional queue-owned qualification counters.
+    static func open(selection: LocalStoreSelection, protection: ObjectProtectionV1, measuring: StorageWork?,
+                     diagnosing: (@Sendable (StorageOpenPhase) async -> Void)? = nil) async throws -> LocalStoreSession {
         let lane = DatabaseLane()
         try await lane.open(directory: selection.directory, create: false,
             key: PrivateDatabaseKeyV1.derive(collection: selection.descriptor.collection, protection: protection))
         do {
+            await diagnosing?(.headerAndPrivateGroups)
             try await lane.perform { db in
+                db.work = measuring
                 try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
-                try db.checkRequiredLeaves(descriptor: selection.descriptor, protection: protection)
             }
-            try await lane.perform { db in
-                try db.recoverMaterialization(selection: selection, protection: protection)
+            return try await CatchUpScope.$purpose.withValue(.opening) {
+                await diagnosing?(.requiredHistory)
+                try await lane.replayVerifications(selection: selection, protection: protection)
+                try await lane.perform { db in
+                    try db.checkRequiredLeaves(descriptor: selection.descriptor, protection: protection)
+                }
+                await diagnosing?(.currentReconstruction)
+                try await lane.reconstructIfNeeded(selection: selection, protection: protection)
+                _ = try await lane.drainReady(selection: selection, protection: protection)
+                try await lane.catchUp(selection: selection, protection: protection)
+                try await lane.perform { db in
+                    _ = try db.snapshot(store: selection.store, session: UUID())
+                }
+                await lane.enableVerificationReplay(selection: selection, protection: protection)
+                return LocalStoreSession(selection: selection, lane: lane, protection: protection)
             }
-            try await lane.drainReady(selection: selection, protection: protection)
-            try await lane.catchUp(selection: selection, protection: protection)
-            try await lane.perform { db in
-                _ = try db.snapshot(store: selection.store, session: UUID())
-            }
-            return LocalStoreSession(selection: selection, lane: lane, protection: protection)
-        } catch { await lane.close(); throw error }
+        } catch {
+            await lane.close()
+            if error is CanonicalEncodingError { throw StorageError.integrity }
+            throw error
+        }
     }
 
     public func snapshot() async throws -> StoreSnapshot {
         guard !closed else { throw StorageError.closed }
-        let store = selection.store, session = incarnation
-        return try await lane.perform { try $0.snapshot(store: store, session: session) }
+        let selection = selection, protection = protection, session = incarnation
+        return try await lane.perform { try $0.presentedSnapshot(selection: selection, protection: protection, session: session) }
+    }
+    /// Keeps the currently represented local revision visible while its host work settles.
+    public func pinCurrent(for birth: NoteBirth) async throws -> StoreSnapshot {
+        guard !closed, !quiescing else { throw StorageError.closed }
+        let selection = selection, protection = protection, session = incarnation
+        return try await lane.perform { db in
+            let snapshot = try db.presentedSnapshot(selection: selection, protection: protection, session: session)
+            guard let cell = snapshot.notes.first(where: { $0.birth == birth }), cell.represented.count == 1 else { throw StorageError.staleCapture }
+            db.presentationPins[birth] = cell.revision.id; db.presentationEpoch = UUID()
+            return try db.presentedSnapshot(selection: selection, protection: protection, session: session)
+        }
+    }
+    /// Publishes the already computed neutral selection after a local presentation fence settles.
+    public func releaseCurrentPin(for birth: NoteBirth) async throws -> StoreSnapshot {
+        guard !closed else { throw StorageError.closed }
+        let selection = selection, protection = protection, session = incarnation
+        return try await lane.perform { db in
+            if db.presentationPins.removeValue(forKey: birth) != nil { db.presentationEpoch = UUID() }
+            return try db.presentedSnapshot(selection: selection, protection: protection, session: session)
+        }
     }
     public func quiesce() async throws {
         guard !closed else { return }
         guard !quiescing else { throw StorageError.busy }
-        quiescing = true
-        while inFlight || receiving { await withCheckedContinuation { drained.append($0) } }
-        guard commits.isEmpty else { quiescing = false; throw StorageError.busy }
-        closed = true
+        lifecycle = .quiescing
+        while inFlight || requiredReceiveInFlight || backupInFlight || activationInFlight || pendingPreparationInFlight { await withCheckedContinuation { drained.append($0) } }
+        guard commitState.owned == nil else { lifecycle = .open; throw StorageError.busy }
+        snapshotState = .idle
+        lifecycle = .closed
         try? await lane.perform { try $0.checkpoint() }
         await lane.close()
     }
     public func checkpointMaintenance() async throws {
         guard !closed, !quiescing else { throw StorageError.closed }
         try await lane.perform { try $0.checkpoint() }
+    }
+    /// Settles exclusive connections for a preserved repair copy while admitted work keeps its owner.
+    func closeForPreservedRepair() async throws {
+        guard !closed, !quiescing, !backupInFlight, !activationInFlight, !pendingPreparationInFlight, !receiving, !inFlight, commitState.owned == nil else { throw StorageError.busy }
+        lifecycle = .closed
+        await lane.close()
+    }
+    /// Reserves the candidate's live owner through a separately serialized selection operation.
+    func reserveActivation(through: Int64) async throws {
+        guard !closed, !quiescing, !activationInFlight else { throw StorageError.closed }
+        activationInFlight = true
+        do {
+            try await lane.perform { db in
+                guard try db.acceptedThrough() == through else { throw StorageError.staleCapture }
+                try db.validateOwner()
+            }
+        } catch { settleActivation(); throw error }
+    }
+    func settleActivation() {
+        activationInFlight = false
+        let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() }
+    }
+    /// Reserves a unique shared writer address before any envelope-sealing suspension.
+    func reserveObjectAddress() throws -> (WriterEpoch, UInt64) {
+        guard !closed else { throw StorageError.closed }
+        let limit: UInt64
+        switch protection { case .publicHash: limit = UInt64.max; case .encrypted: limit = 1 << 20 }
+        if sequence >= limit { writer = try WriterEpoch(bytes: uuidBytes()); sequence = 0 }
+        let address = (writer, sequence)
+        sequence += 1
+        return address
     }
 }
 
@@ -126,54 +197,34 @@ extension Database {
         guard absent.isEmpty, try acceptedThrough() > 0 else { throw StorageError.incomplete }
         guard try !rows("SELECT 1 FROM retained_frontier LIMIT 1").isEmpty else { throw StorageError.incomplete }
         try each("SELECT r.locator,o.encoded FROM retained_frontier r JOIN objects o USING(object_id)") { row in
+            self.countWork { $0.retainedLeafChecks += 1 }
             _ = try ObjectEnvelopeV1.open(row[1].bytes, collection: descriptor.collection, protection: protection,
                 expectedLocator: SegmentLocator.decodeV1(row[0].bytes))
         }
     }
-    func materializeBootstrap(_ checked: InitialBootstrapValidationV1) throws {
-        let target = try rows("SELECT seq FROM accepted_objects WHERE object_id=?", [.blob(checked.snapshot.segmentID.bytes)])[0][0].number
-        var notes: [CurrentNoteCellV1] = []
-        for row in checked.rows {
-            guard case .external(let loc, let index, let id) = row.importReference else { throw StorageError.integrity }
-            let refs = try (checked.scopeFrontiers[.note(row.birth)]?.actionIDs ?? []).map { try actionOccurrence($0) }
-            notes.append(try CurrentNoteCellV1(birth: row.birth, value: row.value,
-                revision: StoredOperationReferenceV1(locator: loc, index: index, id: id), scopeFrontier: refs))
-        }
-        let actions = try (checked.scopeFrontiers[.collection]?.actionIDs ?? []).map { try actionOccurrence($0) }
-        let context = try AuthoringContextV1(operations: [operationOccurrence(checked.completion)], collectionActions: actions)
-        try transaction {
-            try run("DELETE FROM current_notes")
-            for cell in notes { try run("INSERT INTO current_notes VALUES(?,?)", [.blob(cell.birth.bytes), .blob(cell.encodedV1())]) }
-            try run("INSERT INTO view_meta VALUES(1,?,1,?,?) ON CONFLICT(singleton) DO UPDATE SET epoch=excluded.epoch,reducer_version=1,through_seq=excluded.through_seq,authoring_context=excluded.authoring_context",
-                [.blob(uuidBytes()), .integer(target), .blob(context.encodedV1())])
-        }
-    }
-    func recoverMaterialization(selection: LocalStoreSelection, protection: ObjectProtectionV1) throws {
+    func hasUsableMaterialization(selection: LocalStoreSelection) throws -> Bool {
         let view = try rows("SELECT through_seq FROM view_meta WHERE singleton=1")
         let through = try view.first?.first?.number
         let target = try acceptedThrough()
         if through == target {
-            do { _ = try snapshot(store: selection.store, session: UUID()); return }
+            do { _ = try snapshot(store: selection.store, session: UUID()); return true }
             catch is CanonicalEncodingError { }
             catch StorageError.integrity { }
         }
         if let through, through > 0, through < target {
-            do { try catchUp(selection: selection, protection: protection); return }
+            do {
+                let context = try rows("SELECT authoring_context FROM view_meta WHERE singleton=1")
+                _ = try AuthoringContextV1.decodeV1(context[0][0].bytes)
+                try each("SELECT birth,cell FROM current_notes") { row in
+                    self.countWork { $0.currentCellDecodes += 1 }
+                    guard try CurrentNoteCellV1.decodeV1(row[1].bytes).birth.bytes == row[0].bytes else { throw StorageError.integrity }
+                }
+                return true
+            }
             catch is CanonicalEncodingError { }
             catch StorageError.integrity { }
         }
-        // Rebuild initial imports from their required root and exact object closure.
-        let r = try rows("SELECT codec,payload FROM private_groups WHERE group_key=?", [.blob(Array("bootstrap".utf8))])
-        guard r.count == 1, r[0][0] == .integer(1) else { throw StorageError.incomplete }
-        let root = try SegmentLocator.decodeV1(r[0][1].bytes)
-        let checked = try InitialBootstrapValidationV1.validate(descriptor: selection.descriptor,
-            expectedCollection: selection.descriptor.collection, protection: protection, snapshot: root) { loc in
-                let rows = try self.rows("SELECT o.encoded FROM objects o JOIN accepted_objects a USING(object_id) WHERE o.object_id=? AND o.writer_epoch=? AND o.sequence=?",
-                    [.blob(loc.segmentID.bytes), .blob(loc.writerEpoch.bytes), .blob(Array(loc.encodedV1()[16..<24]))])
-                return try rows.first?.first?.bytes
-            }
-        try materializeBootstrap(checked)
-        try catchUp(selection: selection, protection: protection)
+        return false
     }
     func snapshot(store: LocalStoreID, session: UUID) throws -> StoreSnapshot {
         try exec("BEGIN")
@@ -187,12 +238,32 @@ extension Database {
             let context = try AuthoringContextV1.decodeV1(meta[0][3].bytes)
             var cells: [CurrentNoteCellV1] = []
             try each("SELECT birth,cell FROM current_notes ORDER BY rowid") { r in
+                self.countWork { $0.currentCellDecodes += 1 }
                 let cell = try CurrentNoteCellV1.decodeV1(r[1].bytes)
                 guard try cell.birth.bytes == r[0].bytes else { throw StorageError.integrity }
                 cells.append(cell)
             }
             try exec("COMMIT")
-            return StoreSnapshot(session: session, store: store, through: through, viewEpoch: epoch, notes: cells, context: context)
+            return StoreSnapshot(session: session, store: store, through: through, viewEpoch: epoch, notes: cells, context: context, presentationEpoch: presentationEpoch)
         } catch { try? exec("ROLLBACK"); throw error }
+    }
+    func presentedCell(_ cell: CurrentNoteCellV1, selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> CurrentNoteCellV1 {
+        guard let pin = presentationPins[cell.birth] else { return cell }
+        guard let reference = cell.heads.first(where: { $0.id == pin }), cell.automatic == nil else {
+            presentationPins.removeValue(forKey: cell.birth); presentationEpoch = UUID(); return cell
+        }
+        return try checkingRetainedHistory {
+            guard let op = try operation(pin, selection: selection, protection: protection),
+                  op.effect.targetBirth == cell.birth, let value = op.effect.noteValue else { throw StorageError.integrity }
+            return try CurrentNoteCellV1(birth: cell.birth, value: value, represented: [reference], heads: cell.heads,
+                provenance: .revision, scopeFrontier: cell.scopeFrontier, identity: cell.identity)
+        }
+    }
+    func presentedSnapshot(selection: LocalStoreSelection, protection: ObjectProtectionV1, session: UUID) throws -> StoreSnapshot {
+        let snapshot = try snapshot(store: selection.store, session: session)
+        let cells = try snapshot.notes.map { try presentedCell($0, selection: selection, protection: protection) }
+        let absent = presentationPins.keys.filter { birth in !cells.contains(where: { $0.birth == birth }) }
+        for birth in absent { presentationPins.removeValue(forKey: birth); presentationEpoch = UUID() }
+        return StoreSnapshot(session: session, store: snapshot.store, through: snapshot.through, viewEpoch: snapshot.viewEpoch, notes: cells, context: snapshot.context, presentationEpoch: presentationEpoch)
     }
 }

@@ -13,7 +13,7 @@ The first complete local milestone includes both public and encrypted envelopes,
 | First-subset action records and complete changes-payload framing | Implemented with group consistency, canonical expansion and exact direct-reference checks; **not** causal/Current/bootstrap validation or authentication |
 | Public/encrypted envelopes, descriptors/KDF, initial snapshot, selected-store/recovery-key encodings | Implemented with independent fixtures; production cryptographic/platform review remains |
 | Complete initial-import semantic validation | Implemented below, across exact envelopes/actions/pages; no durability or activation authority |
-| Private/current-state and later action/state record layouts | Raw single-value current cells, ordinary authoring context and empty settings implemented with [frozen layouts and independent fixtures](phase2-local-runtime-validation.md#frozen-private-record-layouts); later variants remain in Format TODO |
+| Private/current-state and later action/state record layouts | Raw current cells, authoring context and empty settings; [connected layouts](phase3-connected-record-contract.md) add multi-input Current, deterministic identities, recovery/choice/copy and compensation tails with independent fixtures |
 | Complete bootstrap construction and recovery ordering | Implemented through exact bootstrap validation, SQL acceptance and separate materialization |
 | Client/runtime methods and ownership transitions | `LocalStoreSession`, immutable captures, restricted receipts, real directory ownership, generation checks and retry/quiesce implemented |
 | Initial SQLite history/private-group/current-row schema | [Executable DDL](sqlite-local-schema.md), SQL checks and real SQLCipher adapter; DDL and bundled resource are checked for exact equality |
@@ -50,6 +50,10 @@ Stored title/body spelling is exact; empty and embedded-NUL text is representabl
 The scalar text ceiling is the existing 64-MiB decoded-object ceiling. It is **not** a promise that a 64-MiB body plus its record/action overhead fits one segment. Complete encoded-group sizing governs representability; it must include reference tables, values and action metadata before admission. The count/length prefix's larger numeric range never authorizes allocation beyond the enclosing object's remaining bytes. More restrictive practical editing/batch limits remain the measurement task in Format TODO; no new arbitrary small note cap is adopted here.
 
 No optional unknown fields are skipped in these v1 records. Unknown version/kind means unsupported evidence; malformed framing is invalid. Required-but-unimplemented variants do not mean an empty value. Existing explicit conflict-key/slot/automatic-preservation hashes continue using their **u64** counts/lengths and NFC rules, not this generic u32 framing.
+
+The subsequent [Restore record contract](restoration-record-contract.md) adds
+action kind 6 with exact deletion-entry provenance. It preserves the ordinary
+kind 1–5 encodings described below; all operation encodings stay unchanged.
 
 Locator filenames use lower-case hexadecimal: 32 digits for writer epochs and 64 for hashes, without UUID hyphens. Sequence text is exactly 20 zero-padded decimal digits representing the u64; allocation starts at zero in a fresh writer epoch. Provider paths remain `NV Data/v1/segments/<epoch>/<sequence>-<hash>.nvseg` and `keys/<hash>.nvkey`; private objects are exact BLOBs indexed by identity in [Collection.sqlite](../LocalStore.md), not a parallel object-file tree. Exhaustion allocates a fresh epoch rather than wrapping; the encryption epoch's existing 2^20-object limit applies sooner. Received noncanonical/provider-renamed leaves may be inspected as bounded candidate objects under the existing discovery rules, never followed as embedded paths or discarded solely for spelling.
 
@@ -109,7 +113,10 @@ Canonical operation identity is SHA-256 of ASCII `NV operation\0v1\0`, followed 
 | 5 Put | Target existing birth, required action, exact Current-represented note predecessors; complete NoteValueV1 |
 | 6 Delete | Target birth, required action, empty kind payload and empty note-predecessor set; causal parents cover actually observed revisions |
 
-Other tags remain unassigned/unsupported here. No new encoding of RecoverCopy/RetireConflict/compensation is inferred from their omission. The development writer must decline commands needing those variants, including deletion of a deterministic conflict birth; it cannot emit only half of the required group.
+The [connected record contract](phase3-connected-record-contract.md) assigns tags
+7–9 to RecoverCopy, RetireConflict and AdoptAutomatic, and specifies the later
+action/state tails. Deleting a typed deterministic birth includes retirement in
+the same complete group. Unknown required tags preserve an unsupported outcome.
 
 #### Implemented operation boundary
 
@@ -121,7 +128,7 @@ An external reference's expected ID is still a **claim**. Decoding retains its e
 
 First ordinary action record: `ID16(actionID)`, `ID16(originID)`, `optional(ActionReference(previousOriginAction))`, `u8(scope)` (0 collection, 1 note followed by ID16 birth), scope-parent references sorted by expanded action ID, `u8(kind)` (1 saved edit, 2 rename, 3 labels, 4 create/import batch, 5 delete batch), ordered `vector(u32(memberOperationIndex))`, and affected-state entries sorted by birth.
 
-Each affected entry contains birth plus before/after state references. State tags for this subset: `0` fresh-birth absence (no payload), `1` full value operation reference, `2` logical absence with its Delete operation reference. Absence tag 0 is valid only before a genuinely fresh creation, never as missing/unread evidence or after deletion. After tag 2 must reference the group's actual Delete. Exactly one entry accounts for each affected birth. Existing derived/merged before-states require their later codec; do not collapse them to whichever revision is convenient.
+Each affected entry contains birth plus before/after state references. State tags for this subset: `0` fresh-birth absence (no payload), `1` full value operation reference, `2` logical absence with its Delete operation reference. Absence tag 0 is valid only before a genuinely fresh creation, never as missing/unread evidence or after deletion. After tag 2 must reference the group's actual Delete. Exactly one entry accounts for each affected birth. The [derived-state contract](derived-state-reference-contract.md) freezes equal/merge subrecords with tags 3/4. They retain every represented revision and require separate integration into this action decoder, writer-history validation and current-row consumers; the ordinary action subset still accepts only tags 0–2.
 
 Action IDs are allocated, not hashes. Compare duplicate action claims using fully expanded canonical IDs/state references and metadata, not locator/index bytes. Validate complete membership, scope maxima, origin predecessor, target types and exact before/after agreement against the writer's declared inputs. A malformed action invalidates its whole segment; no prefix publication. The authoring order remains allocation → operations/IDs → complete action record → framing → sealing, without an action-record hash cycle.
 
@@ -133,7 +140,7 @@ Action IDs are allocated, not hashes. Compare duplicate action claims using full
 
 `checkExternalReferences(at:resolve:)` checks **direct** references at the exact locator, section index and expected identity, rejecting external self-reference and missing dependencies. It checks referenced value/Delete types, births, action scopes and origins; no fallback search by ID is permitted. The resolver's payloads and their locator bindings must ultimately come from authenticated objects. This API does not authenticate caller-supplied labels, walk transitive closure or issue a validated-history capability.
 
-`InitialBootstrapValidationV1` supplies transitive/exact-reference, duplicate-claim, fresh-import, causal-coverage, scope-maximum and commitment checks for the initial-import-only history described below. `OrdinaryHistoryV1` now validates Create/Put/Delete groups against the declared writer history, including saved edits, rename and labels, complete before/after state, scope maxima and observed previous-origin links. It checks the actual final member, not merely membership of the claimed after-state. Runtime invokes these checks before acceptance. Concurrent/derived states, compensation and richer actions still require later reducers; the first path rejects unsupported reduction rather than exposing a partial collection. Neither a decoded payload nor SQL constraints substitute for semantic validation.
+`InitialBootstrapValidationV1` supplies transitive/exact-reference, duplicate-claim, fresh-import, causal-coverage, scope-maximum and commitment checks for the initial-import-only history described below. `OrdinaryHistoryV1` validates Create/Put/Delete and the connected recovery/choice/copy/compensation groups against declared writer history, including exact before/after states, every scope maximum and observed previous-origin links. Derived/automatic states are reconstructed from their exact inputs. It checks the actual final member, not merely membership of the claimed after-state. Runtime invokes these checks before acceptance. Unknown required semantics remain unsupported; decoded payloads and SQL constraints remain inputs to complete semantic validation.
 
 For an eligible single ordinary group, Runtime may obtain the prior state from the
 complete current materialization under the same serialized acceptance transaction.
@@ -166,11 +173,11 @@ Descriptor header (150 bytes): ASCII `NVKEY1\r\n`, `u16(1)`, `u8(profile)`, coll
 
 Compute the initial commitment as SHA-256 of ASCII `NV initial values\0v1\0`, `u64(count)`, then `(birth, bytes(NoteValueV1))` entries in strictly increasing raw-birth order. Duplicates are invalid; empty initial collections have an explicit count-zero digest, never an absent commitment.
 
-The first snapshot implementation supports **initial-import snapshots**, not arbitrary derived-history acceleration. A snapshot page (envelope kind 3) contains ASCII `NVSPG1\r\n`, `u16(1)`, importID, `u32(pageIndex)`, and a vector of birth-sorted `(birth, NoteValueV1, external import-operation reference)` rows with its locator table placed before the rows. References name the complete imported value and its containing action evidence, which the opener loads from history.
+This section specifies **initial-import snapshots**. The later [general snapshot contract](general-snapshot-record-contract.md) and [S3/S4 implementation](phase4-bootstrap-reconstruction-validation.md) cover post-edit claims and exceptional reconstruction. An initial page (envelope kind 3) contains ASCII `NVSPG1\r\n`, `u16(1)`, importID, `u32(pageIndex)`, and a vector of birth-sorted `(birth, NoteValueV1, external import-operation reference)` rows with its locator table placed before the rows. References name the complete imported value and its containing action evidence, which the opener loads from history.
 
 The root (kind 2) contains ASCII `NVSRT1\r\n`, `u16(1)`, importID, initialCount, initialValuesDigest, a locator table, an external ImportComplete reference, the represented operation frontier, then ordered `(u32(pageIndex), SegmentLocator, u32(rowCount))` entries. Frontiers sort by expanded operation ID. Page indices are contiguous from zero; concatenated rows are globally birth-sorted, counts/digest match the initial commitment, and every imported birth occurs exactly once. Empty import uses zero pages. Bounded pages can split a large initial collection; no row is split across pages. If one complete row cannot fit, decline the initial creation without altering the source.
 
-Verify the initial provider snapshot by independently reconstructing the committed initial birth/value set from complete import history and comparing every row, reference and digest. The action/scope indexes are reconstructed from those retained action records before initial editability; this fresh-bootstrap path does **not** require repeating the full import read at each returning launch. [LocalStore](../LocalStore.md) defines indexed current-row startup; general provider snapshot acceleration remains deferred. Neither snapshots nor current rows grant pruning or cloud completeness.
+Verify the initial provider snapshot by independently reconstructing the committed initial birth/value set from complete import history and comparing every row, reference and digest. The action/scope indexes are reconstructed from those retained action records before initial editability. [LocalStore](../LocalStore.md) defines indexed returning startup and exceptional general-snapshot reconstruction. Both retain the original history, complete outside-cut actions and existing cloud-completeness policy.
 
 #### Executable initial-import validation
 
@@ -215,6 +222,15 @@ snapshot. A later Create/Put/Delete inside the inspected closure returns
 `requiresGeneralHistoryValidation`, not partial success or corruption merely
 because this narrower validator cannot reduce it. Missing input names its exact
 locator; supplying it and retrying can succeed without rewriting any input.
+
+The production S3 store reader shares these checks while retaining compact
+identity/reference facts and one decoded envelope at a time. Its package-scoped
+`validateStored` variant identifies the exact original import cut even when
+required envelopes carry later complete action groups. Runtime then validates
+those groups with `OrdinaryHistoryV1` before accepting the complete envelope
+membership. The public initial-only validator retains its explicit
+`requiresGeneralHistoryValidation` outcome. Initial commitment verification and
+the eventual view through the complete accepted batch remain distinct steps.
 
 This is synchronous worker/reference code with cancellation checks and iterative
 walks, not the production resumable scheduler. It retains decoded bootstrap
@@ -292,6 +308,29 @@ The following is an API design, not a shipped declaration or a public extensible
 
 Use immutable nominal values for `CapturedActionGroup`, `CapturedNoteGeneration`, `CommitHandle`, `AcceptedHistoryReceipt` and `PreparedModelChange`. No public receipt initializer, `markDurable`, backend-supplied success flag, `NSFileVersion`, Cocoa note object or arbitrary URL establishes authority. Methods return closed error classifications plus safe IDs/counts; no note/path/secret strings in general diagnostics. Adapter-native errors can be retained privately for the existing user-facing error handling.
 
+The public ordinary capture initializer accepts `OrdinaryActionKind`: saved edit,
+rename, labels, create/import batch or Delete batch. Specialized command issuers
+construct captures with their required Restore, conflict, historical-recovery or
+compensation details. Internally, `CapturedActionIntent` pairs each variant with
+its required provenance. Kind, restoration records and wire details are derived
+from that one value. Semantic checks still validate the actual references,
+selected fields, group membership, scope and current context before acceptance.
+
+The acceptance consumer takes a file-private `ValidatedHistoryBatch` issued by
+bootstrap, current-basis or full declared-history validation. Each object pairs
+exact verified bytes with its decoded contents and derives dependencies directly
+from those contents. Full validation carries that same batch across the final
+accepted-prefix/header fence; acceptance commits its exact membership. Snapshot
+objects retain their dependency edges through their explicit payload variants.
+
+`prepareCompensation` distinguishes `AutomaticCompensation` from
+`CompensationReview`. Ordinary application accepts only the former;
+`applyReviewedCompensation` explicitly approves the latter and its disclosed
+replacements. `forReview()` permits intentional review of an automatic command
+without changing its captured identity or context. Both consumers retain the
+same whole-group, candidate, value, epoch and session checks. Wire compensation
+records continue to encode their existing reviewed bit.
+
 The host freezes the capture before transfer, keeps its existing pending UUID/LSN sets and admits newer edits immediately while healthy. A returning completion lists exactly which note/action generations crossed the barrier. The host clears only those generations; it never reinstalls the old captured body. The first client is a headless in-memory owner, not a rewrite of NV's UI. Its expected-note test oracle must remain separate from the production reducer.
 
 Runtime has one local owner/sealer and an independently owned provider lane. `persist` reservations serialize sealing and acceptance transactions; actor reentrancy cannot start a second sealer. No blocking filesystem operation executes on the main actor or cooperative executor. Reuse a small serial blocking-I/O adapter with separate local/provider resources. A slow provider accessor owns its buffers/handles until actually finished, even after a deadline or view dismissal. No general job scheduler is introduced.
@@ -316,6 +355,7 @@ no receipt, editing, or physical-file authority. See [tests](validation-resumpti
 | State/event | Required next behavior |
 | --- | --- |
 | Capture received | Retain exact inputs/IDs/generations and reserve the one in-flight local slot before awaiting work; newer captures remain distinct pending work |
+| Definitive stale-capture or canonical-encoding rejection before sealing | Return the unchanged input handle and release its local reservation. Host generations remain pending; a later valid capture can proceed. Failures involving storage or uncertain persistence retain ownership |
 | Seal succeeds | Store exact immutable envelope bytes in the owned commit; no caller can substitute content on retry |
 | Acceptance transaction fails or completion is ambiguous | Keep exact sealed bytes and live pending generations; recover/query exact object/operation membership before retry. No acknowledgment from a reservation or partial SQL writes |
 | Atomic history/index/pin commit succeeds | Issue the exact covered-generation receipt. Provider progress is independent; stale host completion must not clear a newer edit/Delete |
@@ -327,6 +367,10 @@ no receipt, editing, or physical-file authority. See [tests](validation-resumpti
 
 Method completion can be delivered once to a live waiter, but the protocol makes no exactly-once callback promise across process death. Logical idempotency comes from identities, exact installed bytes and recovery. A cancellation result must distinguish “not admitted” from “admitted work continues/failed”; it cannot ambiguously release the sole recovery buffer.
 
+Incremental Put materialization preserves the birth's established creation date,
+matching general reduction and derived-row reconstruction. Immutable history
+retains the caller's exact complete value, including its recorded dates.
+
 ## 6. Tests and next implementation gate
 
 Current command: `make -C tests run-swift-storage` (native Swift Testing; no app/simulator; initial dependency resolution downloads the pinned packages). Literal scalar and complete-note fixtures cover exact composed/decomposed spelling, case-distinct labels, NUL/CRLF, malformed UTF-8, every truncation point, trailing bytes, attacker-sized prefixes, finite date precision and invalid/noncanonical dates. Operation fixtures independently specify canonical preimages, hashes and transport bytes for all six implemented kinds. They check semantic-field changes, local/external/table remapping, stale local-reference contexts, preserved unresolved external claims, and record sizes below/at/above the 64-MiB ceiling. These tests use ordinary public import, not `@testable`; they do not qualify whole-action admission or an OS persistence primitive.
@@ -337,7 +381,7 @@ The ordinary local save/reopen slice is now implemented and tested in the
 [Phase 2 report](phase2-local-runtime-validation.md). Before expanding it to the
 complete storage engine:
 
-1. Extend the ordinary validator/reducer to concurrent/derived Current, conflict preservation and portable compensation. Keep the existing semantic/transport/bootstrap/ordinary fixtures. Exercise actual legacy label-token capture independently of the case-insensitive UI index during application bridging.
+1. The [Phase 3 increment](phase3-validation.md) connects concurrent/derived Current, conflict preservation and portable compensation. Application bridging must still exercise actual legacy label-token capture independently of the case-insensitive UI index.
 2. Qualify the implemented envelope/descriptor crypto composition and remaining platforms. Preserve AAD/KDF/header, wrong-context and exact compressed-stream tests. No cleartext encrypted-profile scratch files.
 3. Extend the [ordinary-history scheduling/isolation checks](phase2-hardening-validation.md) to large bootstrap/imports and later reducers; qualify the adopted zstd physical codec and final selected-store activation. Preserve acceptance/ready/pin/VFS/second-crash tests and the indexed [fast-start contract](../LocalStore.md).
 4. Extend the now-tested E barrier → held completion → newer F edit/Delete schedules through actual application capture and publication, including the later provider/undo adapters. Recovery continues to receive only surviving files and normal unlock inputs.

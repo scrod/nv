@@ -75,12 +75,13 @@ public enum RecoveryKeyV1 {
     public static func encode(_ key: SymmetricKey) throws -> String {
         guard key.bitCount == 256 else { throw CanonicalEncodingError.invalidPayload }
         var symbols: [UInt8] = [1]
-        key.withUnsafeBytes { bytes in
+        // The checked 256-bit key supplies all 32 bytes throughout this synchronous borrow.
+        unsafe key.withUnsafeBytes { bytes in
             for start in stride(from: 0, to: 256, by: 5) {
                 var value: UInt8 = 0
                 for bit in start..<(start + 5) {
                     value <<= 1
-                    if bit < 256 { value |= (bytes[bit / 8] >> (7 - bit % 8)) & 1 }
+                    if bit < 256 { unsafe value |= (bytes[bit / 8] >> (7 - bit % 8)) & 1 }
                 }
                 symbols.append(value)
             }

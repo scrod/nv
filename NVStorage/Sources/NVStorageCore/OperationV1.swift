@@ -16,6 +16,9 @@ public enum OperationEffectV1: Equatable, Hashable, Sendable {
     case importNote(action: ActionID, birth: NoteBirth, value: PlaintextNoteValue)
     case put(action: ActionID, birth: NoteBirth, value: PlaintextNoteValue)
     case delete(action: ActionID, birth: NoteBirth)
+    case recoverCopy(action: ActionID, birth: NoteBirth, source: ConflictCopySourceV1, value: PlaintextNoteValue)
+    case retireConflict(action: ActionID, birth: NoteBirth, identity: DeterministicConflictIdentityV1)
+    case adoptAutomatic(action: ActionID, birth: NoteBirth, source: AutomaticSourceV1, value: PlaintextNoteValue)
 
     var tag: UInt8 {
         switch self {
@@ -25,6 +28,9 @@ public enum OperationEffectV1: Equatable, Hashable, Sendable {
         case .importNote: 4
         case .put: 5
         case .delete: 6
+        case .recoverCopy: 7
+        case .retireConflict: 8
+        case .adoptAutomatic: 9
         }
     }
 
@@ -32,7 +38,8 @@ public enum OperationEffectV1: Equatable, Hashable, Sendable {
         switch self {
         case .genesis, .importComplete: nil
         case .create(let action, _, _), .importNote(let action, _, _),
-             .put(let action, _, _), .delete(let action, _): action
+             .put(let action, _, _), .delete(let action, _), .recoverCopy(let action, _, _, _),
+             .retireConflict(let action, _, _), .adoptAutomatic(let action, _, _, _): action
         }
     }
 
@@ -40,7 +47,8 @@ public enum OperationEffectV1: Equatable, Hashable, Sendable {
         switch self {
         case .genesis, .importComplete: nil
         case .create(_, let birth, _), .importNote(_, let birth, _),
-             .put(_, let birth, _), .delete(_, let birth): birth
+             .put(_, let birth, _), .delete(_, let birth), .recoverCopy(_, let birth, _, _),
+             .retireConflict(_, let birth, _), .adoptAutomatic(_, let birth, _, _): birth
         }
     }
 
@@ -51,6 +59,9 @@ public enum OperationEffectV1: Equatable, Hashable, Sendable {
         case .create(_, _, let value), .importNote(_, _, let value), .put(_, _, let value):
             value.encodedByteCount
         case .delete: 0
+        case .recoverCopy(_, _, let source, let value): 16 + 32 + 32 + 8 + 1 + (source.reused == nil ? 0 : 32) + value.encodedByteCount
+        case .retireConflict(_, _, let identity): UInt64(identity.encoded.count)
+        case .adoptAutomatic(_, _, _, let value): 16 + 32 + 32 + value.encodedByteCount
         }
     }
 
@@ -64,6 +75,30 @@ public enum OperationEffectV1: Equatable, Hashable, Sendable {
         case .create(_, _, let value), .importNote(_, _, let value), .put(_, _, let value):
             return value.encodedV1()
         case .delete: return []
+        case .recoverCopy(_, _, let source, let value):
+            var bytes = source.birth.bytes
+            bytes.append(contentsOf: source.revision.bytes)
+            bytes.append(contentsOf: source.key.bytes)
+            bytes.append(contentsOf: bigEndianBytes(source.slot))
+            if let reused = source.reused {
+                bytes.append(1); bytes.append(contentsOf: reused.bytes)
+            } else { bytes.append(0) }
+            bytes.append(contentsOf: value.encodedV1())
+            return bytes
+        case .retireConflict(_, _, let identity): return identity.encoded
+        case .adoptAutomatic(_, _, let source, let value):
+            return source.birth.bytes + source.revision.bytes + source.key.bytes + value.encodedV1()
+        }
+    }
+}
+
+extension OperationEffectV1 {
+    /// Full logical value supplied by a revision-producing member.
+    public var noteValue: PlaintextNoteValue? {
+        switch self {
+        case .create(_, _, let value), .importNote(_, _, let value), .put(_, _, let value),
+             .recoverCopy(_, _, _, let value), .adoptAutomatic(_, _, _, let value): value
+        default: nil
         }
     }
 }

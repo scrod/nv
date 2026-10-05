@@ -4,11 +4,34 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/xattr.h>
+
+int nv_fixture_set_attribute(const char *path, const char *name, const uint8_t *bytes, uint64_t count) {
+#if defined(__APPLE__)
+    return setxattr(path, name, bytes, (size_t)count, 0, XATTR_NOFOLLOW);
+#else
+    return lsetxattr(path, name, bytes, (size_t)count, 0);
+#endif
+}
+int64_t nv_fixture_get_attribute(const char *path, const char *name, uint8_t *bytes, uint64_t count) {
+#if defined(__APPLE__)
+    return getxattr(path, name, bytes, (size_t)count, 0, XATTR_NOFOLLOW);
+#else
+    return lgetxattr(path, name, bytes, (size_t)count);
+#endif
+}
 
 static sqlite3_vfs *base;
 static sqlite3_vfs wrapper;
 static _Atomic int armed, ordinal, resultCode, hits;
 static _Atomic int rejectionEvent, rejectionOrdinal, rejectionResult;
+static _Atomic int acceptanceEvent, acceptanceOrdinal, acceptanceResult;
+static _Atomic int parkingEvent, parkingOrdinal, parkingResult;
+static _Atomic int damageEvent, damageOrdinal, damageResult;
+static _Atomic int verificationEvent, verificationOrdinal, verificationResult;
+static _Atomic int materializationEvent, materializationOrdinal, materializationResult;
+static _Atomic int settlementEvent, settlementOrdinal, settlementResult;
+static _Atomic int repairEvent, repairOrdinal, repairResult;
 static _Atomic int64_t steps;
 static pthread_mutex_t holdMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t holdCondition = PTHREAD_COND_INITIALIZER;
@@ -38,6 +61,46 @@ void nv_faults_arm_on_rejection(int event, int n, int code) {
     nv_faults_arm(0, 0, 0);
     atomic_store(&rejectionOrdinal, n); atomic_store(&rejectionResult, code);
     atomic_store(&rejectionEvent, event);
+}
+void nv_faults_arm_on_history_acceptance(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&acceptanceOrdinal, n); atomic_store(&acceptanceResult, code);
+    atomic_store(&acceptanceEvent, event);
+}
+void nv_faults_arm_on_parking(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&parkingOrdinal, n); atomic_store(&parkingResult, code);
+    atomic_store(&parkingEvent, event);
+}
+void nv_faults_arm_on_damage(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&damageOrdinal, n); atomic_store(&damageResult, code);
+    atomic_store(&damageEvent, event);
+}
+void nv_faults_arm_on_verification_settlement(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&verificationOrdinal, n); atomic_store(&verificationResult, code);
+    atomic_store(&verificationEvent, event);
+}
+void nv_faults_arm_on_materialization(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&materializationOrdinal, n); atomic_store(&materializationResult, code);
+    atomic_store(&materializationEvent, event);
+}
+void nv_faults_arm_on_pending_settlement(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&settlementOrdinal, n); atomic_store(&settlementResult, code);
+    atomic_store(&settlementEvent, event);
+}
+void nv_faults_arm_on_repair_private_installation(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&repairOrdinal, n); atomic_store(&repairResult, code);
+    atomic_store(&repairEvent, event);
+}
+static int containsFolded(const char *text, const char *needle) {
+    int count = (int)strlen(needle);
+    for (const char *p = text; *p; p++) if (!sqlite3_strnicmp(p, needle, count)) return 1;
+    return 0;
 }
 int nv_faults_hits(void) { return atomic_load(&hits); }
 int64_t nv_faults_steps(void) { return atomic_load(&steps); }
@@ -127,17 +190,60 @@ static int trace(unsigned event, void *context, void *statement, void *extra) {
     const char *sql = sqlite3_sql(statement);
     if (!sql) return 0;
     if (event == SQLITE_TRACE_STMT) {
+        if (!strncmp(sql, "INSERT INTO pending_settlements", sizeof("INSERT INTO pending_settlements") - 1)) {
+            int next = atomic_exchange(&settlementEvent, 0);
+            if (next) nv_faults_arm(next, atomic_load(&settlementOrdinal), atomic_load(&settlementResult));
+        }
+        if (!strncmp(sql, "INSERT INTO current_notes", sizeof("INSERT INTO current_notes") - 1) ||
+            !strncmp(sql, "UPDATE view_meta SET", sizeof("UPDATE view_meta SET") - 1)) {
+            int next = atomic_exchange(&materializationEvent, 0);
+            if (next) nv_faults_arm(next, atomic_load(&materializationOrdinal), atomic_load(&materializationResult));
+        }
+        if (!strncmp(sql, "INSERT INTO private_groups", 26) || !strncmp(sql, "DELETE FROM private_groups", 26)) {
+            char *expanded = sqlite3_expanded_sql(statement);
+            if (expanded) {
+                if (!strncmp(sql, "INSERT", 6) && containsFolded(expanded, "7265706169722d736f757263652f")) {
+                    int next = atomic_exchange(&repairEvent, 0);
+                    if (next) nv_faults_arm(next, atomic_load(&repairOrdinal), atomic_load(&repairResult));
+                }
+                if (containsFolded(expanded, "686973746f72792d64616d616765")) {
+                    int next = atomic_exchange(&damageEvent, 0);
+                    if (next) nv_faults_arm(next, atomic_load(&damageOrdinal), atomic_load(&damageResult));
+                }
+                if (!strncmp(sql, "DELETE", 6) && containsFolded(expanded, "766572696669636174696f6e2f")) {
+                    int next = atomic_exchange(&verificationEvent, 0);
+                    if (next) nv_faults_arm(next, atomic_load(&verificationOrdinal), atomic_load(&verificationResult));
+                }
+                sqlite3_free(expanded);
+            }
+        }
+        if (!strncmp(sql, "INSERT INTO accepted_objects", sizeof("INSERT INTO accepted_objects") - 1)) {
+            int next = atomic_exchange(&acceptanceEvent, 0);
+            if (next) nv_faults_arm(next, atomic_load(&acceptanceOrdinal), atomic_load(&acceptanceResult));
+        }
         if (!strncmp(sql, "INSERT INTO rejected_objects", 28)) {
             int next = atomic_exchange(&rejectionEvent, 0);
             if (next) nv_faults_arm(next, atomic_load(&rejectionOrdinal), atomic_load(&rejectionResult));
             (void)hit(NV_FAULT_REJECTION_BEGIN);
         }
+        if (!strncmp(sql, "INSERT INTO object_waits", sizeof("INSERT INTO object_waits") - 1)) {
+            int next = atomic_exchange(&parkingEvent, 0);
+            if (next) nv_faults_arm(next, atomic_load(&parkingOrdinal), atomic_load(&parkingResult));
+            (void)hit(NV_FAULT_PARK_BEGIN);
+        }
         if (!strncmp(sql, "DELETE FROM ready_objects", 25)) (void)hit(NV_FAULT_REJECTION_CLEANUP);
         if (!strncmp(sql, "COMMIT", 6)) (void)hit(NV_FAULT_COMMIT_BEGIN);
-        if (!strncmp(sql, "UPDATE view_meta SET", 20)) (void)hit(NV_FAULT_VIEW_UPDATE);
+        if (!strncmp(sql, "UPDATE view_meta SET", 20) ||
+            (!strncmp(sql, "INSERT INTO view_meta", 21) && !strstr(sql, "VALUES(1,?,1,0,"))) (void)hit(NV_FAULT_VIEW_UPDATE);
         if (!strncmp(sql, "INSERT INTO current_notes", 25)) (void)hit(NV_FAULT_CURRENT_INSERT);
     } else if (event == SQLITE_TRACE_PROFILE) {
         atomic_fetch_add(&steps, sqlite3_stmt_status(statement, SQLITE_STMTSTATUS_VM_STEP, 0));
+        // Acceptance preflight precedes BEGIN's exclusive writer lock.
+        if (atomic_load(&acceptanceEvent) == NV_FAULT_LOCK &&
+            !strcmp(sql, "SELECT a.seq,o.encoded FROM accepted_objects a JOIN objects o USING(object_id) WHERE object_id=?")) {
+            int next = atomic_exchange(&acceptanceEvent, 0);
+            if (next) nv_faults_arm(next, atomic_load(&acceptanceOrdinal), atomic_load(&acceptanceResult));
+        }
         if (!strncmp(sql, "COMMIT", 6)) (void)hit(NV_FAULT_COMMIT_END);
     }
     return 0;

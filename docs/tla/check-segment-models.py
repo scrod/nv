@@ -16,6 +16,19 @@ import time
 
 
 def cases():
+    native = "NativeCausalUndoBridge"
+    for scenario in ("linear", "partialWins", "completeWins"):
+        yield (f"native-causal-{scenario}", native, "safe", scenario, 1, "Safety", False, False)
+        yield (f"native-causal-converges-{scenario}", native, "safe", scenario, 1, "EventualAgreement", True, False)
+    for policy, scenario, prop in (("anyComplete", "partialWins", "PartialStillAvailable"),
+                                 ("wholeSpan", "linear", "PartialStillAvailable"),
+                                 ("redoOriginal", "linear", "ActualRedo"),
+                                 ("wrongInverse", "linear", "ActualInverse"),
+                                 ("automaticFork", "partialWins", "ForkNeedsReview"),
+                                 ("noOpConsumes", "completeWins", "NoOpKeepsIdentity")):
+        yield (f"native-causal-reject-{policy}", native, policy, scenario, 1, prop, False, True)
+    yield ("native-causal-partial-witness", native, "safe", "linear", 1, "NeverPartialChain", False, True)
+    yield ("native-causal-fork-witness", native, "safe", "completeWins", 1, "NeverForkNoOpRecovered", False, True)
     fast = "SQLiteFastStartSafety"
     yield ("sqlite-fast-start", fast, "safe", "fast-start", 1, "Safety", False, False)
     for policy, prop, temporal in (
@@ -672,7 +685,7 @@ def main():
             config += "PROPERTY AdvancingStepsDecreaseRank\nPROPERTY AuxiliaryPreservesRankAndAgreement\n"
             if temporal:
                 config += "INVARIANT Safety\n"
-        if temporal and not expected_failure and model in ("SegmentBootstrapSafety", "SegmentMergeSafety", "SegmentActionRecoverySafety", "SegmentDeletionOrderingSafety", "RepositoryCopySafety", "RepositoryRepairSafety", "PortableCausalUndoSafety", "NVConflictCopySafety"):
+        if temporal and not expected_failure and model in ("SegmentBootstrapSafety", "SegmentMergeSafety", "SegmentActionRecoverySafety", "SegmentDeletionOrderingSafety", "RepositoryCopySafety", "RepositoryRepairSafety", "PortableCausalUndoSafety", "NVConflictCopySafety", "NativeCausalUndoBridge"):
             config += "INVARIANT Safety\n"
         if model == "SegmentMergeSafety" and not expected_failure:
             if "INVARIANT Safety\n" not in config:

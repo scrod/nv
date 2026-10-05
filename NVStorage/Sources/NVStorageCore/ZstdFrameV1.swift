@@ -8,8 +8,9 @@ enum ZstdFrameV1 {
         guard ZSTD_isError(bound) == 0 else { throw CanonicalEncodingError.lengthLimit }
         let capacity = min(bound, Int(ObjectLimitsV1.encodedPayloadBytes))
         var result = [UInt8](repeating: 0, count: capacity)
+        // Zstd borrows initialized input and fixed-capacity output for one synchronous call.
         let size = result.withUnsafeMutableBytes { out in bytes.withUnsafeBytes { input in
-            ZSTD_compress(out.baseAddress, out.count, input.baseAddress, input.count, 3)
+            unsafe ZSTD_compress(out.baseAddress, out.count, input.baseAddress, input.count, 3)
         } }
         guard ZSTD_isError(size) == 0 else { throw CanonicalEncodingError.lengthLimit }
         result.removeSubrange(size..<result.count)
@@ -30,10 +31,10 @@ enum ZstdFrameV1 {
             guard window <= ObjectLimitsV1.decodedPayloadBytes else { throw CanonicalEncodingError.invalidPayload }
         }
         try bytes.withUnsafeBytes { input in
-            guard ZSTD_getFrameContentSize(input.baseAddress, input.count) == UInt64(count) else {
+            guard unsafe ZSTD_getFrameContentSize(input.baseAddress, input.count) == UInt64(count) else {
                 throw CanonicalEncodingError.invalidPayload
             }
-            let frameSize = ZSTD_findFrameCompressedSize(input.baseAddress, input.count)
+            let frameSize = unsafe ZSTD_findFrameCompressedSize(input.baseAddress, input.count)
             guard ZSTD_isError(frameSize) == 0, frameSize == input.count else {
                 throw CanonicalEncodingError.invalidPayload
             }
@@ -41,7 +42,7 @@ enum ZstdFrameV1 {
         // Fixed-capacity one-shot decoding uses the caller's output as history.
         var result = [UInt8](repeating: 0, count: max(1, count))
         let size = result.withUnsafeMutableBytes { out in bytes.withUnsafeBytes { input in
-            ZSTD_decompress(out.baseAddress, count, input.baseAddress, input.count)
+            unsafe ZSTD_decompress(out.baseAddress, count, input.baseAddress, input.count)
         } }
         guard ZSTD_isError(size) == 0, size == count else { throw CanonicalEncodingError.invalidPayload }
         result.removeSubrange(count..<result.count)

@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.4
 import PackageDescription
 
 let package = Package(
@@ -22,12 +22,14 @@ let package = Package(
             "CArgon2",
             "CZstd",
             .product(name: "Crypto", package: "swift-crypto")
-        ]),
+        ], swiftSettings: [.strictMemorySafety(), .treatAllWarnings(as: .error)]),
         .target(name: "NVStorageRuntime", dependencies: ["NVStorageCore", "CSQLCipher", "CStorageIO",
-            .product(name: "Crypto", package: "swift-crypto")], resources: [.copy("Resources")]),
+            .product(name: "Crypto", package: "swift-crypto")], resources: [.copy("Resources")],
+            swiftSettings: [.strictMemorySafety(), .treatAllWarnings(as: .error)]),
         .testTarget(name: "NVStorageCoreTests", dependencies: ["NVStorageCore"], resources: [.copy("Fixtures")]),
         .target(name: "CStorageFaults", dependencies: ["CSQLCipher"], path: "Tests/Support/CStorageFaults"),
         .executableTarget(name: "NVStorageProbe", dependencies: ["NVStorageRuntime", "CStorageFaults", "CSQLCipher"], path: "Tests/Support/NVStorageProbe"),
-        .testTarget(name: "NVStorageRuntimeTests", dependencies: ["NVStorageRuntime", "CSQLCipher"])
-    ]
+        .testTarget(name: "NVStorageRuntimeTests", dependencies: ["NVStorageRuntime", "CSQLCipher", "CStorageFaults"])
+    ],
+    swiftLanguageModes: [.v6]
 )

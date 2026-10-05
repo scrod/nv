@@ -51,26 +51,20 @@ func historicalValidationYieldsToSaveAndRechecksHistory(encrypted: Bool) async t
     let bytes = try await source.retainedObject(at: remote.object)
     _ = try await put("local", birth: a, generation: 1, session: receiver)
     let lane = await receiver.lane
-    let entered = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
-    let occupying = Task { try await lane.historyWork { entered.signal(); release.wait() } }
-    await withCheckedContinuation { continuation in
-        DispatchQueue.global().async { entered.wait(); continuation.resume() }
+    let gate = HistoryCheckGate()
+    try await lane.perform { db in
+        db.work = StorageWork()
+        db.work?.historyCheck = { await gate.check() }
     }
-    defer { release.signal() }
-    try await lane.perform { $0.work = StorageWork() }
     let receiving = Task { try await receiver.receive(bytes) }
-    var started = false
-    for _ in 0..<1000 {
-        started = try await lane.perform { ($0.work?[.validation].fullChecks ?? 0) > 0 }
-        if started { break }
-        await Task.yield()
-    }
+    await gate.waitFor(1)
+    defer { Task { await gate.release(2) } }
+    let started = try await lane.perform { ($0.work?[.validation].fullChecks ?? 0) > 0 }
     try #require(started)
     // The actual receiver has captured its prefix and is waiting on the history worker.
     let local = try await put("new local", birth: a, generation: 2, session: receiver)
     #expect(try await receiver.snapshot().notes.first { $0.birth == a }?.value.body.string == "new local")
-    release.signal()
-    try await occupying.value
+    await gate.release(2)
     _ = try await receiving.value
     let result = try await receiver.snapshot()
     #expect(result.notes.map(\.value.body.string).sorted() == ["new local", "remote"])

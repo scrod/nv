@@ -62,8 +62,11 @@ _Avoid_: Expendable cache, repository
 The complete current in-memory note collection and its pending admitted changes, authoritative during use.
 
 **Local State**:
-The local store's required settings, collection/root association, history-loss evidence, local observations and pending-file references/operation reservations. These are logically separate from portable history and disposable acceleration, even when stored in the same private database.
+The local store's required settings, collection/root association, history-loss evidence, unfinished verification requests, local observations and pending-file references/operation reservations. These are logically separate from portable history and disposable acceleration, even when stored in the same private database.
 _Avoid_: Synced preferences, startup cache
+
+**Verification request**:
+A small host-private durable record identifying the exact accepted object, bootstrap or local accepted prefix whose checks remain unfinished. Commit it before inspecting that evidence and retain it through the final consistency check. Successful completion settles that exact request; discovered damage replaces it atomically with the required-history damage marker. Reopening repeats unresolved checks before editable publication. Its prefix belongs to its original private store. See [verification recovery](docs/impl-proposal-5/plan/phase-4-improvements/durable-verification-recovery.md).
 
 **Current-state materialization**:
 The private database's derived current-note rows and authoring context, maintained through an exact prefix of accepted history. It is not a second history archive or the live store's pending user input.
@@ -78,6 +81,13 @@ a recorded rejection. The diagnostic identifies those prerequisites and reasons;
 the candidate's own validation awaits usable prerequisites. Missing data,
 unsupported prerequisite data and damage to already accepted history remain
 distinct. See [local receive handling](docs/impl-proposal-5/LocalStore.md).
+
+**Receive requirement**:
+An exact object locator plus its required role: retained bytes for assembling a
+snapshot, or accepted history for interpreting causal records. Immutable inputs
+reconstruct these roles; the private reverse-wait index stores object IDs. A
+usable page can satisfy a byte requirement before its containing snapshot is
+accepted. See [snapshot intake](docs/impl-proposal-5/plan/phase4-received-snapshot-validation.md).
 
 **Local tail**:
 Locally retained history not represented by the current materialization or a provider snapshot. It need not be unpublished or belong to only one writer.
@@ -151,7 +161,7 @@ Private evidence naming the history and descriptors that this local store has al
 _Avoid_: Undo cursor, upload receipt, all-devices watermark
 
 **Provider snapshot**:
-An immutable snapshot of note values and indexes at a stated operation frontier, available as retained provider objects. Its snapshot root lists the snapshot pages; this root is not a filesystem root.
+An immutable snapshot of note values and indexes at a stated operation frontier, available as retained provider objects. An initial root names a flat page list; a general root names a paged manifest tree. Its represented logical operation ancestry is distinct from the objects required to verify it: a required envelope can also carry a complete action outside that ancestry. Reconstruction includes every locally accepted outside-cut operation, even one received before the snapshot root. The snapshot root is distinct from the filesystem root.
 _Avoid_: Startup cache, latest database, canonical checkpoint
 
 **Encryption recovery key**:
@@ -370,6 +380,9 @@ Fine-grained in-session AppKit undo associated with the current editable text st
 
 **Remaining effect**:
 The part of a saved action not yet reversed by fine-grained native undo. Remaining-effect coverage connects native undo to durable action history without claiming an entire action was reversed.
+Ordered coverage uses the newest claim; incomparable maximal claims require review
+and consume the group only when all are complete. Actual Current's represented
+note lineage determines the applicable remaining state for its next reversal.
 _Avoid_: Reconstructed keystroke stack
 
 **Note view attachment**:

@@ -24,4 +24,13 @@ Review Undo/Redo reuses the resolver presentation but retains the invocation's c
 
 Normative requirements: HIST-01, DUR-01, REC-01, DELETE-01, CRYPT-01, BACKUP-01.
 
+Native remaining-effect coverage is causal: ordered claims use the latest state;
+incomparable claims require review and consume a group only if every maximal claim
+is complete. Remaining reversal follows actual Current's represented note lineage.
+Both local capture and received-record validation check the first native step
+against the writer's unique automatic causal candidate. The
+[connected contract](../impl-proposal-5/plan/phase3-connected-record-contract.md)
+and [NativeCausalUndoBridge](../tla/NativeCausalUndoBridge.tla) connect these rules
+to actual inverses, restart and conditional peer agreement.
+
 Implementation evidence: [native undo experiments](../impl-proposal-5/Native-Undo-Experiments.md) distinguish saved-span bookkeeping and guarded logical compensation from unsupported native range rebasing. Test external changes registered through supported undoable editing paths before considering the coarser handoff; preserve causal eligibility and do not register received history as a duplicate NV action. The suggested Undo Saved Edit fallback after a remote body update is not adopted. The synthetic composition adapter/model tests one mechanism, not its necessity or ordinary AppKit focus behavior. Actual editor/segment integration remains required.

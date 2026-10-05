@@ -34,6 +34,18 @@ Default-list exclusion derives from the complete durable restoration provenance,
 
 "Recently" does not promise a 30-day lifetime. V1 has no expiry, automatic purge, **Delete Permanently** or **Empty Recently Deleted** operation. Removal from this default listing is not removal of historical evidence. Unavailable provider work must not trap the user in this window, and closing it after admission cannot cancel or duplicate the accepted restoration.
 
+### Note Bookmarks: a dedicated window per saved search
+
+Saved searches graduate from search-loading shortcuts into window-backed views. Each bookmark can be opened in its own dedicated ordinary notes window showing its saved search. Activating a bookmark — clicking its entry in the Note Bookmarks window or pressing its associated numeric shortcut — opens that bookmark's dedicated window and brings it to the foreground, instead of loading the saved search into whichever ordinary window was most recently active and displacing that window's search, selection and scroll position. The dedicated window comes into existence on first activation and is reused from then on: activating an already-open bookmark foregrounds its existing window rather than opening a duplicate.
+
+A bookmark window is an ordinary notes window under the New Window contract above: same shared collection, backing store, live note objects and per-note undo, with its own presentation state initialized from the bookmark's saved search and its remembered last-selected note (`NoteBookmark` already retains the note UUID for this). Everything in the shared-model sections applies unchanged — synchronous search, per-window selection/scroll/layout, model-bound mutation admission, and closing the window releasing presentation state only, leaving the bookmark available for a later activation.
+
+A dedicated window's position and size are saved alongside the rest of the bookmark data: the window frame joins the search string and note UUID in the bookmark's persisted representation, written through the existing bookmarks preference-saving path. This retention is bookmark-scoped, private UI preference data in the same store as the bookmarks themselves; it is not the general serialized window-session format ruled out below.
+
+Open bookmark windows and their associated searches are remembered across app launches. At launch the remembered windows reopen presenting their associated saved searches, extending the existing cross-launch restoration that already reopens the Note Bookmarks panel itself. Remembered windows reopen only for bookmarks that still exist, and this restores bookmark windows only: it adopts no promise to restore arbitrary ordinary windows.
+
+`BookmarksController` keeps ownership of the bookmark list, its numeric shortcuts and the bookmark-to-window association, and routes activation through the application coordinator's open-window management rather than funneling every restore into `AppController`'s single visible window (`bookmarksController:restoreNoteBookmark:inBackground:` → `searchForString:`/`revealNote:`).
+
 ## Ownership separation
 
 Extract window/UI state out of the current `AppController` while preserving one shared collection/model owner. These are responsibilities, not a requirement for a class or framework per row.
@@ -48,7 +60,7 @@ Extract window/UI state out of the current `AppController` while preserving one 
 
 Use one reusable ordinary-window controller and the smallest shared list/preview components needed by the deleted viewer. Their different entry sources and allowed commands are explicit. A deleted row is a history reference, not a fake editable `NoteObject` inserted into the live store. Avoid spreading an `isRecentlyDeleted` mode through note storage, ordinary search and persistence.
 
-Window presentation state is runtime state, with any explicitly retained UI preferences remaining private. No new serialized window-session format or promise to restore every open window at launch is adopted here. In particular, there are no persisted per-window copies of note bodies or undo stacks.
+Window presentation state is runtime state, with any explicitly retained UI preferences remaining private. No serialized window-session format or promise to restore every open window at launch is adopted here; the per-bookmark window frames and remembered open set of the saved-searches contract above are retained as private bookmark preference data, as the bookmarks panel's existing cross-launch visibility already is. In particular, there are no persisted per-window copies of note bodies or undo stacks.
 
 ### Remembered cursor versus live selections
 
@@ -96,8 +108,10 @@ These are migration seams, not approval to replace working keyboard behavior who
 | `AppController` selection saving and `NoteObject setSelectedRange:` | Implement last-update-wins remembered ranges, including programmatic selections, without creating content-history operations or synchronizing every live caret |
 | [`NotesTableView.m`](../../NotesTableView.m) keys/editing/drop and application-delegate calls | Supply the correct window/list context and allowed actions. Existing Return-to-rename and Delete-to-app-delegate paths cannot be reused unchanged in a read-only deleted viewer |
 | `AppController windowWillClose:` / quit handling | Separate a window closing from shared collection shutdown. Do not apply the single-window quit preference blindly to every viewer window; preserve one coordinated termination path |
+| [`BookmarksController.m`](../../BookmarksController.m) `restoreNoteBookmark:inBackground:`, `restoreBookmark:`, `doubleClicked:`, `tableViewSelectionDidChange:` | Route every bookmark activation to the bookmark's dedicated window through the application coordinator, replacing the funnel through `bookmarksController:restoreNoteBookmark:inBackground:` into the one main window's `searchForString:`/`revealNote:` |
+| `NoteBookmark dictionaryRep` / `initWithDictionary:`, `BookmarksController restoreWindowFromSave`, `GlobalPrefs saveCurrentBookmarksFromSender:` | Persist each bookmark's window frame with the rest of its bookmark data, and reopen the remembered set of bookmark windows at launch alongside the panel itself |
 
-Extract and verify the ordinary single-window path first, then attach a second ordinary window, then reuse the resulting presentation pieces for Recently Deleted. Do not introduce an alternate persistence engine, per-window synchronization system, general scene framework or on-disk metadata solely for these features.
+Extract and verify the ordinary single-window path first, then attach a second ordinary window, then reuse the resulting presentation pieces for per-bookmark windows and Recently Deleted. Do not introduce an alternate persistence engine, per-window synchronization system, general scene framework or on-disk metadata solely for these features.
 
 ## Evidence and remaining decisions
 
@@ -108,6 +122,7 @@ The remaining implementation gates are the actual LinkingEditor mutation/undo/se
 The following UX details are not settled by the ownership design:
 
 - New Window's initial query/selection, placement, shortcut and which presentation state is restored across launches.
+- For bookmark windows: whether search-field edits inside a dedicated window update its bookmark's saved search or only filter that window; how removing or reordering bookmarks — and their positional numeric shortcuts — treats an open dedicated window (close it, retarget it, or leave it open unassociated); and how the Note Bookmarks table indicates which bookmark's window is key while several are open. Their initial query, saved placement and cross-launch reopening are settled above rather than open.
 - Whether Recently Deleted reuses one existing viewer or permits several; exact list filtering/sorting, branch/action presentation and post-restore focus/navigation. Source-row removal after local durability is settled; it is not an open presentation choice.
 - How the existing quit-on-window-close preference applies to the last ordinary window when viewer windows remain. Closing an arbitrary auxiliary window must not accidentally run the old single-window quit path.
 - Qualification of ordinary AppKit input-context behavior in the actual shared editor, especially remote application during composition; consult contracts/HIG before proposing custom behavior. Test registered external undo changes before any coarser fallback. A remaining UX trade-off requires explicit approval, not an assumption inferred from synthetic peer-input probes.

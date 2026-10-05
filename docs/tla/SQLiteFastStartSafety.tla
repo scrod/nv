@@ -6,8 +6,8 @@ EXTENDS Naturals, FiniteSets
 \* incremental Apply. One rebuild epoch and one crash/reopen bound the fixture.
 \* DiscoverDamage includes durable recording of the observation. The concrete
 \* runtime blocks immediately on detection, then attempts its private marker
-\* transaction; interruption/failure before that marker commits is a separate
-\* physical qualification boundary, not an atomic step proved by this model.
+\* transaction. VerificationRecoverySafety separately expands committed request
+\* admission, interrupted/failed diagnosis, exact settlement and startup replay.
 CONSTANTS Policy, Scenario
 ASSUME Policy \in {"safe","omitDelete","omitContext","staleStartup","staleEpoch","ignoreDamage"}
  /\ Scenario = "fast-start"

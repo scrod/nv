@@ -13,6 +13,10 @@ database state. A custom serial executor runs its jobs on the existing dedicated
 blocking-I/O queue. `HistoryWorker` uses a separate utility-priority queue for
 envelope preparation.
 
+Conflict and compensation calculations run on a cancellable worker over immutable
+captured data. The session actor remains available for local admission and close
+requests, and command completion rechecks live ownership before consumption.
+
 Each `DatabaseLane.perform` closure is synchronous. The closure and its result
 cross the actor boundary under Swift's `Sendable` checking; the actor supplies
 the non-Sendable connection inside that closure. A transaction completes or throws
@@ -26,8 +30,10 @@ turn. The current-state save path still validates and accepts in one turn;
 historical validation awaits individual indexed reads.
 
 The change adds no persistent state, fields, sidecars or long-lived validation
-cache. Existing immutable values carry data between turns. Runtime client APIs,
-durable formats and the current-state zero-ancestor fast path remain unchanged.
+cache. Existing immutable values carry data between turns. The actor conversion
+preserved Runtime client APIs, durable formats and the current-state zero-ancestor
+fast path. The subsequent [review corrections](phase3-review-corrections.md) narrow
+the generic capture initializer to ordinary kinds with complete host-supplied intent.
 Core's general `OrdinaryHistoryV1.validate` API becomes asynchronous so its readers
 can suspend directly.
 
@@ -56,16 +62,29 @@ single-defect failure classifications remain tested.
 
 Explicit close and failed-open cleanup run on the database executor. If a caller
 abandons an owner, `Database.deinit` transfers its remaining C handles to that
-same queue for final disposal. The disposal job closes the connection before
-releasing the private-directory lease.
+same queue for final disposal. Disposal finishes synchronously before the destructor
+returns, closing the connection before releasing the private-directory lease.
+An abandonment already executing on that queue disposes inline; another executor
+uses a synchronous queue turn. The executor's private queue-specific key selects
+the appropriate path. Orderly process exit separately drains collection owners
+before SQLCipher's process-exit handlers run, following the specified quit
+lifecycle. A final actor release can itself occur after async-main returns; the
+abandoned-owner process probe therefore observes lease release and closes its
+reopened verifier while still alive. The [review report](phase3-review-corrections.md#final-connection-cleanup)
+records the macOS 11 counterexample to relying on async-main return alone.
 
-This requires one narrowly scoped `@unchecked Sendable` value:
-`StorageExecutor.RetiredHandles`. It contains immutable pointers solely for
-final release, after the Swift connection owner has died. The ownership argument
-is exactly-once transfer from `deinit`; explicit close clears both pointers.
-This is the remaining audited C lifetime boundary. The former unchecked lane and
-mutable-state containers, synchronous history-read bridge and continuation
-wrappers have been removed.
+`StorageExecutor.RetiredHandles` is a private, non-Sendable value holding immutable
+pointers for final release. The synchronous queue closure borrows it until disposal
+finishes; it remains confined to that release operation. The ownership argument is
+exactly-once transfer from `deinit`; explicit close clears both pointers. Swift 6.4
+checks the executor's immutable stored state and its Dispatch queue-identity key.
+The private `synchronizeRelease` helper takes a nonescaping closure, giving Swift
+a checked scope for the off-queue disposal borrow. A compiler challenge changes
+that helper to an asynchronous queue hop and requires the precise escaping-capture
+error at its marked line.
+The C pointer lifetime remains an audited interoperation boundary, qualified by
+disposal/reopen and sanitizer tests. Production Core and Runtime now use checked
+conformances and actor ownership throughout this path.
 
 The executor enqueues each `UnownedJob` once and retains itself through execution.
 The explicit `asUnownedSerialExecutor` implementation and older job entry point
@@ -76,6 +95,13 @@ as successful compilation.
 The ownership/reentrancy rules follow [SE-0306](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0306-actors.md);
 the dispatch-backed executor follows [SE-0392](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0392-custom-actor-executors.md).
 
+Phase-3 command calculations also use this executor through a short-lived,
+value-only `CommandWorker` actor. Its synchronous calculation runs away from both
+the database lane and the global Swift task pool, retaining foreground progress
+on single-worker runtimes. The detached task awaits the actor and retains the
+existing cancellation/result checks. Each command owns its calculation resource
+until completion; captured immutable graph values supply all of its inputs.
+
 ## Robustness checks
 
 These checks apply the [conformance strategy](swift-storage-conformance-testing-strategy.md)'s
@@ -85,6 +111,12 @@ assert resulting values, and challenge the checks with targeted mutations.
 - Compiler construction probes require an awaited database call, reject returning
   `Database`, and reject an asynchronous transaction closure. Same-module probes
   run through SIL generation, where region-isolation diagnostics are emitted.
+- Compiler probes accept the actual executor and immutable Dispatch key as
+  Sendable, reject adding mutable state to the actual executor, and reject using
+  its final C-handle value where checked Sendable transfer is required.
+- Strict memory-safety probes require an explicit acknowledgment at the actual
+  SQLCipher key borrow. A separate challenge verifies that the final-release
+  closure completes synchronously within its caller's lifetime.
 - Failed keying releases ownership; dropping the final owner releases the lease
   and allows reopening with the independently expected rows intact.
 - A deterministic pause after the final historical read admits a local save.

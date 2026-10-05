@@ -40,7 +40,7 @@ enum SynchronousHistoryReference {
                 continue
             }
             switch op.effect {
-            case .genesis, .importComplete, .importNote: throw OrdinaryHistoryError.requiresLaterReducer
+            case .genesis, .importComplete, .importNote, .recoverCopy, .retireConflict, .adoptAutomatic: throw OrdinaryHistoryError.requiresLaterReducer
             case .create(_, let birth, _):
                 if try operationByID(op.id) == nil, try birthExists(birth) { throw OrdinaryHistoryError.reusedBirth }
             case .put, .delete: break

@@ -162,11 +162,14 @@ public struct OperationRecordV1: Equatable, Sendable {
 
     public func encodedV1(dependencies: DependencyLocatorTable,
                           earlierOperations: [IdentifiedOperation]) throws -> [UInt8] {
-// Revalidate local references against their semantic identities before encoding.
-        _ = try Self.canonicalReferences(causalReferences, expected: operation.causalParents.ids,
-                                         earlierOperations: earlierOperations)
-        _ = try Self.canonicalReferences(noteReferences, expected: operation.notePredecessors.ids,
-                                         earlierOperations: earlierOperations)
+        // Preserve each local binding and its canonical position in the reference vector.
+        let causal = try Self.canonicalReferences(causalReferences, expected: operation.causalParents.ids,
+                                                  earlierOperations: earlierOperations)
+        let predecessors = try Self.canonicalReferences(noteReferences, expected: operation.notePredecessors.ids,
+                                                        earlierOperations: earlierOperations)
+        guard causal == causalReferences, predecessors == noteReferences else {
+            throw CanonicalEncodingError.invalidReference
+        }
         var bytes = operation.id.bytes + operationHeader(nonce: operation.nonce, effect: operation.effect)
         for refs in [causalReferences, noteReferences] {
             bytes += bigEndianBytes(UInt32(refs.count))
@@ -186,7 +189,7 @@ public struct OperationRecordV1: Equatable, Sendable {
         let claimedID = try OperationID(bytes: cursor.fixedBytes(32))
         let nonce = try OperationNonce(bytes: cursor.fixedBytes(16))
         let kind = try cursor.byte()
-        guard (1...6).contains(kind) else { throw CanonicalEncodingError.unsupportedFormat }
+        guard (1...9).contains(kind) else { throw CanonicalEncodingError.unsupportedFormat }
         let action = try optionalID(&cursor).map { try ActionID(bytes: $0) }
         let birth = try optionalID(&cursor).map { try NoteBirth(bytes: $0) }
         let causal = try references(&cursor, dependencies: dependencies, earlierOperations: earlierOperations)
@@ -244,6 +247,24 @@ public struct OperationRecordV1: Equatable, Sendable {
             if kind == 6 {
                 guard payload.isEmpty else { throw CanonicalEncodingError.invalidOperation }
                 return .delete(action: action, birth: birth)
+            }
+            if kind >= 7 {
+                var cursor = ByteCursor(bytes: payload)
+                let effect: OperationEffectV1
+                switch kind {
+                case 7:
+                    let sourceBirth = try NoteBirth(bytes: cursor.fixedBytes(16)), revision = try OperationID(bytes: cursor.fixedBytes(32))
+                    let key = try ConflictRecoveryKeyV1(bytes: cursor.fixedBytes(32)), slot = try cursor.unsigned64()
+                    let reused: OperationID?
+                    switch try cursor.byte() { case 0: reused = nil; case 1: reused = try OperationID(bytes: cursor.fixedBytes(32)); default: throw CanonicalEncodingError.invalidDiscriminant }
+                    effect = try .recoverCopy(action: action, birth: birth,
+                        source: .init(birth: sourceBirth, revision: revision, key: key, slot: slot, reused: reused), value: PlaintextNoteValue.decode(&cursor))
+                case 8: effect = try .retireConflict(action: action, birth: birth, identity: DeterministicConflictIdentityV1.decode(&cursor))
+                default:
+                    let sourceBirth = try NoteBirth(bytes: cursor.fixedBytes(16)), revision = try OperationID(bytes: cursor.fixedBytes(32)), key = try AutomaticConflictKeyV1(bytes: cursor.fixedBytes(32))
+                    effect = try .adoptAutomatic(action: action, birth: birth, source: .init(birth: sourceBirth, revision: revision, key: key), value: PlaintextNoteValue.decode(&cursor))
+                }
+                try cursor.requireEnd(); return effect
             }
             let value = try PlaintextNoteValue.decodeV1(payload)
             switch kind {

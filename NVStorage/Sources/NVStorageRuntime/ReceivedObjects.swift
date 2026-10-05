@@ -1,10 +1,10 @@
 import NVStorageCore
-import Crypto
 
 public enum ObjectAcceptanceOutcome: Sendable {
     case pendingValidation
-    case waiting([SegmentLocator])
-    case blocked(prerequisites: [RejectedPrerequisite], unaccepted: [SegmentLocator])
+    case retainedForAssembly
+    case waiting([ObjectRequirement])
+    case blocked(prerequisites: [RejectedPrerequisite], unaccepted: [ObjectRequirement])
     case accepted(sequence: Int64)
 }
 
@@ -19,77 +19,58 @@ extension LocalStoreSession {
     public func receive(_ bytes: [UInt8]) async throws -> ObjectAcceptanceOutcome {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard !receiving else { throw StorageError.busy }
-        receiving = true
-        defer { receiving = false; let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() } }
+        receiveState = .retaining
+        defer { receiveState = .idle; signalReceiveWaiters() }
         let selection = selection, protection = protection
-        let opened = try await lane.perform { db in
+        let opened = try await lane.historyWork {
             guard UInt64(bytes.count) <= ObjectLimitsV1.encodedPayloadBytes + 156 else { throw CanonicalEncodingError.lengthLimit }
-            let identifier = SQLValue.blob(Array(SHA256.hash(data: bytes)))
-            if let reason = try db.receivedRejection(identifier) {
-                guard try db.rows("SELECT encoded FROM objects WHERE object_id=?", [identifier]) == [[.blob(bytes)]] else {
-                    throw StorageError.integrity
-                }
-                throw reason.error
-            }
-            let opened = try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection)
-            guard opened.kind == .changes else { throw StorageError.unsupported }
-            try db.transaction {
-                let old = try db.rows("SELECT encoded FROM objects WHERE object_id=?", [.blob(opened.locator.segmentID.bytes)])
-                if old.isEmpty {
-                    try db.run("INSERT INTO objects VALUES(?,1,?,?,?)", [.blob(opened.locator.segmentID.bytes),
-                        .blob(opened.locator.writerEpoch.bytes), .blob(Array(opened.locator.encodedV1()[16..<24])), .blob(bytes)])
-                    try db.run("INSERT INTO ready_objects VALUES(?)", [.blob(opened.locator.segmentID.bytes)])
-                } else if old != [[.blob(bytes)]] { throw StorageError.integrity }
-            }
-            return opened
+            return try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection)
         }
-        try await resumeReceivedValidation()
+        let completion = try await lane.perform { db in
+            try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
+            try db.transaction { try db.retainCandidate(bytes, opened: opened, ready: true) }
+            return db.work?.receiveRetentionCompletion
+        }
+        receiveState = opened.kind == .changes ? .history : .optional
+        signalReceiveWaiters()
+        try await completion?(opened.locator)
+        let accepted = try await resumeReceivedValidation(target: opened.locator)
+        if let accepted { return .accepted(sequence: accepted) }
+        guard !closed else { throw StorageError.closed }
         try await lane.catchUp(selection: selection, protection: protection)
         return try await receivedObjectStatus(at: opened.locator)
     }
 
-    /// Reads queue, acceptance and dependency diagnostics for an exact retained candidate.
+    /// Reconstructs exact waiting roles from retained bytes and current accepted membership.
     public func receivedObjectStatus(at locator: SegmentLocator) async throws -> ObjectAcceptanceOutcome {
         guard !closed else { throw StorageError.closed }
         let selection = selection, protection = protection
-        let outcome: ObjectAcceptanceOutcome = try await lane.perform { db in
+        if let accepted = try await lane.perform({ db -> Int64? in
             try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
-            let id = SQLValue.blob(locator.segmentID.bytes)
-            guard let row = try db.rows("SELECT encoded FROM objects WHERE object_id=?", [id]).first else {
-                throw StorageError.incomplete
-            }
-            let opened = try ObjectEnvelopeV1.open(row[0].bytes, collection: selection.descriptor.collection,
-                protection: protection, expectedLocator: locator)
-            if let reason = try db.receivedRejection(id) { throw reason.error }
-            let accepted = try db.rows("SELECT seq FROM accepted_objects WHERE object_id=?", [id])
-            if let row = accepted.first {
-                return try .accepted(sequence: row[0].number)
-            }
-            let payload = try ChangesPayloadV1.decodeV1(opened.payload)
-            let missing = try db.missing(payload.dependencies.entries)
-            if missing.isEmpty {
-                guard try !db.rows("SELECT 1 FROM ready_objects WHERE object_id=?", [id]).isEmpty else {
-                    throw StorageError.integrity
-                }
-                return .pendingValidation
-            }
-            return .waiting(missing)
+            guard try db.snapshotCandidate(locator, collection: selection.descriptor.collection, protection: protection) != nil else { throw StorageError.incomplete }
+            if let reason = try db.receivedRejection(.blob(locator.segmentID.bytes)) { throw reason.error }
+            return try db.rows("SELECT seq FROM accepted_objects WHERE object_id=?", [.blob(locator.segmentID.bytes)]).first?.first?.number
+        }) { return .accepted(sequence: accepted) }
+        do {
+            let candidate = try await lane.prepareReceived(locator, selection: selection, protection: protection, recordingRejections: false)
+            if case .page = candidate { return .retainedForAssembly }
+            return .pendingValidation
+        } catch let wait as ReceiveWait {
+            let blockers = try await lane.rejectedPrerequisites(of: locator.segmentID, discovered: wait.requirements)
+            return blockers.isEmpty ? .waiting(wait.requirements) : .blocked(prerequisites: blockers, unaccepted: wait.requirements)
         }
-        guard case .waiting(let unaccepted) = outcome else { return outcome }
-        let blockers = try await lane.rejectedPrerequisites(of: locator.segmentID)
-        return blockers.isEmpty ? outcome : .blocked(prerequisites: blockers, unaccepted: unaccepted)
     }
 
     /// Keeps owned receive work moving after interfering saves finish.
-    func resumeReceivedValidation() async throws {
+    private func signalReceiveWaiters() {
+        let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() }
+    }
+    func resumeReceivedValidation(target: SegmentLocator? = nil) async throws -> Int64? {
         while true {
-            do {
-                try await lane.drainReady(selection: selection, protection: protection)
-                return
-            } catch HistoryValidationInterrupted.historyAdvanced {
-                while inFlight {
-                    await withCheckedContinuation { drained.append($0) }
-                }
+            do { return try await lane.drainReady(selection: selection, protection: protection, target: target,
+                snapshotAllowed: { await self.lifecycle == .open }) }
+            catch HistoryValidationInterrupted.historyAdvanced {
+                while inFlight { await withCheckedContinuation { drained.append($0) } }
             }
         }
     }
@@ -98,30 +79,29 @@ extension LocalStoreSession {
         guard !closed else { throw StorageError.closed }
         let collection = selection.descriptor.collection, protection = protection
         return try await lane.perform { db in
-            guard let (bytes, _) = try db.acceptedEnvelope(locator, collection: collection, protection: protection) else {
-                throw StorageError.incomplete
-            }
+            guard let (bytes, _) = try db.acceptedEnvelope(locator, collection: collection, protection: protection) else { throw StorageError.incomplete }
             return bytes
         }
     }
 }
 
-private enum ReadyTurn: Sendable {
-    case finished, parked
-    case validate(SegmentLocator, [UInt8])
+/// Complete preparation results consumed by the existing acceptance boundaries.
+fileprivate enum PreparedCandidate: Sendable {
+    case page
+    case changes([UInt8])
+    case general(GeneralSnapshotPreviewV1)
+    case initial([SegmentLocator: [UInt8]])
 }
 
 extension DatabaseLane {
-    /// Follows retained waiting edges in short writer turns, deduplicating shared ancestry.
-    nonisolated func rejectedPrerequisites(of object: SegmentID) async throws -> [RejectedPrerequisite] {
-        var pending = [object], visited: Set<SegmentID> = [], result: [RejectedPrerequisite] = []
+    /// Follows retained waiting edges in short turns, deduplicating shared ancestry.
+    nonisolated func rejectedPrerequisites(of object: SegmentID, discovered: [ObjectRequirement] = []) async throws -> [RejectedPrerequisite] {
+        var pending = [object] + discovered.map { $0.locator.segmentID }, visited: Set<SegmentID> = [], result: [RejectedPrerequisite] = []
         while let next = pending.popLast() {
             guard visited.insert(next).inserted else { continue }
             let (reason, parents) = try await perform { db in
-                let id = SQLValue.blob(next.bytes)
-                let reason = try db.receivedRejection(id)
-                let parents = try db.rows("SELECT prerequisite FROM object_waits WHERE child=?", [id])
-                    .map { try SegmentID(bytes: $0[0].bytes) }
+                let id = SQLValue.blob(next.bytes), reason = try db.receivedRejection(id)
+                let parents = try db.rows("SELECT prerequisite FROM object_waits WHERE child=?", [id]).map { try SegmentID(bytes: $0[0].bytes) }
                 return (reason, parents)
             }
             if let reason { result.append(RejectedPrerequisite(object: next, reason: reason)) }
@@ -130,59 +110,133 @@ extension DatabaseLane {
         return result.sorted { $0.object.bytes.lexicographicallyPrecedes($1.object.bytes) }
     }
 
-    /// Processes one candidate per writer turn; durable queue rows own unfinished work.
-    nonisolated func drainReady(selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws {
-        while true {
-            let turn = try await perform { db -> ReadyTurn in
-                guard let ready = try db.rows("SELECT object_id FROM ready_objects LIMIT 1").first else { return .finished }
-                guard let row = try db.rows("SELECT encoded FROM objects WHERE object_id=?", ready).first else { throw StorageError.incomplete }
+    /// Reads one exact assembly input, preserving a prerequisite's own failure independently.
+    private nonisolated func assemblyBytes(_ locator: SegmentLocator, root: SegmentLocator,
+        selection: LocalStoreSelection, protection: ObjectProtectionV1, recordingRejections: Bool,
+        snapshotAllowed: (@Sendable () async -> Bool)? = nil) async throws -> [UInt8] {
+        do {
+            if let snapshotAllowed, await !snapshotAllowed() { throw StorageError.closed }
+            let bytes = try await perform { db in
                 try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
-                do {
-                    return try db.transaction {
-                        if try !db.rows("SELECT 1 FROM accepted_objects WHERE object_id=?", ready).isEmpty {
-                            try db.run("DELETE FROM ready_objects WHERE object_id=?", ready)
-                            return .parked
-                        }
-                        let bytes = try row[0].bytes
-                        let opened = try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection)
-                        guard opened.locator.segmentID.bytes == (try ready[0].bytes), opened.kind == .changes else { throw StorageError.unsupported }
-                        let payload = try ChangesPayloadV1.decodeV1(opened.payload)
-                        let missing = try db.missing(payload.dependencies.entries)
-                        guard !missing.isEmpty else { return .validate(opened.locator, bytes) }
-                        try db.run("DELETE FROM object_waits WHERE child=?", ready)
-                        for dependency in missing { try db.run("INSERT INTO object_waits VALUES(?,?)", [ready[0], .blob(dependency.segmentID.bytes)]) }
-                        try db.run("DELETE FROM ready_objects WHERE object_id=?", ready)
-                        return .parked
-                    }
-                } catch {
+                if locator != root, try db.receivedRejection(.blob(locator.segmentID.bytes)) != nil { throw ReceiveWait(requirements: [.retainedBytes(locator)]) }
+                guard let bytes = try db.snapshotCandidate(locator, collection: selection.descriptor.collection, protection: protection) else { throw ReceiveWait(requirements: [.retainedBytes(locator)]) }
+                return bytes
+            }
+            _ = try await historyWork { try ReceivedPayload(ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection, expectedLocator: locator)) }
+            return bytes
+        } catch {
+            // A bad address belongs to the referring input; intact target bytes keep their status.
+            if locator != root, error as? CanonicalEncodingError != .invalidReference, let reason = ReceiveRejection(error) {
+                try await perform { db in
                     try db.requireHealthyHistory()
-                    guard let reason = ReceiveRejection(error) else { throw error }
-                    try db.rejectReceived(ready[0], reason: reason)
-                    return .parked
+                    if try !db.rows("SELECT 1 FROM accepted_objects WHERE object_id=?", [.blob(locator.segmentID.bytes)]).isEmpty { return try db.checkingRetainedHistory { throw StorageError.integrity } }
+                    if recordingRejections { try db.rejectReceived(.blob(locator.segmentID.bytes), reason: reason) }
                 }
+                throw ReceiveWait(requirements: [.retainedBytes(locator)])
             }
-            switch turn {
-            case .finished: return
-            case .parked: continue
-            case .validate(let locator, let bytes):
-                do { _ = try await acceptScheduled(bytes, locator: locator, selection: selection, protection: protection) }
-                catch {
-                    guard let reason = ReceiveRejection(error) else { throw error }
-                    try await perform { try $0.rejectReceived(.blob(locator.segmentID.bytes), reason: reason) }
+            throw error
+        }
+    }
+
+    /// Discovers complete pages first, then checks their exact accepted-history requirements.
+    fileprivate nonisolated func prepareReceived(_ locator: SegmentLocator, selection: LocalStoreSelection,
+        protection: ObjectProtectionV1, recordingRejections: Bool = true,
+        snapshotAllowed: (@Sendable () async -> Bool)? = nil) async throws -> PreparedCandidate {
+        let bytes = try await assemblyBytes(locator, root: locator, selection: selection, protection: protection, recordingRejections: recordingRejections)
+        let input = try await historyWork { try ReceivedPayload(ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection, expectedLocator: locator)) }
+        switch input {
+        case .page, .generalPage: return .page
+        case .changes:
+            let missing = try await perform { try $0.missingRequirements(input.requirements) }
+            if !missing.isEmpty { throw ReceiveWait(requirements: missing) }
+            return .changes(bytes)
+        case .generalRoot:
+            let preparation = try await perform { db in (db.work?.receiveRecordsPerTurn ?? 64, db.work?.snapshotPreparationYield) }
+            let didYield: (@Sendable (Int) async -> Void)?
+            if let hook = preparation.1 { didYield = { count in await hook(locator, count) } }
+            else { didYield = nil }
+            let preview = try await GeneralSnapshotPreviewV1.read(snapshot: locator, collection: selection.descriptor.collection, protection: protection,
+                recordsPerTurn: preparation.0, didYield: didYield) { target in
+                try await self.assemblyBytes(target, root: locator, selection: selection, protection: protection,
+                    recordingRejections: recordingRejections, snapshotAllowed: snapshotAllowed)
+            }
+            let recordBytes = try preview.records.reduce(0) { try $0 + $1.encodedV1().count }
+            try await perform { db in db.countWork { $0.snapshotRecords += preview.records.count; $0.snapshotRecordBytes += recordBytes } }
+            let requirements = preview.historyLocators.sorted { $0.encodedV1().lexicographicallyPrecedes($1.encodedV1()) }.map(ObjectRequirement.acceptedHistory)
+            // Attribute damaged retained targets before interpreting a referring root's address.
+            for requirement in requirements {
+                do {
+                    _ = try await assemblyBytes(requirement.locator, root: locator, selection: selection, protection: protection,
+                        recordingRejections: recordingRejections, snapshotAllowed: snapshotAllowed)
+                } catch is ReceiveWait { continue }
+            }
+            let missing = try await perform { try $0.missingRequirements(requirements) }
+            if !missing.isEmpty { throw ReceiveWait(requirements: missing) }
+            return .general(preview)
+        case .root:
+            var objects = [locator: bytes], pending = input.requirements + [.acceptedHistory(selection.descriptor.genesis)]
+            var seen: Set<ObjectRequirement> = [], missing: [ObjectRequirement] = []
+            while let requirement = pending.popLast() {
+                guard seen.insert(requirement).inserted else { continue }
+                let unavailable = try await perform { try $0.missingRequirements([requirement]) }
+                if !unavailable.isEmpty { missing += unavailable; continue }
+                let target = requirement.locator
+                let bytes = try await assemblyBytes(target, root: locator, selection: selection, protection: protection,
+                    recordingRejections: recordingRejections, snapshotAllowed: snapshotAllowed)
+                let payload = try await historyWork { try ReceivedPayload(ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection, expectedLocator: target)) }
+                objects[target] = bytes; pending += payload.requirements
+            }
+            if !missing.isEmpty { throw ReceiveWait(requirements: missing) }
+            return .initial(objects)
+        }
+    }
+
+    /// Processes one candidate per writer turn; durable queue rows own unfinished work.
+    nonisolated func drainReady(selection: LocalStoreSelection, protection: ObjectProtectionV1,
+        target: SegmentLocator? = nil, snapshotAllowed: (@Sendable () async -> Bool)? = nil) async throws -> Int64? {
+        var acceptedTarget: Int64?
+        while true {
+            guard let locator = try await perform({ db -> SegmentLocator? in
+                try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
+                // Drive this lookup from ready work, keeping an empty queue independent of history size.
+                guard let row = try db.rows("SELECT o.writer_epoch,o.sequence,o.object_id FROM ready_objects r CROSS JOIN objects o USING(object_id) LIMIT 1").first else { return nil }
+                return try SegmentLocator.decodeV1(row[0].bytes + row[1].bytes + row[2].bytes)
+            }) else { return acceptedTarget }
+            do {
+                if try await perform({ try !$0.rows("SELECT 1 FROM accepted_objects WHERE object_id=?", [.blob(locator.segmentID.bytes)]).isEmpty }) {
+                    try await perform { try $0.run("DELETE FROM ready_objects WHERE object_id=?", [.blob(locator.segmentID.bytes)]) }; continue
                 }
-                try await catchUp(selection: selection, protection: protection)
+                let kind = try await perform { try $0.rows("SELECT kind FROM objects WHERE object_id=?", [.blob(locator.segmentID.bytes)])[0][0].number }
+                if kind != 1, let snapshotAllowed, await !snapshotAllowed() { return acceptedTarget }
+                let sequence: Int64?
+                switch try await prepareReceived(locator, selection: selection, protection: protection, snapshotAllowed: kind == 1 ? nil : snapshotAllowed) {
+                case .page:
+                    try await perform { db in try db.transaction { try db.run("DELETE FROM ready_objects WHERE object_id=?", [.blob(locator.segmentID.bytes)]) } }
+                    sequence = nil
+                case .changes(let bytes): sequence = try await acceptScheduled(bytes, locator: locator, selection: selection, protection: protection)
+                case .general(let preview): sequence = try await acceptGeneralSnapshot(locator, selection: selection, protection: protection, assembled: preview).0
+                case .initial(let objects): sequence = try await acceptReceivedBootstrap(locator, objects: objects, selection: selection, protection: protection)
+                }
+                if locator == target { acceptedTarget = sequence }
+            } catch let wait as ReceiveWait {
+                let gate = try await perform { $0.work?.receiveDiscovered }
+                await gate?(locator, wait.requirements)
+                try await perform { db in
+                    try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
+                    try db.parkReceived(locator, requirements: wait.requirements)
+                }
+            } catch {
+                guard let reason = ReceiveRejection(error) else { throw error }
+                try await perform { try $0.rejectReceived(.blob(locator.segmentID.bytes), reason: reason) }
             }
+            do { try await catchUp(selection: selection, protection: protection) }
+            catch StorageError.closed { if let acceptedTarget { return acceptedTarget }; throw StorageError.closed }
         }
     }
 }
 
 extension Database {
     func missing(_ locators: [SegmentLocator]) throws -> [SegmentLocator] {
-        try locators.filter { locator in
-            let r = try rows("SELECT o.writer_epoch,o.sequence FROM accepted_objects a JOIN objects o USING(object_id) WHERE object_id=?", [.blob(locator.segmentID.bytes)])
-            if r.isEmpty { return true }
-            guard r == [[.blob(locator.writerEpoch.bytes), .blob(Array(locator.encodedV1()[16..<24]))]] else { throw CanonicalEncodingError.invalidReference }
-            return false
-        }
+        try missingRequirements(locators.map(ObjectRequirement.acceptedHistory)).map(\.locator)
     }
 }

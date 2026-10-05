@@ -89,20 +89,23 @@ import NVStorageRuntime
     try await source.quiesce()
 }
 
-@Test(arguments: [false, true]) func concurrentHistoryIsRetainedButRequiresLaterReducer(encrypted: Bool) async throws {
+@Test(arguments: [false, true]) func concurrentHistoryIsRetainedAndReopensEditable(encrypted: Bool) async throws {
     let (initial, protection) = try testInitial(encrypted)
     let source = try await newSession(initial, protection), receiver = try await newSession(initial, protection)
     let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
     let remote = try await put("remote", birth: birth, generation: 1, session: source)
     let local = try await put("local", birth: birth, generation: 1, session: receiver)
     let bytes = try await source.retainedObject(at: remote.object)
-    await #expect(throws: StorageError.unsupported) { try await receiver.receive(bytes) }
+    _ = try await receiver.receive(bytes)
     #expect(try await receiver.retainedObject(at: remote.object) == bytes)
     #expect(try await !receiver.retainedObject(at: local.object).isEmpty)
-    await #expect(throws: StorageError.incomplete) { try await receiver.snapshot() }
+    let current = try await receiver.snapshot()
+    #expect(current.notes.first { $0.birth == birth }?.heads.count == 2)
     let selection = await receiver.selection
     try await receiver.quiesce()
-    await #expect(throws: StorageError.unsupported) { try await LocalStoreSession.open(selection: selection, protection: protection) }
+    let reopened = try await LocalStoreSession.open(selection: selection, protection: protection)
+    #expect(try await reopened.snapshot().notes == current.notes)
+    try await reopened.quiesce()
     try await source.quiesce()
 }
 
@@ -119,7 +122,7 @@ import NVStorageRuntime
         labels: original.labels, created: original.created, modified: original.modified)
     let labeled = try PlaintextNoteValue(title: renamed.title, body: renamed.body,
         labels: CanonicalLabels([ExactUTF8(bytes: Array("Tag".utf8))]), created: renamed.created, modified: renamed.modified)
-    for (i, entry) in [(ActionKindV1.rename, renamed), (.labels, labeled)].enumerated() {
+    for (i, entry) in [(OrdinaryActionKind.rename, renamed), (.labels, labeled)].enumerated() {
         let capture = try await CapturedActionGroup(snapshot: session.snapshot(), kind: entry.0,
             changes: [.put(CapturedNoteGeneration(birth: a, generation: UInt64(i + 1)), entry.1)])
         _ = try requireReceipt(await session.persist(capture: capture))

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Qualify SQLCipher ASan instrumentation and run the real Runtime against that archive."""
 import argparse
+import json
 import os
 import re
 from pathlib import Path
@@ -11,9 +12,18 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def completed_tests(log):
+    return re.search(r'Test run with [1-9][0-9]* tests?(?: in [0-9]+ suites?)? passed', log) is not None
+
+
 def main():
+    assert completed_tests('Test run with 81 tests in 1 suite passed after 1.0 seconds.')
+    assert completed_tests('Test run with 81 tests in 2 suites passed after 1.0 seconds.')
+    assert not completed_tests('Test run with 0 tests in 1 suite passed after 1.0 seconds.')
+    assert not completed_tests('Test run with 81 tests in 1 suite failed after 1.0 seconds.')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prefix', type=Path, required=True)
+    parser.add_argument('--filter', default='NVStorageRuntimeTests')
     args = parser.parse_args()
     prefix = args.prefix.resolve()
     archive = prefix/'lib/libsqlcipher.a'
@@ -37,9 +47,12 @@ def main():
     with (artifacts/'runtime.log').open('w') as output:
         result = subprocess.run(['swift', 'test', '--build-system', 'native', '--package-path', str(ROOT/'NVStorage'),
             '--scratch-path', str(ROOT/'NVStorage/.build-cipher-asan'), '--sanitize', 'address',
-            '-Xswiftc', '-strict-memory-safety', '--filter', 'NVStorageRuntimeTests'], env=env, stdout=output, stderr=subprocess.STDOUT)
+            '--no-parallel', '--filter', args.filter], env=env, stdout=output, stderr=subprocess.STDOUT)
     log = (artifacts/'runtime.log').read_text()
-    assert result.returncode == 0 and re.search(r'Test run with [1-9][0-9]* tests(?: in [0-9]+ suites)? passed', log), log[-5000:]
+    (artifacts/'results.json').write_text(json.dumps({'runtime_returncode': result.returncode,
+        'positive_test_completion': completed_tests(log), 'filter': args.filter,
+        'cipher_archive': str(archive)}, indent=2))
+    assert result.returncode == 0 and completed_tests(log), log[-5000:]
     print('PASS: instrumented-cipher Runtime suite', flush=True)
 
 

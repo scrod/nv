@@ -43,6 +43,17 @@ func actionClient(_ payload: ChangesPayloadV1) throws {
     let _: ChangesPayloadV1 = try ChangesPayloadV1.decodeV1(payload.encodedV1())
     let _: [ActionV1] = payload.actions.map { $0.action }
 }
+func currentClient(_ cell: CurrentNoteCellV1, _ provenance: CurrentNoteProvenanceV1) throws -> CurrentNoteCellV1 {
+    try CurrentNoteCellV1(birth: cell.birth, value: cell.value, represented: cell.represented,
+        heads: cell.heads, provenance: provenance, scopeFrontier: cell.scopeFrontier, identity: cell.identity)
+}
+func derivedClient(_ bytes: [UInt8], _ table: DependencyLocatorTable, _ history: [IdentifiedOperation],
+                   _ collection: CollectionID, _ birth: NoteBirth, _ enclosing: SegmentLocator,
+                   _ resolve: (SegmentLocator) async throws -> ChangesPayloadV1?) async throws {
+    let reference = try DerivedStateReferenceV1.decodeV1(bytes, dependencies: table, earlierOperations: [])
+    let _: ReconstructedDerivedStateV1 = try await reference.reconstruct(collection: collection, birth: birth,
+        history: history, earlierOperations: [], at: enclosing, resolve: resolve)
+}
 func bootstrapClient(_ descriptor: BootstrapDescriptorV1, _ collection: CollectionID,
                      _ protection: ObjectProtectionV1, _ locator: SegmentLocator,
                      _ read: (SegmentLocator) throws -> [UInt8]?) throws {
@@ -53,6 +64,12 @@ func bootstrapClient(_ descriptor: BootstrapDescriptorV1, _ collection: Collecti
         let _: OpenedObjectV1 = try ObjectEnvelopeV1.open(bytes, collection: collection,
             protection: protection, expectedLocator: locator)
     }
+}
+func snapshotClient(_ locator: SegmentLocator, _ collection: CollectionID, _ protection: ObjectProtectionV1,
+                    _ read: @escaping @Sendable (SegmentLocator) async throws -> [UInt8]?) async throws {
+    let preview = try await GeneralSnapshotPreviewV1.read(snapshot: locator, collection: collection, protection: protection, read: read)
+    try preview.checkProtection(collection: collection, protection: protection)
+    let _: [GeneralSnapshotRecordV1] = preview.records
 }
 """, None),
         ("origin is not action", """
@@ -98,6 +115,50 @@ func wrong() { take(InitialBootstrapValidationV1.self) } // expected-error
 """, "requires that 'InitialBootstrapValidationV1' conform to 'Decodable'"),
     ]
     issuers = [
+        ("current provenance has one variant", """
+func wrong(_ derived: DerivedStateReferenceV1, _ automatic: AutomaticSourceReferenceV1) {
+    let _: CurrentNoteProvenanceV1 = .derived(derived, automatic) // expected-error
+}
+""", "extra argument in call"),
+        ("current provenance is immutable", """
+func wrong(_ source: CurrentNoteCellV1) {
+    var cell = source
+    cell.provenance = .revision // expected-error
+}
+""", "cannot assign to property: 'provenance' is a 'let' constant"),
+        ("snapshot preview issuer", """
+func wrong(_ p: GeneralSnapshotPreviewV1, _ bytes: [UInt8]) {
+    let _ = GeneralSnapshotPreviewV1(collection: p.collection, snapshot: p.snapshot, root: p.root, records: p.records, pages: p.pages, rootBytes: bytes) // expected-error
+}
+""", "'GeneralSnapshotPreviewV1' initializer is inaccessible due to 'private' protection level"),
+        ("snapshot preview decoding boundary", """
+func take<T: Decodable>(_ type: T.Type) {}
+func wrong() { take(GeneralSnapshotPreviewV1.self) } // expected-error
+""", "requires that 'GeneralSnapshotPreviewV1' conform to 'Decodable'"),
+        ("derived reconstruction issuer", """
+func wrong(_ r: DerivedStateReferenceV1, _ c: CollectionID, _ b: NoteBirth,
+           _ reduction: NoteReductionV1, _ v: ReducedNoteValueV1) {
+    let _ = ReconstructedDerivedStateV1(reference: r, collection: c, birth: b, reduction: reduction, value: v) // expected-error
+}
+""", "'ReconstructedDerivedStateV1' initializer is inaccessible due to 'fileprivate' protection level"),
+        ("derived claim requires reconstruction", """
+func take(_ value: ReconstructedDerivedStateV1) {}
+func wrong(_ value: DerivedStateReferenceV1) { take(value) } // expected-error
+""", "cannot convert value of type 'DerivedStateReferenceV1' to expected argument type 'ReconstructedDerivedStateV1'"),
+        ("merge descriptor issuer", """
+func wrong(_ c: CollectionID, _ b: NoteBirth, _ ids: [OperationID], _ base: OperationID, _ v: PlaintextNoteValue) throws {
+    let _ = try DerivedMergeV1(collection: c, birth: b, inputs: ids, base: base, value: v) // expected-error
+}
+""", "'DerivedMergeV1' initializer is inaccessible due to 'fileprivate' protection level"),
+        ("represented value issuer", """
+func wrong(_ v: PlaintextNoteValue, _ ids: [OperationID]) {
+    let _ = ReducedNoteValueV1(value: v, represented: ids) // expected-error
+}
+""", "'ReducedNoteValueV1' initializer is inaccessible due to 'fileprivate' protection level"),
+        ("merge identity is not operation", """
+func take(_ id: OperationID) {}
+func wrong(_ id: MergeIDV1) { take(id) } // expected-error
+""", "cannot convert value of type 'MergeIDV1' to expected argument type 'OperationID'"),
         ("no fixed nonce sealer", """
 func wrong(_ c: CollectionID, _ w: WriterEpoch, _ p: ObjectProtectionV1) throws {
     let _ = try ObjectEnvelopeV1.seal(payload: [], kind: .changes, collection: c, writer: w, sequence: 0, protection: p, testNonce: nil) // expected-error
@@ -129,7 +190,8 @@ func wrong(_ f: InitialImportScopeFrontierV1) {
 """, "'InitialImportScopeFrontierV1' initializer is inaccessible due to 'fileprivate' protection level"),
     ]
     with temporary_artifacts(prefix="nv-storage-typecheck-") as cache:
-        command = [args.swiftc, "-swift-version", "6", "-typecheck", "-I", str(args.modules),
+        command = [args.swiftc, "-swift-version", "6", "-strict-concurrency=complete", "-strict-memory-safety",
+                   "-warnings-as-errors", "-typecheck", "-I", str(args.modules),
                    "-module-cache-path", cache]
         root = Path(__file__).resolve().parents[1]
         for module_map in [args.modules.parent / "CArgon2.build/module.modulemap",

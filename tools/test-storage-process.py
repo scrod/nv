@@ -65,14 +65,15 @@ def main():
             assert cold == {'cold_opens_and_reopens': 16}, cold
             results.append({'case': case.name, **cold})
             print('PASS:', case.name, flush=True)
-        for name, event, ordinal, complete in [
-            ('creation-before-schema', 4, 1, False), ('creation-header-only', 5, 1, False),
-            ('creation-history-committed', 5, 2, True), ('creation-during-view', 7, 1, True),
+        for name, event, ordinal, complete, phase in [
+            ('creation-before-schema', 4, 1, False, 'retention'), ('creation-header-only', 5, 1, False, 'retention'),
+            ('creation-partial-retention', 5, 2, False, 'retention'), ('creation-before-history', 4, 1, False, 'acceptance'),
+            ('creation-history-committed', 5, 1, True, 'acceptance'), ('creation-during-view', 7, 1, True, 'retention'),
         ]:
             case = artifacts / f'{profile}-{name}'
             case.mkdir()
             directory, selection = case / 'private', case / 'selection.json'
-            invoke('create', directory, profile, selection, event, ordinal, -1, code=86)
+            invoke('create', directory, profile, selection, event, ordinal, -1, phase, code=86)
             if complete:
                 verify(directory, selection, ['A', 'untouched'], 1)
             else:
@@ -92,26 +93,30 @@ def main():
             ('after-materialization', 5, 2, True),
         ]:
             directory, selection = create(name, profile)
-            invoke('edit', directory, selection, event, ordinal, -1, code=86)
+            invoke('edit', directory, selection, event, ordinal, -1, 'acceptance', code=86)
             verify(directory, selection, ['edited' if committed else 'A', 'untouched'], 2 if committed else 1)
         for name, event, result in [('write-full', 1, 13), ('sync-eio', 2, 1034), ('sync-completion-ambiguous', 8, 1034), ('busy', 3, 5)]:
             directory, selection = create(name, profile)
-            outcome = invoke('edit', directory, selection, event, 1, result)
+            outcome = invoke('edit', directory, selection, event, 1, result, 'acceptance')
             assert outcome['initial'] == 'pending' and outcome['hits'] == 1, outcome
             assert outcome['error'].startswith('database('), outcome
             verify(directory, selection, ['edited', 'untouched'], 2)
         directory, selection = create('simulated-uncommitted-tail-loss', profile)
         invoke('truncate-wal', directory, selection)
-        invoke('edit', directory, selection, 1, 4, -1, code=86)
+        invoke('edit', directory, selection, 1, 4, -1, 'acceptance', code=86)
         wal = directory / 'Collection.sqlite-wal'
         tail = wal.read_bytes()
         page_size = int.from_bytes(tail[8:12], 'big')
         assert page_size >= 512 and len(tail) >= 32 + 24 + page_size
-        # Drop only complete/partial uncommitted frames, not acknowledged history.
-        complete_frames = range(32, len(tail) - 24 - page_size + 1, 24 + page_size)
-        assert all(int.from_bytes(tail[p + 4:p + 8], 'big') == 0 for p in complete_frames)
+        # Preserve committed verification admission and discard the interrupted save's tail.
+        frame_size = 24 + page_size
+        complete_frames = list(range(32, len(tail) - frame_size + 1, frame_size))
+        commits = [p + frame_size for p in complete_frames if int.from_bytes(tail[p + 4:p + 8], 'big') != 0]
+        committed_end = commits[-1] if commits else 32
+        assert committed_end < len(tail) and any(p >= committed_end for p in complete_frames)
+        assert all(int.from_bytes(tail[p + 4:p + 8], 'big') == 0 for p in complete_frames if p >= committed_end)
         with wal.open('r+b') as file:
-            file.truncate(0)
+            file.truncate(committed_end)
         verify(directory, selection, ['A', 'untouched'], 1)
         for newer in ['edit', 'delete']:
             directory, selection = create('held-cancel-' + newer, profile)
@@ -123,7 +128,7 @@ def main():
         assert held == {'lost_owner_not_acknowledged': True, 'recovered_exact_commit': True}, held
         verify(directory, selection, ['edited', 'untouched'], 2)
         directory, selection = create('invalid-view-with-accepted-tail', profile)
-        invoke('edit', directory, selection, 5, 1, -1, code=86)
+        invoke('edit', directory, selection, 5, 1, -1, 'acceptance', code=86)
         invoke('tamper', directory, selection, 'cell')
         verify(directory, selection, ['edited', 'untouched'], 2)
         for damage in ['cell', 'view', 'prefix']:
@@ -139,7 +144,7 @@ def main():
         for damage in ['settings', 'bootstrap', 'pin', 'settings-version', 'history-missing', 'history-corrupt']:
             directory, selection = create('required-' + damage, profile)
             invoke('tamper', directory, selection, damage)
-            error = 'unsupported' if damage == 'settings-version' else 'unsupportedFormat' if damage == 'history-corrupt' else 'incomplete'
+            error = 'unsupported' if damage == 'settings-version' else 'integrity' if damage == 'history-corrupt' else 'incomplete'
             invoke('dump', directory, selection, code=2, error=error)
             results.append({'case': directory.parent.name, 'required_state_rejected': True})
             print('PASS:', directory.parent.name, flush=True)
@@ -156,7 +161,7 @@ def main():
         invoke('dump', directory, selection, code=2, error='integrity')
         results.append({'case': directory.parent.name, **health, 'fresh_reopen_rejected': True})
         print('PASS:', directory.parent.name, flush=True)
-    assert len(results) == 72
+    assert len(results) == 76
     (artifacts / 'results.json').write_text(json.dumps(results, indent=2))
     suffix = '; independent envelope inspection PENDING' if args.defer_independent_inspection else ''
     print(f'PASS: {len(results)} fresh-process checks; physical power loss NOT qualified{suffix}', flush=True)

@@ -1,4 +1,5 @@
 import Dispatch
+import Foundation
 import NVStorageCore
 
 /// Optional, queue-owned observations and completion gates for storage qualification.
@@ -12,18 +13,48 @@ struct StorageWork: Sendable {
         var rows = 0
         var historyReads = 0
         var envelopeDecodes = 0
+        var traversalDecodes: [UUID: [SegmentID: Int]] = [:]
+        var traversalPayloadDecodes: [UUID: [SegmentID: Int]] = [:]
+        var historyEncodedBytes = 0
+        var historyDecodedBytes = 0
+        var currentCellDecodes = 0
+        var retainedLeafChecks = 0
+        var graphLoads = 0
         var ancestors = 0
         var fastChecks = 0
         var fullChecks = 0
         var recursiveStatements = 0
         var nanoseconds: UInt64 = 0
+        var writerTurns = 0
+        var maxWriterNanoseconds: UInt64 = 0
+        var candidateReads = 0
+        var candidateBytes = 0
+        var largestCandidateBytes = 0
+        var snapshotRecords = 0
+        var snapshotRecordBytes = 0
+        var reconstructionSeeds = 0
+        var reconstructionOutsideOperations = 0
+        var reconstructionAffectedBirths = 0
+        var reconstructionReusedCells = 0
+        var reconstructionInstallations = 0
     }
     var stages: [Stage: Counts] = [:]
     var elapsedNanoseconds: UInt64 = 0
     /// Qualification gates for a captured history prefix and an already committed result.
-    var historyCheck: (@Sendable () -> Void)?
+    var historyCheck: (@Sendable () async -> Void)?
+    var commandCheck: (@Sendable () -> Void)?
     var historyValidated: (@Sendable () async -> Void)?
     var acceptanceCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
+    var snapshotCandidateCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
+    var receiveRetentionCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
+    var receiveDiscovered: (@Sendable (SegmentLocator, [ObjectRequirement]) async -> Void)?
+    var receiveRecordsPerTurn = 64
+    var snapshotPreparationYield: (@Sendable (SegmentLocator, Int) async -> Void)?
+    var reconstructionPrepared: (@Sendable () async -> Void)?
+    var recoveryPrepared: (@Sendable () async -> Void)?
+    var verificationReplayWillStart: (@Sendable () async -> Void)?
+    var verificationReplayFinished: (@Sendable () async -> Void)?
+    var backupCaptured: (@Sendable () async -> Void)?
     subscript(_ stage: Stage) -> Counts { stages[stage] ?? Counts() }
 }
 

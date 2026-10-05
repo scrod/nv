@@ -306,7 +306,7 @@ SQL row IDs and local sequences never become causal or transport identities.
 | Store header / singleton | Schema/reducer/materialization versions, local-store and collection identities, profile/bootstrap association. Opening validates these against the selected owner, not vice versa. |
 | Objects / exact object identity | Exact immutable envelope/descriptor BLOB, kind and bounded length. Received/parked bytes are distinguishable from accepted objects. All references resolve by validated identity, never an embedded path. |
 | Dependencies / dependent, prerequisite | Indexed reverse lookup by prerequisite; covers external segment/operation/action/descriptor prerequisites. Internal references are validated within their complete object. Missing and unsupported prerequisites are not acceptance. |
-| Ready work / object identity | Durable, unique validation/acceptance candidates. Store eligible arrivals here; prerequisite acceptance requeues affected parked objects in the same transaction. Validation may discover another prerequisite and park again. Known actionable work must not depend on an in-memory callback. |
+| Ready work / object identity | Durable, unique validation/acceptance candidates. Retention and prerequisite acceptance requeue affected parked objects in their respective transactions. Inert pages remain assembly inputs; actionable roots/Changes are ready or waiting. Validation may discover another prerequisite and park again. Known actionable work must not depend on an in-memory callback. |
 | Acceptance batches / positive local sequence | Exact newly accepted object/record membership. One transaction assigns the next sequence; duplicate acceptance assigns none. This private index orders materialization catch-up, not causality or cross-store identity. |
 | Accepted records and occurrences / canonical ID, object location | Complete operations/actions, causal/predecessor/scope edges and exact source locations. Duplicate occurrences remain one logical record; inconsistent records fail. Index all referenced kinds, not only note edits. |
 | Retained-history pin / current required frontier and descriptors | Advanced with acceptance. Names the retained evidence required by this store; no upload flag or derived view replaces it. Known missing/corrupt evidence blocks complete recovery. |
@@ -335,6 +335,17 @@ the local history barrier, and indexed catch-up restores the current view:
    frontier change counts even if its displayed body is unchanged. This derived
    transaction may lag accepted history; its failure does not undo acceptance.
    It must catch up before an editable startup result is published.
+
+Before first editable publication, the owner may coalesce the general-reducer
+suffix into one final-prefix preparation. Capture the exact starting view/context
+and accepted target `H`, check all represented actions once, and install complete
+rows/context together only while that view and `acceptedThrough == H` still match.
+Allocate a fresh view epoch. Interference restarts preparation. Acceptance-time
+membership, pin advancement and dependency wakeups already committed and remain
+unchanged; independently updated settings and pending work survive. Ordinary
+indexed batches still use their existing path, and live general materialization
+continues one complete batch at a time. The unpublished-open purpose also covers
+catch-up invoked by its nested ready drain.
 
 The first ordinary Runtime path also supports [checked-current-state validation](plan/current-basis-validation.md)
 within the serialized acceptance transaction: when the current materialization
@@ -388,6 +399,27 @@ check notification/shutdown ordering and durable rejection/dependency scheduling
 An undisclosed intermediate dependency can conceal a rejected ancestor; complete
 blocker reporting requires that intermediate evidence and settled inspection.
 
+Snapshot preparation reconstructs typed byte/history requirements from exact
+immutable root/page inputs. `ObjectRequirement.retainedBytes` needs an available
+matching assembly object; `acceptedHistory` additionally needs complete accepted
+membership. The existing reverse-wait index stores only prerequisite IDs. Candidate
+retention, including local emission and exact duplicates, shares its transaction
+with indexed arrival wakeups. Parking rechecks requirements, replaces only this
+candidate's waits and removes its ready entry in one transaction; satisfied
+requirements leave it ready. An incoming bad locator is attributed to its referring
+candidate, after checking the target's actual retained identity. Accepted-envelope
+membership audits include exact SQL occurrence rows as well as logical records.
+
+Complete snapshot acceptance uses the existing guarded history transaction and
+advances the acceptance-time retained pin. Preparation yields between bounded
+record batches and individual writer turns while keeping its traversal state.
+The decoded preview/graph and total history work still grow with the represented
+history. After an optional snapshot's retention transaction settles, quiesce may
+close without waiting for incomplete assembly or a held completion. Its retained
+ready/wait state resumes at reopen; a completed late result reports historical
+acceptance, independently of saved-note receipts. See [S2 qualification](plan/phase4-received-snapshot-validation.md)
+and [assembly model](../tla/ReceiveSnapshotAssemblySafety.tla).
+
 Pending retention/reservation and physical-receipt settlement use their own
 generation-checked transactions from [the pending protocol](Protocol.md#pending-file-retention-and-retry-identity).
 The DB does not atomically commit a filesystem effect. Fresh rooted file evidence
@@ -429,19 +461,28 @@ independent evidence.
    classification.
    A live session detecting invalid accepted-history bytes immediately revokes
    prepared publication. The private [known-damage marker](plan/sqlite-local-schema.md#materialization-settings-and-reopen)
-   retains that observation across reopen when its transaction can commit. Invalid
-   incoming objects do not poison otherwise healthy accepted history. Failure to
-   record the marker never re-enables the live session; interruption before commit
-   remains a separate recovery/physical-failure qualification boundary.
+   retains that observation across reopen. Protected checks first commit an exact
+   [verification request](plan/phase-4-improvements/durable-verification-recovery.md)
+   and keep it through final semantic checks. Recording damage replaces that request
+   with the marker atomically. Failed diagnosis writes preserve the request and the
+   blocked live gate. Invalid incoming objects retain their separate rejection path.
+   Replay unfinished requests under the startup gate before required-leaf checking,
+   current-row reconstruction and ready draining. Unknown required codecs, missing
+   accepted inputs and storage failures produce explicit recovery outcomes.
 2. Hold the owner's startup admission/publication fence: no UI mutation or new
    provider acceptance may move the final startup target. Provider discovery can
    remain independent; do not wait for cloud completeness. Drain the durable
    ready queue with normal validated acceptance until no currently actionable
-   local candidates remain. Park genuinely missing prerequisites. This includes
-   previously parked objects whose parents arrived later.
+   local candidates remain. First reconstruct invalid derived rows from healthy
+   retained evidence so ready work receives a valid starting basis. Park genuinely
+   missing prerequisites. This includes previously parked objects whose parents
+   arrived later.
 3. Bring the materialization through the indexed accepted suffix to the resulting
    stable `H`. Required graph reads follow exact dependencies/indexes; no scan of
-   all old object BLOBs, operations or action records is part of healthy startup.
+   all old object BLOBs, operations or action records is part of healthy, already
+   settled startup. An interrupted whole-prefix verification and exceptional
+   general reduction can require historical work. Coalesce the latter suffix as
+   described above; complete every action rather than selecting the last arrival.
 4. In one read transaction at `H`, capture store scope, reducer version, view
    epoch, `viewThrough`, all current rows and global authoring context. Strictly
    decode/validate the complete cells and their compact frontiers; do not silently
@@ -493,10 +534,67 @@ full history work and is explicitly outside the healthy fast path.
 
 ## Validation and remaining implementation work
 
+### Exceptional bootstrap and snapshot reconstruction
+
+The production [S3/S4 path](plan/phase4-bootstrap-reconstruction-validation.md)
+uses `BootstrapCandidate` for a newly owned construction. It retains exact
+compatible envelopes before acceptance; `resume` rechecks the existing header
+and selected commitment. `complete` freezes the initial root, verifies Genesis,
+complete Imports/actions, ImportComplete and exact pages through a store-backed
+reader, and commits the whole verified unit in one acceptance transaction.
+Incremental sealing owns one output buffer at a time. Graph identities and final
+initial values still grow with the import; the final acceptance transaction
+grows with its complete membership and remains synchronous.
+
+Any later complete action transported in those same required envelopes passes
+the ordinary declared-history validator and is accepted too. The initial
+snapshot represents its original import operation cut, rather than every
+operation in its addressing envelopes. Complete ordinary opening then builds a
+view through the actual accepted target, including those additional actions.
+
+For invalid derived rows or explicit `rebuildCurrentRows()`, reissue a recovery
+basis from exact accepted snapshot pages and retained history. Verify all seven
+general record classes against their represented history. If no general root
+exists, use the exact original initial root. Capture accepted target `H`,
+connection/store/bootstrap and starting view metadata. Subtract the represented
+**logical operation IDs** from all accepted operations through `H`; arrival
+sequences and object membership serve their separate indexing/retention roles.
+Require whole outside-cut actions. Reuse unaffected snapshot cells and recompute
+affected notes/scopes, including linked preservation outputs, using the existing
+collection reducer. Rebuild complete operation and collection-action frontiers;
+equal note bodies retain their distinct revision/action context.
+
+A file-private prepared result installs all cells/context in one transaction
+only after rechecking owner/header, required history, bootstrap, `H` and the
+complete starting view metadata. Allocate a fresh epoch. Changed acceptance or
+another same-`H` installation causes preparation to restart. Preserve accepted
+bytes, pins and independently updated private groups. Presentation pins and
+pending host generations retain their existing final-publication checks;
+reconstruction returns a current snapshot rather than a saved-note receipt.
+
+Required-state loss/corruption, I/O, cancellation and unsupported inputs retain
+their distinct outcomes. Invalid derived state alone selects reconstruction;
+known damage to accepted evidence revokes publication and follows repair policy.
+Healthy returning startup retains the indexed algorithm above. Exceptional
+verification currently builds a full retained graph and can read extensive
+history; snapshot cell reuse is qualified separately from a recovery-speed or
+constant-memory claim.
+
+Full graph reading captures operation/action metadata in indexed keyset pages.
+The ordinary scope reads distinct stored representative Changes envelopes; the
+snapshot/verification scope reads every accepted Changes envelope through `H`,
+including equivalent repackaging. One traversal decodes each required envelope and
+Changes payload once on the history worker, then checks both directions of exact
+occurrence membership, representative metadata and distinct relationship indexes.
+Snapshot consumers reuse connection/store/prefix-bound occurrence coverage for
+exact referenced indexes. Roots/pages and initial-bootstrap proof retain their
+separate checks and counters. Temporary envelope buffers are bounded; the checked
+graph still grows with required history. [Implementation and qualification](plan/phase-4-improvements/README.md).
+
 The focused executable and bounded-model results are recorded in
 [fast-start validation](plan/sqlite-fast-start-validation.md). Together with the
-prior real transaction/crash probes they test the mapping, not finished Swift
-code. Production still requires complete canonical authoring-context/index
-codecs, SQLCipher/VFS qualification, and implementation/fault qualification of the
-key and backup/salvage/activation contracts above. Provider replacement, retained previews, causal undo and
-file-generation authorities retain their existing independent release gates.
+production [local runtime](plan/phase2-local-runtime-validation.md),
+[connected reducers](plan/phase3-validation.md) and S3/S4 report, they qualify
+their recorded implementation slices. Key transitions, backup/salvage/activation,
+complete private-record codecs, physical projection and application adapters
+retain their independent implementation/release gates.

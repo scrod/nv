@@ -3,6 +3,31 @@ import NVStorageCore
 @testable import NVStorageRuntime
 import Testing
 
+@Test(arguments: [false, true])
+func cipherSchemaRequiresIntegralHistoryTags(encrypted: Bool) async throws {
+    let (initial, protection) = try testInitial(encrypted)
+    let session = try await newSession(initial, protection), before = try await session.snapshot()
+    let selection = await session.selection, lane = await session.lane
+    for (table, identifier, fractional) in [("operations", "operation_id", "3.5"), ("actions", "action_id", "4.5")] {
+        let query = "SELECT \(identifier), kind FROM \(table) ORDER BY \(identifier)"
+        let original = try await lane.perform { try $0.rows(query) }
+        try #require(!original.isEmpty)
+        do {
+            try await lane.perform { try $0.exec("UPDATE \(table) SET kind=\(fractional)") }
+            Issue.record("Fractional history tag admitted")
+        } catch StorageError.database(let code) {
+            #expect(code & 0xff == 19)
+        }
+        #expect(try await lane.perform { try $0.rows(query) } == original)
+    }
+    #expect(try await session.snapshot().notes == before.notes)
+    try await session.quiesce()
+    let reopened = try await LocalStoreSession.open(selection: selection, protection: protection)
+    #expect(try await reopened.snapshot().notes == before.notes)
+    #expect(try await reopened.snapshot().through == before.through)
+    try await reopened.quiesce()
+}
+
 @Test func ownedEncryptedCandidateBoundary() async throws {
     let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
     let key = try PrivateDatabaseKeyV1.derive(collection: CollectionID(bytes: Array(repeating: 1, count: 16)), protection: .publicHash)
@@ -46,6 +71,26 @@ private func createAbandonedStore(path: String, key: [UInt8]) async throws {
     #expect(try await reopened.perform { try $0.rows("SELECT id FROM abandoned") } == [[.integer(42)]])
     await reopened.close()
     await #expect(throws: StorageError.closed) { try await reopened.perform { try $0.rows("SELECT 1") } }
+}
+
+/// Exercises final disposal while execution is already on the connection's owning queue.
+private actor ScopedDatabaseOwner {
+    nonisolated let executor = StorageExecutor(label: "NVStorageTests.scoped-disposal")
+    nonisolated var unownedExecutor: UnownedSerialExecutor { executor.asUnownedSerialExecutor() }
+    func createAndRelease(path: String, key: [UInt8]) throws {
+        let database = try Database(directory: path, create: true, key: key, executor: executor)
+        try database.exec("CREATE TABLE scoped_disposal(id INTEGER); INSERT INTO scoped_disposal VALUES(43)")
+    }
+}
+
+@Test(.timeLimit(.minutes(1))) func databaseDisposalOnOwningQueueReleasesImmediately() async throws {
+    let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+    let key = [UInt8](repeating: 39, count: 32), owner = ScopedDatabaseOwner()
+    try await owner.createAndRelease(path: path, key: key)
+    let reopened = DatabaseLane()
+    try await reopened.open(directory: path, create: false, key: key)
+    #expect(try await reopened.perform { try $0.rows("SELECT id FROM scoped_disposal") } == [[.integer(43)]])
+    await reopened.close()
 }
 
 @Test(arguments: ["directory-replaced", "database-replaced", "hard-link"])

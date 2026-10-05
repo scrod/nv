@@ -34,7 +34,7 @@ func measureReceive(_ bytes: [UInt8], in session: LocalStoreSession) async throw
         labels: CanonicalLabels([ExactUTF8(bytes: Array("label".utf8))]), created: renamed.created, modified: renamed.modified)
     let ga = try CapturedNoteGeneration(birth: a, generation: 1)
     let gc = try CapturedNoteGeneration(birth: c, generation: 1), gd = try CapturedNoteGeneration(birth: d, generation: 1)
-    let steps: [(ActionKindV1, [CapturedNoteChange], [String])] = try [
+    let steps: [(OrdinaryActionKind, [CapturedNoteChange], [String])] = try [
         (.savedEdit, [.put(ga, edited)], ["edited", "untouched"]),
         (.rename, [.put(ga, renamed)], ["edited", "untouched"]),
         (.labels, [.put(ga, labeled)], ["edited", "untouched"]),
@@ -51,6 +51,7 @@ func measureReceive(_ bytes: [UInt8], in session: LocalStoreSession) async throw
         #expect(work[.validation].fastChecks == 1)
         #expect(work[.validation].fullChecks == 0)
         #expect(work[.validation].ancestors == 0)
+        #expect(work[.acceptance].envelopeDecodes == 0)
         let view = try await receiver.snapshot()
         #expect(view.notes.map(\.value.body.string).sorted() == expected)
         if kind == .rename { #expect(view.notes.first { $0.birth == a }?.value.title.string == "renamed") }
@@ -131,7 +132,7 @@ private func sameError(_ a: any Error, _ b: any Error) -> Bool {
 }
 private extension ActionStateReference {
     var referenceForTest: OperationReference? {
-        switch self { case .value(let r), .deleted(let r): return r; case .freshBirthAbsence: return nil }
+        switch self { case .value(let r), .deleted(let r): return r; case .freshBirthAbsence, .derived, .automatic: return nil }
     }
 }
 private extension OperationReference {

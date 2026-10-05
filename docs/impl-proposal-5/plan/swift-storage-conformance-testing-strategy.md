@@ -7,7 +7,20 @@
 
 Aligned with the current specification on 2026-09-10. The [phased implementation/testing plan](swift-storage-implementation-plan.md) sequences these contract cards against the actual repository, using direct Swift canonical definitions without CUE/code generation. This document supplies detailed testing rationale and scenarios, not an executed report or alternate product policy.
 
-Implementation includes the [first-save contract](first-save-reopen-contract.md), Core codecs and bootstrap/ordinary validation, and the [Phase 2 local Runtime](phase2-local-runtime-validation.md). The initial-bootstrap and Runtime reports distinguish issuer, consumer, intent, process and mutation evidence for their supported subsets. The whole-storage gates below remain open. The first bootstrap includes its initial snapshot; general provider snapshot acceleration remains later work; private packing is removed.
+Implementation includes the [first-save contract](first-save-reopen-contract.md),
+Core codecs and bootstrap/ordinary validation, and the [Phase 2 local Runtime](phase2-local-runtime-validation.md).
+The [Phase 3 connected report](phase3-validation.md) adds editable derived Current,
+conflict/deletion/recovery commands and portable compensation through independent
+stores. These reports distinguish issuer, consumer, intent, process and mutation
+evidence for their supported subsets. Whole-storage/application gates below remain
+open. The first bootstrap includes its initial snapshot. The
+[Phase 4 S3/S4 report](phase4-bootstrap-reconstruction-validation.md) adds complete
+store-backed bootstrap and verified snapshot-plus-history reconstruction, following
+the separately qualified general snapshot codecs and acceptance. Private packing
+is removed. The [4C–4E report](phase4-private-state-repair-copy-validation.md)
+adds actual private-record/reference transactions, fixed-cut backup, complementary
+repair, physical local selection and copy/export consumers with their failure and
+language-boundary checks. Provider/UI adapters retain their later gates.
 
 ## Executive decision
 
@@ -256,6 +269,16 @@ Swift Testing supports parameterized cases and runs them in parallel by default.
 
 V2's isolated compiler probes do not satisfy TC-STATIC-01–04 for the production library. Repeat the restrictions against the eventual actual module and optimized build configuration. [P6]
 
+The [typed Runtime boundary qualification](typed-runtime-boundaries-validation.md)
+applies these challenges to the actual module: private acceptance-batch issuance,
+required command provenance, separate automatic/reviewed compensation consumers,
+and owned commit/lifecycle variants. Compiler challenges remove one case from
+each concrete receive-error switch and require the exhaustive-switch diagnostic
+at that switch. A separate literal table checks the durable reason codes and the
+retryable errors. These checks complement compatible-type/wrong-context calls,
+independent SQL/byte observations and assertion-specific mutations; compiler
+access restrictions alone establish construction boundaries.
+
 ## 7. Core contract cards: implement these first
 
 Each card supplies the test's semantic setup, a controlled schedule, independent observations, and a named code challenge. The schedules are implementation instructions, not a proposed interpreted scenario language. `G1`, `G2`, and later gates refer to §13. Names such as E/P/D are fixture labels; actual IDs must be generated or checked using the protocol's rules.
@@ -453,6 +476,41 @@ The concurrent value must be backed by real operations and declared parents—no
 
 **Challenges.** Treat current rows as the pin, skip a sequence hole, trust a snapshot tag as proof of derived correctness, or load only the note currently selected. Test startup speed separately without weakening these assertions. [P1, P3, P4]
 
+The [storage review witnesses](storage-review-follow-up.md) additionally cover
+optional ready snapshots, repeated snapshot roots, multiple current-row decodes,
+packed-envelope amplification, scoped commands, unapplied compensation batches
+and nonfrontier damage followed by failed diagnosis writes/restart. Narrow
+known-issue assertions expose the four deferred gaps; ordinary strict assertions
+now cover interrupted diagnosis, envelope decoding and recovery graph reuse.
+Passing content checks alone cannot qualify those work bounds. Their
+compiler probes keep provenance exclusive and graph issuance private.
+
+The implemented [interrupted verification increment](phase-4-improvements/durable-verification-recovery.md)
+adds VR01–VR11 for durable replay obligations, final semantic-check coverage,
+concurrent/stale completions, repeated recovery failures and scoped startup cost.
+REVIEW-DAMAGE-1 is now an ordinary passing assertion. The
+[validation report](phase-4-improvements/validation.md) records actual replay,
+failed-write, compiler, process and model evidence, separately from the plan.
+
+The [at-most-once decoding plan](phase-4-improvements/at-most-once-envelope-decoding.md)
+adds ED01–ED11 for packed graph reads, exact occurrence coverage, duplicate
+equivalence, captured-prefix races, worker failures and reconstruction. Per-object
+observations require both at-most-once decoding and complete required coverage;
+independent history/state expectations remain the semantic oracle. Implemented
+qualification addresses REVIEW-HISTORY-2; graph reuse across recovery batches
+has its own guarded consumer and observations below.
+
+The [recovery graph-reuse plan](phase-4-improvements/recovery-graph-reuse.md) adds
+RG01–RG12 for complete final-prefix reduction across unapplied batches, nested
+ready-drain catch-up, connected compensation/conflict/deletion histories, target
+interference, private-state preservation and fresh-process failures. Independent
+history/context expectations accompany the one-graph assertion; each invalidated
+attempt remains visible in end-to-end work counts. Implemented qualification
+addresses REVIEW-HISTORY-3 before editable publication, with live
+callers retaining their current route. The
+[deferred benchmark backlog](phase-4-improvements/benchmark-backlog.md) keeps the
+remaining four startup/scoped-query candidates separate from implemented coverage.
+
 ### TC-REPAIR-01 — Complementary copies repair private history first
 
 **Gate/owner:** G2 local repair, G3 provider repair; classifier/repair/runtime owners. **V2:** §§7, 11–12, 17. **Requirements:** REPAIR-01, DUR-01, ROOT-01, CLEAN-01.
@@ -609,6 +667,13 @@ These self-tests do not replace review of the observer/model. They prevent commo
 
 ## 11. Expand systematically without building an intractable universal test
 
+The [phase-3 schedule and observation matrix](phase3-schedule-observation-matrix.md)
+applies these rules to editable multi-head state, deletion/preservation, conflict
+copies and portable Undo/Redo. It names the feature fixtures, real storage cuts,
+independent observations, progress witnesses and mutation obligations, including
+four connected lifecycles and selected three-writer schedules. Its entries are
+qualification requirements; executed evidence remains in the increment reports.
+
 ### 11.1 Exploration order
 
 Start with exact hand-scripted schedules. For each short baseline, sweep one failure or one intervening event across every applicable named boundary. Next add persistent failure after that boundary and a second failure during recovery. Then enumerate delivery and completion permutations for small fixed histories. Add seeded generated histories and faults only after the existing cases are sensitive to their named mutations.
@@ -653,7 +718,7 @@ Retain the active/shared/retired/investigative disposition of the existing model
 | Model family | Production connection | Still separate |
 |---|---|---|
 | ImmutableSegmentDurabilitySafety / SegmentDeletionSafety | TC-DUR-01–06, real pin/closure bytes and acceptance | Actual persistence contract and arbitrary histories |
-| CausalUndoRules / PortableCausalUndoSafety / ConcurrentUndoExecutionSafety | TC-ACT-01–05 through real framing, acceptance and commands | Native attribution, rich/text cases, full graph bounds |
+| CausalUndoRules / PortableCausalUndoSafety / ConcurrentUndoExecutionSafety / NativeCausalUndoBridge | TC-ACT-01–05 through real framing, acceptance and commands; partial/native causal coverage, actual inverse chains and restart | Actual AppKit attribution, deferred rich formats and arbitrary graph bounds |
 | SegmentMergeSafety / SegmentDeletionOrderingSafety | TC-SEM-01–02 and TC-MERGE-01–02 | Exact LF kernel and actual file echo path |
 | NVConflictCopySafety | TC-UI-01's representation-only reciprocal-copy variant | Exact copy/slot codec, physical installation and Apple-member disposition |
 | SegmentBootstrapSafety / RepositoryRepairSafety | TC-START-01–03, TC-REPAIR-01 | Truthful OS classification, keychain and physical barriers |
@@ -743,6 +808,11 @@ Establish the baseline and agreed thresholds before optimizing. A faster path th
 ### G2 — Qualify portable history, two-store exchange and private recovery
 
 **WP4: Extend through actual bytes.** Add TC-ACT-01–05, TC-SEM-01–02, TC-MERGE-01–02, TC-START-01–03, TC-REPAIR-01's local portion, TC-IMPORT-01's classifier and TC-UI-01's portable NV-copy variant, plus remaining limits/discovery cases. Use two independent store instances and a fresh-process variant, not shared in-memory indexes. Run M06–09, M14–15, M20 and relevant earlier challenges. Extend model connections only for the specific compositions.
+
+Use the [phase-3 matrix](phase3-schedule-observation-matrix.md#4-feature-matrix)
+for the portable semantic portion of WP4; retain startup/repair and application/
+provider obligations in their respective later gates. Preview-only computation
+and unsupported editable materialization do not satisfy a connected feature row.
 
 **Exit:** independently expected histories, heads, compensation/birth mappings and startup outcomes match through real codec/acceptance/reopen paths; valid child-first delivery progresses after dependencies; derived rows never replace retained-history or physical authority. All enabled record layouts and semantic rules have frozen fixtures. Unfinished snapshot verification and dependent record encodings remain blocked, not guessed; representation-only conflict-copy and targeted import/pending policies are already adopted.
 

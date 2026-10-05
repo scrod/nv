@@ -1,5 +1,4 @@
-/// Failures specific to validating a complete *initial import*. Ordinary envelope
-/// and record failures retain their CanonicalEncodingError classification.
+/// Failures specific to validating a complete initial import.
 public enum InitialBootstrapValidationError: Error, Equatable, Sendable {
     case missingObject(SegmentLocator)
     case cyclicDependencies
@@ -8,19 +7,16 @@ public enum InitialBootstrapValidationError: Error, Equatable, Sendable {
     case invalidCausalHistory
     case invalidActionHistory
     case invalidSnapshot
-/// Later-history operations require the general history validator and reducer.
     case requiresGeneralHistoryValidation
 }
 
-/// All maximal actions for one scope in a validated initial snapshot.
-/// The snapshot and completion bind these IDs to the history used to derive them.
+/// Maximal actions for one scope in the initial commitment's logical history.
 public struct InitialImportScopeFrontierV1: Sendable {
     public let collection: CollectionID
     public let snapshot: SegmentLocator
     public let completion: OperationID
     public let scope: ActionScopeV1
     public let actionIDs: Set<ActionID>
-
     fileprivate init(collection: CollectionID, snapshot: SegmentLocator, completion: OperationID,
                      scope: ActionScopeV1, actionIDs: Set<ActionID>) {
         self.collection = collection; self.snapshot = snapshot; self.completion = completion
@@ -28,8 +24,7 @@ public struct InitialImportScopeFrontierV1: Sendable {
     }
 }
 
-/// Validated initial note values, action history and their exact object closure.
-/// Durable acceptance additionally requires a store-owned commit of this evidence.
+/// Checked initial values and logical cut, paired with exact retained-object requirements.
 public struct InitialBootstrapValidationV1: Sendable {
     public let collection: CollectionID
     public let descriptor: BootstrapDescriptorV1
@@ -40,233 +35,278 @@ public struct InitialBootstrapValidationV1: Sendable {
     public let actions: [ActionV1]
     public let scopeFrontiers: [ActionScopeV1: InitialImportScopeFrontierV1]
     public let requiredObjects: Set<SegmentLocator>
+    /// Operations covered by ImportComplete, independently of transport envelopes.
+    public let operationIDs: Set<OperationID>
+    package let changesOrder: [SegmentLocator]
 
-    // Restrict issuance to the validator that establishes these facts.
-    private init(collection: CollectionID, descriptor: BootstrapDescriptorV1, snapshot: SegmentLocator,
-                 importID: ImportID, completion: OperationID, rows: [InitialSnapshotRowV1],
-                 actions: [ActionV1], scopeFrontiers: [ActionScopeV1: InitialImportScopeFrontierV1],
-                 requiredObjects: Set<SegmentLocator>) {
+    private init(facts: BootstrapFacts, collection: CollectionID, descriptor: BootstrapDescriptorV1,
+                 snapshot: SegmentLocator, allowLaterHistory: Bool) throws {
+        let checked = try facts.finish(descriptor: descriptor, allowLaterHistory: allowLaterHistory)
         self.collection = collection; self.descriptor = descriptor; self.snapshot = snapshot
-        self.importID = importID; self.completion = completion; self.rows = rows
-        self.actions = actions; self.scopeFrontiers = scopeFrontiers; self.requiredObjects = requiredObjects
+        importID = checked.importID; completion = checked.completion; rows = facts.rows
+        actions = checked.actions; operationIDs = checked.operations
+        requiredObjects = facts.required; changesOrder = facts.order
+        scopeFrontiers = Dictionary(uniqueKeysWithValues: checked.scopes.map { scope, ids in
+            (scope, InitialImportScopeFrontierV1(collection: collection, snapshot: snapshot,
+                completion: checked.completion, scope: scope, actionIDs: ids))
+        })
     }
 
-    /// Validates the complete initial import through exact immutable locators.
-    /// Run this synchronous, cancellation-aware traversal on a worker. The caller
-    /// supplies its selected collection and successfully unlocked protection profile.
-    public static func validate(descriptor: BootstrapDescriptorV1,
-                                expectedCollection: CollectionID,
-                                protection: ObjectProtectionV1,
-                                snapshot: SegmentLocator,
+    /// Reads one envelope at a time through the in-memory fixture adapter.
+    public static func validate(descriptor: BootstrapDescriptorV1, expectedCollection: CollectionID,
+                                protection: ObjectProtectionV1, snapshot: SegmentLocator,
                                 checkCancellation: () throws -> Void = {},
                                 read: (SegmentLocator) throws -> [UInt8]?) throws -> Self {
-        guard descriptor.collection == expectedCollection,
+        try checkProfile(descriptor, expectedCollection, protection)
+        func open(_ locator: SegmentLocator) throws -> OpenedObjectV1 {
+            try checkCancellation()
+            guard let bytes = try read(locator) else { throw InitialBootstrapValidationError.missingObject(locator) }
+            return try ObjectEnvelopeV1.open(bytes, collection: expectedCollection, protection: protection, expectedLocator: locator)
+        }
+        var facts = BootstrapFacts(snapshot: snapshot, genesis: descriptor.genesis)
+        while let request = try facts.next() { try facts.consume(open(request.locator), request: request) }
+        for locator in facts.order {
+            let payload = try ChangesPayloadV1.decodeV1(open(locator).payload)
+            try payload.checkExternalReferences(at: locator) { try ChangesPayloadV1.decodeV1(open($0).payload) }
+        }
+        return try Self(facts: facts, collection: expectedCollection, descriptor: descriptor,
+                        snapshot: snapshot, allowLaterHistory: false)
+    }
+
+    /// Suspends between owned reads, retaining current values and compact graph metadata.
+    /// The runtime validates complete incidental groups against their declared history.
+    package static func validateStored(descriptor: BootstrapDescriptorV1, expectedCollection: CollectionID,
+                                       protection: ObjectProtectionV1, snapshot: SegmentLocator,
+                                       read: @Sendable (SegmentLocator) async throws -> [UInt8]?) async throws -> Self {
+        try checkProfile(descriptor, expectedCollection, protection)
+        func open(_ locator: SegmentLocator) async throws -> OpenedObjectV1 {
+            try Task.checkCancellation()
+            guard let bytes = try await read(locator) else { throw InitialBootstrapValidationError.missingObject(locator) }
+            return try ObjectEnvelopeV1.open(bytes, collection: expectedCollection, protection: protection, expectedLocator: locator)
+        }
+        var facts = BootstrapFacts(snapshot: snapshot, genesis: descriptor.genesis)
+        while let request = try facts.next() { try facts.consume(await open(request.locator), request: request) }
+        for locator in facts.order {
+            let payload = try ChangesPayloadV1.decodeV1(await open(locator).payload)
+            try await payload.checkExternalReferences(at: locator) { try ChangesPayloadV1.decodeV1(await open($0).payload) }
+        }
+        return try Self(facts: facts, collection: expectedCollection, descriptor: descriptor,
+                        snapshot: snapshot, allowLaterHistory: true)
+    }
+    private static func checkProfile(_ descriptor: BootstrapDescriptorV1, _ collection: CollectionID,
+                                     _ protection: ObjectProtectionV1) throws {
+        guard descriptor.collection == collection,
               (descriptor.keyID?.bytes ?? [UInt8](repeating: 0, count: 16)) == protection.keyIDBytes else {
             throw CanonicalEncodingError.wrongScope
         }
-        var required: Set<SegmentLocator> = []
-        func open(_ locator: SegmentLocator, kind: ProviderObjectKind) throws -> OpenedObjectV1 {
-            try checkCancellation()
-            guard let bytes = try read(locator) else {
-                throw InitialBootstrapValidationError.missingObject(locator)
-            }
-            let result = try ObjectEnvelopeV1.open(bytes, collection: expectedCollection,
-                protection: protection, expectedLocator: locator)
-            guard result.kind == kind else { throw CanonicalEncodingError.invalidReference }
-            required.insert(locator)
-            return result
+    }
+}
+
+/// Final rows own note values; historical bookkeeping owns digests and identities.
+private struct BootstrapOperation: Equatable {
+    enum Effect: Equatable {
+        case genesis(ImportID, CollectionProfileV1, UInt64, InitialValuesDigest)
+        case completion(ImportID, UInt64, InitialValuesDigest)
+        case imported(ActionID, NoteBirth, NoteValueDigest)
+        case later
+    }
+    let parents: [OperationID]
+    let effect: Effect
+    init(_ op: IdentifiedOperation) throws {
+        parents = op.causalParents.ids
+        switch op.effect {
+        case .genesis(let id, let profile, let count, let digest): effect = .genesis(id, profile, count, digest)
+        case .importComplete(let id, let count, let digest): effect = .completion(id, count, digest)
+        case .importNote(let action, let birth, let value): effect = try .imported(action, birth, value.digestV1())
+        default: effect = .later
         }
-        let root = try InitialSnapshotRootV1.decodeV1(open(snapshot, kind: .snapshotRoot).payload)
-        var rows: [InitialSnapshotRowV1] = []
-        var pending = root.dependencies.entries + [descriptor.genesis]
-        for pageRef in root.pages {
-            let page = try InitialSnapshotPageV1.decodeV1(open(pageRef.locator, kind: .snapshotPage).payload)
-            guard page.importID == root.importID, page.index == pageRef.index,
-                  UInt64(page.rows.count) == UInt64(pageRef.rowCount) else {
-                throw InitialBootstrapValidationError.invalidSnapshot
+    }
+}
+
+/// Iterative dependency traversal shared by fixture and asynchronous store readers.
+private struct BootstrapFacts {
+    struct Request {
+        enum Kind { case root, page(InitialSnapshotPageReferenceV1), changes, leaving }
+        let locator: SegmentLocator
+        let kind: Kind
+    }
+    let genesis: SegmentLocator
+    var stack: [Request]
+    var root: InitialSnapshotRootV1?
+    var rows: [InitialSnapshotRowV1] = []
+    var required: Set<SegmentLocator> = []
+    var active: Set<SegmentLocator> = []
+    var order: [SegmentLocator] = []
+    var occurrences: [SegmentLocator: [OperationID]] = [:]
+    var operations: [OperationID: BootstrapOperation] = [:]
+    var actions: [ActionID: ActionV1] = [:]
+
+    init(snapshot: SegmentLocator, genesis: SegmentLocator) {
+        self.genesis = genesis; stack = [.init(locator: snapshot, kind: .root)]
+    }
+    mutating func next() throws -> Request? {
+        while let request = stack.popLast() {
+            switch request.kind {
+            case .leaving: active.remove(request.locator); order.append(request.locator)
+            case .changes:
+                guard !active.contains(request.locator) else { throw InitialBootstrapValidationError.cyclicDependencies }
+                if occurrences[request.locator] == nil { return request }
+            default: return request
             }
-            if let last = rows.last, let first = page.rows.first,
-               !last.birth.bytes.lexicographicallyPrecedes(first.birth.bytes) {
+        }
+        return nil
+    }
+    mutating func consume(_ opened: OpenedObjectV1, request: Request) throws {
+        required.insert(request.locator)
+        switch request.kind {
+        case .root:
+            guard opened.kind == .snapshotRoot else { throw CanonicalEncodingError.invalidReference }
+            let root = try InitialSnapshotRootV1.decodeV1(opened.payload); self.root = root
+            stack += (root.dependencies.entries + [genesis]).map { .init(locator: $0, kind: .changes) }
+            stack += root.pages.reversed().map { .init(locator: $0.locator, kind: .page($0)) }
+        case .page(let ref):
+            guard opened.kind == .snapshotPage else { throw CanonicalEncodingError.invalidReference }
+            let page = try InitialSnapshotPageV1.decodeV1(opened.payload)
+            guard page.importID == root?.importID, page.index == ref.index, page.rows.count == Int(ref.rowCount),
+                  rows.last.map({ last in page.rows.first.map { last.birth.bytes.lexicographicallyPrecedes($0.birth.bytes) } ?? true }) ?? true else {
                 throw InitialBootstrapValidationError.invalidSnapshot
             }
             rows += page.rows
-            pending += page.dependencies.entries
-        }
-
-// Traverse exact dependency locators in postorder. An explicit stack supports
-        // deep histories while preserving dependency-first validation.
-        var payloads: [SegmentLocator: ChangesPayloadV1] = [:]
-        var active: Set<SegmentLocator> = []
-        var order: [SegmentLocator] = []
-        var stack = pending.map { (locator: $0, leaving: false) }
-        while let step = stack.popLast() {
-            try checkCancellation()
-            if step.leaving {
-                active.remove(step.locator)
-                order.append(step.locator)
-                continue
+            stack += page.dependencies.entries.map { .init(locator: $0, kind: .changes) }
+        case .changes:
+            guard opened.kind == .changes else { throw CanonicalEncodingError.invalidReference }
+            let payload = try ChangesPayloadV1.decodeV1(opened.payload)
+            occurrences[request.locator] = payload.operations.map(\.operation.id)
+            for record in payload.operations {
+                let id = record.operation.id, metadata = try BootstrapOperation(record.operation)
+                if let old = operations[id] {
+                    guard old == metadata else { throw InitialBootstrapValidationError.conflictingClaim }
+                } else { operations[id] = metadata }
             }
-            guard !active.contains(step.locator) else {
-                throw InitialBootstrapValidationError.cyclicDependencies
+            for record in payload.actions {
+                if let old = actions[record.action.id], old != record.action { throw InitialBootstrapValidationError.conflictingClaim }
+                actions[record.action.id] = record.action
             }
-            if payloads[step.locator] != nil { continue }
-            let payload = try ChangesPayloadV1.decodeV1(open(step.locator, kind: .changes).payload)
-            payloads[step.locator] = payload
-            active.insert(step.locator)
-            stack.append((step.locator, true))
-            stack += payload.dependencies.entries.map { ($0, false) }
+            active.insert(request.locator)
+            stack.append(.init(locator: request.locator, kind: .leaving))
+            stack += payload.dependencies.entries.map { .init(locator: $0, kind: .changes) }
+        case .leaving: throw CanonicalEncodingError.invalidReference
         }
-        for locator in order {
-            try checkCancellation()
-            try payloads[locator]!.checkExternalReferences(at: locator) { payloads[$0] }
+    }
+    func exact(_ ref: OperationReference) throws -> OperationID {
+        guard case .external(let loc, let index, let id) = ref,
+              let ids = occurrences[loc], Int(index.rawValue) < ids.count else {
+            throw CanonicalEncodingError.invalidReference
         }
-
-// Compare expanded claims to coalesce repackaged operations/actions and reject
-        // conflicting metadata for an allocated action ID. Every occurrence has
-        // already passed exact-reference checks.
-        var operations: [OperationID: IdentifiedOperation] = [:]
-        var actions: [ActionID: ActionV1] = [:]
-        var operationOrder: [OperationID] = []
-        var actionOrder: [ActionID] = []
-        for locator in order {
-            for record in payloads[locator]!.operations {
-                try checkCancellation()
-                let op = record.operation
-                if let old = operations[op.id] {
-                    guard old == op else { throw InitialBootstrapValidationError.conflictingClaim }
-                } else { operations[op.id] = op; operationOrder.append(op.id) }
-            }
-            for record in payloads[locator]!.actions {
-                let action = record.action
-                if let old = actions[action.id] {
-                    guard old == action else { throw InitialBootstrapValidationError.conflictingClaim }
-                } else { actions[action.id] = action; actionOrder.append(action.id) }
+        guard ids[Int(index.rawValue)] == id else { throw CanonicalEncodingError.identityMismatch }
+        return id
+    }
+    func ancestors(_ starts: [OperationID]) throws -> Set<OperationID> {
+        var seen: Set<OperationID> = [], work = starts
+        while let id = work.popLast() {
+            try Task.checkCancellation()
+            if seen.insert(id).inserted {
+                guard let op = operations[id] else { throw CanonicalEncodingError.missingDependency }
+                work += op.parents
             }
         }
-        func exactOperation(_ ref: OperationReference) throws -> IdentifiedOperation {
-            guard case .external(let locator, let index, let id) = ref,
-                  let payload = payloads[locator], UInt64(index.rawValue) < UInt64(payload.operations.count) else {
-                throw CanonicalEncodingError.invalidReference
+        return seen
+    }
+    func finish(descriptor: BootstrapDescriptorV1, allowLaterHistory: Bool) throws ->
+        (importID: ImportID, completion: OperationID, operations: Set<OperationID>, actions: [ActionV1], scopes: [ActionScopeV1: Set<ActionID>]) {
+        guard let root else { throw InitialBootstrapValidationError.invalidSnapshot }
+        let completion = try exact(root.completion), represented = try ancestors([completion])
+        if !allowLaterHistory, represented != Set(operations.keys) {
+            if operations.filter({ !represented.contains($0.key) }).contains(where: { $0.value.effect == .later }) {
+                throw InitialBootstrapValidationError.requiresGeneralHistoryValidation
             }
-            let op = payload.operations[Int(index.rawValue)].operation
-            guard op.id == id else { throw CanonicalEncodingError.identityMismatch }
-            return op
+            throw InitialBootstrapValidationError.invalidCommitment
         }
-        let completion = try exactOperation(root.completion)
-        let genesisRecords = operations.values.filter { if case .genesis = $0.effect { true } else { false } }
-        guard genesisRecords.count == 1, let genesis = genesisRecords.first,
-              payloads[descriptor.genesis]!.operations.contains(where: { $0.operation.id == genesis.id }),
-              case .genesis(let importID, let profile, let count, let digest) = genesis.effect,
-              case .importComplete(let completeImport, let completeCount, let completeDigest) = completion.effect,
-              importID == completeImport, count == completeCount, digest == completeDigest,
+        for ref in root.frontier { _ = try exact(ref) }
+        guard root.frontier.count == 1 else { throw InitialBootstrapValidationError.invalidSnapshot }
+        let genesisRecords = operations.filter { if case .genesis = $0.value.effect { true } else { false } }
+        guard genesisRecords.count == 1, let first = genesisRecords.first,
+              occurrences[genesis]?.contains(first.key) == true,
+              case .genesis(let importID, let profile, let count, let digest) = first.value.effect,
+              case .completion(let completeID, let completeCount, let completeDigest) = operations[completion]?.effect,
+              importID == completeID, count == completeCount, digest == completeDigest,
               root.importID == importID, root.initialCount == count, root.digest == digest else {
             throw InitialBootstrapValidationError.invalidCommitment
         }
-        guard profile == (descriptor.keyID == nil ? .plaintextFiles : .encryptedSegments) else {
-            throw CanonicalEncodingError.wrongScope
-        }
-// Require the completion operation as the sole initial frontier maximum,
-        // covering all imports; reject additional frontier entries.
-        for ref in root.frontier { _ = try exactOperation(ref) }
-        guard root.frontier.count == 1 else { throw InitialBootstrapValidationError.invalidSnapshot }
-
-        var imports: [NoteBirth: IdentifiedOperation] = [:]
-        var seen: Set<OperationID> = []
-        for id in operationOrder {
-            try checkCancellation()
-            let op = operations[id]!
-            guard Set(op.causalParents.ids).isSubset(of: seen) else {
-                throw InitialBootstrapValidationError.invalidCausalHistory
-            }
-            switch op.effect {
+        guard profile == (descriptor.keyID == nil ? .plaintextFiles : .encryptedSegments) else { throw CanonicalEncodingError.wrongScope }
+        var imports: [NoteBirth: (OperationID, NoteValueDigest)] = [:], initialActions: Set<ActionID> = []
+        for id in represented {
+            switch operations[id]!.effect {
             case .genesis: break
-            case .importComplete:
-                guard id == completion.id else { throw InitialBootstrapValidationError.invalidCommitment }
-            case .importNote(_, let birth, _):
-                guard imports.updateValue(op, forKey: birth) == nil else {
-                    throw InitialBootstrapValidationError.invalidCommitment
-                }
-            default: throw InitialBootstrapValidationError.requiresGeneralHistoryValidation
+            case .completion: guard id == completion else { throw InitialBootstrapValidationError.invalidCommitment }
+            case .imported(let action, let birth, let digest):
+                guard imports.updateValue((id, digest), forKey: birth) == nil else { throw InitialBootstrapValidationError.invalidCommitment }
+                initialActions.insert(action)
+            case .later: throw InitialBootstrapValidationError.requiresGeneralHistoryValidation
             }
-            seen.insert(id)
         }
-        // Retain one traversal's visited IDs at a time to bound working memory.
-        func ancestors(_ starts: [OperationID]) throws -> Set<OperationID> {
-            var visited: Set<OperationID> = [], work = starts
-            while let id = work.popLast() {
-                try checkCancellation()
-                guard visited.insert(id).inserted else { continue }
-                guard let op = operations[id] else { throw CanonicalEncodingError.missingDependency }
-                work += op.causalParents.ids
-            }
-            return visited
-        }
-        let represented = try ancestors([completion.id])
-        guard represented == Set(operations.keys), UInt64(imports.count) == count else {
-            throw InitialBootstrapValidationError.invalidCommitment
-        }
+        guard UInt64(imports.count) == count, UInt64(rows.count) == count else { throw InitialBootstrapValidationError.invalidCommitment }
         var hasher = InitialValuesHasherV1(expectedCount: count)
-        for birth in imports.keys.sorted(by: { $0.bytes.lexicographicallyPrecedes($1.bytes) }) {
-            guard case .importNote(_, _, let value) = imports[birth]!.effect else {
-                throw InitialBootstrapValidationError.invalidCommitment
-            }
-            try checkCancellation()
-            try hasher.append(birth: birth, value: value)
-        }
-        guard try hasher.finish() == digest, UInt64(rows.count) == count else {
-            throw InitialBootstrapValidationError.invalidCommitment
-        }
         for row in rows {
-            try checkCancellation()
-            let op = try exactOperation(row.importReference)
-            guard op == imports[row.birth], case .importNote(_, _, let value) = op.effect,
-                  value == row.value else { throw InitialBootstrapValidationError.invalidSnapshot }
+            guard let imported = imports[row.birth], try exact(row.importReference) == imported.0,
+                  try row.value.digestV1() == imported.1 else { throw InitialBootstrapValidationError.invalidSnapshot }
+            try hasher.append(birth: row.birth, value: row.value)
         }
-
-// Each initial Import introduces one fresh value. Validate complete observed
-        // action groups and every scope maximum against the writer's declared
-        // causal history.
-        for id in actionOrder {
-            try checkCancellation()
-            let action = actions[id]!
-            guard action.kind == .createImportBatch else {
-                throw InitialBootstrapValidationError.requiresGeneralHistoryValidation
-            }
-            let members = Set(action.members)
-            let basis = try ancestors(action.members).subtracting(members)
-            let observed = Set(basis.compactMap { operations[$0]!.effect.actionID })
-            for prior in observed {
-                guard Set(actions[prior]!.members).isSubset(of: basis) else {
-                    throw InitialBootstrapValidationError.invalidActionHistory
-                }
-            }
-            var maxima = Set(observed.filter { actions[$0]!.scope == action.scope })
-            for prior in Array(maxima) { maxima.subtract(actions[prior]!.scopeParents) }
-            guard Set(action.scopeParents) == maxima else {
-                throw InitialBootstrapValidationError.invalidActionHistory
-            }
-            if let previous = action.previousOriginAction {
-                guard observed.contains(previous) else { throw InitialBootstrapValidationError.invalidActionHistory }
-            }
-            // Group decoding checked local/external state type/birth and member
-            // ownership. Bind each after-state to the unique imported birth, too.
-            for entry in action.affected {
-                guard entry.before == .freshBirthAbsence, let op = imports[entry.birth],
-                      entry.after == .value(op.id), members.contains(op.id) else {
-                    throw InitialBootstrapValidationError.invalidActionHistory
-                }
+        guard try hasher.finish() == digest else { throw InitialBootstrapValidationError.invalidCommitment }
+        var seen: Set<OperationID> = [], ordered: [OperationID] = []
+        for locator in order {
+            for id in occurrences[locator]! where !seen.contains(id) {
+                guard Set(operations[id]!.parents).isSubset(of: seen) else { throw InitialBootstrapValidationError.invalidCausalHistory }
+                seen.insert(id); ordered.append(id)
             }
         }
-        var scopes: [ActionScopeV1: Set<ActionID>] = [:]
-        for action in actions.values { scopes[action.scope, default: []].insert(action.id) }
-        for action in actions.values { scopes[action.scope, default: []].subtract(action.scopeParents) }
-        let frontiers = Dictionary(uniqueKeysWithValues: scopes.map { scope, ids in
-            (scope, InitialImportScopeFrontierV1(collection: expectedCollection, snapshot: snapshot,
-                completion: completion.id, scope: scope, actionIDs: ids))
-        })
-        return Self(collection: expectedCollection, descriptor: descriptor, snapshot: snapshot,
-            importID: importID, completion: completion.id,
-            rows: rows, actions: actions.values.sorted { $0.id.bytes.lexicographicallyPrecedes($1.id.bytes) },
-            scopeFrontiers: frontiers, requiredObjects: required)
+        var observed: Set<ActionID> = [], checkedActions: Set<ActionID> = []
+        var remaining: [ActionID: Set<OperationID>] = [:]
+        var scopes: [ActionScopeV1: Set<ActionID>] = [:], frontier: Set<OperationID> = []
+        for id in ordered where represented.contains(id) {
+            let op = operations[id]!
+            if case .imported(let actionID, _, _) = op.effect, !checkedActions.contains(actionID) {
+                guard let action = actions[actionID], action.kind == .createImportBatch,
+                      Set(action.members).isSubset(of: represented) else { throw InitialBootstrapValidationError.invalidActionHistory }
+                var chain = frontier
+                let linear = action.members.allSatisfy { member in
+                    guard let metadata = operations[member], Set(metadata.parents) == chain else { return false }
+                    chain = [member]; return true
+                }
+                let prior: Set<ActionID>, maxima: Set<ActionID>
+                if linear, remaining.isEmpty { prior = observed; maxima = scopes[action.scope] ?? [] }
+                else {
+                    let basis = try ancestors(action.members).subtracting(action.members)
+                    prior = Set(basis.compactMap { member in
+                        if case .imported(let a, _, _) = operations[member]?.effect { return a }; return nil
+                    })
+                    for a in prior {
+                        guard let priorAction = actions[a], Set(priorAction.members).isSubset(of: basis) else { throw InitialBootstrapValidationError.invalidActionHistory }
+                    }
+                    let scoped = prior.filter { actions[$0]?.scope == action.scope }
+                    maxima = Set(scoped).subtracting(scoped.flatMap { actions[$0]!.scopeParents })
+                }
+                guard Set(action.scopeParents) == maxima,
+                      action.previousOriginAction.map({ prior.contains($0) }) ?? true else { throw InitialBootstrapValidationError.invalidActionHistory }
+                for entry in action.affected {
+                    guard entry.before == .freshBirthAbsence, let imported = imports[entry.birth],
+                          entry.after == .value(imported.0), action.members.contains(imported.0) else { throw InitialBootstrapValidationError.invalidActionHistory }
+                }
+                checkedActions.insert(actionID); remaining[actionID] = Set(action.members)
+            }
+            if case .imported(let actionID, _, _) = op.effect {
+                remaining[actionID]?.remove(id)
+                if remaining[actionID]?.isEmpty == true {
+                    remaining.removeValue(forKey: actionID); observed.insert(actionID)
+                    let action = actions[actionID]!
+                    scopes[action.scope, default: []].insert(actionID)
+                    scopes[action.scope, default: []].subtract(action.scopeParents)
+                }
+            }
+            frontier.insert(id); frontier.subtract(op.parents)
+        }
+        guard observed == initialActions else { throw InitialBootstrapValidationError.invalidActionHistory }
+        return (importID, completion, represented,
+                observed.map { actions[$0]! }.sorted { $0.id.bytes.lexicographicallyPrecedes($1.id.bytes) }, scopes)
     }
 }

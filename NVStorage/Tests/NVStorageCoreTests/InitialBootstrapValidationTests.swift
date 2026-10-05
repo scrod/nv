@@ -22,7 +22,7 @@ private func bytes(_ hex: String) throws -> [UInt8] {
     }
 }
 
-@Test func independentCompleteBootstrapFixture() throws {
+@Test func independentCompleteBootstrapFixture() async throws {
     let url = try #require(Bundle.module.url(forResource: "initial-bootstrap", withExtension: "json", subdirectory: "Fixtures"))
     let f = try JSONDecoder().decode(LiteralBootstrap.self, from: Data(contentsOf: url))
     let objects = try Dictionary(uniqueKeysWithValues: f.objects.map {
@@ -39,6 +39,9 @@ private func bytes(_ hex: String) throws -> [UInt8] {
     #expect(result.requiredObjects == Set(objects.keys))
     #expect(result.snapshot == (try SegmentLocator.decodeV1(bytes(f.snapshot))))
     #expect(result.descriptor.encodedBytes == (try bytes(f.descriptor)))
+    let stored = try await InitialBootstrapValidationV1.validateStored(descriptor: result.descriptor,
+        expectedCollection: result.collection, protection: .publicHash, snapshot: result.snapshot) { objects[$0] }
+    #expect(stored.rows == result.rows && stored.operationIDs == result.operationIDs && stored.requiredObjects == result.requiredObjects)
 }
 
 private func idBytes(_ n: UInt8, count: Int = 16) -> [UInt8] { .init(repeating: n, count: count) }
@@ -313,7 +316,9 @@ func authenticatedInitialHistoryCanStillBeWrong(fault: String) throws {
 @Test(arguments: ["valid", "wrongBody", "wrongIndex", "wrongID", "pageOrder"], [false, true])
 func snapshotMustMatchExactImportedRecord(fault: String, encrypted: Bool) throws {
     let notes = try [(birth(1), value("a")), (birth(2), value("b"))]
-    var f = try BootstrapFixture(expected: notes, encrypted: encrypted)
+    // A forged row also has a matching Genesis digest, isolating its incorrect record association.
+    let declared = try fault == "wrongBody" ? [(notes[0].0, value("forged")), notes[1]] : notes
+    var f = try BootstrapFixture(expected: declared, encrypted: encrypted)
     let batch = try f.add(notes)
     var ref = batch.references[0]
     if fault == "wrongIndex" {

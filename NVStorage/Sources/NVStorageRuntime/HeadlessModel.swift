@@ -24,7 +24,7 @@ public struct HeadlessModel: Sendable {
         pending[birth] = generation
         return generation
     }
-    public func capture(_ birth: NoteBirth, kind: ActionKindV1 = .savedEdit, at snapshot: StoreSnapshot) throws -> CapturedActionGroup {
+    public func capture(_ birth: NoteBirth, kind: OrdinaryActionKind = .savedEdit, at snapshot: StoreSnapshot) throws -> CapturedActionGroup {
         guard snapshot.store == basis.store, snapshot.session == basis.session, let generation = pending[birth] else {
             throw StorageError.wrongContext
         }

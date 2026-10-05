@@ -183,6 +183,9 @@ func actionUnknownDiscriminants(offset: Int, value: UInt8) throws {
         parents: [.earlierLocal(index: ActionIndex(0)), .earlierLocal(index: ActionIndex(1))], earlier: [a.action, b.action])
     #expect(c.scopeReferences == [.earlierLocal(index: ActionIndex(1)), .earlierLocal(index: ActionIndex(0))])
     #expect(c.memberIndices == [OperationIndex(3), OperationIndex(2)])
+    #expect(throws: CanonicalEncodingError.invalidReference) {
+        try c.encodedV1(dependencies: f.table, operations: f.operations, earlierActions: [b.action, a.action])
+    }
     var wire = try c.encodedV1(dependencies: f.table, operations: f.operations, earlierActions: [a.action, b.action])
     wire.replaceSubrange(38..<48, with: [1, 0, 0, 0, 0, 1, 0, 0, 0, 1])
     #expect(throws: CanonicalEncodingError.noncanonicalSet) {

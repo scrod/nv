@@ -17,6 +17,8 @@ private func decodeHex(_ text: String) -> [UInt8] {
     #expect(page.rows[0].value.body.bytes == [66])
     let root = try InitialSnapshotRootV1.decodeV1(rootBytes)
     #expect(try root.encodedV1() == rootBytes && root.initialCount == 1 && root.pages.count == 1)
+    #expect(try InitialSnapshotRootV1.checkedPayloadSize(dependencies: root.dependencies.entries.count,
+        frontier: root.frontier.count, pages: root.pages.count) == UInt64(rootBytes.count))
     var hasher = InitialValuesHasherV1(expectedCount: 1)
     #expect(throws: CanonicalEncodingError.invalidPayload) { try hasher.finish() }
     try hasher.append(birth: page.rows[0].birth, value: page.rows[0].value)
@@ -47,5 +49,19 @@ private func decodeHex(_ text: String) -> [UInt8] {
     }
     #expect(throws: CanonicalEncodingError.invalidReference) {
         try InitialSnapshotRowV1(birth: page.rows[0].birth, value: page.rows[0].value, importReference: .earlierLocal(index: OperationIndex(0)))
+    }
+}
+
+@Test func initialFlatManifestNearestByteLimits() throws {
+    // One completion dependency and one frontier consume 216 bytes before the 64-byte page entries.
+    #expect(try InitialSnapshotRootV1.checkedPayloadSize(dependencies: 1, frontier: 1, pages: 1_048_572) == 67_108_824)
+    #expect(throws: CanonicalEncodingError.lengthLimit) {
+        try InitialSnapshotRootV1.checkedPayloadSize(dependencies: 1, frontier: 1, pages: 1_048_573)
+    }
+    #expect(throws: CanonicalEncodingError.lengthLimit) {
+        try InitialSnapshotRootV1.checkedPayloadSize(dependencies: 1, frontier: 1, pages: -1)
+    }
+    #expect(throws: CanonicalEncodingError.lengthLimit) {
+        try InitialSnapshotRootV1.checkedPayloadSize(dependencies: Int(UInt32.max) + 1, frontier: 1, pages: 0)
     }
 }
