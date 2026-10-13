@@ -22,6 +22,7 @@ Use the grouped [glossary](../../CONTEXT.md) as a reference, not a prerequisite 
 | Note predecessors | Which note revisions does this value replace? | Every alternative known to the author |
 | Action `scopeParents` | Which actions were represented in this undo scope when the action was authored? | Receipt order or the originating Mac's stack |
 | Compensation targets | Which actual action/effect does this Undo or Redo reverse? | Every scope parent, or always the original forward action |
+| Snapshot retention parents | Which accepted snapshot-object closures must remain retained under this root? | Represented note history, reconstruction winner or deletion permission |
 
 For example, NV can know incompatible revisions A and B while Current represents only A. Editing Current produces E that knows both but replaces only A; B remains an alternative. The operation frontier can advance to E without making B superseded. Likewise, observing an Undo through `scopeParents` is not the same as targeting it with a Redo. These distinctions are exercised separately by [SegmentMergeSafety](../tla/SegmentMergeSafety.tla) and the shared [CausalUndoRules](../tla/CausalUndoRules.tla), with execution checks in [ConcurrentUndoExecutionSafety](../tla/ConcurrentUndoExecutionSafety.tla).
 
@@ -99,7 +100,7 @@ The [LocalStore contract](LocalStore.md) maps the complete local barrier to a qu
 
 Only complete committed objects participate in recovery. SQLite discards or recovers its own uncommitted transaction state; it is not an NV operation stream. Retaining pending text until the barrier closes this gap without a second NV WAL format. Immutable segments remain the recoverable history; SQLite's private journal never becomes transport.
 
-Recovery and publication eligibility come from exact accepted history and its durable dependency closure, never from a prior process's callback, upload flag or undo cursor. A committed segment whose UI completion was lost must still reconstruct its effects and become publishable. The ready queue is transactionally maintained correctness state: acceptance requeues all affected dependents; restart drains it before editable completion. Healthy launch reuses validated private acceptance, while newly applicable or on-demand object reads verify exact evidence. The older file-installer models establish surrounding obligations, not SQLite refinement; see [the local mapping](LocalStore.md#validation-and-remaining-implementation-work).
+Recovery and publication eligibility come from exact accepted history and its durable dependency closure, never from a prior process's callback, upload flag or undo cursor. A committed segment whose UI completion was lost must still reconstruct its effects and become publishable. The ready queue is transactionally maintained correctness state: acceptance requeues all affected dependents; restart drains startup-required work before editable completion, while independent optional snapshots remain queued for background processing. Healthy launch reuses validated private acceptance, while newly applicable or on-demand object reads verify exact evidence. The older file-installer models establish surrounding obligations, not SQLite refinement; see [the local mapping](LocalStore.md#validation-and-remaining-implementation-work).
 
 ## Immutable provider publication and reception
 
@@ -107,11 +108,46 @@ Publish only exact locally durable envelopes and descriptors. `NV Data/v1/segmen
 
 An existing equal object is a retry; two different envelopes with the same writer/sequence have different hash names and both must be considered. Restored device copies generate new writer epochs. A genuine complete-locator collision or hash mismatch is an integrity error; choose no winner and do not destroy either available source. Provider-created conflict duplicates may have changed filenames: bounded inspection can recognize a valid envelope and deduplicate by its authenticated/checked identity. Never trust the filename instead of the envelope or traverse paths/symlinks supplied by it.
 
+The [rooted physical boundary](plan/phase5/02-immutable-files-validation.md) renders canonical names from checked identities and retains every traversed parent descriptor. It writes a 0600 owned stage at the root, verifies and synchronizes it, performs native no-overwrite rename, verifies the final descriptor/bytes, synchronizes nested namespaces bottom-up and performs the final hardware-cache request on Darwin. Equal preexisting bytes undergo final verification and all barriers too. Add-only directory creation preserves a competing entry and revalidates its kind/identity. Unsupported primitives produce a capability failure; partial protocol output remains incomplete repository work.
+
+The install result is verified, not-installed or uncertain, with separate protocol-namespace effect and retained-stage accounting. Entered work owns its exact retry input through cancellation and delayed completion. The consumer checks session/generation and object identity; stale completion retains an uncertain result. The bytes factory establishes envelope/descriptor checks, while the later publication caller additionally establishes private accepted membership and dependency closure. Shallow discovery retains raw untrusted leaves, advances one bounded stream turn at a time and revalidates cursor/root context. Every resumed cursor is single-use at its consumer. Nested protocol discovery retains a bounded parent/child stream stack; resuming a parent retires deeper streams, while starting an unrelated stream retires the incompatible traversal. A directory listing is discovery input, never a completeness certificate.
+
+Cleanup addresses only the operation's still-identifiable owned stage under the reserved-stage producer contract. Other producers must preserve owned stages and expose complete immutable finals/atomic safe saves; arbitrary replacement in the check-to-unlink interval is outside that contract. Unknown, displaced, empty-allocation-ambiguous or cleanup-failed stages remain preserved. Required history and foreign entries are never prefix-cleaned. Bounded reads check held/named observations before and after reading; complete envelope validation remains mandatory. Stable intermediate same-vnode writes cannot become a filesystem transaction through timestamp checks or a settling delay.
+
 Use presenters as invalidation hints plus incremental directory discovery. A fresh scan can add evidence; missing entries never retract accepted history. Persist only rebuildable scan hints locally. A large collection must not repeatedly read all old object bodies to discover one new object. Revalidate root/lifecycle generation around every callback and accessor; after root uncertainty, local sealing can continue but provider writes stop. Do not automatically follow a same-ID collection into a different folder.
+
+The required Foundation root reference has a qualified filesystem capability boundary. Fresh opening of an HFS+ root beyond `PATH_MAX` may return unavailable even though descriptor-relative inspection can reach its bytes. Preserve the safe refusal, complete private history and local editing; retain ordinary HFS+ opening and qualified already-owned deep-move/read behavior. Retry or user-directed relocation/reassociation must positively establish the applicable root before provider effects resume. Save Current Collection As… follows its existing complete-source contract. This explicit limitation adds no Work Offline condition or uncoordinated fallback. The [capability ledger](plan/phase5/04-apple-coordination-and-discovery-validation.md#foundation-volume-follow-up-and-approved-deep-hfs-limitation) distinguishes observed refusal from successful acquisition.
+
+Initial open, foreground, settled saves, explicit refresh and continued bounded background turns are ordinary discovery opportunities. A completed or early empty pass leaves later opportunities eligible without another presenter event. Preserve bounded parent-directory progress while inspecting children; invalidation records new work without repeatedly restarting a valid pass. Restart discards cursors, preserving received bytes and queue obligations. An accepted-file hint may reuse a prior object identity only after a fresh rooted observation matches its path and file fingerprint and the selected private store confirms exact accepted membership. Its rebuildable fingerprint covers kind, device/inode, size, link count and modification/change times; live session permissions remain separately checked at every consumer. Reopening alone does not invalidate unchanged-file fingerprints. A hint authorizes neither root association nor completeness, acceptance of new bytes or physical modification. Changed, missing or malformed hints take the normal read/validate/receive path.
 
 Receive into the local object store, verify the full envelope and value schema, durably install it, and fetch named dependencies asynchronously. Keep incoming-but-incomplete evidence distinct from applied history. When a complete validated dependency-closed batch is ready, prepare its reduction off-main-thread and publish it atomically against the captured live generation. A failed generation check recomputes; it does not overwrite a newer local edit. Imported operations retain their IDs; do not emit new local `Put` operations merely because remote changes were applied, which would make an endless echo loop.
 
 Publication, upload status, receiver disclosure, and receiver durability are different boundaries. There is no cloud acknowledgement before local editing or an NV logical delete. No remote receipt protocol exists in v1. A quit-time upload wait can report only the provider's actual item-specific evidence and can always be left with **Quit Without Waiting** once local durability is safe.
+
+### Bounded metadata and accepted-hint lookup
+
+An immutable discovery turn shares ancestor checks around a held-directory metadata
+operation, then validates eligible hints in one synchronous database-actor operation.
+Darwin uses checked `getattrlistbulk` records; missing type-specific attributes
+select fresh no-follow `fstatat`. The portable path uses that same held directory.
+Stream-level ENOTSUP/ENOSYS/EINVAL switches once to a new portable enumeration
+descriptor; ordinary I/O errors remain failures. Each native refill is bounded to
+64 records and a 2,560-byte packed buffer. Across returned turns retain at most
+64 raw names/16,320 name bytes per stream and refresh only the selected names.
+EOF retains its stream until that tail is consumed. Public names-only listing
+keeps its existing single-use cursor behavior.
+
+Hint requests carry ordinals, exact keys/fingerprints and the issuing root/store
+incarnation. One bounded joined query verifies existing hint codec, length, digest
+and accepted membership after full store/header/required-state checks. Sparse
+results default independently to reads; database or integrity failures propagate.
+Consumer fences remain mandatory after suspension. Candidate steps and refills
+retain the existing discovery budget, while bounded native read-ahead conveys
+no extra receive authority. Each miss enters ordinary exact read/receive separately;
+a later sibling failure preserves earlier durable input. Schema, hint encoding,
+receipt and model-publication meanings remain unchanged.
+
+See [implementation and qualification](plan/phase5/bounded-discovery-batches-validation.md).
 
 ## Note reduction, concurrent edits, and intentional deletion
 

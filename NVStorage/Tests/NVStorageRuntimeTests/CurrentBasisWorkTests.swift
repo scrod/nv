@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 import NVStorageCore
@@ -23,7 +24,7 @@ func reportWork(_ work: StorageWork, count: Int, reopened: Bool, encrypted: Bool
         let c = work[stage]
         print("SAVE-WORK count=\(count) reopened=\(reopened) encrypted=\(encrypted) stage=\(stage.rawValue) sql=\(c.statements) vm=\(c.vmSteps) rows=\(c.rows) reads=\(c.historyReads) decodes=\(c.envelopeDecodes) ancestors=\(c.ancestors) recursiveSQL=\(c.recursiveStatements) fast=\(c.fastChecks) full=\(c.fullChecks) ns=\(c.nanoseconds)")
         print("SAVE-SCAN stage=\(stage.rawValue) steps=\(c.fullScanSteps)")
-        for (sql, steps) in c.statementSteps where steps > 500 { print("SAVE-SQL \(steps) \(sql)") }
+        for (sql, steps) in c.statementSteps where steps > 500 { print("SAVE-SQL stage=\(stage.rawValue) \(steps) \(sql)") }
     }
 }
 
@@ -53,6 +54,8 @@ func reportWork(_ work: StorageWork, count: Int, reopened: Bool, encrypted: Bool
             for stage in StorageWork.Stage.allCases {
                 #expect(work[stage].ancestors == 0)
                 #expect(work[stage].recursiveStatements == 0)
+                #expect(work[stage].connectionContextChecks == 0)
+                #expect(work[stage].statementCalls["SELECT 1 FROM accepted_objects a JOIN objects o USING(object_id) WHERE o.object_id=? AND o.kind=2 AND o.writer_epoch=? AND o.sequence=?"] == nil)
                 if let baseline = first[cold] {
                     #expect(work[stage].historyReads == baseline[stage].historyReads)
                     #expect(work[stage].envelopeDecodes == baseline[stage].envelopeDecodes)
@@ -62,11 +65,7 @@ func reportWork(_ work: StorageWork, count: Int, reopened: Bool, encrypted: Bool
                     #expect(Set(work[stage].statementSteps.keys) == Set(baseline[stage].statementSteps.keys))
                     for (sql, steps) in work[stage].statementSteps {
                         let previous = try #require(baseline[stage].statementSteps[sql])
-                        // The locator index's Next either reaches EOF or executes one
-                        // IdxGT before stopping at the following writer/sequence key.
-                        if sql == "SELECT 1 FROM accepted_objects a JOIN objects o USING(object_id) WHERE o.object_id=? AND o.kind=2 AND o.writer_epoch=? AND o.sequence=?" {
-                            #expect([23, 24].contains(steps) && [23, 24].contains(previous))
-                        } else if sql == "DELETE FROM retained_frontier WHERE object_id IN (SELECT prerequisite FROM accepted_dependencies WHERE child=?)" {
+                        if sql == "DELETE FROM retained_frontier WHERE object_id IN (SELECT prerequisite FROM accepted_dependencies WHERE child=?)" {
                             // The child/prerequisite index has the same EOF-versus-
                             // following-key branch after its one matching dependency.
                             #expect([37, 38].contains(steps) && [37, 38].contains(previous))

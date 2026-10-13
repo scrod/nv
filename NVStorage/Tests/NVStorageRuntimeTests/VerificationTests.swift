@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 import NVStorageCore
@@ -33,20 +34,6 @@ func compensationVerificationAdmissionFailurePreservesCommand(encrypted: Bool) a
     #expect(try await lane.perform { try $0.rows("SELECT count(*) FROM actions") } == [[.integer(4)]])
     #expect(try await lane.perform { try $0.rows(reminderQuery, reminderRange) }.isEmpty)
     try await session.quiesce()
-}
-
-actor ImprovementGate {
-    private var arrived = false
-    private var released = false
-    private var held: CheckedContinuation<Void, Never>?
-    private var observers: [CheckedContinuation<Void, Never>] = []
-    func signal() { arrived = true; for observer in observers { observer.resume() }; observers.removeAll() }
-    func hold() async {
-        if arrived || released { return }
-        await withCheckedContinuation { held = $0; signal() }
-    }
-    func wait() async { if !arrived { await withCheckedContinuation { observers.append($0) } } }
-    func release() { released = true; held?.resume(); held = nil }
 }
 
 private actor VerificationAdmissionGate {

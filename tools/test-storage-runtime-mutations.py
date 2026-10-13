@@ -21,6 +21,323 @@ R = 'Sources/NVStorageRuntime/'
 T = 'Tests/NVStorageRuntimeTests/'
 # (name, file, original, replacement, test file, function, exact assertion)
 MUTATIONS = [
+    ('startup-generic-wait', R+'CollectionStartup.swift',
+     'if unreadAbsentLocally { return .wait }', 'if unreadAbsentLocally || repository == .unavailable { return .wait }',
+     'CollectionStartupTests.swift', 'collectionStartupLiteralHealthDecisions',
+     '#expect(classifyStartup(local: .ready, repository: repository, published: published, unreadAbsentLocally: absent) == expected)'),
+    ('startup-omitted-local-membership', R+'CollectionStartup.swift',
+     'guard try await !hasLocalObject(locator) else { return }', '_ = locator',
+     'CollectionWaitTests.swift', 'collectionStartupLateAndAlreadyRetainedUnreadInputsPreserveEditing',
+     '#expect(ready, "Retained exact bytes avoid a redundant provider wait")'),
+    ('startup-late-gate', R+'CollectionStartup.swift',
+     'if case .ready = phase { phase = .waiting(evidence) }\n            else { deferredDisclosure = evidence }',
+     'phase = .waiting(evidence)',
+     'CollectionWaitTests.swift', 'collectionStartupLateAndAlreadyRetainedUnreadInputsPreserveEditing',
+     '#expect(editable, "Late evidence preserves an already editable session")'),
+    ('startup-choice-owner', R+'CollectionStartup.swift',
+     'guard choice.owner == identity, choice.attempt == attempt else { throw StorageError.wrongContext }',
+     '_ = choice.owner',
+     'CollectionWaitTests.swift', 'collectionStartupChoiceRejectsOtherOwnerAndChangedSelection',
+     'await #expect(throws: StorageError.wrongContext) { try await second.workOffline(choice) }'),
+    ('startup-preview-digest', R+'BootstrapConstruction.swift',
+     'guard try hasher.finish() == root.digest else { throw InitialBootstrapValidationError.invalidSnapshot }',
+     '_ = try hasher.finish()',
+     'CollectionBootstrapTests.swift', 'collectionBootstrapPreviewRequiresEveryPageAndCompleteDigest',
+     'await #expect(throws: InitialBootstrapValidationError.invalidSnapshot) { try await badCandidate.preview(snapshot: badLocator) }'),
+    ('startup-binding-write', R+'CollectionStartup.swift',
+     'binding = transition\n            do { try await store.saveLocalAssociation(value, basedOn: current) }',
+     'binding = transition\n            do { try Task.checkCancellation() }',
+     'CollectionStartupTests.swift', 'collectionStartupBindingFailureReadbackPreservesDurableState',
+     '#expect(try await root.matches(#require(await store.localAssociation().value)) == .same)'),
+    ('startup-publication-reservation', R+'CollectionStartup.swift',
+     'phase = .publishing', '_ = previous',
+     'CollectionStartupTests.swift', 'collectionStartupPublicationReservationPreventsReassociation',
+     'await #expect(throws: StorageError.busy) { try await owner.reopenRepository(at: URL(fileURLWithPath: path), descriptor: fixture.initial.descriptor) }'),
+    ('startup-truncated-named-attempt', R+'RepositoryTransport.swift',
+     'attempt.starts <= hooks.retryNanoseconds.count', 'attempt.starts < hooks.retryNanoseconds.count',
+     'CollectionWaitTests.swift', 'collectionStartupNamedMaterializationIsBoundedAndResumesWithoutDelivery',
+     '#expect(await witness.requests == 3)'),
+    ('startup-stale-named-retry', R+'CollectionStartup.swift',
+     'try await transport.driver?.refreshNamedInput(evidence)', '_ = evidence',
+     'CollectionWaitTests.swift', 'collectionStartupSameRootRetryRetainsNamedCompletionRouting',
+     '#expect(fourth, "Fresh root disclosure resumes the reused named worker after Retry")'),
+    ('startup-current-row-lag', R+'LocalStore.swift',
+     'guard accepted == through else { throw StorageError.staleCapture }',
+     'guard accepted == through else { throw StorageError.incomplete }',
+     'CollectionWaitTests.swift', 'collectionStartupPublicationWaitsForAcceptedCurrentRows',
+     'await #expect(throws: StorageError.staleCapture) { try await publishCollection(owner) }'),
+    ('startup-attaching-publication', R+'CollectionStartup.swift',
+     'transport = .attached(driver)\n            await attachIfApplicable()',
+     'transport = .attached(driver)',
+     'CollectionWaitTests.swift', 'collectionStartupPublicationDuringNamedAttachmentEnablesTransport',
+     '#expect(published, "A successfully published collection enables its attaching named worker without another notification")'),
+    ('coordination-error-domain', R+'RepositoryRoot.swift',
+     'if error.domain == NSPOSIXErrorDomain, let code = Int32(exactly: error.code)',
+     'if let code = Int32(exactly: error.code)',
+     'RepositoryCoordinationTests.swift', 'repositoryCoordinationFailureClassification',
+     '#expect(repositoryCoordinationCode(error) == sample.expected)'),
+    ('coordination-self-hints', R+'RepositoryRoot.swift',
+     'let coordinator = presenter?.makeCoordinator() ?? NSFileCoordinator(filePresenter: nil)',
+     'let coordinator = NSFileCoordinator(filePresenter: nil)',
+     'RepositoryCoordinationTests.swift', 'repositoryPresenterSeparatesOwnedWritesFromExternalHints',
+     '#expect(await root.discoveryInvalidation == baseline,'),
+    ('driver-lost-coalesced-followup', R+'RepositoryTransport.swift',
+     '!turn.passEnded || again || turn.latestInvalidation != turn.capturedInvalidation',
+     '!turn.passEnded || (again && false)',
+     'RepositoryTransportTests.swift', 'repositoryDriverCoalescesHintStormAcrossNestedPass',
+     '#expect(turns.filter(\\.passEnded).count == 2, "One interrupted pass and one coalesced follow-up")'),
+    ('driver-repeated-accepted-bodies', R+'RepositoryDiscovery.swift',
+     'answers[index] = .accepted(try SegmentID(bytes: identity))', 'answers[index] = .read',
+     'RepositoryTransportTests.swift', 'repositoryDriverCoalescesHintStormAcrossNestedPass',
+     '#expect(edits.allSatisfy { bodyReads[ImmutableRepositoryLocator.segment($0).relativePath] == 1 },'),
+    ('driver-lost-idle-revisit', R+'RepositoryTransport.swift',
+     'if publicationAllowed, case .idle = discovery { dates.append(idleDue) }', '_ = idleDue',
+     'RepositoryTransportTests.swift', 'repositoryDriverRevisitsEmptyPassAndLatePrerequisite',
+     '#expect(await witness.wait { discovered(child.object, accepted: false, in: $0) })'),
+    ('driver-lost-save-publication', R+'RepositoryTransport.swift',
+     'if publicationAllowed { publication.request(retrying: false) }', '_ = signal',
+     'RepositoryTransportTests.swift', 'repositoryDriverSaveSettlementPublishesOnlyNewAcceptedBytes',
+     '#expect(await witness.wait { events in events.contains {'),
+    ('driver-lost-store-settlement', R+'RepositoryTransport.swift',
+     'if case .waiting(let attempt, .store) = discovery { discovery = .ready(attempt) }', '_ = signal',
+     'RepositoryTransportTests.swift', 'repositoryDriverReceiveSettlementResumesWithoutNewDelivery',
+     '#expect(await witness.wait { discovered(child.object, accepted: true, in: $0) })'),
+    ('driver-discarded-exact-batch', R+'RepositoryTransport.swift',
+     'lifecycle = .fenced; cancelWakeup(); worker?.cancel()',
+     'lifecycle = .fenced; ownedPublication = nil; cancelWakeup(); worker?.cancel()',
+     'RepositoryTransportTests.swift', 'repositoryDriverRootFencingPreservesExactBatchAndNewSave',
+     '#expect(cuts.count >= 3 && cuts[0] == 1 && cuts[1] == cuts[0] && cuts.last == 2)'),
+    ('availability-omitted-issuer', R+'RepositoryRoot.swift',
+     'try validate(permission); try validate(availability.observation.permission)', 'try validate(permission)',
+     'RepositoryAvailabilityTests.swift', 'repositorySelectedAvailabilityKeepsReadAndIssuerIndependent',
+     'await #expect(throws: RepositoryRootError.wrongContext) {'),
+    ('provider-omitted-issuer', R+'RepositoryRoot.swift',
+     'try validate(permission); try validate(provider.permission)', 'try validate(permission)',
+     'RepositoryAvailabilityTests.swift', 'repositoryProviderUnknownPreservesPhysicalOwnership',
+     'await #expect(throws: RepositoryRootError.wrongContext) { try await other.validate(observation, using: other.permission()) }'),
+    ('connection-context-binding', R+'Database.swift',
+     'guard checkedContext.store == store, checkedContext.descriptor == descriptor.encodedBytes else {',
+     'guard store == store else {',
+     'ConnectionReuseTests.swift', 'connectionContextReusesFixedChecks',
+     'await #expect(throws: StorageError.wrongContext, "Checked context rejects another store")'),
+    ('connection-entry-fence', R+'Database.swift',
+     'try checkPhysicalOwner()\n        ownedOperationActive = true',
+     'ownedOperationActive = true',
+     'ConnectionReuseTests.swift', 'connectionOwnershipChecksFenceResultsAndPermitExactRetry',
+     '#expect(!FileManager.default.fileExists(atPath: consumerMarker.path), "Ownership entry check precedes consumer work")'),
+    ('connection-return-fence', R+'Database.swift',
+     'try work?.databaseBoundary?(.returning)\n            try checkPhysicalOwner()',
+     'try work?.databaseBoundary?(.returning)',
+     'ConnectionReuseTests.swift', 'connectionOwnershipChecksFenceResultsAndPermitExactRetry',
+     '#expect(!returned, "Detached connection withholds the result")'),
+    ('connection-precommit-fence', R+'Database.swift',
+     'try work?.databaseBoundary?(.committing)\n                try checkPhysicalOwner()',
+     'try work?.databaseBoundary?(.committing)',
+     'ConnectionReuseTests.swift', 'connectionOwnershipChecksFenceResultsAndPermitExactRetry',
+     '#expect(actual == [[.integer(boundary == "after-commit" ? 42 : 41)]])'),
+    ('connection-rebuild-private-inputs', R+'GeneralSnapshots.swift',
+     'try db.validateRequiredPrivateGroups(store: store, descriptor: selection.descriptor)',
+     '_ = store',
+     'ConnectionReuseTests.swift', 'connectionReconstructionRechecksRequiredPrivateInputs',
+     'await #expect(throws: unsupported ? StorageError.unsupported : .incomplete) { try await rebuilding.value }'),
+    ('batch-hint-digest', R+'RepositoryDiscovery.swift',
+     'guard Array(payload.suffix(32)) == Self.hintDigest(key: hint.key, fingerprint: hint.fingerprint, object: identity) else { continue }',
+     '_ = identity',
+     'RepositoryBatchTests.swift', 'repositoryHintBatchSparseAnswersAndContext',
+     '#expect(answers == [.read, .accepted(known), .read, .read, .read, .read, .read, .accepted(second), .accepted(known)])'),
+    ('batch-hint-membership', R+'RepositoryDiscovery.swift',
+     'JOIN accepted_objects a ON a.object_id=substr(p.payload,33,32)', '',
+     'RepositoryBatchTests.swift', 'repositoryHintBatchSparseAnswersAndContext',
+     '#expect(answers == [.read, .accepted(known), .read, .read, .read, .read, .read, .accepted(second), .accepted(known)])'),
+    ('batch-hint-ordinal', R+'RepositoryDiscovery.swift',
+     'answers[index] = .accepted(try SegmentID(bytes: identity))',
+     'answers[0] = .accepted(try SegmentID(bytes: identity))',
+     'RepositoryBatchTests.swift', 'repositoryHintBatchSparseAnswersAndContext',
+     '#expect(answers == [.read, .accepted(known), .read, .read, .read, .read, .read, .accepted(second), .accepted(known)])'),
+    ('batch-hint-session', R+'RepositoryDiscovery.swift',
+     'lookup.store == store.selection.store, lookup.incarnation == store.incarnation,',
+     'lookup.store == store.selection.store,',
+     'RepositoryBatchTests.swift', 'repositoryHintBatchSparseAnswersAndContext',
+     'await #expect(throws: RepositoryRootError.wrongContext) { try await root.validateDiscoveryHints(currentLookup, hints: requests, for: reopened) }'),
+    ('batch-hint-request-binding', R+'RepositoryDiscovery.swift',
+     'zip(lookup.hints, hints).allSatisfy({ $0.key == $1.key && $0.fingerprint == $1.fingerprint })', 'true',
+     'RepositoryBatchTests.swift', 'repositoryHintBatchSparseAnswersAndContext',
+     'await #expect(throws: RepositoryRootError.wrongContext) { try await root.validateDiscoveryHints(lookup, hints: Array(requests.reversed()), for: store) }'),
+    ('batch-lost-raw-tail', R+'RepositoryDiscovery.swift',
+     'discoveryState = ended ? nil : progress',
+     'for index in progress.frames.indices { progress.frames[index].names = [] }; discoveryState = ended ? nil : progress',
+     'RepositoryBatchTests.swift', 'repositoryBatchBufferedNamesRefreshAcrossMixedBudgets',
+     'let relative = try #require(pending)'),
+    ('exchange-omitted-owner-incarnation', R+'RepositoryDiscovery.swift',
+     'guard turn.target == .store(store.selection.store, session: store.incarnation) else { throw RepositoryRootError.wrongContext }',
+     'guard case .store(let id, _) = turn.target, id == store.selection.store else { throw RepositoryRootError.wrongContext }',
+     'RepositoryExchangeFailureTests.swift', 'repositoryExchangeReopenedOwnerRejectsPreviousTurn',
+     'await #expect(throws: RepositoryRootError.wrongContext) { try await root.validate(turn, for: reopened) }'),
+    ('exchange-unaccepted-dependency', R+'RepositoryPublication.swift',
+     '''guard try db.rows("SELECT 1 FROM accepted_dependencies d LEFT JOIN accepted_objects p ON p.object_id=d.prerequisite WHERE d.child=? AND (p.seq IS NULL OR p.seq>?) LIMIT 1",
+                            [.blob(id), .integer(through)]).isEmpty else { throw StorageError.incomplete }''',
+     '_ = id',
+     'RepositoryPublicationTests.swift', 'repositoryPublicationRequiresAcceptedDependencyMembership',
+     'await #expect(throws: StorageError.incomplete) { try await source.captureRepositoryPublication(maximumObjects: 64) }'),
+    ('exchange-omitted-cursor-context', R+'RepositoryPublication.swift',
+     'guard cursor.store == selection.store, cursor.session == incarnation else { throw StorageError.wrongContext }',
+     '_ = cursor',
+     'RepositoryPublicationTests.swift', 'repositoryPublicationNextPassSelectsOnlyNewAcceptedObjects',
+     'await #expect(throws: StorageError.wrongContext) { try await unrelated.captureRepositoryPublication(continuing: later.nextPass) }'),
+    ('exchange-lost-bootstrap-tail', R+'RepositoryDiscovery.swift',
+     'candidate.retainWithIdentity(bytes, ready: true)', 'candidate.retainWithIdentity(bytes, ready: false)',
+     'RepositoryExchangeTests.swift', 'repositoryExchangeBootstrapsCompleteHistoryAndTail',
+     '#expect(recovered.notes.map(\\.value.body.string) == ["transported edit"])'),
+    ('exchange-consumed-only-pass', R+'RepositoryDiscovery.swift',
+     'discoveryState = ended ? nil : progress', 'discoveryState = progress',
+     'RepositoryExchangeTests.swift', 'repositoryExchangeFindsLateLowerSequenceWithoutHint',
+     '#expect(first.contains { if case .received(let loc, _, .waiting(let needs)) = $0.outcome { loc == child.object && needs.contains { $0.locator == parent.object } } else { false } })'),
+    ('exchange-stale-handoff', R+'RepositoryRoot.swift',
+     'func checkPermission(_ permission: RepositoryRootPermission) throws { try validate(permission) }',
+     'func checkPermission(_ permission: RepositoryRootPermission) throws { _ = permission }',
+     'RepositoryExchangeFailureTests.swift', 'repositoryExchangeInvalidatedHandoffRetainsAcceptedBytes',
+     'await #expect(throws: RepositoryRootError.stalePermission) { try await held.value }'),
+    ('exchange-lost-observation-hint', R+'RepositoryDiscovery.swift',
+     'try await store.rememberDiscoveryHint(hint, object: result.locator.segmentID)',
+     '_ = hint',
+     'RepositoryExchangeLifecycleTests.swift', 'repositoryExchangeReopenReusesCheckedObservations',
+     '#expect(await reads.count == 0, "Fresh rooted observations reuse persisted accepted-file hints after reopening")'),
+    ('exchange-filename-filter', R+'RepositoryDiscovery.swift',
+     'guard let path = try? entry.leaf.relativePath(in: directory) else { continue }',
+     'guard let path = try? entry.leaf.relativePath(in: directory) else { continue }; if directory != .keys && !path.hasSuffix(".nvseg") { continue }',
+     'RepositoryExchangeFailureTests.swift', 'repositoryExchangeMultiplePrerequisitesAndRepackagedOperations',
+     '#expect(after.notes == before.notes && after.context == before.context && after.through == before.through + 1)'),
+    ('root-omitted-lock', 'Sources/CStorageIO/NVRepositoryRoot.c',
+     'if (flock(fd, LOCK_EX | LOCK_NB)) {', 'if (0) {',
+     'RepositoryRootTests.swift', 'repositoryRootExcludesContendersAcrossObservationAndMove',
+     'await #expect(throws: RepositoryRootError.contention) { try await RepositoryRootSession.open(directory: path) }'),
+    ('root-borrow-unlocks-owner', 'Sources/CStorageIO/NVRepositoryFiles.c',
+     'if (!result) file_words(&st, words);\ndone:;\n    int saved = errno; path_close(&path); errno = saved; return result;',
+     'if (!result) file_words(&st, words);\ndone:;\n    int saved = errno; flock(path.fd[0], LOCK_UN); path_close(&path); errno = saved; return result;',
+     'RepositoryRootTests.swift', 'repositoryRootExcludesContendersAcrossObservationAndMove',
+     'await #expect(throws: RepositoryRootError.contention) { try await RepositoryRootSession.open(directory: path) }'),
+    ('root-matching-path-as-identity', 'Sources/CStorageIO/NVRepositoryRoot.c',
+     'return S_ISDIR(st.st_mode) && st.st_dev == owner->device && st.st_ino == owner->inode;',
+     'return S_ISDIR(st.st_mode);',
+     'RepositoryRootTests.swift', 'repositoryRootExcludesContendersAcrossObservationAndMove',
+     '#expect(try await root.revalidate(candidate: path) == .different)'),
+    ('root-omitted-session', R+'RepositoryRoot.swift',
+     'guard permission.session == session else { throw RepositoryRootError.wrongContext }', '_ = permission.session',
+     'RepositoryRootTests.swift', 'rootPermissionRequiresItsIssuingSessionAndCurrentGeneration',
+     'await #expect(throws: RepositoryRootError.wrongContext) { try await other.observe("note.txt", using: permission) }'),
+    ('root-omitted-completion-fence', R+'RepositoryRoot.swift',
+     'try validate(permission)\n        return try RepositoryEntryObservation(permission: permission, words: words, relative: relative)',
+     'return try RepositoryEntryObservation(permission: permission, words: words, relative: relative)',
+     'RepositoryRootTests.swift', 'heldRootWorkPreservesLocalDurabilityAndCloseOwnership',
+     'await #expect(throws: RepositoryRootError.stalePermission) { try await observation.value }'),
+    ('root-shared-local-executor', R+'Database.swift',
+     '''    private let queue: DispatchQueue
+    private let queueIdentity = DispatchSpecificKey<UInt8>()
+    init(label: String, qos: DispatchQoS = .unspecified) {
+        queue = DispatchQueue(label: label, qos: qos)
+        queue.setSpecific(key: queueIdentity, value: 1)''',
+     '''    private static let sharedRootAndLocalQueue = DispatchQueue(label: "mutant.shared-root-and-local")
+    private let queue: DispatchQueue
+    private let queueIdentity = DispatchSpecificKey<UInt8>()
+    init(label: String, qos: DispatchQoS = .unspecified) {
+        queue = Self.sharedRootAndLocalQueue
+        queue.setSpecific(key: queueIdentity, value: 1)''',
+     'RepositoryRootTests.swift', 'heldRootWorkPreservesLocalDurabilityAndCloseOwnership',
+     '#expect(finishedWhileHeld, "Local durability/reopen must finish while the root turn is held")'),
+    ('root-unavailable-restores-admission', R+'RepositoryRoot.swift',
+     'if continuity == .same { state = .active; signalTransport(.rootAvailable) }', 'state = .active; signalTransport(.rootAvailable)',
+     'RepositoryRootTests.swift', 'missingChildPreservesOwnerWhileUnavailableRootCandidateFencesAdmission',
+     '#expect(await root.state == .fenced, "Unavailable root continuity fences admission independently of child absence")'),
+    ('root-close-reports-before-settlement', R+'RepositoryRoot.swift',
+     '''        await lane.close()
+        state = .closed''',
+     '''        state = .closed
+        await lane.close()''',
+     'RepositoryRootTests.swift', 'repeatedConcurrentClosePreservesEnteredRootWork',
+     '#expect(await root.state == .closing, "Close remains in progress while entered work owns the root")'),
+    ('root-stale-read-error', R+'RepositoryRoot.swift',
+     'catch { try validate(permission); throw error }\n        try validate(permission)\n        return try RepositoryEntryObservation',
+     'catch { throw error }\n        try validate(permission)\n        return try RepositoryEntryObservation',
+     'RepositoryRootTests.swift', 'failedRootReadRechecksItsCapturedGeneration',
+     'await #expect(throws: RepositoryRootError.stalePermission) { try await read.value }'),
+    ('root-omitted-loss-event', 'Sources/CStorageIO/NVRepositoryRoot.c',
+     'if (root_events_check(owner)) return -1;', '(void)owner->events;',
+     'RepositoryRootTests.swift', 'replacedEmptyRootFencesItsRetainedOwner',
+     '#expect(await root.state == .fenced, "Delivered root loss fences effects rather than becoming child absence")'),
+    ('root-loss-without-fencing', R+'RepositoryRoot.swift',
+     '''        catch let failure as RootAccessFailure {
+            try validate(permission)
+            invalidate()
+            throw RepositoryRootError.unavailable(failure.code)''',
+     '''        catch let failure as RootAccessFailure {
+            try validate(permission)
+            throw RepositoryRootError.unavailable(failure.code)''',
+     'RepositoryRootTests.swift', 'replacedEmptyRootFencesItsRetainedOwner',
+     '#expect(await root.state == .fenced, "Delivered root loss fences effects rather than becoming child absence")'),
+    ('root-stale-loss-error', R+'RepositoryRoot.swift',
+     '''        catch let failure as RootAccessFailure {
+            try validate(permission)
+            invalidate()''',
+     '''        catch let failure as RootAccessFailure {
+            invalidate()''',
+     'RepositoryRootTests.swift', 'failedRootReadRechecksItsCapturedGeneration',
+     'await #expect(throws: RepositoryRootError.stalePermission) { try await read.value }'),
+    ('root-stale-continuity', R+'RepositoryRoot.swift',
+     'guard generation == captured, case .fenced = state else { throw RepositoryRootError.stalePermission }',
+     '_ = captured',
+     'RepositoryRootTests.swift', 'delayedContinuityCannotRestoreInvalidatedAdmission',
+     'await #expect(throws: RepositoryRootError.stalePermission) { try await compare.value }'),
+    ('root-quiesce-skips-settlement', R+'RepositoryRoot.swift',
+     'case .active, .fenced: invalidate(); await lane.settle()',
+     'case .active, .fenced: invalidate()',
+     'RepositoryRootTests.swift', 'quiescingRootRetainsOwnershipUntilExplicitClose',
+     '#expect(await settled.hasArrived == false, "Quiescence settles only after entered root work returns")'),
+    ('root-quiesce-releases-owner', R+'RepositoryRoot.swift',
+     'case .active, .fenced: invalidate(); await lane.settle()',
+     'case .active, .fenced: invalidate(); await lane.close()',
+     'RepositoryRootTests.swift', 'quiescingRootRetainsOwnershipUntilExplicitClose',
+     '#expect(try await root.revalidate(candidate: path) == .same)'),
+    ('immutable-stale-completion', R+'RepositoryRoot.swift',
+     'do { try validate(permission) }\n        catch { return .uncertain(RepositoryInstallationFailure(reason: .staleContext, result: result, retry: object)) }',
+     '_ = permission',
+     'RepositoryFilesTests.swift', 'repositoryFilesDelayedCompletionRetainsEffectsAndOwnedRoot',
+     '#expect(staleCompletion, "An invalidated installation retains uncertain effects and exact retry input")'),
+    ('immutable-replayed-listing-cursor', R+'RepositoryRoot.swift',
+     'let continuation = UUID()',
+     'let continuation = stream.identifier',
+     'RepositoryFilesTests.swift', 'repositoryFilesShallowListingResumesAndRejectsStaleCursor',
+     'await #expect(throws: RepositoryRootError.wrongContext) { try await root.list(.segments, continuing: first, budget: 7, using: permission) }'),
+    ('retention-unverified-kind', R+'GeneralSnapshots.swift',
+     'guard object.kind == .snapshotRoot else { throw CanonicalEncodingError.invalidReference }',
+     'guard true else { throw CanonicalEncodingError.invalidReference }',
+     'SnapshotRetentionTests.swift', 'snapshotRetentionRejectsInvalidParentEvidence',
+     'await #expect { try await session.verifyGeneralSnapshot(preview) } throws: { String(reflecting: $0) == String(reflecting: expected) }'),
+    ('retention-clears-independent-tips', R+'HistoryDatabase.swift',
+     'try run("DELETE FROM retained_frontier WHERE object_id IN (SELECT prerequisite FROM accepted_dependencies WHERE child=?)", [.blob(object.locator.segmentID.bytes)])',
+     '''if try rows("SELECT kind FROM objects WHERE object_id=?", [.blob(object.locator.segmentID.bytes)]) == [[.integer(2)]] {
+                try run("DELETE FROM retained_frontier WHERE object_id<>?", [.blob(object.locator.segmentID.bytes)])
+            } else {
+                try run("DELETE FROM retained_frontier WHERE object_id IN (SELECT prerequisite FROM accepted_dependencies WHERE child=?)", [.blob(object.locator.segmentID.bytes)])
+            }''',
+     'SnapshotRetentionTests.swift', 'snapshotRetentionStaleCaptureKeepsConcurrentRoot',
+     '#expect(tips == [child.snapshot.segmentID, rightRoot.snapshot.segmentID])'),
+    ('retention-omitted-dependency', R+'HistoryDatabase.swift',
+     'rootReferences: Array(preview.requiredLocators)', 'rootReferences: Array(preview.historyLocators)',
+     'SnapshotRetentionTests.swift', 'snapshotRetentionSequentialCoverageSurvivesRestart',
+     '#expect(actualFrontier == [[.blob(receipt.snapshot.segmentID.bytes)]])'),
+    ('retention-premature-receipt', R+'SnapshotCommit.swift',
+     'let (sequence, preview) = try await lane.acceptGeneralSnapshot(root, selection: selection, protection: protection)',
+     '''let preview = try await GeneralSnapshotPreviewV1.read(snapshot: root, collection: selection.descriptor.collection, protection: protection) { target in
+                try await self.lane.perform { try $0.snapshotCandidate(target, collection: self.selection.descriptor.collection, protection: self.protection) }
+            }
+            let sequence = try await lane.perform { try $0.acceptedThrough() }''',
+     'SnapshotAcceptanceTests.swift', 'snapshotAcceptancePreservesValuesAndCompletePin',
+     '#expect(try await lane.perform { try $0.rows("SELECT seq FROM accepted_objects WHERE object_id=?", [.blob(receipt.snapshot.segmentID.bytes)]) } == [[.integer(receipt.sequence)]])'),
+    ('retention-skipped-consumer-check', R+'GeneralSnapshots.swift',
+     'try parents.check(database: database, selection: selection, protection: protection)',
+     '_ = parents',
+     'SnapshotRetentionTests.swift', 'snapshotRetentionConsumerRechecksExactParent',
+     'await #expect(throws: CanonicalEncodingError.lengthLimit) { try await lane.perform { try checked.check(database: $0, selection: selection) } }'),
     ('pending-stale-current-coverage', R+'PendingFiles.swift',
      '''guard try db.rows("SELECT reducer_version,through_seq FROM view_meta WHERE singleton=1") ==
                 [[.integer(1), .integer(db.acceptedThrough())]] else { throw StorageError.incomplete }''',
@@ -42,10 +359,10 @@ MUTATIONS = [
      'if selection.descriptor.collection.bytes.count == 16 { return }; while let record = try await perform({ db -> VerificationRecord? in',
      'VerificationTests.swift', 'verificationCancellationReplaysExactScope',
      '#expect(try await nextLane.perform { try $0.rows(reminderQuery, reminderRange) }.isEmpty)'),
-    ('traversal-occurrence-omitted', R+'GraphMaterialization.swift',
-     '''guard actualOps == payload.operations.enumerated().map({ [.integer(Int64($0.offset)), .blob($0.element.operation.id.bytes)] }),
-                          actualActions == payload.actions.enumerated().map({ [.integer(Int64($0.offset)), .blob($0.element.action.id.bytes)] }) else { throw StorageError.integrity }''',
-     'guard actualOps.count >= 0 && actualActions.count >= 0 else { throw StorageError.integrity }',
+    ('traversal-occurrence-omitted', R+'HistoryEnvelopeReader.swift',
+     '''guard ops == payload.operations.enumerated().map({ [.integer(Int64($0.offset)), .blob($0.element.operation.id.bytes)] }),
+                      acts == payload.actions.enumerated().map({ [.integer(Int64($0.offset)), .blob($0.element.action.id.bytes)] }) else { throw StorageError.integrity }''',
+     'guard ops.count >= 0 && acts.count >= 0 else { throw StorageError.integrity }',
      'HistoryTraversalTests.swift', 'traversalDetectsExactIndexedRelationshipDamage',
      'await #expect(throws: StorageError.integrity) { try await lane.snapshotHistoryGraph(through: 3, selection: selection, protection: protection) }'),
     ('recovery-stale-target', R+'GraphMaterialization.swift',
@@ -216,7 +533,7 @@ MUTATIONS = [
      'throw HistoryValidationInterrupted.historyAdvanced', 'throw StorageError.busy',
      'ValidationResumptionTests.swift', 'validationResumesAfterTwoInterferingSaves',
      'try #require(waiting, "receive must wait for the active save after exhausting both checks")'),
-    ('resumption-loses-wakeup', R+'Commit.swift',
+    ('resumption-loses-wakeup', R+'ReceivedObjects.swift',
      'let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() }',
      'drained.removeAll()',
      'ValidationResumptionTests.swift', 'validationResumesAfterTwoInterferingSaves',
@@ -307,8 +624,8 @@ MUTATIONS = [
      'ReceiveIsolationTests.swift', 'misaddressedReceiveDependencyIsIsolated',
      'await #expect(throws: CanonicalEncodingError.invalidReference)'),
     ('ready-before-view-repair', R+'LocalStore.swift',
-     'try await lane.reconstructIfNeeded(selection: selection, protection: protection)\n                _ = try await lane.drainReady(selection: selection, protection: protection)',
-     '_ = try await lane.drainReady(selection: selection, protection: protection)\n                try await lane.reconstructIfNeeded(selection: selection, protection: protection)',
+     'let checked = try await lane.reconstructIfNeeded(selection: selection, protection: protection, session: session)\n                _ = try await lane.drainReady(selection: selection, protection: protection, policy: .startupRequired)',
+     '_ = try await lane.drainReady(selection: selection, protection: protection, policy: .startupRequired)\n                let checked = try await lane.reconstructIfNeeded(selection: selection, protection: protection, session: session)',
      'HistorySchedulingTests.swift', 'reopenRebuildsDamagedViewBeforeDrainingReadyHistory',
      'let reopened = try #require(recovered)'),
 ]
@@ -332,8 +649,8 @@ MUTATIONS += [
      'SnapshotAcceptanceTests.swift', 'snapshotCaptureAndRetryRequireTheIssuingOwner',
      'await #expect(throws: StorageError.wrongContext) { try await copiedLane.perform { try checked.check(database: $0, selection: copiedSelection) } }'),
     ('snapshot-ready-recovery-omitted', R+'LocalStore.swift',
-     '_ = try await lane.drainReady(selection: selection, protection: protection)',
-     'try await lane.perform { try $0.run("DELETE FROM ready_objects WHERE object_id IN (SELECT object_id FROM objects WHERE kind=2)") }; _ = try await lane.drainReady(selection: selection, protection: protection)',
+     '_ = try await lane.drainReady(selection: selection, protection: protection, policy: .startupRequired)',
+     'try await lane.perform { try $0.run("DELETE FROM ready_objects WHERE object_id IN (SELECT object_id FROM objects WHERE kind=2)") }; _ = try await lane.drainReady(selection: selection, protection: protection, policy: .startupRequired)',
      'SnapshotAcceptanceTests.swift', 'snapshotRootReadyRecoveryUsesRetainedExactCandidates',
      '#expect(try await reopened.snapshot().through == 2)'),
     ('snapshot-optional-work-blocks-close', R+'LocalStore.swift',
@@ -464,13 +781,13 @@ MUTATIONS += [
      'ReceivedSnapshotTests.swift', 'receivedSnapshotUnsupportedChildBlocksOnlyItsDependents',
      '#expect(receivedBlocked(blocked), "Root must report its prerequisite\'s own result")'),
     ('received-snapshot-optional-close-gate', R+'LocalStore.swift',
-     'while inFlight || requiredReceiveInFlight || backupInFlight || activationInFlight || pendingPreparationInFlight {',
-     'while inFlight || receiving || backupInFlight || activationInFlight || pendingPreparationInFlight {',
+     'while inFlight || requiredReceiveInFlight || backupInFlight || activationInFlight || pendingPreparationInFlight || rowEncodingInFlight || maintenance.active {',
+     'while inFlight || receiving || backupInFlight || activationInFlight || pendingPreparationInFlight || rowEncodingInFlight || maintenance.active {',
      'ReceivedSnapshotTests.swift', 'receivedSnapshotOptionalClosePreservesOwnedInputs',
      '#expect(closed, "Optional preparation or completion must permit close while held")'),
-    ('received-snapshot-omitted-occurrence-audit', R+'GraphMaterialization.swift',
-     'guard actualOps == payload.operations.enumerated().map({ [.integer(Int64($0.offset)), .blob($0.element.operation.id.bytes)] }),',
-     'guard actualOps.count >= 0,',
+    ('received-snapshot-omitted-occurrence-audit', R+'HistoryEnvelopeReader.swift',
+     'guard ops == payload.operations.enumerated().map({ [.integer(Int64($0.offset)), .blob($0.element.operation.id.bytes)] }),',
+     'guard ops.count >= 0,',
      'ReceivedSnapshotTests.swift', 'receivedSnapshotRequiredDamageStaysBlockedDespiteMarkerFailure',
      'await #expect(throws: StorageError.integrity) { try await receiver.receive(fixture.objects[fixture.root]!) }'),
 ]
@@ -490,10 +807,83 @@ MUTATIONS += [
      'RepositoryCopyTests.swift', 'activeRecoveryCopyIncludesUnpublishedHistoryAndKeepsPrivateBuffers',
      '#expect(copy.repository.capturedInventoryComplete && copy.repository.unmetRequirements.isEmpty)'),
 ]
+MUTATIONS += [
+    ('optional-startup-drains-everything', R+'LocalStore.swift',
+     'policy: .startupRequired', 'policy: .all',
+     'StorageReviewTests.swift', 'optionalReadySnapshotKeepsReturningOpenHistoryBounded',
+     '#expect(counts.graphs == 0 && counts.reads == 0)'),
+    ('optional-startup-lost-reservation', R+'Publication.swift',
+     'startPublishedReceiveWork()', 'if false { startPublishedReceiveWork() }',
+     'OptionalStartupTests.swift', 'startupSelectsRequiredWorkBehindOptional',
+     'try #require(await reopened.receiving)'),
+    ('optional-startup-before-publication', R+'Publication.swift',
+     'let result = try await lane.perform { db in',
+     'startPublishedReceiveWork()\n        let result = try await lane.perform { db in',
+     'OptionalStartupTests.swift', 'optionalStartupRequiresSuccessfulHostPublication',
+     '#expect(await reopened.receiving == false, "Failed publication leaves background work unreserved")'),
+    ('optional-startup-discards-ready', R+'ReceivedObjects.swift',
+     'case .startupRequired:\n                    // Wait edges',
+     '''case .startupRequired:
+                    try db.run("DELETE FROM ready_objects WHERE object_id IN (SELECT object_id FROM objects WHERE kind=2)")
+                    // Wait edges''',
+     'OptionalStartupTests.swift', 'startupSelectsRequiredWorkBehindOptional',
+     '#expect(try await recoveredLane.perform { try $0.rows("SELECT object_id FROM ready_objects") } == [[.blob(root.segmentID.bytes)]])'),
+    ('scoped-query-omits-native-coverage', R+'CompensationCommands.swift',
+     'CausalUndoV1.select(actions: actions, scope: scope, direction: direction)',
+     'CausalUndoV1.select(actions: actions.filter { $0.kind != .nativeUndo }, scope: scope, direction: direction)',
+     'NativeCoverageTests.swift', 'nativeRemainingEffectAndActualRedoSurviveReopen',
+     '#expect(try await store.undoCandidates(scope: .note(birth), direction: .undo).ids == [aID])'),
+    ('scoped-query-omits-compensation', R+'CompensationCommands.swift',
+     'CausalUndoV1.select(actions: actions, scope: scope, direction: direction)',
+     'CausalUndoV1.select(actions: actions.filter { $0.kind != .undo && $0.kind != .redo }, scope: scope, direction: direction)',
+     'NativeCoverageTests.swift', 'nativeRemainingEffectAndActualRedoSurviveReopen',
+     '#expect(try await store.undoCandidates(scope: .note(birth), direction: .redo).ids == [actualUndoID], "Redo targets the recorded compensation")'),
+    ('scoped-query-truncates-global-dispositions', R+'ScopedHistory.swift',
+     'dispositions.insert(revision)', '_ = revision',
+     'ConnectedSemanticsTests.swift', 'reciprocalCopiesKeepSourceAndDurableDispositions',
+     '#expect(try await store.conflicts(for: n(2)).representedSeparately == [lID, rID], "Global dispositions remain visible on unrelated notes")'),
+    ('scoped-query-reuses-foreign-connection', R+'ScopedHistory.swift',
+     'connection == db.incarnation, store == selection.store', 'store == selection.store',
+     'ScopedHistoryTests.swift', 'scopedEvidenceRequiresExactConsumerAndConnection',
+     'await #expect(throws: StorageError.wrongContext, "The reopened connection requires freshly issued evidence") {'),
+    ('scoped-query-omits-member-check', R+'HistoryEnvelopeReader.swift',
+     'try await members(action: action.id, lane: lane) == action.members.map(\\.bytes)', 'true',
+     'ScopedHistoryTests.swift', 'scopedQueryRejectsSelectedEvidenceDamage',
+     'await #expect(throws: failure) { try await store.undoCandidates(scope: .note(birth), direction: .undo) }'),
+    ('current-recode-stale-view', R+'CurrentRows.swift',
+     'try db.validateHeader(store: selection.store, descriptor: selection.descriptor)\n            try db.checkCurrentView(snapshot)',
+     'try db.validateHeader(store: selection.store, descriptor: selection.descriptor)',
+     'CurrentRowStorageTests.swift', 'currentRecodeRejectsStalePreparation',
+     'await #expect(throws: StorageError.staleCapture) { try await attempt.value }'),
+    ('current-recode-stale-layout', R+'CurrentRows.swift',
+     'guard try db.rows("SELECT birth,cell FROM current_notes WHERE birth=?", [row[0]]) == [row] else',
+     'guard row.count == 2 else',
+     'CurrentRowStorageTests.swift', 'currentRecodeRejectsStalePreparation',
+     'await #expect(throws: StorageError.staleCapture) { try await attempt.value }'),
+    ('opening-capture-stale-view', R+'LocalStore.swift',
+     'do { return try await lane.perform { db in try db.checkCurrentView(checked); return checked } }',
+     'do { return try await lane.perform { _ in return checked } }',
+     'CurrentRowStorageTests.swift', 'openingCaptureRechecksNewHistoryAndSamePrefixView',
+     '#expect(fresh.viewEpoch == epoch)'),
+    ('current-dictionary-wrong-digest', 'Sources/NVStorageCore/CurrentRowFrameV1.swift',
+     'guard value.digest == digest else', 'guard true else',
+     '../NVStorageCoreTests/CurrentRowFrameTests.swift', 'privateCurrentDictionaryIndependentFrameAndBinding',
+     '#expect(throws: CanonicalEncodingError.identityMismatch) { try decoder.decode(wrongDigest) { _ in dictionary } }'),
+    ('maintenance-save-skips-cancellation', R+'Commit.swift',
+     'cancelMaintenance()\n        defer', 'defer',
+     'MaintenanceTests.swift', 'resumedSaveCancelsPreparedVacuumAndKeepsExactReceipt',
+     '#expect(try await attempt.value == .interrupted)'),
+    ('maintenance-wrong-connection', R+'Database.swift',
+     'guard request.connection == incarnation else', 'guard true else',
+     'MaintenanceTests.swift', 'vacuumRequestRequiresIssuingConnectionBeforeRetirement',
+     'await #expect(throws: StorageError.wrongContext) {'),
+]
 REQUIRED = set(m[5] for m in MUTATIONS)
 
 
 def classify(code, log, test, line, function, required=REQUIRED):
+    if code is None:
+        return 'timeout'
     if code == 0:
         return 'survived'
     if 'Build complete!' not in log or 'Test run started.' not in log:
@@ -527,15 +917,23 @@ def self_test():
     assert classify(1, scoped, 'NoteHistoryTests.swift', 66, function, {function}) == 'targeted runtime failure'
     assert classify(1, scoped, 'NoteHistoryTests.swift', 66, function, {function, missing}) == 'missing required discovery'
     assert classify(1, 'compiler unavailable', 'T.swift', 1, 'x') == 'compile/setup failure'
+    assert classify(None, log, 'NoteHistoryTests.swift', 66, function) == 'timeout'
     assert classify(0, log, 'NoteHistoryTests.swift', 66, function) == 'survived'
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--configuration', choices=['debug', 'release'], default='debug')
+    parser.add_argument('--timeout', type=int, default=600, help='Build-and-test watchdog for each isolated baseline or mutant.')
     parser.add_argument('--self-test-only', action='store_true')
+    parser.add_argument('--disable-sandbox', action='store_true', help='Allow compiler subprocesses when the outer test environment already provides isolation.')
+    parser.add_argument('--jobs', type=int, default=4, help='Bound compiler concurrency in isolated builds.')
+    parser.add_argument('--reuse-failed-package', type=Path,
+                        help='Reuse an exact-source isolated package after a failed baseline; rerun every selected check.')
     parser.add_argument('--only', action='append', choices=[m[0] for m in MUTATIONS])
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error('--jobs must be positive')
     selected = [m for m in MUTATIONS if not args.only or m[0] in args.only]
     required = {m[5] for m in selected}
     for name, file, before, after, test, function, assertion in MUTATIONS:
@@ -549,24 +947,42 @@ def main():
     if args.self_test_only:
         return
     artifacts = Path(tempfile.mkdtemp(prefix='nv-runtime-mutations-'))
-    package = artifacts/'NVStorage'
     print('Artifacts:', artifacts, flush=True)
-    shutil.copytree(ROOT/'NVStorage', package, ignore=shutil.ignore_patterns('.build*', '.swiftpm', '.deps'))
-    for folder in ['checkouts', 'repositories']:
-        old = ROOT/'NVStorage/.build'/folder
-        if old.is_dir(): shutil.copytree(old, package/'.build'/folder)
+    def source_manifest(directory):
+        result = {}
+        for parent, folders, files in os.walk(directory):
+            folders[:] = sorted(f for f in folders if not f.startswith('.build') and f not in {'.swiftpm', '.deps'})
+            for name in sorted(files):
+                path = Path(parent)/name
+                result[str(path.relative_to(directory))] = helpers.sha(path)
+        return result
+    if args.reuse_failed_package:
+        package = args.reuse_failed_package.resolve()
+        assert package.name == 'NVStorage' and package.parent.name.startswith('nv-runtime-mutations-')
+        assert (package.parent/'baseline.log').is_file() and not (package.parent/'results.json').exists()
+        assert (package/'.build').is_dir()
+        assert source_manifest(package) == source_manifest(ROOT/'NVStorage'), 'Reused sources must exactly match the workspace'
+    else:
+        package = artifacts/'NVStorage'
+        shutil.copytree(ROOT/'NVStorage', package, ignore=shutil.ignore_patterns('.build*', '.swiftpm', '.deps'))
+        for folder in ['checkouts', 'repositories']:
+            old = ROOT/'NVStorage/.build'/folder
+            if old.is_dir(): shutil.copytree(old, package/'.build'/folder)
     os.environ['PKG_CONFIG_PATH'] = str(ROOT/'NVStorage/.deps/sqlcipher/lib/pkgconfig') + os.pathsep + os.environ.get('PKG_CONFIG_PATH', '')
     # Reduce test-output interleaving while each test still drives its own concurrent tasks.
-    command = ['swift', 'test', '--build-system', 'native', '--package-path', str(package), '-c', args.configuration, '--no-parallel', '--filter', '|'.join(sorted(required))]
+    command = ['swift', 'test', '--build-system', 'native', '--package-path', str(package), '-c', args.configuration,
+               '--jobs', str(args.jobs), '--no-parallel', '--filter', '|'.join(sorted(required))]
+    if args.disable_sandbox:
+        command.append('--disable-sandbox')
     report = {'command': command, 'configuration': args.configuration, 'required_tests': sorted(required), 'results': [],
-              'sources': {str(p.relative_to(package)):helpers.sha(p) for p in package.rglob('*') if p.is_file() and '.build' not in p.parts}}
+              'sources': source_manifest(package)}
 
     def run(name):
         print('Running', name, flush=True)
         path = artifacts/(name+'.log')
         with path.open('w') as out:
             with subprocess.Popen(command, stdout=out, stderr=subprocess.STDOUT, start_new_session=True) as process:
-                try: result = process.wait(timeout=600)
+                try: result = process.wait(timeout=args.timeout)
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGTERM)
                     process.wait()

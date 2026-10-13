@@ -1,10 +1,132 @@
 ## Integration tests
 
+The [project-wide test and validation index](Test-and-Validation-Index.md)
+catalogues individual checks, commands and their defining/using plans across all
+phases, including formal, compiler, mutation and future integration requirements.
+
 Run test commands from the repository root. The test Makefile builds the Deployment app objects without code signing, links standalone test executables into `/tmp/notation-integration-tests`, and then runs them. A successful test is silent or exits with status 0; many deliberately injected failure cases write expected diagnostics to stderr.
+
+The application build is checked once per Make invocation. Content manifests
+cover the actual object inventory, headers, framework, compiler and link inputs;
+unchanged standalone executables are reused. Changed or damaged inputs and
+executables cause a real relink, including changes within the same second on
+macOS's bundled Make. Application-build and link failures still stop the tests.
+`make -C tests run-qualification-reuse` exercises these rules through the actual
+Makefile using synthetic build tools, plus the qualification-cache failure cases.
+
+`make -C tests run-compiler-probe-batches` checks the compiler-client batching
+harness, including a real Swift access-control challenge. Core, Runtime,
+private-state and root type drivers batch compatible negative clients while
+checking every exact diagnostic independently; `--batch-size 1` selects isolated
+clients for comparison. Positive companions and source-modifying/SIL probes keep
+their existing isolated checks. See the [contract and measurements](impl-proposal-5/plan/compiler-probe-batching.md).
+
+Runtime Swift tests compile in cohesive local/receive, recovery and repository
+modules, preserving their existing source paths and test filters. Shared fixtures
+live in a test-only, package-visible target. `run-swift-storage` first runs
+`run-storage-test-targets` to check that all Runtime test files are selected
+exactly once; full qualification also checks SwiftPM-resolved membership. See the
+[build-performance contract and measurements](impl-proposal-5/plan/test-target-build-performance.md).
+
+The [shared growth-history pilot](impl-proposal-5/plan/shared-history-fixture-pilot.md)
+reuses checked source/receiver prefixes for the snapshot-growth and discovery-
+growth tests. Each consumer owns a fresh physical copy, and discovery still
+receives every file into its own destination. Both profiles, all sizes and
+original assertions remain active. When combining Swift filters in
+`SWIFT_STORAGE_TEST_FLAGS`, escape regex alternation as `\|` so Make's shell
+passes it to SwiftPM.
 
 `NVIntegrationTest` replaces the app's `NVRootedDirectory.o` with a test-instrumented build of the same source and links `tests/NVRootedDirectoryTestHooks.m`. The production target does not compile the hook category, injected race callbacks, or descriptor-invalidating test seam.
 
 ### Common commands
+
+The [P5.4 plan](impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery.md)
+and [qualification ledger](impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md)
+cover the actual Foundation adapter and automatic immutable transport. After
+building the storage package, run `make -C tests run-swift-storage-apple-peer`
+for independent coordinated write/move and presenter callbacks;
+`make -C tests run-swift-storage-apple-stage` for actual grants, native static
+analysis and ASan/UBSan; and `make -C tests run-swift-storage-transport-local`
+for signed LaunchServices drivers, independent stores and fresh-process recovery.
+The local driver companion explicitly copies immutable files between separate
+roots; it does not claim provider delivery. `RepositoryCoordinationTests`,
+`RepositoryAvailabilityTests` and `RepositoryTransportTests` select deterministic
+production-path holds, stale issuers, bounded retries and automatic wakeups.
+
+`make -C tests run-swift-storage
+SWIFT_STORAGE_TEST_FLAGS='--filter repositoryDriverCoalescesHintStormAcrossNestedPass --no-parallel'`
+holds the real discovery observation through 256 consumed hints, then checks
+coalesced passes, bounded listing resources, single accepted-body reads,
+rejection isolation and reopening for both profiles. Run
+`python3 tools/test-storage-runtime-mutations.py --only driver-lost-coalesced-followup
+--only driver-repeated-accepted-bodies --disable-sandbox` for its passing companion
+and exact-assertion mutation controls. The controlled storm removes only its own
+presenter; the independent peer command above retains actual OS callback coverage.
+
+`make -C tests run-swift-storage
+SWIFT_STORAGE_TEST_FLAGS='--filter repositoryCoordination --no-parallel'`
+also checks 21 coordinator error cases: documented Cocoa/POSIX diagnoses,
+missing/unknown errors, numeric bounds and malformed supplemental dictionaries.
+`python3 tools/test-storage-runtime-mutations.py --only coordination-error-domain
+--disable-sandbox` requires a passing companion and the exact classification
+assertion to fail when domain checking is removed. These injected error values
+qualify the mapper; cancellation and held-accessor companions exercise actual
+Foundation execution separately.
+
+`python3 tools/test-storage-root-volumes.py --binary
+NVStorage/.build/release/NVStorageProbe` checks actual Foundation root access,
+same-object moves, replacement preservation and forced detach/remount on owned
+APFS/APFSX/HFS+/HFSX/ExFAT images. Add `--filesystem APFS --deep-root` to require
+deep coordinated reads and remounted acquisition; repeat separately for HFS+.
+The approved HFS+ fresh-deep-open limitation accepts only an exact `ESTALE`
+acquisition refusal with unchanged identity/bytes/namespace and released ownership;
+the report labels it `LIMITATION`, separately from successful fresh opening.
+Ordinary HFS+ access, already-owned deep coordinated reads and APFS fresh deep
+opening retain strict success assertions. `--check-outcomes` runs 13 host-free
+classification controls. Short-path/native-only passes cannot replace the
+applicable deep-path witnesses.
+`test-storage-apple-stage.py --repository-parent /absolute/owned/HFS/mount
+--sanitize address,undefined --mutations` adds a passing real install companion
+and requires an unverified selected-path mutation to fail at the actual root
+binding before any write. Preserve these disposable image/fixture artifacts.
+
+The optional live command is `python3 tools/test-storage-apple-transport.py
+--local-binary NVStorage/.build/debug/NVStorageProbe --remote-binary
+/absolute/path/to/Intel/NVStorageProbe --ssh-target scrod@scrodmini.local
+--ssh-key /tmp/scrodmini_ed25519 --repository-parent '/Users/scrod/Library/Mobile
+Documents/com~apple~CloudDocs/API_Contract_Testing' --timeout 300`.
+It creates fresh P54-* fixtures and transfers only harness/control inputs over
+SSH; iCloud supplies live segment delivery. Answer macOS access prompts for the
+dedicated `net.notational.velocity.storage-contract` bundle. These opt-in tests
+preserve failed fixtures and separately classify authorization, undisclosed
+provider input, malformed bytes and Runtime failure. A watchdog does not prove
+that an entered system call returned. Release signing and physical power loss
+remain separate qualification boundaries.
+
+The [P5.5 startup/reassociation ledger](impl-proposal-5/plan/phase5/05-startup-and-root-reassociation-validation.md)
+adds the integrated `CollectionSession`/selected bootstrap consumers. Filter
+`collection` for their Swift tests. `tools/test-storage-startup-process.py
+--binary /absolute/path/NVStorageProbe` runs 18 fresh-process association/crash/
+bootstrap schedules; the common storage driver includes them. For remote Macs,
+`tools/test-storage-startup-remote.py --binary /tmp/qualified/NVStorageProbe
+--ssh-target scrod@scrodmini.local --ssh-key /tmp/scrodmini_ed25519` runs the same
+production children while independently decoding their inspected history locally.
+The remote opener receives normal selection/unlock and surviving resources only.
+`tools/test-storage-apple-startup.py` accepts the same local/remote binary, SSH
+and authorized repository-parent options as the P5.4 live command. It exercises
+signed integrated creation, read-only bootstrap, editing/Delete, exact named
+disclosure, Retry, older-root Re-open and fresh exec under both profiles.
+Eviction requests and positively observed startup waits are reported separately.
+Each controller restart has a fresh FIFO/configuration/trace; fixtures survive
+failure. Application UI, repair effects and release packaging remain later gates.
+
+`tools/test-storage-phase2.py --suite-timeout 7200
+--compiler-suite-timeout 3600` gives the complete Swift and compiler campaigns
+explicit resource budgets. Each individual test/probe keeps its own watchdog and
+diagnostic/assertion checks. The 40-schedule received-snapshot process campaign has
+a separate 3,600-second aggregate budget with unchanged 120-second child watchdogs.
+An aggregate timeout is incomplete qualification; report independently completed
+component reruns separately rather than relabeling the timed-out wrapper as passed.
 
 The [phase-3 schedule and observation matrix](impl-proposal-5/plan/phase3-schedule-observation-matrix.md)
 tracks connected semantic qualification for editable merges, deletion/preservation,
@@ -26,10 +148,22 @@ fault schedules. `NV_STORAGE_RESOURCE_CAMPAIGN=1` with
 `SWIFT_STORAGE_TEST_FLAGS='--no-parallel --filter measuredBootstrapResourceCampaign'`
 runs the opt-in 64/256/1,024/2,048-note resource campaign for both profiles.
 
-- `make -C tests` builds every test executable without running it.
+- `make -C tests` builds the six default standalone executables without running them. Opt-in probes such as `NativeUndoProbe` and `FSEventsHistoryProbe` use their separately named Make targets.
 - `make -C tests run-core` runs the headless/default integration suite.
 - `make -C tests run-swift-storage` runs the standalone Swift package's Core and local SQLCipher Runtime tests without building NV. First run `bash tools/build-storage-deps.sh` from the repository root; SwiftPM resolves the pinned Swift Crypto dependency. `SWIFT_STORAGE_TEST_FLAGS` selects an optimized/sanitized build. `make -C tests run-swift-storage-phase2` additionally verifies fresh-process recovery, independent envelopes/fixtures, schema equality, C diagnostics and ordinary/same-module compiler boundaries. It includes the [Phase 3 connected checks](impl-proposal-5/plan/phase3-validation.md): independent stores exchanging real bytes, editable multi-head Current, exact source-entry exclusion, conflict-copy dispositions, actual compensation inverses and failure/restart schedules. Set `SWIFT_STORAGE_PHASE2_FLAGS='--configuration release --mutations'` for the optimized isolated challenge campaigns. The [Phase 2 report](impl-proposal-5/plan/phase2-local-runtime-validation.md) records underlying acceptance/fault coverage. These use synthetic private stores, not real user collections or providers. The test runner's availability is separate from the library's declared macOS 11.5 deployment target.
-- [Phase 4 improvements](impl-proposal-5/plan/phase-4-improvements/validation.md) add strict replay-request, per-envelope occurrence and coalesced-recovery checks to that common driver. `tools/test-storage-review-process.py` exercises repeated real diagnosis/settlement write failures and fresh reopening. For scaling comparisons, set `NV_STORAGE_IMPROVEMENT_BENCHMARK=1` and filter `packedReaderImprovementMeasurements|recoveryWorkAcrossHistoryAndLag`; ordinary test runs keep those larger measurements opt-in.
+
+Use `python3 tools/test-storage-phase2.py --configuration both` for complete
+debug/release qualification with campaign-scoped reuse. Both Swift suites,
+compiler probes, process schedules and native scenarios still execute. Identical
+native builds and the configuration-independent schema/fixture/C-diagnostic
+evidence are shared after content and toolchain checks. Each compiler probe keeps
+its own source and diagnostic assertions while sharing compatible module caches.
+`--reuse-directory <campaign-directory>` shares this evidence between separately
+invoked configurations; `NV_STORAGE_QUALIFICATION_REUSE=<campaign-directory>`
+enables native-build/compiler-cache sharing for standalone runners. Use a fresh
+campaign directory for a new qualification campaign. See the
+[reuse contract and validation](impl-proposal-5/plan/qualification-build-reuse.md).
+- [Phase 4 improvements](impl-proposal-5/plan/phase-4-improvements/validation.md) add strict replay-request, per-envelope occurrence and coalesced-recovery checks to that common driver. `tools/test-storage-review-process.py` exercises repeated real diagnosis/settlement write failures and fresh reopening. For scaling comparisons, set `NV_STORAGE_IMPROVEMENT_BENCHMARK=1` and use `SWIFT_STORAGE_TEST_FLAGS='--no-parallel --filter packedReaderImprovementMeasurements\|recoveryWorkAcrossHistoryAndLag'`; ordinary test runs keep those larger measurements opt-in.
 - [Phase 4C–4E](impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md) adds nonempty private settings/pending codecs, keyed fixed-cut backup, actual encrypted-page salvage, complementary repair, verified selection and repository-copy/export checks. `tools/test-storage-private-process.py --binary <probe>` runs 40 fresh-process schedules with independent history inspection; `--ssh-target`, `--ssh-key` and `--remote-env` run the same children on a test host while keeping the observer local. `tools/test-storage-private-types.py --modules <build>/Modules` checks 29 ordinary/same-module boundaries. The common driver includes both, the independent private fixtures and exact schema tests.
 - `make -C tests run-platform` runs tests that depend on live macOS services such as WebKit/AppKit, FSEvents, or Trash.
 - `make -C tests run-native-undo-probes` runs 51 isolated synthetic AppKit undo/shared-view experiments without building or opening NV. It is intentionally opt-in; see the [results, limits and interactive commands](impl-proposal-5/Native-Undo-Experiments.md). `--only shared-` on the runner selects the 20 new cases; `--interactive-shared` opens two opt-in keyboard/IME windows. `OBSERVE` denotes an observation-only run, not an assertion proof; passing concrete checks never promotes every accompanying observation. No notes, cloud files, general clipboard or UI-automation permission is used. A denied private pasteboard service requires a normal logged-in execution context, not a false Apple-contract failure.
@@ -240,20 +374,28 @@ Independent exec'ed processes verify exclusion initially, after closing a separa
 
 On a positively ubiquitous directory with an uploaded child, the probe also requests directory eviction, opens/locks it again, materializes the exact child bytes while locked, and repeats eviction/rematerialization while holding the lock. It records directory `SF_DATALESS` separately from the child's not-downloaded status. **Child-only eviction does not establish directory-placeholder coverage.** That case still exercises child rematerialization and exclusion, but returns 2 to retain the stronger coverage gap. Eviction acceptance alone, refusal, and missing upload evidence are not successful lifecycle observations. The shared process/contender deadlines above apply, and synthetic subtrees are retained.
 
-This is a per-host probe, not a distributed lock or certification of every filesystem/provider event. Remote-origin directory replacement/movement, a positively dataless directory, cross-user access, and unsupported/network filesystems require separate evidence before extending the claim. Results are recorded under [AV-16](Apple-API-Contract-Validation.md#av-16--root-directory-lock-contract). The implementation plan separately requires continuous owner retention through startup acceptance, controller/authority/storage handoffs, canceled close, checkpoint verification, WAL cleanup, and vnode/observer teardown; these are NV integration tests, not claims established by the standalone probe.
+This is a per-host probe, not a distributed lock or certification of every filesystem/provider event. Remote-origin directory replacement/movement, a positively dataless directory, cross-user access, and unsupported/network filesystems require separate evidence before extending the claim. Results are recorded under [AV-16](Apple-API-Contract-Validation.md#av-16--root-directory-lock-contract). The [P5.1 production-owner qualification](impl-proposal-5/plan/phase5/01-root-ownership-validation.md) separately covers continuous ownership through handoff, canceled/entered work, quiesce, close and teardown. [P5.5](impl-proposal-5/plan/phase5/05-startup-and-root-reassociation-validation.md) adds integrated startup and root reassociation; actual application lifecycle adoption remains a later gate. Legacy checkpoint/WAL cleanup is covered by the legacy scenarios below.
 
-The historical compatibility smoke test is intentionally outside `run-core`:
+The epoch-4 archive compatibility smoke test is intentionally outside `run-core`:
 
 ```sh
 tools/test-epoch4-v5-compatibility.sh
 ```
 
-It creates a fresh encrypted epoch-5 `Notes & Settings` archive with the current test
-binary, builds a temporary checkout at
+NV's last public release was in 2011 and used epoch-4 Notes & Settings. Every
+segment/private format remains unreleased. This test exercises the legacy
+archive/export boundary, independently of NVStorage and its development bytes.
+Its filename and `NV_EPOCH5_DATABASE_DIRECTORY` retain development-era names.
+
+It creates a fresh encrypted `Notes & Settings` archive through the app's legacy
+writer with the current test binary, builds a temporary checkout at
 `f4ada9d2e3c34fb816183bf9864074770605a4d3`, and has that epoch-4 reader load
 and decrypt the archive while verifying the warning, critical note content, and the
 `createdDate`, `modifiedDate`, `filename`, `selectedRange`, `currentFormatID`,
-and `fileEncoding` fields. No generated epoch-5 database fixture is retained.
+and `fileEncoding` fields. No generated archive fixture is retained.
+The reader is a 2026-08-08 source revision using the epoch-4 format; this test
+qualifies archive readability through that reader, rather than execution of a
+2011 release binary.
 Because the historical reader constructs an AppKit alert, run this smoke test
 in a normal logged-in macOS session rather than a restricted sandbox.
 
@@ -270,8 +412,16 @@ To run one standalone test, build its `/tmp/notation-integration-tests/<TestName
 
 ### Standalone test executables
 
+- `AppearanceColorTest`: light/dark appearance colors, divider rendering and temporary screen attributes; runs in `run-core`.
+- `GlobalPrefsArchiveMigrationTest`: legacy/secure preference archive migration, including font and color values; runs in `run-core`.
+- `WebArchiveImportIntegrationTest`: styled WebArchive import, body-font normalization and retained text traits; runs in `run-core`.
+- `ModernStickiesImportTest`: RTFD note-package detection/import and ordinary-file eligibility; runs in `run-platform`.
 - `NVIntegrationTest`: scenario-driven full-stack controller, directory, storage, reconciliation, lifecycle, and recovery tests listed below.
 - `ICloudAPIContractTest`: opt-in real-provider API probe and two-Mac host/peer protocol described above.
+
+The [native catalogue](test-index/native-and-legacy.md) also indexes separately
+built experimental probes and every helper subprocess mode. Their explicit
+runner/arguments select the required synthetic fixture and observation schedule.
 
 ### `NVIntegrationTest` scenarios
 
@@ -305,6 +455,7 @@ Transactional directory reconciliation:
 - `catalog-fence-contract`: mutation between preparation and the exact second catalog pass discards the first transaction and converges on retry.
 - `directory-fence-modes`: every scan uses two exact catalog passes; FSEvents is invalidation-only, and failed stream reconfiguration remains a retry obligation.
 - `unsaved-write-recovery-contract`: memory-wins conflicts, independent file/WAL outbox obligations, failed writes, and later recovery.
+- `external-editing-text-merge`: conservative text merging and refusal of ambiguous overlapping patches; private scratch-workspace lifecycle, separate-file save/reconciliation and external-editing merge-base handling.
 - `storage-transition-memory-wins`: switching from a single database to separate files queues authoritative in-memory notes even when a newer external file exists.
 - `open-files-workflow`: mixed known and external paths reveal owned notes while importing the remaining files.
 - `deletion-contracts`: restored external deletions, batched confirmation-free deletion, and failed Trash moves.
@@ -319,6 +470,7 @@ Storage formats, archives, and recovery:
 - `storage-transitions`: plain-text to RTF to single-database persistence, including optional separate-file cleanup.
 - `plain-text-encodings`: ISO-8859-1 and malformed-declared-UTF-8 fallback import, save, byte preservation, encoding metadata, and reload.
 - `filesystem-crud`: separate-file create, external move, save, and reload on the selected volume; the disk-image harness runs it on ExFAT and native formats.
+- `file-barrier-sync`: the real file barrier and its unsupported-command `fsync` fallback, using a temporary regular file and `/dev/null`.
 - `filename-collisions`: slash-bearing titles, untracked destination files, and case-only internal renames remain distinct and reloadable.
 - `case-sensitive-filename-collisions`: on APFSX/HFSX, untracked case-only create/rename targets remain distinct, same-note case-only renames leave one file, and physical case collisions abort reconciliation without model mutation.
 - `concurrent-controllers`: a live controller keeps exclusive ownership of its WAL while a second controller fails closed; crash recovery remains separately covered.

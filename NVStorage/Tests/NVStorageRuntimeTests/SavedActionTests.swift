@@ -1,14 +1,8 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 import NVStorageCore
 import NVStorageRuntime
-
-func requireReceipt(_ outcome: CommitOutcome) throws -> AcceptedHistoryReceipt {
-    switch outcome {
-    case .accepted(let receipt): return receipt
-    case .pending(_, let error): Issue.record("Commit remained pending: \(error)"); throw error
-    }
-}
 
 @Test(arguments: [false, true]) func ordinaryEditDeleteAndCreateReopen(encrypted: Bool) async throws {
     let (initial, protection) = try testInitial(encrypted)

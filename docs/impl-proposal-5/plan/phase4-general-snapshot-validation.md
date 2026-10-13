@@ -2,11 +2,15 @@
 
 Date: 2026-10-02. Scope: the first executable slice of
 [4A](phase4-startup-recovery-plan.md#4a--general-snapshot-format-construction-and-independent-verification).
-The [record contract](general-snapshot-record-contract.md) defines the layouts.
+The [record contract](general-snapshot-record-contract.md) defines the current
+single v1 layout, including retention parents. The
+[2026-10-13 format qualification](phase-4-improvements/general-snapshot-v1-validation.md)
+supersedes the earlier development layout; no segment format has been released.
 This report covers the first slice. [Durable local root/page acceptance](phase4-snapshot-acceptance-validation.md)
-has since connected its checks to SQLCipher. Unaccepted-history verification and
-snapshot-based current-row installation remain subsequent work; neither report
-closes the complete 4A/4B gates.
+has since connected its checks to SQLCipher. The later
+[S3/S4 report](phase4-bootstrap-reconstruction-validation.md) records implemented
+bootstrap and snapshot-based current-row reconstruction. This initial report's
+counts and timing describe its original revision, not the later complete paths.
 
 ## Production path implemented
 
@@ -76,7 +80,7 @@ explicit. A codec round trip alone is not the semantic oracle.
 | Scenario | Concrete observation |
 | --- | --- |
 | Empty, initial, edited, deleted, restored and undone collections, both profiles | Exact hand-expected bodies/identities and continuation records; existing retained history still verifies after ordinary reopen. |
-| One-byte, 17-byte and normal data chunks; multiple index levels | Records cross page boundaries completely; root stays 228 bytes; different transport trees preserve the same stream digest. |
+| One-byte, 17-byte and normal data chunks; multiple index levels | Records cross page boundaries completely; the current eight-category v1 root stays 236 bytes; different transport trees preserve the same stream digest. |
 | Every root/page missing in turn | Exact missing locator; intact redelivery assembles successfully. |
 | Validly sealed wrong digest/count/range/order/tag | Failure at the intended framing/manifest layer, after envelope validation. |
 | Authentic wrong body, heads, scope, deletion, retirement, disposition, restoration or occurrence | Semantic rejection preserves Current and acceptance sequence; unrelated ordinary saving still progresses. |

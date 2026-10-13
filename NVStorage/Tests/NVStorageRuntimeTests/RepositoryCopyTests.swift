@@ -1,15 +1,10 @@
+import NVStorageTestSupport
 import Foundation
 import Crypto
 import CStorageFaults
 import Testing
 import NVStorageCore
 @testable import NVStorageRuntime
-
-func emptyRepository() throws -> String {
-    let path = privateTempPath()
-    try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: false)
-    return path
-}
 
 @Test(arguments: [false, true])
 func repositoryOnlyCopyPreservesLockedBytesMetadataAndUnknownFiles(encrypted: Bool) async throws {

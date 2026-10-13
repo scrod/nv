@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import NVStorageCore
 @testable import NVStorageRuntime
 import Testing
@@ -29,18 +30,23 @@ import Testing
     let selection = await store.selection
     try await store.quiesce(); store = try await .open(selection: selection, protection: protection)
     #expect(try await store.undoCandidates(scope: .note(birth), direction: .undo).ids == [aID])
+    try await expectScopedHistoryMatchesFull(store, birth: birth)
     let undoPreparation = try await store.prepareCompensation(scope: .note(birth), direction: .undo)
     #expect(isAutomaticCompensation(undoPreparation))
     guard case .automatic(let undo) = undoPreparation else { return }
-    _ = try requireReceipt(await store.applyCompensation(undo))
+    let actualUndo = try requireReceipt(await store.applyCompensation(undo))
+    let actualUndoID = try await action(actualUndo)
+    #expect(try await store.undoCandidates(scope: .note(birth), direction: .redo).ids == [actualUndoID], "Redo targets the recorded compensation")
     _ = try await store.rebuildCurrentRows()
     #expect(try await store.snapshot().notes.first { $0.birth == birth }?.value.body.string == "")
     guard case .automatic(let redoA) = try await store.prepareCompensation(scope: .note(birth), direction: .redo) else { Issue.record("Actual inverse must be automatically redoable"); return }
     _ = try requireReceipt(await store.applyCompensation(redoA))
     #expect(try await store.snapshot().notes.first { $0.birth == birth }?.value.body.string == "A")
+    try await expectScopedHistoryMatchesFull(store, birth: birth)
     guard case .automatic(let redoNative) = try await store.prepareCompensation(scope: .note(birth), direction: .redo) else { Issue.record("Native actual compensation must remain automatic in redo tail"); return }
     _ = try requireReceipt(await store.applyCompensation(redoNative))
     #expect(try await store.snapshot().notes.first { $0.birth == birth }?.value.body.string == "ABCD")
+    try await expectScopedHistoryMatchesFull(store, birth: birth)
     guard case .automatic(let undoActual) = try await store.prepareCompensation(scope: .note(birth), direction: .undo) else { Issue.record("Actual native Redo must be automatically undoable"); return }
     _ = try requireReceipt(await store.applyCompensation(undoActual))
     #expect(try await store.snapshot().notes.first { $0.birth == birth }?.value.body.string == "A")
@@ -64,6 +70,7 @@ import Testing
     _ = try await left.receive(right.retainedObject(at: r.object)); _ = try await right.receive(left.retainedObject(at: l.object))
     let candidates = try await left.undoCandidates(scope: .note(birth), direction: .undo)
     #expect(candidates.ids == [target] && candidates.mode == .review)
+    try await expectScopedHistoryMatchesFull(left, birth: birth)
     let before = try await left.snapshot()
     switch try await left.prepareCompensation(scope: .note(birth), direction: .undo) {
     case .review(let review):

@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 import NVStorageCore
@@ -104,10 +105,9 @@ func receivedInitialSnapshotUsesCompleteBootstrapValidation(encrypted: Bool, roo
 struct ReceivedSnapshotWorkTests {
     @Test(.timeLimit(.minutes(10)), arguments: [false, true], [64, 256, 1024])
     func receivedSnapshotGrowingHistoryMeasuresCompleteWork(encrypted: Bool, actions: Int) async throws {
-        let (initial, protection) = try testInitial(encrypted), sender = try await newSession(initial, protection), receiver = try await newSession(initial, protection)
-        let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
-        for n in 1...actions { _ = try await put("E\(n)", birth: birth, generation: UInt64(n), session: sender) }
-        try await receiveHistory(from: sender, into: receiver)
+        let history = try await GrowthHistoryFixtures.shared.fixture(encrypted: encrypted, actions: actions)
+        let protection = history.protection
+        let sender = try await history.openSender(), receiver = try await history.openReceiver()
         let capture = try await sender.captureGeneralSnapshot(), lane = await receiver.lane
         let references = Set(capture.records.flatMap { $0.operationReferences.map(\.locator) + $0.actionReferences.map(\.locator) } + [capture.bootstrapSnapshot])
         let recordBytes = try capture.records.reduce(0) { try $0 + $1.encodedV1().count }
@@ -364,7 +364,12 @@ func receivedSnapshotOptionalClosePreservesOwnedInputs(encrypted: Bool, stage: S
     if !closed { await gate.release(); _ = try? await receiving.value; try await closing.value; try await sender.quiesce(); return }
     try await closing.value
     let reopened = try await LocalStoreSession.open(selection: selection, protection: protection), reopenedLane = await reopened.lane
-    #expect(try await reopened.snapshot().through == ((stage == "preparing" || stage == "completion") ? 2 : 1))
+    #expect(try await reopened.snapshot().through == (stage == "completion" ? 2 : 1))
+    if stage == "preparing" {
+        _ = try await reopened.publish(reopened.prepareReduction(liveGeneration: 0), liveGeneration: 0) { $0 }
+        await reopened.waitForReceiveForTesting()
+        #expect(try await reopened.snapshot().through == 2)
+    }
     _ = try await put("New owner's edit", birth: NoteBirth(bytes: Array(repeating: 1, count: 16)), generation: 7, session: reopened)
     await gate.release()
     if stage == "completion" {
@@ -393,7 +398,10 @@ func receivedSnapshotCancellationPreservesRetryAndCurrent(encrypted: Bool) async
     _ = try await put("Edit after cancellation", birth: NoteBirth(bytes: Array(repeating: 1, count: 16)), generation: 1, session: receiver)
     try await receiver.quiesce()
     let reopened = try await LocalStoreSession.open(selection: selection, protection: protection)
-    guard case .accepted = try await reopened.receivedObjectStatus(at: fixture.root) else { Issue.record("Durable ready input must resume on reopen"); return }
+    guard case .pendingValidation = try await reopened.receivedObjectStatus(at: fixture.root) else { Issue.record("Optional input must remain durably queued before publication"); return }
+    _ = try await reopened.publish(reopened.prepareReduction(liveGeneration: 0), liveGeneration: 0) { $0 }
+    await reopened.waitForReceiveForTesting()
+    guard case .accepted = try await reopened.receivedObjectStatus(at: fixture.root) else { Issue.record("Durable ready input must resume after host publication"); return }
     #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["Edit after cancellation", "untouched"])
     try await reopened.quiesce(); try await sender.quiesce()
 }

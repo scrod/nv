@@ -78,7 +78,7 @@ func armProbeFault(_ args: [String], at index: Int) {
     }
 }
 
-/// Independent SQL inspection bypasses the runtime's materializer and receipt path.
+/// Reads exact SQL rows for independent retention, acceptance and recovery observations.
 final class Inspector {
     var db: OpaquePointer?
     init(_ selection: LocalStoreSelection, protection: ObjectProtectionV1) throws {
@@ -114,6 +114,12 @@ final class Inspector {
     }
     static func run() async throws {
         let args = Array(CommandLine.arguments.dropFirst())
+        if try await runRepositoryRootProbe(args) { return }
+        if try await runRepositoryFilesProbe(args) { return }
+        if try await runRepositoryExchangeProbe(args) { return }
+        if try await runRepositoryDriverProbe(args) { return }
+        if try await runCollectionControllerProbe(args) { return }
+        if try await runCollectionStartupProbe(args) { return }
         if args.count == 4, args[0] == "seed-pair" {
             let protection: ObjectProtectionV1 = args[2] == "encrypted" ? .encrypted(keyID: try .init(bytes: Array(repeating: 3, count: 16)), key: SymmetricKey(data: Array(repeating: 4, count: 32))) : .publicHash
             let initial = try InitialCollectionV1.build(collection: CollectionID(bytes: Array(repeating: 1, count: 16)),
@@ -222,13 +228,20 @@ final class Inspector {
             let candidate = try await BootstrapCandidate.create(selection: selection, snapshot: root, protection: protection)
             try await candidate.close(); try output(["objects": manifest.count]); return
         }
-        if command == "create" {
+        if command == "create" || command == "current-seed" {
             let encrypted = args[2] == "encrypted"
             let collection = try CollectionID(bytes: Array(repeating: 1, count: 16))
             let protection: ObjectProtectionV1 = encrypted ? try .encrypted(keyID: CollectionKeyID(bytes: Array(repeating: 3, count: 16)), key: SymmetricKey(data: [UInt8](repeating: 4, count: 32))) : .publicHash
-            let initial = try InitialCollectionV1.build(collection: collection,
-                notes: [(NoteBirth(bytes: Array(repeating: 1, count: 16)), value("A")),
-                        (NoteBirth(bytes: Array(repeating: 2, count: 16)), value("untouched"))],
+            let notes: [(NoteBirth, PlaintextNoteValue)]
+            if command == "current-seed" {
+                notes = try (1...32).map { index in
+                    (try NoteBirth(bytes: Array(repeating: UInt8(index), count: 16)), try value(currentProbeBody(index)))
+                }
+            } else {
+                notes = try [(NoteBirth(bytes: Array(repeating: 1, count: 16)), value("A")),
+                             (NoteBirth(bytes: Array(repeating: 2, count: 16)), value("untouched"))]
+            }
+            let initial = try InitialCollectionV1.build(collection: collection, notes: notes,
                 protection: protection, passphrase: encrypted ? "probe password" : nil)
             let store = try LocalStoreID(bytes: withUnsafeBytes(of: UUID().uuid) { Array($0) })
             let selectionData = try JSONEncoder().encode(SelectionFile(store: store.bytes, descriptor: initial.descriptor.encodedBytes))
@@ -474,6 +487,7 @@ final class Inspector {
             report["actions"] = try inspector.rows("SELECT hex(action_id),hex(origin_id),hex(previous_origin_action),hex(scope_birth),kind FROM actions ORDER BY action_id")
             report["restorations"] = try inspector.rows("SELECT hex(source_birth),hex(deletion_action),hex(action_id) FROM restorations ORDER BY source_birth,deletion_action")
             report["cells"] = try inspector.rows("SELECT hex(birth),hex(cell) FROM current_notes ORDER BY birth")
+            report["dictionaries"] = try inspector.rows("SELECT hex(dictionary_id),hex(encoded) FROM current_dictionaries ORDER BY dictionary_id")
             report["members"] = try inspector.rows("SELECT hex(action_id),ordinal,hex(operation_id) FROM action_members ORDER BY action_id,ordinal")
             report["operation_occurrences"] = try inspector.rows("SELECT hex(operation_id),hex(object_id),record_index FROM operation_occurrences ORDER BY operation_id,object_id,record_index")
             report["action_occurrences"] = try inspector.rows("SELECT hex(action_id),hex(object_id),record_index FROM action_occurrences ORDER BY action_id,object_id,record_index")
@@ -495,16 +509,46 @@ final class Inspector {
         }
         let session = try await LocalStoreSession.open(selection: selection, protection: protection)
         let snapshot = try await session.snapshot()
+        if command == "publish-drain" || command == "publish-drain-crash" {
+            if command == "publish-drain-crash" { armProbeFault(args, at: 3) }
+            let published = try await session.publish(session.prepareReduction(liveGeneration: 0), liveGeneration: 0) { $0 }
+            let inspector = try Inspector(selection, protection: protection)
+            // Observe durable queue settlement and current-row catch-up without driving the worker.
+            let deadline = Date().addingTimeInterval(30)
+            while try !inspector.rows("SELECT 1 WHERE EXISTS(SELECT 1 FROM ready_objects) OR NOT EXISTS(SELECT 1 FROM view_meta WHERE singleton=1 AND through_seq=(SELECT COALESCE(MAX(seq),0) FROM acceptance_batches))").isEmpty {
+                guard Date() < deadline else { throw StorageError.incomplete }
+                try await Task.sleep(nanoseconds: 1_000_000)
+            }
+            let final = try await session.snapshot()
+            try output(["publishedThrough": published.through, "through": final.through,
+                "publishedNotes": published.notes.map { $0.value.body.string }.sorted(),
+                "notes": final.notes.map { ["birth": hex($0.birth.bytes), "body": $0.value.body.string, "cell": hex($0.encodedV1())] },
+                "context": hex(final.context.encodedV1()), "steps": nv_faults_steps()])
+            try await session.quiesce(); return
+        }
         if try await privateCommand(args, session: session, protection: protection) { return }
+        if try await currentMaintenanceCommand(args, session: session) { return }
         if command == "snapshot-export" {
             let destination = URL(fileURLWithPath: args[3])
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
             let capture = try await session.captureGeneralSnapshot()
             let sink = ProbeSnapshotFiles(collection: selection.descriptor.collection, protection: protection, directory: destination)
             let root = try await GeneralSnapshotV1.write(records: capture.records, bootstrapSnapshot: capture.bootstrapSnapshot,
-                chunkBytes: 256, fanout: 2) { try await sink.emit($0, $1) }
+                retentionParents: capture.retentionParents, chunkBytes: 256, fanout: 2) { try await sink.emit($0, $1) }
             let bad = try await sink.emit(.snapshotRoot, [])
             try output(["root": hex(root.segmentID.bytes), "bad": hex(bad.segmentID.bytes), "files": await sink.manifest()])
+            try await session.quiesce(); return
+        }
+        if command == "snapshot-series" {
+            guard args.count == 4, let count = Int(args[3]), count > 0, count <= 256 else { throw StorageError.limit }
+            var roots: [String] = []
+            for _ in 0..<count {
+                guard case .accepted(let receipt) = try await session.persistGeneralSnapshot(capture: session.captureGeneralSnapshot()) else {
+                    throw StorageError.incomplete
+                }
+                roots.append(hex(receipt.snapshot.segmentID.bytes))
+            }
+            try output(["roots": roots, "through": try await session.snapshot().through])
             try await session.quiesce(); return
         }
         if command == "snapshot-save" || command == "snapshot-candidate" {

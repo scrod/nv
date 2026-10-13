@@ -1,0 +1,1143 @@
+{
+  "version": 2,
+  "width": 1800,
+  "title": "NVStorage · object containment and processing relationships",
+  "subtitle": "One collection on one Mac · process, directory and file containment with labeled functional groups",
+  "tree": {
+    "id": "map",
+    "title": "",
+    "caption": "",
+    "children": [
+      {
+        "id": "process",
+        "title": "Application process",
+        "caption": "IN MEMORY · objects live within an app / selected-store session",
+        "children": [
+          {
+            "id": "application",
+            "title": "Application live model",
+            "caption": "Application integration · authoritative during use",
+            "children": [
+              {
+                "id": "immediate",
+                "title": "Immediate note interaction",
+                "caption": "Synchronous input and search",
+                "children": [
+                  {
+                    "object": "live"
+                  },
+                  {
+                    "object": "search"
+                  },
+                  {
+                    "object": "pendinglive"
+                  },
+                  {
+                    "object": "views"
+                  }
+                ],
+                "columns": 2,
+                "relation": "feature"
+              },
+              {
+                "id": "features",
+                "title": "Derived feature views",
+                "caption": "Queries, review and external-file intent",
+                "children": [
+                  {
+                    "object": "history"
+                  },
+                  {
+                    "object": "conflicts"
+                  },
+                  {
+                    "object": "undo"
+                  },
+                  {
+                    "object": "projection"
+                  }
+                ],
+                "columns": 2,
+                "relation": "feature"
+              }
+            ],
+            "columns": 1,
+            "relation": "functional",
+            "tone": "memory"
+          },
+          {
+            "id": "core",
+            "title": "Prepared storage values",
+            "caption": "Portable Core / Runtime · bounded, captured inputs",
+            "children": [
+              {
+                "id": "save",
+                "title": "Capture → validate",
+                "caption": "A complete meaningful action becomes checked bytes",
+                "children": [
+                  {
+                    "object": "capture"
+                  },
+                  {
+                    "object": "seal"
+                  },
+                  {
+                    "object": "decoded"
+                  },
+                  {
+                    "object": "batch"
+                  }
+                ],
+                "columns": 2,
+                "relation": "operation"
+              },
+              {
+                "id": "read",
+                "title": "Query → reconstruct",
+                "caption": "Checked history produces views and snapshots",
+                "children": [
+                  {
+                    "object": "graph"
+                  },
+                  {
+                    "object": "reduce"
+                  },
+                  {
+                    "object": "snapwork"
+                  },
+                  {
+                    "object": "maintenance"
+                  }
+                ],
+                "columns": 2,
+                "relation": "operation"
+              }
+            ],
+            "columns": 1,
+            "relation": "functional",
+            "tone": "memory"
+          },
+          {
+            "id": "effect",
+            "title": "Sessions and external work",
+            "caption": "Resources fence effects; jobs carry captured evidence",
+            "children": [
+              {
+                "id": "owners",
+                "title": "Live session resources",
+                "caption": "Owners, permissions, keys and generations",
+                "children": [
+                  {
+                    "object": "localowner"
+                  },
+                  {
+                    "object": "rootowner"
+                  },
+                  {
+                    "object": "appleowner"
+                  },
+                  {
+                    "object": "selectowner"
+                  },
+                  {
+                    "object": "gate"
+                  },
+                  {
+                    "object": "secrets"
+                  }
+                ],
+                "columns": 3,
+                "relation": "ownership"
+              },
+              {
+                "id": "jobs",
+                "title": "External operation values",
+                "caption": "Discovery, transport, file review and repair",
+                "children": [
+                  {
+                    "object": "recvwork"
+                  },
+                  {
+                    "object": "pubwork"
+                  },
+                  {
+                    "object": "filework"
+                  },
+                  {
+                    "object": "pendingwork"
+                  },
+                  {
+                    "object": "repairwork"
+                  }
+                ],
+                "columns": 2,
+                "relation": "operation"
+              }
+            ],
+            "columns": 1,
+            "relation": "functional",
+            "tone": "authority"
+          }
+        ],
+        "columns": 3,
+        "relation": "process",
+        "tone": "memory",
+        "weights": [
+          1,
+          1,
+          1.15
+        ],
+        "major": true
+      },
+      {
+        "id": "disk",
+        "title": "",
+        "caption": "",
+        "children": [
+          {
+            "id": "private-disk",
+            "title": "Private storage · Collections/",
+            "caption": "ON DISK · one selected store; replacement candidates have separate identities",
+            "children": [
+              {
+                "id": "selection-row",
+                "title": "",
+                "caption": "",
+                "children": [
+                  {
+                    "object": "selection"
+                  },
+                  {
+                    "object": "candidate"
+                  }
+                ],
+                "columns": 2,
+                "relation": "layout",
+                "bare": true
+              },
+              {
+                "id": "active-store",
+                "title": "Selected <LocalStoreID> directory",
+                "caption": "The active private store owns its database and unlock copies",
+                "children": [
+                  {
+                    "object": "unlock",
+                    "height": 82
+                  },
+                  {
+                    "id": "database",
+                    "title": "Database files",
+                    "caption": "One private durable container per LocalStoreID",
+                    "children": [
+                      {
+                        "id": "sqlite",
+                        "title": "Collection.sqlite",
+                        "caption": "One keyed SQLCipher file · all 27 production SQL tables",
+                        "children": [
+                          {
+                            "id": "sql-left",
+                            "title": "History and materialization",
+                            "caption": "Stored authority and its derived current view",
+                            "children": [
+                              {
+                                "id": "retained",
+                                "title": "Accepted and retained history",
+                                "caption": "Exact bytes, accepted membership and query indexes",
+                                "children": [
+                                  {
+                                    "object": "objects"
+                                  },
+                                  {
+                                    "object": "accepted"
+                                  },
+                                  {
+                                    "object": "opindex"
+                                  },
+                                  {
+                                    "object": "actionindex"
+                                  }
+                                ],
+                                "columns": 2,
+                                "relation": "role",
+                                "tone": "required"
+                              },
+                              {
+                                "id": "materialized",
+                                "title": "Rebuildable current view",
+                                "caption": "Startup acceleration from an exact accepted prefix",
+                                "children": [
+                                  {
+                                    "object": "current"
+                                  },
+                                  {
+                                    "object": "view"
+                                  },
+                                  {
+                                    "object": "dict"
+                                  },
+                                  {
+                                    "object": "hints"
+                                  }
+                                ],
+                                "columns": 2,
+                                "relation": "role",
+                                "tone": "derived"
+                              }
+                            ],
+                            "columns": 1,
+                            "relation": "layout",
+                            "bare": true
+                          },
+                          {
+                            "id": "required-state",
+                            "title": "Required local state",
+                            "caption": "Pins, restart obligations and private relationships",
+                            "children": [
+                              {
+                                "object": "header"
+                              },
+                              {
+                                "object": "pin"
+                              },
+                              {
+                                "object": "receiveq"
+                              },
+                              {
+                                "object": "private"
+                              },
+                              {
+                                "object": "verification"
+                              },
+                              {
+                                "object": "pendingdisk"
+                              },
+                              {
+                                "object": "projectiondisk"
+                              }
+                            ],
+                            "columns": 2,
+                            "relation": "role",
+                            "tone": "required"
+                          }
+                        ],
+                        "columns": 2,
+                        "relation": "file",
+                        "tone": "required"
+                      }
+                    ],
+                    "columns": 1,
+                    "relation": "bundle",
+                    "tone": "required",
+                    "object": "dbcontainer",
+                    "note": "SQLite-owned sibling pager files: Collection.sqlite-wal / -shm or rollback journal."
+                  }
+                ],
+                "columns": 1,
+                "relation": "directory",
+                "tone": "required"
+              }
+            ],
+            "columns": 1,
+            "relation": "directory",
+            "tone": "required",
+            "major": true
+          },
+          {
+            "id": "provider",
+            "title": "Repository and provider evidence",
+            "caption": "Files and external observations remain separate authorities",
+            "children": [
+              {
+                "id": "repo-root",
+                "title": "Selected repository folder",
+                "caption": "ON DISK · physical root identity is held independently of collection identity",
+                "children": [
+                  {
+                    "id": "nvdata",
+                    "title": "NV Data/ → v1/",
+                    "caption": "Visible ordinary protocol directory",
+                    "children": [
+                      {
+                        "id": "keys",
+                        "title": "keys/",
+                        "caption": "Bootstrap and unlocking descriptors",
+                        "children": [
+                          {
+                            "object": "rkeys"
+                          }
+                        ],
+                        "columns": 1,
+                        "relation": "directory",
+                        "tone": "portable"
+                      },
+                      {
+                        "id": "segments",
+                        "title": "segments/<writerEpoch>/",
+                        "caption": "One immutable-object namespace · roots and pages use ordinary .nvseg leaves",
+                        "children": [
+                          {
+                            "object": "rchanges",
+                            "structure": [
+                              "ObjectEnvelopeV1",
+                              "ChangesPayloadV1",
+                              "OperationRecordV1 + ActionRecordV1"
+                            ],
+                            "height": 142
+                          },
+                          {
+                            "id": "snapshots",
+                            "title": "Snapshot representations",
+                            "caption": "Logical families in the same segment namespace",
+                            "children": [
+                              {
+                                "object": "rinitial",
+                                "structure": [
+                                  "InitialSnapshotRootV1",
+                                  "Flat list of complete note pages"
+                                ],
+                                "height": 142
+                              },
+                              {
+                                "object": "rgeneral",
+                                "structure": [
+                                  "GeneralSnapshotRootV1 · eight counts",
+                                  "Index / data pages → state stream",
+                                  "Tag 8: retention parents (zero allowed)"
+                                ],
+                                "height": 158
+                              }
+                            ],
+                            "columns": 2,
+                            "relation": "role",
+                            "tone": "portable"
+                          }
+                        ],
+                        "columns": 1,
+                        "relation": "directory",
+                        "tone": "portable"
+                      }
+                    ],
+                    "columns": 1,
+                    "relation": "directory",
+                    "tone": "portable"
+                  },
+                  {
+                    "id": "root-files",
+                    "title": "Other owned root files",
+                    "caption": "Projection and install / replacement work",
+                    "children": [
+                      {
+                        "object": "rnotes"
+                      },
+                      {
+                        "object": "rstages"
+                      }
+                    ],
+                    "columns": 2,
+                    "relation": "role",
+                    "tone": "external"
+                  }
+                ],
+                "columns": 1,
+                "relation": "directory",
+                "tone": "portable",
+                "object": "rdirs",
+                "major": true
+              },
+              {
+                "id": "provider-evidence",
+                "title": "Provider-managed external evidence",
+                "caption": "Associated with selected files · OS-managed lifetime",
+                "children": [
+                  {
+                    "object": "appleversions"
+                  }
+                ],
+                "columns": 1,
+                "relation": "association",
+                "tone": "external"
+              }
+            ],
+            "columns": 1,
+            "relation": "layout",
+            "bare": true
+          }
+        ],
+        "columns": 2,
+        "weights": [
+          1.65,
+          1
+        ],
+        "relation": "layout",
+        "bare": true
+      },
+      {
+        "id": "other",
+        "title": "Other locations and services",
+        "caption": "PERSISTENT · separately selected destinations or OS-owned state",
+        "children": [
+          {
+            "id": "os",
+            "title": "OS / application services",
+            "caption": "Device and application scope",
+            "children": [
+              {
+                "object": "keychain"
+              },
+              {
+                "object": "hostprefs"
+              }
+            ],
+            "columns": 2,
+            "relation": "association",
+            "tone": "external"
+          },
+          {
+            "id": "recovery",
+            "title": "Preserved recovery evidence",
+            "caption": "Independent, explicitly qualified recovery input",
+            "children": [
+              {
+                "object": "backup"
+              }
+            ],
+            "columns": 1,
+            "relation": "association",
+            "tone": "required"
+          },
+          {
+            "id": "destinations",
+            "title": "Import and output destinations",
+            "caption": "Explicitly selected stores or files",
+            "children": [
+              {
+                "object": "legacy"
+              },
+              {
+                "object": "copy"
+              },
+              {
+                "object": "scratch"
+              }
+            ],
+            "columns": 3,
+            "relation": "association",
+            "tone": "external"
+          }
+        ],
+        "columns": 3,
+        "weights": [
+          1.15,
+          0.75,
+          1.6
+        ],
+        "relation": "association",
+        "tone": "external",
+        "major": true
+      }
+    ],
+    "columns": 1,
+    "relation": "layout",
+    "bare": true
+  },
+  "display": {
+    "live": {
+      "title": "Live note collection",
+      "caption": "NoteObject values + Current"
+    },
+    "search": {
+      "title": "Synchronous search",
+      "caption": "In-memory indexes + current filter"
+    },
+    "pendinglive": {
+      "title": "Pending edit generations",
+      "caption": "UUID / LSN + action context"
+    },
+    "views": {
+      "title": "Attached native note views",
+      "caption": "Shared editing / undo owner"
+    },
+    "history": {
+      "title": "History / Recently Deleted",
+      "caption": "Paged metadata + detached preview"
+    },
+    "conflicts": {
+      "title": "Merge / conflict attention",
+      "caption": "Heads + base + derived provenance"
+    },
+    "undo": {
+      "title": "Causal Undo / Redo",
+      "caption": "Candidates + reviewed commands"
+    },
+    "projection": {
+      "title": "Projection transition",
+      "caption": "Intended output + accepted receipt"
+    },
+    "capture": {
+      "title": "Frozen action capture",
+      "caption": "Values + generations + graph roles"
+    },
+    "seal": {
+      "title": "Sealed bytes / retry input",
+      "caption": "Exact envelope bytes · seal once"
+    },
+    "decoded": {
+      "title": "Decoded records / claims",
+      "caption": "Bounded codecs + exact identities"
+    },
+    "batch": {
+      "title": "Validated batch / receipts",
+      "caption": "Same bytes + checked semantics"
+    },
+    "graph": {
+      "title": "Checked history / query",
+      "caption": "RetainedGraph / scoped evidence"
+    },
+    "reduce": {
+      "title": "Prepared reconstruction",
+      "caption": "Exact cut + outside-cut work"
+    },
+    "snapwork": {
+      "title": "Snapshot assembly",
+      "caption": "Separate semantic / retention checks"
+    },
+    "maintenance": {
+      "title": "Recoding / maintenance",
+      "caption": "Captured rows + one reservation"
+    },
+    "localowner": {
+      "title": "Local store owner",
+      "caption": "Database actor / local lane"
+    },
+    "rootowner": {
+      "title": "Repository root owner",
+      "caption": "RootLane / RootLease"
+    },
+    "appleowner": {
+      "title": "Apple provider context",
+      "caption": "Coordination / observations"
+    },
+    "selectowner": {
+      "title": "Selection owner",
+      "caption": "Expected-generation cutover"
+    },
+    "gate": {
+      "title": "Lifecycle / input fences",
+      "caption": "Store / root / view generations"
+    },
+    "secrets": {
+      "title": "Unlock / crypto state",
+      "caption": "CK → object / database keys"
+    },
+    "recvwork": {
+      "title": "Discovery / receive turn",
+      "caption": "Batches + requirements + cursors"
+    },
+    "pubwork": {
+      "title": "Publication input / result",
+      "caption": "Accepted prefix + install evidence"
+    },
+    "filework": {
+      "title": "File observations / plans",
+      "caption": "Fresh expected-current evidence"
+    },
+    "pendingwork": {
+      "title": "Pending-file decision",
+      "caption": "Latest preview / frozen admission"
+    },
+    "repairwork": {
+      "title": "Repair / copy evidence",
+      "caption": "Validated union + fixed-cut inventory"
+    },
+    "selection": {
+      "title": "Selected-store record",
+      "caption": "selection-<associationID>.nvlocal"
+    },
+    "candidate": {
+      "title": "Replacement candidate",
+      "caption": "Sibling <LocalStoreID> · verified first"
+    },
+    "unlock": {
+      "title": "Private unlock copies",
+      "caption": "unlock/<descriptorID>.nvkey"
+    },
+    "objects": {
+      "title": "Exact retained bytes",
+      "caption": "objects · sealed envelope BLOBs"
+    },
+    "accepted": {
+      "title": "Accepted history",
+      "caption": "Batches + objects + dependencies"
+    },
+    "opindex": {
+      "title": "Operation / note indexes",
+      "caption": "Causal parents ≠ note predecessors"
+    },
+    "actionindex": {
+      "title": "Action / restoration indexes",
+      "caption": "Membership + scope ancestry"
+    },
+    "header": {
+      "title": "Store scope / header",
+      "caption": "store_header"
+    },
+    "pin": {
+      "title": "Required history pin",
+      "caption": "Frontier + retained descriptors"
+    },
+    "receiveq": {
+      "title": "Durable receive queue",
+      "caption": "Ready / waiting / rejected"
+    },
+    "private": {
+      "title": "Required private groups",
+      "caption": "Settings + association + bootstrap"
+    },
+    "verification": {
+      "title": "Verification / damage state",
+      "caption": "private_groups · protected scope"
+    },
+    "pendingdisk": {
+      "title": "Pending-file recovery",
+      "caption": "Payload / latest / frozen / settlement"
+    },
+    "projectiondisk": {
+      "title": "Physical projection state",
+      "caption": "Required receipts + pending sources"
+    },
+    "current": {
+      "title": "Current-note cells",
+      "caption": "current_notes · values + context"
+    },
+    "view": {
+      "title": "View / authoring context",
+      "caption": "view_meta · represented prefix"
+    },
+    "dict": {
+      "title": "Current-row dictionaries",
+      "caption": "current_dictionaries · hash bound"
+    },
+    "hints": {
+      "title": "Accepted-file scan hints",
+      "caption": "Derived private_groups entries"
+    },
+    "rkeys": {
+      "title": "Bootstrap / key descriptors",
+      "caption": "*.nvkey · genesis / profile binding"
+    },
+    "rchanges": {
+      "title": "Changes objects",
+      "caption": "<sequence>-<hash>.nvseg"
+    },
+    "rinitial": {
+      "title": "Initial snapshot",
+      "caption": "Complete initial import"
+    },
+    "rgeneral": {
+      "title": "General snapshot",
+      "caption": "Operation cut ≠ object retention"
+    },
+    "rnotes": {
+      "title": "Plaintext projections",
+      "caption": "Title.txt + body-bound xattr"
+    },
+    "rstages": {
+      "title": "Stages / displacement",
+      "caption": "Exact install input + preserved files"
+    },
+    "appleversions": {
+      "title": "Unresolved Apple versions",
+      "caption": "NSFileVersion · selected members"
+    },
+    "keychain": {
+      "title": "Optional remembered key",
+      "caption": "OS Keychain · encrypted collections"
+    },
+    "hostprefs": {
+      "title": "App-global preferences",
+      "caption": "GlobalPrefs · window / search defaults"
+    },
+    "backup": {
+      "title": "Private backup / preserved original",
+      "caption": "Keyed DB + descriptors + journals"
+    },
+    "legacy": {
+      "title": "Legacy collection / export",
+      "caption": "Epoch-4 archive + recovery journal"
+    },
+    "copy": {
+      "title": "History-preserving copy",
+      "caption": "Exact NV Data + associated files"
+    },
+    "scratch": {
+      "title": "Plaintext scratch / export",
+      "caption": "External editor / current-state output"
+    }
+  },
+  "traces": [
+    {
+      "id": "save",
+      "title": "Edit → local durability",
+      "short": "Edit / save",
+      "description": "Immediate edits become captured, sealed and validated input. Acceptance retains complete groups and required closure in one private transaction.",
+      "stages": [
+        {
+          "title": "Admit the edit",
+          "nodes": [
+            "live",
+            "pendinglive"
+          ],
+          "detail": "The live collection accepts input immediately; exact generations track pending work."
+        },
+        {
+          "title": "Freeze and seal once",
+          "nodes": [
+            "capture",
+            "seal"
+          ],
+          "detail": "Capture complete meaningful actions and produce exact retryable immutable bytes."
+        },
+        {
+          "title": "Establish semantic agreement",
+          "nodes": [
+            "decoded",
+            "graph",
+            "batch"
+          ],
+          "detail": "Use the permitted checked-current basis or full declared-history validation."
+        },
+        {
+          "title": "Commit locally",
+          "nodes": [
+            "objects",
+            "accepted",
+            "pin",
+            "opindex",
+            "actionindex"
+          ],
+          "detail": "Retain bytes, accepted membership, indexes and required closure atomically; acknowledge covered generations."
+        }
+      ],
+      "edges": [
+        "e1",
+        "e2",
+        "e3",
+        "e4",
+        "e5",
+        "e6",
+        "e7",
+        "e8",
+        "e9",
+        "e10",
+        "e11",
+        "e12",
+        "e13",
+        "e16"
+      ]
+    },
+    {
+      "id": "reopen",
+      "title": "Private current rows → live model",
+      "short": "Reopen",
+      "description": "Open the owned keyed store, drain startup-required work and catch up any indexed accepted suffix. A consistent complete current-row/context read supplies the live model. Invalid materialization or unfinished verification follows its separate required reconstruction/check path.",
+      "stages": [
+        {
+          "title": "Unlock and bind the store",
+          "nodes": [
+            "unlock",
+            "keychain",
+            "secrets",
+            "dbcontainer",
+            "header",
+            "localowner"
+          ],
+          "detail": "Recover a usable key, open the keyed container and validate selected store / bootstrap scope."
+        },
+        {
+          "title": "Drain required work / catch up the suffix",
+          "nodes": [
+            "receiveq",
+            "recvwork",
+            "accepted",
+            "verification",
+            "reduce"
+          ],
+          "detail": "Drain required Changes and prerequisites, replay unfinished verification, and bring lagging materialization to the accepted prefix. Independent optional snapshots stay queued until publication. Healthy settled startup reads no old history envelopes."
+        },
+        {
+          "title": "Capture complete current rows and context",
+          "nodes": [
+            "current",
+            "view",
+            "dict"
+          ],
+          "detail": "One consistent read captures all current bodies, compact authoring context, view epoch and represented prefix. Invalid rows or named codec data require exceptional reconstruction from retained history."
+        },
+        {
+          "title": "Publish the app model",
+          "nodes": [
+            "live",
+            "search",
+            "gate"
+          ],
+          "detail": "Construct all notes/search state, then recheck owner, lifecycle, view epoch and accepted/materialized prefixes before atomic host publication. Search remains synchronous."
+        }
+      ],
+      "edges": [
+        "e91",
+        "e92",
+        "e97",
+        "e121",
+        "e122",
+        "e123",
+        "e55",
+        "e17",
+        "e23",
+        "e24",
+        "e25",
+        "e26",
+        "e27",
+        "e28",
+        "e29",
+        "e119",
+        "e136",
+        "e137"
+      ]
+    },
+    {
+      "id": "receive",
+      "title": "Repository → accepted history",
+      "short": "Receive",
+      "description": "Discovery supplies candidates. Retention, prerequisites, validation and acceptance establish local history independently of arrival order.",
+      "stages": [
+        {
+          "title": "Discover and read candidates",
+          "nodes": [
+            "rkeys",
+            "rchanges",
+            "rinitial",
+            "rgeneral",
+            "recvwork",
+            "rootowner"
+          ],
+          "detail": "Rooted bounded discovery and exact reads capture candidate bytes."
+        },
+        {
+          "title": "Retain before accepting",
+          "nodes": [
+            "objects",
+            "receiveq"
+          ],
+          "detail": "Durable candidate bytes and ready / wait / reject obligations survive restart."
+        },
+        {
+          "title": "Check the complete unit",
+          "nodes": [
+            "decoded",
+            "graph",
+            "snapwork",
+            "batch"
+          ],
+          "detail": "Resolve requirements and verify protections, graph roles and complete semantic units."
+        },
+        {
+          "title": "Accept and publish locally",
+          "nodes": [
+            "accepted",
+            "pin",
+            "reduce",
+            "live"
+          ],
+          "detail": "Atomically accept history, advance the pin and generation-fence model publication."
+        }
+      ],
+      "edges": [
+        "e49",
+        "e50",
+        "e51",
+        "e52",
+        "e53",
+        "e54",
+        "e55",
+        "e56",
+        "e57",
+        "e5",
+        "e6",
+        "e63",
+        "e10",
+        "e11",
+        "e17",
+        "e22",
+        "e29"
+      ]
+    },
+    {
+      "id": "publish",
+      "title": "Accepted bytes → repository",
+      "short": "Publish",
+      "description": "Publication copies exact locally durable objects into the repository through owned stages and checked installation.",
+      "stages": [
+        {
+          "title": "Select accepted transport input",
+          "nodes": [
+            "accepted",
+            "objects",
+            "pubwork"
+          ],
+          "detail": "Capture an exact accepted prefix, retained bytes and dependency closure."
+        },
+        {
+          "title": "Own a complete stage",
+          "nodes": [
+            "rstages",
+            "rootowner",
+            "appleowner"
+          ],
+          "detail": "Entered work keeps its exact retry input and same-root physical permission."
+        },
+        {
+          "title": "Install immutable objects",
+          "nodes": [
+            "rkeys",
+            "rchanges",
+            "rinitial",
+            "rgeneral"
+          ],
+          "detail": "Exclusively install and verify exact bytes with qualified file / directory barriers."
+        }
+      ],
+      "edges": [
+        "e42",
+        "e43",
+        "e44",
+        "e45",
+        "e46",
+        "e47",
+        "e48",
+        "e129",
+        "e130"
+      ]
+    },
+    {
+      "id": "plaintext",
+      "title": "External file → admitted operation",
+      "short": "Plaintext",
+      "description": "Fresh observations and explicit decisions preserve external bytes before admitting an import or associated update.",
+      "stages": [
+        {
+          "title": "Observe exact source files",
+          "nodes": [
+            "rnotes",
+            "appleversions",
+            "filework"
+          ],
+          "detail": "Capture selected reads and fresh catalogs, including specifically disclosed Apple versions."
+        },
+        {
+          "title": "Review and retain input",
+          "nodes": [
+            "pendingwork",
+            "pendingdisk",
+            "projectiondisk"
+          ],
+          "detail": "Separate latest previews, frozen admitted input and required physical relationships."
+        },
+        {
+          "title": "Admit a fresh action",
+          "nodes": [
+            "capture",
+            "batch"
+          ],
+          "detail": "Admit the reviewed import / update / recovery through ordinary durable history."
+        },
+        {
+          "title": "Project accepted intent",
+          "nodes": [
+            "live",
+            "projection",
+            "rstages"
+          ],
+          "detail": "Capture intended output, install against fresh expected-current evidence, and retain the verified association."
+        }
+      ],
+      "edges": [
+        "e69",
+        "e70",
+        "e71",
+        "e72",
+        "e73",
+        "e74",
+        "e75",
+        "e76",
+        "e77",
+        "e78",
+        "e79",
+        "e80",
+        "e81",
+        "e82",
+        "e83"
+      ]
+    },
+    {
+      "id": "repair",
+      "title": "Independent evidence → verified replacement",
+      "short": "Repair / copy",
+      "description": "Validated surviving history and required private state form a repair union. A fresh sibling is reopened and verified before selection changes.",
+      "stages": [
+        {
+          "title": "Capture independent evidence",
+          "nodes": [
+            "objects",
+            "pin",
+            "private",
+            "pendingdisk",
+            "projectiondisk",
+            "backup",
+            "rchanges",
+            "rkeys"
+          ],
+          "detail": "Preserve exact local, repository and explicitly selected backup input with coherent required groups."
+        },
+        {
+          "title": "Prepare a verified union",
+          "nodes": [
+            "repairwork"
+          ],
+          "detail": "Check exact bytes, retention closure, private records and copy inventories."
+        },
+        {
+          "title": "Build and verify the sibling",
+          "nodes": [
+            "candidate",
+            "selectowner"
+          ],
+          "detail": "Rebuild a fresh private store and reopen it with recovery credentials."
+        },
+        {
+          "title": "Activate or copy explicitly",
+          "nodes": [
+            "selection",
+            "copy",
+            "localowner"
+          ],
+          "detail": "Expected-generation selection activates the replacement; separately selected copy output preserves captured history."
+        }
+      ],
+      "edges": [
+        "e98",
+        "e99",
+        "e100",
+        "e101",
+        "e102",
+        "e103",
+        "e104",
+        "e105",
+        "e106",
+        "e107",
+        "e108",
+        "e109",
+        "e113"
+      ]
+    }
+  ]
+}

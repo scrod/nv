@@ -97,6 +97,18 @@ private actor RepairReader {
 }
 
 extension LocalStoreSession {
+    /// Normal owned opening, required state and a current capture issue fresh-selection activation evidence.
+    func verifiedFreshSelection() async throws -> VerifiedReplacement {
+        let selection = selection
+        try await lane.perform { db in
+            try db.requireHealthyHistory()
+            try db.validateRequiredPrivateGroups(store: selection.store, descriptor: selection.descriptor)
+        }
+        let snapshot = try await snapshot()
+        guard try await localAssociation().value != nil else { throw StorageError.incomplete }
+        return VerifiedReplacement(candidate: self, selection: selection, through: snapshot.through, sources: [])
+    }
+
     /// Stops owned connections without maintenance, then retains the original and its journals unchanged.
     public func preserveForRepair(to directory: String) async throws -> PrivateRepairEvidence {
         try await closeForPreservedRepair()

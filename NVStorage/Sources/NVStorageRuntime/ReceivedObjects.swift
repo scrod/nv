@@ -1,5 +1,8 @@
 import NVStorageCore
 
+/// Chooses the receive work needed before startup or by a live receive owner.
+enum ReadyDrainPolicy: Sendable { case startupRequired, all }
+
 public enum ObjectAcceptanceOutcome: Sendable {
     case pendingValidation
     case retainedForAssembly
@@ -17,9 +20,15 @@ public struct RejectedPrerequisite: Equatable, Sendable {
 extension LocalStoreSession {
     /// Retains received bytes, validates complete dependencies and wakes waiting work.
     public func receive(_ bytes: [UInt8]) async throws -> ObjectAcceptanceOutcome {
+        try await receiveWithIdentity(bytes).outcome
+    }
+
+    /// Returns the checked envelope identity together with its ordinary receive outcome.
+    func receiveWithIdentity(_ bytes: [UInt8]) async throws -> (locator: SegmentLocator, kind: ProviderObjectKind, outcome: ObjectAcceptanceOutcome) {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard !receiving else { throw StorageError.busy }
         receiveState = .retaining
+        cancelMaintenance()
         defer { receiveState = .idle; signalReceiveWaiters() }
         let selection = selection, protection = protection
         let opened = try await lane.historyWork {
@@ -35,10 +44,10 @@ extension LocalStoreSession {
         signalReceiveWaiters()
         try await completion?(opened.locator)
         let accepted = try await resumeReceivedValidation(target: opened.locator)
-        if let accepted { return .accepted(sequence: accepted) }
+        if let accepted { return (opened.locator, opened.kind, .accepted(sequence: accepted)) }
         guard !closed else { throw StorageError.closed }
         try await lane.catchUp(selection: selection, protection: protection)
-        return try await receivedObjectStatus(at: opened.locator)
+        return try await (opened.locator, opened.kind, receivedObjectStatus(at: opened.locator))
     }
 
     /// Reconstructs exact waiting roles from retained bytes and current accepted membership.
@@ -62,17 +71,42 @@ extension LocalStoreSession {
     }
 
     /// Keeps owned receive work moving after interfering saves finish.
-    private func signalReceiveWaiters() {
+    func signalReceiveWaiters() {
         let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() }
+        signalTransportSettled()
     }
-    func resumeReceivedValidation(target: SegmentLocator? = nil) async throws -> Int64? {
+    func resumeReceivedValidation(target: SegmentLocator? = nil,
+        candidateAllowed: (@Sendable (Int64) async -> Bool)? = nil) async throws -> Int64? {
         while true {
             do { return try await lane.drainReady(selection: selection, protection: protection, target: target,
-                snapshotAllowed: { await self.lifecycle == .open }) }
+                snapshotAllowed: { await self.lifecycle == .open }, candidateAllowed: candidateAllowed) }
             catch HistoryValidationInterrupted.historyAdvanced {
                 while inFlight { await withCheckedContinuation { drained.append($0) } }
             }
         }
+    }
+
+    /// Reserves one live receive owner after checked host publication.
+    func startPublishedReceiveWork() {
+        guard lifecycle == .open, !receiving else { return }
+        receiveState = .optional
+        Task {
+            defer { receiveState = .idle; signalReceiveWaiters() }
+            do {
+                let start = try await lane.perform { $0.work?.publishedReceiveStart }
+                await start?()
+                _ = try await resumeReceivedValidation(candidateAllowed: { await self.beginPublishedCandidate($0) })
+            } catch {
+                // Durable queue and verification records retain failed work for retry or reopening.
+            }
+        }
+    }
+
+    private func beginPublishedCandidate(_ kind: Int64) -> Bool {
+        guard lifecycle == .open else { return false }
+        receiveState = kind == 1 ? .history : .optional
+        signalReceiveWaiters()
+        return true
     }
 
     public func retainedObject(at locator: SegmentLocator) async throws -> [UInt8] {
@@ -162,7 +196,8 @@ extension DatabaseLane {
             }
             let recordBytes = try preview.records.reduce(0) { try $0 + $1.encodedV1().count }
             try await perform { db in db.countWork { $0.snapshotRecords += preview.records.count; $0.snapshotRecordBytes += recordBytes } }
-            let requirements = preview.historyLocators.sorted { $0.encodedV1().lexicographicallyPrecedes($1.encodedV1()) }.map(ObjectRequirement.acceptedHistory)
+            guard !preview.retentionParents.contains(locator) else { throw CanonicalEncodingError.invalidReference }
+            let requirements = preview.requiredLocators.sorted { $0.encodedV1().lexicographicallyPrecedes($1.encodedV1()) }.map(ObjectRequirement.acceptedHistory)
             // Attribute damaged retained targets before interpreting a referring root's address.
             for requirement in requirements {
                 do {
@@ -193,13 +228,34 @@ extension DatabaseLane {
 
     /// Processes one candidate per writer turn; durable queue rows own unfinished work.
     nonisolated func drainReady(selection: LocalStoreSelection, protection: ObjectProtectionV1,
-        target: SegmentLocator? = nil, snapshotAllowed: (@Sendable () async -> Bool)? = nil) async throws -> Int64? {
+        target: SegmentLocator? = nil, policy: ReadyDrainPolicy = .all,
+        snapshotAllowed: (@Sendable () async -> Bool)? = nil,
+        candidateAllowed: (@Sendable (Int64) async -> Bool)? = nil) async throws -> Int64? {
         var acceptedTarget: Int64?
         while true {
             guard let locator = try await perform({ db -> SegmentLocator? in
                 try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
                 // Drive this lookup from ready work, keeping an empty queue independent of history size.
-                guard let row = try db.rows("SELECT o.writer_epoch,o.sequence,o.object_id FROM ready_objects r CROSS JOIN objects o USING(object_id) LIMIT 1").first else { return nil }
+                let query: String
+                switch policy {
+                case .all:
+                    query = "SELECT o.writer_epoch,o.sequence,o.object_id FROM ready_objects r CROSS JOIN objects o USING(object_id) LIMIT 1"
+                case .startupRequired:
+                    // Wait edges also expose snapshot prerequisites of parked Changes.
+                    query = """
+                        WITH RECURSIVE required(object_id) AS (
+                            SELECT r.object_id FROM ready_objects r CROSS JOIN objects o USING(object_id) WHERE o.kind=1
+                            UNION
+                            SELECT w.child FROM object_waits w JOIN objects o ON o.object_id=w.child WHERE o.kind=1
+                            UNION
+                            SELECT w.prerequisite FROM object_waits w JOIN required q ON q.object_id=w.child
+                        )
+                        SELECT o.writer_epoch,o.sequence,o.object_id FROM ready_objects r
+                        CROSS JOIN objects o USING(object_id)
+                        WHERE r.object_id IN (SELECT object_id FROM required) LIMIT 1
+                        """
+                }
+                guard let row = try db.rows(query).first else { return nil }
                 return try SegmentLocator.decodeV1(row[0].bytes + row[1].bytes + row[2].bytes)
             }) else { return acceptedTarget }
             do {
@@ -207,6 +263,7 @@ extension DatabaseLane {
                     try await perform { try $0.run("DELETE FROM ready_objects WHERE object_id=?", [.blob(locator.segmentID.bytes)]) }; continue
                 }
                 let kind = try await perform { try $0.rows("SELECT kind FROM objects WHERE object_id=?", [.blob(locator.segmentID.bytes)])[0][0].number }
+                if let candidateAllowed, await !candidateAllowed(kind) { return acceptedTarget }
                 if kind != 1, let snapshotAllowed, await !snapshotAllowed() { return acceptedTarget }
                 let sequence: Int64?
                 switch try await prepareReceived(locator, selection: selection, protection: protection, snapshotAllowed: kind == 1 ? nil : snapshotAllowed) {

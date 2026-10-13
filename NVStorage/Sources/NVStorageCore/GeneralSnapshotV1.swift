@@ -82,14 +82,21 @@ public struct GeneralSnapshotDigestV1: Equatable, Sendable {
     }
 }
 
-/// Fixed-size snapshot claim naming bootstrap evidence, a complete page tree and counts.
+/// Canonical framing for logical state and retained snapshot dependencies.
+private enum GeneralSnapshotFormatV1 {
+    static let categoryCount = 8
+    static let streamHeader = Array("NVGST1\r\n".utf8) + bigEndianBytes(UInt16(1))
+    static let digestDomain = Array("NV general snapshot state\0v1\0".utf8)
+}
+
+/// Fixed-size snapshot claim with eight manifest counts and a state commitment.
 public struct GeneralSnapshotRootV1: Equatable, Sendable {
     public let bootstrapSnapshot: SegmentLocator
     public let tree: SnapshotPageRangeV1
     public let counts: [UInt64]
     public let digest: GeneralSnapshotDigestV1
     public init(bootstrapSnapshot: SegmentLocator, tree: SnapshotPageRangeV1, counts: [UInt64], digest: GeneralSnapshotDigestV1) throws {
-        guard tree.offset == 0, tree.byteCount >= 10, counts.count == 7, counts[1] > 0 else { throw CanonicalEncodingError.invalidPayload }
+        guard tree.offset == 0, tree.byteCount >= 10, counts.count == GeneralSnapshotFormatV1.categoryCount, counts[1] > 0 else { throw CanonicalEncodingError.invalidPayload }
         var total: UInt64 = 0
         for count in counts {
             let sum = total.addingReportingOverflow(count)
@@ -106,11 +113,12 @@ public struct GeneralSnapshotRootV1: Equatable, Sendable {
     }
     public static func decodeV1(_ bytes: [UInt8]) throws -> Self {
         var cursor = ByteCursor(bytes: bytes)
-        guard try cursor.fixedBytes(8) == Array("NVGRT1\r\n".utf8), try cursor.unsigned16() == 1,
+        guard try cursor.fixedBytes(8) == Array("NVGRT1\r\n".utf8),
+              try cursor.unsigned16() == 1,
               try cursor.unsigned16() == 1 else { throw CanonicalEncodingError.unsupportedFormat }
         let bootstrap = try SegmentLocator.decode(&cursor), tree = try SnapshotPageRangeV1.decode(&cursor)
         var counts: [UInt64] = []
-        for _ in 0..<7 { counts.append(try cursor.unsigned64()) }
+        for _ in 0..<GeneralSnapshotFormatV1.categoryCount { counts.append(try cursor.unsigned64()) }
         let digest = try GeneralSnapshotDigestV1(bytes: cursor.fixedBytes(32))
         try cursor.requireEnd()
         return try Self(bootstrapSnapshot: bootstrap, tree: tree, counts: counts, digest: digest)
@@ -211,11 +219,15 @@ public struct GeneralSnapshotPreviewV1: Sendable {
     public let pages: Set<SegmentLocator>
     /// Exact addresses named by the records and bootstrap locator; ancestry is resolved by the semantic verifier.
     public let historyLocators: Set<SegmentLocator>
+    /// Exact snapshot roots whose accepted object closures this manifest preserves.
+    public let retentionParents: [SegmentLocator]
+    public var requiredLocators: Set<SegmentLocator> { historyLocators.union(retentionParents) }
     private let rootBytes: [UInt8]
     private init(collection: CollectionID, snapshot: SegmentLocator, root: GeneralSnapshotRootV1,
-                 records: [GeneralSnapshotRecordV1], pages: Set<SegmentLocator>, rootBytes: [UInt8]) {
+                 records: [GeneralSnapshotRecordV1], retentionParents: [SegmentLocator], pages: Set<SegmentLocator>, rootBytes: [UInt8]) {
         self.collection = collection; self.snapshot = snapshot; self.root = root; self.records = records; self.pages = pages
         self.rootBytes = rootBytes
+        self.retentionParents = retentionParents
         historyLocators = Set(records.flatMap { $0.operationReferences.map(\.locator) + $0.actionReferences.map(\.locator) } + [root.bootstrapSnapshot])
     }
     public static func read(snapshot: SegmentLocator, collection: CollectionID, protection: ObjectProtectionV1,
@@ -228,24 +240,34 @@ public struct GeneralSnapshotPreviewV1: Sendable {
         guard object.kind == .snapshotRoot else { throw CanonicalEncodingError.invalidReference }
         let root = try GeneralSnapshotRootV1.decodeV1(object.payload)
         var reader = SnapshotStreamReader(root: root, collection: collection, protection: protection, read: read)
-        guard try await reader.bytes(10) == snapshotStreamHeader else { throw CanonicalEncodingError.unsupportedFormat }
-        var records: [GeneralSnapshotRecordV1] = [], counts = [UInt64](repeating: 0, count: 7), previous: [UInt8]?
+        guard try await reader.bytes(10) == GeneralSnapshotFormatV1.streamHeader else { throw CanonicalEncodingError.unsupportedFormat }
+        var records: [GeneralSnapshotRecordV1] = [], parents: [SegmentLocator] = []
+        var counts = [UInt64](repeating: 0, count: GeneralSnapshotFormatV1.categoryCount), previous: [UInt8]?
+        var processed = 0
         while reader.remaining > 0 {
             try Task.checkCancellation()
             var frame = ByteCursor(bytes: try await reader.bytes(5))
             let tag = try frame.byte(), length = try frame.unsigned32()
-            guard tag >= 1, tag <= 7 else { throw CanonicalEncodingError.invalidDiscriminant }
+            guard tag >= 1, Int(tag) <= GeneralSnapshotFormatV1.categoryCount else { throw CanonicalEncodingError.invalidDiscriminant }
             guard UInt64(length) <= ObjectLimitsV1.decodedPayloadBytes else { throw CanonicalEncodingError.lengthLimit }
-            let record = try GeneralSnapshotRecordV1.decode(tag: tag, payload: await reader.bytes(Int(length)))
-            if let previous, !previous.lexicographicallyPrecedes(record.key) { throw CanonicalEncodingError.noncanonicalSet }
-            previous = record.key; counts[Int(tag) - 1] += 1
+            let payload = try await reader.bytes(Int(length)), key: [UInt8]
+            if tag == 8 {
+                let parent = try SegmentLocator.decodeV1(payload)
+                key = [tag] + parent.encodedV1(); parents.append(parent)
+            } else {
+                let record = try GeneralSnapshotRecordV1.decode(tag: tag, payload: payload)
+                key = record.key; records.append(record)
+            }
+            if let previous, !previous.lexicographicallyPrecedes(key) { throw CanonicalEncodingError.noncanonicalSet }
+            previous = key; counts[Int(tag) - 1] += 1
             guard counts[Int(tag) - 1] <= root.counts[Int(tag) - 1] else { throw GeneralSnapshotError.invalidState }
-            records.append(record)
-            if records.count % recordsPerTurn == 0 { await didYield?(records.count); await Task.yield() }
+            processed += 1
+            if processed % recordsPerTurn == 0 { await didYield?(processed); await Task.yield() }
         }
         guard counts == root.counts, Array(reader.hash.finalize()) == root.digest.bytes,
               reader.pending.isEmpty, reader.chunkOffset == reader.chunk.count else { throw GeneralSnapshotError.invalidState }
-        return Self(collection: collection, snapshot: snapshot, root: root, records: records, pages: reader.seen, rootBytes: bytes)
+        return Self(collection: collection, snapshot: snapshot, root: root, records: records,
+                    retentionParents: parents, pages: reader.seen, rootBytes: bytes)
     }
 
     /// Reopens the exact root under the consuming collection's protection context.
@@ -253,9 +275,6 @@ public struct GeneralSnapshotPreviewV1: Sendable {
         _ = try ObjectEnvelopeV1.open(rootBytes, collection: collection, protection: protection, expectedLocator: snapshot)
     }
 }
-
-private let snapshotStreamHeader = Array("NVGST1\r\n".utf8) + bigEndianBytes(UInt16(1))
-private let snapshotDigestDomain = Array("NV general snapshot state\0v1\0".utf8)
 
 /// Iterative manifest traversal and record reads crossing bounded data leaves.
 private struct SnapshotStreamReader {
@@ -271,7 +290,7 @@ private struct SnapshotStreamReader {
     init(root: GeneralSnapshotRootV1, collection: CollectionID, protection: ObjectProtectionV1,
          read: @escaping @Sendable (SegmentLocator) async throws -> [UInt8]?) {
         self.collection = collection; self.protection = protection; self.read = read
-        pending = [root.tree]; remaining = root.tree.byteCount; hash.update(data: snapshotDigestDomain)
+        pending = [root.tree]; remaining = root.tree.byteCount; hash.update(data: GeneralSnapshotFormatV1.digestDomain)
     }
     mutating func bytes(_ count: Int) async throws -> [UInt8] {
         guard count >= 0, UInt64(count) <= remaining else { throw CanonicalEncodingError.truncated }
@@ -312,13 +331,16 @@ public enum GeneralSnapshotV1 {
         return sorted
     }
     public static func write(records: [GeneralSnapshotRecordV1], bootstrapSnapshot: SegmentLocator,
+                             retentionParents: [SegmentLocator] = [],
                              chunkBytes: Int = 256 * 1024, fanout: Int = 128,
                              emit: @Sendable (ProviderObjectKind, [UInt8]) async throws -> SegmentLocator) async throws -> SegmentLocator {
         guard chunkBytes > 0, UInt64(chunkBytes) <= ObjectLimitsV1.decodedPayloadBytes - 23,
               fanout >= 2, UInt64(fanout) <= (ObjectLimitsV1.decodedPayloadBytes - 15) / 72 else { throw CanonicalEncodingError.lengthLimit }
         var levels: [[SnapshotPageRangeV1]] = [], offset: UInt64 = 0, buffer: [UInt8] = [], hash = SHA256()
-        hash.update(data: snapshotDigestDomain)
-        var counts = [UInt64](repeating: 0, count: 7), previous: [UInt8]?
+        let parents = retentionParents.sorted { $0.encodedV1().lexicographicallyPrecedes($1.encodedV1()) }
+        guard Set(parents).count == parents.count else { throw CanonicalEncodingError.noncanonicalSet }
+        hash.update(data: GeneralSnapshotFormatV1.digestDomain)
+        var counts = [UInt64](repeating: 0, count: GeneralSnapshotFormatV1.categoryCount), previous: [UInt8]?
         func parent(_ children: [SnapshotPageRangeV1]) async throws -> SnapshotPageRangeV1 {
             let page = try GeneralSnapshotPageV1(.index(children))
             return try SnapshotPageRangeV1(locator: await emit(.snapshotPage, page.encodedV1()), offset: page.offset, byteCount: page.byteCount)
@@ -350,12 +372,17 @@ public enum GeneralSnapshotV1 {
                 if buffer.count == chunkBytes { try await flush() }
             }
         }
-        try await write(snapshotStreamHeader)
+        try await write(GeneralSnapshotFormatV1.streamHeader)
         for record in records {
             try Task.checkCancellation()
             if let previous, !previous.lexicographicallyPrecedes(record.key) { throw CanonicalEncodingError.noncanonicalSet }
             previous = record.key; counts[Int(record.tag) - 1] += 1
             try await write(record.encodedV1())
+        }
+        for parent in parents {
+            try Task.checkCancellation()
+            counts[7] += 1
+            try await write([8] + bigEndianBytes(UInt32(56)) + parent.encodedV1())
         }
         try await flush()
         var level = 0

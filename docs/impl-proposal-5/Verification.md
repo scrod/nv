@@ -24,6 +24,19 @@ under the system temporary directory. The runner now recognizes TLC 2026.09.12's
 named temporal-failure diagnostic; no modeled safety condition changed. Abstract
 pin/activation steps do not prove the SQL or selected-store-record mapping.
 
+## Private current rows and explicit maintenance — 2026-10-07
+
+The later [Phase 4F report](plan/phase4-current-row-locality-maintenance-validation.md)
+records private current-row framing/dictionaries, initial capture reuse and
+explicit maintenance qualification. `PrivateMaintenanceSafety` adds eight
+bounded outcomes: one exhaustive safety/progress configuration, five exact
+mutation counterexamples and two contested-path witnesses. Its atomic SQL and
+eventual return assumptions are complemented by actual C cancellation/retirement
+and SQLCipher/VFS tests. This does not qualify automatic compaction, physical
+power loss or arbitrary-store latency. The existing verification/recovery safety
+conditions remain intact; their concrete request now spans off-lane row preparation
+and installation.
+
 ## Receive scheduling and rejection models — 2026-09-16
 
 The [receive-model report](plan/receive-model-validation.md) records 47 completed

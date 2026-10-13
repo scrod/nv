@@ -1,9 +1,11 @@
 # Private SQLite storage and fast startup
 
 Status: adopted local-storage contract; packed cache removed 2026-09-14. The
-[Phase 2 Swift Runtime](plan/phase2-local-runtime-validation.md) implements the
-ordinary local subset; general reducers, platform and application integration
-qualification remain outstanding. This replaces the separate
+[Phase 2 Swift Runtime](plan/phase2-local-runtime-validation.md),
+[Phase 3 reducers](plan/phase3-validation.md) and
+[Phase 4 recovery/copy paths](plan/phase4-private-state-repair-copy-validation.md)
+implement their portable local boundaries. Remaining performance/platform gates
+and provider/application integration are tracked in their phase plans. This replaces the separate
 private object/pending/state **file layout**, not the immutable provider
 format or the causal, deletion, undo and physical-file rules in [Protocol](Protocol.md).
 The [transaction experiments](plan/sqlite-collection-transaction-validation.md)
@@ -33,9 +35,14 @@ disposable I/O advice, never current values or evidence of represented history.
 The user-selected tuning for that candidate is now **zstd level 3**, training
 from at most **1,024 candidate current notes / 8 MiB** into an **8-KiB dictionary**;
 see [bounded dictionary tuning](plan/clean-quit-locality-strategy.md#bounded-dictionary-tuning-selected-for-the-candidate).
-These budgets never limit which notes are saved. Automatic all-row rewriting
-and the production physical codec/adapter remain qualification work, not new
-quit prerequisites.
+These budgets never limit which notes are saved. The production private-row
+[frame/dictionary contract](plan/private-current-row-codec.md) now implements
+bounded level-3 compression, mixed dictionary generations and guarded incremental
+recoding. The [4F report](plan/phase4-current-row-locality-maintenance-validation.md)
+separates executed qualification from open cold/locality and platform gates.
+Automatic recoding/training and automatic VACUUM remain disabled; neither is a
+quit prerequisite. The qualified cipher geometry remains 4 KiB and physical
+read-ahead hints are omitted from this increment.
 
 Provider snapshot roots/pages remain immutable `NV Data` history objects used
 notably for initial-import/bootstrap verification. Their authentication alone
@@ -67,9 +74,13 @@ domains and SQLite's own pager cache are unaffected.
 All new compressed private records use zstd, with codec and dictionary metadata
 owned by their local record format. SQLCipher supplies page encryption, not
 compression; provider envelopes retain their separate dictionary-free
-[zstd profile](Encryption.md#compression-profile). Uncompressed canonical current
-cells remain the Phase 2 correctness baseline while the selected dictionary
-optimization is qualified.
+[zstd profile](Encryption.md#compression-profile). Canonical current cells remain
+the logical correctness baseline. The [private frame](plan/private-current-row-codec.md)
+selects raw, independent zstd or full-digest-bound dictionary compression by total
+framed size; the current private schema retains immutable derived dictionary bytes alongside
+current rows. Named dictionary/row damage rebuilds complete materialization from
+healthy retained history; required-state and shared database damage keep their
+separate recovery outcomes.
 
 One `Collection.sqlite` per `localStoreID` holds exact retained object bytes,
 required private state, indexes and current-state materialization. SQLite's
@@ -81,10 +92,32 @@ Use the existing exclusive local owner and positive store/root association.
 One serialized database writer belongs to that owner; detached workers prepare
 validated immutable inputs, not independent writers. Use short write transactions;
 never hold one across provider access, an `await`, text processing or UI work.
+The writer retains its SQLCipher connection and checks fixed schema/header,
+descriptor binding, configuration and required opening state once per connection.
+Callers continue to match the exact checked store/descriptor. A candidate remains
+distinct from a completely accepted bootstrap until the latter is established.
+Physical ownership checks bracket each synchronous actor turn; transactions also
+check immediately before and after commit. Nested SQL statements reuse that
+turn's ownership checks. Ownership failure blocks the operation. Retry must
+positively identify the same held directory and database; mere path/UUID equality
+cannot admit a replacement. A fresh opening obtains a new checked context.
+Separate readers establish their own contexts.
+
+Mutable settings/association, pending inputs, accepted membership and view/prefix
+generations remain checked at their actual readers and mutation consumers.
+Exceptional reconstruction validates required private groups both at capture and
+transactional installation, preserving settings-loss/unsupported-state outcomes.
+Already-committed acceptance results remain historical evidence after orderly
+close; their consumers still check session/generation and any new physical effect.
+See [connection reuse and qualification](plan/phase5/private-connection-reuse.md).
+
 Optional idle full VACUUM is the qualified physical-maintenance exception to
 short ordinary writes, not to exclusive ownership or timely local durability.
-It must yield to required persistence under the linked maintenance policy;
-running on a worker does not remove SQLite's single-writer constraint.
+The explicit qualification API reserves one job and scopes cancellation to its
+live connection borrow until completion/rollback settles. It must yield to required
+persistence under the linked maintenance policy; automatic scheduling awaits
+whole-store eligibility and latency qualification. Running on a worker does not
+remove SQLite's single-writer constraint.
 Separate reader connections use explicit read transactions for consistent
 multi-query captures. Startup's read transaction may decode current cells directly
 into the final, still-unpublished note/context storage; it must not wait for provider,
@@ -293,9 +326,10 @@ There is still no Restore NV Data button or generic Work Offline error mode.
 ## Logical schema and transaction boundaries
 
 The [first save/reopen schema](plan/sqlite-local-schema.md) supplies executable
-DDL and SQL constraint/transaction tests for the initial history, ready-work, pin,
-private-group and current-row roles below. It uses current-row startup. Pending/projection feature tables and later record codecs remain work;
-the schema is not a complete Swift storage adapter.
+DDL and SQL constraint/transaction tests for history, ready-work, pin,
+private-group, dictionary and current-row roles below. The Runtime implements
+current-row startup and required pending state through those roles. Provider
+publication/projection adapters and application integration remain later work.
 
 The following roles are required, regardless of later query-driven index tuning.
 Canonical record bytes and identities use the existing Swift/wire contracts;
@@ -454,6 +488,18 @@ independent evidence.
 
 ## Concrete returning-launch algorithm
 
+General snapshots v1 keep the required object frontier compact through exact
+retention-parent links, stored in their paged manifests and the existing accepted
+dependency graph. Capture the accepted root frontier and prefix in one owner
+turn; verify each named accepted root's locator, supported kind/format, collection
+and sealed bytes before atomically advancing coverage. Reuse prior parent closure
+validation. Later independent roots remain tips, and every covered root/page byte
+remains retained. This changes required-leaf work, not the represented logical
+cut used below. Empty and populated parent sets use the same eight-category
+layout; initial-bootstrap layouts remain unchanged. The [format contract](plan/general-snapshot-record-contract.md)
+and [two-writer model](../tla/SnapshotRetentionCoverageSafety.tla) distinguish these
+relations and the existing atomic acceptance boundary.
+
 1. Establish exclusive local ownership, selected association and unlock; let
    SQLite recover its journal. Validate required header/schema/private state and
    any **known** missing/corrupt retained-history evidence. Wrong credentials,
@@ -471,12 +517,15 @@ independent evidence.
    accepted inputs and storage failures produce explicit recovery outcomes.
 2. Hold the owner's startup admission/publication fence: no UI mutation or new
    provider acceptance may move the final startup target. Provider discovery can
-   remain independent; do not wait for cloud completeness. Drain the durable
-   ready queue with normal validated acceptance until no currently actionable
-   local candidates remain. First reconstruct invalid derived rows from healthy
+   remain independent; do not wait for cloud completeness. Drain startup-required
+   ready Changes and their discovered prerequisites with normal validated acceptance.
+   Select those candidates independently of queue order, following durable waits
+   when a prerequisite is itself a snapshot. Independent optional roots/pages remain
+   queued. First reconstruct invalid derived rows from healthy
    retained evidence so ready work receives a valid starting basis. Park genuinely
    missing prerequisites. This includes previously parked objects whose parents
-   arrived later.
+   arrived later. Bootstrap, reconstruction and unfinished verification retain their
+   existing complete validation requirements.
 3. Bring the materialization through the indexed accepted suffix to the resulting
    stable `H`. Required graph reads follow exact dependencies/indexes; no scan of
    all old object BLOBs, operations or action records is part of healthy, already
@@ -499,9 +548,57 @@ independent evidence.
    recheck the owner/store/lifecycle generation, view epoch and `H` against both
    accepted and materialized prefixes. A changed target requires catch-up, not
    publication of an editable stale model. Then enable immediate synchronous
-   input/search and release the startup fence. Provider/history-UI work continues
+   input/search and release the startup fence. After the actual checked host callback
+   succeeds, synchronously reserve the existing receive state and launch one
+   session-owned background drain. Repeated publication coalesces through that owner;
+   an existing receiver continues its owned drain. Use the same bounded worker turns
+   and save-settlement notifications: finite save interference ends in automatic
+   progress without new delivery, a timer or restart. Close stops optional preparation
+   through lifecycle checks and retains ready/wait/verification records. Persistent
+   storage failure leaves explicit retry/recovery work rather than automatic polling.
+   Complete snapshot verification still precedes acceptance/use, and acceptance alone
+   leaves Current unchanged. Provider/history-UI work continues
    independently. Undo/history controls load their required exact evidence on
    demand; missing evidence disables that operation, not unrelated typing.
+
+### Scoped historical reads
+
+Note-scoped Undo/Redo queries select the scope's complete action records through the
+existing scope index under the checked current capture's exact accepted prefix.
+Include compensation and native-coverage relationships; run the existing causal
+selector unchanged. Collection-scoped actions retain collection scope, including
+multi-note actions. Collection queries and compensation preparation/execution keep
+their full-history paths.
+
+Conflict queries take candidate revisions from the checked cell's heads and
+represented revisions, preserving automatic provenance and derived Current. Their
+`representedSeparately` result still includes every accepted conflict-copy source
+ID in the collection, even for another/deleted note. The private schema's partial
+copy-action index selects those complete actions by acceptance sequence/action ID;
+copy deletion does not discard the disposition.
+
+A shared reader groups selected occurrences by envelope, opens/decodes each envelope
+once per query, and verifies exact identities, occurrence addresses, indexed links
+and complete action membership. Privately issued immutable query evidence binds
+store, connection, session, captured prefix, current view and scope. It is distinct
+from complete `RetainedGraph` evidence. Contextual consumers reject incompatible
+evidence; later immutable acceptance may coexist with a valid captured query result.
+Missing/contradictory required evidence enters integrity/recovery handling, rather
+than falling back to conceal a failed check. Existing durable verification requests
+and conservative interrupted-check replay are unchanged.
+
+Untouched-note/no-copy queries read zero historical envelopes; selected envelopes
+may include complete cross-note groups. Work can grow with queried scope history
+and the API's collection-wide copy history, rather than unrelated ordinary history.
+No persistent semantic table or long-lived query cache is introduced. See the
+[implementation and qualification plan](plan/phase-4-improvements/startup-and-scoped-queries.md).
+
+The Runtime carries the actual checked complete opening capture in a one-shot
+session handoff. Its first `snapshot()` consumes the handoff and rechecks owner,
+represented target, full view/context and presentation generation; interference
+falls back to a fresh consistent capture. The final host-publication fence remains
+independent. Later snapshots use ordinary current rows; no second maintained cache
+is introduced.
 
 Streaming construction does not publish a partial collection: all rows/context,
 search initialization and final generation checks still precede editable publication.
@@ -554,7 +651,8 @@ view through the actual accepted target, including those additional actions.
 
 For invalid derived rows or explicit `rebuildCurrentRows()`, reissue a recovery
 basis from exact accepted snapshot pages and retained history. Verify all seven
-general record classes against their represented history. If no general root
+logical-state classes against their represented history, and independently check
+retention parents through the accepted-root evidence boundary. If no general root
 exists, use the exact original initial root. Capture accepted target `H`,
 connection/store/bootstrap and starting view metadata. Subtract the represented
 **logical operation IDs** from all accepted operations through `H`; arrival

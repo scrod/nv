@@ -61,7 +61,8 @@ private actor SnapshotConstruction {
     func construct(owner: LocalStoreSession) async throws -> SegmentLocator {
         if let root { return root }
         cursor = 0
-        let snapshot = try await GeneralSnapshotV1.write(records: capture.records, bootstrapSnapshot: capture.bootstrapSnapshot) { kind, payload in
+        let snapshot = try await GeneralSnapshotV1.write(records: capture.records, bootstrapSnapshot: capture.bootstrapSnapshot,
+            retentionParents: capture.retentionParents) { kind, payload in
             try await self.emit(kind: kind, payload: payload, owner: owner)
         }
         root = snapshot
@@ -126,7 +127,7 @@ extension LocalStoreSession {
         snapshotState = .running(handle)
         defer {
             if case .running = snapshotState { snapshotState = .pending(handle) }
-            let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() }
+            signalReceiveWaiters()
         }
         do {
             let root = try await handle.construction.construct(owner: self)

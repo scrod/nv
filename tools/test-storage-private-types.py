@@ -3,7 +3,7 @@
 import argparse
 import importlib.util
 from pathlib import Path
-import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('checks', ROOT/'tools/test-swift-storage-types.py')
@@ -14,6 +14,8 @@ spec.loader.exec_module(checks)
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--modules', type=Path, required=True)
+    parser.add_argument('--batch-size', type=checks.batch_size, default=8,
+                        help='Maximum compatible negative clients per compile; 1 preserves isolated checking.')
     args = parser.parse_args()
     modules = args.modules.resolve()
     cases = [('production companions', '''
@@ -49,9 +51,16 @@ func wrong(_ report: StorageHealthReport) { take(report) } // expected-error
 ''', "cannot convert value of type 'StorageHealthReport' to expected argument type 'VerifiedReplacement'"))
     with checks.temporary_artifacts(prefix='nv-private-typecheck-') as tmp:
         command = ['swiftc', '-swift-version', '6', '-strict-concurrency=complete', '-strict-memory-safety',
-                   '-warnings-as-errors', '-typecheck', '-I', str(modules), '-module-cache-path', tmp,
-                   '-Xcc', '-I' + str(ROOT/'NVStorage/.deps/sqlcipher/include')]
+                   '-warnings-as-errors', '-typecheck', '-I', str(modules),
+                   '-module-cache-path', checks.compiler_cache_path('swiftc', modules, tmp),
+                   '-Xcc', '-I' + str(ROOT/'NVStorage/.deps/sqlcipher/include'),
+                   '-Xcc', '-I' + str(ROOT/'NVStorage/Sources/CStorageIO/include')]
+        if sys.platform == 'darwin':
+            apple = modules.parent/'CAppleFileAccess.build/module.modulemap'
+            assert apple.is_file(), apple
+            command += ['-Xcc', '-fmodule-map-file=' + str(apple)]
         for path in [modules.parent/'CArgon2.build/module.modulemap', modules.parent/'CStorageIO.build/module.modulemap',
+                     modules.parent/'CSQLMaintenance.build/module.modulemap',
                      modules.parent/'CZstd.build/module.modulemap', ROOT/'NVStorage/Sources/CSQLCipher/module.modulemap']:
             assert path.is_file(), path
             command += ['-Xcc', '-fmodule-map-file=' + str(path)]
@@ -68,15 +77,11 @@ func wrong(_ report: StorageHealthReport) { take(report) } // expected-error
                 ]:
                     selected.append((name + ' issuer', f'func wrong({parameters}) {{ _ = {name}({expression}) }} // expected-error\n',
                                      f"'{name}' initializer is inaccessible due to 'fileprivate' protection level"))
-            for name, source, expected in selected:
-                source = 'import Foundation\nimport NVStorageCore\n' + ('' if same else 'import NVStorageRuntime\n') + source
-                path = Path(tmp)/'Client.swift'
-                path.write_text(source)
-                cmd = command + (['-package-name', 'nvstorage', '-module-name', 'NVStorageRuntime', *map(str, runtime)] if same else []) + [str(path)]
-                result = subprocess.run(cmd, text=True, capture_output=True, timeout=120)
-                assert checks.matches_contract(result.returncode, result.stderr, path, source, expected), (name, result.stderr)
-                completed += 1
-                print('PASS:', 'same-module' if same else 'ordinary', name, flush=True)
+            clients = [(name, 'import Foundation\nimport NVStorageCore\n' + ('' if same else 'import NVStorageRuntime\n') + source, expected)
+                       for name, source, expected in selected]
+            cmd = command + (['-package-name', 'nvstorage', '-module-name', 'NVStorageRuntime', *map(str, runtime)] if same else [])
+            completed += checks.run_probes(cmd, clients, Path(tmp)/('same' if same else 'ordinary'),
+                label='same-module' if same else 'ordinary', timeout=120, maximum=args.batch_size)
         assert completed == 29, completed
 
 

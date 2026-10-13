@@ -8,12 +8,14 @@ public struct GeneralSnapshotCapture: Sendable {
     public let through: Int64
     public let bootstrapSnapshot: SegmentLocator
     public let records: [GeneralSnapshotRecordV1]
+    public let retentionParents: [SegmentLocator]
     private let session: UUID
     private init(store: LocalStoreID, collection: CollectionID, through: Int64,
-                 bootstrapSnapshot: SegmentLocator, records: [GeneralSnapshotRecordV1], session: UUID) {
+                 bootstrapSnapshot: SegmentLocator, records: [GeneralSnapshotRecordV1], retentionParents: [SegmentLocator], session: UUID) {
         self.store = store; self.collection = collection; self.through = through
         self.bootstrapSnapshot = bootstrapSnapshot; self.records = records
         self.session = session
+        self.retentionParents = retentionParents
     }
     func checkOwner(_ owner: LocalStoreSession) throws {
         guard session == owner.incarnation, store == owner.selection.store,
@@ -21,12 +23,12 @@ public struct GeneralSnapshotCapture: Sendable {
     }
     fileprivate static func read(session: LocalStoreSession) async throws -> Self {
         let (selection, protection) = (session.selection, session.protection)
-        let (through, bootstrap) = try await session.snapshotHistoryContext()
+        let (through, bootstrap, parents) = try await session.snapshotHistoryContext()
         let graph = try await session.lane.snapshotHistoryGraph(through: through, selection: selection, protection: protection)
         let records = try await session.lane.checkedSnapshotRecords(graph, collection: selection.descriptor.collection)
         try await session.checkSnapshotOwner(through: through)
         return Self(store: selection.store, collection: selection.descriptor.collection, through: through,
-                    bootstrapSnapshot: bootstrap, records: records, session: session.incarnation)
+                    bootstrapSnapshot: bootstrap, records: records, retentionParents: parents, session: session.incarnation)
     }
 }
 
@@ -60,12 +62,14 @@ struct CheckedSnapshotAcceptance: Sendable {
     private let collection: CollectionID
     private let protection: ObjectProtectionV1
     private let connection: UUID
+    private let parents: CheckedRetentionParents
 
     private init(preview: GeneralSnapshotPreviewV1, through: Int64, operationIDs: Set<OperationID>,
-                 selection: LocalStoreSelection, protection: ObjectProtectionV1, connection: UUID) {
+                 selection: LocalStoreSelection, protection: ObjectProtectionV1, connection: UUID, parents: CheckedRetentionParents) {
         self.preview = preview; self.through = through; self.operationIDs = operationIDs
         store = selection.store; collection = selection.descriptor.collection; self.protection = protection
         self.connection = connection
+        self.parents = parents
     }
     func check(database: Database, selection: LocalStoreSelection) throws {
         guard connection == database.incarnation, store == selection.store,
@@ -73,6 +77,7 @@ struct CheckedSnapshotAcceptance: Sendable {
         try database.validateHeader(store: store, descriptor: selection.descriptor)
         guard try database.acceptedThrough() >= through,
               try database.snapshotBootstrap() == preview.root.bootstrapSnapshot else { throw StorageError.staleCapture }
+        try parents.check(database: database, selection: selection, protection: protection)
     }
     func objectBytes(_ locator: SegmentLocator, database: Database) throws -> [UInt8] {
         guard let bytes = try database.snapshotCandidate(locator, collection: collection, protection: protection) else {
@@ -100,6 +105,11 @@ struct CheckedSnapshotAcceptance: Sendable {
             return try (through, db.snapshotBootstrap(), db.incarnation)
         }
         guard preview.root.bootstrapSnapshot == bootstrap else { throw GeneralSnapshotError.invalidState }
+        guard !preview.retentionParents.contains(preview.snapshot) else { throw CanonicalEncodingError.invalidReference }
+        let parents = try await lane.perform { db in
+            try CheckedRetentionParents.read(preview.retentionParents, through: through,
+                database: db, selection: selection, protection: protection)
+        }
         let traversal: CheckedHistoryTraversal
         if let checkedTraversal { traversal = checkedTraversal }
         else { traversal = try await CheckedHistoryTraversal.read(through: through, scope: .allOccurrences,
@@ -128,7 +138,7 @@ struct CheckedSnapshotAcceptance: Sendable {
         let expected = try await lane.checkedSnapshotRecords(cut, collection: selection.descriptor.collection)
         guard snapshotClaimsEqual(preview.records, expected) else { throw GeneralSnapshotError.invalidState }
         return (Self(preview: preview, through: through, operationIDs: Set(cut.operations.keys),
-                    selection: selection, protection: protection, connection: connection), graph)
+                    selection: selection, protection: protection, connection: connection, parents: parents), graph)
     }
 }
 
@@ -193,12 +203,14 @@ extension LocalStoreSession {
         guard !closed, !quiescing else { throw StorageError.closed }
         return try await lane.verifyingHistory { try await VerifiedGeneralSnapshotClaims.verify(preview, session: self) }
     }
-    fileprivate func snapshotHistoryContext() async throws -> (Int64, SegmentLocator) {
+    fileprivate func snapshotHistoryContext() async throws -> (Int64, SegmentLocator, [SegmentLocator]) {
         guard !closed, !quiescing else { throw StorageError.closed }
         let selection = selection
         return try await lane.perform { db in
             try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
-            return try (db.acceptedThrough(), db.snapshotBootstrap())
+            let parents = try db.rows("SELECT r.locator FROM retained_frontier r JOIN objects o USING(object_id) JOIN accepted_objects a USING(object_id) WHERE o.kind=2 ORDER BY r.locator")
+                .map { try SegmentLocator.decodeV1($0[0].bytes) }
+            return try (db.acceptedThrough(), db.snapshotBootstrap(), parents)
         }
     }
     fileprivate func checkSnapshotOwner(through: Int64) async throws {
@@ -209,6 +221,46 @@ extension LocalStoreSession {
             guard try db.acceptedThrough() >= through else { throw StorageError.staleCapture }
         }
         guard !closed, !quiescing else { throw StorageError.closed }
+    }
+}
+
+/// Exact accepted root bytes bound to the owner that checked their retention eligibility.
+private struct CheckedRetentionParents: Sendable {
+    private let roots: [(SegmentLocator, [UInt8])]
+    private let through: Int64
+    private let connection: UUID
+    private let store: LocalStoreID
+
+    private init(roots: [(SegmentLocator, [UInt8])], through: Int64, database: Database, selection: LocalStoreSelection) {
+        self.roots = roots; self.through = through; connection = database.incarnation; store = selection.store
+    }
+    static func read(_ locators: [SegmentLocator], through: Int64, database: Database,
+                     selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> Self {
+        try database.validateHeader(store: selection.store, descriptor: selection.descriptor)
+        let roots = try locators.map { locator in
+            try (locator, rootBytes(locator, through: through, database: database, selection: selection, protection: protection))
+        }
+        return Self(roots: roots, through: through, database: database, selection: selection)
+    }
+    func check(database: Database, selection: LocalStoreSelection, protection: ObjectProtectionV1) throws {
+        guard connection == database.incarnation, store == selection.store else { throw StorageError.wrongContext }
+        for (locator, bytes) in roots {
+            guard try Self.rootBytes(locator, through: through, database: database, selection: selection, protection: protection) == bytes else {
+                throw StorageError.integrity
+            }
+        }
+    }
+    private static func rootBytes(_ locator: SegmentLocator, through: Int64, database db: Database,
+                                  selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> [UInt8] {
+        guard let row = try db.rows("SELECT seq FROM accepted_objects WHERE object_id=?", [.blob(locator.segmentID.bytes)]).first,
+              try row[0].number <= through else { throw GeneralSnapshotError.missingObject(locator) }
+        guard let (bytes, object) = try db.acceptedEnvelope(locator, collection: selection.descriptor.collection, protection: protection) else {
+            throw GeneralSnapshotError.missingObject(locator)
+        }
+        guard object.kind == .snapshotRoot else { throw CanonicalEncodingError.invalidReference }
+        _ = try db.checkingRetainedHistory { try ReceivedPayload(object) }
+        db.countWork { $0.retentionParentChecks += 1 }
+        return bytes
     }
 }
 
@@ -256,7 +308,7 @@ private func snapshotCut(frontier: Set<OperationID>, graph: RetainedGraph) async
 private struct PreparedReconstruction: Sendable {
     let target: Int64
     let start: [[SQLValue]]
-    let cells: [CurrentNoteCellV1]
+    let rows: EncodedCurrentRows
     let context: AuthoringContextV1
     private let connection: UUID
     private let store: LocalStoreID
@@ -264,9 +316,9 @@ private struct PreparedReconstruction: Sendable {
     private let basis: CheckedSnapshotAcceptance?
     private let bootstrap: SegmentLocator
 
-    private init(target: Int64, start: [[SQLValue]], cells: [CurrentNoteCellV1], context: AuthoringContextV1,
+    private init(target: Int64, start: [[SQLValue]], rows: EncodedCurrentRows, context: AuthoringContextV1,
                  connection: UUID, selection: LocalStoreSelection, basis: CheckedSnapshotAcceptance?, bootstrap: SegmentLocator) {
-        self.target = target; self.start = start; self.cells = cells; self.context = context
+        self.target = target; self.start = start; self.rows = rows; self.context = context
         self.connection = connection; store = selection.store; descriptor = selection.descriptor.descriptorID
         self.basis = basis; self.bootstrap = bootstrap
     }
@@ -275,13 +327,14 @@ private struct PreparedReconstruction: Sendable {
         guard connection == db.incarnation, store == selection.store, descriptor == selection.descriptor.descriptorID else { throw StorageError.wrongContext }
         try db.transaction {
             try db.validateHeader(store: store, descriptor: selection.descriptor)
+            try db.validateRequiredPrivateGroups(store: store, descriptor: selection.descriptor)
             try basis?.check(database: db, selection: selection)
             guard try db.snapshotBootstrap() == bootstrap, try db.acceptedThrough() == target,
                   try db.rows("SELECT epoch,reducer_version,through_seq,authoring_context FROM view_meta WHERE singleton=1") == start else {
                 throw StorageError.staleCapture
             }
             try db.run("DELETE FROM current_notes")
-            for cell in cells { try db.run("INSERT INTO current_notes VALUES(?,?)", [.blob(cell.birth.bytes), .blob(cell.encodedV1())]) }
+            try rows.install(database: db)
             try db.run("INSERT INTO view_meta VALUES(1,?,1,?,?) ON CONFLICT(singleton) DO UPDATE SET epoch=excluded.epoch,reducer_version=1,through_seq=excluded.through_seq,authoring_context=excluded.authoring_context",
                 [.blob(uuidBytes()), .integer(target), .blob(context.encodedV1())])
             db.countWork { $0.reconstructionInstallations += 1 }
@@ -360,7 +413,9 @@ private struct PreparedReconstruction: Sendable {
                 $0.reconstructionAffectedBirths += result.affected; $0.reconstructionReusedCells += result.reused
             }
         }
-        return Self(target: target, start: start, cells: result.cells, context: result.context,
+        let dictionary = try await lane.perform { try $0.currentDictionary() }
+        let rows = try await lane.historyWork { try EncodedCurrentRows(cells: result.cells, dictionary: dictionary) }
+        return Self(target: target, start: start, rows: rows, context: result.context,
                     connection: connection, selection: selection, basis: basis, bootstrap: bootstrap)
     }
 
@@ -394,11 +449,15 @@ private struct PreparedReconstruction: Sendable {
 
 extension DatabaseLane {
     /// Keeps indexed returning startup separate from exceptional full verification and reconstruction.
-    nonisolated func reconstructIfNeeded(selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws {
-        guard try await !perform({ try $0.hasUsableMaterialization(selection: selection) }) else { return }
-        try await reconstruct(selection: selection, protection: protection)
+    nonisolated func reconstructIfNeeded(selection: LocalStoreSelection, protection: ObjectProtectionV1, session: UUID) async throws -> StoreSnapshot? {
+        switch try await perform({ try $0.usableMaterialization(selection: selection, session: session) }) {
+        case .current(let snapshot): return snapshot
+        case .lagged: return nil
+        case .invalid: try await reconstruct(selection: selection, protection: protection); return nil
+        }
     }
     nonisolated func reconstruct(selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws {
+        try await perform { try $0.validateRequiredPrivateGroups(store: selection.store, descriptor: selection.descriptor) }
         return try await self.verifyingHistory {
             while true {
                 try Task.checkCancellation()

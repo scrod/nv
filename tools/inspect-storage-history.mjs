@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash, createDecipheriv, hkdfSync, argon2Sync} from 'node:crypto';
 import {expandProviderZstd} from './zstd-frame.mjs';
+import {expandCurrentRow} from './current-row-frame.mjs';
 const report = JSON.parse(readFileSync(0, 'utf8'));
 const B = s => Buffer.from(s, 'hex');
 const sha = b => createHash('sha256').update(b).digest();
@@ -20,7 +21,8 @@ class Reader {
   list(f) { const n=this.n(); assert(n <= this.b.length-this.p); return Array.from({length:n},f); }
   blob() { return this.take(this.n()); }
   end() { assert.equal(this.p,this.b.length); }
-  magic(m) { assert.equal(this.take(8).toString(),m); assert.equal(this.take(2).readUInt16BE(),1); }
+  magic(m, versions=1) { assert.equal(this.take(8).toString(),m);const version=this.take(2).readUInt16BE();
+    assert((Array.isArray(versions)?versions:[versions]).includes(version));return version; }
 }
 function note(r) {
   const start=r.p; assert.equal(r.byte(),1);
@@ -29,7 +31,7 @@ function note(r) {
   assert(Number.isFinite(created) && Number.isFinite(modified));
   return {title,body,labels,created,modified,bytes:hex(r.b.subarray(start,r.p))};
 }
-const raw = new Map(report.objects.map(r => [r[0].toLowerCase(), {id:r[0].toLowerCase(),kind:Number(r[1]),bytes:B(r[4]),accepted:r[5]!==''}]));
+const raw = new Map(report.objects.map(r => [r[0].toLowerCase(), {id:r[0].toLowerCase(),kind:Number(r[1]),bytes:B(r[4]),accepted:r[5]!=='',acceptance:r[5]===''?undefined:Number(r[5])}]));
 assert.deepEqual(report.integrity,[['ok']]); assert.deepEqual(report.foreign_keys,[]);
 let key;
 for (const d of [...raw.values()].filter(o=>o.kind===0)) {
@@ -147,8 +149,8 @@ for(const o of all.values()) {
     o.rows=r.list(()=>({birth:hex(r.take(16)),value:note(r),id:ref(r,deps,[])})); r.end(); pages.push(o);
   } else {
     if(o.payload.subarray(0,8).toString()==='NVGRT1\r\n') {
-      r.magic('NVGRT1\r\n');assert.equal(r.take(2).readUInt16BE(),1);o.bootstrap=hex(r.take(56));o.tree=pageRange(r);
-      assert.equal(o.tree.offset,0n);o.counts=Array.from({length:7},()=>r.take(8).readBigUInt64BE());o.digest=r.take(32);r.end();
+      o.encoding=r.magic('NVGRT1\r\n');assert.equal(r.take(2).readUInt16BE(),1);o.bootstrap=hex(r.take(56));o.tree=pageRange(r);
+      assert.equal(o.tree.offset,0n);o.counts=Array.from({length:8},()=>r.take(8).readBigUInt64BE());o.digest=r.take(32);r.end();
       o.general=true;generalRoots.push(o);continue;
     }
     r.magic('NVSRT1\r\n'); r.take(16); o.count=Number(r.take(8).readBigUInt64BE()); o.digest=hex(r.take(32));
@@ -169,11 +171,11 @@ for(const root of generalRoots) {
   leaves.sort((a,b)=>a.offset<b.offset?-1:a.offset>b.offset?1:0);
   const stream=cat(...leaves.map(p=>p.data));assert.equal(BigInt(stream.length),root.tree.length);
   assert.deepEqual(sha(cat(Buffer.from('NV general snapshot state\0v1\0'),stream)),root.digest);
-  const r=new Reader(stream);r.magic('NVGST1\r\n');const counts=Array(7).fill(0n),history=new Set([root.bootstrap]),frontier=[],cells=[];
+  const r=new Reader(stream);r.magic('NVGST1\r\n');const counts=Array(root.counts.length).fill(0n),history=new Set([root.bootstrap]),frontier=[],cells=[],retentionParents=[];
   let previousKey;
   function occurrence(r,width) {const address=hex(r.b.subarray(r.p,r.p+56));history.add(address);return stored(r,width);}
   while(r.p<r.b.length) {
-    const tag=r.byte();assert(tag>=1 && tag<=7);counts[tag-1]++;
+    const tag=r.byte();assert(tag>=1 && tag<=counts.length);counts[tag-1]++;
     const p=new Reader(r.blob());let key;
     if(tag===1) {
       assert.equal(p.take(8).toString(),'NVCEL1\r\n');const version=p.take(2).readUInt16BE();assert([1,2].includes(version));
@@ -189,15 +191,18 @@ for(const root of generalRoots) {
     } else if(tag===2) {const id=occurrence(p,32);frontier.push(id);key=cat(Buffer.from([tag]),B(id));}
     else if(tag===3) {const start=p.p,scope=p.byte();assert(scope<=1);if(scope)p.take(16);const prefix=p.b.subarray(start,p.p);const id=occurrence(p,16);key=cat(Buffer.from([tag]),prefix,B(id));}
     else if(tag===4) {const birth=p.take(16),id=occurrence(p,32);key=cat(Buffer.from([tag]),birth,B(id));assert.equal(ops.get(id).tag,6);}
+    else if(tag===8) {const parent=p.take(56),address=hex(parent),target=all.get(address);
+      assert(target?.accepted && target.kind===2 && target.acceptance<root.acceptance);
+      retentionParents.push(address);key=cat(Buffer.from([tag]),parent);}
     else {const payload=p.take(p.b.length);key=cat(Buffer.from([tag]),payload);assert.equal(payload.length,tag===5?(payload[0]===0?33:41):tag===6?32:64);}
     p.end();if(previousKey)assert(Buffer.compare(previousKey,key)<0);previousKey=key;
   }
   assert.deepEqual(counts,root.counts);assert(all.get(root.bootstrap)?.accepted && !all.get(root.bootstrap).general);
-  root.deps=[...new Set([root.tree.locator,...history].map(d=>d.slice(48)))];
+  root.deps=[...new Set([root.tree.locator,...history,...retentionParents].map(d=>d.slice(48)))];
   const cut=new Set(frontier.flatMap(id=>[...past(id,'parents',true)]));
   for(const op of ops.values())if([1,2,4].includes(op.tag))assert(cut.has(op.id));
   for(const id of cut){const op=ops.get(id);op.pred.forEach(p=>assert(cut.has(p)));if(op.action)actions.get(op.action).members.forEach(m=>assert(cut.has(m)));}
-  generalSnapshots.push({root:root.id,pages:[...seen].map(d=>d.slice(48)).sort(),cut:[...cut].sort(),cells});
+  generalSnapshots.push({root:root.id,encoding:root.encoding,retentionParents:retentionParents.map(d=>d.slice(48)),retentionParentLocators:retentionParents,pages:[...seen].map(d=>d.slice(48)).sort(),cut:[...cut].sort(),cells});
 }
 for(const r of refs) assert.equal(all.get(r.locator)?.[r.section]?.[r.index]?.id,r.id);
 for(const a of actions.values()) for(const s of a.restorations) {
@@ -344,8 +349,9 @@ for(const op of ops.values())if(op.birth && !expectedNotes.has(op.birth)) {
 }
 for(const [birth,cell] of temporary)expectedNotes.set(birth,cell);
 assert.deepEqual(report.cells.map(r=>r[0].toLowerCase()).sort(),[...expectedNotes.keys()].sort());
+const dictionaries = new Map((report.dictionaries ?? []).map(([id, bytes]) => [id.toLowerCase(), B(bytes)]));
 for(const [birth,encoded] of report.cells) {
-  const r=new Reader(B(encoded));assert.equal(r.take(8).toString(),'NVCEL1\r\n');const version=r.take(2).readUInt16BE();assert([1,2].includes(version));assert.equal(hex(r.take(16)),birth.toLowerCase());
+  const r=new Reader(expandCurrentRow(B(encoded), dictionaries));assert.equal(r.take(8).toString(),'NVCEL1\r\n');const version=r.take(2).readUInt16BE();assert([1,2].includes(version));assert.equal(hex(r.take(16)),birth.toLowerCase());
   const n=new Reader(r.blob()),v=note(n);n.end();const revision=stored(r,32),noteActions=r.list(()=>stored(r,16));
   let represented=[revision],heads=[revision],automatic=null;
   if(version===2) {

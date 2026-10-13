@@ -3,7 +3,7 @@
 Date: 2026-10-04; updated 2026-10-08. Status: measurements and follow-up backlog.
 Initial capture reuse is qualified; scoped queries and optional startup processing
 are also qualified within their documented Runtime boundaries. Snapshot-root retention coverage
-uses the qualified general-v2 format; its [production report](snapshot-retention-coverage-validation.md)
+uses the qualified general-v1 format; its [production report](snapshot-retention-coverage-validation.md)
 records the chain and fan-in work bounds. The
 [review report](../storage-review-follow-up.md) supplies executable witnesses;
 sequential snapshot-root growth now has a strict one-root work assertion. The implemented
@@ -121,11 +121,11 @@ available for acceleration later and queue classification gains explicit semanti
 the retained frontier; the eight-snapshot witness checks eight root envelopes on
 returning startup even though logical history is fixed.
 
-**Implemented direction:** [general v2 retention-parent links](snapshot-retention-coverage.md) between snapshots,
+**Implemented direction:** [general v1 retention-parent links](snapshot-retention-coverage.md) between snapshots,
 separately from their logical operation frontiers. A newer root covers prior
 roots through genuine verified dependency edges while preserving their bytes.
 The [production report](snapshot-retention-coverage-validation.md) records actual
-v2 encodings, sequential chains and wide fan-in. The eight-snapshot witness now
+v1 encodings, sequential chains and wide fan-in. The eight-snapshot witness now
 strictly requires one startup root check. Arbitrary independent concurrent roots
 remain frontier tips until explicitly covered; this residual width is distinct
 from sequential growth.

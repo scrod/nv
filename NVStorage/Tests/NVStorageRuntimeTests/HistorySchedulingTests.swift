@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 import NVStorageCore
@@ -85,10 +86,10 @@ func catchUpCommitsOneCompletePrefixAtATime(encrypted: Bool) async throws {
         _ = try await lane.acceptScheduled(bytes, locator: receipt.object, selection: selection, protection: protection)
     }
     for n in 1...4 {
+        let done = try await lane.catchUpBatch(selection: selection, protection: protection)
         let result = try await lane.perform { db in
-            let done = try db.catchUp(selection: selection, protection: protection)
             let prefix = try db.rows("SELECT through_seq FROM view_meta")[0][0].number
-            let cell = try CurrentNoteCellV1.decodeV1(db.rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(birth.bytes)])[0][0].bytes)
+            let cell = try db.currentCell(db.rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(birth.bytes)])[0][0].bytes)
             return (done, prefix, cell.value.body.string)
         }
         #expect(result.0 == (n == 4))

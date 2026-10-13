@@ -3,7 +3,15 @@
 Portable Swift values and history validation, plus the private SQLCipher
 storage runtime. The Objective-C app does not import this package yet.
 
+NVStorage and all segment/private formats are unreleased. NV's last public
+release was in 2011 and used epoch-4 Notes & Settings. Compatibility covers
+epoch-4 opening, journal recovery and explicit legacy export in the macOS app;
+superseded development encodings require no reader or migration in this library.
+
 ## Build and test
+
+The [project test index](../docs/Test-and-Validation-Index.md) lists individual
+Core/Runtime tests, process/fixture/type/mutation checks and their plan references.
 
 From the repository root, with Swift 6.4 or newer and a C compiler:
 
@@ -69,7 +77,11 @@ seals frozen initial values on its worker and creates a new private candidate.
 The overload accepting `InitialCollectionV1` retains already-sealed creation input.
 `open(selection:protection:)` checks physical ownership, header and required state,
 recovers SQL transactions, replays unfinished verification requests, drains ready
-work and catches up current rows. General catch-up before first publication
+Changes and their required prerequisites, and catches up current rows. Independent
+optional snapshots stay durably queued until successful checked host `publish`
+starts the existing receive worker. See the
+[startup/scoped-query qualification](../docs/impl-proposal-5/plan/phase-4-improvements/startup-and-scoped-queries-validation.md).
+General catch-up before first publication
 prepares one complete checked accepted prefix; live catch-up retains its per-batch
 route. Healthy up-to-date rows keep their indexed startup path.
 
@@ -119,9 +131,10 @@ claims. `persistGeneralSnapshot(capture:)` retains bounded exact candidate pages
 checks the complete root against its represented history, and accepts its root,
 pages, dependencies and retained pin together. `retry(snapshot:)` resumes the same
 sealed bytes through an owner-issued handle. A distinct `AcceptedSnapshotReceipt`
-reports durable snapshot coverage. Fresh reopening resumes a complete retained
-root through ready work while preserving current notes and ordinary edit
-acknowledgment. Optional snapshot construction permits durable close, preserving
+reports durable snapshot coverage. Fresh reopening retains a complete optional
+root for the receive worker started by checked host publication; required snapshot
+prerequisites are processed before that publication. Both paths preserve current
+notes and ordinary edit acknowledgment. Optional snapshot construction permits durable close, preserving
 retained candidates and the committed outcome of a delayed completion.
 See the [S1 report](../docs/impl-proposal-5/plan/phase4-snapshot-acceptance-validation.md)
 for the tested acceptance failure cuts.
@@ -141,9 +154,13 @@ Supported plaintext history includes bootstrap, Create/Put/Delete, rename, label
 fresh-birth Restore, multi-head equality/conservative merge, delete/edit preservation,
 explicit source choice and conflict copies, historical field recovery and portable
 causal Undo/Redo. Native compensation records carry exact remaining effects for
-the later AppKit adapter. Current rows use
-the uncompressed correctness-baseline codec; zstd remains the selected subsequent
-physical-codec task. See the [Phase 2 report](../docs/impl-proposal-5/plan/phase2-local-runtime-validation.md)
+the later AppKit adapter. Private current rows use bounded raw, plain zstd or
+dictionary frames; the encoder selects the smallest complete representation and
+the decoder verifies the named dictionary's full digest. Explicit recoding can
+train a bounded dictionary and install it atomically with its rows. The
+[Phase 4F report](../docs/impl-proposal-5/plan/phase4-current-row-locality-maintenance-validation.md)
+records the implemented codec, checked first capture, explicit maintenance and
+remaining cold-load/resource qualification. See the [Phase 2 report](../docs/impl-proposal-5/plan/phase2-local-runtime-validation.md)
 for the local durability foundation and the [Phase 3 report](../docs/impl-proposal-5/plan/phase3-validation.md)
 for connected semantics, schedules and qualification boundaries.
 

@@ -28,6 +28,7 @@ extension LocalStoreSession {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard !backupInFlight else { throw StorageError.busy }
         backupInFlight = true
+        cancelMaintenance()
         defer {
             backupInFlight = false
             let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() }
@@ -61,6 +62,7 @@ extension LocalStoreSession {
                           try db.rows("SELECT group_key,generation,codec,payload FROM private_groups ORDER BY group_key") == cut.groups,
                           try db.rows("SELECT object_id,locator FROM retained_frontier ORDER BY object_id") == cut.pin,
                           try db.rows("SELECT birth,cell FROM current_notes ORDER BY birth") == cut.current,
+                          try db.rows("SELECT dictionary_id,encoded FROM current_dictionaries ORDER BY dictionary_id") == cut.dictionaries,
                           try db.rows("SELECT epoch,reducer_version,through_seq,authoring_context FROM view_meta WHERE singleton=1") == cut.view,
                           try db.pendingPrivateFingerprint() == cut.pending else { throw StorageError.integrity }
                 }
@@ -108,7 +110,8 @@ extension LocalStoreSession {
                     return (cells, context)
                 }
                 try await lane.perform { db in
-                    let stored = try db.rows("SELECT cell FROM current_notes ORDER BY birth").map { try CurrentNoteCellV1.decodeV1($0[0].bytes) }
+                    let decoder = try CurrentRowRead()
+                    let stored = try db.rows("SELECT cell FROM current_notes ORDER BY birth").map { try decoder.decode($0[0].bytes, database: db) }
                     let expected = cells.sorted { $0.birth.bytes.lexicographicallyPrecedes($1.birth.bytes) }
                     guard stored == expected,
                           try db.rows("SELECT through_seq,authoring_context FROM view_meta WHERE singleton=1") == [[.integer(through), .blob(context.encodedV1())]] else { throw StorageError.integrity }

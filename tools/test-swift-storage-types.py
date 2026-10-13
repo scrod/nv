@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Check ordinary-client type boundaries against an already built NVStorageCore.
+"""Check ordinary and sibling-client boundaries against the actual NVStorageCore.
 
 Example: python3 tools/test-swift-storage-types.py --modules /path/to/debug/Modules
-No @testable import, test-only declarations, app launch or provider access.
+Clients exercise production declarations through their normal access controls.
 """
 import argparse
 from contextlib import contextmanager
 import os
 from pathlib import Path
 import re
-import subprocess
 import tempfile
+from qualification_reuse import compiler_cache_path
+from compiler_probe_batches import batch_size, run_probes
 
 
 @contextmanager
@@ -28,6 +29,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--modules", required=True, type=Path)
     parser.add_argument("--swiftc", default="swiftc")
+    parser.add_argument("--batch-size", type=batch_size, default=8,
+                        help="Maximum compatible negative clients per compile; 1 preserves isolated checking.")
     args = parser.parse_args()
     cases = [
         ("ordinary client", """
@@ -192,7 +195,7 @@ func wrong(_ f: InitialImportScopeFrontierV1) {
     with temporary_artifacts(prefix="nv-storage-typecheck-") as cache:
         command = [args.swiftc, "-swift-version", "6", "-strict-concurrency=complete", "-strict-memory-safety",
                    "-warnings-as-errors", "-typecheck", "-I", str(args.modules),
-                   "-module-cache-path", cache]
+                   "-module-cache-path", compiler_cache_path(args.swiftc, args.modules, cache)]
         root = Path(__file__).resolve().parents[1]
         for module_map in [args.modules.parent / "CArgon2.build/module.modulemap",
                            args.modules.parent / "CZstd.build/module.modulemap"]:
@@ -200,22 +203,17 @@ func wrong(_ f: InitialImportScopeFrontierV1) {
                 raise RuntimeError(f"Build the package first: missing {module_map}")
             command.extend(["-Xcc", f"-fmodule-map-file={module_map}"])
         core = sorted((root / "NVStorage/Sources/NVStorageCore").glob("*.swift"))
-        # The same-module probes are compiled as a different source file against
-        # the actual Core sources, catching accidental internal constructors.
+        # Sibling clients keep their own source files beside the actual Core
+        # sources, challenging accidental internal constructors.
         for same_module, selected in [(False, cases + issuers), (True, [cases[0]] + issuers)]:
-            for name, source, expected_error in selected:
-                path = Path(cache) / "Client.swift"
-                text = ("" if same_module else "import NVStorageCore\n") + source
-                path.write_text(text)
-                # Typecheck all module sources once per probe, retaining each file's access boundaries.
-                cmd = command + (["-whole-module-optimization", "-package-name", "nvstorage", "-module-name", "NVStorageCore"] + [str(p) for p in core] if same_module else [])
-                run = subprocess.run(cmd + [str(path)], text=True, capture_output=True, timeout=60)
-                passed = matches_contract(run.returncode, run.stderr, path, text, expected_error)
-                print(f"{'PASS' if passed else 'FAIL'}: {'same module: ' if same_module else ''}{name}")
-                if not passed:
-                    print(run.stdout + run.stderr)
-                    return 1
+            clients = [(name, ("" if same_module else "import NVStorageCore\n") + source, expected)
+                       for name, source, expected in selected]
+            cmd = command + (["-whole-module-optimization", "-package-name", "nvstorage", "-module-name", "NVStorageCore"] + [str(p) for p in core] if same_module else [])
+            completed = run_probes(cmd, clients, Path(cache)/('same' if same_module else 'ordinary'),
+                                  label='same module:' if same_module else '', timeout=60, maximum=args.batch_size)
+            assert completed == len(selected)
         # Reject setup failures and diagnostics from an unintended source line.
+        path = Path(cache) / "Client.swift"
         example = "take(bad) // expected-error\n"
         assert not matches_contract(1, "compiler unavailable", path, example, "cannot convert")
         assert not matches_contract(1, f"{path}:2:1: error: cannot convert", path, example, "cannot convert")

@@ -2,11 +2,21 @@
 
 Date: 2026-09-10. Status: implementation roadmap; the phases and tests below are not completion claims.
 
+The last public release was in 2011, using epoch-4 Notes & Settings. NVStorage,
+segment collections and private SQLite formats remain unreleased. Update current
+development formats directly and remove superseded draft branches; preserve
+epoch-4 opening, recovery and explicit legacy export. Proposal/phase/encoding
+numbers alone establish no release or development-format migration requirement.
+
+The [cross-phase test index](../../Test-and-Validation-Index.md) maps individual
+implemented checks and document-defined scenarios to their commands and all
+explicit plan/runner references, with separate governing-family links.
+
 Build the portable storage library with **ordinary Swift definitions as the executable source of canonical values and encodings**. No CUE, ConcreteIR, schema compiler, generated Swift, or replacement schema language is required. Start with a complete local save/reopen slice, then extend that same production path to distributed history and application integration.
 
 This plan sequences the [library architecture](swift-storage-library-proposal-v2.md) and [conformance strategy](swift-storage-conformance-testing-strategy.md). Their text has been aligned with the current policies below; use the detailed type-boundary discussion and `TC-*` contract cards without duplicating them here. The [specification](../../iCloud-Drive-Support-Spec.md), [Protocol](../Protocol.md), [Encryption](../Encryption.md), [ADRs](../../adr), and [CONTEXT](../../../CONTEXT.md) remain the product/algorithm authorities. [Format TODO](../Format-TODO.md) identifies unfinished byte definitions, not permission to assign provisional production values.
 
-The [first save/reopen contract](first-save-reopen-contract.md) supplies initial record layouts, creation/bootstrap ordering and runtime method/ownership contracts. Its status table and [Phase 2 evidence](phase2-local-runtime-validation.md) distinguish the working ordinary local save/reopen path from unfinished general action/Current semantics and final application activation. Codecs or a checked initial import alone still issue no durability authority.
+The [first save/reopen contract](first-save-reopen-contract.md) supplies initial record layouts, creation/bootstrap ordering and runtime method/ownership contracts. Its status table and [Phase 2 evidence](phase2-local-runtime-validation.md) describe the ordinary local save/reopen foundation; [Phase 3 evidence](phase3-validation.md) qualifies the later plaintext action/Current semantics, and final application activation remains a separate gate. Codecs or a checked initial import alone still issue no durability authority.
 
 [LocalStore](../LocalStore.md) fixes the private SQLite mapping and returning-launch
 algorithm. Required history/index/pin acceptance is one transaction; current
@@ -20,9 +30,9 @@ production SQLCipher/repair qualification remain distinct gates.
 | --- | --- |
 | Canonical definitions | Direct Swift constants/enums/value types and explicit codecs, independently reviewed byte fixtures, exhaustive test mappings and API checks. Do not recreate CUE as a Swift DSL or macro system. |
 | Early persistence milestone | Implement the smallest complete action/bootstrap subset and real installer together. Test acknowledgment/recovery before expanding to every operation. |
-| Existing source and evidence | Reuse `tests/Makefile`, app sources, the reference script, active TLA+ runners and API-contract documents. `NVStorage` contains Core and the first SQLCipher Runtime path, with issuer/consumer/compiler/process checks. Use the Phase 2 report's exact supported subset and qualification limits. |
-| NV conflict copies | Saving separately represents only the selected revision, **not** an implicit Keep Current. Source-head reduction and unresolved attention are distinct. Test the adopted [copy policy](../Verification.md#nv-conflict-copy-disposition--adopted-policy); its byte representation remains unfinished. |
-| External imports and pending decisions | Ordinary eligible files auto-import after mandatory exceptions and narrow per-note repair checks. Late independent duplicates remain possible; no co-add. The [pending commit/recovery rules](../Protocol.md#pending-file-commit-and-recovery-records) are specified, while their concrete codecs remain implementation work. |
+| Existing source and evidence | Reuse `tests/Makefile`, app sources, the reference script, active TLA+ runners and API-contract documents. `NVStorage` contains Core, the SQLCipher Runtime and physical/provider adapters, with issuer/consumer/compiler/process checks. Use each phase's linked qualification report for its supported boundaries. |
+| NV conflict copies | Saving separately represents only the selected revision, **not** an implicit Keep Current. Source-head reduction and unresolved attention are distinct. The adopted [copy policy](../Verification.md#nv-conflict-copy-disposition--adopted-policy) has [connected byte and Runtime consumers](phase3-connected-record-contract.md) and [Phase 3 qualification](phase3-validation.md); actual resolver/Apple-member integration retains its later gate. |
+| External imports and pending decisions | Ordinary eligible files auto-import after mandatory exceptions and narrow per-note repair checks. Late independent duplicates remain possible; no co-add. The [pending commit/recovery rules](../Protocol.md#pending-file-commit-and-recovery-records) have [bounded private codecs and transaction consumers](private-record-contract.md), qualified in [Phase 4C–4E](phase4-private-state-repair-copy-validation.md). Physical projection and consent integration remain Phase 6 work. |
 | Content scope | New work is plaintext-first; attachments are unsupported and RTF/HTML design is deferred. Preserve legacy recovery and explicitly handle unsupported migration inputs; never flatten silently. |
 | Input and undo | Follow [AppKit's input boundary](../../Apple-API-Contract-Validation.md#text-input-and-undo-platform-boundary). No custom composition state machine or durable draft protocol is prescribed. Test registered external undo edits before considering the unaccepted coarse fallback. |
 | Test organization | Use native package tests through the existing Makefile on macOS and directly in portable jobs; keep legacy executables. No third-party/duplicate framework. Qualify the runner separately from the shipped library's deployment target. |
@@ -129,8 +139,9 @@ The first local path is implemented. [Phase 2 validation](phase2-local-runtime-v
 maps actual symbols and tests to the requirements below, including remaining
 platform, physical-power-loss and later-reducer gates. The checks run through
 `make -C tests run-swift-storage-phase2`; `--configuration release --mutations`
-selects the complete optimized challenge campaign. The raw-cell baseline leaves
-the adopted zstd candidate intact for the next physical-codec qualification task.
+selects the complete optimized challenge campaign. That report preserves the
+initial raw-cell baseline; the later [Phase 4F report](phase4-current-row-locality-maintenance-validation.md)
+qualifies the implemented raw/zstd/dictionary codec and explicit maintenance.
 
 The [current-basis increment](current-basis-validation.md) reuses complete current
 rows for eligible ordinary saves and maintains frontiers through direct parents.
@@ -297,7 +308,7 @@ separate gates. No automatic recoding/training schedule is enabled.
 
 The [storage review follow-up](storage-review-follow-up.md) adds executable work-
 growth and interrupted-diagnosis witnesses plus stronger compiler construction
-boundaries. All seven issues now have implemented remedies; general-v2
+boundaries. All seven issues now have implemented remedies; general-v1
 [snapshot retention coverage](phase-4-improvements/snapshot-retention-coverage.md)
 addresses sequential root growth through exact accepted parent links. Its
 [qualification report](phase-4-improvements/snapshot-retention-coverage-validation.md)
@@ -339,6 +350,49 @@ Sweep failure during union copy, pin commit, activation and association cutover,
 **Exit:** complete available history reconstructs current rows; incomplete known required history cannot become editable; failed repair/cutover preserves recoverable sources. The concrete snapshot-verification method has independent wrong-result tests before fast-start use. Existing launch targets remain measured gates, not an excuse to trust derived values blindly.
 
 ## 9. Phase 5 — Provider and physical-root adapters
+
+The [multipart implementation plan](phase5-provider-root-implementation-plan.md)
+orders P5.0–P5.7 by dependency: boundaries/harness, owned roots, immutable file
+operations, first local exchange, Apple adapters, startup/reassociation, repair/copy
+and connected qualification. P5.3 is the first real-file end-to-end milestone;
+every part includes its tests and exit gate before the next dependent increment.
+The same overall plan contains the [whole-system architecture maps](phase5-provider-root-implementation-plan.md#whole-system-architecture):
+source/ownership boundaries, action transactions, scheduling, failure/close and
+security/evolution responsibilities. The [P5.1 qualification report](phase5/01-root-ownership-validation.md)
+records the completed root boundary and its platform limits separately from
+remaining provider work. [P5.2's report](phase5/02-immutable-files-validation.md)
+records the qualified bounded reads, discovery and immutable installation with
+explicit capability/distribution limits. P5.3 now connects accepted history to actual
+file publication/receive between independent stores; its
+[qualification report](phase5/03-local-repository-exchange-validation.md) records
+completed local/platform checks and separate provider/distribution/physical-power-loss
+boundaries. The implemented [bounded metadata/hint follow-up](phase5/bounded-discovery-batches-validation.md)
+shares rooted observations and indexed hint queries across bounded groups, with
+fresh across-turn observations, contextual consumers and per-object durable receive.
+
+The [detailed P5.4 plan](phase5/04-apple-coordination-and-discovery.md)
+includes remaining P5.3 caller/scheduling work, scoped real coordination, presenter
+lifetime and bounded automatic resumption, then materialization/continuity inputs
+and signed two-Mac exchange. Its scenario matrix preserves the batching and
+private-connection guarantees while testing actual API consumers and resource
+settlement. Its [qualification ledger](phase5/04-apple-coordination-and-discovery-validation.md)
+records qualified A–F consumers, local/platform checks, measured coordination
+overhead, the approved fresh deep-HFS+ limitation and successful final-source
+signed two-Mac exchange/reopen for both profiles.
+The detailed [P5.5 startup/reassociation plan](phase5/05-startup-and-root-reassociation.md)
+now orders closed health decisions, returning publication, narrow provider waits,
+explicit bootstrap/private-loss entry and Retry/Re-open, with a 24-case consumer/
+failure matrix, compiler-boundary checks and connected recovery qualification.
+Its headless implementation is qualified within the recorded limits; the
+[P5.5 ledger](phase5/05-startup-and-root-reassociation-validation.md) records
+completed production, recovery, compiler, model and platform witnesses, with
+aggregate-budget failures and passing component reruns distinguished. Repair/copy
+effects remain P5.6.
+
+The [Phase 5 testing plan](phase5-provider-root-testing-plan.md) sequences production
+adapter witnesses, independent observations, physical/API capability qualification,
+connected crash/race schedules and compiler/mutation checks. Its cases are planned
+work; completed evidence must be recorded separately for each qualified target.
 
 **Implement**
 

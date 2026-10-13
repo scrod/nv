@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import Foundation
 import NVStorageCore
 @testable import NVStorageRuntime
@@ -45,6 +46,8 @@ func mergePreviewAcrossIndependentStores(encrypted: Bool, childFirst: Bool) asyn
     guard case .accepted = try await receiver.receivedObjectStatus(at: leftChange.object) else { Issue.record("merge inputs remain accepted"); return }
     let current = try #require(try await receiver.snapshot().notes.first { $0.birth == birth })
     #expect(current.value.body.string == "A\ngap\nZ" && Set(current.represented.map(\.id)) == [leftID, rightID])
+    try await expectScopedHistoryMatchesFull(receiver, birth: birth)
+    #expect(try await receiver.conflicts(for: birth).alternatives.isEmpty)
     let selection = await receiver.selection
     try await receiver.quiesce(); receiver = try await .open(selection: selection, protection: protection)
     #expect(try await receiver.snapshot().notes.first { $0.birth == birth } == current)

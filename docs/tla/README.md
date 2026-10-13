@@ -1,5 +1,9 @@
 # iCloud Drive TLA+ models
 
+The [project-wide validation index](../Test-and-Validation-Index.md) includes a
+source-derived catalogue of modules, static configurations and expanded runner
+matrices, alongside their executable/compiler/process witnesses and plan references.
+
 Start with [Proposal 5 coverage and model disposition](Proposal5-Coverage.md) for the newest segment design. It identifies the highest-priority properties, new checks, shared components, and current proof boundaries. These are bounded checks, not a whole-implementation refinement proof.
 
 Models abstract envelope bytes and bounded decoding. The adopted dictionary-free
@@ -111,6 +115,16 @@ designated mutation controls and three reachability witnesses. The
 no old-history reads on healthy startup and multi-parent ready work. The cache
 format, builders, batch tokens, changed-birth log and pruning floors are removed.
 
+The [private-connection reuse increment](../impl-proposal-5/plan/phase5/private-connection-reuse.md)
+keeps these abstract acceptance, recovery and publication conditions intact.
+Concrete opening facts are checked once per connection; physical ownership is
+checked around synchronous turns and commit; failure blocks the operation and
+retry requires the same positively identified resources. Native loss/commit tests
+and compiler probes qualify that mapping.
+These models abstract ownership as checked context at the consuming operation;
+their transitions do not depend on SQL-statement count or prove filesystem
+identity checks, SQLCipher configuration or arbitrary in-place external tampering.
+
 [`SnapshotReconstructionSafety`](SnapshotReconstructionSafety.tla) adds the
 S3/S4 bridge from retained incomplete input to complete atomic bootstrap,
 snapshot-seeded outside-cut reduction, guarded installation, publication and
@@ -201,6 +215,63 @@ admission, early settlement, sibling settlement, skipped replay, omitted middle
 effects and stale target/epoch/private settings. Witnesses require interrupted
 checks to replay and stale recovery to recapture before succeeding.
 
+### Required startup work and deferred optional snapshots
+
+[`OptionalReadyStartupSafety`](OptionalReadyStartupSafety.tla) maps returning-open
+required selection, actual checked publication, receive-owner reservation,
+prepare/validate/accept, current-row updates, two finite saves, notification wakeup
+and one crash. Six scenarios cover an independent optional snapshot, a snapshot
+required by parked Changes, unfinished verification, required damage, late Changes,
+and a failed rejection write. Durable bytes/ready/wait membership remain separate
+from accepted history. Close and persistent storage failure retain explicit outcomes.
+
+Run `python3 docs/tla/check-improvement-models.py --only optional-startup --java
+/path/to/java --jar /path/to/tla2tools.jar`. The completed campaign has six exhaustive
+safety/progress cases (22–4,615 states), seven designated mutation counterexamples
+and four witnesses (17 outcomes). Controls challenge hidden required work, early
+publication, skipped verification, lost startup/wakeup, discarded ready input and
+unvalidated acceptance. Witnesses reach publication before optional completion,
+required work behind optional input, restart settlement and save-interrupted progress.
+There are no state/depth constraints or disabled contested transitions. Progress
+assumes weak fairness of runnable worker/startup/materialization/save-completion
+steps and finite save interference; explicit storage-stop/close are separate outcomes.
+User retry, crash and incoming delivery are not fair actions.
+
+This is a bounded scheduling model. Validation, classification and atomic SQL
+transactions are inputs from existing verification/recovery/receive models and
+executable tests. It does not prove codecs, SQLCipher, arbitrary histories,
+Swift scheduling latency or provider progress. The
+[startup/query plan](../impl-proposal-5/plan/phase-4-improvements/startup-and-scoped-queries.md)
+connects those assumptions to actual host-publication, independent SQL observations,
+complete shared-envelope checks and fresh-process fault tests. Scoped query semantics
+continue to use the existing causal Undo/conflict rules; narrow read selection is
+qualified with executable independent/full-reader comparisons, not a replacement
+TLA reducer.
+
+### Explicit private maintenance and required saves
+
+[`PrivateMaintenanceSafety`](PrivateMaintenanceSafety.tla) maps the actor-owned
+maintenance reservation and C cancellation registry to two optional jobs, one
+ordinary save and one process crash. Preparation, running SQL, settlement,
+retirement, late cancellation, actual save commit, acknowledgment and reopening
+are separate transitions. Invariants check owner lifetime, save isolation,
+exact-job cancellation, acknowledgment durability and recovered committed input.
+Finite-interference progress assumes weak fairness and eventual SQL return; the
+model supplies no interruption-latency guarantee.
+
+Run `python3 docs/tla/check-improvement-models.py --only maintenance --java
+/path/to/java --jar /path/to/tla2tools.jar`. The completed campaign contains one
+exhaustive safety/progress case (3,111 states), five designated counterexamples
+and two reachability witnesses. The latter reach a contested save followed by
+crash/reopen, and a pre-start save followed by second-job/late cancellation.
+There are no state/depth constraints or disabled contested transitions.
+
+The [4F source mapping and executable report](../impl-proposal-5/plan/phase4-current-row-locality-maintenance-validation.md)
+distinguish the model's atomic SQLite commit/rollback and mutex assumptions from
+real held SQL, C lifetime, row/dictionary preservation and write/sync tests.
+This is a focused lifecycle check, not an `INSTANCE` composition, proof of C
+pointer safety, arbitrary stores, byte authentication or physical power loss.
+
 The [Phase 4 improvement report](../impl-proposal-5/plan/phase-4-improvements/validation.md)
 maps the concrete Swift boundaries and independently inspected SQL/VFS schedules.
 These models assume atomic SQL transactions, truthful finite input classification
@@ -209,7 +280,45 @@ history/DAGs, eventual progress under persistent storage failure nor physical
 power-loss durability. At-most-once decoding is separately asserted by real
 per-attempt/per-SegmentID decoder observations, with complete coverage on success.
 
-`--only assembly --timeout 300` selects the snapshot bridge. Its five exhaustive
+### Snapshot retention coverage
+
+`SnapshotRetentionCoverageSafety.tla` isolates general-v1 retention ancestry from
+represented logical cuts. Two stores capture root tips, deliver immutable roots
+out of order, verify parents, atomically accept dependency/frontier updates,
+deliver callbacks and restart. A later join can cover concurrently captured roots;
+different logical cuts remain independent of coverage. Exact accepted edges,
+maximal frontier and reachable closure are checked by independent calculations.
+Damage between preparation and commit challenges the final consumer check.
+
+Run `python3 docs/tla/check-improvement-models.py --only retention --java
+/path/to/java --jar /path/to/tla2tools.jar`. The four exhaustive safe scenarios
+cover equal/differing cuts, unsupported input and post-verification damage.
+Six designated mutations challenge unverified coverage, clearing independent
+tips, omitted edges, early acknowledgment, lost retained bytes and skipped final
+checks. Seven reachability witnesses require concurrent tips, different cuts,
+lost callbacks, a join, progress after a failed transaction, damaged preparation
+and a supported descendant blocked by a newer producer's unsupported parent.
+Format support is receiver-specific in that scenario. The unverified-parent
+mutation preserves the child's own format guard, isolating dependency eligibility.
+The model abstracts supported-format checking rather than wire version numbers.
+Retention parents are part of the single unreleased v1 layout; the unsupported
+scenario represents unknown future input, not compatibility with development
+snapshot drafts. Consolidating those drafts changes no modeled transition or
+safety assertion.
+There are no depth/state constraints. One crash and precommit failure per store
+bound the schedules; this is finite safety/reachability, not arbitrary-history
+liveness or physical power-loss qualification.
+
+The model collapses the complete protected root/page closure into one root
+identity. `ReceiveSnapshotAssemblySafety` and codec/process tests retain page and
+byte checks; `SnapshotReconstructionSafety` retains logical cut/tail rebuilding.
+The [source mapping and report](../impl-proposal-5/plan/phase-4-improvements/snapshot-retention-coverage-validation.md)
+connect these boundaries to `GeneralSnapshotCapture`, file-private parent evidence
+and the real SQL acceptance transaction. Accepted parents reuse prior validated
+closure; neither the model nor implementation grants permission to prune bytes.
+
+`python3 docs/tla/check-receive-models.py --only assembly --timeout 300 --java
+/path/to/java --jar /path/to/tla2tools.jar` selects the snapshot bridge. Its five exhaustive
 configurations, five exact mutation counterexamples and five reachability witnesses
 are documented in [S2's source mapping and results](../impl-proposal-5/plan/phase4-received-snapshot-validation.md#model-correspondence).
 The largest completed configuration explores 1,122,253 distinct states. Progress
@@ -358,15 +467,160 @@ These five modules remain active because their focused guards do not depend on m
 | [SeparateFileDeletionSafety](SeparateFileDeletionSafety.tla) | Exact accepted-incarnation removal only after local command durability; preserve replacement files. Recording omission/retirement grants no physical authority. Identity/absence are supplied observations, not conclusions from a filename. |
 | [UnresolvedVersionResolutionSafety](UnresolvedVersionResolutionSafety.tla) | Exact local note/copy durability plus exact file installation before selected/snapshot-scoped Apple disposition; partial failure, retired copy slots and later arrivals. `pendingHistoryDurable` is an abstract complete segment/action/parent barrier. Setter-time evidence does not require copies to remain live afterward. Slot allocation, retirement encoding, restart and UI scheduling require concrete tests. |
 | [CrossMachineConflictDispositionSafety](CrossMachineConflictDispositionSafety.tla) | Two observers with independent local generations and selected-member scopes. One host cannot supply another's local completion or consume a later member. This is not composition with note transport, actual file installation or the whole resolver. |
-| [LocalDurabilityLaneIndependence](LocalDurabilityLaneIndependence.tla) | Per-admitted-edit local staging/barrier progress under local weak fairness while provider work can remain stalled forever. No provider fairness or particular storage format is required. |
+| [LocalDurabilityLaneIndependence](LocalDurabilityLaneIndependence.tla) | Per-admitted-edit local staging/barrier progress under local weak fairness while provider work can remain stalled forever. [P5.1's held-root schedules](../impl-proposal-5/plan/phase5/01-root-ownership-validation.md) connect that separation to the actual root executor, local save/barrier and fresh reopen. P5.4 supplies the distinct held Apple-accessor witness. No provider fairness or particular storage format is required. |
 
 Apple disclosure is not a complete history. An unreadable member cannot be chosen; Save resolves only its selected member, Use only applicable captured members. No model grants version removal. Dismissal, bounded background retries, automatic retry on re-presentation and fresh generation checks remain [resolver integration requirements](../impl-proposal-5/Verification.md), not consequences of a boolean durability gate.
 
+## Accessor lifetime and the automatic transport driver
+
+`RepositoryAccessorDriverSafety.tla` connects request, actual entry, native
+effect, return and applicable completion to two outgoing objects, a late incoming
+object and one finite interruption. Six exhaustive scenarios cover steady work,
+move/revalidation, close, restart, a busy private owner and a failed effect.
+Safety preserves the original root, resources through return, exact publication,
+generation-bound completion and logical-once receipt even if OS work stays stuck.
+Conditional progress assumes weak fairness for runnable driver/commit/revisit/
+revalidation/reopen work and for entered OS effects/return. It does not promise
+provider disclosure or termination of an indefinitely blocked system call.
+
+```sh
+python3 docs/tla/check-repository-accessor-driver.py --java /absolute/path/to/java --jar /absolute/path/to/tla2tools.jar
+```
+
+All 17 generated checks pass: six safe scenarios exhaust 850, 4,912, 1,944,
+3,608, 520 and 1,128 states; six exact controls reject early resource release,
+replacement-root effects, stale receipts, failed-batch advancement, hint-only
+progress and lost owner wakeup. Five reachability controls require late input
+after an empty pass, saving while entered, resumed waiting work, restart and
+move/revalidation followed by completion. No state/depth constraint or symmetry
+reduction hides schedules. The [qualification ledger](../impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md)
+records the production witnesses and their separate OS/API boundaries.
+
+Concrete correspondence: `RootCoordinationControl`, synchronous `RootLease`
+accessors and its noncopyable prepared-stage lease supply resource ownership;
+`RepositoryRootSession` supplies reservations/generation checks;
+`RepositoryTransportDriver` supplies bounded retained batches, owner wakeups,
+monotonic revisits and lifecycle settlement. Actual byte/barrier truth, SQL
+acceptance, crypto, rejection persistence and detailed note reducers remain the
+obligations of their independent models and executable tests. These checks are
+not a whole-protocol composition proof.
+
+Root acquisition capability remains an OS/filesystem input, outside the scheduling
+model's positive-owned-root assumption. The approved fresh deep-HFS+ opening
+limitation takes the root-unavailable path: preserve private durability and fence
+provider effects until positive authority is established. It changes no safety or
+fairness assertion. A safe capability refusal is tested separately from successful
+opening, ordinary HFS+ access and already-owned deep moves; it is not a passing
+move/revalidation witness or Work Offline eligibility.
+
+## Bounded real-repository discovery
+
+`RepositoryDiscoverySafety.tla` isolates the P5.3 connection between nested
+directory progress and Runtime's durable receive queue. Two writer directories
+contain a low parent, its high child, independent work and a renamed duplicate.
+Initial empty disclosure, finite read failure, generation change and restart can
+interleave with bounded scans and acceptance. Retention precedes turn completion;
+accepted membership requires complete parents and records logical effects once.
+
+`RepositoryDiscoveryState`/the bounded `RootListingLease` stack implement parent
+progress. Fresh root permissions implement captured/current generations.
+Discovery results additionally bind the existing selected-store/session UUID or
+bootstrap-connection UUID. The executable reopen-consumer and construction probes
+qualify that local-owner lifetime boundary separately from this scheduling model.
+`objects`/`ready_objects` implement admitted retained input; accepted membership,
+dependency wakeups and complete current-row reduction implement the acceptance
+boundary. The model's simple parent/child values deliberately leave the broader
+note/conflict/Undo reducers to their existing models.
+
+Run all 15 generated checks:
+
+```sh
+python3 docs/tla/check-repository-discovery-model.py --java /absolute/path/to/java --jar /absolute/path/to/tla2tools.jar
+```
+
+The safe late/renamed configurations exhaust 29,792/15,586 states. Eight
+negative controls separately challenge notification-only scanning, high-water
+filtering, lost parent progress, filename filtering, lost retained input, stale
+turns, repeated logical effects and omitted parents. Five witness checks reach
+progress after an empty pass, restart, prerequisite wait and read failure, plus
+the stale-completion boundary. Counterexample/witness search counts are not
+exhaustive state counts. The runner requires nonzero exploration and the exact
+designated violation.
+
+Conditional progress assumes positive final disclosure and fair recurring local
+discovery/acceptance after finite interference; it promises neither eventual
+provider disclosure nor a complete directory listing. There is no state
+constraint or symmetry pruning. File fingerprints, cryptographic validation,
+actual SQL atomicity, complete physical barriers and arbitrary-history liveness
+remain [executable qualification](../impl-proposal-5/plan/phase5/03-local-repository-exchange-validation.md),
+not consequences of this small scheduling model.
+
+### Metadata batches and partial handoff
+
+`RepositoryMetadataBatchSafety.tla` refines the two-entry EOF-tail boundary:
+fresh selection versus old buffered attributes, root/store generations, exact
+retention, independent handoffs, accepted prerequisites, two write failures and
+one restart. Its safe configuration exhausts 35,134 states and checks conditional
+eventual acceptance of the latest disclosed generation. Five defect controls
+challenge dropped tails, stale results, lost retained input, old attributes and
+premature EOF closure. Three witnesses reach progress after partial failure,
+restart and a changed buffered leaf.
+
+```sh
+python3 docs/tla/check-repository-metadata-batches.py --java /absolute/path/to/java --jar /absolute/path/to/tla2tools.jar
+```
+
+The nine-case runner requires nonzero exploration and the designated violation.
+Fairness means recurring ordinary local scan/acceptance opportunities after finite
+modeled interference. The model neither requires provider notification/disclosure
+fairness nor replaces the original 15 discovery checks. Fingerprint truth, sparse
+SQL mapping, cryptography, private-owner checks, barriers and exact native buffer
+parsing remain [executable batch obligations](../impl-proposal-5/plan/phase5/bounded-discovery-batches-validation.md).
+The [connection-bound lookup tests](../impl-proposal-5/plan/phase5/private-connection-reuse.md)
+further qualify the same store-generation conditions with reused opening facts
+and physical turn/commit checks; the metadata model's state transitions remain
+unchanged.
+Logical-once acceptance is shared with the broader discovery model; these finite
+checks are complementary contracts, not a whole-program refinement proof.
+
 ## Environmental assumptions and implementation obligations
+
+### Integrated startup and association
+
+`CollectionStartupAssociationSafety.tla` connects P5.5's initial/late named waits,
+checked publication and durable root rebinding with a finite local save, entered
+old accessor, cancellation and one crash/restart. The old resource remains owned
+through actual return; binding commit, readback and adoption are separate steps.
+Its runner requires seven safe scenarios, nine exact named mutation failures and
+seven reachability controls (including Work Offline while an accessor is held,
+saving while entered, repeated readback failure, committed restart and
+canceled committed adoption):
+
+```sh
+python3 docs/tla/check-collection-startup-association.py --java "$TLC_JAVA" --jar "$TLC_JAR"
+```
+
+See the runtime/toolchain commands in the [P5.5 report](../impl-proposal-5/plan/phase5/05-startup-and-root-reassociation-validation.md).
+`BindingProgress` assumes finite storage failure and eventual actual accessor
+return, with explicit weak fairness; safety requires neither. Complete closure,
+truthful disclosure, physical identity and atomic SQL remain inputs connected to
+concrete process/type/lifetime tests. Named materialization shares the existing
+driver; readable-byte reclassification is abstracted and cloud progress is not
+promised. Concrete regression tests additionally require same-root Retry to refresh
+the reused named demand's permission context and pause obsolete evidence. The
+startup model abstracts driver attachment; an executable held-attachment witness
+requires the later of actual checked publication and attachment to perform the
+ordinary transport handoff without another notification. The
+fast-start models already separate acceptance from materialization: the actual
+publication consumer must classify that intervening lag as retryable and publish
+only after the exact current prefix catches up. These checks complement the existing fast-start/bootstrap, repair and
+accessor-driver models rather than constitute a whole-program refinement proof.
 
 The models assume the exact inputs named in their own boundaries: validated immutable values and causal ancestry, complete scoped catalogs, current root/store/generation evidence, truthful local durability/installation results, and applicable Apple member snapshots. They do not prove those API, codec or filesystem facts. Missing evidence disables only the dependent success transition; it cannot be manufactured from elapsed time, callbacks, labels, upload state or path similarity.
 
 Current [Apple API contract validation](../Apple-API-Contract-Validation.md), [safe replacement](../Foundation-Safe-Replacement-Migration.md) and [production integration gates](../impl-proposal-5/Verification.md) supply the concrete obligations. In particular, descriptor locking/ownership, exact byte readback, causal closure/pin durability, selected-member setters, cryptography, real crash recovery and AppKit behavior require implementation tests. Safety assumes no cloud fairness; temporal results depend only on the explicitly configured fairness and finite bounds. Separate model passes do not compose into a whole-implementation proof.
+
+[P5.2's physical qualification](../impl-proposal-5/plan/phase5/02-immutable-files-validation.md) tests the assumed truthful immutable-install result through the actual C/Swift boundary: complete-stage exclusive rename, equal-file verification/barriers, independently observed namespace effects, process cuts and a separate permitted-loss observer. [P5.3's connected qualification](../impl-proposal-5/plan/phase5/03-local-repository-exchange-validation.md) connects that installation to checked private accepted-history publication and actual file discovery/receive, including fresh-process recovery. The local-lane check remains unchanged. Process termination, simulated loss and later corruption remain separate evidence classes, and actual power-loss behavior remains unqualified.
 
 The [whole-set audit addendum](../impl-proposal-5/Verification.md#whole-active-model-audit--2026-09-08) records the strengthened result assertions and added races. `--only shared-catalog` and `--only shared-apple-` now exercise all three formerly unwired shared components, including their designated mutations. `SegmentDeletionSafety` adds full transitive recovery and `orderedRestore`/`mixed` scenarios; `CrashHost = 0` permits both hosts to crash in one execution. `SegmentDeletionOrderingSafety` adds known-but-unchosen E alongside F replacing H. Repair adds separate mid-copy provider-root, provider-source and private-store invalidation cases. These additions do not connect real Apple verification queries, actual file installation or every lifecycle failure into a single proof.
 

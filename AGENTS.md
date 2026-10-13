@@ -2,6 +2,8 @@
 
 This is Notational Velocity, a legacy Objective-C Cocoa note-taking app targeting macOS 11 through the latest version of macOS. It currently uses manual reference counting (MRC). The script `build.sh` builds the app using the current Xcode workspace and outputs any errors and warnings; run it after completing any significant set of changes. `docs/IntegrationTests.md` describes the integration test suite and how to run it. The `tests` directory contains the source code for the integration tests, which are built and run using the provided Makefile commands.
 
+The [test and validation index](docs/Test-and-Validation-Index.md) catalogues test purposes, run commands and defining plan/proposal references across all project phases, distinguishing implemented, planned, experimental and retired coverage. It also documents index regeneration and completeness checks.
+
 The goal of Notational Velocity is to offer extremely low latency note-taking with a keyboard-centric experience with search being the primary interface; the UI is a single window with a search field at the top and a note list below it. The note list is filtered in real-time as the user types in the search field, and the selected note is displayed in an editable text view. The reasoning behind this design is to allow notes to become self-organizing, by showing related notes as the user types the title of a new note. For a rationale of why NV lacks other features, see `NV_Philosophy_Interview_QA_2010.txt`. Secondary goals include security, privacy, and data durability. Data is expected to be sensitive, and not visible to other applications by default.
 
 # Implementation details and Rationale
@@ -26,7 +28,7 @@ New code, especially the NVStorage library, should make maximum use of the Swift
 
 # Backward compatibility
 
-There is no intermediate epoch-5 or segment-collection-based compatibility necessary; the last public release used the epoch-4 Notes & Settings file as the authoritative note store and was years ago. As a rule, if you don't see a commit on origin/master, then it hasn't been incorporated into a public release and no one is using it. Keep epoch-4 Notes & Settings opening/recovery and explicit legacy-export compatibility, tested by `tools/test-epoch4-v5-compatibility.sh`. New segment history, private state and current-row formats have no epoch-4-readability requirement and create no live compatibility archive. No safe mixed-version writing to a segment collection is promised.
+The last public release was in 2011 and used the epoch-4 Notes & Settings file as the authoritative note store. No epoch-5, segment-collection, NVStorage or private SQLite format has been publicly released. There is no compatibility requirement between their development drafts: revise the current encoding directly and remove superseded branches rather than adding versions or migrations solely to read earlier development bytes. A commit's presence on origin/master alone does not establish a public release; commits absent from origin/master are also unreleased. Keep epoch-4 Notes & Settings opening/recovery and explicit legacy-export compatibility, tested by `tools/test-epoch4-v5-compatibility.sh`. New segment history, private state and current-row formats have no epoch-4-readability requirement and create no live compatibility archive. No safe mixed-version writing to a segment collection is promised.
 
 # Comments
 

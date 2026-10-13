@@ -127,15 +127,13 @@ extension LocalStoreSession {
                             let d = try BootstrapDescriptorV1.decodeV1(bytes)
                             guard d.collection == selection.descriptor.collection, d.genesis == selection.descriptor.genesis,
                                   d.keyID == selection.descriptor.keyID, d.descriptorID == id else { throw StorageError.integrity }
-                            path = "NV Data/v1/keys/" + lowercaseHex(d.descriptorID) + ".nvkey"
+                            path = ImmutableRepositoryLocator.descriptor(d).relativePath
                         } else {
                             let opened = try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection)
                             let l = opened.locator
                             guard l.segmentID.bytes == id, r[0] == .integer(Int64(opened.kind.rawValue)),
                                   r[1] == .blob(l.writerEpoch.bytes), r[2] == .blob(Array(l.encodedV1()[16..<24])) else { throw StorageError.integrity }
-                            let sequence = String(l.sequence)
-                            path = "NV Data/v1/segments/" + lowercaseHex(l.writerEpoch.bytes) + "/"
-                                + String(repeating: "0", count: 20 - sequence.count) + sequence + "-" + lowercaseHex(l.segmentID.bytes) + ".nvseg"
+                            path = ImmutableRepositoryLocator.segment(l).relativePath
                         }
                         return try CapturedRepositoryObject(path: path, bytes: bytes)
                     }
@@ -145,9 +143,4 @@ extension LocalStoreSession {
             return CapturedRepositoryHistory(through: through, objects: captured)
         }
     }
-}
-
-private func lowercaseHex(_ bytes: [UInt8]) -> String {
-    let digits = Array("0123456789abcdef".utf8)
-    return String(decoding: bytes.flatMap { [digits[Int($0 >> 4)], digits[Int($0 & 15)]] }, as: UTF8.self)
 }

@@ -1,18 +1,9 @@
+import NVStorageTestSupport
 import Foundation
 import Crypto
 import Testing
 import NVStorageCore
 import NVStorageRuntime
-
-func newSession(_ initial: InitialCollectionV1, _ protection: ObjectProtectionV1) async throws -> LocalStoreSession {
-    try await .create(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path,
-        initial: initial, protection: protection)
-}
-func put(_ body: String, birth: NoteBirth, generation: UInt64, session: LocalStoreSession) async throws -> AcceptedHistoryReceipt {
-    let capture = try await CapturedActionGroup(snapshot: session.snapshot(), kind: .savedEdit,
-        changes: [.put(CapturedNoteGeneration(birth: birth, generation: generation), testValue(body))])
-    return try requireReceipt(await session.persist(capture: capture))
-}
 
 @Test(arguments: [false, true], [false, true])
 func oldCompletionPreservesNewerPendingWork(encrypted: Bool, deleteNewer: Bool) async throws {

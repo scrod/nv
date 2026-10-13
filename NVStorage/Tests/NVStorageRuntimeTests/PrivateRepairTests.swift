@@ -1,9 +1,8 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 import NVStorageCore
 @testable import NVStorageRuntime
-
-func privateTempPath() -> String { FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path }
 
 @Test(arguments: [false, true])
 func complementaryRepairPreservesUnpublishedHistoryAndPrivateInputs(encrypted: Bool) async throws {

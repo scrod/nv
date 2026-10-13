@@ -1,12 +1,8 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 import NVStorageCore
 @testable import NVStorageRuntime
-
-func snapshotReceipt(_ result: SnapshotCommitOutcome) throws -> AcceptedSnapshotReceipt {
-    guard case .accepted(let receipt) = result else { Issue.record("Expected complete durable snapshot acceptance"); throw StorageError.incomplete }
-    return receipt
-}
 
 /// Holds a real candidate or acceptance completion with compiler-isolated continuations.
 private actor SnapshotGate {
@@ -42,7 +38,7 @@ func snapshotAcceptancePreservesValuesAndCompletePin(encrypted: Bool, paged: Boo
     #expect(after.notes == before.notes && after.context == before.context && after.viewEpoch == before.viewEpoch)
     #expect(after.through == before.through + 1 && receipt.sequence == after.through)
     #expect(try await lane.perform { try $0.rows("SELECT (SELECT count(*) FROM actions),(SELECT count(*) FROM operations)") } == counts)
-    let expectedRoot = Set(preview.historyLocators.map(\.segmentID)).union([preview.root.tree.locator.segmentID])
+    let expectedRoot = Set(preview.requiredLocators.map(\.segmentID)).union([preview.root.tree.locator.segmentID])
     let rootEdges = try await lane.perform { db in
         try Set(db.rows("SELECT prerequisite FROM accepted_dependencies WHERE child=?", [.blob(receipt.snapshot.segmentID.bytes)]).map { try SegmentID(bytes: $0[0].bytes) })
     }
@@ -183,6 +179,9 @@ func snapshotRootReadyRecoveryUsesRetainedExactCandidates(encrypted: Bool) async
     let selection = await store.selection
     await lane.close()
     let reopened = try await LocalStoreSession.open(selection: selection, protection: protection), recoveredLane = await reopened.lane
+    #expect(try await reopened.snapshot().through == 1)
+    _ = try await reopened.publish(reopened.prepareReduction(liveGeneration: 0), liveGeneration: 0) { $0 }
+    await reopened.waitForReceiveForTesting()
     #expect(try await reopened.snapshot().through == 2)
     #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["A", "untouched"])
     #expect(try await recoveredLane.perform { try $0.rows("SELECT count(*) FROM ready_objects") } == [[.integer(0)]])

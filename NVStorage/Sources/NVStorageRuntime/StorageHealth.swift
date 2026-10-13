@@ -41,12 +41,25 @@ private actor HealthInspector {
     func lastPhase() -> StorageOpenPhase { phase }
 }
 
+extension StorageHealthReport {
+    /// Copies current namespace diagnostics after an actual required-state consumer failed.
+    static func requiredStateFailure(selection: LocalStoreSelection, failure: StorageError) async -> Self {
+        let inspector = HealthInspector(), directory = await inspector.entry(selection.directory)
+        let database = directory.kind == .directory ? await inspector.entry(selection.directory + "/Collection.sqlite") : nil
+        return .init(directory: directory, database: database, category: .requiredStateInvalid,
+            failure: failure, phase: .headerAndPrivateGroups)
+    }
+}
+
 extension LocalStoreSession {
     /// Uses the real opener and reports ambiguous cipher failures as unlocking/database uncertainty.
     public static func openDiagnosing(selection: LocalStoreSelection, protection: ObjectProtectionV1) async -> DiagnosedStoreOpen {
+        await openDiagnosing(selection: selection, protection: protection, measuring: nil)
+    }
+    static func openDiagnosing(selection: LocalStoreSelection, protection: ObjectProtectionV1, measuring: StorageWork?) async -> DiagnosedStoreOpen {
         let inspector = HealthInspector(), directory = await inspector.entry(selection.directory)
         let database = directory.kind == .directory ? await inspector.entry(selection.directory + "/Collection.sqlite") : nil
-        do { return try await .opened(open(selection: selection, protection: protection, measuring: nil,
+        do { return try await .opened(open(selection: selection, protection: protection, measuring: measuring,
             diagnosing: { await inspector.entered($0) })) }
         catch {
             let failure = classify(error), category: StorageHealthCategory

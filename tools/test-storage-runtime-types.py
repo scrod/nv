@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 import subprocess
 import importlib.util
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('typechecks', ROOT / 'tools/test-swift-storage-types.py')
@@ -21,6 +22,9 @@ def main():
     parser.add_argument('--modules', type=Path, required=True)
     parser.add_argument('--actors-only', action='store_true')
     parser.add_argument('--review-only', action='store_true', help='Check graph issuance and exhaustive reducer routing with their valid companion.')
+    parser.add_argument('--locality-only', action='store_true', help='Check current-row and maintenance boundaries with their valid companion.')
+    parser.add_argument('--batch-size', type=checker.batch_size, default=8,
+                        help='Maximum compatible negative clients per compile; 1 preserves isolated checking.')
     args = parser.parse_args()
     if args.actors_only and args.review_only:
         parser.error('Select one focused probe family at a time')
@@ -70,6 +74,7 @@ func merge(_ session: LocalStoreSession, _ birth: NoteBirth) async throws -> Not
     try await session.reductionPreview(for: birth)
 }
 func commands(_ session: LocalStoreSession, _ birth: NoteBirth, _ revision: OperationID) async throws -> CompensationPreparation {
+    let _ = try await session.undoCandidates(scope: .note(birth), direction: .undo)
     let _ = try await session.conflicts(for: birth)
     let _ = try await session.copyVersion(for: birth, revision: revision, generation: 1)
     let _ = try await session.chooseVersion(for: birth, revision: revision, generation: 1)
@@ -102,6 +107,12 @@ func rebuild(_ session: LocalStoreSession) async throws -> StoreSnapshot {
 }
 ''', None)
     issuers = [
+        ('scoped history visibility', '''
+func wrong() { _ = CheckedQueryHistory.self } // expected-error
+''', ("cannot find 'CheckedQueryHistory' in scope", "'CheckedQueryHistory' is inaccessible due to 'internal' protection level")),
+        ('checked envelope visibility', '''
+func wrong() { _ = CheckedEnvelopeRecords.self } // expected-error
+''', ("cannot find 'CheckedEnvelopeRecords' in scope", "'CheckedEnvelopeRecords' is inaccessible due to 'internal' protection level")),
         ('bootstrap construction issuer', '''
 func wrong(_ selection: LocalStoreSelection, _ protection: ObjectProtectionV1) {
     let _ = BootstrapCandidate(selection: selection, lane: .init(), protection: protection) // expected-error
@@ -138,7 +149,7 @@ func wrong() { take(AcceptedSnapshotReceipt.self) } // expected-error
 ''', "requires that 'AcceptedSnapshotReceipt' conform to 'Decodable'"),
         ('snapshot capture issuer', '''
 func wrong(_ c: GeneralSnapshotCapture) {
-    let _ = GeneralSnapshotCapture(store: c.store, collection: c.collection, through: c.through, bootstrapSnapshot: c.bootstrapSnapshot, records: c.records, session: UUID()) // expected-error
+    let _ = GeneralSnapshotCapture(store: c.store, collection: c.collection, through: c.through, bootstrapSnapshot: c.bootstrapSnapshot, records: c.records, retentionParents: c.retentionParents, session: UUID()) // expected-error
 }
 ''', "'GeneralSnapshotCapture' initializer is inaccessible due to 'private' protection level"),
         ('snapshot semantic issuer', '''
@@ -275,16 +286,69 @@ func wrong(_ s: StoreSnapshot, _ changes: [CapturedNoteChange]) throws {
 ''' % kind, "type 'OrdinaryActionKind' has no member '%s'" % kind))
     with checker.temporary_artifacts(prefix='nv-runtime-typecheck-') as tmp:
         command = ['swiftc', '-swift-version', '6', '-strict-concurrency=complete', '-strict-memory-safety',
-                   '-warnings-as-errors', '-typecheck', '-I', str(modules), '-module-cache-path', tmp,
-                   '-Xcc', '-I' + str(ROOT / 'NVStorage/.deps/sqlcipher/include')]
+                   '-warnings-as-errors', '-typecheck', '-I', str(modules),
+                   '-module-cache-path', checker.compiler_cache_path('swiftc', modules, tmp),
+                   '-Xcc', '-I' + str(ROOT / 'NVStorage/.deps/sqlcipher/include'),
+                   '-Xcc', '-I' + str(ROOT/'NVStorage/Sources/CStorageIO/include')]
+        if sys.platform == 'darwin':
+            apple = modules.parent/'CAppleFileAccess.build/module.modulemap'
+            assert apple.is_file(), apple
+            command += ['-Xcc', '-fmodule-map-file=' + str(apple)]
         for p in [modules.parent / 'CArgon2.build/module.modulemap', modules.parent / 'CStorageIO.build/module.modulemap',
+                  modules.parent / 'CSQLMaintenance.build/module.modulemap',
                   ROOT / 'NVStorage/Sources/CSQLCipher/module.modulemap', modules.parent / 'CZstd.build/module.modulemap']:
             assert p.is_file(), p
             command.extend(['-Xcc', '-fmodule-map-file=' + str(p)])
         runtime = sorted((ROOT / 'NVStorage/Sources/NVStorageRuntime').glob('*.swift'))
         runtime += [modules.parent / 'NVStorageRuntime.build/DerivedSources/resource_bundle_accessor.swift']
         count = 0
+        locality = [
+            ('current codec and maintenance companion', '''
+func use(_ owner: LocalStoreSession, _ cell: CurrentNoteCellV1, _ bytes: [UInt8]) async throws {
+    let dictionary = try CurrentRowDictionaryV1(bytes: bytes)
+    let encoder = try CurrentRowEncoderV1(dictionary: dictionary), decoder = try CurrentRowDecoderV1()
+    let _ = try decoder.decode(encoder.encode(cell)) { _ in dictionary }
+    let _ = try await owner.recodeCurrentRows(basedOn: owner.snapshot(), maximumRows: 32, trainDictionary: true)
+    await owner.cancelOptionalMaintenance()
+    switch try await owner.compactPrivateStore(budget: VacuumBudget()) {
+    case .completed, .interrupted: break
+    case .skipped(let reason):
+        switch reason { case .requiredWork, .storeBudget, .spaceHeadroom: break }
+    }
+}
+''', None),
+            ('encoder resources stay on their worker', '''
+func take<T: Sendable>(_ value: T) {}
+func wrong(_ encoder: CurrentRowEncoderV1) { take(encoder) } // expected-error
+''', "does not conform to the 'Sendable' protocol"),
+            ('decoder resources stay on their worker', '''
+func take<T: Sendable>(_ value: T) {}
+func wrong(_ decoder: CurrentRowDecoderV1) { take(decoder) } // expected-error
+''', "does not conform to the 'Sendable' protocol"),
+            ('dictionary digest is immutable', '''
+func wrong(_ dictionary: CurrentRowDictionaryV1) {
+    var d = dictionary; d.digest = [] // expected-error
+}
+''', "cannot assign to property: 'digest' is a 'let' constant"),
+            ('recode applicability belongs to its reader', '''
+func wrong() { _ = CurrentRecodeCapture.self } // expected-error
+''', ("'CurrentRecodeCapture' is inaccessible due to 'private' protection level", "cannot find 'CurrentRecodeCapture' in scope")),
+            ('ordinary row batch belongs to its reader', '''
+func wrong() { _ = OrdinaryRowBatch.self } // expected-error
+''', ("'OrdinaryRowBatch' is inaccessible due to 'private' protection level", "cannot find 'OrdinaryRowBatch' in scope")),
+            ('interrupt identity belongs to its connection', '''
+func wrong() { _ = VacuumRequest(connection: UUID(), identity: 1) } // expected-error
+''', "'VacuumRequest' initializer is inaccessible due to 'fileprivate' protection level"),
+        ]
+        sibling_command = command + ['-package-name', 'nvstorage', '-module-name', 'NVStorageRuntime', *map(str, runtime)]
+        completed = checker.run_probes(sibling_command,
+            [(name, 'import Foundation\nimport NVStorageCore\n' + source, error) for name, source, error in locality],
+            Path(tmp)/'locality', label='same-module', timeout=60, maximum=args.batch_size)
+        assert completed == len(locality)
+        if args.locality_only:
+            return
         for same in ([] if args.actors_only or args.review_only else [False, True]):
+            clients = []
             for name, source, error in [valid] + issuers + extra:
                 if same and name == 'history input issuer':
                     error = visibility
@@ -292,14 +356,14 @@ func wrong(_ s: StoreSnapshot, _ changes: [CapturedNoteChange]) throws {
                     error = tuple(s.replace('ValidatedHistoryBatch', 'CheckedCurrentBasis') for s in visibility)
                 if same and name == 'exact history object boundary':
                     error = tuple(s.replace('ValidatedHistoryBatch', 'HistoryObject') for s in visibility)
-                path = Path(tmp) / 'Client.swift'
+                if same and name in ['scoped history visibility', 'checked envelope visibility']:
+                    error = None
                 source = 'import Foundation\nimport NVStorageCore\n' + ('' if same else 'import NVStorageRuntime\n') + source
-                path.write_text(source)
-                cmd = command + (['-package-name', 'nvstorage', '-module-name', 'NVStorageRuntime', *map(str, runtime)] if same else []) + [str(path)]
-                run = subprocess.run(cmd, text=True, capture_output=True, timeout=60)
-                assert matches_expected(run.returncode, run.stderr, path, source, error), (name, run.stderr)
-                print('PASS:', 'same-module' if same else 'ordinary', name, flush=True); count += 1
-        assert count == (0 if args.actors_only or args.review_only else 88)
+                clients.append((name, source, error))
+            count += checker.run_probes(sibling_command if same else command, clients,
+                Path(tmp)/('same' if same else 'ordinary'), label='same-module' if same else 'ordinary',
+                timeout=60, maximum=args.batch_size)
+        assert count == (0 if args.actors_only or args.review_only else 92)
         if not args.actors_only:
             graph_cases = [
                 ('checked graph cut companion', '''
@@ -328,15 +392,32 @@ func wrong(_ graph: RetainedGraph, _ store: LocalStoreID) {
     let _ = CheckedHistoryTraversal(graph: graph, through: 1, scope: .allOccurrences, connection: UUID(), store: store) // expected-error
 }
 ''', "'CheckedHistoryTraversal' initializer is inaccessible due to 'private' protection level"),
+                ('scoped query issuer', '''
+func wrong(_ snapshot: StoreSnapshot, _ birth: NoteBirth) {
+    let _ = CheckedQueryHistory(scope: .undo(birth), snapshot: snapshot, connection: UUID(), actions: [], alternatives: [], dispositions: []) // expected-error
+}
+''', "'CheckedQueryHistory' initializer is inaccessible due to 'private' protection level"),
+                ('checked envelope issuer', '''
+func wrong(_ locator: SegmentLocator) {
+    let _ = CheckedEnvelopeRecords(locator: locator, sequence: 1, operations: [], actions: [], operationReferences: [:], actionReferences: [:]) // expected-error
+}
+''', "'CheckedEnvelopeRecords' initializer is inaccessible due to 'private' protection level"),
+                ('scoped query is distinct from complete graph', '''
+func use(_ checked: CheckedQueryHistory) {
+    let _: RetainedGraph = checked // expected-error
+}
+''', "cannot convert value of type 'CheckedQueryHistory' to specified type 'RetainedGraph'"),
+                ('scoped query companion', '''
+import Foundation
+func use(_ lane: DatabaseLane, _ selection: LocalStoreSelection, _ protection: ObjectProtectionV1, _ snapshot: StoreSnapshot, _ birth: NoteBirth) async throws -> [ActionV1] {
+    let checked = try await CheckedQueryHistory.read(scope: .undo(birth), snapshot: snapshot, session: snapshot.session, lane: lane, selection: selection, protection: protection)
+    return try await lane.perform { try checked.undoActions(for: birth, snapshot: snapshot, database: $0, selection: selection) }
+}
+''', None),
             ]
-            for name, source, error in graph_cases:
-                path = Path(tmp) / 'Client.swift'
-                source = 'import NVStorageCore\n' + source
-                path.write_text(source)
-                cmd = command + ['-package-name', 'nvstorage', '-module-name', 'NVStorageRuntime', *map(str, runtime), str(path)]
-                run = subprocess.run(cmd, text=True, capture_output=True, timeout=60)
-                assert matches_expected(run.returncode, run.stderr, path, source, error), (name, run.stderr)
-                print('PASS: same-module', name, flush=True); count += 1
+            count += checker.run_probes(sibling_command,
+                [(name, 'import NVStorageCore\n' + source, error) for name, source, error in graph_cases],
+                Path(tmp)/'graph', label='same-module', timeout=60, maximum=args.batch_size)
             graph = ROOT / 'NVStorage/Sources/NVStorageRuntime/GraphMaterialization.swift'
             source = graph.read_text() + '''
 private func uncheckedGraph() {
@@ -388,7 +469,7 @@ private func wrong(_ context: AuthoringContextV1, _ selection: LocalStoreSelecti
                 assert matches_expected(run.returncode, run.stderr, path, source, 'switch must be exhaustive'), run.stderr
                 print('PASS: actual', name, 'requires every supported variant', flush=True); count += 1
             if args.review_only:
-                assert count == 10
+                assert count == 14
                 return
             # Command provenance remains required inside the Runtime module too.
             intents = [
@@ -399,14 +480,11 @@ private func wrong(_ context: AuthoringContextV1, _ selection: LocalStoreSelecti
                 ('compensation', "missing arguments for parameters 'direction', 'target', 'authorization', 'restorations' in call"),
                 ('native', 'missing argument for parameter #1 in call'),
             ]
-            for name, error in intents:
-                source = 'import NVStorageCore\nfunc wrong() { let _: CapturedActionIntent = .%s() } // expected-error\n' % name
-                path = Path(tmp) / 'Client.swift'
-                path.write_text(source)
-                cmd = command + ['-package-name', 'nvstorage', '-module-name', 'NVStorageRuntime', *map(str, runtime), str(path)]
-                run = subprocess.run(cmd, text=True, capture_output=True, timeout=60)
-                assert matches_expected(run.returncode, run.stderr, path, source, error), (name, run.stderr)
-                print('PASS: same-module', name, 'requires command provenance', flush=True); count += 1
+            count += checker.run_probes(sibling_command,
+                [(name + ' requires command provenance',
+                  'import NVStorageCore\nfunc wrong() { let _: CapturedActionIntent = .%s() } // expected-error\n' % name, error)
+                 for name, error in intents],
+                Path(tmp)/'intent', label='same-module', timeout=60, maximum=args.batch_size)
 
             history = ROOT / 'NVStorage/Sources/NVStorageRuntime/HistoryDatabase.swift'
             source = history.read_text() + '''
@@ -445,6 +523,21 @@ private func uncheckedBatch() {
                 print('PASS: actual', name, 'receive classification requires complete case handling', flush=True); count += 1
         # Same-module callers exercise actor and connection boundaries directly.
         actor_cases = [
+            ('connection context belongs to opening checks', '''
+func wrong(_ db: Database) {
+    db.checkedContext = nil // expected-error
+}
+''', "'checkedContext' is inaccessible due to 'private' protection level"),
+            ('owned operation scope belongs to the connection', '''
+func wrong(_ db: Database) {
+    db.ownedOperationActive = true // expected-error
+}
+''', "'ownedOperationActive' is inaccessible due to 'private' protection level"),
+            ('owned operation entry belongs to its actor boundary', '''
+func wrong(_ db: Database) throws {
+    try db.withOwnedOperation {} // expected-error
+}
+''', "'withOwnedOperation' is inaccessible due to 'fileprivate' protection level"),
             ('prepared reconstruction issuer', '''
 func wrong() { _ = PreparedReconstruction.self } // expected-error
 ''', ("'PreparedReconstruction' is inaccessible due to 'private' protection level", "cannot find 'PreparedReconstruction' in scope")),
@@ -453,9 +546,12 @@ func wrong() { _ = PreparedCandidate.self } // expected-error
 ''', ("'PreparedCandidate' is inaccessible due to 'fileprivate' protection level", "cannot find 'PreparedCandidate' in scope")),
             ('checked snapshot issuer', '''
 func wrong(_ preview: GeneralSnapshotPreviewV1, _ selection: LocalStoreSelection, _ protection: ObjectProtectionV1) {
-    let _ = CheckedSnapshotAcceptance(preview: preview, through: 1, operationIDs: [], selection: selection, protection: protection, connection: UUID()) // expected-error
+    let _ = CheckedSnapshotAcceptance(preview: preview, through: 1, operationIDs: [], selection: selection, protection: protection, connection: UUID(), parents: .init()) // expected-error
 }
 ''', "'CheckedSnapshotAcceptance' initializer is inaccessible due to 'private' protection level"),
+            ('checked retention-parent issuer', '''
+func wrong() { _ = CheckedRetentionParents.self } // expected-error
+''', ("'CheckedRetentionParents' is inaccessible due to 'private' protection level", "cannot find 'CheckedRetentionParents' in scope")),
             ('checked executor and queue key', '''
 import Dispatch
 func acceptSendable<T: Sendable>(_ value: T) {}
@@ -556,7 +652,7 @@ func wrong() { let _: LocalCommitState = .running() } // expected-error
         diagnostic = "expression uses unsafe constructs but is not marked with 'unsafe'"
         assert matches_expected(run.returncode, run.stderr, path, changed, diagnostic), run.stderr
         print('PASS: actual C key borrow requires an explicit memory-safety boundary', flush=True); count += 1
-        assert count == (15 if args.actors_only else 123)
+        assert count == (19 if args.actors_only else 135)
 
 
 if __name__ == '__main__':

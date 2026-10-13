@@ -13,13 +13,13 @@ The first complete local milestone includes both public and encrypted envelopes,
 | First-subset action records and complete changes-payload framing | Implemented with group consistency, canonical expansion and exact direct-reference checks; **not** causal/Current/bootstrap validation or authentication |
 | Public/encrypted envelopes, descriptors/KDF, initial snapshot, selected-store/recovery-key encodings | Implemented with independent fixtures; production cryptographic/platform review remains |
 | Complete initial-import semantic validation | Implemented below, across exact envelopes/actions/pages; no durability or activation authority |
-| Private/current-state and later action/state record layouts | Raw current cells, authoring context and empty settings; [connected layouts](phase3-connected-record-contract.md) add multi-input Current, deterministic identities, recovery/choice/copy and compensation tails with independent fixtures |
+| Private/current-state and later action/state record layouts | Initial raw cells, authoring context and empty settings are preserved below; [connected layouts](phase3-connected-record-contract.md) add multi-input Current, deterministic identities, recovery/choice/copy and compensation tails, and [private records](private-record-contract.md) add nonempty settings/pending variants |
 | Complete bootstrap construction and recovery ordering | Implemented through exact bootstrap validation, SQL acceptance and separate materialization |
 | Client/runtime methods and ownership transitions | `LocalStoreSession`, immutable captures, restricted receipts, real directory ownership, generation checks and retry/quiesce implemented |
 | Initial SQLite history/private-group/current-row schema | [Executable DDL](sqlite-local-schema.md), SQL checks and real SQLCipher adapter; DDL and bundled resource are checked for exact equality |
-| Installation, pin commit and fresh opener | Working both-profile local path; [process, VFS, compiler and mutation qualification](phase2-local-runtime-validation.md); final selected-store cutover remains later work |
+| Installation, pin commit and fresh opener | Working both-profile local path; [process, VFS, compiler and mutation qualification](phase2-local-runtime-validation.md). [Phase 4C–4E](phase4-private-state-repair-copy-validation.md) adds verified local selected-store cutover; physical provider/application activation retains its later gates |
 
-The package has functional `NVStorageCore` and `NVStorageRuntime` targets using Swift 6 language mode and a Swift 6.1-or-newer build toolchain. It pins Swift Crypto 4.5.2, including upstream Linux `SymmetricKey: Sendable` support; `Package.resolved` records its revision and the transitive Swift ASN.1 resolution. The reproducible local build pins SQLCipher 4.19.0. SHA-256, HKDF/AES-GCM, vendored Argon2id and zstd provider-envelope compression have executable checks. The [dependency manifest](https://github.com/apple/swift-crypto/blob/4.5.2/Package.swift) selects CryptoKit on Apple and a different backing implementation on other platforms. A successful Mac test does not qualify that other implementation. Private current-row zstd/dictionary tuning remains the separate [selected candidate](clean-quit-locality-strategy.md#bounded-dictionary-tuning-selected-for-the-candidate); Phase 2 uses raw cells as its correctness baseline. Add the Apple target with its first working behavior. macOS 11.5 is the deployment declaration; executed platforms and remaining qualification are recorded in the [platform audit](phase2-platform-and-type-audit.md). No application target imports this package yet.
+The package has functional `NVStorageCore` and `NVStorageRuntime` targets using Swift 6 language mode and the adopted Swift 6.4 build toolchain. It pins Swift Crypto 4.5.2, including upstream Linux `SymmetricKey: Sendable` support; `Package.resolved` records its revision and the transitive Swift ASN.1 resolution. The reproducible local build pins SQLCipher 4.19.0. SHA-256, HKDF/AES-GCM, vendored Argon2id and zstd provider-envelope compression have executable checks. The [dependency manifest](https://github.com/apple/swift-crypto/blob/4.5.2/Package.swift) selects CryptoKit on Apple and a different backing implementation on other platforms. A successful Mac test does not qualify that other implementation. Phase 2 established raw canonical current cells as its correctness baseline; Phase 4F now supplies the separate [physical frame/dictionary contract](private-current-row-codec.md) without changing canonical values or action bytes. Add the Apple target with its first working behavior. macOS 11.5 is the deployment declaration; executed platforms and remaining qualification are recorded in the [platform audit](phase2-platform-and-type-audit.md) and [4F report](phase4-current-row-locality-maintenance-validation.md). No application target imports this package yet.
 
 An initial development implementation may report richer operations, derived-state variants and native compensation as unsupported until implemented. It must never skip them and expose an incomplete collection as editable. This is a development milestone, not a new reduced-capability production profile or permission to ship without proposal-5 features.
 
@@ -252,32 +252,50 @@ separately from pending Runtime consumer and durability tests.
 
 ### Private Local State
 
-The implemented raw current-cell, authoring-context and empty-settings layouts are
+The initial raw current-cell, authoring-context and empty-settings layouts are
 frozen in the [Phase 2 record table](phase2-local-runtime-validation.md#frozen-private-record-layouts).
-The current revision supplies the ordinary note predecessor; note and collection
-scope frontiers remain separately represented. These codecs do not enable later
-conflict/compensation or pending-file variants.
+That subset supplies the ordinary note predecessor; note and collection scope
+frontiers remain separately represented. The later [connected record contract](phase3-connected-record-contract.md)
+and [Phase 3 qualification](phase3-validation.md) add conflict/compensation
+variants. [Private records](private-record-contract.md) and
+[Phase 4C–4E](phase4-private-state-repair-copy-validation.md) add bounded pending
+records and nonempty settings; physical projection and app-settings migration
+retain their later gates.
 
 Use the required-state rows in [LocalStore](../LocalStore.md), not a separately
 installed `NVLOC1`/`NVLST1` file or a nested private envelope. Schema-versioned
 fields retain localStoreID, collectionID, profile/key/bootstrap binding, adapter
 association, state generations, genesis/required-descriptor/retained-frontier
 references and bounded independently versioned host settings. The first headless
-caller supports explicitly empty settings and rejects unsupported nonempty
-versions without rewriting them. This is not app-settings migration.
+caller supported explicitly empty settings. Current consumers also support the
+specified nonempty settings codec, while unsupported versions retain their
+explicit outcome and preserved bytes. Host preference interpretation remains
+with the later application adapter.
 
 The opener receives positively validated adapter selection and an opaque database
 key. Minimal external unlock/bootstrap representation and password-change policy
 are a separate gate; the old file prefix is not an adopted shortcut. Database
 authentication alone does not certify a copied physical association. Never put
 the sole unlock secret in the database, or delete credentials because lookup
-failed. Pending/item/reservation/receipt fields follow their existing semantic
-contracts and need reviewed codecs before enabling those features.
+failed. Pending/item/reservation/settlement codecs now follow their bounded
+private-record contract; physical file-installation and consent consumers remain
+the separate Phase 6 gate.
 
 Pin advancement and exact history acceptance commit atomically without replacing
 unrelated newer settings. Counter exhaustion does not wrap. Required-state loss
 or invalidation is not derived-row loss; a surviving pin still names required
 retained closure even when a prior completion callback was lost.
+
+The connection owner checks fixed schema/header/descriptor facts once per opening,
+then compares callers with that exact private checked context. Synchronous turns
+check physical ownership on entry/exit; transactions additionally check before
+and after commit. Ownership failure blocks the affected operation; retry requires
+positive identity of the same held directory and database.
+Required private records keep their actual decoding and generation checks;
+exceptional reconstruction rechecks them at capture and installation. A delayed
+acceptance result reports its real historical commit, including after orderly
+optional-work close. Existing session/generation checks control its actual
+consumer. [Concrete connection contract and tests](phase5/private-connection-reuse.md).
 
 ## 4. Complete bootstrap and first recovery
 
@@ -289,11 +307,55 @@ This corrects the roadmap's previous deferral of **all** snapshot formats. Initi
 4. Construct and verify all initial snapshot pages and the final root, whose frontier includes ImportComplete. Nothing in Genesis/ImportComplete refers back to the snapshot's not-yet-created hash.
 5. Validate and retain exact immutable objects/descriptors in the private database; commit their complete acceptance membership, ready work and retained pin atomically. Creation activates its private association only after the full bootstrap is verified. Stored-but-parked input is evidence, not bootstrap completion. SQL commit/recovery and final store activation replace per-object private file/pin installers.
 6. Repository/profile setup and required plaintext outputs retain their independent activation gates. A headless private-store test does not prove a completed user-visible PlaintextFilesV1 creation or provider publication. Do not create application credentials or switch its collection for this test.
-7. A fresh opener receives only the actual surviving database/journal, selected association and normal unlock input. Recover commits, validate bootstrap/known required evidence, drain actionable stored candidates and construct the current materialization. Returning startup uses indexed current-state catch-up; fresh bootstrap may read complete initial history. Never supply the test parent's expected values, acknowledgment log or prior process handles as recovery input.
+7. A fresh opener receives only the actual surviving database/journal, selected association and normal unlock input. Recover commits, validate bootstrap/known required evidence and unfinished verification, drain ready Changes and their discovered required prerequisites, and construct the current materialization. Select required entries independently of queue order. Independent optional snapshots stay durable and begin processing after successful checked host publication through the existing receive owner and save-settlement wakeups. Returning startup uses indexed current-state catch-up; fresh bootstrap may read complete initial history. Never supply the test parent's expected values, acknowledgment log or prior process handles as recovery input.
 
 For already established collections, an acceleration snapshot is not the only representation of independently retained valid import/action history. This does **not** permit ignoring a surviving pin naming a missing/corrupt accepted snapshot object: known-loss classification and exact repair still apply. Do not turn the **creation-completion** snapshot requirement into snapshot-only history authority. The existing bootstrap model allows reconstruction from complete initial history; it abstracts the concrete snapshot pin/installer and is not a proof of those details.
 
 ## 5. Small runtime/client contract
+
+The integrated Phase 5 startup boundary is `CollectionSession`. It consumes the
+existing complete local opener and its single checked current-row capture,
+requires a returning association, and reserves selection through the synchronous
+checked host callback. Provider acquisition remains independent. Its immutable
+`CollectionPreparedPublication`, `CollectionCapturedAction` and `WorkOfflineChoice`
+values bind their actual consumers to the issuing owner and attempt. Normal local
+receipts retain their existing commit and pending-generation rules.
+
+History acceptance and current-row installation remain separate transactions.
+A consistent capture that finds accepted history ahead of the current rows is
+stale and retryable: finish/catch up materialization and recapture before
+publication. Missing required state, invalid rows and known history damage keep
+their separate recovery outcomes. The transient gap cannot publish partial
+values or be reported as missing durable history.
+
+An entered provider accessor may make fresh readability checks busy. Work Offline
+then rechecks the original exact disclosure's live root/attempt and complete local
+health, releases only local publication, and preserves the named pending input.
+It grants no provider-effect permission. Same-root Retry refreshes the attempt;
+freshly disclosed root evidence replaces the same named demand's old permission
+context while preserving its bounded-attempt state. An obsolete disclosure pauses
+that demand instead of restarting an immediate stale-read loop.
+The existing named worker's completion remains routed by its physical root and
+exact locator, so that completion can settle the renewed wait. A new-root
+association rejects that old-root completion.
+If local publication finishes while the named worker is attaching, attachment
+settlement performs the existing publication handoff. The worker then resumes
+ordinary discovery/publication using fresh root permissions, without requiring
+another hint, incoming object or user action.
+
+`CollectionBootstrapSession` owns one explicitly selected descriptor/root and
+durable partial construction. `BootstrapReadOnlyPreview` requires every displayed
+page and commitment but grants only values for presentation. Complete durable
+bootstrap acceptance and normal local reopening precede binding/editability.
+Failure after that acceptance can retry the normal opener using the same committed
+snapshot; source bytes and the bootstrap commitment remain retained.
+
+Root Retry checks the continuously held resource. Explicit Re-open reserves one
+transition, independently acquires the selected resource, commits the existing
+association record and reconciles completion by exact generation/value readback.
+Until readback and old-accessor return settle, both candidates remain owned and
+new transitions are busy. The detailed boundaries and commands are recorded in
+[P5.5 qualification](phase5/05-startup-and-root-reassociation-validation.md).
 
 The following is an API design, not a shipped declaration or a public extensible backend framework. Implement the methods only with their actual issuer/adapter. Names are provisional; the contracts are not. Core owns values/validation; Runtime owns local storage and acceptance; the host owns its live model and pending generations. Apple adapters supply qualified rooted resources rather than redefining codecs.
 
@@ -361,7 +423,7 @@ no receipt, editing, or physical-file authority. See [tests](validation-resumpti
 | Atomic history/index/pin commit succeeds | Issue the exact covered-generation receipt. Provider progress is independent; stale host completion must not clear a newer edit/Delete |
 | Derived current-row transaction fails after acceptance | History remains durable. Catch up current rows before editable reopening; materialization failure cannot fail an otherwise durable quit |
 | Waiter cancels after admission or completion callback is lost | Stop waiting, not owned persistence. Store retains admitted work; retry/recovery queries exact committed identities. Native task cancellation cannot mean undo or discard |
-| Crash at any boundary | SQLite recovery selects complete transaction outcomes. Reconcile exact committed identities, drain persisted ready work and catch up materialization; no partial action, stale consent or callback-dependent history |
+| Crash at any boundary | SQLite recovery selects complete transaction outcomes. Reconcile exact committed identities, drain startup-required ready work and catch up materialization; independent optional snapshots resume after checked publication. No partial action, stale consent or callback-dependent history |
 | Root/private store/lifecycle changes | Fence effects against their actual context. Root loss alone does not cancel healthy local acceptance; private-store/ownership/key loss blocks local success |
 | Close fails | Return a still-owned pending session and explicit failure/recovery choices. No fallible work in deinit or termination callbacks |
 

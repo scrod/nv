@@ -1,6 +1,7 @@
 #ifndef NV_STORAGE_IO_H
 #define NV_STORAGE_IO_H
 #include <stdint.h>
+#include "NVRepositoryRoot.h"
 typedef struct NVStorageOwner NVStorageOwner;
 /* Caller owns the returned lease until close. errno reports native failures. */
 NVStorageOwner *nv_storage_owner_open(const char *directory, int create);

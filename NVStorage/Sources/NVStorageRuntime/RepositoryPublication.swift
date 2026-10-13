@@ -1,0 +1,176 @@
+import Foundation
+import NVStorageCore
+
+/// Resumes indexed selection at a frozen prefix, or starts the next pass after a completed prefix.
+public struct RepositoryPublicationCursor: Sendable {
+    fileprivate let store: LocalStoreID
+    fileprivate let session: UUID
+    fileprivate let through: Int64?
+    fileprivate let afterSequence: Int64
+    fileprivate let afterObject: [UInt8]
+    fileprivate init(store: LocalStoreID, session: UUID, through: Int64?, afterSequence: Int64, afterObject: [UInt8]) {
+        self.store = store; self.session = session; self.through = through
+        self.afterSequence = afterSequence; self.afterObject = afterObject
+    }
+}
+
+/// Exact accepted bytes selected in a bounded turn from a complete retained history prefix.
+public struct RepositoryPublicationBatch: Sendable {
+    public let through: Int64
+    public let continuation: RepositoryPublicationCursor?
+    /// Starts a later accepted prefix after every batch in this pass has been handed off successfully.
+    public var nextPass: RepositoryPublicationCursor? {
+        continuation == nil ? RepositoryPublicationCursor(store: store, session: session, through: nil,
+            afterSequence: through, afterObject: Array(repeating: 255, count: 32)) : nil
+    }
+    public var locators: [ImmutableRepositoryLocator] { objects.map(\.locator) }
+    public var encodedByteCount: Int { objects.reduce(0) { $0 + $1.bytes.count } }
+    fileprivate let store: LocalStoreID
+    fileprivate let session: UUID
+    fileprivate let descriptor: BootstrapDescriptorV1
+    fileprivate let objects: [ImmutableRepositoryObject]
+    fileprivate init(store: LocalStoreID, session: UUID, descriptor: BootstrapDescriptorV1, through: Int64,
+                     objects: [ImmutableRepositoryObject], continuation: RepositoryPublicationCursor?) {
+        self.store = store; self.session = session; self.descriptor = descriptor; self.through = through
+        self.objects = objects; self.continuation = continuation
+    }
+}
+
+/// Physical installations checked against their original accepted capture and live root.
+public struct PublishedRepositoryBatch: Sendable {
+    public var locators: [ImmutableRepositoryLocator] { batch.locators }
+    public var through: Int64 { batch.through }
+    fileprivate let batch: RepositoryPublicationBatch
+    fileprivate let installed: [ImmutableInstallation]
+    fileprivate init(batch: RepositoryPublicationBatch, installed: [ImmutableInstallation]) {
+        self.batch = batch; self.installed = installed
+    }
+}
+
+/// A failed installation retains completed effects separately from its exact retry input.
+public enum RepositoryPublicationResult: Sendable {
+    case complete(PublishedRepositoryBatch)
+    case incomplete(installed: [ImmutableInstallation], failure: RepositoryInstallationFailure)
+}
+
+extension LocalStoreSession {
+    /// Selects accepted objects by private sequence and identity, releasing every SQL turn before transport.
+    /// One oversized object advances a byte-budgeted turn within the existing envelope ceiling.
+    public func captureRepositoryPublication(continuing cursor: RepositoryPublicationCursor? = nil,
+                                            maximumObjects: Int = 16, byteBudget: Int = 4 * 1024 * 1024) async throws -> RepositoryPublicationBatch {
+        guard !closed, !quiescing else { throw StorageError.closed }
+        guard maximumObjects > 0, maximumObjects <= 64, byteBudget > 0,
+              UInt64(byteBudget) <= ObjectLimitsV1.encodedPayloadBytes + 156 else { throw StorageError.limit }
+        if let cursor {
+            guard cursor.store == selection.store, cursor.session == incarnation else { throw StorageError.wrongContext }
+        }
+        let selection = selection, protection = protection, session = incarnation
+        let through = try await lane.perform { db in
+            try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
+            let accepted = try db.acceptedThrough()
+            if let cut = cursor?.through, cut > accepted { throw StorageError.staleCapture }
+            if let cursor, cursor.afterSequence > accepted { throw StorageError.staleCapture }
+            return cursor?.through ?? accepted
+        }
+        let batch = try await lane.verifying(.history(through)) {
+            try await lane.perform { db in
+                try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
+                return try db.checkingRetainedHistory {
+                    guard try db.rows("SELECT o.encoded FROM retained_descriptors r JOIN accepted_objects a USING(object_id) LEFT JOIN objects o USING(object_id) WHERE r.object_id=? AND a.seq<=?",
+                        [.blob(selection.descriptor.descriptorID), .integer(through)]) == [[.blob(selection.descriptor.encodedBytes)]] else { throw StorageError.incomplete }
+                    let rows = try db.rows("SELECT a.seq,a.object_id,length(o.encoded) FROM accepted_objects a LEFT JOIN objects o USING(object_id) WHERE a.seq<=? AND (a.seq,a.object_id)>(?,?) ORDER BY a.seq,a.object_id LIMIT ?",
+                        [.integer(through), .integer(cursor?.afterSequence ?? 0), .blob(cursor?.afterObject ?? []), .integer(Int64(maximumObjects + 1))])
+                    var objects: [ImmutableRepositoryObject] = [], size = 0, last: [SQLValue]?
+                    for row in rows {
+                        let length = try row[2].number
+                        guard length > 0, UInt64(length) <= ObjectLimitsV1.encodedPayloadBytes + 156 else { throw StorageError.integrity }
+                        if objects.count == maximumObjects || (!objects.isEmpty && length > byteBudget - size) { break }
+                        let id = try row[1].bytes
+                        guard try db.rows("SELECT 1 FROM accepted_dependencies d LEFT JOIN accepted_objects p ON p.object_id=d.prerequisite WHERE d.child=? AND (p.seq IS NULL OR p.seq>?) LIMIT 1",
+                            [.blob(id), .integer(through)]).isEmpty else { throw StorageError.incomplete }
+                        guard let stored = try db.rows("SELECT kind,writer_epoch,sequence,encoded FROM objects WHERE object_id=?", [.blob(id)]).first else { throw StorageError.incomplete }
+                        let bytes = try stored[3].bytes, object: ImmutableRepositoryObject
+                        db.countWork { $0.historyReads += 1; $0.historyEncodedBytes += bytes.count }
+                        if stored[0] == .integer(0) {
+                            let descriptor = try BootstrapDescriptorV1.decodeV1(bytes)
+                            guard descriptor.descriptorID == id, descriptor.genesis == selection.descriptor.genesis else { throw StorageError.integrity }
+                            object = try .descriptor(descriptor, collection: selection.descriptor.collection, keyID: selection.descriptor.keyID)
+                        } else {
+                            guard try stored[2].bytes.count == 8 else { throw StorageError.integrity }
+                            let locator = try SegmentLocator(writerEpoch: WriterEpoch(bytes: stored[1].bytes),
+                                sequence: stored[2].bytes.reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }, segmentID: SegmentID(bytes: id))
+                            object = try .envelope(bytes, locator: locator, collection: selection.descriptor.collection, protection: protection)
+                            db.countWork { $0.envelopeDecodes += 1 }
+                            guard bytes.count > 10, stored[0] == .integer(Int64(bytes[10])) else { throw StorageError.integrity }
+                        }
+                        objects.append(object); size += bytes.count; last = row
+                    }
+                    let next: RepositoryPublicationCursor?
+                    if let last, objects.count < rows.count {
+                        next = try RepositoryPublicationCursor(store: selection.store, session: session, through: through,
+                            afterSequence: last[0].number, afterObject: last[1].bytes)
+                    } else { next = nil }
+                    return RepositoryPublicationBatch(store: selection.store, session: session, descriptor: selection.descriptor,
+                        through: through, objects: objects, continuation: next)
+                }
+            }
+        }
+        guard !closed, !quiescing else { throw StorageError.closed }
+        return batch
+    }
+
+    fileprivate func checkPublication(_ batch: RepositoryPublicationBatch) async throws {
+        guard !closed, !quiescing else { throw StorageError.closed }
+        guard batch.store == selection.store, batch.session == incarnation,
+              batch.descriptor.encodedBytes == selection.descriptor.encodedBytes else { throw StorageError.wrongContext }
+        let selection = selection
+        try await lane.perform { db in
+            try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
+            guard try db.acceptedThrough() >= batch.through else { throw StorageError.staleCapture }
+        }
+        guard !closed, !quiescing else { throw StorageError.closed }
+    }
+}
+
+extension RepositoryRootSession {
+    /// Installs a checked accepted batch through the existing exact-byte physical boundary.
+    /// Interrupted callers retain the immutable batch for retry, including effects with lost completion.
+    public func publish(_ batch: RepositoryPublicationBatch, from source: LocalStoreSession,
+                        using permission: RepositoryRootPermission) async throws -> RepositoryPublicationResult {
+        try await publish(batch, from: source, using: permission, beforeInstall: { _ in })
+    }
+
+    func publish(_ batch: RepositoryPublicationBatch, from source: LocalStoreSession,
+                 using permission: RepositoryRootPermission,
+                 beforeInstall: @escaping @Sendable (ImmutableRepositoryObject) -> Void) async throws -> RepositoryPublicationResult {
+        try checkPermission(permission)
+        try await source.checkPublication(batch)
+        var installed: [ImmutableInstallation] = []
+        for object in batch.objects {
+            try await source.checkPublication(batch)
+            switch try await install(object, for: batch.descriptor, using: permission,
+                                     beforeInstall: { beforeInstall(object) }, afterInstall: {}) {
+            case .verified(let evidence):
+                try validate(evidence, for: object, using: permission)
+                installed.append(evidence)
+            case .notInstalled(let failure), .uncertain(let failure):
+                return .incomplete(installed: installed, failure: failure)
+            }
+        }
+        try await source.checkPublication(batch)
+        try checkPermission(permission)
+        return .complete(PublishedRepositoryBatch(batch: batch, installed: installed))
+    }
+
+    /// Rechecks both issuers before a consumer uses completed physical publication evidence.
+    public func validate(_ published: PublishedRepositoryBatch, from source: LocalStoreSession,
+                         using permission: RepositoryRootPermission) async throws {
+        try checkPermission(permission)
+        try await source.checkPublication(published.batch)
+        guard published.installed.count == published.batch.objects.count else { throw RepositoryRootError.wrongContext }
+        for (evidence, object) in zip(published.installed, published.batch.objects) {
+            try validate(evidence, for: object, using: permission)
+        }
+        try checkPermission(permission)
+    }
+}

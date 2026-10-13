@@ -1,0 +1,5028 @@
+{
+  "version": 1,
+  "title": "NVStorage behavior scenarios",
+  "scope": "These walkthroughs describe specified storage behavior. Requirement links identify governing rules; test-contract links identify validation obligations. Implementation and platform qualification are documented in the linked plans and reports.",
+  "categories": [
+    {
+      "id": "daily",
+      "title": "Local editing, durability and startup",
+      "description": "Edit admission and capture, SQL acceptance, accepted-prefix startup, verification replay, and derived-row reconstruction."
+    },
+    {
+      "id": "sync",
+      "title": "Immutable history, merge and deletion",
+      "description": "Dependency-aware reception and publication, note-head reduction, causal Delete/edit handling, and snapshot retention ancestry."
+    },
+    {
+      "id": "history",
+      "title": "History, restoration and compensation",
+      "description": "Historical field recovery, fresh-birth Restore, causal Undo/Redo, native remaining-effect coverage, and shared-window ownership."
+    },
+    {
+      "id": "files",
+      "title": "Plaintext files and external versions",
+      "description": "File observation and provenance, automatic import, pending input retention, projection installation, external deletion, and Apple version disposition."
+    },
+    {
+      "id": "repair",
+      "title": "Damage classification, repair and backup",
+      "description": "Same-root repository repair, retained-history reconstruction, fresh-store activation, bootstrap, and complete private backups."
+    },
+    {
+      "id": "security",
+      "title": "Encryption profiles and credentials",
+      "description": "Password/key recovery, add-only key wrapping, authenticated decoding, and explicitly requested plaintext output."
+    },
+    {
+      "id": "lifecycle",
+      "title": "Root ownership and collection transitions",
+      "description": "Repository copy, current-note recovery export, root moves, close ordering, collection switching, and epoch-4 migration."
+    }
+  ],
+  "references": {
+    "spec.local": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Local admission, sealing and recovery"
+    },
+    "spec.start": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Startup, creation and private current state"
+    },
+    "spec.repair": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Repository and private-store damage and repair"
+    },
+    "spec.sync": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Immutable discovery and atomic publication"
+    },
+    "spec.values": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Causal values, conflicts and deletion"
+    },
+    "spec.files": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Separate plaintext files"
+    },
+    "spec.resolver": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Conflict resolver and Apple disposition"
+    },
+    "spec.history": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Note History, Recently Deleted and undo"
+    },
+    "spec.roots": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Root events, shutdown and transitions"
+    },
+    "spec.crypto": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Encryption and persistence formats"
+    },
+    "spec.backup": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Backup, diagnostics and compatibility"
+    },
+    "spec.ownership": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Storage, identity and ownership"
+    },
+    "spec.input": {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "section": "Input and content scope"
+    },
+    "protocol.local": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Admission, sealing, and durability without a second WAL"
+    },
+    "protocol.sync": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Immutable provider publication and reception"
+    },
+    "protocol.merge": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Conservative automatic merge version 1"
+    },
+    "protocol.actions": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Action records and cross-launch undo"
+    },
+    "protocol.history": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Historical recovery and deleted-note history"
+    },
+    "protocol.stamp": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Projection stamp and delayed-history handling"
+    },
+    "protocol.decision": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Current-file decision matrix"
+    },
+    "protocol.pending": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Pending-file retention and retry identity"
+    },
+    "protocol.pendingrecords": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Pending-file commit and recovery records"
+    },
+    "protocol.repair": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Repository and private-store repair protocol"
+    },
+    "protocol.snapshots": {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "section": "Snapshots, startup, rejoin, and retention"
+    },
+    "local.start": {
+      "path": "docs/impl-proposal-5/LocalStore.md",
+      "section": "Concrete returning-launch algorithm"
+    },
+    "local.rebuild": {
+      "path": "docs/impl-proposal-5/LocalStore.md",
+      "section": "Exceptional bootstrap and snapshot reconstruction"
+    },
+    "local.backup": {
+      "path": "docs/impl-proposal-5/LocalStore.md",
+      "section": "SQLite backup, salvage and replacement activation"
+    },
+    "local.keys": {
+      "path": "docs/impl-proposal-5/LocalStore.md",
+      "section": "Database keys and password-free recovery"
+    },
+    "impl.review": {
+      "path": "docs/impl-proposal-5/Implementation.md",
+      "section": "Invocation-scoped Undo/Redo review"
+    },
+    "impl.shared": {
+      "path": "docs/impl-proposal-5/Implementation.md",
+      "section": "Shared-note windows and editor ownership"
+    },
+    "impl.quit": {
+      "path": "docs/impl-proposal-5/Implementation.md",
+      "section": "Quit, root closure, and storage transitions"
+    },
+    "impl.copy": {
+      "path": "docs/impl-proposal-5/Implementation.md",
+      "section": "Repository copy versus current-notes export"
+    },
+    "impl.history": {
+      "path": "docs/impl-proposal-5/Implementation.md",
+      "section": "Per-note history and selective recovery"
+    },
+    "impl.files": {
+      "path": "docs/impl-proposal-5/Implementation.md",
+      "section": "External-file admission and pending decisions"
+    },
+    "plan.save": {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "section": "6. Phase 2 — One complete local save and fresh reopen"
+    },
+    "plan.semantics": {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "section": "7. Phase 3 — Portable semantics through two independent stores"
+    },
+    "plan.start": {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "section": "8. Phase 4 — Startup, repair, repository copy and private state"
+    },
+    "plan.provider": {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "section": "9. Phase 5 — Provider and physical-root adapters"
+    },
+    "plan.files": {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "section": "10. Phase 6 — Plaintext projection and pending-file recovery"
+    },
+    "plan.host": {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "section": "11. Phase 7 — Application capture, history UI and lifecycle"
+    },
+    "plan.qualification": {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "section": "12. Phase 8 — Qualification, not a late testing phase"
+    },
+    "crypto.wrap": {
+      "path": "docs/impl-proposal-5/Encryption.md",
+      "section": "Passphrase changes, key changes, and recovery"
+    },
+    "crypto.envelope": {
+      "path": "docs/impl-proposal-5/Encryption.md",
+      "section": "Common object envelope version 1"
+    },
+    "apple.versions": {
+      "path": "docs/Apple-API-Contract-Validation.md",
+      "section": "AV-05 — unresolved-version disclosure, immutable reads, and disposition"
+    },
+    "apple.input": {
+      "path": "docs/Apple-API-Contract-Validation.md",
+      "section": "Text input and undo platform boundary"
+    },
+    "apple.root": {
+      "path": "docs/Apple-API-Contract-Validation.md",
+      "section": "AV-16 — root-directory lock contract"
+    },
+    "replacement": {
+      "path": "docs/Foundation-Safe-Replacement-Migration.md",
+      "section": "Target transaction"
+    },
+    "snapshot": {
+      "path": "docs/impl-proposal-5/plan/general-snapshot-record-contract.md",
+      "section": "State and history responsibilities"
+    },
+    "verification": {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/durable-verification-recovery.md",
+      "section": "Reopening, cancellation and shutdown"
+    },
+    "rowcodec": {
+      "path": "docs/impl-proposal-5/plan/private-current-row-codec.md",
+      "section": "Preparation and installation"
+    },
+    "maintenance": {
+      "path": "docs/impl-proposal-5/plan/clean-quit-locality-strategy.md",
+      "section": "Adopted opportunistic full-VACUUM policy"
+    },
+    "windows.bookmarks": {
+      "path": "docs/impl-proposal-5/Window-UI-Architecture.md",
+      "section": "Note Bookmarks: a dedicated window per saved search"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "offline-save",
+      "category": "daily",
+      "title": "Local save while the provider is unavailable",
+      "summary": "With a healthy, unlocked private store, edits enter the live model immediately. The local SQL transaction commits exact history and its required bookkeeping before acknowledgment; provider publication remains pending.",
+      "setup": "A returning Mac has a healthy, unlocked, exclusively owned private store. The user edits “Packing” while the provider is unavailable.",
+      "outcome": "After the complete local commit, the edit survives reopening and remains queued for exact publication.",
+      "requirements": [
+        "DUR-01",
+        "ROOT-01",
+        "PUB-01",
+        "CKPT-01"
+      ],
+      "contracts": [
+        "TC-CAP-01",
+        "TC-LIVE-01",
+        "TC-DUR-04"
+      ],
+      "sources": [
+        "spec.local",
+        "protocol.local",
+        "plan.save"
+      ],
+      "steps": [
+        {
+          "title": "Edit admission and pending-generation registration",
+          "actor": "This Mac",
+          "user": "The text and synchronous search results update immediately. The edit is pending.",
+          "operation": "Admit the edit into the live model and record its generation, before-state and action context.",
+          "rule": "Local health, key and lifecycle gates govern admission; provider waiting alone does not block it.",
+          "roles": {
+            "read": [
+              "live",
+              "views"
+            ],
+            "write": [
+              "pendinglive",
+              "search"
+            ],
+            "guard": [
+              "gate",
+              "localowner"
+            ]
+          },
+          "focus": "pendinglive",
+          "edges": []
+        },
+        {
+          "title": "Capture, sealing and atomic local acceptance",
+          "actor": "This Mac",
+          "user": "Typing continues while the captured generation is encoded off the main thread.",
+          "operation": "Freeze the complete action, seal once, then atomically commit exact bytes, acceptance/indexes, retained pin and wakeups.",
+          "rule": "A qualified complete SQL commit is the local durability barrier. Capture scheduling is not an acknowledgment.",
+          "roles": {
+            "read": [
+              "capture",
+              "seal",
+              "batch"
+            ],
+            "write": [
+              "objects",
+              "accepted",
+              "opindex",
+              "actionindex",
+              "pin",
+              "receiveq"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "objects",
+          "edges": [
+            "e3",
+            "e8",
+            "e11"
+          ]
+        },
+        {
+          "title": "Reopening from local history before publication",
+          "actor": "This Mac",
+          "user": "Packing contains the durable edit and is searchable. Sync remains pending.",
+          "operation": "Recover the accepted suffix, load complete current rows/context, and later publish the same retained sealed objects.",
+          "rule": "Upload and plaintext installation are separate outcomes; local durability does not depend on either.",
+          "roles": {
+            "read": [
+              "objects",
+              "accepted",
+              "current",
+              "view"
+            ],
+            "write": [
+              "live",
+              "search",
+              "pubwork"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "current",
+          "edges": []
+        }
+      ],
+      "related": [
+        "save-crash",
+        "delayed-save",
+        "quit-offline"
+      ],
+      "featured": true
+    },
+    {
+      "id": "save-crash",
+      "category": "daily",
+      "title": "Crash recovery before and after the local commit",
+      "summary": "A pending edit becomes recoverable only after its complete local transaction commits. Recovery includes a committed action whose callback was lost; text still held only in RAM remains within the pending loss window.",
+      "setup": "“Trip” has a durable value A and a pending value B. Power is lost at different points in the next save.",
+      "outcome": "Recovery includes complete committed groups, including a commit whose callback was lost. RAM-only edits retain an explicit loss window.",
+      "requirements": [
+        "DUR-01",
+        "START-01",
+        "HIST-01"
+      ],
+      "contracts": [
+        "TC-DUR-01",
+        "TC-DUR-04",
+        "TC-CAP-01"
+      ],
+      "sources": [
+        "spec.local",
+        "protocol.local",
+        "plan.save"
+      ],
+      "steps": [
+        {
+          "title": "Pending value B before the durability barrier",
+          "actor": "This Mac",
+          "user": "B is visible with pending work; it has no completed durability acknowledgment.",
+          "operation": "Capture/sealing may be scheduled, but the previous accepted closure A remains the recovery baseline.",
+          "rule": "The existing 2.7-second idle and 15-second first-pending timers are scheduling targets, not per-keystroke durability promises.",
+          "roles": {
+            "read": [
+              "live"
+            ],
+            "write": [
+              "pendinglive",
+              "capture"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "pendinglive",
+          "edges": []
+        },
+        {
+          "title": "Interruption of the acceptance transaction",
+          "actor": "This Mac",
+          "user": "Before a qualified commit, B is unacknowledged. After a complete commit, its durable identity exists even without a callback.",
+          "operation": "SQLite resolves transaction state; exact object bytes and complete action/index/pin/wakeup bookkeeping succeed together.",
+          "rule": "There is no accepted partial action and no second NV note-value WAL.",
+          "roles": {
+            "read": [
+              "seal",
+              "batch"
+            ],
+            "write": [
+              "objects",
+              "accepted",
+              "pin",
+              "receiveq"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "accepted",
+          "edges": []
+        },
+        {
+          "title": "Recovery from complete committed evidence",
+          "actor": "Restart",
+          "user": "The recovered model shows A or committed B according to the durable evidence.",
+          "operation": "Query exact committed identities, drain required work and materialize the complete accepted prefix before editable publication.",
+          "rule": "Neither an upload flag nor a lost UI completion determines whether the action committed.",
+          "roles": {
+            "read": [
+              "objects",
+              "accepted",
+              "receiveq"
+            ],
+            "write": [
+              "current",
+              "view",
+              "live",
+              "search"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "current",
+          "edges": []
+        }
+      ],
+      "related": [
+        "offline-save",
+        "delayed-save"
+      ],
+      "featured": false
+    },
+    {
+      "id": "delayed-save",
+      "category": "daily",
+      "title": "Delayed save completion with a newer pending generation",
+      "summary": "Capture E contains AB. A later edit creates generation F containing ABC before E completes. E’s completion settles only E; F remains pending and its live value remains ABC.",
+      "setup": "Capture E contains “AB”. While E saves, another keystroke produces newer generation F with “ABC”.",
+      "outcome": "E may settle its own generation; F remains pending until its own complete barrier succeeds.",
+      "requirements": [
+        "DUR-01",
+        "PUB-01",
+        "CKPT-01"
+      ],
+      "contracts": [
+        "TC-DUR-01",
+        "TC-ASY-01"
+      ],
+      "sources": [
+        "protocol.local",
+        "spec.local",
+        "plan.host"
+      ],
+      "steps": [
+        {
+          "title": "Frozen capture E containing AB",
+          "actor": "This Mac",
+          "user": "The sealer works on AB while the editor remains responsive.",
+          "operation": "Copy complete E values/action metadata and bind the capture to exact pending generations.",
+          "rule": "One collection sealer owns immutable retry input; later edits cannot alter that capture.",
+          "roles": {
+            "read": [
+              "pendinglive"
+            ],
+            "write": [
+              "capture",
+              "seal"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Admission of F containing ABC while E is in flight",
+          "actor": "This Mac",
+          "user": "The live note is ABC; F is a distinct newer pending generation.",
+          "operation": "Preserve F and its dependent causal context while E finishes its own SQL acceptance.",
+          "rule": "A captured value is not a snapshot of all work that will exist at completion time.",
+          "roles": {
+            "read": [
+              "live",
+              "capture"
+            ],
+            "write": [
+              "pendinglive",
+              "accepted",
+              "pin"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "pendinglive",
+          "edges": []
+        },
+        {
+          "title": "Settlement of E without clearing F",
+          "actor": "This Mac",
+          "user": "ABC stays visible and pending. E cannot clear F or write AB over it.",
+          "operation": "Settle only serviced generations; separately validate any prepared model publication and capture F next.",
+          "rule": "Durable record completion and generation-fenced live publication have separate applicability checks.",
+          "roles": {
+            "read": [
+              "accepted",
+              "pendinglive"
+            ],
+            "write": [
+              "capture",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        }
+      ],
+      "related": [
+        "offline-save",
+        "projection-abc"
+      ],
+      "featured": false
+    },
+    {
+      "id": "fast-startup",
+      "category": "daily",
+      "title": "Returning startup with optional snapshot work queued",
+      "summary": "Startup drains required Changes, prerequisites and unfinished verification, then captures all current rows and authoring context consistently. Independent optional snapshot work starts after checked publication of the editable model.",
+      "setup": "The returning store has valid current rows plus a small accepted suffix, a large old history, and an independent optional snapshot waiting.",
+      "outcome": "All current notes and authoring context publish together; optional history preparation continues after that checked handoff.",
+      "requirements": [
+        "START-01",
+        "CKPT-01",
+        "PUB-01"
+      ],
+      "contracts": [
+        "TC-START-01",
+        "TC-PERF-01",
+        "TC-LIMIT-02"
+      ],
+      "sources": [
+        "spec.start",
+        "local.start",
+        "plan.start"
+      ],
+      "steps": [
+        {
+          "title": "Recovery of startup-required work",
+          "actor": "This Mac",
+          "user": "Opening waits for known required Changes and prerequisites, not arbitrary queue order.",
+          "operation": "Drain durable required work and unfinished verification; leave independent optional snapshot assembly durably queued.",
+          "rule": "Bootstrap, known damage and required dependencies still gate success.",
+          "roles": {
+            "read": [
+              "receiveq",
+              "verification",
+              "accepted"
+            ],
+            "write": [
+              "reduce",
+              "current",
+              "view"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "receiveq",
+          "edges": []
+        },
+        {
+          "title": "Consistent capture and publication of complete current state",
+          "actor": "This Mac",
+          "user": "Every current body and synchronous-search index is ready before editing begins.",
+          "operation": "Decode complete current rows and compact authoring frontiers directly into final unpublished memory under one consistent read capture.",
+          "rule": "Validate scope/version/codecs, view epoch and accepted/materialized prefixes; final owner checks prevent stale publication.",
+          "roles": {
+            "read": [
+              "current",
+              "view",
+              "dict"
+            ],
+            "write": [
+              "live",
+              "search",
+              "pendinglive"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "current",
+          "edges": []
+        },
+        {
+          "title": "Optional intake after successful host publication",
+          "actor": "This Mac",
+          "user": "The complete current model accepts input and serves synchronous search while optional history/snapshot work proceeds in bounded background turns.",
+          "operation": "Reserve the receive owner after successful publication; resume optional validation and lazy scoped history queries.",
+          "rule": "Finite saves settling must allow progress without another delivery. Required persistence takes priority over optional maintenance.",
+          "roles": {
+            "read": [
+              "objects",
+              "actionindex",
+              "receiveq"
+            ],
+            "write": [
+              "snapwork",
+              "history",
+              "maintenance"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "history",
+          "edges": []
+        }
+      ],
+      "related": [
+        "work-offline",
+        "derived-rebuild",
+        "fresh-mac"
+      ],
+      "featured": true
+    },
+    {
+      "id": "work-offline",
+      "category": "daily",
+      "title": "Startup with positively disclosed but unreadable newer evidence",
+      "summary": "A complete returning local history can support Work Offline when startup is waiting for named, positively disclosed newer evidence. Generic provider unavailability is a synchronization status condition and does not require this choice.",
+      "setup": "Local history is complete. At startup the provider positively discloses newer required object R, whose bytes cannot yet be read.",
+      "outcome": "Work Offline opens the complete local closure and preserves the obligation to reconcile R later.",
+      "requirements": [
+        "REPAIR-01",
+        "START-01",
+        "ROOT-01",
+        "WAIT-01"
+      ],
+      "contracts": [
+        "TC-START-02",
+        "TC-LIVE-01"
+      ],
+      "sources": [
+        "spec.start",
+        "spec.repair",
+        "plan.provider"
+      ],
+      "steps": [
+        {
+          "title": "Positive disclosure of named unread evidence R",
+          "actor": "This Mac",
+          "user": "Startup shows a bounded wait for R and offers Work Offline or Save Current Collection As….",
+          "operation": "Record positive disclosure and distinguish it from generic offline, quota, permission or timeout status.",
+          "rule": "An evicted provider copy already retained exactly in the private store creates no such wait.",
+          "roles": {
+            "read": [
+              "appleowner",
+              "objects",
+              "pin"
+            ],
+            "write": [
+              "recvwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "recvwork",
+          "edges": []
+        },
+        {
+          "title": "Explicit continuation from the complete local closure",
+          "actor": "This Mac",
+          "user": "All locally durable notes remain editable and searchable.",
+          "operation": "Publish the healthy local closure after ordinary ownership/key/startup gates; fence affected provider effects.",
+          "rule": "This choice does not declare R absent, resolved or safe to overwrite. Generic provider unavailability needs no Work Offline prompt.",
+          "roles": {
+            "read": [
+              "current",
+              "view",
+              "pin"
+            ],
+            "write": [
+              "live",
+              "search"
+            ],
+            "guard": [
+              "gate",
+              "localowner"
+            ]
+          },
+          "focus": "live",
+          "edges": []
+        },
+        {
+          "title": "Reconciliation when R becomes readable",
+          "actor": "This Mac",
+          "user": "New history reconciles with any local edits without revoking the active session’s editability.",
+          "operation": "Retain and validate R, resolve dependencies, then prepare and generation-check its reduction.",
+          "rule": "Late positive disclosure in an already editing session is pending sync status, not a retroactive startup gate.",
+          "roles": {
+            "read": [
+              "rchanges"
+            ],
+            "write": [
+              "objects",
+              "receiveq",
+              "reduce",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "reduce",
+          "edges": []
+        }
+      ],
+      "related": [
+        "offline-save",
+        "repository-repair",
+        "fresh-mac"
+      ],
+      "featured": false
+    },
+    {
+      "id": "derived-rebuild",
+      "category": "daily",
+      "title": "Reconstruction of invalid derived current rows",
+      "summary": "Invalid current-row codecs, dictionaries or prefix binding require reconstruction from healthy retained history. Complete rows and authoring context install under a fresh view epoch while required private records and pending work are preserved.",
+      "setup": "Retained history is healthy, but a current-cell codec/dictionary or represented-prefix binding is invalid.",
+      "outcome": "Reconstruct the complete current model from validated history, preserving settings, association and pending work.",
+      "requirements": [
+        "CKPT-01",
+        "START-01",
+        "REPAIR-01"
+      ],
+      "contracts": [
+        "TC-START-01",
+        "TC-DUR-06"
+      ],
+      "sources": [
+        "local.rebuild",
+        "rowcodec",
+        "spec.start"
+      ],
+      "steps": [
+        {
+          "title": "Classification of derived-row invalidity",
+          "actor": "This Mac",
+          "user": "Opening reports reconstruction instead of showing an empty or partial collection.",
+          "operation": "Separate current-row/dictionary/view invalidity from retained-history or required-private-state damage.",
+          "rule": "A damaged required pin, association or shared database takes the repair path; it cannot be treated as a disposable row.",
+          "roles": {
+            "read": [
+              "current",
+              "dict",
+              "view",
+              "header",
+              "pin"
+            ],
+            "write": [
+              "repairwork"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "current",
+          "edges": []
+        },
+        {
+          "title": "Reconstruction through the captured accepted prefix",
+          "actor": "This Mac",
+          "user": "Recovery prepares every note and compact authoring context off the main thread.",
+          "operation": "Verify the snapshot’s logical cut and all accepted outside-cut actions; reduce complete final values/context.",
+          "rule": "Snapshot values alone cannot omit earlier branches, Deletes, restorations or compensation context.",
+          "roles": {
+            "read": [
+              "objects",
+              "accepted",
+              "opindex",
+              "actionindex"
+            ],
+            "write": [
+              "graph",
+              "reduce"
+            ],
+            "guard": [
+              "verification"
+            ]
+          },
+          "focus": "graph",
+          "edges": []
+        },
+        {
+          "title": "Generation-checked installation of the complete derived view",
+          "actor": "This Mac",
+          "user": "The complete collection reopens with its settings and pending decisions intact.",
+          "operation": "Atomically install complete rows/context with a fresh epoch only while owner, accepted target and starting view still match.",
+          "rule": "Required private groups and history remain independently durable; interference forces recapture.",
+          "roles": {
+            "read": [
+              "reduce",
+              "private",
+              "pendingdisk"
+            ],
+            "write": [
+              "current",
+              "view",
+              "live",
+              "search"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "view",
+          "edges": []
+        }
+      ],
+      "related": [
+        "verification-restart",
+        "private-repair",
+        "fast-startup"
+      ],
+      "featured": false
+    },
+    {
+      "id": "verification-restart",
+      "category": "daily",
+      "title": "Restart during retained-history verification",
+      "summary": "A durable request records the exact scope before a check that may discover retained-history damage. If checking, diagnosis or settlement is interrupted, reopening replays that obligation before editable publication.",
+      "setup": "An on-demand history read may discover damage. The process can crash or fail a diagnosis write before recording its result.",
+      "outcome": "A durable verification obligation is replayed before editing; it rechecks evidence instead of replaying a user command.",
+      "requirements": [
+        "DUR-01",
+        "REPAIR-01",
+        "START-01"
+      ],
+      "contracts": [
+        "TC-START-01",
+        "TC-REPAIR-01",
+        "TC-DUR-06"
+      ],
+      "sources": [
+        "spec.local",
+        "verification"
+      ],
+      "steps": [
+        {
+          "title": "Durable registration of the verification scope",
+          "actor": "This Mac",
+          "user": "The operation enters verification with an exact, recoverable scope.",
+          "operation": "Durably retain a host-private request before checking accepted evidence whose damage diagnosis could otherwise disappear.",
+          "rule": "A successful normal open with no unfinished requests keeps the indexed startup path.",
+          "roles": {
+            "read": [
+              "accepted",
+              "graph"
+            ],
+            "write": [
+              "verification"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "verification",
+          "edges": []
+        },
+        {
+          "title": "Interrupted verification, diagnosis or settlement",
+          "actor": "This Mac",
+          "user": "The app retains the unfinished request, even if writing a damage marker fails.",
+          "operation": "Check exact bytes through graph/reducer validation; fence the live owner immediately on discovered damage.",
+          "rule": "Only completed verification settles that request; storage failure leaves a replayable obligation.",
+          "roles": {
+            "read": [
+              "objects",
+              "verification"
+            ],
+            "write": [
+              "graph"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        },
+        {
+          "title": "Replay of the unfinished verification request",
+          "actor": "Restart",
+          "user": "Editing waits for the required check or an explicit repair/recovery outcome.",
+          "operation": "Replay the retained scope, then atomically settle it or replace it with the diagnosed damage marker.",
+          "rule": "Cancellation/close never turn an unfinished check into a successful one; retries are bounded.",
+          "roles": {
+            "read": [
+              "verification",
+              "objects"
+            ],
+            "write": [
+              "repairwork",
+              "current",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "verification",
+          "edges": []
+        }
+      ],
+      "related": [
+        "derived-rebuild",
+        "missing-history"
+      ],
+      "featured": false
+    },
+    {
+      "id": "child-first",
+      "category": "sync",
+      "title": "Receipt of a Delete before its parent edit",
+      "summary": "Mac B receives Delete D before edit P, which D observes. B retains D and its reverse waits across restart, then accepts and reduces the complete validated dependency closure when P arrives.",
+      "setup": "Mac A creates edit P then Delete D observing P. Mac B receives D first and restarts before P arrives.",
+      "outcome": "B retains D as waiting evidence and applies the complete validated closure only after P is durable locally.",
+      "requirements": [
+        "DUR-01",
+        "DELETE-01",
+        "DISC-01"
+      ],
+      "contracts": [
+        "TC-DUR-02",
+        "TC-DISC-01"
+      ],
+      "sources": [
+        "protocol.local",
+        "protocol.sync",
+        "plan.semantics"
+      ],
+      "steps": [
+        {
+          "title": "Retention of D while parent P is missing",
+          "actor": "Mac B",
+          "user": "Mac B keeps its current note; the incomplete child is not yet an applied Delete.",
+          "operation": "Retain exact D bytes, record named dependencies and atomically park reverse waits.",
+          "rule": "Stored bytes, accepted causal history and live publication are separate states.",
+          "roles": {
+            "read": [
+              "rchanges"
+            ],
+            "write": [
+              "objects",
+              "receiveq",
+              "recvwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "receiveq",
+          "edges": []
+        },
+        {
+          "title": "Receipt of P and validation of D’s complete closure",
+          "actor": "Mac B",
+          "user": "The durable waiting obligation survives the restart.",
+          "operation": "Retain/validate P, wake affected dependents and validate D’s entire action/parent closure.",
+          "rule": "A rejected prerequisite blocks its dependents without discarding shared evidence or accepting a valid-looking prefix.",
+          "roles": {
+            "read": [
+              "objects",
+              "receiveq"
+            ],
+            "write": [
+              "batch",
+              "accepted",
+              "pin",
+              "opindex",
+              "actionindex"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "accepted",
+          "edges": []
+        },
+        {
+          "title": "Publication of the accepted causal result",
+          "actor": "Mac B",
+          "user": "B now reflects the applicable Delete without emitting a new local echo action.",
+          "operation": "Reduce the accepted operation set and publish atomically after current generation checks.",
+          "rule": "Incoming Delete affects a logical birth; it never grants permission to unlink a remembered filename.",
+          "roles": {
+            "read": [
+              "accepted",
+              "graph"
+            ],
+            "write": [
+              "reduce",
+              "live",
+              "conflicts"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "reduce",
+          "edges": []
+        }
+      ],
+      "related": [
+        "delete-race",
+        "publication-retry"
+      ],
+      "featured": false
+    },
+    {
+      "id": "publication-retry",
+      "category": "sync",
+      "title": "Publication retry after an uncertain completion",
+      "summary": "A retry reuses exact locally accepted bytes and identity. Equal provider finals still require verification and namespace barriers; foreign or contradictory occupants are preserved, and duplicate receipt adds one semantic action.",
+      "setup": "A locally durable segment was installed at the provider, but its completion was lost. A duplicate or conflicting final name appears.",
+      "outcome": "Retry the same sealed bytes and identity; verify final/directory barriers and preserve conflicting evidence.",
+      "requirements": [
+        "DUR-01",
+        "DISC-01",
+        "CLEAN-01",
+        "AUTH-01"
+      ],
+      "contracts": [
+        "TC-DUR-05",
+        "TC-DISC-01",
+        "TC-ASY-01"
+      ],
+      "sources": [
+        "protocol.sync",
+        "plan.provider"
+      ],
+      "steps": [
+        {
+          "title": "Selection of exact locally accepted publication input",
+          "actor": "This Mac",
+          "user": "Pending sync selects objects already protected by the local barrier.",
+          "operation": "Capture an accepted prefix and retrieve its exact sealed objects/descriptors for publication.",
+          "rule": "A publication retry never reseals changed values under an old operation identity or nonce.",
+          "roles": {
+            "read": [
+              "accepted",
+              "objects",
+              "pin"
+            ],
+            "write": [
+              "pubwork"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "pubwork",
+          "edges": [
+            "e42",
+            "e43"
+          ]
+        },
+        {
+          "title": "Verification of final names and installation barriers",
+          "actor": "This Mac",
+          "user": "An equal final can complete a verified retry. A foreign/wrong-kind/contradictory occupant is preserved.",
+          "operation": "Use held rooted parents, exclusive creation, exact final-byte checks and required namespace barriers; clean only owned disposable stages.",
+          "rule": "Equal bytes alone do not prove provider installation durability or physical ownership.",
+          "roles": {
+            "read": [
+              "pubwork",
+              "rstages"
+            ],
+            "write": [
+              "rchanges",
+              "rkeys"
+            ],
+            "guard": [
+              "rootowner",
+              "appleowner"
+            ]
+          },
+          "focus": "rchanges",
+          "edges": []
+        },
+        {
+          "title": "Idempotent receipt of duplicate objects",
+          "actor": "Mac B",
+          "user": "Mac B adds one semantic action, even if filenames or notifications differ.",
+          "operation": "Validate bounded bytes and complete identity, deduplicate accepted set insertion, and retain independent legitimate branches.",
+          "rule": "Listings and callbacks are discovery opportunities; omissions, sequence holes and empty passes do not certify completeness.",
+          "roles": {
+            "read": [
+              "rchanges",
+              "recvwork"
+            ],
+            "write": [
+              "objects",
+              "accepted",
+              "receiveq"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "accepted",
+          "edges": []
+        }
+      ],
+      "related": [
+        "child-first",
+        "root-move"
+      ],
+      "featured": false
+    },
+    {
+      "id": "separated-merge",
+      "category": "sync",
+      "title": "Automatic merge of strictly separated line edits",
+      "summary": "Two heads share a unique common base. One changes line 1 and the other changes line 3, with an unchanged line between them. If every field satisfies the conservative rules, reduction derives a combined Current while retaining both inputs.",
+      "setup": "Both Macs know “Bread / Milk / Apples” on three LF-separated lines. A changes line 1 to Sourdough; B changes line 3 to Pears.",
+      "outcome": "With exactly two eligible heads and a unique common base, Current becomes “Sourdough / Milk / Pears”; both inputs remain history.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01"
+      ],
+      "contracts": [
+        "TC-MERGE-01",
+        "TC-MERGE-02",
+        "TC-BYTE-01"
+      ],
+      "sources": [
+        "spec.values",
+        "protocol.merge",
+        "plan.semantics"
+      ],
+      "steps": [
+        {
+          "title": "Independent revisions from one common base",
+          "actor": "Mac A + Mac B",
+          "user": "A sees its first-line edit; B sees its last-line edit.",
+          "operation": "Capture distinct complete actions with the exact represented note predecessors and scope parents.",
+          "rule": "Dates and arrival order supply no winner; exact stored UTF-8/CRLF/LF distinctions are preserved.",
+          "roles": {
+            "read": [
+              "live",
+              "view"
+            ],
+            "write": [
+              "capture",
+              "pendinglive"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Validation of heads, base and separated edit intervals",
+          "actor": "This Mac",
+          "user": "Each receiver retains both complete branches before attempting a merge.",
+          "operation": "Derive exact note heads and the unique best common base; calculate one prefix/suffix-bounded edit per branch.",
+          "rule": "Only strictly separated intervals merge. Other fields must also satisfy their rules, together as one result.",
+          "roles": {
+            "read": [
+              "objects",
+              "opindex"
+            ],
+            "write": [
+              "graph",
+              "decoded",
+              "reduce"
+            ],
+            "guard": [
+              "verification"
+            ]
+          },
+          "focus": "reduce",
+          "edges": []
+        },
+        {
+          "title": "Fenced publication of the derived combined Current",
+          "actor": "This Mac",
+          "user": "The three lines read Sourdough, Milk, Pears. Both branch IDs remain inspectable.",
+          "operation": "Publish the complete derived value and its represented inputs after a live-generation recheck.",
+          "rule": "Automatic recomputation does not mint a random local merge action; third-head or stale inputs require recomputation/review.",
+          "roles": {
+            "read": [
+              "reduce",
+              "graph"
+            ],
+            "write": [
+              "live",
+              "search",
+              "conflicts"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "live",
+          "edges": []
+        }
+      ],
+      "related": [
+        "merge-review",
+        "ordinary-conflict-edit"
+      ],
+      "featured": true
+    },
+    {
+      "id": "merge-review",
+      "category": "sync",
+      "title": "Review after overlapping edits or a third head",
+      "summary": "Overlapping or touching edits, ambiguous bases, a third head, or the two-sided line limit prevent automatic merge. All alternatives remain available; a prepared choice must match the complete current inputs at admission.",
+      "setup": "Two Macs replace “Milk” differently, or a third independent head arrives while a two-head merge is being prepared.",
+      "outcome": "Preserve all alternatives and offer review instead of electing a timestamp winner or pairwise folding three branches.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01",
+        "REC-01"
+      ],
+      "contracts": [
+        "TC-MERGE-01",
+        "TC-MERGE-02",
+        "TC-UI-01"
+      ],
+      "sources": [
+        "spec.values",
+        "protocol.merge",
+        "spec.resolver"
+      ],
+      "steps": [
+        {
+          "title": "Discovery of incompatible exact heads",
+          "actor": "This Mac",
+          "user": "Current has unresolved alternatives, even if two previews happen to look equal.",
+          "operation": "Retain exact revisions and build deterministic head/represented-input evidence.",
+          "rule": "Touching edit intervals, same-boundary insertions, ambiguous best bases, and two-sided bodies over 10,000 lines require review.",
+          "roles": {
+            "read": [
+              "objects",
+              "opindex"
+            ],
+            "write": [
+              "graph",
+              "conflicts"
+            ],
+            "guard": [
+              "verification"
+            ]
+          },
+          "focus": "conflicts",
+          "edges": []
+        },
+        {
+          "title": "Invalidation of a two-head preparation by a third head",
+          "actor": "This Mac",
+          "user": "A prepared two-input result cannot overwrite the now-current three-head state.",
+          "operation": "Recheck the complete head set, generation and represented inputs immediately before publication or choice admission.",
+          "rule": "Three heads are not pairwise merged into an invented winner; equal values do not erase revision identities.",
+          "roles": {
+            "read": [
+              "graph",
+              "live"
+            ],
+            "write": [
+              "reduce"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        },
+        {
+          "title": "Preparation and admission of an explicit applicable choice",
+          "actor": "This Mac",
+          "user": "The resolver previews exact alternatives. Dismissal before admission leaves note state and history unchanged.",
+          "operation": "An explicit applicable choice captures its exact scope, then takes the ordinary complete local action barrier.",
+          "rule": "Preview is side-effect free; changed inputs require new preparation and consent.",
+          "roles": {
+            "read": [
+              "conflicts",
+              "graph"
+            ],
+            "write": [
+              "capture",
+              "pendinglive"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "conflicts",
+          "edges": []
+        }
+      ],
+      "related": [
+        "separated-merge",
+        "ordinary-conflict-edit",
+        "conflict-copy"
+      ],
+      "featured": false
+    },
+    {
+      "id": "ordinary-conflict-edit",
+      "category": "sync",
+      "title": "Ordinary editing of one unresolved head",
+      "summary": "An ordinary edit of displayed head A supersedes the represented A input. Known incompatible head B remains unresolved. Releasing the temporary local Current-head pin schedules reduction of the complete applied head set.",
+      "setup": "Current represents A while incompatible head B is known. The user edits A to A′ before explicitly resolving B.",
+      "outcome": "The ordinary edit supersedes its represented A input and preserves B and independently edited conflict notes.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01"
+      ],
+      "contracts": [
+        "TC-SEM-01",
+        "TC-MERGE-02"
+      ],
+      "sources": [
+        "spec.values",
+        "protocol.actions",
+        "plan.semantics"
+      ],
+      "steps": [
+        {
+          "title": "Current A with unresolved alternative B",
+          "actor": "This Mac",
+          "user": "The editor shows A; conflict attention retains B.",
+          "operation": "Pair Current with its actual represented note inputs and keep the full applied causal action frontier.",
+          "rule": "Action awareness and note supersession answer different questions.",
+          "roles": {
+            "read": [
+              "graph",
+              "view"
+            ],
+            "write": [
+              "live",
+              "conflicts"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "live",
+          "edges": []
+        },
+        {
+          "title": "Ordinary edit from represented A to A′",
+          "actor": "This Mac",
+          "user": "A′ is visible and pending; B is still an alternative.",
+          "operation": "Freeze a faithful action before/after pair and predecessor set for Current’s represented A, without silently widening it to B.",
+          "rule": "An explicit resolution or valid automatic merge needs its own complete represented-input evidence.",
+          "roles": {
+            "read": [
+              "live",
+              "pendinglive"
+            ],
+            "write": [
+              "capture"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Reduction after release of the temporary Current-head pin",
+          "actor": "This Mac",
+          "user": "After the exact local barrier, the full applied head set is reduced again.",
+          "operation": "Schedule reduction/publication when the temporary editing pin is released, even without another provider callback.",
+          "rule": "Keep independently edited conflict copies; generation checks protect newer typing.",
+          "roles": {
+            "read": [
+              "accepted",
+              "graph",
+              "conflicts"
+            ],
+            "write": [
+              "reduce",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "conflicts",
+          "edges": []
+        }
+      ],
+      "related": [
+        "merge-review",
+        "retracted-copy"
+      ],
+      "featured": false
+    },
+    {
+      "id": "delete-race",
+      "category": "sync",
+      "title": "Concurrent Delete and offline edit on separate Macs",
+      "summary": "Delete D and edit E are authored independently from the same note. Causal reduction deletes the old birth and preserves an otherwise eligible concurrent E in a deterministic conflict birth; an edit covered by D has a different result.",
+      "setup": "A and B know the same note. A deletes it while B independently edits it without observing the Delete.",
+      "outcome": "The old birth is deleted, while an otherwise eligible concurrent edit is preserved in a deterministic conflict birth.",
+      "requirements": [
+        "DELETE-01",
+        "HIST-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-DUR-02",
+        "TC-SEM-02"
+      ],
+      "sources": [
+        "spec.values",
+        "protocol.local",
+        "plan.semantics"
+      ],
+      "steps": [
+        {
+          "title": "Independent local acceptance of Delete and edit",
+          "actor": "Mac A + Mac B",
+          "user": "Each Mac completes its own full local action/parent barrier.",
+          "operation": "Record the Delete’s causal inputs and B’s separate note revision exactly.",
+          "rule": "Logical deletion requires applicable explicit history; a missing provider file is not that intent.",
+          "roles": {
+            "read": [
+              "live",
+              "capture"
+            ],
+            "write": [
+              "objects",
+              "accepted",
+              "pin"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "accepted",
+          "edges": []
+        },
+        {
+          "title": "Reduction of the complete Delete/edit history",
+          "actor": "This Mac",
+          "user": "The deleted source birth leaves Current; B’s concurrent value remains recoverable.",
+          "operation": "Reduce causal Delete/edit relationships and derive the eligible deterministic automatic-preservation birth.",
+          "rule": "An edit already observed by the Delete is covered; an edit descended from the Delete does not revive the old birth.",
+          "roles": {
+            "read": [
+              "objects",
+              "graph"
+            ],
+            "write": [
+              "reduce",
+              "conflicts",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "conflicts",
+          "edges": []
+        },
+        {
+          "title": "Inspection and fresh-birth restoration of deleted history",
+          "actor": "This Mac",
+          "user": "History/Recently Deleted retains exact prior branches. Explicit restoration creates a fresh birth.",
+          "operation": "Derive deleted-history entries and restoration provenance separately from filesystem Trash.",
+          "rule": "An incoming Delete cannot physically remove a remembered path; the original exact-snapshot operation owns any such effect.",
+          "roles": {
+            "read": [
+              "actionindex",
+              "opindex"
+            ],
+            "write": [
+              "history",
+              "capture"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "history",
+          "edges": []
+        }
+      ],
+      "related": [
+        "retracted-copy",
+        "recently-deleted",
+        "external-deletion"
+      ],
+      "featured": false
+    },
+    {
+      "id": "retracted-copy",
+      "category": "sync",
+      "title": "Retraction after a later Delete covers a preserved edit",
+      "summary": "An initial Delete concurrent with E derives automatic copy C. A later Delete observing E can retract untouched C once no eligible source remains. Independent edits to C and still-eligible descendants of E remain preserved.",
+      "setup": "D₀ races with E, creating automatic copy C. Later D₁ observes E. In one branch C is untouched; in another C was edited to P.",
+      "outcome": "Retraction removes an ineligible untouched automatic copy; P and any still-eligible independent descendant survive.",
+      "requirements": [
+        "DELETE-01",
+        "HIST-01",
+        "PUB-01",
+        "CLEAN-01"
+      ],
+      "contracts": [
+        "TC-SEM-02"
+      ],
+      "sources": [
+        "spec.values",
+        "protocol.actions",
+        "protocol.decision"
+      ],
+      "steps": [
+        {
+          "title": "Derivation of automatic copy C for concurrent E",
+          "actor": "This Mac",
+          "user": "C appears because E is not covered by D₀.",
+          "operation": "Retain source/provenance evidence for the deterministic automatic result.",
+          "rule": "Automatic preservation is derived from complete history, not a new independent user import.",
+          "roles": {
+            "read": [
+              "graph",
+              "objects"
+            ],
+            "write": [
+              "conflicts",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "conflicts",
+          "edges": []
+        },
+        {
+          "title": "Reevaluation after D₁ observes E",
+          "actor": "This Mac",
+          "user": "Eligibility is recomputed for the source and its preservation result.",
+          "operation": "Prepare retraction only if C has no independent edit and no remaining eligible source value.",
+          "rule": "A new F descended from E but concurrent with D₁ still deserves preservation; P is independent work.",
+          "roles": {
+            "read": [
+              "graph",
+              "live"
+            ],
+            "write": [
+              "reduce"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "reduce",
+          "edges": []
+        },
+        {
+          "title": "Fenced retraction and projection reconciliation",
+          "actor": "This Mac",
+          "user": "Untouched C disappears; independently edited P stays. Uncertain external bytes remain pending.",
+          "operation": "Generation-fence the model transition and inspect any exact projection before cleanup/import classification.",
+          "rule": "Do not create blind retirement/unlink effects or echo-import the obsolete automatic projection.",
+          "roles": {
+            "read": [
+              "reduce",
+              "filework"
+            ],
+            "write": [
+              "live",
+              "projection",
+              "pendingdisk"
+            ],
+            "guard": [
+              "rootowner",
+              "gate"
+            ]
+          },
+          "focus": "projection",
+          "edges": []
+        }
+      ],
+      "related": [
+        "delete-race",
+        "ordinary-conflict-edit"
+      ],
+      "featured": false
+    },
+    {
+      "id": "snapshot-retention",
+      "category": "sync",
+      "title": "Snapshot retention ancestry and logical operation cuts",
+      "summary": "A general v1 snapshot can retain an exact accepted parent root independently of its represented logical cut. Parent-frontier changes commit atomically; all required ancestor bytes and accepted outside-cut actions remain part of recovery.",
+      "setup": "General snapshot S₂ names accepted S₁ as a retention parent. A later captured snapshot may represent an older logical cut.",
+      "outcome": "Exact parent closure stays retained; Current and Undo still derive from complete accepted operations, not snapshot age.",
+      "requirements": [
+        "DUR-01",
+        "CLEAN-01",
+        "CKPT-01",
+        "HIST-01"
+      ],
+      "contracts": [
+        "TC-START-01",
+        "TC-LIMIT-02"
+      ],
+      "sources": [
+        "spec.ownership",
+        "snapshot",
+        "protocol.snapshots"
+      ],
+      "steps": [
+        {
+          "title": "Capture of accepted prefix and snapshot-root frontier",
+          "actor": "This Mac",
+          "user": "Snapshot preparation captures a consistent accepted prefix plus exact accepted root tips.",
+          "operation": "Prepare bounded pages/root and explicit supported retention-parent locators from checked evidence.",
+          "rule": "Snapshot retention parents cover object closure; note predecessors and action scope parents have separate roles.",
+          "roles": {
+            "read": [
+              "accepted",
+              "pin",
+              "graph"
+            ],
+            "write": [
+              "snapwork"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "snapwork",
+          "edges": []
+        },
+        {
+          "title": "Atomic acceptance of S₂ and its exact parent evidence",
+          "actor": "This Mac",
+          "user": "S₁ remains durable while the accepted root frontier advances.",
+          "operation": "Atomically retain root/pages, accepted membership, parent edges and wakeups; remove only explicitly named parent tips.",
+          "rule": "Concurrent independent roots remain tips. Empty parent sets use the same eight-category v1 layout. Missing supported dependencies wait normally.",
+          "roles": {
+            "read": [
+              "snapwork",
+              "objects"
+            ],
+            "write": [
+              "accepted",
+              "pin",
+              "receiveq",
+              "rgeneral"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "pin",
+          "edges": []
+        },
+        {
+          "title": "Reconstruction including accepted outside-cut actions",
+          "actor": "This Mac",
+          "user": "Notes, conflicts, deleted history and Undo still include accepted outside-cut operations.",
+          "operation": "Reuse checked logical traversal and retained closure, then reconstruct the complete target prefix if needed.",
+          "rule": "An older logical cut never rolls Current back or authorizes deleting retained ancestor bytes. Sequential covered chains reduce startup root work.",
+          "roles": {
+            "read": [
+              "objects",
+              "accepted",
+              "rgeneral"
+            ],
+            "write": [
+              "graph",
+              "reduce",
+              "current",
+              "view"
+            ],
+            "guard": [
+              "verification"
+            ]
+          },
+          "focus": "graph",
+          "edges": []
+        }
+      ],
+      "related": [
+        "fast-startup",
+        "derived-rebuild"
+      ],
+      "featured": false
+    },
+    {
+      "id": "selective-history",
+      "category": "history",
+      "title": "Historical body restoration with current title and labels",
+      "summary": "Note History supplies an exact retained body for a new recovery action. Body restoration preserves current title and labels unless those fields are explicitly selected, and admission revalidates Current and the complete preview.",
+      "setup": "“Travel 2027” has a current title and labels. The user opens Note History and selects an older body while retaining those current fields.",
+      "outcome": "A newly admitted historical-recovery action restores the selected fields after Current revalidation; the old history remains.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01",
+        "REC-01"
+      ],
+      "contracts": [
+        "TC-UI-01",
+        "TC-CAP-01"
+      ],
+      "sources": [
+        "spec.history",
+        "protocol.history",
+        "impl.history"
+      ],
+      "steps": [
+        {
+          "title": "Read-only preview of a retained historical body",
+          "actor": "This Mac",
+          "user": "History shows read-only Current, known branches and informational dates. Preview changes nothing.",
+          "operation": "Load a scoped historical query from retained exact revision/action evidence.",
+          "rule": "The viewer is not a promise of complete global timeline or full-history search; late results cannot reopen a dismissed view.",
+          "roles": {
+            "read": [
+              "actionindex",
+              "opindex",
+              "objects"
+            ],
+            "write": [
+              "history",
+              "graph"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "history",
+          "edges": []
+        },
+        {
+          "title": "Selection of body restoration against exact Current",
+          "actor": "This Mac",
+          "user": "The review shows today’s title/labels preserved and the chosen historical body.",
+          "operation": "Capture the selected fields and complete preview with Current’s exact birth, value and generation.",
+          "rule": "Body is the default selection; title/labels require explicit selection. Stale Current requires fresh preparation.",
+          "roles": {
+            "read": [
+              "history",
+              "live",
+              "graph"
+            ],
+            "write": [
+              "capture"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Acceptance of the new historical-recovery action",
+          "actor": "This Mac",
+          "user": "The restored body is ordinary current work with a durable source link and an actual inverse.",
+          "operation": "Admit the complete group, then seal/accept it through the ordinary local barrier.",
+          "rule": "Save as new note is a separate fresh-birth action; history recovery neither disposes conflict heads nor resolves Apple versions.",
+          "roles": {
+            "read": [
+              "capture",
+              "seal"
+            ],
+            "write": [
+              "objects",
+              "accepted",
+              "actionindex",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "actionindex",
+          "edges": []
+        }
+      ],
+      "related": [
+        "recently-deleted",
+        "reviewed-undo",
+        "conflict-copy"
+      ],
+      "featured": false
+    },
+    {
+      "id": "recently-deleted",
+      "category": "history",
+      "title": "Named restoration followed by deletion of the fresh birth",
+      "summary": "Restore creates a fresh birth linked to a named deleted entry. Complete durable restoration evidence excludes that source entry from the default list; deleting the restored birth later creates a separate entry.",
+      "setup": "“Ideas” appears in Recently Deleted. The user restores its named entry, then later deletes the restored birth.",
+      "outcome": "The original entry leaves the default list only after durable restoration evidence. The later Delete creates its own entry.",
+      "requirements": [
+        "DELETE-01",
+        "HIST-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-ACT-05",
+        "TC-ACT-03"
+      ],
+      "sources": [
+        "spec.history",
+        "protocol.history",
+        "plan.semantics"
+      ],
+      "steps": [
+        {
+          "title": "Selection of a named deleted-history entry",
+          "actor": "This Mac",
+          "user": "A separate read-only viewer offers Restore and shows prior recoverable branches.",
+          "operation": "Derive the entry from applicable Delete and exact revision/action evidence.",
+          "rule": "This is retained note history, independent of Trash and any physical-file sweep.",
+          "roles": {
+            "read": [
+              "actionindex",
+              "opindex",
+              "objects"
+            ],
+            "write": [
+              "history"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "history",
+          "edges": []
+        },
+        {
+          "title": "Restore admission and durability for fresh birth R",
+          "actor": "This Mac",
+          "user": "R is pending until its complete local action and source provenance are durable.",
+          "operation": "Capture a fresh birth with exact restoredFrom deletion/revision evidence and commit it with its action.",
+          "rule": "Only completed named restoration hides the source entry; generic historical copies do not. Projection/upload need not finish.",
+          "roles": {
+            "read": [
+              "history",
+              "capture"
+            ],
+            "write": [
+              "accepted",
+              "actionindex",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "actionindex",
+          "edges": []
+        },
+        {
+          "title": "Later deletion of R or concurrent independent restoration",
+          "actor": "This Mac",
+          "user": "R’s Delete yields a new entry; a concurrent explicit restore on another Mac has its own birth.",
+          "operation": "Retain the old source restoration link even if R is edited or deleted; reduce each fresh birth independently.",
+          "rule": "The original entry does not reappear based on whether R is live. Concurrent restores may both remain.",
+          "roles": {
+            "read": [
+              "objects",
+              "actionindex"
+            ],
+            "write": [
+              "history",
+              "conflicts"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "history",
+          "edges": []
+        }
+      ],
+      "related": [
+        "delete-race",
+        "concurrent-undo"
+      ],
+      "featured": false
+    },
+    {
+      "id": "portable-undo",
+      "category": "history",
+      "title": "Causal Undo after relaunch or on another Mac",
+      "summary": "Validated action records preserve exact members, before/after references and scope parents. Any Mac may compensate a unique applicable maximal action; incomparable or overlapping candidates require review, and bulk admission applies to the whole group.",
+      "setup": "Mac A renames a note. After the action is durably synced, Mac B opens it and invokes Undo Rename.",
+      "outcome": "A unique applicable maximal action can be compensated on B; the new complete action preserves unrelated current changes.",
+      "requirements": [
+        "HIST-01",
+        "DUR-01",
+        "PUB-01"
+      ],
+      "contracts": [
+        "TC-ACT-01",
+        "TC-CAP-02",
+        "TC-ACT-04"
+      ],
+      "sources": [
+        "protocol.actions",
+        "spec.history",
+        "plan.semantics"
+      ],
+      "steps": [
+        {
+          "title": "Capture and acceptance of the rename action on Mac A",
+          "actor": "Mac A",
+          "user": "A sees the new title; its saved action includes exact before/after references and scope parents.",
+          "operation": "Freeze operation members, origin provenance and every maximal action represented by the captured applied frontier.",
+          "rule": "Received-but-unapplied bytes and incompletely loaded history rows do not define the writer’s scope.",
+          "roles": {
+            "read": [
+              "live",
+              "view",
+              "pendinglive"
+            ],
+            "write": [
+              "capture",
+              "accepted",
+              "actionindex"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "actionindex",
+          "edges": []
+        },
+        {
+          "title": "Derivation of Mac B’s applicable maximal Undo candidate",
+          "actor": "Mac B",
+          "user": "B offers the unique causally maximal applicable rename, regardless of its origin or arrival time.",
+          "operation": "Build a scoped candidate view from validated action/scope-parent/compensation evidence and actual Current.",
+          "rule": "Old NSUndoManager entries, selectors and pointers are not persisted. Incomparable/overlapping candidates require review.",
+          "roles": {
+            "read": [
+              "actionindex",
+              "graph",
+              "live"
+            ],
+            "write": [
+              "undo"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "undo",
+          "edges": []
+        },
+        {
+          "title": "Admission and acceptance of complete guarded compensation",
+          "actor": "Mac B",
+          "user": "The title reverses while unrelated body/labels remain. History and causal eligibility recover together.",
+          "operation": "Admit all compensation members or none, then commit its complete action/parent closure.",
+          "rule": "Bulk work is wholly revalidated; oversized groups must be disclosed as separate independently undoable batches before admission.",
+          "roles": {
+            "read": [
+              "undo",
+              "capture"
+            ],
+            "write": [
+              "objects",
+              "accepted",
+              "actionindex",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        }
+      ],
+      "related": [
+        "reviewed-undo",
+        "concurrent-undo",
+        "native-remaining"
+      ],
+      "featured": true
+    },
+    {
+      "id": "reviewed-undo",
+      "category": "history",
+      "title": "Reviewed Undo with an actual-current inverse",
+      "summary": "Rename B was Shopping → Groceries, while a represented concurrent action makes Current Errands. Approved Undo B records Errands → Shopping; its Redo reverses that actual compensation to Errands.",
+      "setup": "Rename B was Shopping → Groceries. A represented concurrent action supplies Current = Errands. The user selects B through Undo review and explicitly approves replacement with Shopping.",
+      "outcome": "The new compensation records Errands → Shopping; its Redo returns to Errands, while preserving the remaining eligible redo chain.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-ACT-02",
+        "TC-UI-01"
+      ],
+      "sources": [
+        "impl.review",
+        "protocol.actions",
+        "spec.history"
+      ],
+      "steps": [
+        {
+          "title": "Undo B preparation against represented Current Errands",
+          "actor": "This Mac",
+          "user": "A dismissible read-only review explains the overlap and the captured candidate frontier.",
+          "operation": "Prepare the actual proposed compensation from Errands to approved Shopping in the invocation’s Undo mode.",
+          "rule": "Preview/Cancel consumes nothing. Note History and conflict commands remain distinct even with identical text.",
+          "roles": {
+            "read": [
+              "undo",
+              "graph",
+              "live"
+            ],
+            "write": [
+              "history"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "undo",
+          "edges": []
+        },
+        {
+          "title": "Approval and admission of Errands → Shopping",
+          "actor": "This Mac",
+          "user": "Shopping becomes pending only if the captured Current and candidate frontier still match.",
+          "operation": "Freeze actual before = Errands and after = Shopping, with exact undoOf/action/causal evidence.",
+          "rule": "Approval does not bypass missing evidence, no-op checks, format/birth/generation gates or retarget a changed candidate.",
+          "roles": {
+            "read": [
+              "history",
+              "undo",
+              "live"
+            ],
+            "write": [
+              "capture",
+              "pendinglive"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Redo derived from the actual accepted compensation",
+          "actor": "This Mac",
+          "user": "Redo restores Errands. Other eligible causal redo steps remain independently available.",
+          "operation": "Validate and append the inverse of the actual reviewed action, not the historical Groceries value.",
+          "rule": "Reviewed compensation affects the selected action; it never silently consumes siblings or substitutes generic recovery.",
+          "roles": {
+            "read": [
+              "actionindex",
+              "graph",
+              "undo"
+            ],
+            "write": [
+              "capture",
+              "accepted",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "undo",
+          "edges": []
+        }
+      ],
+      "related": [
+        "portable-undo",
+        "concurrent-undo"
+      ],
+      "featured": false
+    },
+    {
+      "id": "concurrent-undo",
+      "category": "history",
+      "title": "Concurrent compensation of the same action",
+      "summary": "Two Macs can each admit compensation of X before learning of the other. U and V remain distinct actions. Candidate ambiguity is relative to direction and compensation family, and reversing one restored birth preserves the other.",
+      "setup": "A and B independently prepare Undo of action X. Each commits its own compensation U or V before learning of the other.",
+      "outcome": "Both actions survive. Competing family descendants require scoped review; unrelated later actions retain their own eligibility.",
+      "requirements": [
+        "HIST-01",
+        "DELETE-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-ACT-03",
+        "TC-ACT-02"
+      ],
+      "sources": [
+        "protocol.actions",
+        "spec.history",
+        "plan.semantics"
+      ],
+      "steps": [
+        {
+          "title": "Independent admission of Undo X on two Macs",
+          "actor": "Mac A + Mac B",
+          "user": "Each local capture is checked against its own complete candidate frontier and Current.",
+          "operation": "Allocate distinct immutable compensation identities and preserve exact undoOf evidence.",
+          "rule": "There is no distributed exactly-once pop or mutable cross-Mac undo cursor.",
+          "roles": {
+            "read": [
+              "undo",
+              "live",
+              "graph"
+            ],
+            "write": [
+              "capture",
+              "accepted"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Candidate derivation after receipt of U and V",
+          "actor": "This Mac",
+          "user": "Equal effects may converge visibly, while competing descendants remain reviewable.",
+          "operation": "Derive direction-relative candidates and compensation families, keeping every causal action.",
+          "rule": "After reviewed Redo U, a now-no-op Redo V creates nothing and consumes no eligibility. A separate X family can still undo/redo automatically.",
+          "roles": {
+            "read": [
+              "objects",
+              "actionindex"
+            ],
+            "write": [
+              "graph",
+              "undo",
+              "conflicts"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "undo",
+          "edges": []
+        },
+        {
+          "title": "Independent fresh-birth mappings for Undo Delete",
+          "actor": "This Mac",
+          "user": "Two concurrent restorations produce distinct fresh births; reversing one preserves the other.",
+          "operation": "Record exact fresh-birth mapping in each compensation and reverse only the selected mapping.",
+          "rule": "A later reversal of that deletion needs another fresh birth; no historical branch is collapsed by equal preview bytes.",
+          "roles": {
+            "read": [
+              "undo",
+              "actionindex"
+            ],
+            "write": [
+              "capture",
+              "live",
+              "history"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "history",
+          "edges": []
+        }
+      ],
+      "related": [
+        "recently-deleted",
+        "portable-undo",
+        "reviewed-undo"
+      ],
+      "featured": false
+    },
+    {
+      "id": "native-remaining",
+      "category": "history",
+      "title": "Partial native Undo followed by relaunch",
+      "summary": "Partial native reversal records exact remaining-effect coverage for saved typing actions. Reopening derives portable eligibility from retained coverage and Current lineage, so an already reversed effect is not compensated twice.",
+      "setup": "A saved typing action contains several edits. Native Undo reverses only part, then the app closes and reopens.",
+      "outcome": "The durable remaining-effect claim prevents a later coarse Undo from reversing the already undone part twice.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-CAP-02",
+        "TC-ACT-01"
+      ],
+      "sources": [
+        "protocol.actions",
+        "spec.history",
+        "impl.shared"
+      ],
+      "steps": [
+        {
+          "title": "Causal eligibility check before native Undo consumption",
+          "actor": "This Mac",
+          "user": "The existing native text operation runs only after the shared causal router approves its candidate.",
+          "operation": "Check current text-state/range validity and causal eligibility before consuming a native entry.",
+          "rule": "A later remote rename can change the eligible action even if native body ranges still look valid.",
+          "roles": {
+            "read": [
+              "views",
+              "undo",
+              "live"
+            ],
+            "write": [
+              "pendinglive",
+              "capture"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "views",
+          "edges": []
+        },
+        {
+          "title": "Durable remaining-effect coverage and note compensation",
+          "actor": "This Mac",
+          "user": "The partial reversal records which saved-action effects remain, with exact state references.",
+          "operation": "Commit the native-coverage compensation together with its complete note effects and dependencies.",
+          "rule": "Coverage follows action ancestry; incomparable maximal claims require review, not an arbitrary newest claim.",
+          "roles": {
+            "read": [
+              "capture",
+              "graph"
+            ],
+            "write": [
+              "accepted",
+              "actionindex",
+              "pin"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "actionindex",
+          "edges": []
+        },
+        {
+          "title": "Portable candidate reconstruction after reopening",
+          "actor": "Restart",
+          "user": "Only the remaining eligible effect is proposed. Old Cocoa grouping/selection is not reconstructed.",
+          "operation": "Build candidates from retained coverage and Current’s represented lineage, including all relevant families.",
+          "rule": "Saved-edit granularity survives; per-keystroke cross-device stacks and executable native objects do not.",
+          "roles": {
+            "read": [
+              "actionindex",
+              "view",
+              "live"
+            ],
+            "write": [
+              "undo",
+              "history"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "undo",
+          "edges": []
+        }
+      ],
+      "related": [
+        "portable-undo",
+        "shared-windows"
+      ],
+      "featured": false
+    },
+    {
+      "id": "shared-windows",
+      "category": "history",
+      "title": "Shared-note windows during composition and remote publication",
+      "summary": "Two windows reference one live note and per-note Undo owner while retaining independent selections. Remote body publication observes the native input boundary and revalidates note, attachment, store, root and lifecycle generations.",
+      "setup": "Windows X and Y show the same note. X starts composition; Y changes selection or closes while a remote result is pending.",
+      "outcome": "Input uses normal AppKit event delivery. Admitted work survives attachment changes; remote publication waits for an applicable native input boundary and revalidates its captured context.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01",
+        "ROOT-01"
+      ],
+      "contracts": [
+        "TC-CAP-02",
+        "TC-ASY-01",
+        "TC-PERF-01"
+      ],
+      "sources": [
+        "impl.shared",
+        "spec.input",
+        "apple.input",
+        "plan.host"
+      ],
+      "steps": [
+        {
+          "title": "Independent view attachments to one live note",
+          "actor": "This Mac",
+          "user": "Each view has its own selection/scroll while edits belong to the shared note and Undo scope.",
+          "operation": "Attach observers to one live model; retain remembered cursor updates as private presentation state.",
+          "rule": "View observers must not duplicate mutation, action registration or pending capture.",
+          "roles": {
+            "read": [
+              "live",
+              "undo"
+            ],
+            "write": [
+              "views",
+              "private"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "views",
+          "edges": []
+        },
+        {
+          "title": "Native composition while remote publication is prepared",
+          "actor": "This Mac",
+          "user": "Input uses normal native event delivery. A prepared remote body may wait for an applicable native input boundary before publication.",
+          "operation": "Retain captured attachment/note/generation evidence and defer applicable remote body publication as required by the host bridge.",
+          "rule": "Composition alone creates no conflict prompt or durable IME buffer. Search remains synchronous.",
+          "roles": {
+            "read": [
+              "views",
+              "live",
+              "reduce"
+            ],
+            "write": [
+              "pendinglive"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        },
+        {
+          "title": "Attachment changes before a late completion",
+          "actor": "This Mac",
+          "user": "Admitted history continues; a late callback cannot target a different attachment or overwrite newer text.",
+          "operation": "Revalidate the native input boundary, note/root/store/lifecycle generations and attachment identity at the actual consumer.",
+          "rule": "Closing the last view does not discard pending history. Native keyboard/IME integration still has its own qualification gate.",
+          "roles": {
+            "read": [
+              "pendinglive",
+              "capture",
+              "views"
+            ],
+            "write": [
+              "live",
+              "undo"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "views",
+          "edges": []
+        }
+      ],
+      "related": [
+        "native-remaining",
+        "delayed-save",
+        "collection-switch"
+      ],
+      "featured": false
+    },
+    {
+      "id": "saved-search-windows",
+      "category": "history",
+      "title": "Dedicated saved-search windows and bookmark preferences",
+      "summary": "Each saved search owns a reusable ordinary window over the shared collection. Activation preserves other windows’ queries and selections; bookmark-scoped preferences retain frame and open state across launches.",
+      "setup": "An ordinary window shows “inbox”. The user activates saved searches Work and Personal, then activates Work again before relaunching.",
+      "outcome": "Each bookmark reuses its dedicated shared-model window. Existing bookmark preferences remember its frame and open state; the collection and note Undo remain shared.",
+      "requirements": [
+        "HIST-01",
+        "PUB-01",
+        "ROOT-01"
+      ],
+      "contracts": [
+        "TC-CAP-02",
+        "TC-PERF-01",
+        "TC-CLOSE-01"
+      ],
+      "contractNote": "These contracts cover the shared-editor, synchronous-search and lifecycle seams. Dedicated bookmark activation/frame/reopen acceptance is specified in the linked window feature contract and retains its application integration gate.",
+      "sources": [
+        "windows.bookmarks",
+        "impl.shared",
+        "plan.host"
+      ],
+      "related": [
+        "shared-windows",
+        "native-remaining",
+        "collection-switch"
+      ],
+      "featured": false,
+      "steps": [
+        {
+          "title": "Bookmark activation and dedicated-window creation",
+          "actor": "This Mac",
+          "user": "A dedicated Work window opens with its saved search and remembered note. The inbox window keeps its own presentation.",
+          "operation": "The existing bookmark owner routes activation through open-window management and initializes a view over the same live collection.",
+          "rule": "Search stays synchronous. Query, selection, layout and focus are view state; opening a window creates no second database, writer identity or action branch.",
+          "roles": {
+            "read": [
+              "hostprefs",
+              "live"
+            ],
+            "write": [
+              "views",
+              "search"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "views",
+          "edges": []
+        },
+        {
+          "title": "Reuse of Work while Personal remains independently presented",
+          "actor": "This Mac",
+          "user": "Personal has its own query. Work’s existing window comes to the foreground instead of duplicating or replacing another view.",
+          "operation": "Resolve the bookmark-to-window association; edits and per-note Undo continue through the one shared model and causal router.",
+          "rule": "Commands target the invoking window’s actual note/attachment. Closing a bookmark window releases presentation resources while admitted note work survives.",
+          "roles": {
+            "read": [
+              "hostprefs",
+              "live",
+              "undo"
+            ],
+            "write": [
+              "views",
+              "pendinglive"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "views",
+          "edges": []
+        },
+        {
+          "title": "Preference retention and reopening of existing bookmarks",
+          "actor": "Restart",
+          "user": "Remembered open windows for bookmarks that still exist reopen with their saved searches and placement.",
+          "operation": "Persist bookmark-scoped frame/open-state through the existing bookmark preference path; rebuild views only after complete current/search readiness.",
+          "rule": "This is private UI preference data, separate from causal note actions. It does not promise restoration of every arbitrary ordinary window; query-edit/removal behavior remains a named UI decision.",
+          "roles": {
+            "read": [
+              "views",
+              "current",
+              "view"
+            ],
+            "write": [
+              "hostprefs",
+              "views",
+              "search"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "hostprefs",
+          "edges": []
+        }
+      ]
+    },
+    {
+      "id": "conflict-copy",
+      "category": "history",
+      "title": "Durable preservation of a selected unresolved revision",
+      "summary": "Save as new note records exact copy and disposition evidence for the selected revision without superseding the source. Reciprocal explicit copies can produce distinct births; completed disposition survives later copy edits or deletion.",
+      "setup": "Two Macs independently choose Save as new note for exact unresolved revision R of an NV-head conflict.",
+      "outcome": "Each explicit copy may have its own birth. Completed preservation hides only the selected revision’s unresolved attention.",
+      "requirements": [
+        "HIST-01",
+        "REC-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-UI-01",
+        "TC-SEM-01"
+      ],
+      "sources": [
+        "spec.resolver",
+        "spec.history",
+        "protocol.actions"
+      ],
+      "steps": [
+        {
+          "title": "Captured preview of source revision R in NV-copy mode",
+          "actor": "This Mac",
+          "user": "The resolver has a captured NV-copy command and exact selected revision.",
+          "operation": "Validate source revision, selected mode, Current and candidate copy evidence.",
+          "rule": "A body-equal or already modified/deleted candidate is not automatically exact reusable preservation evidence.",
+          "roles": {
+            "read": [
+              "conflicts",
+              "graph",
+              "history"
+            ],
+            "write": [
+              "capture"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "conflicts",
+          "edges": []
+        },
+        {
+          "title": "Durable copy and source-disposition evidence",
+          "actor": "This Mac",
+          "user": "The new note and completed source disposition become durable before attention is settled.",
+          "operation": "Commit exact copy/action/provenance evidence and its complete dependency closure.",
+          "rule": "No source Put/Delete/Keep Current or supersession is emitted just to preserve R.",
+          "roles": {
+            "read": [
+              "capture",
+              "seal"
+            ],
+            "write": [
+              "accepted",
+              "actionindex",
+              "live"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "actionindex",
+          "edges": []
+        },
+        {
+          "title": "Reconciliation of reciprocal copies and later copy deletion",
+          "actor": "This Mac",
+          "user": "The original plus two recovered copies may remain, even with equal bodies.",
+          "operation": "Derive unresolved attention from durable completed dispositions while reducing the source independently.",
+          "rule": "Completed disposition survives copy edits/deletion and reopen; new source descendants remain reviewable.",
+          "roles": {
+            "read": [
+              "actionindex",
+              "graph"
+            ],
+            "write": [
+              "conflicts",
+              "history"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "conflicts",
+          "edges": []
+        }
+      ],
+      "related": [
+        "merge-review",
+        "selective-history"
+      ],
+      "featured": false
+    },
+    {
+      "id": "automatic-import",
+      "category": "files",
+      "title": "Automatic import of an eligible ordinary text file",
+      "summary": "An ordinary unstamped file imports after provenance, availability and narrowly scoped repair-candidate checks. One admitted observation retains its retry identity; later duplicate knowledge preserves independently created births.",
+      "setup": "An ordinary unstamped txt file appears in the repository. Provenance and availability checks permit inspection, and there is no applicable association or narrowly scoped repair candidate.",
+      "outcome": "NV creates one fresh birth for that admitted observation. If delayed history later reveals a duplicate, both independent births survive.",
+      "requirements": [
+        "IMPORT-01",
+        "DISC-01",
+        "PUB-01"
+      ],
+      "contracts": [
+        "TC-IMPORT-01",
+        "TC-PROJ-01"
+      ],
+      "sources": [
+        "protocol.decision",
+        "spec.files",
+        "impl.files",
+        "plan.files"
+      ],
+      "steps": [
+        {
+          "title": "Verified observation and ordinary-file classification",
+          "actor": "This Mac",
+          "user": "NV reads a verified current file through matching complete catalogs around the selected read.",
+          "operation": "Check availability/provenance and per-note active-path or exact nonempty-content repair exceptions first.",
+          "rule": "Missing metadata alone does not prompt. Quiet catalogs do not prove that unknown remote history is complete.",
+          "roles": {
+            "read": [
+              "rnotes",
+              "filework"
+            ],
+            "write": [
+              "pendingdisk",
+              "pendingwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "filework",
+          "edges": []
+        },
+        {
+          "title": "Admission of one fresh import identity",
+          "actor": "This Mac",
+          "user": "The eligible file becomes a new note through ordinary admission and complete action capture.",
+          "operation": "Reserve exact observation/operation identity and freeze input values; commit its history and eventual relationship evidence.",
+          "rule": "Retry of one admitted observation reuses its identity; equal independent files are not globally deduplicated by body/name.",
+          "roles": {
+            "read": [
+              "pendingwork",
+              "pendingdisk"
+            ],
+            "write": [
+              "capture",
+              "accepted",
+              "actionindex"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Receipt of delayed history after independent import",
+          "actor": "This Mac",
+          "user": "Both independently created births remain; new evidence can change future classification.",
+          "operation": "Union incoming history and revalidate provenance/associations without rewriting the admitted import’s identity.",
+          "rule": "Late duplicate knowledge does not retroactively merge unrelated births or replay old consent.",
+          "roles": {
+            "read": [
+              "rchanges",
+              "objects",
+              "actionindex"
+            ],
+            "write": [
+              "graph",
+              "live",
+              "projection"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "live",
+          "edges": []
+        }
+      ],
+      "related": [
+        "stamp-waits",
+        "pending-choice",
+        "admitted-file"
+      ],
+      "featured": true
+    },
+    {
+      "id": "stamp-waits",
+      "category": "files",
+      "title": "Projection stamp arriving before its named history",
+      "summary": "A file with a projection stamp naming unavailable history waits for that exact evidence. Once the represented state and unique association validate against current bytes, the file associates with the existing birth without an echo Put.",
+      "setup": "A note body and bounded projection stamp arrive, but the exact immutable history named by the stamp has not.",
+      "outcome": "NV waits for the named evidence; once exact represented state validates, it associates without an echo Put.",
+      "requirements": [
+        "DISC-01",
+        "IMPORT-01",
+        "AUTH-01"
+      ],
+      "contracts": [
+        "TC-PROJ-01",
+        "TC-DISC-01"
+      ],
+      "sources": [
+        "protocol.stamp",
+        "spec.files",
+        "plan.files"
+      ],
+      "steps": [
+        {
+          "title": "Independent observation of body and bounded stamp",
+          "actor": "This Mac",
+          "user": "The file is not imported as a new birth merely because its history is delayed.",
+          "operation": "Parse bounded advisory metadata and record exact missing locators while preserving body bytes.",
+          "rule": "Body/xattr arrival is not atomic; a stamp is neither physical authority nor an authenticated substitute for history.",
+          "roles": {
+            "read": [
+              "rnotes",
+              "filework"
+            ],
+            "write": [
+              "pendingdisk",
+              "recvwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "pendingdisk",
+          "edges": []
+        },
+        {
+          "title": "Validation of the stamp’s named history and represented state",
+          "actor": "This Mac",
+          "user": "Complete dependencies establish the represented birth/state and exact output digest.",
+          "operation": "Validate envelope/schema/history and unique association evidence against the actual current file.",
+          "rule": "Malformed/copied/wrong-collection/stale stamps authorize no alias, overwrite or deletion; uncertainty preserves bytes.",
+          "roles": {
+            "read": [
+              "rchanges",
+              "pendingdisk"
+            ],
+            "write": [
+              "objects",
+              "graph"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "graph",
+          "edges": []
+        },
+        {
+          "title": "Fresh physical association and receipt installation",
+          "actor": "This Mac",
+          "user": "The matching file represents the existing note without manufacturing another note action.",
+          "operation": "Commit freshly validated relationship/receipt state, then reconcile subsequent external changes normally.",
+          "rule": "No timeout or quiet-catalog count converts missing named history into a new-birth permission.",
+          "roles": {
+            "read": [
+              "graph",
+              "filework"
+            ],
+            "write": [
+              "projectiondisk",
+              "projection"
+            ],
+            "guard": [
+              "gate",
+              "rootowner"
+            ]
+          },
+          "focus": "projectiondisk",
+          "edges": []
+        }
+      ],
+      "related": [
+        "automatic-import",
+        "publication-retry"
+      ],
+      "featured": false
+    },
+    {
+      "id": "pending-choice",
+      "category": "files",
+      "title": "Source change before external-file choice admission",
+      "summary": "A pending choice previews A, then the source changes to B before approval. Latest-reference replacement is durable and generation-checked; the old A preparation is rejected rather than retargeted to B.",
+      "setup": "A repair/recovery choice previews external value A. Another editor saves B before the user approves A.",
+      "outcome": "The stale preparation is rejected and the latest durable preview refreshes; prior consent never retargets B.",
+      "requirements": [
+        "IMPORT-01",
+        "PUB-01",
+        "REC-01"
+      ],
+      "contracts": [
+        "TC-IMPORT-01",
+        "TC-UI-01"
+      ],
+      "sources": [
+        "protocol.pending",
+        "protocol.pendingrecords",
+        "impl.files"
+      ],
+      "steps": [
+        {
+          "title": "Durable retention and preview of source A",
+          "actor": "This Mac",
+          "user": "The read-only choice shows exact captured A and its proposed target relationship.",
+          "operation": "Commit the latest verified payload and its reference before reporting durable retention. Keep unadmitted consent process-local.",
+          "rule": "Merely previewing every external save does not create an archive or an admitted operation.",
+          "roles": {
+            "read": [
+              "rnotes",
+              "filework"
+            ],
+            "write": [
+              "pendingdisk",
+              "pendingwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "pendingwork",
+          "edges": []
+        },
+        {
+          "title": "Replacement of the latest verified snapshot with B",
+          "actor": "This Mac",
+          "user": "The latest preview becomes B only after its payload and reference are durable.",
+          "operation": "Generation-check the snapshot replacement transaction while preserving still-frozen operation references.",
+          "rule": "Rollback keeps the prior durable pair; an ambiguous outcome is resolved by exact identity lookup.",
+          "roles": {
+            "read": [
+              "filework",
+              "pendingdisk"
+            ],
+            "write": [
+              "pendingdisk",
+              "pendingwork"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "pendingdisk",
+          "edges": []
+        },
+        {
+          "title": "Rejection of the stale A preparation at admission",
+          "actor": "This Mac",
+          "user": "No note mutation occurs from stale consent; the refreshed exact choice needs renewed approval.",
+          "operation": "Recheck source/target/history/root/claim generations atomically at admission.",
+          "rule": "A reservation label is not proof that a manual command was admitted, and restart cannot replay consent.",
+          "roles": {
+            "read": [
+              "pendingwork",
+              "live",
+              "projection"
+            ],
+            "write": [
+              "capture"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        }
+      ],
+      "related": [
+        "admitted-file",
+        "disappeared-file"
+      ],
+      "featured": false
+    },
+    {
+      "id": "admitted-file",
+      "category": "files",
+      "title": "Source change after external-file operation admission",
+      "summary": "An admitted operation retains frozen input A while newer B becomes a subsequent observation. After restart, exact operation/action evidence determines whether A committed; receipt recovery continues the same operation and birth.",
+      "setup": "An operation on external A is admitted. Before history/receipt completion, another editor saves B and the app crashes.",
+      "outcome": "Recovery locates the exact A operation and finishes association/settlement; it does not allocate another birth or discard B.",
+      "requirements": [
+        "IMPORT-01",
+        "DUR-01",
+        "PUB-01"
+      ],
+      "contracts": [
+        "TC-IMPORT-01",
+        "TC-DUR-01"
+      ],
+      "sources": [
+        "protocol.pendingrecords",
+        "spec.files",
+        "plan.files"
+      ],
+      "steps": [
+        {
+          "title": "Admission of A with its exact operation link",
+          "actor": "This Mac",
+          "user": "A becomes ordinary pending history with its frozen input and provisional relationship claim.",
+          "operation": "Atomically revalidate/admit the note mutation and claim after asynchronous preparation/reservation.",
+          "rule": "Only admission fixes the operation’s exact semantic identity; the receipt is a later physical/accounting result.",
+          "roles": {
+            "read": [
+              "pendingwork",
+              "pendingdisk",
+              "live"
+            ],
+            "write": [
+              "capture",
+              "pendinglive",
+              "projection"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Retention of latest B alongside unfinished frozen A",
+          "actor": "This Mac",
+          "user": "The recovery graph retains latest B plus frozen A independently.",
+          "operation": "Durably replace the latest reference without releasing A’s unfinished-operation ownership; complete A’s history barrier.",
+          "rule": "A later Delete does not erase the earlier import’s committed identity or authorize re-admission into the deleted birth.",
+          "roles": {
+            "read": [
+              "filework",
+              "capture"
+            ],
+            "write": [
+              "pendingdisk",
+              "accepted",
+              "actionindex"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "pendingdisk",
+          "edges": []
+        },
+        {
+          "title": "Recovery of committed A before receipt settlement",
+          "actor": "Restart",
+          "user": "The same A operation/birth is recovered, even if that birth was later deleted. B remains subsequent work.",
+          "operation": "Resolve ambiguous SQL outcomes, validate exact operation/action/parent closure, then freshly account for the chosen actual projection and settle links.",
+          "rule": "Lookup must not ask only whether the birth is currently live. No receipt retry replays the note mutation or old consent.",
+          "roles": {
+            "read": [
+              "pendingdisk",
+              "objects",
+              "actionindex"
+            ],
+            "write": [
+              "projectiondisk",
+              "pendingwork"
+            ],
+            "guard": [
+              "gate",
+              "rootowner"
+            ]
+          },
+          "focus": "projectiondisk",
+          "edges": []
+        }
+      ],
+      "related": [
+        "pending-choice",
+        "projection-abc",
+        "disappeared-file"
+      ],
+      "featured": false
+    },
+    {
+      "id": "disappeared-file",
+      "category": "files",
+      "title": "Disappearance of an unadmitted pending external file",
+      "summary": "The last durably retained readable snapshot survives later source disappearance or unreadability. Its bytes support renewed applicable decisions or explicit recovery, while association and physical effects still require fresh evidence.",
+      "setup": "A verified external snapshot is pending, then its file disappears or becomes unreadable before a decision.",
+      "outcome": "The last readable snapshot stays privately recoverable; a fresh recovery action needs fresh applicable evidence or explicit choice.",
+      "requirements": [
+        "IMPORT-01",
+        "REPAIR-01",
+        "DELETE-01"
+      ],
+      "contracts": [
+        "TC-IMPORT-01",
+        "TC-PROJ-02"
+      ],
+      "sources": [
+        "protocol.pending",
+        "spec.files",
+        "impl.files"
+      ],
+      "steps": [
+        {
+          "title": "Durable latest-snapshot retention",
+          "actor": "This Mac",
+          "user": "The recovery viewer can preview the exact retained bytes.",
+          "operation": "Commit payload and latest reference together in the private pending graph.",
+          "rule": "Pending snapshots are not segments, note identity, provider output, or an archive of all unreviewed saves.",
+          "roles": {
+            "read": [
+              "filework"
+            ],
+            "write": [
+              "pendingdisk",
+              "pendingwork"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "pendingdisk",
+          "edges": []
+        },
+        {
+          "title": "Current observation of disappearance or unreadability",
+          "actor": "This Mac",
+          "user": "NV preserves the snapshot and reports uncertainty; it does not infer a committed note Delete.",
+          "operation": "Retain last readable input and reclassify current physical/provenance evidence.",
+          "rule": "Missing source bytes grant no stale import, restoration, association or physical permission.",
+          "roles": {
+            "read": [
+              "pendingdisk",
+              "filework"
+            ],
+            "write": [
+              "pendingwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "pendingwork",
+          "edges": []
+        },
+        {
+          "title": "Fresh preparation of an applicable explicit recovery",
+          "actor": "This Mac",
+          "user": "A separate recovery can create a fresh note from the retained input.",
+          "operation": "Prepare/approve current target and source evidence, then admit a new exact recovery action through the complete local barrier.",
+          "rule": "An already admitted operation resumes its own identity; an unadmitted reservation returns to fresh decision work after restart.",
+          "roles": {
+            "read": [
+              "pendingwork",
+              "history"
+            ],
+            "write": [
+              "capture",
+              "accepted",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        }
+      ],
+      "related": [
+        "pending-choice",
+        "admitted-file",
+        "external-deletion"
+      ],
+      "featured": false
+    },
+    {
+      "id": "external-deletion",
+      "category": "files",
+      "title": "External disappearance during deletion confirmation",
+      "summary": "A missing projection can trigger the configured external-deletion choice. File return, changed Current or a received committed Delete invalidates or changes that choice; a new local Delete still requires fresh admission and its complete local barrier.",
+      "setup": "The external-deletion preference asks about a missing projection. The file may return, the note may change, or remote Delete may arrive.",
+      "outcome": "Revalidate the exact current candidate before a new local Delete; committed received Delete follows its own causal semantics.",
+      "requirements": [
+        "DELETE-01",
+        "PUB-01",
+        "IMPORT-01"
+      ],
+      "contracts": [
+        "TC-PROJ-02",
+        "TC-DUR-02"
+      ],
+      "sources": [
+        "spec.files",
+        "protocol.decision",
+        "plan.files"
+      ],
+      "steps": [
+        {
+          "title": "Preparation of the configured missing-file decision",
+          "actor": "This Mac",
+          "user": "NV retains the live note and prepares the configured external-deletion confirmation.",
+          "operation": "Capture the exact source relationship, note generation and current absence evidence.",
+          "rule": "Filesystem disappearance alone is not an immutable Delete and does not erase retained history.",
+          "roles": {
+            "read": [
+              "projectiondisk",
+              "filework",
+              "live"
+            ],
+            "write": [
+              "pendingwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "pendingwork",
+          "edges": []
+        },
+        {
+          "title": "Intervening file return, note change or received Delete",
+          "actor": "This Mac",
+          "user": "The old click cannot delete a different generation or remove the returned file.",
+          "operation": "Invalidate stale source/note/claim evidence and refresh classification before admission.",
+          "rule": "If remote committed Delete arrives, its separate reducer semantics apply; an association claim cannot suppress it.",
+          "roles": {
+            "read": [
+              "filework",
+              "live",
+              "graph"
+            ],
+            "write": [
+              "reduce",
+              "pendingwork"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        },
+        {
+          "title": "Fresh Delete admission and exact-snapshot physical effect",
+          "actor": "This Mac",
+          "user": "A newly admitted local Delete takes its complete parent barrier; restoration uses a fresh birth.",
+          "operation": "Only the original exact-snapshot operation may physically remove a still-matching accepted projection after local durability.",
+          "rule": "No startup tombstone sweep or physical permission replay follows restart; newer bytes are preserved/reconciled.",
+          "roles": {
+            "read": [
+              "capture",
+              "accepted",
+              "projection"
+            ],
+            "write": [
+              "live",
+              "history",
+              "filework"
+            ],
+            "guard": [
+              "rootowner",
+              "gate"
+            ]
+          },
+          "focus": "filework",
+          "edges": []
+        }
+      ],
+      "related": [
+        "delete-race",
+        "recently-deleted"
+      ],
+      "featured": false
+    },
+    {
+      "id": "projection-abc",
+      "category": "files",
+      "title": "New projection intent C while installation B is unfinished",
+      "summary": "A is the accepted projection when B starts. New intent C arrives before B’s installation or receipt completes. B settles only its captured output and serviced generations; C remains intended until its own applicable installation.",
+      "setup": "A is installed. Projection B starts, then a newer intended value C is admitted before B’s result or receipt returns.",
+      "outcome": "B can settle only its captured work. C remains intended/pending until the correct file and receipt evidence exist.",
+      "requirements": [
+        "PUB-01",
+        "IMPORT-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-IMPORT-01",
+        "TC-DUR-01",
+        "TC-PROJ-01"
+      ],
+      "sources": [
+        "protocol.pendingrecords",
+        "spec.files",
+        "replacement"
+      ],
+      "steps": [
+        {
+          "title": "Preparation of B against accepted projection A",
+          "actor": "This Mac",
+          "user": "The file plan captures expected A and exact output B.",
+          "operation": "Bind the projection to the note/root/relationship generations and locally durable represented history.",
+          "rule": "Mutable note replacement uses the expected-snapshot contract, distinct from immutable object exclusive creation.",
+          "roles": {
+            "read": [
+              "projectiondisk",
+              "live"
+            ],
+            "write": [
+              "projection",
+              "filework"
+            ],
+            "guard": [
+              "rootowner",
+              "gate"
+            ]
+          },
+          "focus": "projection",
+          "edges": []
+        },
+        {
+          "title": "Admission of newer intent C before B settles",
+          "actor": "This Mac",
+          "user": "The live note and intended projection become C while B retains its own owned inputs.",
+          "operation": "Record newer pending generations and retain the latest external observation separately from frozen B.",
+          "rule": "A successful old file write is not evidence that C was installed, and old approval cannot overwrite newer source bytes.",
+          "roles": {
+            "read": [
+              "live",
+              "projection"
+            ],
+            "write": [
+              "pendinglive",
+              "pendingdisk"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "pendinglive",
+          "edges": []
+        },
+        {
+          "title": "Exact-result accounting for B with C still pending",
+          "actor": "This Mac",
+          "user": "The system records only the actual applicable B outcome and still owes C.",
+          "operation": "Reobserve exact file/claim state, transfer only serviced links into a receipt, and schedule C’s proper projection.",
+          "rule": "Retiring accepted B for a later observation never clears intended C or manufactures an echo import.",
+          "roles": {
+            "read": [
+              "filework",
+              "pendingdisk",
+              "projection"
+            ],
+            "write": [
+              "projectiondisk",
+              "projection"
+            ],
+            "guard": [
+              "rootowner",
+              "gate"
+            ]
+          },
+          "focus": "projectiondisk",
+          "edges": []
+        }
+      ],
+      "related": [
+        "delayed-save",
+        "admitted-file"
+      ],
+      "featured": false
+    },
+    {
+      "id": "apple-versions",
+      "category": "files",
+      "title": "Scoped disposition of an Apple unresolved version",
+      "summary": "For captured version V, disposition follows admission, complete local history durability, exact plaintext installation and final coordinated revalidation. Only still-applicable captured members receive resolved = YES, followed by a fresh verification query.",
+      "setup": "The conflict resolver presents selected Apple unresolved member V. The user chooses Use or Save as new note for that captured member.",
+      "outcome": "Only applicable captured members receive resolved = YES after exact local history, projection and final coordinated checks.",
+      "requirements": [
+        "REC-01",
+        "DUR-01",
+        "PUB-01",
+        "WAIT-01"
+      ],
+      "contracts": [
+        "TC-UI-01",
+        "TC-ROOT-01"
+      ],
+      "sources": [
+        "spec.resolver",
+        "apple.versions",
+        "replacement",
+        "plan.host"
+      ],
+      "steps": [
+        {
+          "title": "Version capture, bounded preview and choice admission",
+          "actor": "This Mac",
+          "user": "Read-only preview is dismissible; per-version waits/errors use bounded attempts.",
+          "operation": "Capture invocation mode, exact source/member/root observations and selected content; revalidate then admit the chosen action.",
+          "rule": "Preview/Cancel has no disposition effect. Re-presentation retries applicable work without overlapping accessors.",
+          "roles": {
+            "read": [
+              "appleversions",
+              "filework"
+            ],
+            "write": [
+              "history",
+              "capture"
+            ],
+            "guard": [
+              "appleowner",
+              "gate"
+            ]
+          },
+          "focus": "appleversions",
+          "edges": []
+        },
+        {
+          "title": "Local-history barrier and exact plaintext installation",
+          "actor": "This Mac",
+          "user": "The action’s complete group/parent barrier and the actual chosen file result must both succeed.",
+          "operation": "Retain accepted exact history, then install/verify the expected plaintext generation.",
+          "rule": "Local acceptance alone cannot substitute for the extra file gate; upload is irrelevant.",
+          "roles": {
+            "read": [
+              "capture",
+              "accepted",
+              "filework"
+            ],
+            "write": [
+              "rnotes",
+              "projectiondisk"
+            ],
+            "guard": [
+              "rootowner",
+              "gate"
+            ]
+          },
+          "focus": "rnotes",
+          "edges": []
+        },
+        {
+          "title": "Final coordinated member check and scoped disposition",
+          "actor": "This Mac",
+          "user": "Set resolved only for still-applicable captured members, then verify via a successful fresh query.",
+          "operation": "Recheck source/member/root/file generations inside the short merging accessor before scoped setters.",
+          "rule": "No version removal occurs. Failed enumeration is not empty, and empty Apple results cannot clear an NV-head conflict.",
+          "roles": {
+            "read": [
+              "appleversions",
+              "projectiondisk"
+            ],
+            "write": [
+              "filework",
+              "conflicts"
+            ],
+            "guard": [
+              "appleowner",
+              "rootowner",
+              "gate"
+            ]
+          },
+          "focus": "appleowner",
+          "edges": []
+        }
+      ],
+      "related": [
+        "conflict-copy",
+        "merge-review"
+      ],
+      "featured": false
+    },
+    {
+      "id": "external-editor",
+      "category": "files",
+      "title": "External-editor handoff from an encrypted collection",
+      "summary": "An explicit handoff uses owned plaintext scratch outside the provider namespace with disclosed external-app retention risks. Returned edits take the ordinary local barrier; cleanup applies only to the matching serviced scratch generation.",
+      "setup": "The user explicitly opens an encrypted note in an external editor through a disclosed plaintext scratch file outside the provider folder.",
+      "outcome": "Returned edits are admitted/captured normally; scratch survives until the exact accepted generation is locally durable.",
+      "requirements": [
+        "DUR-01",
+        "CRYPT-01",
+        "PUB-01"
+      ],
+      "contracts": [
+        "TC-CAP-01",
+        "TC-CLOSE-01",
+        "TC-PRIV-01"
+      ],
+      "sources": [
+        "spec.files",
+        "spec.crypto",
+        "plan.host"
+      ],
+      "steps": [
+        {
+          "title": "Explicit plaintext handoff and scratch creation",
+          "actor": "This Mac",
+          "user": "The explicit action discloses that the other app’s autosave/backup may retain plaintext.",
+          "operation": "Capture exact note/root/generation and create owned scratch outside the encrypted provider namespace.",
+          "rule": "Encryption does not implicitly create plaintext projections or authorize undisclosed temporary exports.",
+          "roles": {
+            "read": [
+              "live",
+              "secrets"
+            ],
+            "write": [
+              "scratch",
+              "filework"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "scratch",
+          "edges": []
+        },
+        {
+          "title": "Read, admission and capture of returned edits",
+          "actor": "This Mac",
+          "user": "NV preserves the returned value as ordinary pending history and freezes the exact handoff generation.",
+          "operation": "Revalidate read/attachment/current inputs and force asynchronous capture for external settlement.",
+          "rule": "A failed local barrier retains admitted text and owned scratch. Handoff completion requires that exact generation’s complete local durability barrier.",
+          "roles": {
+            "read": [
+              "scratch",
+              "filework",
+              "live"
+            ],
+            "write": [
+              "capture",
+              "pendinglive"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "capture",
+          "edges": []
+        },
+        {
+          "title": "Scratch settlement after exact-generation durability",
+          "actor": "This Mac",
+          "user": "After its complete local barrier, matching owned scratch can settle; newer scratch/work remains.",
+          "operation": "Check exact-generation completion and the still-identifiable owned resource before cleanup.",
+          "rule": "Quit/switch owns settlement or explicit cancellation; stale callbacks cannot clear newer work.",
+          "roles": {
+            "read": [
+              "accepted",
+              "pendinglive",
+              "scratch"
+            ],
+            "write": [
+              "filework"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "scratch",
+          "edges": []
+        }
+      ],
+      "related": [
+        "offline-save",
+        "quit-offline",
+        "privacy-profile"
+      ],
+      "featured": false
+    },
+    {
+      "id": "repository-repair",
+      "category": "repair",
+      "title": "Automatic repair of positively absent same-root NV Data",
+      "summary": "With the same positively owned root, a complete private closure and no disclosed unread newer evidence, positively absent NV Data triggers automatic exact reconstruction. Exclusive creation preserves a competing namespace occupant.",
+      "setup": "The positively owned root remains the same directory. NV Data is positively absent, local closure is complete, and no unread newer evidence is disclosed.",
+      "outcome": "NV transparently reconstructs the known repository; it does not ask Restore or Work Offline for this case.",
+      "requirements": [
+        "REPAIR-01",
+        "AUTH-01",
+        "DUR-01",
+        "CLEAN-01"
+      ],
+      "contracts": [
+        "TC-REPAIR-01",
+        "TC-ROOT-01",
+        "TC-DUR-05"
+      ],
+      "sources": [
+        "spec.repair",
+        "protocol.repair",
+        "plan.start"
+      ],
+      "steps": [
+        {
+          "title": "Classification of same-root top-level absence",
+          "actor": "This Mac",
+          "user": "Healthy local editing continues while automatic repository repair starts.",
+          "operation": "Verify held root identity, exact top-level absence, complete local closure and writable namespace.",
+          "rule": "Unreadable, offline, foreign or identity-ambiguous is not positive absence; disclosed unread newer evidence uses its own policy.",
+          "roles": {
+            "read": [
+              "rootowner",
+              "objects",
+              "pin"
+            ],
+            "write": [
+              "repairwork"
+            ],
+            "guard": [
+              "appleowner"
+            ]
+          },
+          "focus": "repairwork",
+          "edges": []
+        },
+        {
+          "title": "Exclusive reconstruction of the known protocol namespace",
+          "actor": "This Mac",
+          "user": "The complete known descriptors/objects are copied by exact identity.",
+          "operation": "Exclusively create ordinary protocol directories, verify final names and perform required barriers.",
+          "rule": "A race winner is reclassified/preserved. Damaged owned replacement needs displaced evidence preserved before a generation-checked install.",
+          "roles": {
+            "read": [
+              "repairwork",
+              "objects"
+            ],
+            "write": [
+              "rdirs",
+              "rkeys",
+              "rchanges",
+              "rgeneral"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "rdirs",
+          "edges": []
+        },
+        {
+          "title": "Verification and resumption of provider publication",
+          "actor": "This Mac",
+          "user": "Sync resumes from the same local history; available remote branches still union later.",
+          "operation": "Verify the reconstructed known repository and retain all accepted history plus restartable unfinished work.",
+          "rule": "Foreign collisions stop affected provider effects; cleanup removes only exact owned disposable artifacts.",
+          "roles": {
+            "read": [
+              "rdirs",
+              "pubwork"
+            ],
+            "write": [
+              "recvwork"
+            ],
+            "guard": [
+              "rootowner",
+              "gate"
+            ]
+          },
+          "focus": "pubwork",
+          "edges": []
+        }
+      ],
+      "related": [
+        "work-offline",
+        "private-repair",
+        "root-move"
+      ],
+      "featured": false
+    },
+    {
+      "id": "private-repair",
+      "category": "repair",
+      "title": "Fresh-store repair from complementary retained copies",
+      "summary": "A surviving pin requires G+L+R; private history supplies G+L and the repository supplies G+R. A validated union populates a fresh sibling, whose complete closure and retained pin must be durable before activation.",
+      "setup": "The surviving pin names closure G+L+R. The damaged private store has G+L; the repository has G+R. Neither alone is complete.",
+      "outcome": "Use the validated union to build a fresh sibling; activate it only after its complete closure and retained pin are durable.",
+      "requirements": [
+        "REPAIR-01",
+        "DUR-01",
+        "ROOT-01",
+        "CLEAN-01"
+      ],
+      "contracts": [
+        "TC-REPAIR-01",
+        "TC-DUR-06"
+      ],
+      "sources": [
+        "spec.repair",
+        "protocol.repair",
+        "local.backup"
+      ],
+      "steps": [
+        {
+          "title": "Capture and preservation of independently valid repair evidence",
+          "actor": "This Mac",
+          "user": "Recovery preserves the damaged source and identifies independently valid objects from each copy.",
+          "operation": "Classify identity, entry kind, access, exact authenticated bytes and required closure, not presumed cause or timestamps.",
+          "rule": "Missing entries never subtract from the repair union; contradictory bytes are not merged into a synthetic payload.",
+          "roles": {
+            "read": [
+              "objects",
+              "rchanges",
+              "rkeys",
+              "pin"
+            ],
+            "write": [
+              "repairwork",
+              "backup"
+            ],
+            "guard": [
+              "localowner",
+              "rootowner"
+            ]
+          },
+          "focus": "repairwork",
+          "edges": []
+        },
+        {
+          "title": "Construction of fresh sibling with closure G+L+R",
+          "actor": "This Mac",
+          "user": "The candidate remains unattached while copy/validation/pin work can be interrupted.",
+          "operation": "Commit complete accepted closure and required private groups, pending links and usable unlock descriptors into a fresh candidate.",
+          "rule": "A second failure preserves old evidence and leaves the candidate unactivated; provider repair cannot precede private closure.",
+          "roles": {
+            "read": [
+              "repairwork",
+              "private",
+              "pendingdisk",
+              "projectiondisk",
+              "unlock"
+            ],
+            "write": [
+              "candidate"
+            ],
+            "guard": [
+              "selectowner"
+            ]
+          },
+          "focus": "candidate",
+          "edges": []
+        },
+        {
+          "title": "Activation after candidate verification and pin durability",
+          "actor": "This Mac",
+          "user": "The repaired collection reopens through normal startup gates with a fresh session/origin/epoch.",
+          "operation": "Durably commit the candidate pin, verify activation and selection cutover, then establish new ownership.",
+          "rule": "Copied state never restores old physical permission or allocation epochs. Preserve displaced evidence.",
+          "roles": {
+            "read": [
+              "candidate"
+            ],
+            "write": [
+              "selection",
+              "current",
+              "live"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "selection",
+          "edges": []
+        }
+      ],
+      "related": [
+        "missing-history",
+        "private-backup",
+        "derived-rebuild"
+      ],
+      "featured": true
+    },
+    {
+      "id": "missing-history",
+      "category": "repair",
+      "title": "Required retained object missing from all available sources",
+      "summary": "A surviving pin names a leaf or descriptor absent from private history, repository and selected backup. Editable publication waits for complete repair or an explicit recovery outcome; apparently valid derived rows cannot waive the dependency.",
+      "setup": "Current rows exist, but the required retained pin names a missing leaf or descriptor absent from private store, repository and selected backup.",
+      "outcome": "Editable success waits for complete repair or an explicit recovery outcome; an unrelated malformed extra remains a separate case.",
+      "requirements": [
+        "REPAIR-01",
+        "START-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-DUR-06",
+        "TC-START-01",
+        "TC-REPAIR-01"
+      ],
+      "sources": [
+        "spec.repair",
+        "spec.start",
+        "verification"
+      ],
+      "steps": [
+        {
+          "title": "Detection of a missing required dependency",
+          "actor": "This Mac",
+          "user": "NV reports the exact recovery problem instead of trusting apparently plausible current rows.",
+          "operation": "Check the required retained closure and distinguish it from unrelated unaccepted/invalid extras.",
+          "rule": "Derived current rows, timestamps and a valid snapshot tag cannot waive known retained dependencies.",
+          "roles": {
+            "read": [
+              "pin",
+              "objects",
+              "unlock",
+              "current"
+            ],
+            "write": [
+              "verification",
+              "repairwork"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "pin",
+          "edges": []
+        },
+        {
+          "title": "Inspection of available exact repair sources",
+          "actor": "This Mac",
+          "user": "Available evidence is preserved while repository/backup reads are bounded.",
+          "operation": "Try exact named copies and validate complete closure; record unfinished verification/damage durably when possible.",
+          "rule": "Provider unavailability is not deletion; contradictory/unsupported required data cannot become silent omission.",
+          "roles": {
+            "read": [
+              "rchanges",
+              "rkeys",
+              "backup",
+              "objects"
+            ],
+            "write": [
+              "repairwork",
+              "verification"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "repairwork",
+          "edges": []
+        },
+        {
+          "title": "Explicit unresolved-damage or separate salvage outcome",
+          "actor": "This Mac",
+          "user": "The affected collection stays noneditable until its requirements are satisfied.",
+          "operation": "Offer applicable Retry/another source or explicitly labeled fresh current-note/file salvage with disclosed limits.",
+          "rule": "Total private-state loss is a distinct classification; it does not invent knowledge of unpublished history that no surviving pin discloses.",
+          "roles": {
+            "read": [
+              "repairwork",
+              "live"
+            ],
+            "write": [
+              "copy",
+              "candidate"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "candidate",
+          "edges": []
+        }
+      ],
+      "related": [
+        "private-repair",
+        "fresh-mac",
+        "verification-restart"
+      ],
+      "featured": false
+    },
+    {
+      "id": "fresh-mac",
+      "category": "repair",
+      "title": "Fresh private-store bootstrap from a selected repository",
+      "summary": "A new Mac or total private-state loss requires explicit physical association and complete verified bootstrap closure. A complete authenticated snapshot can support read-only preview while editing waits for required history and a durable fresh local pin.",
+      "setup": "The repository is selected explicitly. No old private store survives; initial-import closure may arrive in pieces.",
+      "outcome": "Complete authenticated snapshot preview can be read-only. Editing needs complete bootstrap/closure and a fresh private pin/origin/epoch.",
+      "requirements": [
+        "AUTH-01",
+        "START-01",
+        "REPAIR-01",
+        "HIST-01",
+        "CRYPT-01"
+      ],
+      "contracts": [
+        "TC-START-01",
+        "TC-START-03",
+        "TC-KEY-01"
+      ],
+      "sources": [
+        "spec.start",
+        "spec.repair",
+        "protocol.snapshots",
+        "plan.start"
+      ],
+      "steps": [
+        {
+          "title": "Explicit root selection, ownership and profile unlock",
+          "actor": "New Mac",
+          "user": "The selected folder and key are independently validated; no auto-attachment follows a collection-ID match.",
+          "operation": "Acquire ownership and read bounded descriptors/bootstrap evidence into a fresh private candidate.",
+          "rule": "An incomplete import is not a successful empty/partial collection. Missing keys keep it locked.",
+          "roles": {
+            "read": [
+              "rdirs",
+              "rkeys",
+              "selection"
+            ],
+            "write": [
+              "candidate",
+              "secrets"
+            ],
+            "guard": [
+              "rootowner",
+              "selectowner"
+            ]
+          },
+          "focus": "candidate",
+          "edges": []
+        },
+        {
+          "title": "Verification of complete initial-import and snapshot evidence",
+          "actor": "New Mac",
+          "user": "A fully authenticated complete snapshot can be previewed read-only while named batches/parents arrive.",
+          "operation": "Verify genesis commitment, ImportComplete, snapshot pages/counts/digests and required exact history closure.",
+          "rule": "Usable assembly pages are not accepted causal history. No preview grants editability or globally latest knowledge.",
+          "roles": {
+            "read": [
+              "rinitial",
+              "rchanges"
+            ],
+            "write": [
+              "objects",
+              "receiveq",
+              "snapwork"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "snapwork",
+          "edges": []
+        },
+        {
+          "title": "Fresh private acceptance and checked editable publication",
+          "actor": "New Mac",
+          "user": "All current/search values and authoring frontiers appear together; portable Undo is reconstructed from action history.",
+          "operation": "Commit complete acceptance/pin and derived rows, establish fresh origin/writer epoch, and final-check the opening handoff.",
+          "rule": "Old native stacks, physical permissions and source private settings are not transplanted from repository identities.",
+          "roles": {
+            "read": [
+              "objects",
+              "accepted",
+              "actionindex"
+            ],
+            "write": [
+              "pin",
+              "current",
+              "view",
+              "live",
+              "search",
+              "undo"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "current",
+          "edges": []
+        }
+      ],
+      "related": [
+        "work-offline",
+        "private-backup",
+        "portable-undo"
+      ],
+      "featured": false
+    },
+    {
+      "id": "private-backup",
+      "category": "repair",
+      "title": "Private backup containing unpublished and pending work",
+      "summary": "A consistent keyed SQLite backup or quiesced complete pager capture includes unpublished accepted history, required private records and pending recovery links. Usable unlock descriptors accompany encrypted backups; restore establishes fresh ownership.",
+      "setup": "The provider is offline. The private store holds unpublished accepted actions, settings and pending external-file recovery buffers.",
+      "outcome": "A consistent keyed database backup or quiesced complete pager copy, plus unlock descriptors, preserves the private recovery state.",
+      "requirements": [
+        "BACKUP-01",
+        "DUR-01",
+        "CRYPT-01",
+        "REPAIR-01"
+      ],
+      "contracts": [
+        "TC-REPAIR-01",
+        "TC-START-03",
+        "TC-KEY-01"
+      ],
+      "sources": [
+        "spec.backup",
+        "local.backup",
+        "local.keys"
+      ],
+      "steps": [
+        {
+          "title": "Consistent capture of the complete private backup boundary",
+          "actor": "This Mac",
+          "user": "The backup covers accepted unpublished history, required state and latest/frozen pending links.",
+          "operation": "Choose a consistent SQLite backup or quiesced complete DB/journal capture under keyed ownership.",
+          "rule": "A live database-file-only copy is not the specified consistent backup; current rows alone omit history and required state.",
+          "roles": {
+            "read": [
+              "dbcontainer",
+              "objects",
+              "pin",
+              "private",
+              "pendingdisk",
+              "projectiondisk"
+            ],
+            "write": [
+              "repairwork"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "dbcontainer",
+          "edges": []
+        },
+        {
+          "title": "Inclusion and verification of usable unlock descriptors",
+          "actor": "This Mac",
+          "user": "Encrypted backup recovery has an authorized password/recovery route; password-free recovery needs no Mac secret.",
+          "operation": "Include the bounded private unlock descriptors alongside the database and verify the captured backup.",
+          "rule": "A remembered device-bound Keychain item is not promised portable. Encrypted ciphertext alone does not promise unlockability.",
+          "roles": {
+            "read": [
+              "unlock",
+              "secrets",
+              "repairwork"
+            ],
+            "write": [
+              "backup"
+            ],
+            "guard": [
+              "selectowner"
+            ]
+          },
+          "focus": "backup",
+          "edges": []
+        },
+        {
+          "title": "Restore under freshly validated ownership and session identity",
+          "actor": "This Mac",
+          "user": "Exact retained actions and pending work recover before editing, using fresh session/epoch allocation.",
+          "operation": "Revalidate root/key/bootstrap/association and complete closure; recover exact admitted external operations before rescanning.",
+          "rule": "Old receipts require fresh physical evidence and grant no surviving file-delete permission.",
+          "roles": {
+            "read": [
+              "backup"
+            ],
+            "write": [
+              "candidate",
+              "selection",
+              "live",
+              "pendingwork"
+            ],
+            "guard": [
+              "gate",
+              "rootowner"
+            ]
+          },
+          "focus": "candidate",
+          "edges": []
+        }
+      ],
+      "related": [
+        "repository-copy",
+        "private-repair",
+        "admitted-file"
+      ],
+      "featured": false
+    },
+    {
+      "id": "unlock",
+      "category": "security",
+      "title": "Password unlock with an unavailable remembered key",
+      "summary": "When Keychain is locked or unavailable, a usable wrapped descriptor and authorized password can recover the same collection key. Remembering a new key item requires add-only creation and verified readback before association refers to it.",
+      "setup": "An encrypted collection’s device-bound remembered key is unavailable or locked, but a usable wrapped descriptor and password survive.",
+      "outcome": "The authorized password unlocks the same collection key; failed unlock preserves ciphertext and never produces empty plaintext.",
+      "requirements": [
+        "CRYPT-01",
+        "START-01",
+        "AUTH-01"
+      ],
+      "contracts": [
+        "TC-KEY-01",
+        "TC-CRYPT-01"
+      ],
+      "sources": [
+        "spec.crypto",
+        "local.keys",
+        "crypto.envelope"
+      ],
+      "steps": [
+        {
+          "title": "Profile and unlock-route validation before editable opening",
+          "actor": "This Mac",
+          "user": "Notes remain private and noneditable until an authorized key succeeds.",
+          "operation": "Read bounded provider/private unlock descriptors and distinguish unavailable Keychain from corrupt history.",
+          "rule": "Profile, key scope and physical association are independently checked; a matching collection ID proves none of them.",
+          "roles": {
+            "read": [
+              "rkeys",
+              "unlock",
+              "keychain"
+            ],
+            "write": [
+              "secrets"
+            ],
+            "guard": [
+              "selectowner"
+            ]
+          },
+          "focus": "unlock",
+          "edges": []
+        },
+        {
+          "title": "Password unwrapping and authenticated object decoding",
+          "actor": "This Mac",
+          "user": "The reviewed KDF/descriptor route unwraps CK, then domain-separated keys open database and objects.",
+          "operation": "Authenticate envelopes before decompression/value decoding; enforce bounds and semantic consistency separately.",
+          "rule": "Unsupported profiles, malformed input or authentication failure yield typed failure; there is no weaker/plaintext fallback.",
+          "roles": {
+            "read": [
+              "secrets",
+              "objects"
+            ],
+            "write": [
+              "decoded",
+              "graph"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "secrets",
+          "edges": []
+        },
+        {
+          "title": "Optional remembered-key provisioning and association cutover",
+          "actor": "This Mac",
+          "user": "Password unlocking still works if remembering fails.",
+          "operation": "Provision add-only, read back/validate the signed-app Keychain item, then durably reference it in private association.",
+          "rule": "No association may point to an unverified key item; ambiguous cutover preserves potentially referenced credentials.",
+          "roles": {
+            "read": [
+              "secrets"
+            ],
+            "write": [
+              "keychain",
+              "private"
+            ],
+            "guard": [
+              "selectowner"
+            ]
+          },
+          "focus": "keychain",
+          "edges": []
+        }
+      ],
+      "related": [
+        "password-rewrap",
+        "privacy-profile",
+        "fresh-mac"
+      ],
+      "featured": false
+    },
+    {
+      "id": "password-rewrap",
+      "category": "security",
+      "title": "Same-key password rewrap and full key/profile conversion",
+      "summary": "Password rewrap adds a descriptor for the existing CK while retaining history and prior descriptors. A full key/profile change creates an independently owned current-state destination whose output and credentials are verified before cutover.",
+      "setup": "The collection is unlocked with CK. The requested operation is either a new password wrapping that same CK or a full conversion to a fresh key/profile destination.",
+      "outcome": "Rewrap preserves exact history and old descriptors. A full key/profile change uses a source-preserving fresh destination and verified cutover.",
+      "requirements": [
+        "CRYPT-01",
+        "DUR-01",
+        "BACKUP-01"
+      ],
+      "contracts": [
+        "TC-KEY-01",
+        "TC-COPY-02"
+      ],
+      "sources": [
+        "spec.crypto",
+        "crypto.wrap",
+        "spec.roots"
+      ],
+      "steps": [
+        {
+          "title": "Preparation of a same-CK wrapped descriptor",
+          "actor": "This Mac",
+          "user": "The operation explains that old descriptors/secrets may still unlock retained copies.",
+          "operation": "Prepare a new bounded wrapped-key descriptor for the same CK without changing note/action identities or database key derivation.",
+          "rule": "Rewrap is not revocation, database rekeying or erasure of provider/APFS copies.",
+          "roles": {
+            "read": [
+              "secrets",
+              "rkeys",
+              "unlock"
+            ],
+            "write": [
+              "seal"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "seal",
+          "edges": []
+        },
+        {
+          "title": "Add-only descriptor and credential installation",
+          "actor": "This Mac",
+          "user": "The new unlock route is verified before association refers to it.",
+          "operation": "Retain/publish exact descriptor bytes and read back independent credential items before private cutover.",
+          "rule": "Keychain and filesystem are not one transaction; interruption preserves possibly referenced credentials and source data.",
+          "roles": {
+            "read": [
+              "seal",
+              "secrets"
+            ],
+            "write": [
+              "rkeys",
+              "unlock",
+              "keychain",
+              "private"
+            ],
+            "guard": [
+              "selectowner"
+            ]
+          },
+          "focus": "unlock",
+          "edges": []
+        },
+        {
+          "title": "Fresh-destination path for full key/profile change",
+          "actor": "This Mac",
+          "user": "Current-state conversion is explicitly labeled and verified before switching.",
+          "operation": "Capture coherent source values, create fresh collection/key/bootstrap, verify complete output and only then change active association.",
+          "rule": "Source changes invalidate capture. Independent destinations never update/delete source credentials automatically.",
+          "roles": {
+            "read": [
+              "live",
+              "repairwork"
+            ],
+            "write": [
+              "copy",
+              "candidate",
+              "selection"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "copy",
+          "edges": []
+        }
+      ],
+      "related": [
+        "unlock",
+        "privacy-profile",
+        "legacy-migration"
+      ],
+      "featured": false
+    },
+    {
+      "id": "privacy-profile",
+      "category": "security",
+      "title": "Encrypted history, plaintext output and conversion limits",
+      "summary": "Encrypted current/history/deleted values, previews and diagnostics follow their profile-specific handling rules. Explicit plaintext output has a disclosed destination and scope; unsupported rich or attachment conversion preserves source data before cutover.",
+      "setup": "An encrypted collection contains sensitive current, deleted and historical values. The requested operation is an explicit plaintext export or a conversion whose target may not support the source content.",
+      "outcome": "Encrypted provider/private history stays within its profile; explicit output discloses scope and preserves source on unsupported or failed conversion.",
+      "requirements": [
+        "CRYPT-01",
+        "BACKUP-01",
+        "HIST-01"
+      ],
+      "contracts": [
+        "TC-PRIV-01",
+        "TC-RICH-01",
+        "TC-CRYPT-01",
+        "TC-ZSTD-01",
+        "TC-BYTE-02",
+        "TC-LIMIT-01"
+      ],
+      "sources": [
+        "spec.crypto",
+        "spec.backup",
+        "crypto.envelope",
+        "plan.qualification"
+      ],
+      "steps": [
+        {
+          "title": "Authenticated reading and profile-specific plaintext handling",
+          "actor": "This Mac",
+          "user": "Previews are available in memory; encrypted at-rest values and diagnostics retain their prescribed privacy.",
+          "operation": "Use bounded authenticated envelopes before decoding; encrypt sensitive private rows/indexes and keep provider IDs opaque.",
+          "rule": "Authentication does not prove freshness/physical authority. Production diagnostics use closed IDs/counts/status, not titles, paths or keys.",
+          "roles": {
+            "read": [
+              "objects",
+              "secrets"
+            ],
+            "write": [
+              "history",
+              "decoded",
+              "live"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "history",
+          "edges": []
+        },
+        {
+          "title": "Lock or explicitly requested plaintext output",
+          "actor": "This Mac",
+          "user": "Lock releases view-held plaintext. Export/handoff requires an explicit disclosed destination.",
+          "operation": "Retain ownership of intentional scratch/export output and keep it outside encrypted provider history.",
+          "rule": "The design does not promise whole-process zeroization or erasure of another app’s backup; those are not inferred from marker tests.",
+          "roles": {
+            "read": [
+              "history",
+              "live",
+              "secrets"
+            ],
+            "write": [
+              "scratch"
+            ],
+            "guard": [
+              "gate",
+              "selectowner"
+            ]
+          },
+          "focus": "scratch",
+          "edges": []
+        },
+        {
+          "title": "Unsupported rich/attachment conversion before cutover",
+          "actor": "This Mac",
+          "user": "The conversion rejects/discloses unsupported loss and preserves source bytes before any cutover.",
+          "operation": "Choose a supported target codec/profile and detached verified conversion; maintain genuine legacy recovery/export separately.",
+          "rule": "Attachments are unsupported; RTF/HTML identity/rendering is deferred. Never silently flatten or fetch resources to satisfy a conversion.",
+          "roles": {
+            "read": [
+              "legacy",
+              "live",
+              "scratch"
+            ],
+            "write": [
+              "copy",
+              "repairwork"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "copy",
+          "edges": []
+        }
+      ],
+      "related": [
+        "external-editor",
+        "unlock",
+        "password-rewrap",
+        "legacy-migration"
+      ],
+      "featured": false
+    },
+    {
+      "id": "repository-copy",
+      "category": "lifecycle",
+      "title": "Repository copy with unavailable entries and no private store",
+      "summary": "The captured inventory includes available immutable history, descriptors and associated unknown files. Unreadable placeholders or changed captured files are reported; source Application Support is outside the repository-copy boundary.",
+      "setup": "A repository is copied from Finder or backup without source Application Support. One provider placeholder is unreadable and an unknown text file is present.",
+      "outcome": "Preserve the exact available captured inventory and report holes/changed inputs. A current-state export remains a separate command.",
+      "requirements": [
+        "BACKUP-01",
+        "AUTH-01",
+        "REPAIR-01"
+      ],
+      "contracts": [
+        "TC-COPY-01",
+        "TC-ROOT-01"
+      ],
+      "sources": [
+        "spec.backup",
+        "spec.roots",
+        "impl.copy",
+        "plan.start"
+      ],
+      "steps": [
+        {
+          "title": "Rooted capture of the repository inventory",
+          "actor": "This Mac",
+          "user": "The requested copy includes visible NV Data, historical objects/descriptors and associated unknown/unimported files.",
+          "operation": "Use rooted bounded enumeration and capture actual available bytes and known missing/unreadable dependencies.",
+          "rule": "Source Application Support, unpublished work and other Macs are outside this copy’s scope and are not prerequisites.",
+          "roles": {
+            "read": [
+              "rdirs",
+              "rkeys",
+              "rchanges",
+              "rinitial",
+              "rgeneral",
+              "rnotes"
+            ],
+            "write": [
+              "repairwork"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "repairwork",
+          "edges": []
+        },
+        {
+          "title": "Verified copying of available exact evidence",
+          "actor": "This Mac",
+          "user": "The destination preserves immutable identities/bytes and reports the unreadable placeholder or changed captured file.",
+          "operation": "Verify copied inventory; preserve useful available evidence even if editable recovery waits for a missing dependency.",
+          "rule": "Do not fabricate a new genesis/current-state history or claim global freshness/completeness.",
+          "roles": {
+            "read": [
+              "repairwork"
+            ],
+            "write": [
+              "copy"
+            ],
+            "guard": [
+              "selectowner"
+            ]
+          },
+          "focus": "copy",
+          "edges": []
+        },
+        {
+          "title": "Optional explicit switch after destination verification",
+          "actor": "This Mac",
+          "user": "Copy-only leaves the active root unchanged; switching establishes fresh private ownership and epoch.",
+          "operation": "Explicitly validate destination physical root/bootstrap/key and activate a fresh private association.",
+          "rule": "Historical lineage and portable Undo transfer through bytes; old root authority, receipts and distributed writer identity do not.",
+          "roles": {
+            "read": [
+              "copy",
+              "objects"
+            ],
+            "write": [
+              "candidate",
+              "selection",
+              "undo"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "selection",
+          "edges": []
+        }
+      ],
+      "related": [
+        "private-backup",
+        "unsaved-recovery",
+        "root-move"
+      ],
+      "featured": false
+    },
+    {
+      "id": "unsaved-recovery",
+      "category": "lifecycle",
+      "title": "Current-note recovery after local acceptance failure",
+      "summary": "An admitted edit remains visible when its SQL barrier fails. Retry retains exact pending identity; a recovery export must explicitly include coherent live pending values and verify a fresh destination before source work is released.",
+      "setup": "An admitted edit is visible but its local SQL barrier fails. The user requests recovery Save As while that live work remains pending.",
+      "outcome": "Retain the live work, retry the urgent barrier or create a disclosed verified current-notes recovery export before transition.",
+      "requirements": [
+        "DUR-01",
+        "BACKUP-01",
+        "ROOT-01"
+      ],
+      "contracts": [
+        "TC-COPY-02",
+        "TC-CLOSE-01",
+        "TC-DUR-04"
+      ],
+      "sources": [
+        "spec.roots",
+        "protocol.local",
+        "impl.copy"
+      ],
+      "steps": [
+        {
+          "title": "Local barrier failure after edit admission",
+          "actor": "This Mac",
+          "user": "The visible pending text remains available; subsequent mutation is gated by local failure policy.",
+          "operation": "Keep exact capture/retry input and pending generations while classifying committed, failed or uncertain outcomes.",
+          "rule": "An admitted value is not discarded because I/O failed; ambiguous identity is queried before allocating replacement work.",
+          "roles": {
+            "read": [
+              "live",
+              "capture",
+              "seal"
+            ],
+            "write": [
+              "pendinglive"
+            ],
+            "guard": [
+              "gate",
+              "localowner"
+            ]
+          },
+          "focus": "pendinglive",
+          "edges": []
+        },
+        {
+          "title": "Selection of urgent retry or current-note recovery export",
+          "actor": "This Mac",
+          "user": "The UI distinguishes urgent local retry from a current-notes recovery export that includes live pending values.",
+          "operation": "Capture a coherent complete source and verify a fresh destination with explicitly disclosed history limits.",
+          "rule": "A repository-only copy may omit admitted RAM edits and cannot serve as evidence those edits were saved.",
+          "roles": {
+            "read": [
+              "live",
+              "pendinglive",
+              "repairwork"
+            ],
+            "write": [
+              "copy"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "copy",
+          "edges": []
+        },
+        {
+          "title": "Verification before source release or collection transition",
+          "actor": "This Mac",
+          "user": "Source live work stays retained until the chosen recovery result is verified and the transition is applicable.",
+          "operation": "Recheck source generation, required outputs, credentials and physical destination before association cutover.",
+          "rule": "Failure/cancellation leaves pending work and source intact; an old completion cannot certify newer edits.",
+          "roles": {
+            "read": [
+              "copy",
+              "live"
+            ],
+            "write": [
+              "candidate",
+              "selection"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "selection",
+          "edges": []
+        }
+      ],
+      "related": [
+        "save-crash",
+        "quit-offline",
+        "repository-copy"
+      ],
+      "featured": false
+    },
+    {
+      "id": "quit-offline",
+      "category": "lifecycle",
+      "title": "Close with local work pending and provider work stalled",
+      "summary": "One close owner quiesces admission and drains complete local actions plus required private state. After local durability, Quit Without Waiting retains unpublished objects and reconcilable projection intent; derived-row failure alone does not block close.",
+      "setup": "Edits and an external-editor handoff are pending. Provider work is stalled and current materialization may fail independently.",
+      "outcome": "One close owner drains mandatory local state. After that, Quit Without Waiting retains unpublished objects and reconcilable file intent.",
+      "requirements": [
+        "DUR-01",
+        "ROOT-01",
+        "WAIT-01",
+        "CKPT-01"
+      ],
+      "contracts": [
+        "TC-CLOSE-01",
+        "TC-LIVE-01",
+        "TC-ASY-01"
+      ],
+      "sources": [
+        "spec.roots",
+        "impl.quit",
+        "plan.host"
+      ],
+      "steps": [
+        {
+          "title": "Quiescing and mandatory local close barriers",
+          "actor": "This Mac",
+          "user": "New admission quiesces while existing edits and external handoffs settle or are explicitly canceled.",
+          "operation": "Capture close ownership/generations and force complete admitted note/action/parent barriers plus required private state.",
+          "rule": "No recursive last-chance save runs from applicationWillTerminate; local failure retains the app and live work for recovery.",
+          "roles": {
+            "read": [
+              "pendinglive",
+              "capture",
+              "private"
+            ],
+            "write": [
+              "accepted",
+              "pin"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        },
+        {
+          "title": "Required-state persistence and separate external waits",
+          "actor": "This Mac",
+          "user": "A derived materialization failure alone does not make a durable quit fail.",
+          "operation": "Persist required settings/association and restart-reconcilable projection intent; optionally wait for captured provider/file work.",
+          "rule": "Unsaved required settings or mandatory key/association cutover failure is reported separately and cannot count as success.",
+          "roles": {
+            "read": [
+              "accepted",
+              "pin",
+              "projectiondisk"
+            ],
+            "write": [
+              "private",
+              "pubwork"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "private",
+          "edges": []
+        },
+        {
+          "title": "Deferred external work, callback draining and final ownership release",
+          "actor": "This Mac",
+          "user": "Safe quit keeps unpublished exact objects; cancellation resumes only healthy admission.",
+          "operation": "Fence/drain late callbacks and retain owned resources through settled accessors, then release ownership last.",
+          "rule": "Timeout is not instant OS cancellation. Old callbacks after a switch cannot clear or publish the next session’s work.",
+          "roles": {
+            "read": [
+              "objects",
+              "receiveq",
+              "pendingdisk",
+              "rootowner"
+            ],
+            "write": [
+              "gate"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "rootowner",
+          "edges": []
+        }
+      ],
+      "related": [
+        "offline-save",
+        "unsaved-recovery",
+        "collection-switch"
+      ],
+      "featured": false
+    },
+    {
+      "id": "root-move",
+      "category": "lifecycle",
+      "title": "Root move followed by replacement at the old pathname",
+      "summary": "Held authority follows the positively same directory object through a move. A new directory at the old path remains a separate target despite matching collection identity or bytes, and delayed operations revalidate their captured physical/session context.",
+      "setup": "Finder moves owned root R. A different directory appears at R’s old pathname with the same collection ID and protocol bytes.",
+      "outcome": "Held authority continues only for the positively same root. Replacement/loss fences affected provider effects while healthy local editing continues.",
+      "requirements": [
+        "AUTH-01",
+        "ROOT-01",
+        "WAIT-01"
+      ],
+      "contracts": [
+        "TC-ROOT-01",
+        "TC-ASY-01"
+      ],
+      "sources": [
+        "spec.ownership",
+        "spec.roots",
+        "apple.root",
+        "plan.provider"
+      ],
+      "steps": [
+        {
+          "title": "Provider preparation under continuously owned root R",
+          "actor": "This Mac",
+          "user": "The operation retains rooted descriptors, lifetime ownership and exact source/target generation.",
+          "operation": "Acquire private/root ownership nonblockingly in the specified order and capture operation-local resources.",
+          "rule": "Known live lock contention is not bypassed by Work Offline; a scan never closes a borrowed owner descriptor.",
+          "roles": {
+            "read": [
+              "rootowner",
+              "localowner"
+            ],
+            "write": [
+              "pubwork",
+              "filework"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "rootowner",
+          "edges": []
+        },
+        {
+          "title": "Movement of R and replacement at its former path",
+          "actor": "This Mac",
+          "user": "A same-object move preserves supported continuity; the lookalike gains no authority.",
+          "operation": "Use retained physical identity and positive forward provider revalidation, not pathname/UUID/hash matching.",
+          "rule": "A missing/revoked/ambiguous root pauses provider effects. It does not destroy a healthy private closure.",
+          "roles": {
+            "read": [
+              "rootowner",
+              "appleowner"
+            ],
+            "write": [
+              "recvwork"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "rootowner",
+          "edges": []
+        },
+        {
+          "title": "Consumption of the delayed result in its original context",
+          "actor": "This Mac",
+          "user": "It can settle only its captured root/session operation and cannot mutate the replacement.",
+          "operation": "Revalidate consumer/root/lifecycle generations; retain entered accessor resources until completion/fence.",
+          "rule": "Offer explicit Re-open/Save As/Retry for loss; no silent same-ID pathname retargeting or receipt transplantation.",
+          "roles": {
+            "read": [
+              "pubwork",
+              "filework",
+              "live"
+            ],
+            "write": [
+              "gate"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        }
+      ],
+      "related": [
+        "repository-repair",
+        "collection-switch",
+        "repository-copy"
+      ],
+      "featured": false
+    },
+    {
+      "id": "collection-switch",
+      "category": "lifecycle",
+      "title": "Collection switch, cancellation and late completion",
+      "summary": "One transition owner settles source work and verifies the chosen destination before association cutover. Cancellation resumes only healthy admission; late callbacks retain their original session scope and cannot affect the new collection.",
+      "setup": "A folder switch is requested while edits are pending. The transition may be canceled, or it may finish while old provider/read callbacks remain outstanding.",
+      "outcome": "Admitted work settles under its original owner; only a verified explicit transition changes selection and activates a fresh session.",
+      "requirements": [
+        "ROOT-01",
+        "PUB-01",
+        "AUTH-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-CLOSE-01",
+        "TC-ASY-01",
+        "TC-ROOT-01"
+      ],
+      "sources": [
+        "spec.roots",
+        "impl.quit",
+        "plan.host"
+      ],
+      "steps": [
+        {
+          "title": "Transition capture and source quiescing",
+          "actor": "This Mac",
+          "user": "One close/transition owner quiesces admission and settles mandatory source work.",
+          "operation": "Capture session/root/store generations and destination intent while retaining continuous source locks.",
+          "rule": "Canceled close does not temporarily release and reacquire authority; admission resumes only if health permits.",
+          "roles": {
+            "read": [
+              "live",
+              "pendinglive",
+              "rootowner"
+            ],
+            "write": [
+              "selectowner",
+              "gate"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "selectowner",
+          "edges": []
+        },
+        {
+          "title": "Destination verification and fresh-session activation",
+          "actor": "This Mac",
+          "user": "A complete verified destination gets fresh physical ownership and editable-session origin/epoch.",
+          "operation": "Recheck bootstrap/key/closure and durable private selection/association before final publication.",
+          "rule": "Matching collection ID does not transfer root permission or existing file receipts.",
+          "roles": {
+            "read": [
+              "copy",
+              "candidate",
+              "secrets"
+            ],
+            "write": [
+              "selection",
+              "live",
+              "view"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "selection",
+          "edges": []
+        },
+        {
+          "title": "Fencing of an old callback after cutover",
+          "actor": "This Mac",
+          "user": "The new collection’s text, pending work and view stay unchanged by the stale result.",
+          "operation": "Consume late work only against its captured operation/session resources, retaining ownership until it settles.",
+          "rule": "No completion reopens a dismissed view, clears a new session’s work or widens the old command’s target.",
+          "roles": {
+            "read": [
+              "recvwork",
+              "filework",
+              "views"
+            ],
+            "write": [
+              "gate"
+            ],
+            "guard": [
+              "rootowner"
+            ]
+          },
+          "focus": "gate",
+          "edges": []
+        }
+      ],
+      "related": [
+        "root-move",
+        "quit-offline",
+        "shared-windows"
+      ],
+      "featured": false
+    },
+    {
+      "id": "legacy-migration",
+      "category": "lifecycle",
+      "title": "Verified migration from recovered epoch-4 state",
+      "summary": "Migration first recovers and coherently captures legacy current values. The fresh destination must verify its complete genesis/import/snapshot, required output and credentials before association changes; failure preserves the legacy source.",
+      "setup": "The legacy Notes & Settings/WAL path first recovers current notes. Migration targets a new segment collection with a supported codec/profile.",
+      "outcome": "Complete genesis/import/snapshot and required outputs are verified before cutover; failed migration preserves legacy source and credentials.",
+      "requirements": [
+        "START-01",
+        "CRYPT-01",
+        "BACKUP-01",
+        "DUR-01"
+      ],
+      "contracts": [
+        "TC-LEGACY-01",
+        "TC-START-01",
+        "TC-RICH-01",
+        "TC-KEY-01"
+      ],
+      "sources": [
+        "spec.start",
+        "spec.roots",
+        "spec.backup",
+        "plan.start"
+      ],
+      "steps": [
+        {
+          "title": "Recovery and coherent capture of legacy source values",
+          "actor": "This Mac",
+          "user": "Current legacy values are recovered through the genuine epoch-4 path before conversion.",
+          "operation": "Settle external work and capture complete initial values/count/canonical digest with disclosed target format/profile.",
+          "rule": "Unsupported rich/attachment conversion preserves source and requires explicit supported handling; no silent flattening.",
+          "roles": {
+            "read": [
+              "legacy",
+              "live"
+            ],
+            "write": [
+              "capture",
+              "repairwork"
+            ],
+            "guard": [
+              "selectowner",
+              "gate"
+            ]
+          },
+          "focus": "legacy",
+          "edges": []
+        },
+        {
+          "title": "Complete initial-history construction and verification",
+          "actor": "This Mac",
+          "user": "Genesis, dependency-linked batches, ImportComplete and complete snapshot agree with the commitment.",
+          "operation": "Seal/validate all initial objects, durably accept their closure, and verify required plaintext/credential output independently.",
+          "rule": "Interrupted or contradictory bootstrap cannot become a successful partial/empty collection.",
+          "roles": {
+            "read": [
+              "capture",
+              "snapwork"
+            ],
+            "write": [
+              "candidate",
+              "rkeys",
+              "rchanges",
+              "rinitial"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "rinitial",
+          "edges": []
+        },
+        {
+          "title": "Source-generation check and verified association cutover",
+          "actor": "This Mac",
+          "user": "Only verified destination evidence commits active association; failures leave the source usable.",
+          "operation": "Read back independent credentials and recheck source generation before durable selection cutover.",
+          "rule": "Explicit legacy export remains genuine epoch-4 current-state output. No live compatibility archive or mixed-version segment writer is introduced.",
+          "roles": {
+            "read": [
+              "candidate",
+              "repairwork"
+            ],
+            "write": [
+              "selection",
+              "copy"
+            ],
+            "guard": [
+              "selectowner"
+            ]
+          },
+          "focus": "selection",
+          "edges": []
+        }
+      ],
+      "related": [
+        "fresh-mac",
+        "privacy-profile",
+        "repository-copy"
+      ],
+      "featured": false
+    },
+    {
+      "id": "idle-maintenance",
+      "category": "daily",
+      "title": "Optional current-row recoding and full-VACUUM maintenance",
+      "summary": "Bounded row recoding preserves logical values and context under exact view/prefix checks. Opportunistic full VACUUM requires a healthy idle store, measured benefit and space budgets, and qualified interruption/commit latency; required persistence takes priority.",
+      "setup": "A healthy private store qualifies for explicit row recoding or opportunistic full VACUUM under measured fragmentation/space budgets.",
+      "outcome": "Values, accepted history, authoring context and Undo stay identical. Skipped/failed maintenance alone cannot invalidate a durable save.",
+      "requirements": [
+        "CKPT-01",
+        "DUR-01",
+        "ROOT-01"
+      ],
+      "contracts": [
+        "TC-START-01",
+        "TC-PERF-01"
+      ],
+      "sources": [
+        "rowcodec",
+        "maintenance",
+        "spec.start"
+      ],
+      "steps": [
+        {
+          "title": "Capture of a bounded row-recoding candidate",
+          "actor": "This Mac",
+          "user": "The active model remains available while optional work is prepared off the main thread.",
+          "operation": "Bind exact current cells/dictionary data and logical context to the captured view/prefix.",
+          "rule": "Optional work is neither startup/quit-required nor a substitute for complete validation.",
+          "roles": {
+            "read": [
+              "current",
+              "dict",
+              "view"
+            ],
+            "write": [
+              "maintenance"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "maintenance",
+          "edges": []
+        },
+        {
+          "title": "Interference by required persistence",
+          "actor": "This Mac",
+          "user": "Required persistence takes priority; stale optional installation is rejected or recaptured.",
+          "operation": "Check owner/view/prefix and exact row generations before atomic codec/dictionary installation.",
+          "rule": "Recoding changes physical representation, not history identity, note values or causal authoring context.",
+          "roles": {
+            "read": [
+              "maintenance",
+              "current"
+            ],
+            "write": [
+              "dict",
+              "current"
+            ],
+            "guard": [
+              "gate"
+            ]
+          },
+          "focus": "current",
+          "edges": []
+        },
+        {
+          "title": "Qualified optional database compaction",
+          "actor": "This Mac",
+          "user": "Full VACUUM is opportunistic and subject to temporary-space, interruption and commit-latency qualification.",
+          "operation": "Invalidate physical read-ahead hints before layout changes and retain worker/owner resources until settling.",
+          "rule": "Automatic execution stays disabled until interruption/settling and durable-commit latency are qualified. Maintenance preserves every logical identity and retained byte; genuine damage follows ordinary recovery.",
+          "roles": {
+            "read": [
+              "dbcontainer",
+              "hints",
+              "maintenance"
+            ],
+            "write": [
+              "maintenance"
+            ],
+            "guard": [
+              "localowner"
+            ]
+          },
+          "focus": "dbcontainer",
+          "edges": []
+        }
+      ],
+      "related": [
+        "fast-startup",
+        "derived-rebuild"
+      ],
+      "featured": false
+    }
+  ]
+}

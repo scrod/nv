@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RUNTIME_FILTER = 'NVStorage(Runtime|Recovery|Repository)Tests'
 
 
 def completed_tests(log):
@@ -21,10 +22,17 @@ def main():
     assert completed_tests('Test run with 81 tests in 2 suites passed after 1.0 seconds.')
     assert not completed_tests('Test run with 0 tests in 1 suite passed after 1.0 seconds.')
     assert not completed_tests('Test run with 81 tests in 1 suite failed after 1.0 seconds.')
+    for module in ('NVStorageRuntimeTests', 'NVStorageRecoveryTests', 'NVStorageRepositoryTests'):
+        assert re.search(DEFAULT_RUNTIME_FILTER, module + '.example()')
+    assert not re.search(DEFAULT_RUNTIME_FILTER, 'NVStorageCoreTests.example()')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prefix', type=Path, required=True)
-    parser.add_argument('--filter', default='NVStorageRuntimeTests')
+    parser.add_argument('--filter', default=DEFAULT_RUNTIME_FILTER,
+                        help='Select the three Runtime test modules by default; explicit filters select a targeted campaign.')
+    parser.add_argument('--jobs', type=int, default=1, help='Bound compiler concurrency during instrumented qualification.')
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error('--jobs must be positive')
     prefix = args.prefix.resolve()
     archive = prefix/'lib/libsqlcipher.a'
     symbols = subprocess.check_output(['nm', '-u', str(archive)], text=True)
@@ -47,8 +55,9 @@ def main():
     with (artifacts/'runtime.log').open('w') as output:
         result = subprocess.run(['swift', 'test', '--build-system', 'native', '--package-path', str(ROOT/'NVStorage'),
             '--scratch-path', str(ROOT/'NVStorage/.build-cipher-asan'), '--sanitize', 'address',
-            '--no-parallel', '--filter', args.filter], env=env, stdout=output, stderr=subprocess.STDOUT)
-    log = (artifacts/'runtime.log').read_text()
+            '--jobs', str(args.jobs), '--no-parallel', '--filter', args.filter], env=env, stdout=output, stderr=subprocess.STDOUT)
+    # Preserve ASCII diagnostics when concurrent status icons split a UTF-8 sequence.
+    log = (artifacts/'runtime.log').read_text(errors='backslashreplace')
     (artifacts/'results.json').write_text(json.dumps({'runtime_returncode': result.returncode,
         'positive_test_completion': completed_tests(log), 'filter': args.filter,
         'cipher_archive': str(archive)}, indent=2))

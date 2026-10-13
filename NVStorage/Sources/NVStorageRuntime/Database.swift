@@ -1,4 +1,5 @@
 import CSQLCipher
+import CSQLMaintenance
 import CStorageIO
 import Foundation
 import NVStorageCore
@@ -28,6 +29,17 @@ final class Database {
     private var handle: OpaquePointer?
     private var backup: PrivateBackupWork?
     private let executor: StorageExecutor
+    /// Synchronous nested statements share their enclosing turn's physical checks.
+    private var ownedOperationActive = false
+    private enum BootstrapReadiness { case candidate, complete }
+    /// Fixed facts established by this connection's successful opening checks.
+    private struct CheckedContext {
+        let store: LocalStoreID
+        let descriptor: [UInt8]
+        let verification: [UInt8]
+        let bootstrap: BootstrapReadiness
+    }
+    private var checkedContext: CheckedContext?
     private(set) var requiredHistoryDamaged = false
     fileprivate var diagnosisAttemptedThisTurn = false
     var work: StorageWork?
@@ -108,6 +120,8 @@ final class Database {
             }
             try exec("PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL; PRAGMA mmap_size=0; PRAGMA temp_store=MEMORY; PRAGMA wal_autocheckpoint=0; PRAGMA fullfsync=ON; PRAGMA checkpoint_fullfsync=ON;")
             guard try rows("PRAGMA journal_mode=WAL") == [[.text("wal")]],
+                  try rows("PRAGMA cipher_page_size") == [[.text("4096")]],
+                  try rows("PRAGMA auto_vacuum") == [[.integer(0)]],
                   try rows("PRAGMA foreign_keys") == [[.integer(1)]],
                   try rows("PRAGMA synchronous") == [[.integer(2)]],
                   try rows("PRAGMA wal_autocheckpoint") == [[.integer(0)]],
@@ -126,25 +140,104 @@ final class Database {
     func close() {
         executor.checkIsolation()
         cancelPrivateBackup()
+        checkedContext = nil
         if let handle = unsafe handle { unsafe sqlite3_close_v2(handle); unsafe self.handle = nil }
         if let owner = unsafe owner { unsafe nv_storage_owner_close(owner); unsafe self.owner = nil }
     }
     func validateOwner() throws {
+        if ownedOperationActive { try requireOwnedConnection() }
+        else { try checkPhysicalOwner() }
+    }
+    private func checkPhysicalOwner() throws {
         executor.checkIsolation()
+        try requireOwnedConnection()
+        countWork { $0.physicalOwnerChecks += 1 }
         guard let owner = unsafe owner, unsafe handle != nil else { throw StorageError.closed }
-        guard unsafe nv_storage_owner_validate(owner) == 0 else { throw StorageError.ownership(errno) }
+        if unsafe nv_storage_owner_validate(owner) != 0 {
+            let failure = errno
+            throw StorageError.ownership(failure)
+        }
+    }
+    private func requireOwnedConnection() throws {
+        executor.checkIsolation()
+        guard unsafe owner != nil, unsafe handle != nil else { throw StorageError.closed }
+    }
+    /// Brackets one synchronous database turn; transactions also check their commit boundary.
+    fileprivate func withOwnedOperation<T>(_ body: () throws -> T) throws -> T {
+        if ownedOperationActive { try requireOwnedConnection(); return try body() }
+        try checkPhysicalOwner()
+        ownedOperationActive = true
+        defer { ownedOperationActive = false }
+        do {
+            let result = try body()
+            try work?.databaseBoundary?(.returning)
+            try checkPhysicalOwner()
+            return result
+        } catch {
+            // Ownership loss takes precedence over a result from a detached connection.
+            try checkPhysicalOwner()
+            throw error
+        }
     }
     private func check(_ code: Int32) throws {
         guard code == SQLITE_OK else { throw StorageError.database(code) }
     }
+    /// Validates fixed opening facts once, then checks each caller against that exact context.
+    func validateHeader(store: LocalStoreID, descriptor: BootstrapDescriptorV1, requireBootstrap: Bool = true) throws {
+        try withOwnedOperation {
+            try requireHealthyHistory()
+            if let checkedContext {
+                guard checkedContext.store == store, checkedContext.descriptor == descriptor.encodedBytes else {
+                    throw StorageError.wrongContext
+                }
+                if !requireBootstrap || checkedContext.bootstrap == .complete { return }
+            } else {
+                countWork { $0.connectionContextChecks += 1 }
+                let tables = try rows("SELECT name FROM sqlite_schema WHERE type='table' AND name IN ('store_header','objects','accepted_objects','private_groups','view_meta','current_notes','retained_frontier','retained_descriptors','ready_objects','object_waits')")
+                guard tables.count == 10 else { throw StorageError.incomplete }
+                let pending = try rows("SELECT name FROM sqlite_schema WHERE type='table' AND name IN ('pending_payloads','pending_items','pending_reservations','pending_settlements')")
+                guard pending.count == 4 else { throw StorageError.incomplete }
+                let r = try rows("SELECT schema_version,local_store_id,collection_id,profile,key_id,note_codec,merge_policy,genesis_locator,bootstrap_descriptor FROM store_header WHERE singleton=1")
+                guard r.count == 1 else { throw StorageError.incomplete }
+                let expected: [SQLValue] = [.integer(3), .blob(store.bytes), .blob(descriptor.collection.bytes),
+                    .integer(descriptor.keyID == nil ? 1 : 2), .blob(descriptor.keyID?.bytes ?? Array(repeating: 0, count: 16)),
+                    .integer(1), .integer(1), .blob(descriptor.genesis.encodedV1()), .blob(descriptor.descriptorID)]
+                guard r[0][0] == .integer(3), r[0][5] == .integer(1), r[0][6] == .integer(1) else { throw StorageError.unsupported }
+                guard r[0] == expected else { throw StorageError.wrongContext }
+                guard try rows("SELECT sql FROM sqlite_schema WHERE type='index' AND name='actions_conflict_copies'") ==
+                    [[.text("CREATE INDEX actions_conflict_copies ON actions(first_seq, action_id) WHERE kind=9")]] else {
+                    throw StorageError.incomplete
+                }
+                try run("SELECT dictionary_id,encoded FROM current_dictionaries LIMIT 0")
+                try run("SELECT object_id,validator_version,reason FROM rejected_objects LIMIT 0")
+                try validateRequiredPrivateGroups(store: store, descriptor: descriptor)
+            }
+            if requireBootstrap {
+                guard let root = try stagedBootstrap() else { throw StorageError.incomplete }
+                guard try !rows("SELECT 1 FROM accepted_objects a JOIN objects o USING(object_id) WHERE o.object_id=? AND o.kind=2 AND o.writer_epoch=? AND o.sequence=?", [.blob(root.segmentID.bytes), .blob(root.writerEpoch.bytes), .blob(Array(root.encodedV1()[16..<24]))]).isEmpty else { throw StorageError.incomplete }
+            }
+            checkedContext = CheckedContext(store: store, descriptor: descriptor.encodedBytes,
+                verification: store.bytes + descriptor.collection.bytes + descriptor.descriptorID,
+                bootstrap: requireBootstrap ? .complete : .candidate)
+        }
+    }
+    /// Supplies the fixed private-record binding established by opening this connection.
+    func verificationContext() throws -> [UInt8] {
+        try requireOwnedConnection()
+        guard let checkedContext else { throw StorageError.incomplete }
+        return checkedContext.verification
+    }
     func exec(_ sql: String) throws {
-        countWork { $0.statements += 1 }
-        try validateOwner()
-        try unsafe check(sqlite3_exec(handle, sql, nil, nil, nil))
+        try withOwnedOperation {
+            countWork { $0.statements += 1 }
+            try unsafe check(sqlite3_exec(handle, sql, nil, nil, nil))
+        }
     }
     func each(_ sql: String, _ args: [SQLValue] = [], visit: ([SQLValue]) throws -> Void) throws {
+        try withOwnedOperation { try statement(sql, args, visit: visit) }
+    }
+    private func statement(_ sql: String, _ args: [SQLValue], visit: ([SQLValue]) throws -> Void) throws {
         countWork { $0.statements += 1; if sql.contains("WITH RECURSIVE") { $0.recursiveStatements += 1 } }
-        try validateOwner()
         var statement: OpaquePointer?
         try unsafe check(sqlite3_prepare_v2(handle, sql, -1, &statement, nil))
         defer {
@@ -152,7 +245,12 @@ final class Database {
                 let steps = unsafe Int(sqlite3_stmt_status(statement, SQLITE_STMTSTATUS_VM_STEP, 0))
                 $0.vmSteps += steps
                 $0.statementSteps[sql, default: 0] += steps
-                unsafe $0.fullScanSteps += Int(sqlite3_stmt_status(statement, SQLITE_STMTSTATUS_FULLSCAN_STEP, 0))
+                $0.statementCalls[sql, default: 0] += 1
+                $0.leastStatementSteps[sql] = min($0.leastStatementSteps[sql] ?? steps, steps)
+                $0.mostStatementSteps[sql] = max($0.mostStatementSteps[sql] ?? steps, steps)
+                let scans = unsafe Int(sqlite3_stmt_status(statement, SQLITE_STMTSTATUS_FULLSCAN_STEP, 0))
+                $0.fullScanSteps += scans
+                $0.statementScanSteps[sql, default: 0] += scans
             }
             unsafe sqlite3_finalize(statement)
         }
@@ -203,13 +301,56 @@ final class Database {
         var result: [[SQLValue]] = []; try each(sql, args) { result.append($0) }; return result
     }
     func transaction<T>(_ body: () throws -> T) throws -> T {
-        try exec("BEGIN IMMEDIATE")
-        do { let result = try body(); try exec("COMMIT"); try validateOwner(); return result }
-        catch { try? exec("ROLLBACK"); throw error }
+        try withOwnedOperation {
+            try exec("BEGIN IMMEDIATE")
+            do {
+                let result = try body()
+                try work?.databaseBoundary?(.committing)
+                try checkPhysicalOwner()
+                try exec("COMMIT")
+                try work?.databaseBoundary?(.committed)
+                try checkPhysicalOwner()
+                return result
+            } catch { try? exec("ROLLBACK"); throw error }
+        }
     }
     func checkpoint() throws {
         try validateOwner()
         try unsafe check(sqlite3_wal_checkpoint_v2(handle, nil, SQLITE_CHECKPOINT_PASSIVE, nil, nil))
+    }
+
+    /// Issues an interruptible physical-maintenance borrow while the connection remains owned.
+    func beginVacuum() throws -> VacuumRequest {
+        try validateOwner(); try requireHealthyHistory()
+        var identity: UInt64 = 0
+        try unsafe check(nv_sql_vacuum_begin(handle, &identity))
+        return VacuumRequest(connection: incarnation, identity: identity)
+    }
+    /// Estimates physical work using the qualified cipher geometry and live page count.
+    func privateStoreBytes() throws -> UInt64 {
+        guard try rows("PRAGMA page_size") == [[.text("4096")]] else { throw StorageError.unsupported }
+        let pages = try rows("PRAGMA page_count")[0][0].number
+        guard pages > 0 else { throw StorageError.integrity }
+        let (bytes, overflow) = UInt64(pages).multipliedReportingOverflow(by: 4096)
+        guard !overflow else { throw StorageError.limit }
+        return bytes
+    }
+    /// Settles VACUUM and retires its exact interrupt target before the next writer turn.
+    func runVacuum(_ request: VacuumRequest, directory: String, minimumFreeBytes: UInt64) throws -> VacuumOutcome {
+        guard request.connection == incarnation else { throw StorageError.wrongContext }
+        defer { nv_sql_vacuum_finish(request.identity) }
+        try validateOwner(); try requireHealthyHistory()
+        let bytes = try privateStoreBytes()
+        let (temporaryBytes, twice) = bytes.multipliedReportingOverflow(by: 2)
+        let (headroom, excess) = temporaryBytes.addingReportingOverflow(minimumFreeBytes)
+        guard !twice, !excess else { return .skipped(.spaceHeadroom) }
+        let attributes = try FileManager.default.attributesOfFileSystem(forPath: directory)
+        guard let free = attributes[.systemFreeSize] as? NSNumber else { throw StorageError.unsupported }
+        guard free.uint64Value >= headroom else { return .skipped(.spaceHeadroom) }
+        let result = unsafe nv_sql_vacuum_run(handle, request.identity)
+        if result == SQLITE_INTERRUPT { return .interrupted }
+        try check(result); try validateOwner()
+        return .completed
     }
 
     func installUnlockDescriptor(_ descriptor: BootstrapDescriptorV1) throws {
@@ -238,7 +379,8 @@ final class Database {
             let pin = try reader.rows("SELECT object_id,locator FROM retained_frontier ORDER BY object_id")
             let meta = try reader.rows("SELECT epoch,reducer_version,through_seq,authoring_context FROM view_meta WHERE singleton=1")
             let current = try reader.rows("SELECT birth,cell FROM current_notes ORDER BY birth")
-            let cut = try PrivateBackupCapture(through: through, groups: groups, pin: pin, current: current, view: meta,
+            let dictionaries = try reader.rows("SELECT dictionary_id,encoded FROM current_dictionaries ORDER BY dictionary_id")
+            let cut = try PrivateBackupCapture(through: through, groups: groups, pin: pin, current: current, dictionaries: dictionaries, view: meta,
                 pending: reader.pendingPrivateFingerprint())
             guard let task = unsafe sqlite3_backup_init(destination.handle, "main", reader.handle, "main") else {
                 throw StorageError.database(unsafe sqlite3_errcode(destination.handle))
@@ -267,12 +409,21 @@ final class Database {
     func cancelPrivateBackup() { backup?.close(); backup = nil }
 }
 
+/// Owner-issued identity for cancellation of one connection-retaining maintenance operation.
+struct VacuumRequest: Sendable {
+    fileprivate let connection: UUID
+    fileprivate let identity: UInt64
+    fileprivate init(connection: UUID, identity: UInt64) { self.connection = connection; self.identity = identity }
+    func cancel() { nv_sql_vacuum_cancel(identity) }
+}
+
 /// Fixed database cut checked before ordinary recovery processes its captured work.
 struct PrivateBackupCapture: Sendable {
     let through: Int64
     let groups: [[SQLValue]]
     let pin: [[SQLValue]]
     let current: [[SQLValue]]
+    let dictionaries: [[SQLValue]]
     let view: [[SQLValue]]
     let pending: [UInt8]
 }
@@ -304,7 +455,7 @@ final class StorageExecutor: SerialExecutor {
     func enqueue(_ job: UnownedJob) {
         queue.async { unsafe job.runSynchronously(on: self.asUnownedSerialExecutor()) }
     }
-    fileprivate func checkIsolation() { dispatchPrecondition(condition: .onQueue(queue)) }
+    func checkIsolation() { dispatchPrecondition(condition: .onQueue(queue)) }
 
     /// Finishes final C-handle disposal on the owning queue before destruction returns.
     fileprivate func retire(handle: OpaquePointer?, owner: OpaquePointer?) {
@@ -326,6 +477,16 @@ final class StorageExecutor: SerialExecutor {
     func retireRepository(_ owner: OpaquePointer?) {
         guard let owner = unsafe owner else { return }
         let retired = unsafe RetiredRepository(owner: owner)
+        finishOnOwner { unsafe retired.release() }
+    }
+    func retireRoot(_ owner: OpaquePointer?) {
+        guard let owner = unsafe owner else { return }
+        let retired = unsafe RetiredRoot(owner: owner)
+        finishOnOwner { unsafe retired.release() }
+    }
+    func retireRootListing(_ listing: OpaquePointer?) {
+        guard let listing = unsafe listing else { return }
+        let retired = unsafe RetiredRootListing(listing: listing)
         finishOnOwner { unsafe retired.release() }
     }
     func finishOnOwner(_ release: () -> Void) {
@@ -357,6 +518,16 @@ final class StorageExecutor: SerialExecutor {
     private struct RetiredRepository {
         let owner: OpaquePointer
         func release() { unsafe nv_repository_close(owner) }
+    }
+    @unsafe
+    private struct RetiredRoot {
+        let owner: OpaquePointer
+        func release() { unsafe nv_root_close(owner) }
+    }
+    @unsafe
+    private struct RetiredRootListing {
+        let listing: OpaquePointer
+        func release() { unsafe nv_root_list_close(listing) }
     }
 }
 
@@ -399,18 +570,28 @@ actor DatabaseLane {
             }
         }
         do {
-            try db.requireHealthyHistory()
-            let result = try work(db)
-            try db.requireHealthyHistory()
-            return result
+            return try db.withOwnedOperation {
+                try db.requireHealthyHistory()
+                let result = try work(db)
+                try db.requireHealthyHistory()
+                return result
+            }
         } catch {
             if db.requiredHistoryDamaged { try? db.recordRequiredHistoryDamage() }
             throw error
         }
+    }
+    /// Preserves the originating failure when nested retained reads have already fenced the owner.
+    func failRetainedRead(_ error: any Error) throws -> Never {
+        guard let db = database else { throw StorageError.closed }
+        if db.requiredHistoryDamaged { throw error }
+        return try perform { db in try db.checkingRetainedHistory { throw error } }
     }
     func open(directory: String, create: Bool, key: [UInt8]) throws {
         guard database == nil else { throw StorageError.busy }
         database = try Database(directory: directory, create: create, key: key, executor: executor)
     }
     func close() { verificationReplayContext = nil; database?.close(); database = nil }
+    /// Retires an abandoned pre-run maintenance borrow on the connection's executor.
+    func retireVacuum(_ request: VacuumRequest) { nv_sql_vacuum_finish(request.identity) }
 }

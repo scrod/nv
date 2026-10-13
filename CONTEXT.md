@@ -89,6 +89,14 @@ reconstruct these roles; the private reverse-wait index stores object IDs. A
 usable page can satisfy a byte requirement before its containing snapshot is
 accepted. See [snapshot intake](docs/impl-proposal-5/plan/phase4-received-snapshot-validation.md).
 
+**Startup-required receive work**:
+Ready Changes and their discovered prerequisites, selected independently of queue
+order before healthy current-note publication. Bootstrap, reconstruction, known
+history checks and unfinished verification obligations also remain required.
+Independent optional snapshots stay durably queued until successful checked host
+publication starts the existing receive worker. See [returning launch](docs/impl-proposal-5/LocalStore.md#concrete-returning-launch-algorithm)
+and [scheduling coverage](docs/tla/OptionalReadyStartupSafety.tla).
+
 **Local tail**:
 Locally retained history not represented by the current materialization or a provider snapshot. It need not be unpublished or belong to only one writer.
 _Avoid_: Only unsynced edits, highest sequence number
@@ -128,6 +136,15 @@ own local codec metadata. Zlib is legacy epoch-4 database/WAL compatibility only
 See the [exact acceptance rules](docs/impl-proposal-5/Encryption.md#compression-profile).
 _Avoid_: SQLCipher page encryption, a shared stream across segments
 
+**Private current-row dictionary**:
+Immutable formatted zstd bytes used to decode private current cells, addressed by
+their full SHA-256 digest. Rows from multiple generations may coexist; the reader
+loads named dictionaries with a bounded per-job preparation working set.
+Dictionaries and referencing rows install atomically. This is derived
+materialization metadata, rebuilt with current rows from healthy retained history.
+See the [physical codec](docs/impl-proposal-5/plan/private-current-row-codec.md).
+_Avoid_: Collection identity, provider snapshot, required pending input
+
 **Segment**:
 An immutable history object containing either complete operation/action groups or a typed provider-snapshot root/page payload. A segment's transport identity is distinct from the identities of the operations inside it.
 _Avoid_: Active journal, file patch, private startup cache
@@ -163,6 +180,10 @@ _Avoid_: Undo cursor, upload receipt, all-devices watermark
 **Provider snapshot**:
 An immutable snapshot of note values and indexes at a stated operation frontier, available as retained provider objects. An initial root names a flat page list; a general root names a paged manifest tree. Its represented logical operation ancestry is distinct from the objects required to verify it: a required envelope can also carry a complete action outside that ancestry. Reconstruction includes every locally accepted outside-cut operation, even one received before the snapshot root. The snapshot root is distinct from the filesystem root.
 _Avoid_: Startup cache, latest database, canonical checkpoint
+
+**Snapshot retention parent**:
+An exact accepted snapshot-root locator recorded in a general v1 snapshot's paged manifest. The new root requires and covers that parent's previously validated object closure, allowing the private retained frontier to advance while every ancestor's bytes remain stored. It is distinct from an operation causal parent: covering a snapshot preserves its objects independently of which note revisions the new snapshot represents. The single format has eight category counts, with zero in the retention-parent count when no parents are named. See the [format contract](docs/impl-proposal-5/plan/general-snapshot-record-contract.md).
+_Avoid_: Newest-state election, permission to prune snapshots, snapshot supersession
 
 **Encryption recovery key**:
 Secret key material supplied by the user to unlock an encrypted collection through its validated bootstrap. It is unrelated to a deterministic conflict recovery key.
@@ -254,6 +275,10 @@ _Avoid_: Rejected history, applied state
 **Provider publication**:
 Making an exact locally durable history object available in the selected provider repository. It is separate from publishing a prepared change into the live model.
 _Avoid_: Atomic model publication, proof of peer receipt
+
+**Immutable installation evidence**:
+An operation/session-bound result proving exact checked bytes were installed or verified at their canonical repository name with the required file and affected-directory barriers. Equal-file retry performs the same verification and durability work. The publisher separately requires private accepted-history evidence. See the [physical boundary](docs/impl-proposal-5/plan/phase5/02-immutable-files-validation.md).
+_Avoid_: Local history acceptance, cloud upload acknowledgment
 
 **Reconciliation transaction**:
 The preparation and validation of a proposed live-model change from captured history or file observations, ending in atomic model publication when still applicable.
@@ -419,6 +444,32 @@ An exact locally rooted snapshot whose applicability depends on fresh identity/r
 **Filesystem identity evidence**:
 Optional locally scoped association evidence, not a note birth or a guaranteed provider-stable identifier.
 
+**Accepted-file scan hint**:
+Rebuildable private correspondence between a protocol path, a previously checked file fingerprint and an exact accepted immutable-object ID. Fresh rooted observation plus accepted membership permits skipping an unchanged body read, including across ordinary reopen. Session permissions separately govern the consumer; the hint grants no physical or completeness authority. See [discovery](docs/impl-proposal-5/Protocol.md#immutable-provider-publication-and-reception).
+
+**Discovery metadata batch**:
+Copied per-leaf observations or child failures from one bounded operation on a
+held protocol directory. Ancestor checks bracket the operation. Pending raw
+names receive fresh metadata after a returned turn; EOF keeps its stream alive
+until the pending tail is consumed. This is an observation interval rather than
+a complete or frozen provider catalog.
+
+**Repository transport driver**:
+The session-owned coordinator of bounded accepted-object publication and nested discovery. It coalesces hints and settlement notifications, retains an incomplete batch's exact bytes and cursor, and supplies an ordinary monotonic revisit after an empty pass. Paused errors retain their classification until explicit foreground/refresh or positive revalidation. Its reservations and cursors are transient execution state.
+
+**Coordination interval**:
+The synchronous execution of Foundation's actual accessor with its supplied URL(s). Rooted effects and their final verification run within this interval; copied bytes and observations then pass to independent history/database processing.
+
+**Owned prepared stage**:
+A uniquely held open descriptor for an exact immutable output between its preparation and final installation grants. The descriptor prevents inode reuse and permits metadata-only provider changes between grants. Installation rechecks exact bytes, physical identity, link count, the named source and all final barriers. The lease is confined to the root executor.
+
+**Accepted-hint lookup batch**:
+Checked, ordered answers for at most 64 file observations in one live private
+store. The issuer binds the requests, root generation and store incarnation;
+the consumer rechecks applicability. Each hit requires the existing fingerprint,
+digest and exact accepted membership. Each miss uses ordinary exact receive;
+durable effects remain per object. See [the batch contract](docs/impl-proposal-5/Protocol.md#bounded-metadata-and-accepted-hint-lookup).
+
 **Provider catalog token**:
 An equality witness for one coordinated shallow current namespace observation.
 
@@ -506,6 +557,29 @@ _Avoid_: All future versions, undo scope
 
 ### 9. Authority, repair and transitions
 
+- **Integrated collection session:** `CollectionSession` joins complete private
+  startup, the selected physical association, checked host publication and
+  independently scheduled repository transport. Local admission and provider
+  status are separate outcomes. Its attempt generation fences publication,
+  captures and a named Work Offline choice through reassociation.
+- **Named startup wait:** one positively disclosed canonical provider object has
+  unread bytes absent from the complete private closure before first publication.
+  Its bounded materialization demand shares the transport worker/timer; request
+  acknowledgment is distinct from authenticated readable bytes. Releasing this
+  wait preserves pending evidence and gives no physical-effect permission.
+  While a provider accessor is held, the original disclosure can support local
+  release only after fresh local-health and same-live-root/attempt checks;
+  readability itself remains unknown until the accessor settles.
+- **Association settlement:** reconcile the existing SQL association's exact
+  value/generation after a binding write. A committed new value is adopted after
+  old work actually returns; an unchanged value retains the source; unreadable
+  outcome retains one transition owning both resources for readback retry.
+- **Complete bootstrap preview:** an issuer-restricted `BootstrapReadOnlyPreview`
+  validates all snapshot pages/counts/digests and displayed values. Editable
+  construction separately requires durable import/history closure and normal
+  reopening. See [P5.5](docs/impl-proposal-5/plan/phase5/05-startup-and-root-reassociation-validation.md)
+  and [the startup model](docs/tla/CollectionStartupAssociationSafety.tla).
+
 Definition sources: [damage/repair policy](docs/iCloud-Drive-Support-Spec.md#repository-and-private-store-damage-and-repair), [repair protocol](docs/impl-proposal-5/Protocol.md#repository-and-private-store-repair-protocol), [RepositoryRepairSafety](docs/tla/RepositoryRepairSafety.tla). That model assumes a finite required-object set; it does not establish globally complete provider discovery.
 
 **Root session**:
@@ -523,8 +597,14 @@ _Avoid_: Timestamp, permanent permission
 **Root continuity unavailable**:
 The nonterminal absence of positive same-root evidence, not proof that the folder was deleted.
 
+**Root access capability**:
+The platform/filesystem support needed to acquire and coordinate access to a positively bound root. A capability failure preserves repository contents and healthy private editing under the root-unavailable policy. Fresh deep-HFS+ opening is an explicitly permitted limitation; ordinary opening and reads after an already-owned deep move have separate qualification. See [ADR-0006](docs/adr/0006-retain-positive-association-and-directory-ownership.md).
+
 **Root-directory lock**:
 Local cooperating-writer exclusion on the opened directory object, not its pathname or a remote provider lease.
+
+**Checked connection context**:
+The fixed private-store, descriptor, schema and bootstrap-readiness facts established for one successfully opened database connection. Its owner reuses these in-memory facts within physically checked synchronous turns. A failed ownership check blocks that operation; retry requires positive identity of the same held resources. A new opening checks the facts again. Mutable record contents and asynchronous generations keep their own consumer checks. See [the connection contract](docs/impl-proposal-5/plan/phase5/private-connection-reuse.md).
 
 **Provider-managed root**:
 A selected root with positive provider-management evidence, without a provider-brand-dependent storage policy.

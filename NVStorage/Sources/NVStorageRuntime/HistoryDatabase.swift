@@ -64,7 +64,7 @@ private struct ValidatedHistoryBatch: Sendable {
 
     static func snapshot(_ checked: CheckedSnapshotAcceptance, database: Database, selection: LocalStoreSelection) throws -> Self {
         try checked.check(database: database, selection: selection)
-        guard try database.missing(Array(checked.preview.historyLocators)).isEmpty else { throw StorageError.incomplete }
+        guard try database.missing(Array(checked.preview.requiredLocators)).isEmpty else { throw StorageError.incomplete }
         return Self(snapshot: checked)
     }
     /// Consumes one stored page buffer at a time within the acceptance transaction.
@@ -75,7 +75,7 @@ private struct ValidatedHistoryBatch: Sendable {
             let preview = checked.preview
             for locator in Array(preview.pages) + [preview.snapshot] {
                 let (bytes, opened) = try checked.envelope(locator, database: database)
-                try body(HistoryObject(bytes: bytes, opened: opened, rootReferences: Array(preview.historyLocators)))
+                try body(HistoryObject(bytes: bytes, opened: opened, rootReferences: Array(preview.requiredLocators)))
             }
         case .bootstrap(let checked, let selection, let protection, let connection):
             guard database.incarnation == connection else { throw StorageError.wrongContext }
@@ -244,7 +244,7 @@ private struct CheckedCurrentBasis {
         for entry in action.affected {
             let rows = try db.rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(entry.birth.bytes)])
             let cell: CurrentNoteCellV1?
-            do { cell = try rows.first.map { try CurrentNoteCellV1.decodeV1($0[0].bytes) } }
+            do { cell = try rows.first.map { try db.currentCell($0[0].bytes) } }
             catch is CanonicalEncodingError { return nil }
             guard cell == nil || cell?.birth == entry.birth else { return nil }
             guard cell?.derived == nil, cell?.automatic == nil else { return nil }
@@ -324,10 +324,10 @@ extension Database {
         }
     }
     func initialize(store: LocalStoreID, descriptor: BootstrapDescriptorV1, snapshot: SegmentLocator?) throws {
-        let schema = try String(contentsOf: Bundle.module.url(forResource: "SchemaV1", withExtension: "sql", subdirectory: "Resources")!, encoding: .utf8)
+        let schema = try String(contentsOf: RuntimeResources.bundle.url(forResource: "SchemaV1", withExtension: "sql", subdirectory: "Resources")!, encoding: .utf8)
         try transaction {
             try exec(schema)
-            try run("INSERT INTO store_header VALUES(1,1,?,?,?, ?,1,1,?,?)", [
+            try run("INSERT INTO store_header VALUES(1,3,?,?,?, ?,1,1,?,?)", [
                 .blob(store.bytes), .blob(descriptor.collection.bytes), .integer(descriptor.keyID == nil ? 1 : 2),
                 .blob(descriptor.keyID?.bytes ?? Array(repeating: 0, count: 16)),
                 .blob(descriptor.genesis.encodedV1()), .blob(descriptor.descriptorID)])
@@ -336,35 +336,6 @@ extension Database {
             try run("INSERT INTO view_meta VALUES(1,?,1,0,?)", [.blob(uuidBytes()), .blob(try AuthoringContextV1(operations: [], collectionActions: []).encodedV1())])
         }
     }
-    func validateHeader(store: LocalStoreID, descriptor: BootstrapDescriptorV1, requireBootstrap: Bool = true) throws {
-        let tables = try rows("SELECT name FROM sqlite_schema WHERE type='table' AND name IN ('store_header','objects','accepted_objects','private_groups','view_meta','current_notes','retained_frontier','retained_descriptors','ready_objects','object_waits')")
-        guard tables.count == 10 else { throw StorageError.incomplete }
-        let pending = try rows("SELECT name FROM sqlite_schema WHERE type='table' AND name IN ('pending_payloads','pending_items','pending_reservations','pending_settlements')")
-        guard pending.count == 4 else { throw StorageError.incomplete }
-        let r = try rows("SELECT schema_version,local_store_id,collection_id,profile,key_id,note_codec,merge_policy,genesis_locator,bootstrap_descriptor FROM store_header WHERE singleton=1")
-        guard r.count == 1 else { throw StorageError.incomplete }
-        let expected: [SQLValue] = [.integer(1), .blob(store.bytes), .blob(descriptor.collection.bytes),
-            .integer(descriptor.keyID == nil ? 1 : 2), .blob(descriptor.keyID?.bytes ?? Array(repeating: 0, count: 16)),
-            .integer(1), .integer(1), .blob(descriptor.genesis.encodedV1()), .blob(descriptor.descriptorID)]
-        guard r[0][0] == .integer(1), r[0][5] == .integer(1), r[0][6] == .integer(1) else { throw StorageError.unsupported }
-        guard r[0] == expected else { throw StorageError.wrongContext }
-        try run("SELECT object_id,validator_version,reason FROM rejected_objects LIMIT 0")
-        guard try rows("SELECT 1 FROM private_groups WHERE group_key=?", [.blob(Array("history-damage".utf8))]).isEmpty else {
-            throw StorageError.integrity
-        }
-        guard let settings = try privateGroup("settings") else { throw StorageError.incomplete }
-        _ = try decodedSettings(settings)
-        if let association = try privateGroup("association") {
-            _ = try decodedAssociation(association, selection: .init(directory: "", store: store, descriptor: descriptor))
-        }
-        let bootstrap = try rows("SELECT codec,payload FROM private_groups WHERE group_key=?", [.blob(Array("bootstrap".utf8))])
-        guard bootstrap.count == 1 else { throw StorageError.incomplete }
-        guard bootstrap[0][0] == .integer(1) else { throw StorageError.unsupported }
-        guard requireBootstrap else { return }
-        guard let root = try stagedBootstrap() else { throw StorageError.incomplete }
-        guard try !rows("SELECT 1 FROM accepted_objects a JOIN objects o USING(object_id) WHERE o.object_id=? AND o.kind=2 AND o.writer_epoch=? AND o.sequence=?", [.blob(root.segmentID.bytes), .blob(root.writerEpoch.bytes), .blob(Array(root.encodedV1()[16..<24]))]).isEmpty else { throw StorageError.incomplete }
-    }
-
     /// Commits exact objects and complete membership from one validated batch.
     fileprivate func accept(_ batch: ValidatedHistoryBatch) throws -> Int64 {
         // Snapshot membership keeps addresses and edges while each bounded page buffer is consumed.

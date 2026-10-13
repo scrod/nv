@@ -1,8 +1,9 @@
 #!/bin/zsh
 
-# Standalone compatibility smoke test.  It is intentionally not part of
-# tests/run-core: each run builds a historical checkout and takes longer than
-# the normal headless suite.
+# Standalone epoch-4 archive export/readability smoke test. Each run builds a
+# historical reader, so it runs separately from the normal headless suite.
+# The script name retains a development-era label; the compatibility boundary is
+# epoch-4 Notes & Settings, the format used by the last public release in 2011.
 set -euo pipefail
 
 readonly repo_root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -69,4 +70,4 @@ fi
 grep -F "EPOCH4_COMPATIBILITY_WARNING_SHOWN" \
 	"$reader_stderr" >/dev/null
 cat "$reader_stdout"
-echo "Epoch-4/epoch-5 compatibility smoke test passed."
+echo "Epoch-4 archive export/readability compatibility smoke test passed."

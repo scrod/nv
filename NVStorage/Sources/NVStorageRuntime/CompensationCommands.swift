@@ -110,6 +110,18 @@ extension LocalStoreSession {
 
     public func undoCandidates(scope: ActionScopeV1, direction: UndoDirectionV1) async throws -> UndoCandidates {
         return try await lane.verifyingHistory {
+            if case .note(let birth) = scope {
+                guard !closed, !quiescing else { throw StorageError.closed }
+                let snapshot = try await snapshot(), lane = lane, selection = selection
+                let checked = try await CheckedQueryHistory.read(scope: .undo(birth), snapshot: snapshot, session: incarnation,
+                    lane: lane, selection: selection, protection: protection)
+                let actions = try await lane.perform { try checked.undoActions(for: birth, snapshot: snapshot, database: $0, selection: selection) }
+                let result = try await commandWork {
+                    try UndoCandidates(scope: scope, direction: direction, selection: CausalUndoV1.select(actions: actions, scope: scope, direction: direction))
+                }
+                try await lane.perform { try checked.check(scope: .undo(birth), snapshot: snapshot, database: $0, selection: selection) }
+                return result
+            }
             let (_, graph) = try await commandBasis()
             return try await commandWork {
                 try UndoCandidates(scope: scope, direction: direction, selection: CausalUndoV1.select(actions: Array(graph.actions.values), scope: scope, direction: direction))

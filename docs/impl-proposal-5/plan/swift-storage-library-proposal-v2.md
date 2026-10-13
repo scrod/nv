@@ -4,6 +4,11 @@
 **Date:** 2026-09-09.  
 **Basis:** the adopted proposal-5 specification, format checklist, vocabulary, verification coverage map, and companion conformance strategy. [P1–P6]
 
+“Proposal v2” is this document's edition, not a released storage format. NV's
+last public release was in 2011, using epoch-4 Notes & Settings. All segment and
+private-store formats remain unreleased; compatibility covers epoch-4 opening,
+recovery and explicit export, rather than earlier development encodings.
+
 Aligned with the current specification on 2026-09-10. Follow the [phased implementation/testing plan](swift-storage-implementation-plan.md) for sequencing. Canonical definitions are written directly in Swift without CUE or code generation. This document supplies the portable library's architectural rationale; it does not change product semantics or claim completed implementation.
 
 ## Summary
@@ -360,7 +365,17 @@ The local owner should expose a cohesive commit operation that joins validated h
 
 The [LocalStore contract](../LocalStore.md) maps that order to complete validation, then one qualified SQLite transaction containing exact immutable bytes, complete accepted membership, pin and reverse-dependency wakeups, before durability acknowledgment or incoming-history publication. Earlier same-envelope parents are valid with the complete atomic group; RAM-only external parents are not. Provider installation retains its own file/directory barriers. Current-row materialization is a separate derived transaction, never the only owner of required history/state. [P1, P2]
 
-Record ambiguous outcomes explicitly. Retry queries exact committed object/operation identity; it does not reseal changed content or infer completion from a reservation/live note. Acceptance and pin commit together. Restart drains durable ready candidates and catches up current materialization before publishing a complete editable model.
+Record ambiguous outcomes explicitly. Retry queries exact committed object/operation identity; it does not reseal changed content or infer completion from a reservation/live note. Acceptance and pin commit together. Restart drains ready Changes and their required prerequisites, then catches up current materialization before publishing a complete editable model. Independent optional snapshots remain queued until successful checked host publication reserves the existing receive owner. Bootstrap, reconstruction, known required-history checks and unfinished verification still gate editability.
+
+Scoped read evidence has a private issuer and immutable store/connection/session,
+prefix, view and query-scope binding. Indexed selection precedes body decoding;
+selected envelopes receive exact occurrence/link and complete membership checks.
+Keep this evidence a distinct type from a fully checked `RetainedGraph`, and require
+the contextual consumer to check applicability. Reuse the same checked envelope
+reader for both routes. Note-scoped Undo uses complete scope actions; conflict reads
+preserve collection-wide copied IDs. Collection-wide commands retain complete
+graph evidence. Compiler probes challenge construction, type substitution and
+ordinary-client visibility, alongside same-type/wrong-context runtime tests.
 
 A mock backend that simply returns `DurableObjectBytes` is a powerful test seam and part of the test trust boundary. Do not make arbitrary caller-supplied backends public proof issuers without explicitly weakening the guarantee to “assuming this backend satisfies its contract.”
 
@@ -380,6 +395,15 @@ transactions and existing generation/admission checks intact. The adopted
 [isolated experiment](actor-database-prototype.md): compiler-isolated live
 connection state, synchronous database turns and asynchronous ancestry reads.
 Release-only C-handle disposal remains a narrowly documented FFI responsibility.
+
+Keep fixed opening facts in a private connection-bound value issued by that
+owner. Reuse it across synchronous database turns, with physical entry/exit and
+commit checks and exact caller-context matching. Ownership failure blocks that
+operation; retry requires the same positively identified physical resources.
+Mutable-record decoders and asynchronous generation checks remain at their actual
+consumers. [Connection qualification](phase5/private-connection-reuse.md) includes
+same-module construction challenges, loss after durable commit and historical
+completion after orderly close.
 
 **Actor isolation does not serialize an entire asynchronous transaction.** Actor-isolated synchronous work runs without another actor job interleaving, but assumptions may change across `await`. Apple’s guidance explicitly calls for rechecking them. [S10]
 

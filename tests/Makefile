@@ -2,11 +2,14 @@ CLANG := clang
 CFLAGS := -fno-objc-arc -mmacosx-version-min=11.5 -I..
 BUILD_DIR := /tmp/notation-integration-tests
 DERIVED_DATA := ../DerivedData
+XCODEBUILD ?= /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild
+XCODEBUILD_FLAGS ?=
 HOST_ARCH := $(shell uname -m)
 APP_OBJECT_DIR := $(DERIVED_DATA)/Build/Intermediates.noindex/ArchiveIntermediates/Notation/IntermediateBuildFilesPath/Notation.build/Deployment/Notation.build/Objects-normal/$(HOST_ARCH)
 APP_OBJECTS = $(shell find "$(APP_OBJECT_DIR)" -maxdepth 1 -name '*.o' ! -name main.o ! -name '*_vers.o')
 NV_INTEGRATION_APP_OBJECTS = $(filter-out %/NVRootedDirectory.o,$(APP_OBJECTS))
 APP_FRAMEWORKS := -F.. -Wl,-rpath,$(abspath ..) -Wl,-sectcreate,__TEXT,__info_plist,../Info.plist -framework Sparkle -framework Cocoa -framework Carbon -framework CoreServices -framework SecurityInterface -framework Security -framework WebKit -framework ApplicationServices -framework SystemConfiguration -framework IOKit -framework UniformTypeIdentifiers -lz
+APP_LINK_MANIFEST := $(BUILD_DIR)/app-link-inputs.json
 ICLOUD_API_TEST_ROOT ?= $(HOME)/Library/Mobile Documents/com~apple~CloudDocs/API_Contract_Testing
 FILE_PROVIDER_API_TEST_ROOT ?= $(HOME)/Library/CloudStorage/Dropbox/API_Contract_Testing
 ICLOUD_API_TEST_APP := $(BUILD_DIR)/ICloudAPIContractTest.app
@@ -27,32 +30,78 @@ TARGETS := \
 	run-icloud-api-contract-legacy-upload run-icloud-api-contract-sync-control-probe \
 	run-icloud-api-contract-pause-lifecycle \
 	run-root-lock-probe-control run-directory-lock-probe-control \
-	stress leak-check filesystem-image-stress clean app-objects
+	stress leak-check filesystem-image-stress clean app-objects force-app-objects
 
 all: $(TARGETS)
 
-.PHONY: run-swift-storage run-swift-storage-mutations
+.PHONY: run-swift-storage run-swift-storage-mutations run-storage-test-targets
 SWIFT ?= swift
+SWIFT_STORAGE_PACKAGE_PATH ?= ../NVStorage
 SWIFT_STORAGE_TEST_FLAGS ?=
 ifeq ($(shell uname -s),Linux)
 SWIFT_STORAGE_DRIVER_FLAGS := --use-integrated-swift-driver --disable-build-manifest-caching
 SWIFT_STORAGE_LINK_FLAGS := -Xswiftc -use-ld=lld -Xlinker -z -Xlinker relro -Xlinker -z -Xlinker now
 endif
 export PKG_CONFIG_PATH := $(abspath ../NVStorage/.deps/sqlcipher/lib/pkgconfig):$(PKG_CONFIG_PATH)
-run-swift-storage:
+run-storage-test-targets:
+	python3 ../tools/test-storage-test-targets.py --package "$(SWIFT_STORAGE_PACKAGE_PATH)"
+
+run-swift-storage: run-storage-test-targets
 	@test -f ../NVStorage/.deps/sqlcipher/lib/libsqlcipher.a || { echo 'Run bash tools/build-storage-deps.sh from the repository root first.'; exit 1; }
-	$(SWIFT) test --build-system native $(SWIFT_STORAGE_DRIVER_FLAGS) --package-path ../NVStorage $(SWIFT_STORAGE_LINK_FLAGS) $(SWIFT_STORAGE_TEST_FLAGS)
+	$(SWIFT) test --build-system native $(SWIFT_STORAGE_DRIVER_FLAGS) --package-path "$(SWIFT_STORAGE_PACKAGE_PATH)" $(SWIFT_STORAGE_LINK_FLAGS) $(SWIFT_STORAGE_TEST_FLAGS)
 
 run-swift-storage-mutations:
 	python3 ../tools/test-bootstrap-mutations.py $(SWIFT_STORAGE_MUTATION_FLAGS)
+
+.PHONY: run-swift-storage-apple-peer run-swift-storage-apple-stage run-swift-storage-transport-local
+SWIFT_STORAGE_APPLE_STAGE_FLAGS ?=
+run-swift-storage-apple-peer:
+	python3 ../tools/test-storage-apple-peer.py --sanitize address,undefined
+run-swift-storage-apple-stage:
+	python3 ../tools/test-storage-apple-stage.py --sanitize address,undefined $(SWIFT_STORAGE_APPLE_STAGE_FLAGS)
+run-swift-storage-transport-local:
+	python3 ../tools/test-storage-apple-transport.py --local-binary ../NVStorage/.build/debug/NVStorageProbe
+
+.PHONY: run-swift-storage-root-process run-swift-storage-root-types run-swift-storage-root-c run-swift-storage-root-volumes
+SWIFT_STORAGE_ROOT_BINARY ?= ../NVStorage/.build/debug/NVStorageProbe
+SWIFT_STORAGE_ROOT_MODULES ?= ../NVStorage/.build/debug/Modules
+SWIFT_STORAGE_ROOT_VOLUME_FLAGS ?=
+run-swift-storage-root-process:
+	python3 ../tools/test-storage-root-process.py --binary $(SWIFT_STORAGE_ROOT_BINARY)
+run-swift-storage-root-types:
+	python3 ../tools/test-storage-root-types.py --modules $(SWIFT_STORAGE_ROOT_MODULES)
+run-swift-storage-root-c:
+	python3 ../tools/test-storage-root-c.py
+.PHONY: run-swift-storage-metadata-batches
+run-swift-storage-metadata-batches:
+	python3 ../tools/test-storage-metadata-batches.py --mutations
+run-swift-storage-root-volumes:
+	python3 ../tools/test-storage-root-volumes.py --binary $(SWIFT_STORAGE_ROOT_BINARY) $(SWIFT_STORAGE_ROOT_VOLUME_FLAGS)
+
+.PHONY: run-swift-storage-immutable-process run-swift-storage-immutable-files run-swift-storage-immutable-mutations run-swift-storage-immutable-volumes
+SWIFT_STORAGE_IMMUTABLE_FLAGS ?=
+run-swift-storage-immutable-process:
+	python3 ../tools/test-storage-immutable-process.py --binary $(SWIFT_STORAGE_ROOT_BINARY)
+run-swift-storage-immutable-files:
+	python3 ../tools/test-storage-immutable-files.py $(SWIFT_STORAGE_IMMUTABLE_FLAGS)
+run-swift-storage-immutable-mutations:
+	python3 ../tools/test-storage-immutable-mutations.py
+run-swift-storage-immutable-volumes:
+	python3 ../tools/test-storage-immutable-volumes.py
 
 .PHONY: run-swift-storage-phase2
 run-swift-storage-phase2:
 	python3 ../tools/test-storage-phase2.py $(SWIFT_STORAGE_PHASE2_FLAGS)
 
-.PHONY: run-sqlite-schema
+.PHONY: run-sqlite-schema run-qualification-reuse run-compiler-probe-batches
 run-sqlite-schema:
 	python3 run-sqlite-schema-contract.py
+
+run-qualification-reuse:
+	python3 ../tools/test-qualification-reuse.py
+
+run-compiler-probe-batches:
+	python3 ../tools/test-compiler-probe-batches.py
 
 .PHONY: run-native-undo-probes
 $(BUILD_DIR)/NativeUndoProbe: NativeUndoProbe.m Makefile | $(BUILD_DIR)
@@ -74,10 +123,10 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/GlobalPrefsArchiveMigrationTest: GlobalPrefsArchiveMigrationTest.m Makefile app-objects | $(BUILD_DIR)
-	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
+	python3 ../tools/link-integration-test.py --manifest "$(APP_LINK_MANIFEST)" --output "$@" -- $(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
 $(BUILD_DIR)/AppearanceColorTest: AppearanceColorTest.m Makefile app-objects | $(BUILD_DIR)
-	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
+	python3 ../tools/link-integration-test.py --manifest "$(APP_LINK_MANIFEST)" --output "$@" -- $(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
 $(BUILD_DIR)/ICloudAPIContractTest: ICloudAPIContractTest.m ICloudRootLockProbe.h ICloudMetadataProbe.h Makefile | $(BUILD_DIR)
 	$(CLANG) $(CFLAGS) -fblocks $< -framework Foundation -framework FileProvider -o $@
@@ -91,19 +140,24 @@ $(ICLOUD_API_TEST_APP): $(BUILD_DIR)/ICloudAPIContractTest ICloudAPIContractTest
 	cp ICloudAPIContractTest-Info.plist $@/Contents/Info.plist
 	codesign --force --sign - --timestamp=none $@
 
-app-objects:
-	/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild install -project ../Notation.xcodeproj -scheme Notation -configuration Deployment -derivedDataPath $(DERIVED_DATA) -destination generic/platform=macOS CODE_SIGNING_ALLOWED=NO -quiet
+app-objects: $(APP_LINK_MANIFEST)
+
+force-app-objects:
+
+$(APP_LINK_MANIFEST): force-app-objects | $(BUILD_DIR)
+	$(XCODEBUILD) install -project ../Notation.xcodeproj -scheme Notation -configuration Deployment -derivedDataPath $(DERIVED_DATA) -destination generic/platform=macOS CODE_SIGNING_ALLOWED=NO $(XCODEBUILD_FLAGS) -quiet
+	python3 ../tools/update-integration-build-manifest.py --objects "$(APP_OBJECT_DIR)" --output "$@" --compiler "$(CLANG)" --context '$(CFLAGS) $(APP_FRAMEWORKS)'
 
 $(BUILD_DIR)/ModernStickiesImportTest: ModernStickiesImportTest.m Makefile app-objects | $(BUILD_DIR)
-	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
+	python3 ../tools/link-integration-test.py --manifest "$(APP_LINK_MANIFEST)" --output "$@" -- $(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
 $(BUILD_DIR)/WebArchiveImportIntegrationTest: WebArchiveImportIntegrationTest.m Makefile app-objects | $(BUILD_DIR)
-	$(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
+	python3 ../tools/link-integration-test.py --manifest "$(APP_LINK_MANIFEST)" --output "$@" -- $(CLANG) $(CFLAGS) $< $(APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
 $(BUILD_DIR)/NVIntegrationTest: NVIntegrationTest.m NVRootedDirectoryTestHooks.m \
 	NVRootedDirectoryTestHooks.h \
 	../NVRootedDirectory.m ../NVRootedDirectory.h ../NVRootedDirectory_Private.h Makefile app-objects | $(BUILD_DIR)
-	$(CLANG) $(CFLAGS) -DNV_INTEGRATION_TESTING=1 $< NVRootedDirectoryTestHooks.m \
+	python3 ../tools/link-integration-test.py --manifest "$(APP_LINK_MANIFEST)" --output "$@" -- $(CLANG) $(CFLAGS) -DNV_INTEGRATION_TESTING=1 $< NVRootedDirectoryTestHooks.m \
 		../NVRootedDirectory.m $(NV_INTEGRATION_APP_OBJECTS) $(APP_FRAMEWORKS) -o $@
 
 run: run-core run-platform

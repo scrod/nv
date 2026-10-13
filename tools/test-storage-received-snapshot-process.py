@@ -123,10 +123,13 @@ def main():
             if name in ['parking-before-commit', 'rejection-before-commit', 'acceptance-before-commit']:
                 mode = 'parking' if name.startswith('parking') else 'rejection' if name.startswith('rejection') else 'acceptance'
                 cut = 11 if mode == 'parking' else 10 if mode == 'rejection' else 4
-                invoke('right', 'open-crash', cut, 1, -1, mode, code=86)
+                invoke('right', 'publish-drain-crash', cut, 1, -1, mode, code=86)
             # Recovery knows only surviving storage and the normal selection/password.
-            recovered = invoke('right', 'dump')
+            recovered = invoke('right', 'publish-drain')
             assert sorted(row['body'] for row in recovered['notes']) == (['E', 'untouched'] if history_first else ['A', 'untouched']), recovered
+            assert recovered['publishedNotes'] == (['E', 'untouched'] if history_first else ['A', 'untouched']), recovered
+            if name == 'acceptance-before-commit':
+                assert recovered['publishedThrough'] == 2 and recovered['through'] == 3, recovered
             if role == 'bad':
                 report = invoke('right', 'inspect')
                 rejected = [row for row in report['rejected'] if row[0].lower() == manifest['bad']]

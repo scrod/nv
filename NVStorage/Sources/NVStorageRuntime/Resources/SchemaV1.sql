@@ -6,7 +6,7 @@
 
 CREATE TABLE store_header (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-    schema_version INTEGER NOT NULL CHECK (schema_version = 1),
+    schema_version INTEGER NOT NULL CHECK (schema_version = 3),
     local_store_id BLOB NOT NULL CHECK (typeof(local_store_id) = 'blob' AND length(local_store_id) = 16),
     collection_id BLOB NOT NULL CHECK (typeof(collection_id) = 'blob' AND length(collection_id) = 16),
     profile INTEGER NOT NULL CHECK (profile IN (1, 2)),
@@ -156,6 +156,7 @@ CREATE TABLE actions (
         REFERENCES action_occurrences(object_id, record_index, action_id) DEFERRABLE INITIALLY DEFERRED
 ) WITHOUT ROWID;
 CREATE INDEX actions_batch ON actions(first_seq, action_id);
+CREATE INDEX actions_conflict_copies ON actions(first_seq, action_id) WHERE kind=9;
 CREATE INDEX actions_scope ON actions(scope_birth, action_id);
 CREATE INDEX actions_origin ON actions(origin_id, action_id);
 CREATE INDEX actions_previous_origin ON actions(previous_origin_action, action_id);
@@ -269,3 +270,16 @@ CREATE TABLE current_notes (
     birth BLOB NOT NULL UNIQUE CHECK (typeof(birth) = 'blob' AND length(birth) = 16),
     cell BLOB NOT NULL CHECK (typeof(cell) = 'blob')
 );
+
+-- Derived immutable codec metadata; current cells carry the complete digest.
+CREATE TABLE current_dictionaries (
+    dictionary_id BLOB NOT NULL UNIQUE CHECK (typeof(dictionary_id) = 'blob' AND length(dictionary_id) = 32),
+    encoded BLOB NOT NULL CHECK (typeof(encoded) = 'blob' AND length(encoded) BETWEEN 8 AND 8192)
+);
+CREATE TRIGGER current_dictionaries_no_update BEFORE UPDATE ON current_dictionaries BEGIN
+    SELECT RAISE(ABORT, 'immutable current dictionary');
+END;
+CREATE TRIGGER current_dictionaries_no_replace BEFORE INSERT ON current_dictionaries
+WHEN EXISTS (SELECT 1 FROM current_dictionaries WHERE dictionary_id = NEW.dictionary_id) BEGIN
+    SELECT RAISE(ABORT, 'compare existing current dictionary');
+END;

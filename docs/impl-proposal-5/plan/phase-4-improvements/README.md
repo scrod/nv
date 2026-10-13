@@ -13,7 +13,7 @@ and qualification requirements.
 | 3 | [One checked graph for recovery catch-up](recovery-graph-reuse.md) | `REVIEW-HISTORY-3`: multiple unapplied general-reducer batches rebuild overlapping graphs during recovery |
 | 4A | [Publish before optional snapshot verification](startup-and-scoped-queries.md#a-publish-before-independent-optional-snapshots) | `REVIEW-START-2`: an independent ready snapshot walks old history before healthy current notes reach the host |
 | 4B | [Select scoped Undo/conflict history before decoding](startup-and-scoped-queries.md#b-select-exact-history-before-decoding) | `REVIEW-HISTORY-1`: note-specific queries load unrelated history bodies |
-| 5 | [Snapshot retention coverage](snapshot-retention-coverage.md) | `REVIEW-START-3`: independent snapshot roots accumulate returning-startup checks; v2 explicit retention parents preserve coverage with the existing dependency graph |
+| 5 | [Snapshot retention coverage](snapshot-retention-coverage.md) | `REVIEW-START-3`: independent snapshot roots accumulate returning-startup checks; v1 explicit retention parents preserve coverage with the existing dependency graph |
 
 The [deferred benchmark backlog](benchmark-backlog.md) records scoped Undo/conflict
 queries, initial current-row capture reuse, optional snapshot scheduling and

@@ -10,6 +10,7 @@ enum { NV_FAULT_WRITE=1, NV_FAULT_SYNC=2, NV_FAULT_LOCK=3,
 int nv_faults_install(void);
 void nv_faults_arm(int event, int ordinal, int result);
 void nv_faults_arm_on_rejection(int event, int ordinal, int result);
+void nv_faults_arm_on_association(int event, int ordinal, int result);
 /* Arms an I/O failure at the real required-history diagnosis transaction. */
 void nv_faults_arm_on_damage(int event, int ordinal, int result);
 /* Arms an exact-request settlement fault after successful history inspection. */

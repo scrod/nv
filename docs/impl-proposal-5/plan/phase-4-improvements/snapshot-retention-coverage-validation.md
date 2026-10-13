@@ -1,20 +1,28 @@
 # Snapshot retention coverage: validation
 
-Date: 2026-10-08. Implemented and qualified within the portable Runtime boundary.
-Complete debug/optimized Swift suites and both 44-command integrated inventories
-pass. The
+Date: 2026-10-08; format clarification 2026-10-13. Implemented within the portable Runtime boundary.
+The 2026-10-08 complete debug/optimized Swift suites and both 44-command integrated inventories
+passed. The
 [plan](snapshot-retention-coverage.md) and
 [wire/acceptance contract](../general-snapshot-record-contract.md) define the increment.
 
+The 2026-10-08 executed campaigns below used an unreleased development encoding.
+The current format incorporates retention parents directly into v1 and removes
+the superseded encoding branches. The [single-v1 qualification](general-snapshot-v1-validation.md)
+records checks rerun against the current bytes. Earlier platform/timing results
+remain evidence for their recorded revision, rather than a claim of rerunning
+those platforms after the format correction. No segment format has shipped;
+epoch-4 opening, recovery and explicit export remain the compatibility boundary.
+
 ## Production mapping and guarantees
 
-`GeneralSnapshotV1.write` emits general-v2 roots and streams by default. The
-236-byte root commits eight category counts and a version-specific SHA-256 stream
+`GeneralSnapshotV1.write` emits general-v1 roots and streams. The
+236-byte root commits eight category counts and the v1 SHA-256 stream
 digest. Tag 8 carries sorted, unique, exact 56-byte retention-parent locators
-through the existing bounded data/index pages. V1 roots remain 228 bytes and
-decode with empty explicit parents. Page and initial-bootstrap encodings retain
+through the existing bounded data/index pages. Empty parent sets have a zero
+eighth count in the same layout. Page and initial-bootstrap encodings retain
 their existing layouts. Independent Python literal fixtures and the independent
-Node history inspector both understand the two versions.
+Node history inspector require the single current v1 layout.
 
 `GeneralSnapshotCapture` reads the accepted snapshot-root frontier and acceptance
 prefix in one owned database turn. Its frozen inputs survive later independent
@@ -46,7 +54,7 @@ The schema, public Runtime method signatures and initial bootstrap are unchanged
 
 The nine normal `SnapshotRetentionTests` functions run both profiles. They cover
 sequential chains and repeated reopening; concurrent roots and stale captures;
-delayed parent chains and durable wakeups; different represented cuts; v1 parents
+delayed parent chains and durable wakeups; different represented cuts; empty parent sets
 and wide fan-in; wrong kind/locator/collection, missing/corrupt parents;
 unsupported-parent isolation; damage between proof and consumer; and shared
 reconstruction work. Independent graph traversal computes both maximal tips and
@@ -77,8 +85,8 @@ fail at its designated assertion; compiler/setup failures never count. The first
 frontier control affected bootstrap setup, and its next revision used a member
 unavailable on the helper's tuple. Its corrected root-only mutation compiles and
 fails at the strict concurrent-frontier assertion. Those failed campaigns remain
-preserved. Two old malformed-root fixtures were also made version-preserving so
-their original digest/rejection and unsupported-prerequisite checks exercise v2.
+preserved. Malformed-root fixtures preserve the complete count layout so their
+digest/rejection and unsupported-prerequisite checks exercise the current format.
 
 ## Executed qualification
 
@@ -87,7 +95,7 @@ their original digest/rejection and unsupported-prerequisite checks exercise v2.
 | Local arm64, Swift 6.4 | Both complete Swift suites report 312 functions: 306 execute/pass, six opt-in benchmarks skip, and zero known issues. Debug/optimized times are 1,750.619/1,299.757 seconds. Both integrated 44-command inventories pass, including all 22 retention-prefix process schedules, six delayed-parent schedules, 132 Runtime compiler probes and the existing process/schema/fixture/C-boundary checks. |
 | Intel Mac Mini, macOS 14.8.9 | The same 22 + six fresh-process schedules pass for both profiles, including the final strengthened pre-recovery atomicity assertions. |
 | Intel macOS 11.7.11 | The same 22 + six schedules pass with the documented metadata workaround and isolated concurrency runtime. |
-| Ubuntu arm64, Swift 6.4 | Optimized affected suite reports 13 functions: 12 pass and the opt-in benchmark is skipped. All 22 + six fresh-process schedules, 16 focused construction/actor probes, independent v1/v2 fixtures and 19 schema tests pass. PIE/W^X/non-executable-stack/RELRO checks pass and the RWX observer control is rejected. |
+| Ubuntu arm64, Swift 6.4 | Optimized affected suite reports 13 functions: 12 pass and the opt-in benchmark is skipped. All 22 + six fresh-process schedules, 16 focused construction/actor probes, independent draft fixtures and 19 schema tests pass. PIE/W^X/non-executable-stack/RELRO checks pass and the RWX observer control is rejected. |
 | SQLCipher instrumentation | ASan-instrumented production Runtime passes the six targeted codec/retention/consumer/reconstruction functions; valid-handle companion passes and the expired-handle control fails at the intended diagnostic. |
 | TLA+ | All 17 final retention outcomes, 20 existing reconstruction outcomes, and 15 existing receive-assembly outcomes match their expected results. One contended assembly run timed out; its unchanged larger-time-budget rerun completed all 1,122,253 states. |
 | Application build | `xcodebuild install` passes with the existing `__DIAGNOSE_INVALID_DEPLOYMENT_TARGET_AS_ERROR=NO` setting and the existing 11.5 deployment warning. |
@@ -103,8 +111,8 @@ checks. No compiler or implementation contract was weakened.
 
 ## Production work and timing
 
-The optimized opt-in `snapshotRetentionProductionBenchmark` uses real v2
-encodings/acceptance at 1, 8, 64 and 256 snapshots with two unchanged notes.
+The optimized opt-in `snapshotRetentionProductionBenchmark` measured real
+retention-parent encodings/acceptance at 1, 8, 64 and 256 snapshots with two unchanged notes.
 Returning opens inspect **one retained root**, load no historical Changes
 envelopes and construct no graph. Every save performs two direct parent checks
 (issuer and consumer), with **zero ancestor traversals**. Reconstruction builds
@@ -120,7 +128,7 @@ one retained tip. All measurements assert those work counts.
 | 256 | 14.85 ms | 13.68 ms | 23.84 / 26.79 ms |
 
 These are descriptive warm-cache measurements during other qualification work.
-They are not a controlled v1/v2 comparison, cold disk-read test or a constant-time
+They are not a controlled wire-layout comparison, cold disk-read test or a constant-time
 whole-open claim. Journal recovery and other existing SQL work remain in the
 measured open. Ordinary chain capture/save medians are roughly 13–20/51–66 ms
 after the initially slower encrypted run; fan-in saves took 72.90/58.06 ms.

@@ -113,13 +113,6 @@ enum VerificationScope {
 }
 
 extension Database {
-    fileprivate func verificationContext() throws -> [UInt8] {
-        let rows = try rows("SELECT local_store_id,collection_id,bootstrap_descriptor FROM store_header WHERE singleton=1")
-        guard rows.count == 1 else { throw StorageError.incomplete }
-        let context = try rows[0].flatMap { try $0.bytes }
-        guard context.count == 64 else { throw StorageError.integrity }
-        return context
-    }
     /// Settles only the successful operation whose exact request remains owned.
     fileprivate func settleVerification(_ completed: VerifiedVerification) throws {
         try releaseVerification(completed.admitted)

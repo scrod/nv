@@ -4,6 +4,10 @@ These files are historical comparison material, **not current acceptance tests o
 
 ## Archive scope and running
 
+The [archived validation index](Test-and-Validation-Index-Archived.md) lists every
+retired module/configuration and runner case with its historical command and
+document references. Active project coverage has its own index outside this archive.
+
 Moved on 2026-09-08: 17 unchanged modules and 20 unchanged configurations, plus the baseline runner. Sixteen modules belong exclusively to the retired persistence/lifecycle/decision suite; `UUIDAssignmentRace` additionally depends on mutable checkpoint reconciliation and old-UUID WAL replay. Its 58 original experiment cases now live in `check-uuid-assignment.py`, outside the active experimental runner. All archived `INSTANCE` dependencies are colocated. No model or configuration was deleted or weakened.
 
 The five storage-independent component models remain in the active directory. Some descriptions below mention their historical role; that text is not their current contract. Epoch-4 opening/export support remains required, but preserving these models does not create a proposal-4 compatibility requirement.

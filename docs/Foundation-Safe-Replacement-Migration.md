@@ -32,6 +32,13 @@ There is no production `NSDataWritingAtomic` branch and no permanent parallel pr
 | Immutable segment/descriptor/snapshot page | **Never this replacement path**; exclusive final-name installation with exact-existing-byte verification and the segment directory barrier |
 | Legacy opening/exported Notes & Settings | Preserve its archive and recovery contract; no shared modern checkpoint authority or proposal-4 checkpoint-note merge |
 
+P5.5's `CollectionSession.activateFreshSelection` consumes the existing verified
+candidate and expected selected-store record. Root Re-open updates the existing
+SQL association record instead; it is not a Foundation replacement of the private
+database. Both paths retain exact readback after ambiguous completion, and old
+root accessors retain their resources until actual return. See
+[the startup/reassociation caller qualification](impl-proposal-5/plan/phase5/05-startup-and-root-reassociation-validation.md).
+
 Private-store operations run on their own local serialized lane, not the provider lane. A helper may be shared without making local durability wait for provider coordination. [LocalStore](impl-proposal-5/LocalStore.md#sqlite-backup-salvage-and-replacement-activation) maps the private selected-store record and external exact wrapped-key descriptor copies; no database/WAL replacement is performed under a live SQLite connection. The existing absent-file capability ladder must be validated against the stricter immutable-object contract before reuse: a fallback exposing an incomplete final name cannot be treated as a sealed object. This migration does not prove the proposal-5 segment installer.
 
 ## Why the migration is plausible

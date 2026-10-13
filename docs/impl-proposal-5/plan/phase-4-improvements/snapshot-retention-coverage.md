@@ -6,10 +6,12 @@ the [validation report](snapshot-retention-coverage-validation.md).
 
 ## Contract
 
-General-snapshot encoding v2 adds canonical exact retention-parent locators as
-tag 8 records in the existing paged manifest. The fixed root gains one count.
-The v1 reader treats explicit retention parents as empty; bootstrap encodings
-and public Runtime methods keep their existing shapes.
+The single current general-snapshot v1 format includes canonical exact
+retention-parent locators as tag 8 records in the existing paged manifest. Its
+236-byte root always contains eight counts, including zero for an empty parent
+set. Initial-bootstrap encodings and public Runtime methods keep their existing
+shapes. All segment formats remain unreleased; the compatibility boundary is
+epoch-4 opening, recovery and explicit export, rather than earlier draft bytes.
 
 A parent link covers an already accepted supported snapshot root and its
 previously validated object closure. It preserves bytes independently of the
@@ -30,8 +32,8 @@ and durable verification requests. Use the existing schema and dependency graph.
 
 ## Implementation and qualification order
 
-1. Freeze v2 root/stream/category layouts and independent literal fixtures;
-   qualify v1 decoding, canonical parents, wide manifests and malformed inputs.
+1. Freeze the single v1 root/stream/category layout and independent literal fixtures;
+   qualify empty/populated canonical parents, wide manifests and malformed inputs.
 2. Capture and verify parents under the existing owner; connect receive waits
    and exact edges to the atomic acceptance transaction.
 3. Test sequential/concurrent/delayed roots, differing cuts, duplicates, restart,

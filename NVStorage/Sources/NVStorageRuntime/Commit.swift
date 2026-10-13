@@ -231,9 +231,10 @@ extension LocalStoreSession {
     private func finish(_ owned: OwnedCommit) async -> CommitOutcome {
         // Reserve the complete input before the first suspension.
         commitState = .running(owned)
+        cancelMaintenance()
         defer {
             if case .running(let remaining) = commitState { commitState = .pending(remaining) }
-            let waiters = drained; drained.removeAll(); for waiter in waiters { waiter.resume() }
+            signalReceiveWaiters()
         }
         let handle = CommitHandle(session: incarnation, id: owned.capture.id, capture: owned.capture)
         let capture = owned.capture, selection = selection, protection = protection
@@ -354,7 +355,7 @@ extension Database {
         for change in capture.changes {
             let birth = change.covered.birth
             let r = try rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(birth.bytes)])
-            let cell = try r.first.map { try presentedCell(CurrentNoteCellV1.decodeV1($0[0].bytes), selection: selection, protection: protection) }
+            let cell = try r.first.map { try presentedCell(currentCell($0[0].bytes), selection: selection, protection: protection) }
             guard cell == capture.before[birth] || (capturedAutomaticEdit && cell == nil),
                   presentationEpoch == capture.presentationEpoch else { throw StorageError.staleCapture }
         }
@@ -485,17 +486,17 @@ extension LocalStoreSession {
 
     public func conflicts(for birth: NoteBirth) async throws -> ConflictRevisions {
         return try await lane.verifyingHistory {
-            let (snapshot, graph) = try await commandBasis()
-            let collection = selection.descriptor.collection
-            return try await commandWork {
-                guard let cell = snapshot.notes.first(where: { $0.birth == birth }) else { throw StorageError.incomplete }
-                let state = try CollectionReductionV1.compute(collection: collection, operations: Array(graph.operations.values), actions: Array(graph.actions.values))
-                let represented = Set(cell.represented.map(\.id))
-                let alternatives = try cell.heads.filter { !represented.contains($0.id) && !state.dispositions.contains($0.id) }.map {
-                    guard let op = graph.operations[$0.id] else { throw StorageError.incomplete }; return op
-                }
-                return ConflictRevisions(current: cell, alternatives: alternatives, representedSeparately: state.dispositions)
+            guard !closed, !quiescing else { throw StorageError.closed }
+            let snapshot = try await snapshot(), lane = lane, selection = selection
+            guard let cell = snapshot.notes.first(where: { $0.birth == birth }) else { throw StorageError.incomplete }
+            let checked = try await CheckedQueryHistory.read(scope: .conflicts(birth), snapshot: snapshot, session: incarnation,
+                lane: lane, selection: selection, protection: protection)
+            let inputs = try await lane.perform { try checked.conflicts(for: birth, snapshot: snapshot, database: $0, selection: selection) }
+            let result = try await commandWork {
+                ConflictRevisions(current: cell, alternatives: inputs.alternatives, representedSeparately: inputs.dispositions)
             }
+            try await lane.perform { try checked.check(scope: .conflicts(birth), snapshot: snapshot, database: $0, selection: selection) }
+            return result
         }
     }
 

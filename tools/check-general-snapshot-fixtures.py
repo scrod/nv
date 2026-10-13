@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent literal layouts for all seven general-snapshot record classes."""
+"""Independent v1 layouts for snapshot state and paged retention parents."""
 import hashlib
 import json
 from pathlib import Path
@@ -26,14 +26,24 @@ digest = hashlib.sha256(b'NV general snapshot state\0v1\0'+stream).digest()
 page = b'NVGPG1\r\n'+u16(1)+b'\0'+u64(0)+blob(stream)
 index = b'NVGPG1\r\n'+u16(1)+b'\1'+u32(1)+locator+u64(0)+u64(len(stream))
 root = (b'NVGRT1\r\n'+u16(1)+u16(1)+locator+locator+u64(0)+u64(len(stream))
-        +b''.join(u64(n) for n in [1,1,2,1,1,1,1])+digest)
+        +b''.join(u64(n) for n in [1,1,2,1,1,1,1,0])+digest)
 fixtures = {'root': root.hex(), 'dataPage': page.hex(), 'indexPage': index.hex(),
             'stream': stream.hex(), 'digest': digest.hex()}
 fixtures.update({f'record{i+1}': r.hex() for i,r in enumerate(records)})
+parents = [locator, bytes([14])*16 + u64(15) + bytes([16])*32]
+retention_records = [b'\10'+blob(parent) for parent in parents]
+stream_with_parents = b'NVGST1\r\n'+u16(1)+b''.join(records + retention_records)
+digest_with_parents = hashlib.sha256(b'NV general snapshot state\0v1\0'+stream_with_parents).digest()
+root_with_parents = (b'NVGRT1\r\n'+u16(1)+u16(1)+locator+locator+u64(0)+u64(len(stream_with_parents))
+                    +b''.join(u64(n) for n in [1,1,2,1,1,1,1,2])+digest_with_parents)
+fixtures.update({'rootWithParents': root_with_parents.hex(), 'streamWithParents': stream_with_parents.hex(),
+                 'digestWithParents': digest_with_parents.hex(),
+                 'dataPageWithParents': (b'NVGPG1\r\n'+u16(1)+b'\0'+u64(0)+blob(stream_with_parents)).hex(),
+                 'retentionParent1': retention_records[0].hex(), 'retentionParent2': retention_records[1].hex()})
 if '--print' in sys.argv:
     print(json.dumps(fixtures, indent=2))
 else:
     path = ROOT/'NVStorage/Tests/NVStorageCoreTests/Fixtures/general-snapshot.json'
     assert json.loads(path.read_text()) == fixtures
-    assert len(root) == 228
-    print('PASS: independent general root, data/index pages and all seven record layouts')
+    assert len(root) == len(root_with_parents) == 236
+    print('PASS: independent v1 roots with empty/populated parents, pages and eight manifest categories')

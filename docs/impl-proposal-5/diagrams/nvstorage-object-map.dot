@@ -1,0 +1,270 @@
+digraph NVStorage {
+graph [compound=true, rankdir=TB];
+node [shape=box, style=rounded];
+subgraph cluster_map { label="";
+subgraph cluster_process { label="Application process\nIN MEMORY · objects live within an app / selected-store session";
+subgraph cluster_application { label="Application live model\nApplication integration · authoritative during use";
+subgraph cluster_immediate { label="Immediate note interaction\nSynchronous input and search";
+"live" [label="Authoritative live note collection"];
+"search" [label="Synchronous search / live indexes"];
+"pendinglive" [label="Pending generations / action context"];
+"views" [label="Native undo + attached note views"];
+}
+subgraph cluster_features { label="Derived feature views\nQueries, review and external-file intent";
+"history" [label="History / Recently Deleted views"];
+"conflicts" [label="Derived merges / conflict attention"];
+"undo" [label="Causal Undo/Redo / reviewed commands"];
+"projection" [label="Active projection transition"];
+}
+}
+subgraph cluster_core { label="Prepared storage values\nPortable Core / Runtime · bounded, captured inputs";
+subgraph cluster_save { label="Capture → validate\nA complete meaningful action becomes checked bytes";
+"capture" [label="Frozen admitted action captures"];
+"seal" [label="Sealed immutable bytes / retry input"];
+"decoded" [label="Bounded decoded records / claims"];
+"batch" [label="Validated history batch + receipts"];
+}
+subgraph cluster_read { label="Query → reconstruct\nChecked history produces views and snapshots";
+"graph" [label="Checked history / query evidence"];
+"reduce" [label="Prepared reduction / reconstruction"];
+"snapwork" [label="Snapshot capture / assembly evidence"];
+"maintenance" [label="Recoding / maintenance job state"];
+}
+}
+subgraph cluster_effect { label="Sessions and external work\nResources fence effects; jobs carry captured evidence";
+subgraph cluster_owners { label="Live session resources\nOwners, permissions, keys and generations";
+"localowner" [label="Local store / database owner"];
+"rootowner" [label="Physical repository root owner"];
+"appleowner" [label="Apple coordination / provider observations"];
+"selectowner" [label="Selection / transition ownership"];
+"gate" [label="Admission / publication / close fences"];
+"secrets" [label="Unlock context / transient crypto state"];
+}
+subgraph cluster_jobs { label="External operation values\nDiscovery, transport, file review and repair";
+"recvwork" [label="Receive / discovery turn"];
+"pubwork" [label="Publication batch / installation evidence"];
+"filework" [label="File observations / projection plans"];
+"pendingwork" [label="Pending-file preview / decision capture"];
+"repairwork" [label="Repair / backup / copy evidence"];
+}
+}
+}
+subgraph cluster_disk { label="";
+subgraph cluster_private_disk { label="Private storage · Collections/\nON DISK · one selected store; replacement candidates have separate identities";
+subgraph cluster_selection_row { label="";
+"selection" [label="Selected-store record"];
+"candidate" [label="Fresh private-store candidate"];
+}
+subgraph cluster_active_store { label="Selected <LocalStoreID> directory\nThe active private store owns its database and unlock copies";
+"unlock" [label="Private unlock descriptors"];
+subgraph cluster_database { label="Database files\nOne private durable container per LocalStoreID";
+"dbcontainer" [label="Private database + pager files"];
+subgraph cluster_sqlite { label="Collection.sqlite\nOne keyed SQLCipher file · all 27 production SQL tables";
+subgraph cluster_sql_left { label="History and materialization\nStored authority and its derived current view";
+subgraph cluster_retained { label="Accepted and retained history\nExact bytes, accepted membership and query indexes";
+"objects" [label="Exact retained object BLOBs"];
+"accepted" [label="Acceptance batches + dependencies"];
+"opindex" [label="Operation / note relationship indexes"];
+"actionindex" [label="Action / restoration indexes"];
+}
+subgraph cluster_materialized { label="Rebuildable current view\nStartup acceleration from an exact accepted prefix";
+"current" [label="Derived current-note cells"];
+"view" [label="View epoch + authoring context"];
+"dict" [label="Private current-row dictionaries"];
+"hints" [label="Accepted-file scan hints"];
+}
+}
+subgraph cluster_required_state { label="Required local state\nPins, restart obligations and private relationships";
+"header" [label="Store header / scope binding"];
+"pin" [label="Required retained-history pin"];
+"receiveq" [label="Durable receive work"];
+"private" [label="Required private record groups"];
+"verification" [label="Verification obligations + damage marker"];
+"pendingdisk" [label="Pending-file recovery reference graph"];
+"projectiondisk" [label="Required projection relationship state"];
+}
+}
+}
+}
+}
+subgraph cluster_provider { label="Repository and provider evidence\nFiles and external observations remain separate authorities";
+subgraph cluster_repo_root { label="Selected repository folder\nON DISK · physical root identity is held independently of collection identity";
+"rdirs" [label="Repository directory objects"];
+subgraph cluster_nvdata { label="NV Data/ → v1/\nVisible ordinary protocol directory";
+subgraph cluster_keys { label="keys/\nBootstrap and unlocking descriptors";
+"rkeys" [label="Bootstrap / key descriptors"];
+}
+subgraph cluster_segments { label="segments/<writerEpoch>/\nOne immutable-object namespace · roots and pages use ordinary .nvseg leaves";
+"rchanges" [label="Changes segment files"];
+subgraph cluster_snapshots { label="Snapshot representations\nLogical families in the same segment namespace";
+"rinitial" [label="Initial snapshot root + pages"];
+"rgeneral" [label="General snapshot root + tree"];
+}
+}
+}
+subgraph cluster_root_files { label="Other owned root files\nProjection and install / replacement work";
+"rnotes" [label="Plaintext note projections"];
+"rstages" [label="Owned stages / preserved displacement"];
+}
+}
+subgraph cluster_provider_evidence { label="Provider-managed external evidence\nAssociated with selected files · OS-managed lifetime";
+"appleversions" [label="Apple-disclosed unresolved versions"];
+}
+}
+}
+subgraph cluster_other { label="Other locations and services\nPERSISTENT · separately selected destinations or OS-owned state";
+subgraph cluster_os { label="OS / application services\nDevice and application scope";
+"keychain" [label="Optional remembered key"];
+"hostprefs" [label="Application-global preferences"];
+}
+subgraph cluster_recovery { label="Preserved recovery evidence\nIndependent, explicitly qualified recovery input";
+"backup" [label="Private backup / preserved evidence"];
+}
+subgraph cluster_destinations { label="Import and output destinations\nExplicitly selected stores or files";
+"legacy" [label="Legacy collection / explicit export"];
+"copy" [label="Repository copy / new destination"];
+"scratch" [label="Explicit plaintext scratch / export"];
+}
+}
+}
+"live" -> "pendinglive" [label="admit value / mark exact pending generation"];
+"pendinglive" -> "capture" [label="freeze complete action + causal inputs"];
+"capture" -> "seal" [label="encode / zstd / seal once"];
+"seal" -> "decoded" [label="open exact envelope for checked semantics"];
+"decoded" -> "graph" [label="resolve exact occurrences + distinct graph roles"];
+"graph" -> "batch" [label="validate writer-declared history / action agreement"];
+"capture" -> "batch" [label="checked-current basis or full declared validation"];
+"seal" -> "batch" [label="pair same exact bytes with validated contents"];
+"batch" -> "objects" [label="retain exact immutable bytes"];
+"batch" -> "accepted" [label="commit complete validated unit"];
+"accepted" -> "pin" [label="advance maximal required closure atomically"];
+"accepted" -> "opindex" [label="insert logical records / occurrences / edges"];
+"accepted" -> "actionindex" [label="insert complete actions / restore provenance"];
+"accepted" -> "receiveq" [label="wake every affected dependent"];
+"accepted" -> "pendingdisk" [label="link exact admitted external operation"];
+"batch" -> "pendinglive" [label="acknowledge only covered UUID/LSN generations"];
+"accepted" -> "reduce" [label="indexed suffix after viewThrough"];
+"objects" -> "graph" [label="verify retained envelopes on demand"];
+"opindex" -> "graph" [label="select causal parents / note predecessors"];
+"actionindex" -> "graph" [label="select scope / origin / compensation evidence"];
+"current" -> "graph" [label="checked current basis / scoped query context"];
+"graph" -> "reduce" [label="reduce exact declared/applied history"];
+"reduce" -> "current" [label="install affected rows / remove absent births"];
+"reduce" -> "view" [label="advance rows + context + prefix together"];
+"view" -> "current" [label="bind exact epoch and represented prefix"];
+"current" -> "live" [label="stream complete checked startup / publish model"];
+"view" -> "live" [label="restore compact authoring frontiers"];
+"live" -> "search" [label="initialize + synchronously filter current notes"];
+"reduce" -> "live" [label="generation-fenced atomic live publication"];
+"live" -> "views" [label="attach shared note / independent presentation"];
+"views" -> "pendinglive" [label="ordinary input + native action accounting"];
+"graph" -> "history" [label="page metadata / verify selected history preview"];
+"actionindex" -> "history" [label="exclude named deletions after durable Restore"];
+"history" -> "capture" [label="restore fields / fresh-birth Restore or recovery"];
+"graph" -> "conflicts" [label="heads via note predecessors; Delete coverage"];
+"conflicts" -> "reduce" [label="deterministic Current / automatic preservation"];
+"conflicts" -> "capture" [label="explicit scoped choice / RecoverCopy"];
+"graph" -> "undo" [label="derive scope candidates / compensation families"];
+"live" -> "undo" [label="capture actual Current + affected generations"];
+"undo" -> "capture" [label="admit whole guarded compensation"];
+"views" -> "undo" [label="causal eligibility before native entry consumption"];
+"accepted" -> "pubwork" [label="bounded exact accepted-prefix selection"];
+"objects" -> "pubwork" [label="reuse exact sealed bytes / descriptors"];
+"pubwork" -> "rstages" [label="stage complete exact transport input"];
+"rstages" -> "rchanges" [label="exclusive install + verify + directory barriers"];
+"rstages" -> "rkeys" [label="exclusive descriptor installation"];
+"rstages" -> "rinitial" [label="install immutable root/page envelopes"];
+"rstages" -> "rgeneral" [label="install immutable root/tree envelopes"];
+"rkeys" -> "recvwork" [label="discover checked descriptor candidates"];
+"rchanges" -> "recvwork" [label="bounded exact rooted read / receive handoff"];
+"rinitial" -> "recvwork" [label="retain root / pages in any arrival order"];
+"rgeneral" -> "recvwork" [label="retain optional / required snapshot input"];
+"recvwork" -> "objects" [label="retain exact candidate bytes before acceptance"];
+"recvwork" -> "receiveq" [label="transactional retain / park / reject"];
+"receiveq" -> "recvwork" [label="restart required drain / post-publication optional drain"];
+"recvwork" -> "decoded" [label="validate protections / bounded complete payload"];
+"recvwork" -> "snapwork" [label="assemble byte requirements before semantic checks"];
+"recvwork" -> "hints" [label="remember accepted identity + fresh immutable fingerprint"];
+"hints" -> "recvwork" [label="checked batch hit skips unchanged body read"];
+"rootowner" -> "recvwork" [label="fresh held-directory metadata / single-use streams"];
+"graph" -> "snapwork" [label="capture stated operation cut + accepted root frontier"];
+"snapwork" -> "seal" [label="emit bounded initial/general root/page envelopes"];
+"snapwork" -> "batch" [label="verify complete bootstrap or snapshot unit"];
+"rgeneral" -> "rgeneral" [label="exact v1 retention parents cover prior root closures"];
+"rkeys" -> "rchanges" [label="pins exact Genesis locator"];
+"rinitial" -> "rchanges" [label="verifies Genesis / ImportComplete / import closure"];
+"rgeneral" -> "rchanges" [label="represents stated logical operation cut"];
+"snapwork" -> "reduce" [label="verified snapshot basis + all accepted outside-cut actions"];
+"rnotes" -> "filework" [label="coordinated catalogs + selected exact read"];
+"appleversions" -> "filework" [label="read selected disclosed member in resolver context"];
+"filework" -> "pendingwork" [label="classify provenance / own repair candidates"];
+"pendingwork" -> "pendingdisk" [label="retain latest snapshot / reserve frozen input"];
+"pendingdisk" -> "pendingwork" [label="recover exact committed identity or renew review"];
+"pendingwork" -> "capture" [label="admit Import / associated Put / fresh recovery"];
+"pendingwork" -> "projectiondisk" [label="settle neutral association with checked Current"];
+"pendingdisk" -> "projectiondisk" [label="transfer settled observation / physical receipt link"];
+"live" -> "projection" [label="prepare intended filename / format / exact bytes"];
+"projectiondisk" -> "projection" [label="revalidate accepted receipt / unfinished source"];
+"batch" -> "projection" [label="local history barrier enables captured projection"];
+"projection" -> "filework" [label="capture expected current replacement / removal"];
+"filework" -> "rstages" [label="stage projection with required format metadata and advisory stamp"];
+"rstages" -> "rnotes" [label="safe create / expected replacement / source accounting"];
+"filework" -> "projectiondisk" [label="commit verified physical association / transition receipt"];
+"batch" -> "appleversions" [label="history + exact file barrier before selected-member disposition"];
+"filework" -> "appleversions" [label="fresh scoped Apple resolved setter"];
+"legacy" -> "capture" [label="recover then freeze complete migration values"];
+"capture" -> "snapwork" [label="genesis commitment + complete initial import"];
+"live" -> "scratch" [label="explicit coherent current-state export / editor handoff"];
+"scratch" -> "pendingwork" [label="validate exact external-editor return"];
+"rkeys" -> "secrets" [label="bounded descriptor unlock / pin bootstrap"];
+"unlock" -> "secrets" [label="password/recovery route before SQL access"];
+"keychain" -> "secrets" [label="optional validated CK readback"];
+"secrets" -> "keychain" [label="add-only remembered-key provisioning"];
+"rkeys" -> "unlock" [label="retain exact nonsecret descriptor copy"];
+"secrets" -> "seal" [label="domain-separated keys / fresh production nonce"];
+"secrets" -> "decoded" [label="pinned protection context / authenticate first"];
+"secrets" -> "dbcontainer" [label="derive public or encrypted raw database key"];
+"objects" -> "repairwork" [label="capture exact validated local repair union"];
+"pin" -> "repairwork" [label="require complete surviving known closure"];
+"private" -> "repairwork" [label="preserve independently valid private groups"];
+"projectiondisk" -> "repairwork" [label="preserve coherent required relationship observations"];
+"pendingdisk" -> "repairwork" [label="preserve coherent latest / frozen / settlement groups"];
+"backup" -> "repairwork" [label="salvage working copy / verify backup inputs"];
+"rchanges" -> "repairwork" [label="union exact independently validated repository objects"];
+"rkeys" -> "repairwork" [label="capture usable bootstrap / unlock route"];
+"repairwork" -> "candidate" [label="rebuild closure, pin, private records, derived view"];
+"candidate" -> "selectowner" [label="reopen / verify complete replacement"];
+"selectowner" -> "selection" [label="durable expected-generation activation"];
+"selection" -> "localowner" [label="select then independently validate new owner"];
+"repairwork" -> "rstages" [label="same-root add-only exact repository repair"];
+"dbcontainer" -> "backup" [label="fixed-read-cut keyed SQLite backup"];
+"unlock" -> "backup" [label="include matching usable descriptor copies"];
+"repairwork" -> "copy" [label="preserve captured repository / saved-work union"];
+"rnotes" -> "copy" [label="copy associated + unknown available files"];
+"rgeneral" -> "copy" [label="copy available retained root/page history"];
+"current" -> "maintenance" [label="capture exact physical + logical row batch"];
+"maintenance" -> "dict" [label="train once / install with referencing rows"];
+"maintenance" -> "current" [label="guarded representation-only recode"];
+"dict" -> "current" [label="decode only named digest-bound dictionary"];
+"maintenance" -> "dbcontainer" [label="optional bounded compaction; settle interruption"];
+"localowner" -> "dbcontainer" [label="exclusive owner + synchronous SQL turns"];
+"localowner" -> "header" [label="compare selected store / bootstrap / profile binding"];
+"header" -> "accepted" [label="scope all accepted membership to this owned store"];
+"hostprefs" -> "views" [label="load independent presentation defaults"];
+"hostprefs" -> "private" [label="explicitly map collection setting overrides"];
+"rootowner" -> "rdirs" [label="hold directory-object ownership / check ancestors"];
+"rdirs" -> "recvwork" [label="bounded shallow protocol namespace enumeration"];
+"localowner" -> "batch" [label="reserve before await / recheck same prefix and header"];
+"rootowner" -> "pubwork" [label="same-session physical installation consumer"];
+"appleowner" -> "rootowner" [label="actual accessor interval / positive continuity"];
+"appleowner" -> "recvwork" [label="ordinary opportunities / invalidation / disclosed availability"];
+"appleowner" -> "filework" [label="scoped coordinated read / fresh catalogs"];
+"selectowner" -> "private" [label="validated new local association / credentials"];
+"verification" -> "graph" [label="replay exact unfinished protected scope"];
+"graph" -> "verification" [label="commit reminder first; settle or record damage last"];
+"verification" -> "gate" [label="known damage or unfinished required checks fence startup"];
+"gate" -> "live" [label="final synchronous publication / mutation admission"];
+"gate" -> "capture" [label="force lifecycle / resolver / external-handoff capture"];
+"gate" -> "localowner" [label="quiesce, drain admitted history + required state"];
+"gate" -> "rootowner" [label="fence / drain entered effects; release ownership last"];
+}

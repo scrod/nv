@@ -1,0 +1,770 @@
+{
+  "captured": "2026-10-13",
+  "authority": "Normative specification and annexes, ADRs, glossary, current proposal/plan corpus, conditional Apple/replacement contracts and TLA coverage boundaries.",
+  "sources": [
+    {
+      "path": "CONTEXT.md",
+      "title": "Notational Velocity: terminology",
+      "sha256": "460135833c5ac38e6963350d22c00bf52c7afd73fcf580a57a9437fdfd09fe1b",
+      "lines": 660
+    },
+    {
+      "path": "docs/iCloud-Drive-Support-Spec.md",
+      "title": "Robust iCloud Drive Support",
+      "sha256": "a15737d1c6e24ec695c661f4749e6f81969cb4272d6e9f5728039bd2ff510eda",
+      "lines": 309
+    },
+    {
+      "path": "docs/Apple-API-Contract-Validation.md",
+      "title": "Apple API Contract Validation",
+      "sha256": "422a18d09db34e2600361bd929948980161ac7152a0e31ff558eed004021a523",
+      "lines": 463
+    },
+    {
+      "path": "docs/Foundation-Safe-Replacement-Migration.md",
+      "title": "Foundation safe-replacement migration",
+      "sha256": "34b216ebcf6fb8f09548fe1851a2f68f1fe84c60c348215bfa5c0d89f314ce67",
+      "lines": 280
+    },
+    {
+      "path": "docs/adr/0001-first-class-icloud-drive-support.md",
+      "title": "Give iCloud Drive provider-agnostic segment support",
+      "sha256": "9913cc950bf5685709fe1cd679cc5df7dc017e208e349eed71cdaa2ad7cd83be",
+      "lines": 11
+    },
+    {
+      "path": "docs/adr/0002-require-an-acceptable-startup-store.md",
+      "title": "Require a complete local startup view, not a provider-current database",
+      "sha256": "f5040b6bdde252c64045634dba21b564aefdba54fa64667ee2501c51e853036f",
+      "lines": 25
+    },
+    {
+      "path": "docs/adr/0003-use-immutable-history-as-recovery-and-sync-authority.md",
+      "title": "Use immutable history as recovery and synchronization authority",
+      "sha256": "1e64d4fcd6ba17ab4fcc54d974d0e7967812e1d88b1360652f4d6102fa6ef40a",
+      "lines": 13
+    },
+    {
+      "path": "docs/adr/0004-make-local-history-durable-before-external-effects.md",
+      "title": "Make local history durable before external effects",
+      "sha256": "fe41ae7ad9fb664be41f936e8f16871416b2d83eac6fb85c3a31ea2c69bcecd3",
+      "lines": 17
+    },
+    {
+      "path": "docs/adr/0005-separate-startup-cache-private-state-and-visible-history.md",
+      "title": "Separate current materialization, private state and visible history",
+      "sha256": "0025e50274f820db0831c080ec57a2e10abd00dd175048fb487f984b07414155",
+      "lines": 19
+    },
+    {
+      "path": "docs/adr/0006-retain-positive-association-and-directory-ownership.md",
+      "title": "Retain positive association and directory-object ownership",
+      "sha256": "4ead088e94b81ea2a23c9032fed330d3f6b47dde91c028897e5c7f0e01b0750e",
+      "lines": 25
+    },
+    {
+      "path": "docs/adr/0007-seal-complete-groups-into-write-once-segments.md",
+      "title": "Seal complete action groups into write-once segments",
+      "sha256": "526ce29d2e0631c22bcaddcd93fabc434669e7330780419e316c8b5e46c928b5",
+      "lines": 17
+    },
+    {
+      "path": "docs/adr/0008-reuse-the-existing-quit-flow.md",
+      "title": "Reuse the quit UI with segment-specific durability ordering",
+      "sha256": "7d93b9d4089f3fd97bb4376a5c9042dc7af13b2637907645ff8e45d9bff21f4b",
+      "lines": 13
+    },
+    {
+      "path": "docs/adr/0009-recover-only-validated-associated-local-history.md",
+      "title": "Recover only validated, positively associated local history",
+      "sha256": "847319a8d5c93363106573d1aa2f7d1696347fbb40e0ead08120fe1fdf92ab4e",
+      "lines": 11
+    },
+    {
+      "path": "docs/adr/0010-separate-local-durability-from-provider-work.md",
+      "title": "Separate local durability from provider work",
+      "sha256": "30229481a4797d32a412af7637c9b5dd2f92afe78ebd5f7690d490897086098a",
+      "lines": 18
+    },
+    {
+      "path": "docs/adr/0011-use-source-preserving-key-and-profile-transitions.md",
+      "title": "Use source-preserving key and profile transitions",
+      "sha256": "143af76b7ad11ca682adfc17337b04a4345342f6e140d7645b75c520d46036cb",
+      "lines": 17
+    },
+    {
+      "path": "docs/adr/0012-keep-spotlight-out-of-storage-correctness.md",
+      "title": "Keep Spotlight out of storage correctness",
+      "sha256": "a741cc0183d338b16f7c59293c841a297792cc6d395ae0574d2de3d3c5c258bf",
+      "lines": 11
+    },
+    {
+      "path": "docs/adr/0013-publish-exact-copies-of-durable-local-segments.md",
+      "title": "Publish exact copies of durable local segments",
+      "sha256": "0e3fbcfb956509d59cca5e7d404dddc2fdcc5b58b6aeb5c3ea0e6ec896ec5620",
+      "lines": 33
+    },
+    {
+      "path": "docs/adr/0014-distinguish-logical-deletion-projections-and-conflict-disposition.md",
+      "title": "Distinguish logical deletion, plaintext projections and conflict disposition",
+      "sha256": "16473cdc545fbeffebf2e07c569ba45032866a30a022dd4b9815834ad4ab37f6",
+      "lines": 31
+    },
+    {
+      "path": "docs/adr/0015-retain-history-and-use-compensating-undo.md",
+      "title": "Retain inspectable history and use compensating undo",
+      "sha256": "ded213ecc7b87cf20d210bb322d99ec7a653a7e72e44abf4ef41e6878b6604e9",
+      "lines": 36
+    },
+    {
+      "path": "docs/adr/0016-repair-from-validated-immutable-copies.md",
+      "title": "Repair from validated immutable copies",
+      "sha256": "ab20cb0212f1c6019724eca703d02999ddf9604927be19e13b1c0b761695d5c8",
+      "lines": 33
+    },
+    {
+      "path": "docs/impl-proposal-5/Encryption.md",
+      "title": "Encryption and trust boundaries",
+      "sha256": "01e54b0fd9fe9352a95feb7678c03b4e545954a38ead168aa8c8fca4871e6ab0",
+      "lines": 162
+    },
+    {
+      "path": "docs/impl-proposal-5/Format-TODO.md",
+      "title": "TODO: freeze proposal-5 file formats and encodings",
+      "sha256": "687354adb8e1621fdee49823c15543d728f72126e52be0b5402738659dc7fc5e",
+      "lines": 136
+    },
+    {
+      "path": "docs/impl-proposal-5/Implementation.md",
+      "title": "Implementation work and lifecycle behavior",
+      "sha256": "3bebd9467229bd02de227f8963ec932cb738f74efd7ade11499acdbeebcf0417",
+      "lines": 350
+    },
+    {
+      "path": "docs/impl-proposal-5/LocalStore.md",
+      "title": "Private SQLite storage and fast startup",
+      "sha256": "7ef7ab6f0cddb5b082f07ad70838bef2a7acf7b0eaf26c423404d5dc879eaea7",
+      "lines": 698
+    },
+    {
+      "path": "docs/impl-proposal-5/Native-Undo-Experiments.md",
+      "title": "Native undo and retained history: experiments",
+      "sha256": "bf9eedbe39db1a1c9616bdd6b4ed4bb331cddee0261c9f444d7a0c55d2d51268",
+      "lines": 194
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/actor-database-adoption.md",
+      "title": "Actor-owned database: adoption and robustness",
+      "sha256": "89d8f02b7560866bf67b695799c93a9502819defd7dd26eab12dca79ec1e0f9b",
+      "lines": 226
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/actor-database-prototype.md",
+      "title": "Database actor / asynchronous history lookup experiment",
+      "sha256": "8931afbbab36ccf63fbc120fa0deb08047988438da9e4f87340bf194e4a33183",
+      "lines": 86
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/aged-current-row-startup-validation.md",
+      "title": "Aged current-row startup after a clean exit",
+      "sha256": "cc3026a6a9724ddb5d1502009659bace102d8cc5ba7c77b7744d4049107063e5",
+      "lines": 257
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/clean-quit-locality-strategy.md",
+      "title": "Clean-quit locality: measured options and implementation direction",
+      "sha256": "3fa1d471f36b45cc083d26cc7f9cfe83df703caf827694802d1d9ceeed3227ba",
+      "lines": 408
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/conservative-merge-contract.md",
+      "title": "Conservative merge engine and detached preview",
+      "sha256": "d6dc0531ac8e6d7759f4e2c26ed275d657e1f4d2e3321a0a04fd211dbce9ca72",
+      "lines": 99
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/current-basis-validation.md",
+      "title": "Ordinary saves from checked current rows",
+      "sha256": "e62a704c9e52873bc84feb2acc40d5a0cbd2de3287b0e5f3cce95cd57cd781f6",
+      "lines": 243
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/derived-state-reference-contract.md",
+      "title": "Equal-value and merged-state references",
+      "sha256": "f16d3d94f6202719b3a60efa2ed00b4e0f7a92ff6c933c2c453b85d11a8e561a",
+      "lines": 89
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/first-save-reopen-contract.md",
+      "title": "First save/reopen: encoding, bootstrap and runtime contract",
+      "sha256": "50748e3078858593116478a344fdf0c908194051404fc25b7c5434723edcb651",
+      "lines": 453
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/general-snapshot-record-contract.md",
+      "title": "General snapshot records and retention coverage",
+      "sha256": "3c619bdf2099865363988142d5e6640e1d78ebd5e121c27b821fb8ae56b6095d",
+      "lines": 145
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/history-read-scheduling-benchmark.md",
+      "title": "Rough history-read scheduling benchmark",
+      "sha256": "4cd463b34df5c802a6c7223c4a0c5740f4f58a3fba9b30162ed02ce2e57958af",
+      "lines": 103
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/at-most-once-envelope-decoding.md",
+      "title": "At-most-once envelope decoding per history traversal",
+      "sha256": "f57ca63fb142d181335cc24fe7961d0bddb0607da4022bf112c13bf98135d225",
+      "lines": 295
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/benchmark-backlog.md",
+      "title": "Deferred startup and history-query investigations",
+      "sha256": "8316f5becd397607111c1d0db2c21c4534799fe5f1a8d28d93f7f3155175464d",
+      "lines": 164
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/durable-verification-recovery.md",
+      "title": "Durable reminders for interrupted verification",
+      "sha256": "0270b7efe475cbd78f19eb636d2aaf918c329eaeb1e07871df380bf53df122a9",
+      "lines": 325
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/general-snapshot-v1-validation.md",
+      "title": "Single current general-snapshot v1: format correction and validation",
+      "sha256": "d36e6263d503a2e5eb1a5c4a0d6df2620e13bc0a8fa5e6a594ab9e1d378376e3",
+      "lines": 123
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/README.md",
+      "title": "Phase 4 improvements",
+      "sha256": "a509caa82f748bdd80d6c4630ed68652c9b09544dd319247eb6f7e54e526f81f",
+      "lines": 40
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/recovery-graph-reuse.md",
+      "title": "One checked graph for recovery catch-up",
+      "sha256": "c8724efc7aa8bd875cd40642fb89ac61922c7ad77a0646ca674316f1a79bd6c6",
+      "lines": 266
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/snapshot-retention-coverage-validation.md",
+      "title": "Snapshot retention coverage: validation",
+      "sha256": "cf203d424ae5a42b39b16aacc6046339009daa43a486f7d0baee5827f0de3088",
+      "lines": 205
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/snapshot-retention-coverage.md",
+      "title": "Snapshot retention coverage",
+      "sha256": "e0b6634ad17ea53bf1dbd33dbd75096b3ed13e057130351e789c9d7ce1e82d77",
+      "lines": 65
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/startup-and-scoped-queries-validation.md",
+      "title": "Startup publication and scoped history queries: validation",
+      "sha256": "d68ab32fdba9bad1937007042f882bb4468c141ecb5575a4aec38d19fb472ff6",
+      "lines": 257
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/startup-and-scoped-queries.md",
+      "title": "Faster startup and scoped Undo/conflict queries",
+      "sha256": "81098a15f5533f2f34061e5b875cd0d9198f7ee125ccb224c1194b2cb5d66ffd",
+      "lines": 64
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase-4-improvements/validation.md",
+      "title": "Phase 4 improvement implementation and qualification",
+      "sha256": "8208a7edb6ec801896750febdc1cefbc7d815aa5a4c0f4394b211aafd082a534",
+      "lines": 324
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase2-hardening-validation.md",
+      "title": "Phase 2 hardening: scheduling, receive isolation and failure histories",
+      "sha256": "a00d28bb6fa088a09055ec306799e0d73e89e8419f026e3152e3b38c06809bb7",
+      "lines": 251
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase2-local-runtime-validation.md",
+      "title": "Phase 2: private runtime and fresh-process recovery",
+      "sha256": "aefe3d9094ea53c602964fdcb5c9e07c3f1c4850c636975b9a50add44f3c5c8c",
+      "lines": 291
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase2-platform-and-type-audit.md",
+      "title": "Phase 2 platform, type-boundary and model audit",
+      "sha256": "acb1abe74e776d6dcde27bb630abb0cfca2edd06e4d4ba2850966ea280ff8f2e",
+      "lines": 283
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-connected-record-contract.md",
+      "title": "Phase-3 connected record contract",
+      "sha256": "24de7a5aaebf32bd76234f59395e286bfb06e59b75dfb457e5245a3dd567d575",
+      "lines": 165
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-derived-state-validation.md",
+      "title": "Phase 3: equal/merge state-reference qualification",
+      "sha256": "897030f108a23624fe06ebfe967081147ea5aa211f11bf7e254805659885d324",
+      "lines": 117
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-history-validation.md",
+      "title": "Phase 3: retained history reader",
+      "sha256": "0e6b4abb79591ad4a9fe9a8b59524ad66185f6a9a57163285af5b83fadbf0679",
+      "lines": 152
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-merge-validation.md",
+      "title": "Phase 3: conservative merge engine qualification",
+      "sha256": "2a87642b87e42583b40333d274e246c38bb80e7dba85b67b76a64c797e669a22",
+      "lines": 90
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-restoration-validation.md",
+      "title": "Phase 3: fresh-birth Restore",
+      "sha256": "9cea93dc70f4f11baa1cbf80736c119fa9ca64c5166234bc53c725ad967c2ad7",
+      "lines": 112
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-review-corrections.md",
+      "title": "Phase-3 review corrections",
+      "sha256": "9a04112580e247b572c5752f75e818fc613fc3b6d0182079336c7b2454f86b9c",
+      "lines": 194
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-schedule-observation-matrix.md",
+      "title": "Phase 3: schedule and observation matrix",
+      "sha256": "d610aff4503876be346e2b072fef4e6e6e55d3f726c5ac6b64e8f0135065d777",
+      "lines": 300
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase3-validation.md",
+      "title": "Phase 3: connected portable semantics",
+      "sha256": "22646a2f8eb15dff1869d9a4bdc8a56bfc152fc7f865ef88acdeeb02b4024b9e",
+      "lines": 250
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-bootstrap-reconstruction-plan.md",
+      "title": "Phase 4 S3/S4: complete bootstrap and snapshot-based reconstruction",
+      "sha256": "3fd188cb17aedc63706e2c98e885691ad7287608e50721f572d4fd842c400f45",
+      "lines": 407
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-bootstrap-reconstruction-validation.md",
+      "title": "Phase 4 S3/S4: complete bootstrap and current-row reconstruction",
+      "sha256": "b8f8b60271ab53c63629c2a7c3c5014292f5a015a46dc5bf5d77440a159e7622",
+      "lines": 293
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-current-row-locality-maintenance-plan.md",
+      "title": "Remaining Phase 4: current rows, locality and safe maintenance",
+      "sha256": "21ab87b6bfd5088dbfa71177571f377d10fbb445e1224815bc2a356696f2975f",
+      "lines": 451
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-current-row-locality-maintenance-validation.md",
+      "title": "Phase 4F: private current rows and maintenance validation",
+      "sha256": "a3663df860e6603c16dbffcbd4e613e4c8a4ef2936fc897bf960a6530a3be62e",
+      "lines": 358
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-data-safety-contracts.md",
+      "title": "Phase 4: data-loss tests and Swift contract boundaries",
+      "sha256": "661968f9753eaa6272383110a122ec7f263b8fab374d78e52133ceb21f8fb575",
+      "lines": 441
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-general-snapshot-validation.md",
+      "title": "Phase 4A: first general-snapshot increment",
+      "sha256": "af23173ee16ad2dd0b83434c989331a68e8048f46914b5db1f1fbb90a6174449",
+      "lines": 189
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-plan.md",
+      "title": "Phase 4C–4E: private state, verified repair and repository copy",
+      "sha256": "0baa69d18d1afe094bd4dddeffc360aea58bc48734602c4efd641158367a64e2",
+      "lines": 526
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md",
+      "title": "Phase 4C–4E: private state, repair and copy qualification",
+      "sha256": "88302605e80a200e6ee5acaccc7a963039182dcb31abb78405e9895bbdab6208",
+      "lines": 331
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-received-snapshot-plan.md",
+      "title": "Phase 4 S2: received snapshots, exact waits and restart recovery",
+      "sha256": "c8afd962c6553b9c9c96f0776e00e24ef681b324342115b859ec9f146c255779",
+      "lines": 323
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-received-snapshot-validation.md",
+      "title": "Phase 4 S2: received snapshot assembly and acceptance",
+      "sha256": "90a5d9df5bf6b21595765834dfa83e57509e0b0ee5c729039b98ecac72701ecb",
+      "lines": 297
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-snapshot-acceptance-recovery-plan.md",
+      "title": "Phase 4A/4B follow-up: durable snapshots and complete-history recovery",
+      "sha256": "734d15a8a60dde2ee9d861fe0e004e685e217f5b97235bc1be946e43865f0c8b",
+      "lines": 387
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-snapshot-acceptance-validation.md",
+      "title": "Phase 4A/4B: durable local snapshot acceptance",
+      "sha256": "65cbc6ad64fe941d82c87252b00a5197e8e8f5b26fbcdc20382b05f8c716ec77",
+      "lines": 215
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase4-startup-recovery-plan.md",
+      "title": "Phase 4: snapshots, startup and source-preserving recovery",
+      "sha256": "b59a8ffe0caa9dce57063aa973939e91969ac19f6f55b05307a7b831a57bd88c",
+      "lines": 438
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/00-boundaries-and-harness.md",
+      "title": "P5.0 — Boundaries and production-path harness",
+      "sha256": "d9259f922ba5d3c3b83c570d19316103fa0fd07e255133a2bc747093ec2d6d7b",
+      "lines": 71
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/00-caller-inventory.md",
+      "title": "P5.0 — Initial caller and authority inventory",
+      "sha256": "e69631aeee2f6d1426f8af1f9d45d797224175c6c0a93fa63dd1348a3bdcb5b7",
+      "lines": 88
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/01-root-ownership-and-execution.md",
+      "title": "P5.1 — Root ownership and independent execution",
+      "sha256": "8e9e9b80e0cd252e8885fc98419e1facd9ecc4ed9f21843357e68b1eb2f98949",
+      "lines": 77
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/01-root-ownership-validation.md",
+      "title": "P5.1 — Root ownership and independent execution: qualification",
+      "sha256": "ae07ac5cfa3deb84edec7d0b7b5431d074f7b19013ba01df370eb05da53da2d3",
+      "lines": 231
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/02-immutable-files-and-namespace.md",
+      "title": "P5.2 — Immutable files and rooted namespace operations",
+      "sha256": "cacf0cf8e703201418fb4bd4fcbd79d1bdc5940bbbd712cecd95d26937fac2fd",
+      "lines": 81
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/02-immutable-files-validation.md",
+      "title": "P5.2 — Immutable files and rooted namespace qualification",
+      "sha256": "85a8b6dd7c006e18fc8e8bfeb34cb783a920f9cd2af58ccbdf6b07a907c2c4af",
+      "lines": 234
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/03-local-repository-exchange-validation.md",
+      "title": "P5.3 — Real local repository exchange qualification",
+      "sha256": "aee0f413b6c4dd967dccad02e29944907cc6c935c6dbd9bad01414e7dc3dd2c7",
+      "lines": 284
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/03-local-repository-exchange.md",
+      "title": "P5.3 — First real local repository exchange",
+      "sha256": "d833193a73ff80ceb7e9cc6e62bdb76900f19317de5febb8efd8a7d1cad63af8",
+      "lines": 135
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md",
+      "title": "P5.4 — Implementation and qualification ledger",
+      "sha256": "4eae723d4d8e80d4869744d1786f570f2c1c8a304c8cad9cfaacda9552f96d14",
+      "lines": 521
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery.md",
+      "title": "P5.4 — Apple coordination, discovery and accessor lifetime",
+      "sha256": "262f83d8e8b139fa2ebb00a03b389e0968d0ca8c7fa0bb4ca685062997b07a1c",
+      "lines": 464
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/05-startup-and-root-reassociation-validation.md",
+      "title": "P5.5 — Startup and root reassociation qualification",
+      "sha256": "858bc438d0900f47e3c1660a0775642cb0acd458a3c0d3a4361a7eb5986ec09f",
+      "lines": 373
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/05-startup-and-root-reassociation.md",
+      "title": "P5.5 — Startup decisions and explicit root reassociation",
+      "sha256": "eb4aa5348a6ca2b7724eb93b9bb94bf68504a704d4f033ae3fe70f836df90529",
+      "lines": 632
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md",
+      "title": "P5.6 — Transparent repair, safe replacement and repository copy",
+      "sha256": "dadc7ba157f1f7e0500aa52688261a40f7721bb9d9f2ec3d28113ba2e2ed76cc",
+      "lines": 113
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/07-connected-qualification.md",
+      "title": "P5.7 — Connected qualification and Phase 6 handoff",
+      "sha256": "0b88ead387c5271f9e75c8b0aa6dd828bf310b89b336fd972c3c8c95cff06c63",
+      "lines": 108
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/bounded-discovery-batches-plan.md",
+      "title": "Bounded discovery metadata and accepted-hint batches",
+      "sha256": "b2018fbfdb942100a4ae55e3e20b4d05c8f2e69eaaa620c3009c01fe123c8433",
+      "lines": 374
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/bounded-discovery-batches-validation.md",
+      "title": "Bounded discovery batches — implementation and qualification",
+      "sha256": "3944550fab27492f95a3b80edf51c2c46f851ac609437d4b147a37ed4e991676",
+      "lines": 254
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/directory-scan-performance.md",
+      "title": "Directory-scan performance baseline",
+      "sha256": "57aa932632ee2063278b369236ab727587fd280f99de0407c76de4a077e7896b",
+      "lines": 173
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/discovery-work-analysis.md",
+      "title": "Discovery caller and repeated-work analysis",
+      "sha256": "6971a3c1d1c58461a008592defcf22be4965e2427b0e3daf544a5bc29e924829",
+      "lines": 357
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5/private-connection-reuse.md",
+      "title": "Private connection reuse",
+      "sha256": "383e01eb29f312368a51956c520925d46d625a51f0fe96cdd9ea4cfae221ef4d",
+      "lines": 230
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5-provider-root-implementation-plan.md",
+      "title": "Phase 5: dependency-ordered implementation plan",
+      "sha256": "857231f2d2a3531c224f8e98c3a9a492c5b5ab0e24b8109a6b94e08b1625c33d",
+      "lines": 325
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/phase5-provider-root-testing-plan.md",
+      "title": "Phase 5 testing plan: provider transport and physical roots",
+      "sha256": "bad3a9d825d27381dfa9490307f27d3fe2cc624369c4b90e63862787986d2428",
+      "lines": 688
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/private-current-row-codec.md",
+      "title": "Private current-row codec and locality operations",
+      "sha256": "dfa1b9d59be3b347c536e43ae6ebeece0638352b12fc78f5293479b059f165c9",
+      "lines": 124
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/private-record-contract.md",
+      "title": "Required private records: version 1",
+      "sha256": "6f32b997ae4a8efa9a9200cc0d90b6392d5db80aec47f0686c2b1d98ba54e5d9",
+      "lines": 107
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/qualification-build-reuse.md",
+      "title": "Qualification build and result reuse",
+      "sha256": "2d74d1a7bb5742b956f13116c0d3747bb20c9b431f5762f13e4f18ce9679cbcf",
+      "lines": 122
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/receive-model-validation.md",
+      "title": "Receive resumption and rejection: bounded model validation",
+      "sha256": "e3e23e2648564534674a3c6e87709eaceba6abba8c6fcbbafabd13e6cd5ef79d",
+      "lines": 159
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/remaining-storage-validation.md",
+      "title": "Remaining storage work: decisions and executable evidence",
+      "sha256": "ec32b86f057e435f92acc6abd8319a0ea27014b28cd96c4f624d2f2320141c25",
+      "lines": 392
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/restoration-record-contract.md",
+      "title": "Fresh-birth Restore record and acceptance contract",
+      "sha256": "b861748cb59e1191babb1ae2480385cec3b8e51f64e3cc6e46b184fa647571a5",
+      "lines": 81
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/sqlcipher-validation.md",
+      "title": "SQLCipher private-store validation",
+      "sha256": "bdd8564ed3ea9cd79040c9c3c95b2767b3cdba6be09dd9e0f1dffa5ae6f1e02a",
+      "lines": 328
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/sqlite-collection-transaction-validation.md",
+      "title": "Private SQLite collection: three connected validation cases",
+      "sha256": "c82e92fd03bb52664421656ea705463edb091fe162810d1e4250be5f80543ae9",
+      "lines": 276
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/sqlite-fast-start-validation.md",
+      "title": "Private SQLite current-row startup validation",
+      "sha256": "f3688ebaa0caf776604ae2785207f5ea88af645dd991382173b842df8139e1b1",
+      "lines": 70
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+      "title": "Private SQLite schema: first save/reopen increment",
+      "sha256": "bd449dbf4db1e2c749db3baf905d594099b1b2982022677477ad05f2cad57135",
+      "lines": 337
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/sqlite-local-store-experiment.md",
+      "title": "Private SQLite storage experiment",
+      "sha256": "c974d7ef430aa65b2496136fa4ce069a096ff3a73b7f4bafb630e1bd2bb614bd",
+      "lines": 412
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/sqlite-rewrite-budget-validation.md",
+      "title": "Bounded dictionary training and continued table-rewrite investigation",
+      "sha256": "798c79c571e2d5fd52d8b978fe177dd65aaaef3e51df59000d32650c2f1f8f9d",
+      "lines": 294
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/sqlite-rewrite-locality-validation.md",
+      "title": "SQLite rewrite placement and decoding: follow-up experiments",
+      "sha256": "86be9fa7ddb89396fc1da9c1155732ac2791bba779576da8255217addcdd7303",
+      "lines": 470
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/storage-review-follow-up.md",
+      "title": "Storage review: executable witnesses, type boundaries and proposed remedies",
+      "sha256": "5a26825f194d72269b6a73a6474dd1f158cb978f7feec328c9a5542ae8cff4f1",
+      "lines": 256
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/swift-storage-conformance-testing-strategy.md",
+      "title": "Swift storage conformance and failure-testing strategy",
+      "sha256": "07abf45737b3160dd1fdbe88fefbd5873cc00b1afc9bd23d8cd2df6b19d37f30",
+      "lines": 956
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md",
+      "title": "Swift storage library: phased implementation and testing",
+      "sha256": "fa98772cad27d8f7e3ff6e035b501800814e93f9fd0c9941a43629ec80cd48a0",
+      "lines": 537
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
+      "title": "Cross-platform Swift storage library — proposal v2",
+      "sha256": "1c99d9dd31978669a73cfcb992e26dba7a978afda117adbd7c677c290d05928f",
+      "lines": 667
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/swift64-platform-qualification.md",
+      "title": "Swift 6.4 compiler and platform qualification",
+      "sha256": "f26c49aa17744bf2d5f5d43bc49025e8ffbdb8830771ac7eb9e74180a769f2b7",
+      "lines": 156
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/typed-runtime-boundaries-validation.md",
+      "title": "Typed Runtime boundaries",
+      "sha256": "f9492a2e856a3253afcf876b303a46935d37b668b8bb9882f521be054bd4c5f3",
+      "lines": 165
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/validation-resumption-plan.md",
+      "title": "Resume received-history validation after local saves",
+      "sha256": "8ffc9ad722c5522b489a6d284728fa58d236b7fccd38f1947202e03a1dc1ad79",
+      "lines": 184
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/validation-resumption-results.md",
+      "title": "Validation resumption and rejection isolation",
+      "sha256": "54bd55648aaa8c3933fe4bb2b3a10e197dcb692e2cc8c8702fc92ea56a77e594",
+      "lines": 143
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/zstd-codec-validation.md",
+      "title": "Zstd-only new storage compression",
+      "sha256": "1d7d749327f49da66a918018227e21675bfc34cabacfd78138c0f630d40a8ac6",
+      "lines": 100
+    },
+    {
+      "path": "docs/impl-proposal-5/plan/zstd-shared-dictionary-validation.md",
+      "title": "Shared zstd dictionaries for private current rows",
+      "sha256": "40df6eef7738eabb566c2392047e6bddb4295fa08447a38f50d3f37ed2fdcb52",
+      "lines": 361
+    },
+    {
+      "path": "docs/impl-proposal-5/Protocol.md",
+      "title": "Segment protocol and note semantics",
+      "sha256": "fa7eb7ae10a3071a2fb7070970f3b6e63299f71d867e8421f79d0e16d363fdcb",
+      "lines": 472
+    },
+    {
+      "path": "docs/impl-proposal-5/README.md",
+      "title": "Implementation proposal 5: immutable segment storage and provider sync",
+      "sha256": "01e65b04cd3cea3d0bc2ef46161370e36cda48254fea7b11b31f19f7c631efee",
+      "lines": 177
+    },
+    {
+      "path": "docs/impl-proposal-5/Verification.md",
+      "title": "Verification, evidence, and release gates",
+      "sha256": "4ed48cfd09e705d150af47cdd6500110fb4925715dad124805d17075ac11e5c7",
+      "lines": 587
+    },
+    {
+      "path": "docs/impl-proposal-5/Window-UI-Architecture.md",
+      "title": "Shared note windows and Recently Deleted Notes",
+      "sha256": "1a9e9978d680c7afae716796ad3e66eb590430445ee86972dc068798f4854d3c",
+      "lines": 130
+    },
+    {
+      "path": "docs/tla/README.md",
+      "title": "iCloud Drive TLA+ models",
+      "sha256": "bb843f94c7432a66c018d1586f30e8d81108b4f5c4aa46f8e419809ffae5932e",
+      "lines": 627
+    },
+    {
+      "path": "docs/tla/Proposal5-Coverage.md",
+      "title": "Proposal 5: proof priorities and model disposition",
+      "sha256": "e3104cdff429f6ce9bdd2a1e69f8c76929f1eee319dec6e34dffc7ccf6660d7f",
+      "lines": 98
+    }
+  ],
+  "schema": {
+    "path": "NVStorage/Sources/NVStorageRuntime/Resources/SchemaV1.sql",
+    "sha256": "550af8136a11197a6089bee5f756bbe8f6fad46c389771f4c2377095451209bf",
+    "tables": [
+      "store_header",
+      "objects",
+      "acceptance_batches",
+      "accepted_objects",
+      "accepted_dependencies",
+      "object_waits",
+      "ready_objects",
+      "rejected_objects",
+      "operations",
+      "operation_occurrences",
+      "operation_parents",
+      "note_predecessors",
+      "actions",
+      "action_occurrences",
+      "action_members",
+      "action_scope_parents",
+      "restorations",
+      "retained_frontier",
+      "retained_descriptors",
+      "private_groups",
+      "pending_payloads",
+      "pending_items",
+      "pending_reservations",
+      "pending_settlements",
+      "view_meta",
+      "current_notes",
+      "current_dictionaries"
+    ]
+  },
+  "scenarioCatalog": {
+    "path": "docs/impl-proposal-5/diagrams/nvstorage-scenarios.json",
+    "sha256": "d8a4011db71949fb3c8dbf99920dc2c86643891a8915e78cf777630f60c03c4b",
+    "scenarios": 48,
+    "scenarioSteps": 144,
+    "scenarioCategories": 7,
+    "linkedRequirements": 16,
+    "linkedTestContracts": 42,
+    "scenarioObjects": 60,
+    "checkedScenarioSourceHeadings": 54
+  }
+}

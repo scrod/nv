@@ -6,7 +6,7 @@ campaigns and scaling measurements have passed. The results below distinguish
 completed checks from outstanding release qualifications.
 
 Subsequent startup/scoped-query work has its
-[own report](startup-and-scoped-queries-validation.md); general-v2 sequential
+[own report](startup-and-scoped-queries-validation.md); general-v1 sequential
 snapshot coverage has its [own report](snapshot-retention-coverage-validation.md).
 The historical counts and known-issue observations below describe these first
 three increments, before those later remedies.

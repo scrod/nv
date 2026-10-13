@@ -1,0 +1,3725 @@
+{
+  "title": "NVStorage — objects, features and derivation operations",
+  "date": "2026-10-13",
+  "scope": "Adopted segment-collection design, including documented Core/Runtime/Apple work and planned projection/application consumers. Each box groups domain objects with the same ownership and purpose; expanding a box lists its constituent records. SQL boxes are logical roles inside one private database.",
+  "lanes": [
+    {
+      "id": "outside",
+      "title": "Recovery & credentials",
+      "subtitle": "Persistent outside the active SQL container"
+    },
+    {
+      "id": "repository",
+      "title": "Selected repository",
+      "subtitle": "Provider-visible files and external evidence"
+    },
+    {
+      "id": "work",
+      "title": "Worker values & evidence",
+      "subtitle": "Immutable captures, preparation and results"
+    },
+    {
+      "id": "local",
+      "title": "Private durable roles",
+      "subtitle": "Inside Collection.sqlite unless stated"
+    },
+    {
+      "id": "derived",
+      "title": "Private derived state",
+      "subtitle": "Rebuildable rows / acceleration / job state"
+    },
+    {
+      "id": "live",
+      "title": "Live model & user features",
+      "subtitle": "Authoritative during use / AppKit boundary"
+    },
+    {
+      "id": "authority",
+      "title": "Owners & effect context",
+      "subtitle": "Session resources, permissions and fences"
+    }
+  ],
+  "features": [
+    {
+      "id": "E",
+      "label": "Editing & search"
+    },
+    {
+      "id": "D",
+      "label": "Local durability"
+    },
+    {
+      "id": "S",
+      "label": "Sync & discovery"
+    },
+    {
+      "id": "B",
+      "label": "Startup & bootstrap"
+    },
+    {
+      "id": "H",
+      "label": "History & Recently Deleted"
+    },
+    {
+      "id": "M",
+      "label": "Merge & conflicts"
+    },
+    {
+      "id": "U",
+      "label": "Undo / Redo"
+    },
+    {
+      "id": "P",
+      "label": "Plaintext / external files"
+    },
+    {
+      "id": "K",
+      "label": "Encryption & unlocking"
+    },
+    {
+      "id": "R",
+      "label": "Repair / backup / copy"
+    },
+    {
+      "id": "Q",
+      "label": "Quit & lifecycle"
+    }
+  ],
+  "kinds": {
+    "required": "On disk · required private",
+    "portable": "On disk · portable immutable",
+    "indexed": "On disk · accepted-history index",
+    "derived": "On disk · rebuildable",
+    "external": "Persistent · external / OS / output",
+    "memory": "In memory · value or job",
+    "authority": "In memory · revocable owner/context"
+  },
+  "edgeKinds": {
+    "derive": "Derive / prepare / publish",
+    "commit": "Commit required or derived state",
+    "copy": "Copy / read / install exact bytes",
+    "reference": "Contained / referenced evidence",
+    "guard": "Guard / authorize / fence"
+  },
+  "nodes": [
+    {
+      "id": "legacy",
+      "lane": "outside",
+      "title": "Legacy collection / explicit export",
+      "subtitle": [
+        "Epoch-4 Notes & Settings",
+        "Legacy recovery journal"
+      ],
+      "kind": "external",
+      "features": [
+        "B",
+        "R"
+      ],
+      "members": [
+        "Notes & Settings epoch-4 archive",
+        "Interim Note-Changes legacy recovery evidence",
+        "Legacy credentials and settings import"
+      ],
+      "purpose": "Opening/recovery retains the legacy path. Migration captures complete source values; explicit epoch-4 export writes current values to its separately selected destination.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "keychain",
+      "lane": "outside",
+      "title": "Optional remembered key",
+      "subtitle": [
+        "OS-managed Keychain item",
+        "Encrypted collections"
+      ],
+      "kind": "external",
+      "features": [
+        "K",
+        "B",
+        "Q"
+      ],
+      "members": [
+        "Device-bound generic-password item holding CK",
+        "Complete service/account/access-group identity",
+        "Local remember-unlock preference"
+      ],
+      "purpose": "Remember on this Mac caches the encrypted collection key after add-only provisioning and readback. Password/recovery-key unlocking remains independently usable.",
+      "sources": [
+        "docs/impl-proposal-5/Encryption.md",
+        "docs/impl-proposal-5/LocalStore.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "unlock",
+      "lane": "outside",
+      "title": "Private unlock descriptors",
+      "subtitle": [
+        "unlock/<descriptorID>.nvkey",
+        "Exact wrapped-key copies"
+      ],
+      "kind": "required",
+      "features": [
+        "K",
+        "B",
+        "R"
+      ],
+      "members": [
+        "Bounded immutable wrapped-key descriptor files",
+        "Content-hash filenames",
+        "Same-CK password rewrap routes"
+      ],
+      "purpose": "These nonsecret descriptors sit outside SQLCipher so a password can recover CK before opening the database. Private backups include usable copies.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/Encryption.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "selection",
+      "lane": "outside",
+      "title": "Selected-store record",
+      "subtitle": [
+        "selection-<associationID>.nvlocal",
+        "Active private-store locator"
+      ],
+      "kind": "required",
+      "features": [
+        "B",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "SelectedStoreRecordV1",
+        "AssociationID",
+        "Selected LocalStoreID",
+        "Selection generation and checksum"
+      ],
+      "purpose": "Expected-generation durable replacement chooses the verified private-store candidate. Its locator is revalidated under ownership when opening.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-plan.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "backup",
+      "lane": "outside",
+      "title": "Private backup / preserved evidence",
+      "subtitle": [
+        "Consistent DB + descriptors",
+        "Original DB and journals"
+      ],
+      "kind": "required",
+      "features": [
+        "D",
+        "R",
+        "K",
+        "Q"
+      ],
+      "members": [
+        "CompletePrivateBackup destination",
+        "Preserved original database and WAL/rollback journal",
+        "Journal-recovered working copy",
+        "Quarantined partial salvage and displaced evidence"
+      ],
+      "purpose": "A fixed-cut keyed SQLite backup preserves accepted history, required state and pending references. Repair preserves originals and salvages candidates on a working copy.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "candidate",
+      "lane": "outside",
+      "title": "Fresh private-store candidate",
+      "subtitle": [
+        "Sibling LocalStoreID",
+        "Verified replacement before activation"
+      ],
+      "kind": "required",
+      "features": [
+        "B",
+        "D",
+        "R",
+        "K"
+      ],
+      "members": [
+        "Fresh keyed Collection.sqlite and sidecars",
+        "Rebuilt acceptance indexes and current rows",
+        "Validated private groups and pending links",
+        "Fresh unlock descriptors"
+      ],
+      "purpose": "Repair reconstructs a new store, retains complete required history/pin/private records, reopens it with recovery credentials, then activates it through the selected-store record.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "copy",
+      "lane": "outside",
+      "title": "Repository copy / new destination",
+      "subtitle": [
+        "Exact NV Data + associated files",
+        "History-preserving Save As"
+      ],
+      "kind": "external",
+      "features": [
+        "R",
+        "S",
+        "K"
+      ],
+      "members": [
+        "Copied descriptors and every available immutable object",
+        "Associated plaintext files",
+        "Unknown/unimported repository entries",
+        "Captured copy inventory and reported holes"
+      ],
+      "purpose": "Repository copy preserves exact bytes and collection/birth/operation/action identities. Active-session saved-work copy additionally includes the captured durable local union.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "scratch",
+      "lane": "outside",
+      "title": "Explicit plaintext scratch / export",
+      "subtitle": [
+        "External editor or current-state output",
+        "Separately owned destination"
+      ],
+      "kind": "external",
+      "features": [
+        "P",
+        "R",
+        "K",
+        "Q"
+      ],
+      "members": [
+        "External-editor scratch file and handoff",
+        "Explicit plaintext/current-notes export",
+        "Fresh-genesis profile/key conversion destination",
+        "Legacy export output"
+      ],
+      "purpose": "Explicit external editing uses owned scratch outside an encrypted provider root. Current-state export or key/profile conversion captures coherent current values into a fresh destination.",
+      "sources": [
+        "docs/impl-proposal-5/Encryption.md",
+        "docs/impl-proposal-5/Implementation.md",
+        "docs/impl-proposal-5/plan/swift-storage-implementation-plan.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "hostprefs",
+      "lane": "outside",
+      "title": "Application-global preferences",
+      "subtitle": [
+        "Existing GlobalPrefs owner",
+        "Application / window / search defaults"
+      ],
+      "kind": "external",
+      "features": [
+        "E",
+        "B",
+        "Q"
+      ],
+      "members": [
+        "GlobalPrefs application defaults",
+        "Application-owned window/search presentation preferences",
+        "Explicitly mapped collection overrides"
+      ],
+      "purpose": "The existing host preference owner preserves application-global defaults. Collection-specific settings and remembered note cursor ranges have independently versioned private SQL records.",
+      "sources": [
+        "docs/impl-proposal-5/plan/private-record-contract.md",
+        "docs/impl-proposal-5/Window-UI-Architecture.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "rkeys",
+      "lane": "repository",
+      "title": "Bootstrap / key descriptors",
+      "subtitle": [
+        "NV Data/v1/keys/*.nvkey",
+        "Genesis and profile commitment"
+      ],
+      "kind": "portable",
+      "features": [
+        "S",
+        "B",
+        "K",
+        "R"
+      ],
+      "members": [
+        "Public or wrapped BootstrapDescriptorV1",
+        "Collection/profile/key/codec binding",
+        "Genesis segment locator",
+        "Argon2id salt/profile and wrapped CK for encrypted mode"
+      ],
+      "purpose": "An immutable descriptor anchors bootstrap and unlocking. Same-key password changes add a descriptor while preserving old routes.",
+      "sources": [
+        "docs/impl-proposal-5/Encryption.md",
+        "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "rchanges",
+      "lane": "repository",
+      "title": "Changes segment files",
+      "subtitle": [
+        "segments/<epoch>/<seq>-<hash>.nvseg",
+        "Complete operation + action groups"
+      ],
+      "kind": "portable",
+      "features": [
+        "D",
+        "S",
+        "H",
+        "M",
+        "U",
+        "R"
+      ],
+      "members": [
+        "ObjectEnvelopeV1 Changes kind",
+        "ChangesPayloadV1 dependency-locator table",
+        "OperationRecordV1",
+        "ActionRecordV1",
+        "Projection/merge/restoration/compensation subrecords"
+      ],
+      "purpose": "Exact sealed provider files transport complete immutable groups. Operation kinds include Genesis, ImportComplete, Create/Import, Put, Delete, RecoverCopy, RetireConflict and AdoptAutomatic.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/Encryption.md",
+        "docs/impl-proposal-5/plan/phase3-connected-record-contract.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "rinitial",
+      "lane": "repository",
+      "title": "Initial snapshot root + pages",
+      "subtitle": [
+        "Snapshot envelopes in segment namespace",
+        "Committed complete initial import"
+      ],
+      "kind": "portable",
+      "features": [
+        "B",
+        "S",
+        "R"
+      ],
+      "members": [
+        "InitialSnapshotRootV1 flat page list",
+        "InitialSnapshotPageV1 complete note rows",
+        "Genesis count/value digest",
+        "ImportComplete operation frontier",
+        "Exact initial history locators"
+      ],
+      "purpose": "The initial root/pages bind the complete imported note set to its retained operations/actions. A complete preview and editable bootstrap have separate evidence requirements.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "rgeneral",
+      "lane": "repository",
+      "title": "General snapshot root + tree",
+      "subtitle": [
+        "Root → index/data pages → state stream",
+        "Logical cut + retention-parent roots"
+      ],
+      "kind": "portable",
+      "features": [
+        "B",
+        "S",
+        "H",
+        "M",
+        "U",
+        "R"
+      ],
+      "members": [
+        "GeneralSnapshotRootV1: 236-byte root with eight category counts",
+        "GeneralSnapshotPageV1 index/data ranges",
+        "Canonical paged state stream",
+        "Current cells, operation frontier, action-scope maxima",
+        "Deletes, retirements, copied-source dispositions, restorations",
+        "Tag 8 exact retention-parent locators; zero count when empty"
+      ],
+      "purpose": "Snapshots preserve seven logical state classes at a stated operation cut; their eighth v1 category independently covers accepted snapshot-object closures. Reconstruction unions all accepted outside-cut operations while retaining every ancestor byte.",
+      "sources": [
+        "docs/impl-proposal-5/plan/general-snapshot-record-contract.md",
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase-4-improvements/snapshot-retention-coverage.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "rnotes",
+      "lane": "repository",
+      "title": "Plaintext note projections",
+      "subtitle": [
+        "Title.txt + optional body-bound xattr",
+        "PlaintextFilesV1"
+      ],
+      "kind": "external",
+      "features": [
+        "P",
+        "S",
+        "M",
+        "R"
+      ],
+      "members": [
+        "Separate note file exact encoded bytes and mandatory metadata",
+        "NVProjectionStampV1 in org.notationalvelocity.projection#S",
+        "Revision/equal/merge or automatic-source reference",
+        "Unknown ordinary external files"
+      ],
+      "purpose": "Files are interoperable current inputs/outputs. Advisory stamps name represented history and exact projected bytes; physical association uses fresh observations and the current-file decision matrix.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/Foundation-Safe-Replacement-Migration.md"
+      ],
+      "tables": [],
+      "status": "Adopted projection contract; production projection/application consumers remain Phases 6–7.",
+      "statusLabel": "PLANNED"
+    },
+    {
+      "id": "rstages",
+      "lane": "repository",
+      "title": "Owned stages / preserved displacement",
+      "subtitle": [
+        "Complete sealed stage before install",
+        "Exact mutable-replacement backups"
+      ],
+      "kind": "external",
+      "features": [
+        "S",
+        "P",
+        "R",
+        "Q",
+        "K"
+      ],
+      "members": [
+        "Operation-owned immutable-install stage at held root",
+        "Same-volume mutable-file replacement stage",
+        "Preserved displaced file/backup",
+        "Uncertain or cleanup-failed artifacts",
+        "Foreign protocol-name occupants"
+      ],
+      "purpose": "Exclusive immutable installation verifies complete stages and final bytes with file/nested-directory barriers. Mutable replacement preserves displaced evidence through its separately qualified caller contract.",
+      "sources": [
+        "docs/impl-proposal-5/plan/phase5/02-immutable-files-validation.md",
+        "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md",
+        "docs/Foundation-Safe-Replacement-Migration.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "appleversions",
+      "lane": "repository",
+      "title": "Apple-disclosed unresolved versions",
+      "subtitle": [
+        "Provider-managed external evidence",
+        "Selected plaintext members only"
+      ],
+      "kind": "external",
+      "features": [
+        "P",
+        "M",
+        "Q"
+      ],
+      "members": [
+        "NSFileVersion selected unresolved member",
+        "Captured version URL/body",
+        "Member-specific resolved disposition"
+      ],
+      "purpose": "Explicit resolver requests copy selected unresolved bodies. Apple disposition requires exact local note/action durability and verified plaintext installation for its captured member scope.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/Apple-API-Contract-Validation.md",
+        "docs/impl-proposal-5/Implementation.md"
+      ],
+      "tables": [],
+      "status": "OS-managed source; actual Apple/segment/projection integration remains a release gate."
+    },
+    {
+      "id": "rdirs",
+      "lane": "repository",
+      "title": "Repository directory objects",
+      "subtitle": [
+        "Selected root + visible NV Data/v1",
+        "Keys, segments and writer directories"
+      ],
+      "kind": "external",
+      "features": [
+        "S",
+        "P",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "Selected physical repository folder",
+        "Visible ordinary NV Data directory",
+        "Version, keys and segments directories",
+        "Writer-epoch subdirectories",
+        "Rooted directory identities and namespace entries"
+      ],
+      "purpose": "The physical directory tree contains protocol objects and plaintext files. Held/named ancestor checks and add-only directory creation preserve competing occupants; collection identity and physical root identity retain separate roles.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/plan/phase5/02-immutable-files-and-namespace.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "dbcontainer",
+      "lane": "local",
+      "title": "Private database + pager files",
+      "subtitle": [
+        "Collection.sqlite, -wal, -shm / journal",
+        "One keyed container per LocalStoreID"
+      ],
+      "kind": "required",
+      "features": [
+        "D",
+        "B",
+        "R",
+        "K",
+        "Q"
+      ],
+      "members": [
+        "SQLCipher encrypted database pages for both profiles",
+        "SQLite-owned WAL/SHM or rollback journal"
+      ],
+      "purpose": "One private database file contains retained history, required private state, indexes and rebuildable current rows. Qualified commit supplies local durability; sibling pager files follow SQLite recovery and backup ownership.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "header",
+      "lane": "local",
+      "title": "Store header / scope binding",
+      "subtitle": [
+        "store_header",
+        "Collection, profile, key, bootstrap"
+      ],
+      "kind": "required",
+      "features": [
+        "B",
+        "D",
+        "K",
+        "R"
+      ],
+      "members": [
+        "LocalStoreID and CollectionID",
+        "Profile/key/codec/schema versions",
+        "Bootstrap descriptor and genesis binding"
+      ],
+      "purpose": "Opening compares the required header with independently selected ownership/association and validated unlock context.",
+      "sources": [
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/LocalStore.md"
+      ],
+      "tables": [
+        "store_header"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "objects",
+      "lane": "local",
+      "title": "Exact retained object BLOBs",
+      "subtitle": [
+        "objects",
+        "Stored bytes and checked locator"
+      ],
+      "kind": "required",
+      "features": [
+        "D",
+        "S",
+        "B",
+        "H",
+        "U",
+        "R",
+        "K"
+      ],
+      "members": [
+        "Sealed Changes envelopes",
+        "Initial/general snapshot root/page envelopes",
+        "Exact descriptor bytes",
+        "Unaccepted parked/rejected incoming objects"
+      ],
+      "purpose": "One row retains exact immutable bytes under their checked identity. Retention and accepted-history membership have distinct roles; accepted/sealed history stays retained in v1.",
+      "sources": [
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/LocalStore.md"
+      ],
+      "tables": [
+        "objects"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "accepted",
+      "lane": "local",
+      "title": "Acceptance batches + dependencies",
+      "subtitle": [
+        "accepted_objects / dependencies",
+        "Atomic local accepted prefix H"
+      ],
+      "kind": "required",
+      "features": [
+        "D",
+        "S",
+        "B",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "acceptance_batches",
+        "accepted_objects",
+        "accepted_dependencies",
+        "Accepted prefix and object-evidence frontier"
+      ],
+      "purpose": "A single qualified transaction joins full validation, exact object retention, complete membership/edges, pin advancement, wakeups and exact pending-operation links. Local sequences drive indexed suffix catch-up.",
+      "sources": [
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/LocalStore.md"
+      ],
+      "tables": [
+        "acceptance_batches",
+        "accepted_objects",
+        "accepted_dependencies"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "opindex",
+      "lane": "local",
+      "title": "Operation / note relationship indexes",
+      "subtitle": [
+        "IDs + exact envelope occurrences",
+        "Causality and supersession separately"
+      ],
+      "kind": "indexed",
+      "features": [
+        "D",
+        "B",
+        "H",
+        "M",
+        "U",
+        "R"
+      ],
+      "members": [
+        "operations and operation_occurrences",
+        "operation_parents causal graph",
+        "note_predecessors supersession graph",
+        "Per-birth and logical-Delete listing indexes"
+      ],
+      "purpose": "Indexes locate canonical logical operations in exact accepted envelopes. Causal parents describe observed history; note predecessors determine heads and supersession.",
+      "sources": [
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/Protocol.md"
+      ],
+      "tables": [
+        "operations",
+        "operation_occurrences",
+        "operation_parents",
+        "note_predecessors"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "actionindex",
+      "lane": "local",
+      "title": "Action / restoration indexes",
+      "subtitle": [
+        "Scope ancestry + complete membership",
+        "Portable meaningful-action history"
+      ],
+      "kind": "indexed",
+      "features": [
+        "D",
+        "H",
+        "U",
+        "M",
+        "B",
+        "R"
+      ],
+      "members": [
+        "actions and action_occurrences",
+        "action_members",
+        "action_scope_parents",
+        "Origin/predecessor and scope indexes",
+        "Conflict-copy partial index",
+        "restorations source-deletion → first durable restoration"
+      ],
+      "purpose": "Complete actions retain before/after, scope/origin, compensation/native coverage and restoration provenance. Derived restoration/copy lookup indexes accelerate listing and commands.",
+      "sources": [
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/plan/restoration-record-contract.md",
+        "docs/impl-proposal-5/Protocol.md"
+      ],
+      "tables": [
+        "actions",
+        "action_occurrences",
+        "action_members",
+        "action_scope_parents",
+        "restorations"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "pin",
+      "lane": "local",
+      "title": "Required retained-history pin",
+      "subtitle": [
+        "retained_frontier + retained_descriptors",
+        "Maximal exact object closure"
+      ],
+      "kind": "required",
+      "features": [
+        "D",
+        "B",
+        "S",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "Full required SegmentLocator frontier",
+        "Required descriptor identities",
+        "Validated snapshot retention-parent coverage"
+      ],
+      "purpose": "Acceptance advances the pin atomically. Surviving locators expose loss of previously accepted evidence independently of valid current rows; all ancestor bytes remain retained.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/LocalStore.md"
+      ],
+      "tables": [
+        "retained_frontier",
+        "retained_descriptors"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "receiveq",
+      "lane": "local",
+      "title": "Durable receive work",
+      "subtitle": [
+        "ready_objects / object_waits / rejected_objects",
+        "Retained, pending, accepted separated"
+      ],
+      "kind": "required",
+      "features": [
+        "S",
+        "B",
+        "D",
+        "Q"
+      ],
+      "members": [
+        "Unique ready candidates",
+        "Reverse prerequisite-ID waits",
+        "Versioned candidate-local rejection reason",
+        "Retained blocked descendants and restart obligations"
+      ],
+      "purpose": "Arrival/acceptance wakes dependents transactionally. Parking rechecks requirements; rejection settles only the checked candidate. Startup selects required Changes/prerequisites before optional snapshots.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/plan/phase4-received-snapshot-validation.md"
+      ],
+      "tables": [
+        "ready_objects",
+        "object_waits",
+        "rejected_objects"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "private",
+      "lane": "local",
+      "title": "Required private record groups",
+      "subtitle": [
+        "private_groups",
+        "Settings, association, bootstrap"
+      ],
+      "kind": "required",
+      "features": [
+        "B",
+        "P",
+        "K",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "Versioned collection settings, font/color/extension overrides",
+        "Remembered per-note UTF-16 cursor ranges",
+        "LocalAssociationV1 bookmark/scope bytes",
+        "Selected initial-root bootstrap group"
+      ],
+      "purpose": "Generation-checked groups preserve host-private settings and association independently of derived rows. Physical receipts remain historical observations requiring fresh checks after restart.",
+      "sources": [
+        "docs/impl-proposal-5/plan/private-record-contract.md",
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/Protocol.md"
+      ],
+      "tables": [
+        "private_groups"
+      ],
+      "status": "Core private record roles exist; platform preference/receipt interpretation and projection adapters retain separate gates."
+    },
+    {
+      "id": "verification",
+      "lane": "local",
+      "title": "Verification obligations + damage marker",
+      "subtitle": [
+        "private_groups: verification/*, history-damage",
+        "Exact replay scope"
+      ],
+      "kind": "required",
+      "features": [
+        "D",
+        "B",
+        "H",
+        "U",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "Exact-object, accepted-prefix and bootstrap verification recipes",
+        "Bound store/collection/descriptor context",
+        "Persistent known-history-damage marker"
+      ],
+      "purpose": "Commit a request before protected checks and retain it through final semantic verification. Success settles that exact request; discovered damage fences publication and replaces the request atomically.",
+      "sources": [
+        "docs/impl-proposal-5/plan/phase-4-improvements/durable-verification-recovery.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "pendingdisk",
+      "lane": "local",
+      "title": "Pending-file recovery reference graph",
+      "subtitle": [
+        "latest + frozen payload owners",
+        "Reservations and exact settlements"
+      ],
+      "kind": "required",
+      "features": [
+        "P",
+        "D",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "pending_payloads immutable source snapshot BLOBs",
+        "pending_items latest reference/generation/classification",
+        "pending_reservations exact birth/action/nonce/Current binding",
+        "pending_settlements committed observation/operation links"
+      ],
+      "purpose": "One latest verified preview and exact admitted frozen inputs survive crashes. Payload/reference switches and settlement transfer are transactional; release requires every owner to be gone.",
+      "sources": [
+        "docs/impl-proposal-5/plan/private-record-contract.md",
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md"
+      ],
+      "tables": [
+        "pending_payloads",
+        "pending_items",
+        "pending_reservations",
+        "pending_settlements"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "projectiondisk",
+      "lane": "local",
+      "title": "Required projection relationship state",
+      "subtitle": [
+        "Accepted physical receipts / pending sources",
+        "Concrete table layout follows adapters"
+      ],
+      "kind": "required",
+      "features": [
+        "P",
+        "D",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "Generation-tagged last verified projection association",
+        "Captured source observation and receipt",
+        "Unfinished save/rename/format source-accounting evidence",
+        "Settled external observation and exact operation linkage"
+      ],
+      "purpose": "Required Local State preserves physical relationship observations independently of derived current rows. Reconciliation revalidates observed files and derives current intent from accepted history. Concrete projection/publication tables belong to their actual adapter increment.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md"
+      ],
+      "tables": [],
+      "status": "Adopted logical role; physical projection table/adapter contract remains Phase 6 work.",
+      "statusLabel": "PLANNED"
+    },
+    {
+      "id": "current",
+      "lane": "derived",
+      "title": "Derived current-note cells",
+      "subtitle": [
+        "current_notes → framed CurrentNoteCellV1",
+        "Full current values + compact context"
+      ],
+      "kind": "derived",
+      "features": [
+        "E",
+        "B",
+        "M",
+        "U",
+        "P"
+      ],
+      "members": [
+        "Complete current NoteValue title/body/labels/dates/format",
+        "Representative occurrence and represented revisions",
+        "All note heads and note scope frontier",
+        "Equal/merge descriptor",
+        "Automatic source and deterministic conflict identity",
+        "CurrentRowFrameV1 raw/zstd/dictionary payload"
+      ],
+      "purpose": "Cells represent one exact accepted prefix for startup and ordinary authoring. Current heads and represented inputs remain explicit even when note bodies compare equal.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md",
+        "docs/impl-proposal-5/plan/phase3-connected-record-contract.md"
+      ],
+      "tables": [
+        "current_notes"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "view",
+      "lane": "derived",
+      "title": "View epoch + authoring context",
+      "subtitle": [
+        "view_meta / AuthoringContextV1",
+        "viewThrough ≤ acceptedThrough"
+      ],
+      "kind": "derived",
+      "features": [
+        "E",
+        "B",
+        "U",
+        "D"
+      ],
+      "members": [
+        "Reducer version",
+        "Fresh view epoch",
+        "Materialized local acceptance prefix",
+        "Global operation frontier",
+        "Collection-scoped action frontier"
+      ],
+      "purpose": "Rows, global context and prefix advance in one guarded materialization transaction. New epoch/prefix and final host generations fence stale reconstruction or startup output.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/sqlite-local-schema.md"
+      ],
+      "tables": [
+        "view_meta"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "dict",
+      "lane": "derived",
+      "title": "Private current-row dictionaries",
+      "subtitle": [
+        "current_dictionaries",
+        "Immutable SHA-256-addressed zstd bytes"
+      ],
+      "kind": "derived",
+      "features": [
+        "B",
+        "R",
+        "K"
+      ],
+      "members": [
+        "CurrentRowDictionaryV1 formatted dictionary bytes",
+        "Mixed dictionary generations",
+        "Per-job bounded prepared ZSTD dictionaries"
+      ],
+      "purpose": "Training/recoding installs dictionaries with referencing rows atomically. Missing or invalid named dictionaries require complete materialization rebuild from healthy history.",
+      "sources": [
+        "docs/impl-proposal-5/plan/private-current-row-codec.md",
+        "docs/impl-proposal-5/LocalStore.md"
+      ],
+      "tables": [
+        "current_dictionaries"
+      ],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "hints",
+      "lane": "derived",
+      "title": "Accepted-file scan hints",
+      "subtitle": [
+        "Rebuildable private_groups entries",
+        "Path + fingerprint → accepted object"
+      ],
+      "kind": "derived",
+      "features": [
+        "S",
+        "B"
+      ],
+      "members": [
+        "Protocol-relative path key",
+        "Kind/device/inode/size/link count/mtime/ctime fingerprint",
+        "Exact accepted-object ID and hint codec"
+      ],
+      "purpose": "Fresh rooted observations plus exact accepted membership allow unchanged-body reuse across ordinary reopen. Each hint remains acceleration advice with separately checked session permissions.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/phase5/bounded-discovery-batches-plan.md",
+        "docs/impl-proposal-5/plan/phase5/03-local-repository-exchange-validation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "maintenance",
+      "lane": "derived",
+      "title": "Recoding / maintenance job state",
+      "subtitle": [
+        "Captured rows, dictionaries, cursor",
+        "One cancellable VACUUM reservation"
+      ],
+      "kind": "memory",
+      "features": [
+        "B",
+        "R",
+        "Q",
+        "D"
+      ],
+      "members": [
+        "EncodedCurrentRows preparation",
+        "Captured logical/physical current rows",
+        "Per-session training-attempt marker",
+        "MaintenanceState and unique cancellation identity",
+        "VacuumBudget / VacuumOutcome"
+      ],
+      "purpose": "Explicit bounded recoding rechecks exact view/physical inputs; optional compaction settles completion or rollback before releasing resources. Automatic training/recoding/VACUUM and physical read-ahead hints retain independent gates.",
+      "sources": [
+        "docs/impl-proposal-5/plan/private-current-row-codec.md",
+        "docs/impl-proposal-5/plan/phase4-current-row-locality-maintenance-plan.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "capture",
+      "lane": "work",
+      "title": "Frozen admitted action captures",
+      "subtitle": [
+        "Values + generations + exact graph roles",
+        "Complete meaningful groups"
+      ],
+      "kind": "memory",
+      "features": [
+        "E",
+        "D",
+        "U",
+        "P",
+        "Q"
+      ],
+      "members": [
+        "CapturedActionGroup and CapturedActionIntent",
+        "CapturedNoteGeneration UUID/LSN",
+        "PlaintextNoteValue / NoteValueV1",
+        "CausalParentSet and NotePredecessorSet",
+        "Scope frontier, before/after and restoration/merge/native provenance",
+        "DependencyLocatorTable"
+      ],
+      "purpose": "The main-thread bridge freezes complete already-admitted values and semantics. Workers preserve identities and action boundaries through encoding, retry and local commit.",
+      "sources": [
+        "docs/impl-proposal-5/plan/first-save-reopen-contract.md",
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "seal",
+      "lane": "work",
+      "title": "Sealed immutable bytes / retry input",
+      "subtitle": [
+        "Changes + snapshot + descriptor encodings",
+        "One local sealer"
+      ],
+      "kind": "memory",
+      "features": [
+        "D",
+        "S",
+        "K",
+        "U"
+      ],
+      "members": [
+        "ObjectEnvelopeV1 exact bytes and SegmentLocator",
+        "ImmutableRepositoryObject / Locator",
+        "Compression and AEAD worker buffers",
+        "OwnedCommit / CommitHandle",
+        "SnapshotCommitHandle"
+      ],
+      "purpose": "Encoding, optional zstd and authenticated sealing fix bytes once. Retry reuses exact sealed objects and resolves ambiguous completion by committed identity.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/Encryption.md",
+        "docs/impl-proposal-5/plan/typed-runtime-boundaries-validation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "decoded",
+      "lane": "work",
+      "title": "Bounded decoded records / claims",
+      "subtitle": [
+        "Envelope + value + action + snapshot codecs",
+        "Exact nominal identities and references"
+      ],
+      "kind": "memory",
+      "features": [
+        "S",
+        "B",
+        "H",
+        "M",
+        "U",
+        "K"
+      ],
+      "members": [
+        "HashChecked / authenticated envelope facts",
+        "OperationRecordV1 / IdentifiedOperation",
+        "ActionRecordV1, before/after/reference variants",
+        "Initial/general snapshot root/page/record values",
+        "Projection / pending / private record decodes",
+        "ExactUTF8, labels, display dates and nominal ID wrappers"
+      ],
+      "purpose": "Decode complete bounded records after protection checks. Computed identities and structurally valid references name evidence for subsequent semantic validation.",
+      "sources": [
+        "docs/impl-proposal-5/Encryption.md",
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
+        "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "graph",
+      "lane": "work",
+      "title": "Checked history / query evidence",
+      "subtitle": [
+        "RetainedGraph or scoped CheckedQueryHistory",
+        "Exact captured prefix and occurrences"
+      ],
+      "kind": "memory",
+      "features": [
+        "B",
+        "H",
+        "M",
+        "U",
+        "R",
+        "D"
+      ],
+      "members": [
+        "CheckedHistoryTraversal / CheckedGraphRows",
+        "CheckedEnvelopeRecords",
+        "Operation causal ancestry and note-predecessor graph",
+        "Action origin/scope/compensation/native-coverage graph",
+        "Current/context capture, exact occurrence coverage",
+        "CheckedCurrentBasis for qualifying ordinary saves"
+      ],
+      "purpose": "Indexed bounded reads and one-decode-per-envelope traversal verify complete membership/links. Scoped query evidence retains its checked owner/session/prefix/view/scope; full graph evidence serves reconstruction and collection commands.",
+      "sources": [
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
+        "docs/impl-proposal-5/plan/phase-4-improvements/at-most-once-envelope-decoding.md",
+        "docs/impl-proposal-5/plan/phase-4-improvements/startup-and-scoped-queries.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "batch",
+      "lane": "work",
+      "title": "Validated history batch + receipts",
+      "subtitle": [
+        "Same exact objects + dependency semantics",
+        "Acceptance transaction input/output"
+      ],
+      "kind": "memory",
+      "features": [
+        "D",
+        "S",
+        "B",
+        "R",
+        "U"
+      ],
+      "members": [
+        "HistoryObject exact bytes with decoded contents",
+        "ValidatedHistoryBatch issuer-private input",
+        "AcceptedHistoryReceipt",
+        "AcceptedSnapshotReceipt",
+        "Exact covered-generation commit outcome"
+      ],
+      "purpose": "Bootstrap, current-basis or full declared-history validation issues the contextual batch. The owned transaction rechecks context and commits all acceptance facts before issuing durability evidence.",
+      "sources": [
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
+        "docs/impl-proposal-5/plan/typed-runtime-boundaries-validation.md",
+        "docs/impl-proposal-5/plan/phase4-snapshot-acceptance-validation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "reduce",
+      "lane": "work",
+      "title": "Prepared reduction / reconstruction",
+      "subtitle": [
+        "Exact logical cut + all outside-cut work",
+        "Generation-bound install result"
+      ],
+      "kind": "memory",
+      "features": [
+        "B",
+        "E",
+        "M",
+        "U",
+        "R"
+      ],
+      "members": [
+        "PreparedModelChange",
+        "PreparedReconstruction / recovery basis",
+        "Affected CurrentNoteCellV1 rows",
+        "AuthoringContextV1",
+        "StoreSnapshot checked complete capture",
+        "One-shot opening handoff"
+      ],
+      "purpose": "Reduction runs detached from live editing and SQL writes. Installation rechecks complete starting view and accepted target; final host publication independently checks live context.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase4-bootstrap-reconstruction-plan.md",
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "snapwork",
+      "lane": "work",
+      "title": "Snapshot capture / assembly evidence",
+      "subtitle": [
+        "Frozen prefix, pages and represented cut",
+        "Separate semantic and retention checks"
+      ],
+      "kind": "memory",
+      "features": [
+        "B",
+        "S",
+        "R",
+        "H",
+        "U"
+      ],
+      "members": [
+        "InitialCollectionV1 / BootstrapCandidate",
+        "InitialBootstrapValidationV1 / scope-frontier facts",
+        "GeneralSnapshotCapture / PreviewV1",
+        "VerifiedGeneralSnapshotClaims",
+        "CheckedRetentionParents / CheckedSnapshotAcceptance",
+        "Page-stream readers, hashing and owned sink buffers"
+      ],
+      "purpose": "Incremental construction emits bounded envelopes. Assembly verifies complete page tree/counts/digest; semantic verification checks the stated history, while retention-parent checks cover exact accepted object closures.",
+      "sources": [
+        "docs/impl-proposal-5/plan/general-snapshot-record-contract.md",
+        "docs/impl-proposal-5/plan/phase4-bootstrap-reconstruction-plan.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "recvwork",
+      "lane": "work",
+      "title": "Receive / discovery turn",
+      "subtitle": [
+        "Requirements, metadata batches, cursors",
+        "Bounded root → durable handoff"
+      ],
+      "kind": "memory",
+      "features": [
+        "S",
+        "B",
+        "Q"
+      ],
+      "members": [
+        "ObjectRequirement.retainedBytes / acceptedHistory",
+        "PreparedCandidate and rejection/blocker diagnostics",
+        "Single receive reservation and save-settlement waiters",
+        "RepositoryDiscoveryTurn / Outcome",
+        "Single-use nested directory stream/cursor stack",
+        "RepositoryEntryObservation metadata batches",
+        "RepositoryHintLookup ordered answers"
+      ],
+      "purpose": "Discovery copies rooted observations, checks bounded hints and hands unknown exact bytes into durable receive. Preparation yields between turns; missing/rejected prerequisites keep their separate classifications.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase5/03-local-repository-exchange.md",
+        "docs/impl-proposal-5/plan/phase5/bounded-discovery-batches-plan.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "pubwork",
+      "lane": "work",
+      "title": "Publication batch / installation evidence",
+      "subtitle": [
+        "Accepted-prefix selection + exact bytes",
+        "Provider installation separately checked"
+      ],
+      "kind": "memory",
+      "features": [
+        "S",
+        "D",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "RepositoryPublicationBatch / Cursor",
+        "ImmutableInstallation",
+        "PublishedRepositoryBatch",
+        "RepositoryInstallationFailure installed/uncertain/stage accounting",
+        "Exact accepted-dependency lookup"
+      ],
+      "purpose": "Bounded publication captures accepted exact objects and releases SQL turns before root effects. Physical installation evidence is checked against the captured batch and live root; later upload remains advisory.",
+      "sources": [
+        "docs/impl-proposal-5/plan/phase5/03-local-repository-exchange-validation.md",
+        "docs/impl-proposal-5/plan/phase5/02-immutable-files-validation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "filework",
+      "lane": "work",
+      "title": "File observations / projection plans",
+      "subtitle": [
+        "Equal shallow catalogs + selected reads",
+        "Fresh expected-current evidence"
+      ],
+      "kind": "memory",
+      "features": [
+        "P",
+        "M",
+        "S",
+        "Q"
+      ],
+      "members": [
+        "Rooted FileObservation and filesystem identity",
+        "Provider catalog token / visibility witness",
+        "Coordinated before/after shallow catalogs",
+        "ProjectionDescriptor / NVProjectionStampV1",
+        "ExpectedProjectionReplacement / external-delete plan",
+        "Exact body/mandatory-metadata readback"
+      ],
+      "purpose": "Current-file reconciliation captures catalogs, exact selected bytes and model generations, then revalidates before publication or physical effects. Immutable-object discovery uses its own bounded namespace path.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/Foundation-Safe-Replacement-Migration.md"
+      ],
+      "tables": [],
+      "status": "Adopted plaintext/Apple contracts; production projection/application integration remains Phases 6–7."
+    },
+    {
+      "id": "pendingwork",
+      "lane": "work",
+      "title": "Pending-file preview / decision capture",
+      "subtitle": [
+        "Latest readable vs frozen admitted input",
+        "Fresh consent and relationship claim"
+      ],
+      "kind": "memory",
+      "features": [
+        "P",
+        "M",
+        "D",
+        "R"
+      ],
+      "members": [
+        "PendingItemState / PendingReservationRecovery",
+        "PreparedPendingAction / PendingAdmissionBinding",
+        "PendingAssociationPreparation",
+        "Plausible repair-candidate comparison frame",
+        "Operation reservation / frozen pending input",
+        "Provisional relationship claim and current content review"
+      ],
+      "purpose": "Classification and targeted review use one note’s active path/bytes. Reservations preserve retry identity; fresh decisions/generation checks admit complete captures, and exact committed evidence later settles references.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/private-record-contract.md",
+        "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "repairwork",
+      "lane": "work",
+      "title": "Repair / backup / copy evidence",
+      "subtitle": [
+        "Validated union and fixed-cut inventories",
+        "Verified replacement + activation input"
+      ],
+      "kind": "memory",
+      "features": [
+        "R",
+        "B",
+        "D",
+        "K",
+        "Q"
+      ],
+      "members": [
+        "PrivateRepairEvidence / PartialPrivateSalvage",
+        "CompletePrivateBackup capture",
+        "VerifiedReplacement / VerifiedActivationInput",
+        "Repair union exact object/descriptor inventory",
+        "RepositoryByteRequirement / CopiedRepositoryFile",
+        "RepositoryCopyResult / issues",
+        "Transient pending/reference/dictionary fingerprints"
+      ],
+      "purpose": "Repair combines independently valid exact objects and preserves unique private records. Copy/backup outcomes report their captured coverage; activation consumes separately issued verified replacement context.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-plan.md",
+        "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "live",
+      "lane": "live",
+      "title": "Authoritative live note collection",
+      "subtitle": [
+        "Shared NoteObject values + Current",
+        "Immediate admission during use"
+      ],
+      "kind": "memory",
+      "features": [
+        "E",
+        "D",
+        "P",
+        "M",
+        "U"
+      ],
+      "members": [
+        "Shared current notes title/body/labels/format/dates",
+        "Current represented revision/equal/merge inputs",
+        "Applied operation frontier",
+        "Automatic preservation births / independently edited conflict notes",
+        "Temporary local Current-head/presentation pin"
+      ],
+      "purpose": "Admission updates the live store immediately. Incoming prepared changes publish atomically after final checks; admitted pending generations remain protected while history becomes durable.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "CONTEXT.md",
+        "docs/impl-proposal-5/Implementation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "search",
+      "lane": "live",
+      "title": "Synchronous search / live indexes",
+      "subtitle": [
+        "In-memory note, UUID and label indexes",
+        "Per-window current query/filter"
+      ],
+      "kind": "memory",
+      "features": [
+        "E"
+      ],
+      "members": [
+        "Complete current-note/search model",
+        "UUID, label lookup and sorting structures",
+        "Window query/filter/list selection",
+        "Host case-insensitive label lookup distinct from exact stored label tokens"
+      ],
+      "purpose": "The complete model is initialized before editable startup. Searching and filtering run synchronously in the same input/runloop/view-refresh cycle.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/plan/first-save-reopen-contract.md",
+        "docs/impl-proposal-5/Window-UI-Architecture.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "pendinglive",
+      "lane": "live",
+      "title": "Pending generations / action context",
+      "subtitle": [
+        "UUID/LSN + structural generation",
+        "Applied frontier + scope maxima"
+      ],
+      "kind": "memory",
+      "features": [
+        "E",
+        "D",
+        "U",
+        "Q"
+      ],
+      "members": [
+        "Existing pending changed/deleted UUID/LSN work",
+        "Earlier admitted pending predecessor operations/actions",
+        "Open saved-edit group and exact before-state",
+        "Writer epoch / sequence allocator",
+        "Fresh independent action origin / previous-origin action"
+      ],
+      "purpose": "Complete capture preserves the dependencies of newer admitted work. Exact completion clears only covered generations. Fresh editable sessions allocate new writer and action-origin context.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/Implementation.md",
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "views",
+      "lane": "live",
+      "title": "Native undo + attached note views",
+      "subtitle": [
+        "Shared per-note editing/undo owner",
+        "Independent window presentation"
+      ],
+      "kind": "memory",
+      "features": [
+        "E",
+        "U",
+        "Q"
+      ],
+      "members": [
+        "NSUndoManager executable groups/ranges and selections",
+        "NativeSavedEffect / NativeCompensationStep remaining effects",
+        "Shared live text/model owner and NSTextStorage adapter",
+        "Generation-tagged note view attachments",
+        "Window focus/selection/scroll/layout/geometry",
+        "AppKit-managed marked input"
+      ],
+      "purpose": "Views share note and undo ownership while retaining presentation state. Native undo routes through causal eligibility; durable native compensation records remaining effects through ordinary action capture.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/Window-UI-Architecture.md",
+        "docs/impl-proposal-5/Native-Undo-Experiments.md"
+      ],
+      "tables": [],
+      "status": "Adopted ownership/input contract; native bridge candidates and actual application integration remain distinct gates."
+    },
+    {
+      "id": "history",
+      "lane": "live",
+      "title": "History / Recently Deleted views",
+      "subtitle": [
+        "Paged metadata + detached previews",
+        "Restoration-aware deletion list"
+      ],
+      "kind": "memory",
+      "features": [
+        "H",
+        "R",
+        "B"
+      ],
+      "members": [
+        "HistoryQuery / Cursor / Entry / Page",
+        "HistoryPreview / HistoricalNoteState",
+        "Recently Deleted source-deletion entries",
+        "Retained branch and merge previews/diff buffers",
+        "CapturedRestoration fresh-birth command"
+      ],
+      "purpose": "Indexed queries load exact retained evidence on demand. Durable restoration provenance excludes only its named source deletion, including after the restored birth is later deleted.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/phase3-history-validation.md",
+        "docs/impl-proposal-5/plan/restoration-record-contract.md",
+        "docs/impl-proposal-5/Window-UI-Architecture.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "conflicts",
+      "lane": "live",
+      "title": "Derived merges / conflict attention",
+      "subtitle": [
+        "Heads, base, derived provenance",
+        "NV alternatives + scoped Apple preview"
+      ],
+      "kind": "memory",
+      "features": [
+        "M",
+        "P",
+        "H",
+        "E"
+      ],
+      "members": [
+        "NoteReductionV1 / ReducedNoteValueV1",
+        "DerivedMergeV1 / MergeID / DerivedStateReferenceV1",
+        "UncoveredMaximalEdits and automatic preservation identities",
+        "Recovery key / slot / retired deterministic identity",
+        "Unresolved NV attention minus exact completed copies",
+        "Invocation-scoped resolver Current and selected member previews"
+      ],
+      "purpose": "Note predecessors determine source heads and Current. Conservative merge retains exact input/base provenance; copy disposition changes exact conflict attention. Apple member scopes remain a separate source.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/conservative-merge-contract.md",
+        "docs/impl-proposal-5/plan/derived-state-reference-contract.md",
+        "docs/impl-proposal-5/Implementation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "undo",
+      "lane": "live",
+      "title": "Causal Undo/Redo / reviewed commands",
+      "subtitle": [
+        "Scope maxima and compensation families",
+        "Captured whole-command applicability"
+      ],
+      "kind": "memory",
+      "features": [
+        "U",
+        "H",
+        "M",
+        "E"
+      ],
+      "members": [
+        "CausalUndoSelectionV1 / UndoCandidates",
+        "CompensationProposal / CompensationEffect",
+        "AutomaticCompensation / CompensationReview",
+        "Candidate frontier, selected action and affected values",
+        "Native remaining-effect claims",
+        "Invocation-scoped explicit approval context"
+      ],
+      "purpose": "Scope-parent ancestry orders candidates, while compensation targets identify actual reversals. Preparation and admission revalidate complete commands; reviewed or automatic execution appends new ordinary captured operations/actions.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
+        "docs/impl-proposal-5/plan/phase3-connected-record-contract.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "projection",
+      "lane": "live",
+      "title": "Active projection transition",
+      "subtitle": [
+        "Current intended + last accepted output",
+        "A → B → C source accounting"
+      ],
+      "kind": "memory",
+      "features": [
+        "P",
+        "D",
+        "Q",
+        "M"
+      ],
+      "members": [
+        "Generation-tagged accepted projection receipt",
+        "Current intended filename/format/exact bytes",
+        "Captured in-flight output and original expected source",
+        "Pending source-accounting obligation",
+        "Active projection comparison set"
+      ],
+      "purpose": "An unfinished transition retains its last accepted representation for repair matching. Settling B may advance accepted A to B while newer intended C stays pending; receipts advance after exact verification and source accounting.",
+      "sources": [
+        "docs/impl-proposal-5/Protocol.md",
+        "docs/iCloud-Drive-Support-Spec.md"
+      ],
+      "tables": [],
+      "status": "Adopted contract; application/projection consumers remain Phases 6–7.",
+      "statusLabel": "PLANNED"
+    },
+    {
+      "id": "localowner",
+      "lane": "authority",
+      "title": "Local store / database owner",
+      "subtitle": [
+        "LocalStoreSession + Database actor",
+        "Dedicated local execution resource"
+      ],
+      "kind": "authority",
+      "features": [
+        "D",
+        "B",
+        "U",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "Exclusive private-directory owner/lease",
+        "Database / DatabaseLane and keyed connection",
+        "StorageExecutor, HistoryWorker, CommandWorker",
+        "LocalStoreLifecycle / LocalCommitState / OwnedCommit",
+        "ReceiveWorkState and completion waiters",
+        "Borrowed statement/C resources with scoped final disposal",
+        "SQLite pager cache and keyed connections",
+        "Fixed-cut SQLite backup connection and job ownership"
+      ],
+      "purpose": "One owner serializes synchronous SQL turns and reserves work before suspension. Separate worker preparation and provider resources preserve opportunities for local durability.",
+      "sources": [
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
+        "docs/impl-proposal-5/plan/actor-database-adoption.md",
+        "docs/impl-proposal-5/LocalStore.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "rootowner",
+      "lane": "authority",
+      "title": "Physical repository root owner",
+      "subtitle": [
+        "RepositoryRootSession / RootLane / RootLease",
+        "Retained directory-object lock"
+      ],
+      "kind": "authority",
+      "features": [
+        "S",
+        "P",
+        "R",
+        "Q"
+      ],
+      "members": [
+        "Held directory descriptors / nonblocking flock",
+        "Local identity, loss-event resource and latched loss",
+        "RepositoryRootPermission session/generation",
+        "Nested enumeration streams and cleanup ownership",
+        "Entered operation reservation and rooted ancestor handles"
+      ],
+      "purpose": "Positive same-root continuity permits physical operations and survives moves. Root/lifecycle checks bracket blocking effects; quiesce retains ownership until entered work settles.",
+      "sources": [
+        "docs/impl-proposal-5/plan/phase5/01-root-ownership-and-execution.md",
+        "docs/impl-proposal-5/plan/phase5/02-immutable-files-and-namespace.md",
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md"
+      ],
+      "tables": [],
+      "status": "Root ownership and coordinated effects have recorded platform qualification. Continuously owned HFS+ roots support tested deep moves/reads; fresh acquisition at a deep HFS+ path has the approved ESTALE capability-refusal limit. The P5.4 ledger records exact tested bounds."
+    },
+    {
+      "id": "secrets",
+      "lane": "authority",
+      "title": "Unlock context / transient crypto state",
+      "subtitle": [
+        "CK → separated object/database keys",
+        "Secret and codec working buffers"
+      ],
+      "kind": "memory",
+      "features": [
+        "K",
+        "B",
+        "D",
+        "S",
+        "R"
+      ],
+      "members": [
+        "User password / encryption recovery key input",
+        "Unwrapped CK and CollectionKeyID",
+        "Pinned bootstrap/profile/protection context",
+        "Domain-separated HKDF object and SQLCipher keys",
+        "Argon2id wrapping key",
+        "Nonce, bounded byte cursor, zstd/AEAD working buffers",
+        "Prepared per-job dictionaries"
+      ],
+      "purpose": "Validated descriptors or optional Keychain input unlock a pinned context. Authenticate encrypted provider bytes before decompression/decoding; password-free SQLCipher uses the documented public key.",
+      "sources": [
+        "docs/impl-proposal-5/Encryption.md",
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "appleowner",
+      "lane": "authority",
+      "title": "Apple coordination / provider observations",
+      "subtitle": [
+        "Accessor, presenter and exact-item requests",
+        "Independent bounded provider lane"
+      ],
+      "kind": "authority",
+      "features": [
+        "S",
+        "P",
+        "Q",
+        "B"
+      ],
+      "members": [
+        "NSFileCoordinator actual accessor context",
+        "One root NSFilePresenter / exactly-once relinquishment replies",
+        "Bookmark / candidate root observations",
+        "Vnode/FSEvents invalidation hints",
+        "Materialization requests and copied availability/upload status",
+        "Opaque provider identity / visibility witnesses"
+      ],
+      "purpose": "Rooted I/O stays inside the actual accessor interval. Callbacks request fresh observation; entered accessors retain owned resources through delayed completion, cancellation and close.",
+      "sources": [
+        "docs/impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery.md",
+        "docs/Apple-API-Contract-Validation.md",
+        "docs/impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md"
+      ],
+      "tables": [],
+      "status": "P5.4 A–F is implemented and qualified within the ledger’s platform/capability limits, including the automatic driver and final-source signed two-Mac exchange. Application integration, distribution signing and physical power-loss qualification retain their separate gates.",
+      "statusLabel": "P5.4 QUALIFIED"
+    },
+    {
+      "id": "selectowner",
+      "lane": "authority",
+      "title": "Selection / transition ownership",
+      "subtitle": [
+        "SelectedStoreOwner + verified context",
+        "Independent association cutover"
+      ],
+      "kind": "authority",
+      "features": [
+        "B",
+        "R",
+        "K",
+        "Q"
+      ],
+      "members": [
+        "SelectionLease and expected SelectedStoreState",
+        "LocalStoreSelection / adapter-validated association",
+        "Verified replacement/activation consumption",
+        "Fresh store/session/writer/origin context",
+        "Independent add-only credential provisioning/readback"
+      ],
+      "purpose": "A verified candidate and durable unlocking route precede selected-store activation. Fresh physical selection/association supplies new authority after recovery or a requested root switch.",
+      "sources": [
+        "docs/impl-proposal-5/LocalStore.md",
+        "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-plan.md",
+        "docs/impl-proposal-5/plan/phase5/05-startup-and-root-reassociation.md"
+      ],
+      "tables": [],
+      "status": "Adopted design; implementation scope is documented by the cited plans."
+    },
+    {
+      "id": "gate",
+      "lane": "authority",
+      "title": "Admission / publication / close fences",
+      "subtitle": [
+        "Store, root, lifecycle, view, note generations",
+        "One asynchronous lifecycle owner"
+      ],
+      "kind": "authority",
+      "features": [
+        "E",
+        "D",
+        "B",
+        "S",
+        "P",
+        "U",
+        "Q",
+        "R",
+        "K"
+      ],
+      "members": [
+        "Edit-admission gate independent local-health/startup/lock/lifecycle reasons",
+        "Store incarnation, root/lifecycle/structural/note generations",
+        "Final synchronous model-publication callback",
+        "Quit/folder-switch quiesce, forced capture and drain",
+        "Projection deferral / captured upload wait",
+        "Operation-specific completion ownership"
+      ],
+      "purpose": "Final consumers revalidate captured applicability. Quit forces admitted history and private-state barriers before optional provider waiting, fences/drains callbacks, and releases ownership last.",
+      "sources": [
+        "docs/iCloud-Drive-Support-Spec.md",
+        "docs/impl-proposal-5/Implementation.md",
+        "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md"
+      ],
+      "tables": [],
+      "status": "Runtime ownership/publication fences exist within headless scope; final app quit/folder-switch orchestration remains Phase 7."
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "live",
+      "target": "pendinglive",
+      "operation": "admit value / mark exact pending generation",
+      "kind": "derive",
+      "features": [
+        "E",
+        "D"
+      ],
+      "major": true
+    },
+    {
+      "id": "e2",
+      "source": "pendinglive",
+      "target": "capture",
+      "operation": "freeze complete action + causal inputs",
+      "kind": "derive",
+      "features": [
+        "D",
+        "U",
+        "Q"
+      ],
+      "major": true
+    },
+    {
+      "id": "e3",
+      "source": "capture",
+      "target": "seal",
+      "operation": "encode / zstd / seal once",
+      "kind": "derive",
+      "features": [
+        "D",
+        "K"
+      ],
+      "major": true
+    },
+    {
+      "id": "e4",
+      "source": "seal",
+      "target": "decoded",
+      "operation": "open exact envelope for checked semantics",
+      "kind": "derive",
+      "features": [
+        "D",
+        "S",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e5",
+      "source": "decoded",
+      "target": "graph",
+      "operation": "resolve exact occurrences + distinct graph roles",
+      "kind": "derive",
+      "features": [
+        "S",
+        "B",
+        "H",
+        "U",
+        "M"
+      ],
+      "major": false
+    },
+    {
+      "id": "e6",
+      "source": "graph",
+      "target": "batch",
+      "operation": "validate writer-declared history / action agreement",
+      "kind": "derive",
+      "features": [
+        "D",
+        "S",
+        "U"
+      ],
+      "major": true
+    },
+    {
+      "id": "e7",
+      "source": "capture",
+      "target": "batch",
+      "operation": "checked-current basis or full declared validation",
+      "kind": "derive",
+      "features": [
+        "D",
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e8",
+      "source": "seal",
+      "target": "batch",
+      "operation": "pair same exact bytes with validated contents",
+      "kind": "reference",
+      "features": [
+        "D",
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e9",
+      "source": "batch",
+      "target": "objects",
+      "operation": "retain exact immutable bytes",
+      "kind": "commit",
+      "features": [
+        "D",
+        "S"
+      ],
+      "major": true
+    },
+    {
+      "id": "e10",
+      "source": "batch",
+      "target": "accepted",
+      "operation": "commit complete validated unit",
+      "kind": "commit",
+      "features": [
+        "D",
+        "S",
+        "B"
+      ],
+      "major": true
+    },
+    {
+      "id": "e11",
+      "source": "accepted",
+      "target": "pin",
+      "operation": "advance maximal required closure atomically",
+      "kind": "commit",
+      "features": [
+        "D",
+        "B"
+      ],
+      "major": true
+    },
+    {
+      "id": "e12",
+      "source": "accepted",
+      "target": "opindex",
+      "operation": "insert logical records / occurrences / edges",
+      "kind": "commit",
+      "features": [
+        "D",
+        "H",
+        "M"
+      ],
+      "major": false
+    },
+    {
+      "id": "e13",
+      "source": "accepted",
+      "target": "actionindex",
+      "operation": "insert complete actions / restore provenance",
+      "kind": "commit",
+      "features": [
+        "D",
+        "U",
+        "H"
+      ],
+      "major": false
+    },
+    {
+      "id": "e14",
+      "source": "accepted",
+      "target": "receiveq",
+      "operation": "wake every affected dependent",
+      "kind": "commit",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e15",
+      "source": "accepted",
+      "target": "pendingdisk",
+      "operation": "link exact admitted external operation",
+      "kind": "commit",
+      "features": [
+        "P",
+        "D"
+      ],
+      "major": false
+    },
+    {
+      "id": "e16",
+      "source": "batch",
+      "target": "pendinglive",
+      "operation": "acknowledge only covered UUID/LSN generations",
+      "kind": "derive",
+      "features": [
+        "D",
+        "E",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e17",
+      "source": "accepted",
+      "target": "reduce",
+      "operation": "indexed suffix after viewThrough",
+      "kind": "derive",
+      "features": [
+        "B",
+        "E"
+      ],
+      "major": true
+    },
+    {
+      "id": "e18",
+      "source": "objects",
+      "target": "graph",
+      "operation": "verify retained envelopes on demand",
+      "kind": "derive",
+      "features": [
+        "B",
+        "H",
+        "U",
+        "R"
+      ],
+      "major": true
+    },
+    {
+      "id": "e19",
+      "source": "opindex",
+      "target": "graph",
+      "operation": "select causal parents / note predecessors",
+      "kind": "reference",
+      "features": [
+        "B",
+        "H",
+        "U",
+        "M"
+      ],
+      "major": false
+    },
+    {
+      "id": "e20",
+      "source": "actionindex",
+      "target": "graph",
+      "operation": "select scope / origin / compensation evidence",
+      "kind": "reference",
+      "features": [
+        "H",
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e21",
+      "source": "current",
+      "target": "graph",
+      "operation": "checked current basis / scoped query context",
+      "kind": "reference",
+      "features": [
+        "H",
+        "U",
+        "M",
+        "D"
+      ],
+      "major": false
+    },
+    {
+      "id": "e22",
+      "source": "graph",
+      "target": "reduce",
+      "operation": "reduce exact declared/applied history",
+      "kind": "derive",
+      "features": [
+        "B",
+        "E",
+        "M"
+      ],
+      "major": false
+    },
+    {
+      "id": "e23",
+      "source": "reduce",
+      "target": "current",
+      "operation": "install affected rows / remove absent births",
+      "kind": "commit",
+      "features": [
+        "B",
+        "E",
+        "M"
+      ],
+      "major": true
+    },
+    {
+      "id": "e24",
+      "source": "reduce",
+      "target": "view",
+      "operation": "advance rows + context + prefix together",
+      "kind": "commit",
+      "features": [
+        "B",
+        "E",
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e25",
+      "source": "view",
+      "target": "current",
+      "operation": "bind exact epoch and represented prefix",
+      "kind": "reference",
+      "features": [
+        "B",
+        "E"
+      ],
+      "major": false
+    },
+    {
+      "id": "e26",
+      "source": "current",
+      "target": "live",
+      "operation": "stream complete checked startup / publish model",
+      "kind": "derive",
+      "features": [
+        "B",
+        "E"
+      ],
+      "major": true
+    },
+    {
+      "id": "e27",
+      "source": "view",
+      "target": "live",
+      "operation": "restore compact authoring frontiers",
+      "kind": "derive",
+      "features": [
+        "B",
+        "E",
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e28",
+      "source": "live",
+      "target": "search",
+      "operation": "initialize + synchronously filter current notes",
+      "kind": "derive",
+      "features": [
+        "E"
+      ],
+      "major": true
+    },
+    {
+      "id": "e29",
+      "source": "reduce",
+      "target": "live",
+      "operation": "generation-fenced atomic live publication",
+      "kind": "derive",
+      "features": [
+        "E",
+        "M",
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e30",
+      "source": "live",
+      "target": "views",
+      "operation": "attach shared note / independent presentation",
+      "kind": "derive",
+      "features": [
+        "E",
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e31",
+      "source": "views",
+      "target": "pendinglive",
+      "operation": "ordinary input + native action accounting",
+      "kind": "derive",
+      "features": [
+        "E",
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e32",
+      "source": "graph",
+      "target": "history",
+      "operation": "page metadata / verify selected history preview",
+      "kind": "derive",
+      "features": [
+        "H"
+      ],
+      "major": true
+    },
+    {
+      "id": "e33",
+      "source": "actionindex",
+      "target": "history",
+      "operation": "exclude named deletions after durable Restore",
+      "kind": "derive",
+      "features": [
+        "H"
+      ],
+      "major": false
+    },
+    {
+      "id": "e34",
+      "source": "history",
+      "target": "capture",
+      "operation": "restore fields / fresh-birth Restore or recovery",
+      "kind": "derive",
+      "features": [
+        "H",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e35",
+      "source": "graph",
+      "target": "conflicts",
+      "operation": "heads via note predecessors; Delete coverage",
+      "kind": "derive",
+      "features": [
+        "M"
+      ],
+      "major": true
+    },
+    {
+      "id": "e36",
+      "source": "conflicts",
+      "target": "reduce",
+      "operation": "deterministic Current / automatic preservation",
+      "kind": "derive",
+      "features": [
+        "M"
+      ],
+      "major": false
+    },
+    {
+      "id": "e37",
+      "source": "conflicts",
+      "target": "capture",
+      "operation": "explicit scoped choice / RecoverCopy",
+      "kind": "derive",
+      "features": [
+        "M"
+      ],
+      "major": false
+    },
+    {
+      "id": "e38",
+      "source": "graph",
+      "target": "undo",
+      "operation": "derive scope candidates / compensation families",
+      "kind": "derive",
+      "features": [
+        "U"
+      ],
+      "major": true
+    },
+    {
+      "id": "e39",
+      "source": "live",
+      "target": "undo",
+      "operation": "capture actual Current + affected generations",
+      "kind": "reference",
+      "features": [
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e40",
+      "source": "undo",
+      "target": "capture",
+      "operation": "admit whole guarded compensation",
+      "kind": "derive",
+      "features": [
+        "U"
+      ],
+      "major": true
+    },
+    {
+      "id": "e41",
+      "source": "views",
+      "target": "undo",
+      "operation": "causal eligibility before native entry consumption",
+      "kind": "guard",
+      "features": [
+        "U"
+      ],
+      "major": false
+    },
+    {
+      "id": "e42",
+      "source": "accepted",
+      "target": "pubwork",
+      "operation": "bounded exact accepted-prefix selection",
+      "kind": "derive",
+      "features": [
+        "S"
+      ],
+      "major": true
+    },
+    {
+      "id": "e43",
+      "source": "objects",
+      "target": "pubwork",
+      "operation": "reuse exact sealed bytes / descriptors",
+      "kind": "copy",
+      "features": [
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e44",
+      "source": "pubwork",
+      "target": "rstages",
+      "operation": "stage complete exact transport input",
+      "kind": "copy",
+      "features": [
+        "S"
+      ],
+      "major": true
+    },
+    {
+      "id": "e45",
+      "source": "rstages",
+      "target": "rchanges",
+      "operation": "exclusive install + verify + directory barriers",
+      "kind": "copy",
+      "features": [
+        "S",
+        "D"
+      ],
+      "major": true
+    },
+    {
+      "id": "e46",
+      "source": "rstages",
+      "target": "rkeys",
+      "operation": "exclusive descriptor installation",
+      "kind": "copy",
+      "features": [
+        "S",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e47",
+      "source": "rstages",
+      "target": "rinitial",
+      "operation": "install immutable root/page envelopes",
+      "kind": "copy",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e48",
+      "source": "rstages",
+      "target": "rgeneral",
+      "operation": "install immutable root/tree envelopes",
+      "kind": "copy",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e49",
+      "source": "rkeys",
+      "target": "recvwork",
+      "operation": "discover checked descriptor candidates",
+      "kind": "copy",
+      "features": [
+        "S",
+        "B",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e50",
+      "source": "rchanges",
+      "target": "recvwork",
+      "operation": "bounded exact rooted read / receive handoff",
+      "kind": "copy",
+      "features": [
+        "S"
+      ],
+      "major": true
+    },
+    {
+      "id": "e51",
+      "source": "rinitial",
+      "target": "recvwork",
+      "operation": "retain root / pages in any arrival order",
+      "kind": "copy",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e52",
+      "source": "rgeneral",
+      "target": "recvwork",
+      "operation": "retain optional / required snapshot input",
+      "kind": "copy",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e53",
+      "source": "recvwork",
+      "target": "objects",
+      "operation": "retain exact candidate bytes before acceptance",
+      "kind": "commit",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": true
+    },
+    {
+      "id": "e54",
+      "source": "recvwork",
+      "target": "receiveq",
+      "operation": "transactional retain / park / reject",
+      "kind": "commit",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e55",
+      "source": "receiveq",
+      "target": "recvwork",
+      "operation": "restart required drain / post-publication optional drain",
+      "kind": "derive",
+      "features": [
+        "S",
+        "B",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e56",
+      "source": "recvwork",
+      "target": "decoded",
+      "operation": "validate protections / bounded complete payload",
+      "kind": "derive",
+      "features": [
+        "S",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e57",
+      "source": "recvwork",
+      "target": "snapwork",
+      "operation": "assemble byte requirements before semantic checks",
+      "kind": "derive",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e58",
+      "source": "recvwork",
+      "target": "hints",
+      "operation": "remember accepted identity + fresh immutable fingerprint",
+      "kind": "commit",
+      "features": [
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e59",
+      "source": "hints",
+      "target": "recvwork",
+      "operation": "checked batch hit skips unchanged body read",
+      "kind": "derive",
+      "features": [
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e60",
+      "source": "rootowner",
+      "target": "recvwork",
+      "operation": "fresh held-directory metadata / single-use streams",
+      "kind": "guard",
+      "features": [
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e61",
+      "source": "graph",
+      "target": "snapwork",
+      "operation": "capture stated operation cut + accepted root frontier",
+      "kind": "derive",
+      "features": [
+        "B",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e62",
+      "source": "snapwork",
+      "target": "seal",
+      "operation": "emit bounded initial/general root/page envelopes",
+      "kind": "derive",
+      "features": [
+        "B",
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e63",
+      "source": "snapwork",
+      "target": "batch",
+      "operation": "verify complete bootstrap or snapshot unit",
+      "kind": "derive",
+      "features": [
+        "B",
+        "S",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e64",
+      "source": "rgeneral",
+      "target": "rgeneral",
+      "operation": "exact v1 retention parents cover prior root closures",
+      "kind": "reference",
+      "features": [
+        "B",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e65",
+      "source": "rkeys",
+      "target": "rchanges",
+      "operation": "pins exact Genesis locator",
+      "kind": "reference",
+      "features": [
+        "B",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e66",
+      "source": "rinitial",
+      "target": "rchanges",
+      "operation": "verifies Genesis / ImportComplete / import closure",
+      "kind": "reference",
+      "features": [
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e67",
+      "source": "rgeneral",
+      "target": "rchanges",
+      "operation": "represents stated logical operation cut",
+      "kind": "reference",
+      "features": [
+        "B",
+        "H"
+      ],
+      "major": false
+    },
+    {
+      "id": "e68",
+      "source": "snapwork",
+      "target": "reduce",
+      "operation": "verified snapshot basis + all accepted outside-cut actions",
+      "kind": "derive",
+      "features": [
+        "B",
+        "R"
+      ],
+      "major": true
+    },
+    {
+      "id": "e69",
+      "source": "rnotes",
+      "target": "filework",
+      "operation": "coordinated catalogs + selected exact read",
+      "kind": "derive",
+      "features": [
+        "P",
+        "S"
+      ],
+      "major": true
+    },
+    {
+      "id": "e70",
+      "source": "appleversions",
+      "target": "filework",
+      "operation": "read selected disclosed member in resolver context",
+      "kind": "derive",
+      "features": [
+        "P",
+        "M"
+      ],
+      "major": false
+    },
+    {
+      "id": "e71",
+      "source": "filework",
+      "target": "pendingwork",
+      "operation": "classify provenance / own repair candidates",
+      "kind": "derive",
+      "features": [
+        "P"
+      ],
+      "major": true
+    },
+    {
+      "id": "e72",
+      "source": "pendingwork",
+      "target": "pendingdisk",
+      "operation": "retain latest snapshot / reserve frozen input",
+      "kind": "commit",
+      "features": [
+        "P",
+        "D"
+      ],
+      "major": true
+    },
+    {
+      "id": "e73",
+      "source": "pendingdisk",
+      "target": "pendingwork",
+      "operation": "recover exact committed identity or renew review",
+      "kind": "derive",
+      "features": [
+        "P",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e74",
+      "source": "pendingwork",
+      "target": "capture",
+      "operation": "admit Import / associated Put / fresh recovery",
+      "kind": "derive",
+      "features": [
+        "P"
+      ],
+      "major": true
+    },
+    {
+      "id": "e75",
+      "source": "pendingwork",
+      "target": "projectiondisk",
+      "operation": "settle neutral association with checked Current",
+      "kind": "commit",
+      "features": [
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e76",
+      "source": "pendingdisk",
+      "target": "projectiondisk",
+      "operation": "transfer settled observation / physical receipt link",
+      "kind": "commit",
+      "features": [
+        "P",
+        "D"
+      ],
+      "major": false
+    },
+    {
+      "id": "e77",
+      "source": "live",
+      "target": "projection",
+      "operation": "prepare intended filename / format / exact bytes",
+      "kind": "derive",
+      "features": [
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e78",
+      "source": "projectiondisk",
+      "target": "projection",
+      "operation": "revalidate accepted receipt / unfinished source",
+      "kind": "derive",
+      "features": [
+        "P",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e79",
+      "source": "batch",
+      "target": "projection",
+      "operation": "local history barrier enables captured projection",
+      "kind": "guard",
+      "features": [
+        "P",
+        "D"
+      ],
+      "major": false
+    },
+    {
+      "id": "e80",
+      "source": "projection",
+      "target": "filework",
+      "operation": "capture expected current replacement / removal",
+      "kind": "derive",
+      "features": [
+        "P",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e81",
+      "source": "filework",
+      "target": "rstages",
+      "operation": "stage projection with required format metadata and advisory stamp",
+      "kind": "copy",
+      "features": [
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e82",
+      "source": "rstages",
+      "target": "rnotes",
+      "operation": "safe create / expected replacement / source accounting",
+      "kind": "copy",
+      "features": [
+        "P"
+      ],
+      "major": true
+    },
+    {
+      "id": "e83",
+      "source": "filework",
+      "target": "projectiondisk",
+      "operation": "commit verified physical association / transition receipt",
+      "kind": "commit",
+      "features": [
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e84",
+      "source": "batch",
+      "target": "appleversions",
+      "operation": "history + exact file barrier before selected-member disposition",
+      "kind": "guard",
+      "features": [
+        "M",
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e85",
+      "source": "filework",
+      "target": "appleversions",
+      "operation": "fresh scoped Apple resolved setter",
+      "kind": "derive",
+      "features": [
+        "M",
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e86",
+      "source": "legacy",
+      "target": "capture",
+      "operation": "recover then freeze complete migration values",
+      "kind": "derive",
+      "features": [
+        "B",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e87",
+      "source": "capture",
+      "target": "snapwork",
+      "operation": "genesis commitment + complete initial import",
+      "kind": "derive",
+      "features": [
+        "B",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e88",
+      "source": "live",
+      "target": "scratch",
+      "operation": "explicit coherent current-state export / editor handoff",
+      "kind": "copy",
+      "features": [
+        "P",
+        "R",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e89",
+      "source": "scratch",
+      "target": "pendingwork",
+      "operation": "validate exact external-editor return",
+      "kind": "derive",
+      "features": [
+        "P",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e90",
+      "source": "rkeys",
+      "target": "secrets",
+      "operation": "bounded descriptor unlock / pin bootstrap",
+      "kind": "derive",
+      "features": [
+        "K",
+        "B"
+      ],
+      "major": true
+    },
+    {
+      "id": "e91",
+      "source": "unlock",
+      "target": "secrets",
+      "operation": "password/recovery route before SQL access",
+      "kind": "derive",
+      "features": [
+        "K",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e92",
+      "source": "keychain",
+      "target": "secrets",
+      "operation": "optional validated CK readback",
+      "kind": "derive",
+      "features": [
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e93",
+      "source": "secrets",
+      "target": "keychain",
+      "operation": "add-only remembered-key provisioning",
+      "kind": "commit",
+      "features": [
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e94",
+      "source": "rkeys",
+      "target": "unlock",
+      "operation": "retain exact nonsecret descriptor copy",
+      "kind": "copy",
+      "features": [
+        "K",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e95",
+      "source": "secrets",
+      "target": "seal",
+      "operation": "domain-separated keys / fresh production nonce",
+      "kind": "guard",
+      "features": [
+        "K",
+        "D"
+      ],
+      "major": false
+    },
+    {
+      "id": "e96",
+      "source": "secrets",
+      "target": "decoded",
+      "operation": "pinned protection context / authenticate first",
+      "kind": "guard",
+      "features": [
+        "K",
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e97",
+      "source": "secrets",
+      "target": "dbcontainer",
+      "operation": "derive public or encrypted raw database key",
+      "kind": "guard",
+      "features": [
+        "K",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e98",
+      "source": "objects",
+      "target": "repairwork",
+      "operation": "capture exact validated local repair union",
+      "kind": "copy",
+      "features": [
+        "R",
+        "D"
+      ],
+      "major": true
+    },
+    {
+      "id": "e99",
+      "source": "pin",
+      "target": "repairwork",
+      "operation": "require complete surviving known closure",
+      "kind": "guard",
+      "features": [
+        "R",
+        "D"
+      ],
+      "major": false
+    },
+    {
+      "id": "e100",
+      "source": "private",
+      "target": "repairwork",
+      "operation": "preserve independently valid private groups",
+      "kind": "copy",
+      "features": [
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e101",
+      "source": "projectiondisk",
+      "target": "repairwork",
+      "operation": "preserve coherent required relationship observations",
+      "kind": "copy",
+      "features": [
+        "R",
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e102",
+      "source": "pendingdisk",
+      "target": "repairwork",
+      "operation": "preserve coherent latest / frozen / settlement groups",
+      "kind": "copy",
+      "features": [
+        "R",
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e103",
+      "source": "backup",
+      "target": "repairwork",
+      "operation": "salvage working copy / verify backup inputs",
+      "kind": "derive",
+      "features": [
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e104",
+      "source": "rchanges",
+      "target": "repairwork",
+      "operation": "union exact independently validated repository objects",
+      "kind": "copy",
+      "features": [
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e105",
+      "source": "rkeys",
+      "target": "repairwork",
+      "operation": "capture usable bootstrap / unlock route",
+      "kind": "copy",
+      "features": [
+        "R",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e106",
+      "source": "repairwork",
+      "target": "candidate",
+      "operation": "rebuild closure, pin, private records, derived view",
+      "kind": "commit",
+      "features": [
+        "R",
+        "B"
+      ],
+      "major": true
+    },
+    {
+      "id": "e107",
+      "source": "candidate",
+      "target": "selectowner",
+      "operation": "reopen / verify complete replacement",
+      "kind": "derive",
+      "features": [
+        "R",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e108",
+      "source": "selectowner",
+      "target": "selection",
+      "operation": "durable expected-generation activation",
+      "kind": "commit",
+      "features": [
+        "R",
+        "B"
+      ],
+      "major": true
+    },
+    {
+      "id": "e109",
+      "source": "selection",
+      "target": "localowner",
+      "operation": "select then independently validate new owner",
+      "kind": "guard",
+      "features": [
+        "B",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e110",
+      "source": "repairwork",
+      "target": "rstages",
+      "operation": "same-root add-only exact repository repair",
+      "kind": "copy",
+      "features": [
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e111",
+      "source": "dbcontainer",
+      "target": "backup",
+      "operation": "fixed-read-cut keyed SQLite backup",
+      "kind": "copy",
+      "features": [
+        "R",
+        "D"
+      ],
+      "major": true
+    },
+    {
+      "id": "e112",
+      "source": "unlock",
+      "target": "backup",
+      "operation": "include matching usable descriptor copies",
+      "kind": "copy",
+      "features": [
+        "R",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e113",
+      "source": "repairwork",
+      "target": "copy",
+      "operation": "preserve captured repository / saved-work union",
+      "kind": "copy",
+      "features": [
+        "R"
+      ],
+      "major": true
+    },
+    {
+      "id": "e114",
+      "source": "rnotes",
+      "target": "copy",
+      "operation": "copy associated + unknown available files",
+      "kind": "copy",
+      "features": [
+        "R",
+        "P"
+      ],
+      "major": false
+    },
+    {
+      "id": "e115",
+      "source": "rgeneral",
+      "target": "copy",
+      "operation": "copy available retained root/page history",
+      "kind": "copy",
+      "features": [
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e116",
+      "source": "current",
+      "target": "maintenance",
+      "operation": "capture exact physical + logical row batch",
+      "kind": "derive",
+      "features": [
+        "B",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e117",
+      "source": "maintenance",
+      "target": "dict",
+      "operation": "train once / install with referencing rows",
+      "kind": "commit",
+      "features": [
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e118",
+      "source": "maintenance",
+      "target": "current",
+      "operation": "guarded representation-only recode",
+      "kind": "commit",
+      "features": [
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e119",
+      "source": "dict",
+      "target": "current",
+      "operation": "decode only named digest-bound dictionary",
+      "kind": "reference",
+      "features": [
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e120",
+      "source": "maintenance",
+      "target": "dbcontainer",
+      "operation": "optional bounded compaction; settle interruption",
+      "kind": "derive",
+      "features": [
+        "R",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e121",
+      "source": "localowner",
+      "target": "dbcontainer",
+      "operation": "exclusive owner + synchronous SQL turns",
+      "kind": "guard",
+      "features": [
+        "D",
+        "B",
+        "R",
+        "Q"
+      ],
+      "major": true
+    },
+    {
+      "id": "e122",
+      "source": "localowner",
+      "target": "header",
+      "operation": "compare selected store / bootstrap / profile binding",
+      "kind": "guard",
+      "features": [
+        "B",
+        "D",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e123",
+      "source": "header",
+      "target": "accepted",
+      "operation": "scope all accepted membership to this owned store",
+      "kind": "reference",
+      "features": [
+        "D",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e124",
+      "source": "hostprefs",
+      "target": "views",
+      "operation": "load independent presentation defaults",
+      "kind": "derive",
+      "features": [
+        "E",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e125",
+      "source": "hostprefs",
+      "target": "private",
+      "operation": "explicitly map collection setting overrides",
+      "kind": "derive",
+      "features": [
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e126",
+      "source": "rootowner",
+      "target": "rdirs",
+      "operation": "hold directory-object ownership / check ancestors",
+      "kind": "guard",
+      "features": [
+        "S",
+        "P",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e127",
+      "source": "rdirs",
+      "target": "recvwork",
+      "operation": "bounded shallow protocol namespace enumeration",
+      "kind": "derive",
+      "features": [
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e128",
+      "source": "localowner",
+      "target": "batch",
+      "operation": "reserve before await / recheck same prefix and header",
+      "kind": "guard",
+      "features": [
+        "D",
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e129",
+      "source": "rootowner",
+      "target": "pubwork",
+      "operation": "same-session physical installation consumer",
+      "kind": "guard",
+      "features": [
+        "S",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e130",
+      "source": "appleowner",
+      "target": "rootowner",
+      "operation": "actual accessor interval / positive continuity",
+      "kind": "guard",
+      "features": [
+        "S",
+        "P",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e131",
+      "source": "appleowner",
+      "target": "recvwork",
+      "operation": "ordinary opportunities / invalidation / disclosed availability",
+      "kind": "derive",
+      "features": [
+        "S",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e132",
+      "source": "appleowner",
+      "target": "filework",
+      "operation": "scoped coordinated read / fresh catalogs",
+      "kind": "guard",
+      "features": [
+        "P",
+        "S"
+      ],
+      "major": false
+    },
+    {
+      "id": "e133",
+      "source": "selectowner",
+      "target": "private",
+      "operation": "validated new local association / credentials",
+      "kind": "commit",
+      "features": [
+        "B",
+        "R",
+        "K"
+      ],
+      "major": false
+    },
+    {
+      "id": "e134",
+      "source": "verification",
+      "target": "graph",
+      "operation": "replay exact unfinished protected scope",
+      "kind": "guard",
+      "features": [
+        "B",
+        "H",
+        "U",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e135",
+      "source": "graph",
+      "target": "verification",
+      "operation": "commit reminder first; settle or record damage last",
+      "kind": "commit",
+      "features": [
+        "D",
+        "R",
+        "B"
+      ],
+      "major": false
+    },
+    {
+      "id": "e136",
+      "source": "verification",
+      "target": "gate",
+      "operation": "known damage or unfinished required checks fence startup",
+      "kind": "guard",
+      "features": [
+        "D",
+        "B",
+        "R"
+      ],
+      "major": false
+    },
+    {
+      "id": "e137",
+      "source": "gate",
+      "target": "live",
+      "operation": "final synchronous publication / mutation admission",
+      "kind": "guard",
+      "features": [
+        "E",
+        "B",
+        "U",
+        "Q"
+      ],
+      "major": true
+    },
+    {
+      "id": "e138",
+      "source": "gate",
+      "target": "capture",
+      "operation": "force lifecycle / resolver / external-handoff capture",
+      "kind": "guard",
+      "features": [
+        "D",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e139",
+      "source": "gate",
+      "target": "localowner",
+      "operation": "quiesce, drain admitted history + required state",
+      "kind": "guard",
+      "features": [
+        "D",
+        "Q"
+      ],
+      "major": false
+    },
+    {
+      "id": "e140",
+      "source": "gate",
+      "target": "rootowner",
+      "operation": "fence / drain entered effects; release ownership last",
+      "kind": "guard",
+      "features": [
+        "S",
+        "P",
+        "Q"
+      ],
+      "major": false
+    }
+  ],
+  "excluded": [
+    {
+      "name": "Packed startup cache / StartupCacheV1 / startup_cache / view_changes",
+      "state": "Removed",
+      "reason": "Current-note rows and compact context are the adopted startup representation.",
+      "source": "docs/impl-proposal-5/LocalStore.md"
+    },
+    {
+      "name": "Separate NVLOC1 / NVLST1 state files and nested private object envelopes",
+      "state": "Superseded",
+      "reason": "Private required-state records live in keyed SQL pages; exact unlock descriptors and selected-store record remain outside.",
+      "source": "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
+    },
+    {
+      "name": "Modern application WAL, mutable shared HEAD, shared undo cursor, provider receipt/membership registry, lock child",
+      "state": "Excluded",
+      "reason": "Immutable segments, causal action history, owned directory descriptors and atomic private acceptance supply their respective roles.",
+      "source": "docs/impl-proposal-5/Protocol.md"
+    },
+    {
+      "name": "Physical page-list/read-ahead hint file",
+      "state": "Deferred candidate",
+      "reason": "Disposable physical I/O advice was investigated; it is omitted from the implemented 4F increment.",
+      "source": "docs/impl-proposal-5/plan/private-current-row-codec.md"
+    },
+    {
+      "name": "Co-add occupancy/path-slot identity",
+      "state": "Deferred / disabled",
+      "reason": "Ordinary imports use fresh births. Experiments do not enable deterministic co-add identity.",
+      "source": "docs/impl-proposal-5/Protocol.md"
+    },
+    {
+      "name": "Encrypted per-note projections / continuous plaintext mirror / full-history search / named restore points / permanent erase",
+      "state": "Deferred or outside v1",
+      "reason": "These are outside the adopted initial feature set; explicit scratch/export and retained history are represented above.",
+      "source": "docs/impl-proposal-5/README.md"
+    },
+    {
+      "name": "Durable marked-text draft / serialized NSUndoManager continuation",
+      "state": "Unadopted",
+      "reason": "AppKit owns provisional input and native executable undo stays transient; retained meaningful actions supply portable compensation.",
+      "source": "docs/iCloud-Drive-Support-Spec.md"
+    },
+    {
+      "name": "Rich RTF/HTML codec expansion",
+      "state": "Paused design work",
+      "reason": "New format work is plaintext-first; legacy supported content retains preservation or explicit unsupported/conversion handling.",
+      "source": "docs/iCloud-Drive-Support-Spec.md"
+    }
+  ]
+}

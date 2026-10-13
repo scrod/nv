@@ -1,4 +1,5 @@
 import NVStorageCore
+import Foundation
 
 /// Opening can coalesce derived replacements before the first editable model is issued.
 enum CatchUpPurpose: Sendable { case live, opening }
@@ -52,24 +53,26 @@ extension Database {
         }
         }
     }
-    /// Advances one complete acceptance batch in a guarded current-state transaction.
-    @discardableResult
-    func catchUp(selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> Bool {
-        if try rows("SELECT through_seq FROM view_meta WHERE singleton=1") == [[.integer(acceptedThrough())]] { return true }
+    /// Captures one complete acceptance batch for off-lane physical encoding.
+    fileprivate func captureOrdinaryRows(selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> OrdinaryRowBatch? {
+        if try rows("SELECT through_seq FROM view_meta WHERE singleton=1") == [[.integer(acceptedThrough())]] { return nil }
         return try verifying(.history(acceptedThrough())) { try measuring(.materialization) {
-            try materializeAcceptedSuffix(selection: selection, protection: protection)
+            try captureAcceptedSuffix(selection: selection, protection: protection)
         } }
     }
 
-    private func materializeAcceptedSuffix(selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> Bool {
+    private func captureAcceptedSuffix(selection: LocalStoreSelection, protection: ObjectProtectionV1) throws -> OrdinaryRowBatch {
         try transaction {
-            let meta = try rows("SELECT through_seq,authoring_context FROM view_meta WHERE singleton=1")
+            try validateHeader(store: selection.store, descriptor: selection.descriptor)
+            let meta = try rows("SELECT through_seq,authoring_context,epoch,reducer_version FROM view_meta WHERE singleton=1")
             guard meta.count == 1 else { throw StorageError.integrity }
             let start = try meta[0][0].number, available = try acceptedThrough()
             guard start > 0, start <= available else { throw StorageError.incomplete }
-            if start == available { return true }
+            guard start < available else { throw StorageError.staleCapture }
             let target = start < available ? start + 1 : available
             var context = try AuthoringContextV1.decodeV1(meta[0][1].bytes)
+            var updates: [NoteBirth: CurrentRowUpdate] = [:]
+            let decoder = try CurrentRowRead()
             try each("SELECT o.writer_epoch,o.sequence,o.object_id,o.encoded,a.seq FROM accepted_objects a JOIN objects o USING(object_id) WHERE a.seq>? AND a.seq<=? AND o.kind=1 ORDER BY a.seq,o.object_id", [.integer(start), .integer(target)]) { r in
                 let (locator, p) = try self.checkingRetainedHistory {
                     self.countWork { $0.historyReads += 1; $0.envelopeDecodes += 1 }
@@ -89,8 +92,12 @@ extension Database {
                     guard first == [[.blob(locator.segmentID.bytes), r[4]]] else { continue }
                     let occurrence = StoredActionReferenceV1(locator: locator, index: ActionIndex(UInt32(index)), id: a.id)
                     for entry in a.affected {
-                        let old = try self.rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(entry.birth.bytes)])
-                        let cell = try old.first.map { try CurrentNoteCellV1.decodeV1($0[0].bytes) }
+                        let cell: CurrentNoteCellV1?
+                        if let updated = updates[entry.birth] { cell = updated.cell }
+                        else {
+                            let old = try self.rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(entry.birth.bytes)])
+                            cell = try old.first.map { try decoder.decode($0[0].bytes, database: self) }
+                        }
                         switch entry.before {
                         case .freshBirthAbsence: guard cell == nil else { throw GeneralReductionRequired.noteGraph }
                         case .value(let id):
@@ -101,7 +108,7 @@ extension Database {
                         case .freshBirthAbsence: throw StorageError.integrity
                         case .derived, .automatic: throw StorageError.integrity
                         case .deleted:
-                            try self.run("DELETE FROM current_notes WHERE birth=?", [.blob(entry.birth.bytes)])
+                            updates[entry.birth] = .deleted
                         case .value(let id):
                             guard let op = p.operations.first(where: { $0.operation.id == id })?.operation,
                                   let value = op.effect.noteValue else { throw StorageError.integrity }
@@ -110,8 +117,7 @@ extension Database {
                                 labels: value.labels, created: cell?.value.created ?? value.created, modified: value.modified)
                             let next = try CurrentNoteCellV1(birth: entry.birth, value: currentValue,
                                 revision: self.operationOccurrence(id), scopeFrontier: scope, identity: cell?.identity)
-                            try self.run("INSERT INTO current_notes VALUES(?,?) ON CONFLICT(birth) DO UPDATE SET cell=excluded.cell",
-                                [.blob(entry.birth.bytes), .blob(next.encodedV1())])
+                            updates[entry.birth] = .value(next)
                         }
                     }
                     if a.scope == .collection {
@@ -128,19 +134,65 @@ extension Database {
                         collectionActions: context.collectionActions)
                 }
             }
-            try run("UPDATE view_meta SET through_seq=?,authoring_context=? WHERE singleton=1 AND through_seq=?",
-                [.integer(target), .blob(context.encodedV1()), .integer(start)])
-            return target == available
+            return try OrdinaryRowBatch(start: meta, target: target, available: available,
+                context: context, updates: updates, connection: incarnation, selection: selection,
+                dictionary: currentDictionary())
         }
     }
 }
 
+private enum CurrentRowUpdate: Sendable {
+    case deleted, value(CurrentNoteCellV1)
+    var cell: CurrentNoteCellV1? { if case .value(let cell) = self { cell } else { nil } }
+}
+
+/// Logical batch issued by the current-row reader and consumed after bounded worker preparation.
+private struct OrdinaryRowBatch: Sendable {
+    let start: [[SQLValue]]
+    let target: Int64
+    let available: Int64
+    let context: AuthoringContextV1
+    let updates: [NoteBirth: CurrentRowUpdate]
+    let connection: UUID
+    let selection: LocalStoreSelection
+    let dictionary: CurrentRowDictionaryV1?
+    func prepare() throws -> EncodedCurrentRows { try EncodedCurrentRows(cells: updates.values.compactMap(\.cell), dictionary: dictionary) }
+    func install(_ rows: EncodedCurrentRows, database db: Database) throws -> Bool {
+        guard connection == db.incarnation else { throw StorageError.wrongContext }
+        return try db.measuring(.materialization) { try db.transaction {
+            try db.validateHeader(store: selection.store, descriptor: selection.descriptor)
+            guard try db.acceptedThrough() >= target,
+                  try db.rows("SELECT through_seq,authoring_context,epoch,reducer_version FROM view_meta WHERE singleton=1") == start else { throw StorageError.staleCapture }
+            for (birth, update) in updates {
+                if case .deleted = update { try db.run("DELETE FROM current_notes WHERE birth=?", [.blob(birth.bytes)]) }
+            }
+            try rows.install(database: db)
+            try db.run("UPDATE view_meta SET through_seq=?,authoring_context=? WHERE singleton=1 AND through_seq=?", [.integer(target), .blob(context.encodedV1()), start[0][0]])
+            return target == (try db.acceptedThrough())
+        } }
+    }
+}
+
 extension DatabaseLane {
+    /// Prepares one complete batch off the database lane, then rechecks its starting view.
+    nonisolated func catchUpBatch(selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws -> Bool {
+        let current = try await perform { db in
+            try db.rows("SELECT through_seq FROM view_meta WHERE singleton=1") == [[.integer(db.acceptedThrough())]]
+        }
+        if current { return true }
+        return try await verifyingHistory {
+            guard let capture = try await perform({ try $0.captureOrdinaryRows(selection: selection, protection: protection) }) else { return true }
+            let encoded = try await historyWork { try capture.prepare() }
+            let gate = try await perform { $0.work?.currentRowsPrepared }
+            await gate?()
+            return try await perform { try capture.install(encoded, database: $0) }
+        }
+    }
     /// Yields the database lane between complete materialized prefixes.
     nonisolated func catchUp(selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws {
         while true {
             do {
-                do { if try await perform({ try $0.catchUp(selection: selection, protection: protection) }) { return } }
+                do { if try await catchUpBatch(selection: selection, protection: protection) { return } }
                 catch GeneralReductionRequired.noteGraph { try await materializeGraphBatch(selection: selection, protection: protection) }
             } catch StorageError.staleCapture { continue }
         }

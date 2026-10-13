@@ -5,6 +5,12 @@
 **Status:** actionable test design and implementation backlog; not an executed conformance report.  
 **Scope:** proposal-5 semantics implemented through the proposed cross-platform Swift core and its application/platform adapters.
 
+References to library “v2” below name the architecture proposal's edition, not
+a released wire format. All NVStorage formats remain unreleased; the last public
+application release was in 2011 and used epoch-4 Notes & Settings. Preserve
+epoch-4 opening/recovery and explicit export, while revising current development
+encodings directly rather than qualifying superseded draft readers.
+
 Aligned with the current specification on 2026-09-10. The [phased implementation/testing plan](swift-storage-implementation-plan.md) sequences these contract cards against the actual repository, using direct Swift canonical definitions without CUE/code generation. This document supplies detailed testing rationale and scenarios, not an executed report or alternate product policy.
 
 Implementation includes the [first-save contract](first-save-reopen-contract.md),
@@ -21,6 +27,11 @@ is removed. The [4C–4E report](phase4-private-state-repair-copy-validation.md)
 adds actual private-record/reference transactions, fixed-cut backup, complementary
 repair, physical local selection and copy/export consumers with their failure and
 language-boundary checks. Provider/UI adapters retain their later gates.
+
+The [Phase 5 provider/root testing plan](phase5-provider-root-testing-plan.md)
+applies these contract cards to actual disk effects, API capabilities, discovery,
+transport, root ownership and connected recovery schedules. It retains independent
+issuance/use observations and distinguishes planned tests from executed qualification.
 
 ## Executive decision
 
@@ -47,6 +58,14 @@ The supplied verification material already requires real bytes, independent expe
 The actual [test driver](../../../tests/Makefile), [test guide](../../IntegrationTests.md), [history reference checks](../check-history-rules.py), [active models](../../tla/README.md), [Apple API contracts](../../Apple-API-Contract-Validation.md) and [safe-replacement contract](../../Foundation-Safe-Replacement-Migration.md) are present in this repository. WP0 inventories/reuses them and records revisions; it does not retrieve or recreate an external source bundle. Existence alone is not an executed result. The [Phase 2 report](phase2-local-runtime-validation.md) records the implemented local Runtime subset, independent observers, controlled SQL/VFS completions, construction probes and targeted mutants. It does not certify the entire engine or every contract card below.
 
 **Test organization:** retain the existing Makefile driver and legacy integration executables, and invoke the package's native Swift tests for new code; portable jobs use the package directly without the Cocoa app. This is the current implementation direction, not a pending policy choice. Qualify the test runner separately from the macOS 11.5 library/bridge executable, using compatible standalone probes when necessary. No third-party/duplicate framework or duplicated suite. [P3, P6]
+
+The [test-target build contract](test-target-build-performance.md) partitions
+Runtime test compilation while preserving every existing assertion, parameter
+matrix and mutation/test cross-product. Cross-feature scenarios retain their
+complete production paths. The Make entry point checks complete, disjoint source
+membership; qualification additionally checks actual SwiftPM selection and the
+test-only fixture boundary. Production access controls and compiler settings
+remain unchanged.
 
 ## 2. Where v2 is useful—and where it needs stronger evidence
 
@@ -263,6 +282,17 @@ Use these alongside the first vertical slice, not as a prerequisite to building 
 
 **Runner contract.** Build the real module normally and compile the client without `@testable import` or access-control bypasses. Check the diagnostic category and intended source location; require its valid companion to compile. Missing module, syntax error, deployment failure, or unavailable compiler option is a setup failure, not evidence of the restriction. A signature/access change that makes a negative client compile must fail CI.
 
+Compatible negative clients may share whole-module type checking while retaining
+distinct source files and their original top-level lexical context. Give only
+test helper functions unique names; preserve production declarations and member
+references. Require an independently matched diagnostic at every client's marked
+line. Positive companions compile separately. Suppressed or unexpected batch
+diagnostics trigger individual checking of each original client, rather than
+crediting the batch's nonzero exit status. Source-modifying, same-file issuer and
+SIL/concurrency challenges retain their existing isolated paths and watchdogs.
+The [batching contract and qualification](compiler-probe-batching.md) includes
+observer controls and an actual Swift issuer-weakening challenge.
+
 Apply source checks to actual production targets and bridge declarations, not just a demonstration package. Pin each unsafe exception to its owner, rationale and corresponding runtime tests. Do not use a global unchecked conformance to make the tests compile.
 
 Swift Testing supports parameterized cases and runs them in parallel by default. Give every case independent directories, clocks, allocators and callback gates. Tests deliberately sharing a root run as one controlled scenario; do not rely on serialization of one suite to protect unrelated tests or external processes. [W4]
@@ -470,7 +500,7 @@ The concurrent value must be backed by real operations and declared parents—no
 
 **Setup and schedule.** Use a genesis commitment for at least two distinct note values. Independently deliver descriptor, genesis/import batches, ImportComplete, snapshot root/pages and dependencies. Vary missing/duplicate/contradictory batches and pages. Separately start from returning stores with valid, lagging or invalid current materialization plus accepted unmaterialized work and previously parked inputs that become ready.
 
-**Expected observations.** Fresh editable bootstrap requires the complete verified commitment and local closure. Complete snapshot preview remains distinct from editability. Returning startup drains ready work, applies the indexed accepted suffix, preserves required private settings and constructs the entire current-note/search model and compact authoring context from one consistent current-row capture. Invalid materialization requires reconstruction, not silent row omission or settings reset. A required unknown collection codec never becomes an empty editable result. A parked optional malformed extra does not suppress unrelated valid history.
+**Expected observations.** Fresh editable bootstrap requires the complete verified commitment and local closure. Complete snapshot preview remains distinct from editability. Returning startup drains ready Changes and discovered required prerequisites independently of queue order, applies the indexed accepted suffix, preserves required private settings and constructs the entire current-note/search model and compact authoring context from one consistent current-row capture. Independent optional roots/pages stay durable and begin complete verification only after successful checked host publication. Hold optional preparation across actual publication; required work behind it, unfinished verification and known damage still gate success. After finite saves cease, require progress without new delivery. Invalid materialization requires reconstruction, not silent row omission or settings reset. A required unknown collection codec never becomes an empty editable result. A parked optional malformed extra does not suppress unrelated valid history.
 
 **Wrong-result variants, kept separate.** A validly sealed **provider snapshot** with a wrong row/frontier must fail bootstrap/history verification; it is never installed directly as trusted private current rows. For local materialization, omit a deletion or a body-equal context update, or publish values under the wrong represented prefix: independently expected rows/context must fail. Test wrong scope/version, a rebuild changing the view epoch at an identical numerical prefix, concurrent acceptance/materialization during read capture and a stale final publication. Test current-cell decoder omissions against independent byte/semantic fixtures, not a digest of that decoder's own output. Healthy opens with no unmaterialized work must succeed with historical BLOB/operation reads forbidden. Derived-row invalidity requires reconstruction; shared/required database damage requires the store-repair classifier, never partial editable emptiness. [The selected algorithm](../LocalStore.md).
 
@@ -480,10 +510,15 @@ The [storage review witnesses](storage-review-follow-up.md) additionally cover
 optional ready snapshots, repeated snapshot roots, multiple current-row decodes,
 packed-envelope amplification, scoped commands, unapplied compensation batches
 and nonfrontier damage followed by failed diagnosis writes/restart. Narrow
-known-issue assertions expose the four deferred gaps; ordinary strict assertions
-now cover interrupted diagnosis, envelope decoding and recovery graph reuse.
+ordinary strict assertions now require one returning-startup root check for
+a sequential chain of covering v1 snapshots, while independently captured roots
+remain tips until explicitly covered. Other strict assertions
+now cover interrupted diagnosis, envelope decoding, recovery graph reuse,
+initial capture reuse, optional startup work and scoped historical queries.
 Passing content checks alone cannot qualify those work bounds. Their
-compiler probes keep provenance exclusive and graph issuance private.
+compiler probes keep provenance exclusive and graph/query-envelope issuance
+private. See the [startup/scoped-query report](phase-4-improvements/startup-and-scoped-queries-validation.md)
+for the latest qualification and remaining limits.
 
 The implemented [interrupted verification increment](phase-4-improvements/durable-verification-recovery.md)
 adds VR01–VR11 for durable replay obligations, final semantic-check coverage,
@@ -509,7 +544,30 @@ attempt remains visible in end-to-end work counts. Implemented qualification
 addresses REVIEW-HISTORY-3 before editable publication, with live
 callers retaining their current route. The
 [deferred benchmark backlog](phase-4-improvements/benchmark-backlog.md) keeps the
-remaining four startup/scoped-query candidates separate from implemented coverage.
+remaining independent snapshot-frontier width separate from the implemented current-row
+handoff and [startup/scoped-query increment](phase-4-improvements/startup-and-scoped-queries.md).
+
+The [retention-coverage increment](phase-4-improvements/snapshot-retention-coverage.md)
+includes exact parent roots in the single current paged v1 manifest, issuer-restricted parent checks,
+atomic dependency/frontier updates and a two-writer scheduling model. Qualification
+independently checks retained bytes, closure, maximal frontier, unchanged values,
+conflicts and Undo context, with delayed roots, stale captures, differing cuts,
+faulted commits and fresh-process recovery. Parent coverage remains separate
+from note supersession, represented operation history and recovery selection.
+One shared logical traversal and zero parent-induced ancestor walks are required;
+separate interrupted traversal attempts remain separately measured.
+
+The latter increment checks complete note-scope action selection and unchanged
+causal Undo/Redo results; current-head alternatives, automatic/derived Current and
+collection-wide copy dispositions; exact occurrences, links and complete shared
+groups; and store/connection/session/prefix/view/scope evidence consumption.
+Independent expected IDs/values accompany full-reader comparisons. Fixed queried
+history under 64/256/1,024 unrelated actions must keep historical reads/decodes and
+SQL statement work fixed. Untouched/no-copy queries read zero historical envelopes;
+each selected envelope decodes once. Count fixed schema/current-row work separately
+from historical table scans. Growth in the queried scope or global copy history
+remains legitimate. Construction/type-substitution probes and mutations challenge
+the actual consumers, optional worker reservation, wakeup and ready preservation.
 
 ### TC-REPAIR-01 — Complementary copies repair private history first
 
@@ -568,6 +626,20 @@ remaining four startup/scoped-query candidates separate from implemented coverag
 ## 9. Remaining scenario backlog and caller coverage
 
 The cards above are deliberately small. Extend them with the following named cases rather than multiplying every dimension into one universal scenario. Each row inherits the near-valid input, positive control, independent oracle, and mutation obligations of §§3–5.
+
+[P5.2's qualification](phase5/02-immutable-files-validation.md) supplies TC-DUR-05's
+physical installer witness plus production construction/context probes for
+TC-STATIC-01/02/04. Native fault/mutation observers operate below the real issuer;
+fresh Swift processes inspect surviving bytes independently.
+[P5.3's qualification](phase5/03-local-repository-exchange-validation.md) connects
+TC-DUR-01/04/05, TC-START-01 and TC-STATIC-01/02/04 through bounded accepted-prefix
+capture, actual immutable files, independently owned receiving stores and fresh
+reopening. It adds shared-bootstrap tails, delayed disclosure without another
+hint, a paged post-edit snapshot waiting across reopening for its final leaf,
+duplicate/repackaged input, durable rejection failures and stale handoff
+witnesses. Exact bytes, membership, current values and represented context are
+observed separately from API success; observation hints remain derived input.
+The Apple adapter and final application consumers retain their own G3/G4 gates.
 
 | ID / gate | Setup and stimulus | Required observable result / targeted challenge |
 |---|---|---|

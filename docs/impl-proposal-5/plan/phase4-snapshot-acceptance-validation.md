@@ -8,6 +8,12 @@ connects that checked boundary to the existing SQLCipher acceptance transaction.
 Received-candidate assembly, complete new-client bootstrap and snapshot-based
 current-row rebuilding remain S2–S4.
 
+This report preserves the S1 increment's executed results. The later
+[startup/scoped-query qualification](phase-4-improvements/startup-and-scoped-queries-validation.md)
+updates its 22-schedule process campaign to checked host publication followed by
+background optional-root acceptance. Required snapshot prerequisites still finish
+before publication; independent optional roots stay durably queued until then.
+
 ## Production lifecycle
 
 1. `captureGeneralSnapshot()` freezes neutral values and continuation claims from
@@ -75,8 +81,9 @@ or database turn; a late completed acceptance reports only its actual committed
 coverage. Candidate cleanup remains a separate future owned operation.
 
 A fresh process receives only normal selection/unlock inputs. Existing journal
-recovery determines actual committed membership. A retained complete root resumes
-through durable ready work and semantic checking; incomplete page-only work stays
+recovery determines actual committed membership. A retained complete optional root
+resumes through durable ready work and semantic checking after checked host
+publication; required prerequisites are selected during open. Incomplete page-only work stays
 candidate data. Missing callbacks cannot erase committed membership. A
 snapshot-only catch-up failure leaves accepted history intact for later catch-up.
 Required accepted-page damage follows the existing durable history-damage path
@@ -101,7 +108,7 @@ observations, with both public and encrypted provider profiles:
 | Cancellation after retaining a page | Candidate remains owned, subsequent ordinary saving works, and retry completes without replacing the newer note. |
 | Close with pending/suspended optional construction or a held committed result | Durable close proceeds, retained bytes survive reopening, unfinished construction stops and a late accepted result reports its real historical commit. |
 | Wrong store, copied store with equal identifiers/counters, or reopened owner | Actual admission/evidence consumers reject incompatible capture, retry or connection evidence. A same-owner companion succeeds. |
-| Complete root retained before interrupted acceptance | Fresh reopening accepts its exact durable candidates and drains ready work. |
+| Complete root retained before interrupted acceptance | Fresh reopening retains its exact candidates; checked host publication starts optional ready processing and acceptance without redelivery. |
 | Authentic wrong body versus valid candidate | Wrong claims are retained/rejected with the precise reason; accepted history and unrelated progress survive. |
 | Corrupted required accepted page | Damage is detected and persisted; current publication and reopening remain blocked. |
 

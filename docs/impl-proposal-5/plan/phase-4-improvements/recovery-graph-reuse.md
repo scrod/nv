@@ -83,8 +83,10 @@ caller eligibility failure chooses that route; corrupt or unsupported history
 retains its actual failure classification.
 
 Required ready work, complete bootstrap checks and outstanding verification
-obligations still precede editable publication. Optional-ready classification is
-a [separate investigation](benchmark-backlog.md#optional-snapshot-work-before-editability).
+obligations still precede editable publication. Independent optional snapshots
+are deferred until checked publication; the
+[startup/scoped-query qualification report](startup-and-scoped-queries-validation.md)
+records that scheduling boundary and its tests.
 
 ### 2. Capture one exact target
 

@@ -234,7 +234,7 @@ extension LocalStoreSession {
             guard try db.rows("SELECT reducer_version,through_seq FROM view_meta WHERE singleton=1") ==
                 [[.integer(1), .integer(db.acceptedThrough())]] else { throw StorageError.incomplete }
             let current = try db.rows("SELECT cell FROM current_notes WHERE birth=?", [.blob(r.birth.bytes)])
-                .first.map { try CurrentNoteCellV1.decodeV1($0[0].bytes) }
+                .first.map { try db.currentCell($0[0].bytes) }
             let matches: Bool
             switch r.effect {
             case .operation(_, _, _, let digest):
@@ -280,6 +280,7 @@ extension LocalStoreSession {
     private func checkPendingState(_ state: PendingItemState) throws {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard state.store == selection.store, state.session == incarnation else { throw StorageError.wrongContext }
+        cancelMaintenance()
     }
 }
 

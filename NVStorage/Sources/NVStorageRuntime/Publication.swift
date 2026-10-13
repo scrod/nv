@@ -23,7 +23,7 @@ extension LocalStoreSession {
         guard !closed else { throw StorageError.closed }
         guard change.snapshot.session == incarnation, change.snapshot.store == selection.store else { throw StorageError.wrongContext }
         guard change.liveGeneration == liveGeneration else { throw StorageError.staleCapture }
-        return try await lane.perform { db in
+        let result = try await lane.perform { db in
             let s = change.snapshot
             let meta = try db.rows("SELECT epoch,through_seq FROM view_meta WHERE singleton=1")
             guard meta == [[.blob(s.viewEpoch), .integer(s.through)]], try db.acceptedThrough() == s.through,
@@ -32,6 +32,8 @@ extension LocalStoreSession {
             }
             return try apply(s)
         }
+        startPublishedReceiveWork()
+        return result
     }
 }
 
@@ -60,6 +62,7 @@ extension LocalStoreSession {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard state.store == selection.store, state.session == incarnation else { throw StorageError.wrongContext }
         guard state.generation < Int64.max else { throw StorageError.limit }
+        cancelMaintenance()
         try await lane.perform { db in
             try db.transaction {
                 let old = try db.rows("SELECT generation,codec,payload FROM private_groups WHERE group_key=?", [.blob(Array("settings".utf8))])

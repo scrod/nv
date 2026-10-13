@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import Foundation
 import Testing
 @testable import NVStorageCore
@@ -66,9 +67,7 @@ func returningOpenDecodesCurrentCellsOnce(encrypted: Bool) async throws {
     #expect(snapshot.notes.map(\.value.body.string).sorted() == ["latest", "untouched"])
     #expect(counts.reads == 0 && counts.graphs == 0)
     counts.report("returning-current-rows", encrypted: encrypted, size: 2)
-    withKnownIssue("REVIEW-START-1: returning open and first capture decode the same current cells three times") {
-        #expect(counts.currentCells == 2)
-    }
+    #expect(counts.currentCells == 2)
     try await reopened.quiesce()
 }
 
@@ -91,14 +90,25 @@ func optionalReadySnapshotKeepsReturningOpenHistoryBounded(encrypted: Bool, size
     let bytes = try #require(candidates.first)[0].bytes
     #expect(candidates.count == 1)
     let selection = await store.selection; await lane.close()
+    let openingStart = DispatchTime.now().uptimeNanoseconds
     let reopened = try await measuredOpen(selection, protection), recoveredLane = await reopened.lane
     let counts = try await reviewWork(recoveredLane)
     #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["edit-\(size)", "untouched"])
     counts.report("optional-ready-open", encrypted: encrypted, size: size)
-    withKnownIssue("REVIEW-START-2: returning open fully validates optional snapshot history before publishing current rows") {
-        #expect(counts.graphs == 0 && counts.reads == 0)
-    }
-    guard case .accepted = try await reopened.receive(bytes) else { Issue.record("Retained optional work must finish through the real receive path"); return }
+    #expect(counts.graphs == 0 && counts.reads == 0)
+    let pause = ImprovementGate()
+    try await recoveredLane.perform { $0.work?.publishedReceiveStart = { await pause.hold() } }
+    let change = try await reopened.prepareReduction(liveGeneration: 0)
+    let published = try await reopened.publish(change, liveGeneration: 0) { $0 }
+    let publicationNanoseconds = DispatchTime.now().uptimeNanoseconds - openingStart
+    #expect(published.notes.map(\.value.body.string).sorted() == ["edit-\(size)", "untouched"])
+    try #require(await reopened.receiving)
+    await pause.wait()
+    #expect(try await recoveredLane.perform { try $0.rows("SELECT count(*) FROM ready_objects") } == [[.integer(1)]])
+    let backgroundStart = DispatchTime.now().uptimeNanoseconds
+    await pause.release()
+    await reopened.waitForReceiveForTesting()
+    print("OPTIONAL_STARTUP encrypted=\(encrypted) actions=\(size) publicationNS=\(publicationNanoseconds) backgroundNS=\(DispatchTime.now().uptimeNanoseconds - backgroundStart)")
     let root = try ObjectEnvelopeV1.open(bytes, collection: initial.descriptor.collection, protection: protection).locator
     #expect(try await reopened.retainedObject(at: root) == bytes)
     try await reopened.quiesce()
@@ -119,9 +129,7 @@ func repeatedSnapshotsKeepReturningOpenLeafWorkBounded(encrypted: Bool) async th
     #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["A", "untouched"])
     #expect(counts.graphs == 0 && counts.reads == 0)
     counts.report("repeated-snapshot-open", encrypted: encrypted, size: roots.count)
-    withKnownIssue("REVIEW-START-3: independent snapshot roots accumulate in the required retained frontier") {
-        #expect(counts.leaves <= 1)
-    }
+    #expect(counts.leaves == 1)
     for (root, bytes) in roots { #expect(try await reopened.retainedObject(at: root) == bytes) }
     try await reopened.quiesce()
 }
@@ -140,9 +148,7 @@ func scopedCommandsAvoidUnrelatedHistoryBodies(encrypted: Bool, size: Int) async
     let counts = try await reviewWork(lane)
     #expect(try await store.snapshot().notes.first { $0.birth == untouched }?.value.body.string == "untouched")
     counts.report("scoped-commands", encrypted: encrypted, size: size)
-    withKnownIssue("REVIEW-HISTORY-1: scoped commands reconstruct every note's accepted bodies and actions") {
-        #expect(counts.reads == 0 && counts.decodedBytes == 0)
-    }
+    #expect(counts.reads == 0 && counts.decodedBytes == 0)
     try await store.quiesce()
 }
 

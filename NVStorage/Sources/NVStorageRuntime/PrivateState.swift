@@ -38,6 +38,7 @@ extension LocalStoreSession {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard state.store == selection.store, state.session == incarnation else { throw StorageError.wrongContext }
         let bytes = value.encodedV1()
+        cancelMaintenance()
         try await lane.perform { db in
             try db.transaction {
                 guard let old = try db.privateGroup("settings"), try old[0].number == state.generation else { throw StorageError.staleCapture }
@@ -61,6 +62,7 @@ extension LocalStoreSession {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard state.store == selection.store, state.session == incarnation else { throw StorageError.wrongContext }
         let selection = selection
+        cancelMaintenance()
         try await lane.perform { db in
             try db.checkPrivateScope(value.scope, selection: selection)
             try db.transaction {
@@ -74,6 +76,21 @@ extension LocalStoreSession {
 }
 
 extension Database {
+    /// Checks required private inputs before opening or replacing derived current rows.
+    func validateRequiredPrivateGroups(store: LocalStoreID, descriptor: BootstrapDescriptorV1) throws {
+        try requireHealthyHistory()
+        guard try rows("SELECT 1 FROM private_groups WHERE group_key=?", [.blob(Array("history-damage".utf8))]).isEmpty else {
+            throw StorageError.integrity
+        }
+        guard let settings = try privateGroup("settings") else { throw StorageError.incomplete }
+        _ = try decodedSettings(settings)
+        if let association = try privateGroup("association") {
+            _ = try decodedAssociation(association, selection: .init(directory: "", store: store, descriptor: descriptor))
+        }
+        let bootstrap = try rows("SELECT codec,payload FROM private_groups WHERE group_key=?", [.blob(Array("bootstrap".utf8))])
+        guard bootstrap.count == 1 else { throw StorageError.incomplete }
+        guard bootstrap[0][0] == .integer(1) else { throw StorageError.unsupported }
+    }
     func privateGroup(_ key: String) throws -> [SQLValue]? {
         let rows = try rows("SELECT generation,codec,payload FROM private_groups WHERE group_key=?", [.blob(Array(key.utf8))])
         guard rows.count <= 1 else { throw StorageError.integrity }

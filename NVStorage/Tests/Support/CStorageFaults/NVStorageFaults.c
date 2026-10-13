@@ -32,6 +32,7 @@ static _Atomic int verificationEvent, verificationOrdinal, verificationResult;
 static _Atomic int materializationEvent, materializationOrdinal, materializationResult;
 static _Atomic int settlementEvent, settlementOrdinal, settlementResult;
 static _Atomic int repairEvent, repairOrdinal, repairResult;
+static _Atomic int associationEvent, associationOrdinal, associationResult;
 static _Atomic int64_t steps;
 static pthread_mutex_t holdMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t holdCondition = PTHREAD_COND_INITIALIZER;
@@ -61,6 +62,11 @@ void nv_faults_arm_on_rejection(int event, int n, int code) {
     nv_faults_arm(0, 0, 0);
     atomic_store(&rejectionOrdinal, n); atomic_store(&rejectionResult, code);
     atomic_store(&rejectionEvent, event);
+}
+void nv_faults_arm_on_association(int event, int n, int code) {
+    nv_faults_arm(0, 0, 0);
+    atomic_store(&associationOrdinal, n); atomic_store(&associationResult, code);
+    atomic_store(&associationEvent, event);
 }
 void nv_faults_arm_on_history_acceptance(int event, int n, int code) {
     nv_faults_arm(0, 0, 0);
@@ -202,6 +208,10 @@ static int trace(unsigned event, void *context, void *statement, void *extra) {
         if (!strncmp(sql, "INSERT INTO private_groups", 26) || !strncmp(sql, "DELETE FROM private_groups", 26)) {
             char *expanded = sqlite3_expanded_sql(statement);
             if (expanded) {
+                if (!strncmp(sql, "INSERT", 6) && containsFolded(expanded, "6173736f63696174696f6e")) {
+                    int next = atomic_exchange(&associationEvent, 0);
+                    if (next) nv_faults_arm(next, atomic_load(&associationOrdinal), atomic_load(&associationResult));
+                }
                 if (!strncmp(sql, "INSERT", 6) && containsFolded(expanded, "7265706169722d736f757263652f")) {
                     int next = atomic_exchange(&repairEvent, 0);
                     if (next) nv_faults_arm(next, atomic_load(&repairOrdinal), atomic_load(&repairResult));

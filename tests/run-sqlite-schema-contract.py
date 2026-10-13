@@ -124,7 +124,7 @@ def accept_rows(db, obj, parents=(), operation=None, omit_member=False, batch=No
 def initialize(db):
     db.executescript("BEGIN IMMEDIATE;\n" + DDL)
     try:
-        db.execute("INSERT INTO store_header VALUES(1,1,?,?,1,?,1,1,?,?)",
+        db.execute("INSERT INTO store_header VALUES(1,3,?,?,1,?,1,1,?,?)",
                    (ident(10), ident(11), bytes(16), locator(PARENT), DESCRIPTOR[0]))
         db.execute("INSERT INTO view_meta VALUES(1,?,1,0,?)", (ident(12), b"fixture empty context"))
         db.execute("INSERT INTO private_groups VALUES(?,?,?,?)", (b"fixture-settings", 1, 1, b"original settings"))
@@ -167,6 +167,22 @@ class SchemaContract(unittest.TestCase):
             self.assertEqual(other.execute("SELECT count(*) FROM sqlite_master").fetchone(), (0,))
         finally:
             other.close()
+
+    def test_conflict_copy_index_has_exact_partial_membership_and_prefix_order(self):
+        sql = self.db.execute("SELECT sql FROM sqlite_schema WHERE name='actions_conflict_copies'").fetchone()
+        self.assertEqual(sql, ('CREATE INDEX actions_conflict_copies ON actions(first_seq, action_id) WHERE kind=9',))
+        with self.db:
+            for n in range(1, 65):
+                obj = fixture_object('copy-index-' + str(n), sequence=n + 10)
+                accept_rows(self.db, obj, (PARENT[0],), (ident(n + 10, 32), ident(n + 10), ident(n + 10), 3))
+            self.db.execute('UPDATE actions SET kind=9 WHERE action_id IN (?,?)', (ident(11), ident(73)))
+        query = '''SELECT action_id,source_object,source_index,first_seq FROM actions INDEXED BY actions_conflict_copies
+            WHERE kind=9 AND first_seq<=? AND (first_seq,action_id)>(?,?) ORDER BY first_seq,action_id LIMIT 64'''
+        self.assertEqual([row[0] for row in self.db.execute(query, (65, 0, b''))], [ident(11), ident(73)])
+        self.assertEqual([row[0] for row in self.db.execute(query, (10, 0, b''))], [ident(11)])
+        plan = ' '.join(str(row) for row in self.db.execute('EXPLAIN QUERY PLAN ' + query, (65, 0, b'')))
+        self.assertIn('SEARCH actions USING INDEX actions_conflict_copies', plan)
+        self.assertNotIn('TEMP B-TREE', plan)
 
     def test_types_bounds_and_profile(self):
         for bad in ("x" * 32, b"x" * 31, None):

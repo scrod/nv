@@ -4,6 +4,7 @@ from pathlib import Path
 import platform
 import subprocess
 import tempfile
+from qualification_reuse import CampaignReuse
 
 root = Path(__file__).resolve().parents[1]
 dependency = root / 'NVStorage/.deps/sqlcipher'
@@ -17,7 +18,8 @@ source = root / 'tests/SQLCipherColdStartProbe.c'
 subprocess.run(['clang', '-DSQLITE_HAS_CODEC', '-std=c11', '-Wall', '-Wextra', '-Wconversion', '-Werror',
                 '-fsyntax-only', '-I' + str(dependency / 'include'), str(source)], check=True)
 binary = artifacts / 'probe'
-subprocess.run([*common, str(dependency / 'build/sqlite3.c'), str(source), *crypto, '-o', str(binary)], check=True)
+CampaignReuse().build([*common, str(dependency / 'build/sqlite3.c'), str(source), *crypto, '-o', str(binary)],
+    [Path(__file__), source, dependency/'build/sqlite3.c', dependency/'include'], binary, artifacts)
 for mode in ['before', 'after']:
     result = subprocess.run([str(binary), mode], text=True, capture_output=True, timeout=30)
     (artifacts / (mode + '.log')).write_text(result.stdout + result.stderr)

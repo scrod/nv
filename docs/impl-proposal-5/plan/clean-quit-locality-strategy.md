@@ -9,6 +9,16 @@ The [opportunistic full-VACUUM policy](#adopted-opportunistic-full-vacuum-policy
 is adopted; its scheduling thresholds and interruption/latency qualification
 remain implementation gates, not completed test results.
 
+Implementation follow-up (2026-10-07): the
+[private current-row contract](private-current-row-codec.md) freezes the bounded
+raw/zstd/dictionary framing and its database mapping. The
+[4F report](phase4-current-row-locality-maintenance-validation.md) records the
+production-path tests and warm measurements. The implementation retains 4-KiB
+cipher pages, omits physical read-ahead, and exposes explicit bounded compaction
+for qualification. Automatic maintenance remains disabled. The measurements and
+candidate recommendations below describe the earlier experiments; the follow-up
+records which parts were implemented and which still need qualification.
+
 The [follow-up rewrite/codec matrix](sqlite-rewrite-locality-validation.md)
 now tests full VACUUM with compressed 16-KiB rows, rewrite plus read-ahead,
 insertion/index/freelist variations, reusable decoding, and zstd. Zstd narrows

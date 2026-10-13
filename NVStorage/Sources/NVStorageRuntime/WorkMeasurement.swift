@@ -5,10 +5,15 @@ import NVStorageCore
 /// Optional, queue-owned observations and completion gates for storage qualification.
 struct StorageWork: Sendable {
     enum Stage: String, CaseIterable, Sendable { case preparation, validation, acceptance, materialization }
+    enum DatabaseBoundary: Sendable { case returning, committing, committed }
     struct Counts: Sendable {
         var statements = 0
         var vmSteps = 0
         var statementSteps: [String: Int] = [:]
+        var statementCalls: [String: Int] = [:]
+        var leastStatementSteps: [String: Int] = [:]
+        var mostStatementSteps: [String: Int] = [:]
+        var statementScanSteps: [String: Int] = [:]
         var fullScanSteps = 0
         var rows = 0
         var historyReads = 0
@@ -18,7 +23,11 @@ struct StorageWork: Sendable {
         var historyEncodedBytes = 0
         var historyDecodedBytes = 0
         var currentCellDecodes = 0
+        var currentEncodedBytes = 0
+        var currentExpandedBytes = 0
+        var dictionaryLoads = 0
         var retainedLeafChecks = 0
+        var retentionParentChecks = 0
         var graphLoads = 0
         var ancestors = 0
         var fastChecks = 0
@@ -37,11 +46,18 @@ struct StorageWork: Sendable {
         var reconstructionAffectedBirths = 0
         var reconstructionReusedCells = 0
         var reconstructionInstallations = 0
+        var discoveryHintBatches = 0
+        var discoveryHintInputs = 0
+        var discoveryHintHits = 0
+        var physicalOwnerChecks = 0
+        var connectionContextChecks = 0
     }
     var stages: [Stage: Counts] = [:]
     var elapsedNanoseconds: UInt64 = 0
     /// Qualification gates for a captured history prefix and an already committed result.
     var historyCheck: (@Sendable () async -> Void)?
+    var currentRowsPrepared: (@Sendable () async -> Void)?
+    var vacuumPrepared: (@Sendable () async -> Void)?
     var commandCheck: (@Sendable () -> Void)?
     var historyValidated: (@Sendable () async -> Void)?
     var acceptanceCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
@@ -49,12 +65,16 @@ struct StorageWork: Sendable {
     var receiveRetentionCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
     var receiveDiscovered: (@Sendable (SegmentLocator, [ObjectRequirement]) async -> Void)?
     var receiveRecordsPerTurn = 64
+    var publishedReceiveStart: (@Sendable () async -> Void)?
+    var querySelected: (@Sendable () async -> Void)?
     var snapshotPreparationYield: (@Sendable (SegmentLocator, Int) async -> Void)?
     var reconstructionPrepared: (@Sendable () async -> Void)?
     var recoveryPrepared: (@Sendable () async -> Void)?
     var verificationReplayWillStart: (@Sendable () async -> Void)?
     var verificationReplayFinished: (@Sendable () async -> Void)?
     var backupCaptured: (@Sendable () async -> Void)?
+    /// Synchronous qualification gate immediately before an ownership boundary check.
+    var databaseBoundary: (@Sendable (DatabaseBoundary) throws -> Void)?
     subscript(_ stage: Stage) -> Counts { stages[stage] ?? Counts() }
 }
 

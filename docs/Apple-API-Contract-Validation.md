@@ -97,6 +97,17 @@ For a selected current note file or immutable protocol object (and a legacy chec
 5. Exercise offline, eviction, cancellation, provider restart, rename, deletion, and replacement during access.
 6. For the retained legacy/checkpoint replacement fixture, when expected-current evidence mismatches, return either one coherent checkpoint-current witness—complete bytes, `NVFileObservation`, and current local version identity when available—or an explicit no-write failure. A later replacement that changes any observed witness component must fail the fresh retry CAS rather than let stale evidence authorize installation. Do not use `NSFileVersion.persistentIdentifier` as the sole replacement generation: same-bytes Foundation replacement kept it equal on macOS 14 and 26 while the filesystem observation changed.
 
+P5.4's no-accessor failure mapper preserves representable positive POSIX codes and
+the SDK's explicit Cocoa cancellation, missing-file, permission, full-disk and
+read-only-volume diagnoses. Missing/unknown errors, out-of-range/nonpositive POSIX
+codes and unrelated domains remain EIO. Supplemental descriptions, paths and
+underlying errors are unused. The 21-case injected-error suite and domain-check
+mutation qualify this conversion, separately from actual Foundation cancellation
+and held-accessor witnesses. This is local failure classification, not evidence
+of provider completeness, root continuity or permission to delete. An actual
+accessor's checked native outcome retains precedence over an out-error received
+after it. See the [P5.4 qualification](impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md#p54-04-coordinator-error-classification).
+
 ## AV-03 — coordinated shallow current namespace
 
 Plaintext projection reconciliation requires complete shallow direct-child snapshots around selected reads. Validate that:
@@ -111,6 +122,17 @@ Plaintext projection reconciliation requires complete shallow direct-child snaps
 The immutable transport namespace is nested: validate scoped catalogs for descriptors, writers, segments and snapshots independently, with startup/reopen/invalidation and bounded retry discovery opportunities. A root presenter's callbacks are not proof that every descendant was disclosed; removal from any listing is never a logical Delete.
 
 Use a two-Mac test-owned manifest for empty, small, and thousand-file roots. A marker file is only a wakeup; it is not a cross-file ordering fence.
+
+The [bounded metadata qualification](impl-proposal-5/plan/phase5/bounded-discovery-batches-validation.md)
+exercises production `getattrlistbulk`/held-directory `fstatat`, exact raw names
+and all nine fingerprint fields. Darwin directory records omit file-only fields;
+the parser selects fresh stat for incomplete/type-specific layouts and preserves
+per-entry errors. Missing masks and malformed packed records are injected test
+stimuli, not allegations about Apple's implementation. ENOTSUP/ENOSYS/EINVAL
+select one fresh portable enumeration descriptor; EIO remains a failure.
+Root/ancestor checks bracket each bounded group. These local filesystem results
+qualify transport observations, not coordinated catalog completeness, cloud
+disclosure or remote-origin events; those remain the separate P5.4/provider gates.
 
 Extend the existing `foundation`/manifest modes to record these optional identity fields before and after rename, replacement, eviction, rematerialization, and restart. The test passes when each observation is complete and the evaluator selects the documented identity or fallback tier; it must not require an identifier to remain stable.
 
@@ -166,6 +188,25 @@ Earlier probes showed that retained pre-rename/pre-delete URLs did not redisclos
 
 ## AV-07 — presenter visibility and liveness
 
+P5.4's production adapter uses one Objective-C presenter with an independent
+serial reply queue and an NSLock-protected NSURL snapshot. Actual external
+Foundation writes/moves, concurrent getters, late replies and eviction
+accommodation have executable consumers in `RepositoryCoordinationTests` and
+`tools/test-storage-apple-peer.py`. Registration itself is coordinated;
+unregistration and actual resource settlement remain separate lifecycle steps.
+The bounded transport driver supplies ordinary revisits independently of hints.
+
+Each rooted operation initializes its coordinator with the owned presenter.
+Apple's [`init(filePresenter:)` contract](https://developer.apple.com/documentation/foundation/nsfilecoordinator/init(filepresenter:))
+suppresses ordinary self-initiated notifications while preserving version
+notifications and other presenters' participation. The independent reply queue
+remains runnable during a blocked root accessor. Because coordinator initialization
+uses the root lane rather than the presenter's reply queue, move safety relies on
+the existing system reference, continuously held directory and final granted-URL/
+physical-root checks. `repositoryPresenterSeparatesOwnedWritesFromExternalHints`
+tests actual creation, equal-byte retry and a separate coordinated writer; the
+independent-process write/move companion remains required.
+
 Register one presenter for the root directory. Exercise coordinated and ordinary external create/edit/rename/delete, direct-child and version/ubiquity callbacks, callback coalescing, callback-before-catalog visibility, sleep/wake, App Nap, network flap, provider restart, and relaunch. Reader/writer relinquishment and deletion accommodation must invoke Apple's supplied block exactly once and promptly; an external coordinated accessor must not remain blocked. A callback schedules/retries current-visible observation; it never proves the corresponding mutation visible. A later stable double-catalog transaction or a newer dirty generation must prevent permanent loss of the wakeup. Extend the focused presenter harness with a coordinated peer to enforce the acknowledgement/blocking case.
 
 ## AV-08 — root moves, authority changes, and unavailability
@@ -173,6 +214,10 @@ Register one presenter for the root directory. Exercise coordinated and ordinary
 Validate same-volume provider/Finder moves while catalog, current read, batch preparation, Foundation replacement, and current-version CAS are in flight. Candidate URLs may come only from the rooted descriptor, presenter callback, file-reference URL, or bookmark. Rooted identity and any available forward item/domain identity must positively identify the same directory before retaining the session.
 
 Separately test deletion, replacement with identical bytes, revoke/unmount, eviction, stale bookmarks, deep roots, provider/account change, and network failure. Positive changed-authority evidence fences into the provisional successor. Every result lacking positive same-root or changed-authority evidence enters root-continuity-unavailable state, leaves Retry and the explicit Save As/Re-open/quit choices, and forbids path retargeting or automatic session cancellation. Positive later evidence may restore or fence the session; an explicit user choice may end it. There is no deletion-proof recipe.
+
+P5.1's 2026-10-10 local macOS 26.6.2 experiment reinforces that distinction. After removing a newly created empty directory while retaining its descriptor, `fstat` still reported link count 2, `openat` of `.` and `..` succeeded, and `F_GETPATH` returned the former pathname. These are observations of the retained object, not positive evidence that the namespace still contains it. The production owner therefore checks descriptor-bound `EVFILT_VNODE` deletion/revocation events in addition to retained metadata. A delivered loss fences admission and stays latched for that owner; remount/replacement requires fresh ownership. The Linux counterpart checks a descriptor-selected inotify watch. A failed ordinary child read remains distinct from root loss or unavailable/different root-candidate evidence. Successes, failures and continuity comparisons recheck their captured generation. See [P5.1 results](impl-proposal-5/plan/phase5/01-root-ownership-validation.md).
+
+The actual production owner passed forced-detach/remount on independently verified APFS, case-sensitive APFS, HFS+, case-sensitive HFS+ and ExFAT images on macOS 26.6.2. Each retained owner reported `ESTALE` and fenced admission after detach; preserved files were readable by a fresh remounted owner, while the old owner remained fenced. Replacing a freshly created empty held root separately supplies an actual deletion stimulus. Apple's [kqueue contract](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/kqueue.2.html) defines `NOTE_REVOKE` for underlying filesystem unmount and warns that filesystem event support varies. These are local filesystem witnesses, not provider disclosure/completeness guarantees. Absence of a delivered event proves neither continued namespace membership nor complete cloud history. Dataless-directory and remote-origin provider stimuli remain P5.4/P5.7 qualification work. The direct `revoke(2)` syscall is a device-file API; it is not used as a directory-revocation stimulus.
 
 The focused macOS 14.8.9 and 26.6.1 iCloud tests rejected consumer-side reverse lookup. Forward `getIdentifierForUserVisibleFileAtURL:` succeeded, but looking up the matching domain and calling `getUserVisibleURLForItemIdentifier:` failed with `NSFileProviderErrorProviderNotFound`; macOS 26 additionally disclosed `NSFileProviderErrorApplicationExtensionNotFound`. `NSFileProviderManager`'s instance API is scoped to the provider extension and its containing/related processes, not an unrelated consumer such as NV. Production code must not enumerate provider domains, call or wait for this reverse API, or classify its errors. The recorded result is design evidence, not a continuing release gate.
 
@@ -195,6 +240,49 @@ Keep existing harness modes as observational compatibility probes if useful, but
 Run startup, rebuild, current-visible reconciliation, conflict-copy status, root moves, and quit with Spotlight healthy, disabled, excluded, rebuilding, and unavailable. Required paths must not construct or wait for `NSMetadataQuery`.
 
 ## AV-13 — application identity and entitlements
+
+The signed LaunchServices production harness uses the dedicated synthetic bundle
+identity `net.notational.velocity.storage-contract`. SSH transfers only the
+executable/control inputs; live segment delivery uses iCloud. macOS permission
+requests remain real: a macOS 14 stack sample found `candidate_parent/openat`
+waiting before root acquisition, with a matching TCC request. That is an
+authorization boundary, not a File Coordinator contract failure or a passing
+provider test. Answer the OS prompt or supply user-authorized scoped access;
+preserve the failed run and qualify actual peer acceptance separately.
+
+The 2026-10-12 final-source signed LaunchServices run passes actual two-Mac
+bootstrap, bidirectional actions, concurrent conflicts, snapshot retention,
+Delete/edit preservation and fresh-process reopen for both profiles. Independent
+SQL/envelope inspection confirms exact retained bytes and accepted membership;
+both roots report active identified providers. The
+[P5.4 ledger](impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md#final-source-real-two-mac-exchange)
+records binaries, signatures, OS/architecture and preserved artifacts. This closes
+the tested adapter/exchange gate, separately from the earlier authorization
+preflight, production distribution signing and uninduced full/offline stimuli.
+
+`tools/test-storage-apple-stage.py` verifies actual preparation/install grants,
+their source/target root matches and independently read final bytes, with static
+analysis and sanitizers. Real iCloud changed stage ctime between grants without
+changing its held identity or bytes. The adapter now retains the open stage
+descriptor and performs fresh exact verification in the final grant. It preserves
+changed/displaced stages; the native race campaign covers body changes, extra
+links and unlink/recreation. The file-reference bridge preserves NSURL/CFURL
+identity across Swift; the deep-path production witness is APFS-specific.
+Opening a `/dev/fd` alias for a second descriptor returned EPERM on a reachable
+iCloud root; the bridge uses positive native comparison of the system reference's
+resolved path there, with the tested descriptor-alias route for pathless APFS
+references. A final HFS+ rerun found that Foundation's descriptor-alias conversion
+instead resolved to the wrong location. The issuer now uses the selected path as
+another physically checked candidate. Short HFS+ acquisition, same-object deep
+moves and fresh deep acquisition are separate capability witnesses. The production owner can
+read exact bytes after a deep HFS+ move, but fresh acquisition after remount still
+fails with `ESTALE`. A standalone path-inspection probe's Cocoa code 256 is not
+evidence of a general deep-coordination failure. The
+[P5.4 follow-up](impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery-validation.md#foundation-volume-follow-up-and-approved-deep-hfs-limitation)
+records the user-approved fresh deep-HFS+ limitation, with an exact safe-refusal
+capability test rather than a successful-opening claim. Ordinary HFS+ opening and
+already-owned deep moves retain their success requirements. No opaque identifier parsing, constructed `/.vol` URL or
+uncoordinated fallback is authorized by that observation.
 
 Run the focused suite from the actual app context with stable bundle identity on a user-selected root outside an app-owned ubiquitous container. Record API authorization errors separately from provider/network errors. Retain one release-signed smoke test; provider behavior does not depend on parsing signature identity.
 
@@ -221,7 +309,18 @@ The adopted design locks the already-open root-directory descriptor before provi
 
 The [directory-descriptor probe](IntegrationTests.md#root-directory-descriptor-lock-probe) checks independent-process contention and descriptor lifetime, including rename/move, child replacement, and process death. All local contenders opening the same directory must address the same exclusion resource regardless of their writer-epoch IDs. Abstract retention/release ordering does not prove platform behavior.
 
-Remaining real-system cases: positively dataless-directory open/materialization; delivered remote-origin root moves/replacement/revoke; case-sensitive filesystem variants and detach/remount; older supported macOS releases, cross-user access, and other configured providers/network filesystems. Some can use this two-Mac setup; the dataless-directory stimulus has not yet been reproduced. Require observed transitions and fresh independent contenders, not eviction-request acceptance, peer install success, or elapsed time. Root replacement is expected to require identity fencing, not a lock magically transferring to the replacement. Tests must verify conservative no-retarget behavior and production ownership through controller/authority/storage handoffs, failed cleanup, and vnode cancellation before broadening the guarantee.
+The [private-connection qualification](impl-proposal-5/plan/phase5/private-connection-reuse.md)
+reuses the existing native descriptor/path identity checks at synchronous database
+turns and before/after commit. Fixed schema/header facts belong to one opened
+connection. Actual directory-loss tests check rollback, committed-but-unacknowledged
+recovery, replacement rejection and retry after exact resource restoration. These are
+bounded observations of the same native resources; advisory locking and identity
+checks still provide no reservation against an uncooperative filesystem mutation
+between observations. External in-place editing of the live private database is
+outside cooperating ownership; actual read errors, known history damage and the
+next opening retain their recovery checks.
+
+Remaining real-system cases: positively dataless-directory open/materialization; delivered remote-origin root moves/replacement/revoke; cross-user access, and other configured providers/network filesystems. P5.1 now exercises the production owner on the local filesystem variants and detach/remount listed under AV-08, with separate available-platform results in its report. Some remaining cases can use this two-Mac setup; the dataless-directory stimulus has not yet been reproduced. Require observed transitions and fresh independent contenders, not eviction-request acceptance, peer install success, or elapsed time. Root replacement requires identity fencing, rather than a lock transferring to the replacement. P5.1 checks actual controller handoff, quiesce, cancellation, failed acquisition and final descriptor disposal; later adapter integration must repeat applicable lifetime checks through its observer/accessor consumers.
 
 Observations on 2026-09-03:
 
@@ -235,7 +334,7 @@ Observations on 2026-09-03:
 | HFS+ disk image, macOS 26 | All local directory-lock controls passed. No provider behavior is exercised by this volume. |
 | ExFAT disk image, macOS 26.6.2 (25G83) | Retry with the existing filesystem harness's 192 MiB sparse-image settings and `NVEXFAT` volume label succeeded; `diskutil` confirmed the mounted filesystem was ExFAT. All local directory-lock controls passed: contention, separate scan close, child Foundation replacement, rename/move, recreated-path independence, duplicate handoff, final close, and `SIGKILL` release. The earlier image-creation error did not recur; its cause is unconfirmed, and the retry ran on a newer OS build. Provider eviction is inapplicable to this local image. |
 
-The specification and ADR-0006 adopt this mechanism with continuous single-owner retention and no alternate lock-file/WAL fallback. The untested boundaries above remain open; success on these volumes is not a universal provider guarantee. Acquisition failure grants no writer authority, and a fresh open is not a lock transfer. No production implementation is supplied by the probe.
+The specification and ADR-0006 adopt this mechanism with continuous single-owner retention and no alternate lock-file/WAL fallback. The untested boundaries above remain open; success on these volumes is not a universal provider guarantee. Acquisition failure grants no writer authority, and a fresh open is not a lock transfer. The original primitive probe is complemented by the [P5.1 production owner and its qualification](impl-proposal-5/plan/phase5/01-root-ownership-validation.md).
 
 ### Comparison only: child lock-file interference
 
@@ -254,6 +353,8 @@ Comparison observations, 2026-09-03:
 
 ## AV-17 — immutable-object and local-segment contract gates
 
+The [P5.2 production installer qualification](impl-proposal-5/plan/phase5/02-immutable-files-validation.md) supplies the local physical portion: native exclusive rename, exact reads, equal-file durability, nested directory barriers, independent effect/loss observers and fresh-process retries. APFS/APFSX and HFS+/HFSX pass the image install/ENOSPC/remount cases. ExFAT accepts the file synchronization calls but returns ENOTSUP for native exclusive rename; that operation stays unsupported. An empty ExFAT stage's inode can change on allocation, so verification uses fresh retained-descriptor evidence and preserves ambiguous empty-stage cleanup. These are measured filesystem capabilities, not a claim that Apple violated a documented contract. P5.3 acceptance/publication wiring and P5.4 coordinated/live-provider witnesses remain separate gates.
+
 The existing Foundation replacement and WAL barrier probes do not establish these new contracts. Before shipping, bind the actual proposal-5 codec/installer to crash injection and the [implementation verification matrix](impl-proposal-5/Verification.md):
 
 - exclusive final-name installation never overwrites an existing object; exact existing bytes are idempotent success and conflicting bytes are retained/quarantined;
@@ -266,6 +367,25 @@ The existing Foundation replacement and WAL barrier probes do not establish thes
 For repository repair, a coordinated local ENOENT observation proves only that the name is absent from that accessor's current namespace. It is sufficient input to the app's explicitly authorized exclusive-create attempt after positive root validation; it is not proof of remote deletion, global absence or permission to overwrite something that appears before installation. Test concurrent creation and peer-observed results without requiring Apple to merge two directories or disclose a globally complete inventory. These are uncompleted implementation/contract gates, not new empirical Apple observations.
 
 The Work Offline classifier needs two layers of tests. Scope the choice to startup with already disclosed evidence missing locally; late disclosure after local editing begins cannot close admission or demand the choice. An evicted provider copy of bytes already retained locally creates no missing-evidence wait. A table-driven application test supplies positive disclosed-newer, positive disclosed-unmaterialized, generic unavailable/full/permission/timeout and unknown inputs and verifies that only the first two offer the choice. A live provider probe may establish the raw input by enumerating a named required item/version and observing its materialization state, but cannot require Apple to reveal an undisclosed server branch or use `DownloadingStatusCurrent` as a no-newer oracle. If the platform exposes no positive newer evidence in a case, the app continues from healthy local history and reconciles later discovery; it does not show Work Offline on speculation.
+
+P5.5's production owner now consumes these observations through exact named
+disclosure, local membership, checked publication and the existing bounded
+materialization worker. The approved held-accessor rule uses the original
+disclosure plus freshly checked local health and the same live root/attempt when
+the fresh read is busy. It makes no claim that the provider remains unread or
+has returned, and grants no provider-write permission. An actual entered-accessor
+test checks local save completion, stale-root refusal and continued exclusion
+until return. [Qualification and commands](impl-proposal-5/plan/phase5/05-startup-and-root-reassociation-validation.md).
+
+The local bookmark experiment found that a moved directory plus an independent
+replacement at the old path can resolve to that replacement with `stale = true`,
+for both full and minimal bookmarks. This is an ambiguous candidate, not an Apple
+contract violation. P5.5 compares stored device/file identity and the independently
+acquired directory before accepting it; explicit Re-open supplies a new physical
+association. Move without old-path replacement has its separate successful
+companion. [Apple's bookmark access guidance](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/AccessingFilesandDirectories/AccessingFilesandDirectories.html)
+describes persistent location recovery, not automatic authorization of a replaced
+resource.
 
 ## Existing focused harness evidence
 

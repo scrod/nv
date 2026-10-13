@@ -3,7 +3,13 @@
 Date: 2026-10-03; implementation follow-up 2026-10-04. This report preserves the
 original review witnesses and measurements. REVIEW-DAMAGE-1, REVIEW-HISTORY-2
 and REVIEW-HISTORY-3 now have implemented remedies and ordinary assertions;
-the other four investigations remain open. See the
+REVIEW-START-1 also has the [4F checked-capture remedy](phase4-current-row-locality-maintenance-validation.md)
+as of 2026-10-07. As of 2026-10-08, REVIEW-START-2 and REVIEW-HISTORY-1 have
+qualified portable Runtime remedies and ordinary assertions; their broader qualification is
+recorded in the [startup/scoped-query report](phase-4-improvements/startup-and-scoped-queries-validation.md).
+Sequential snapshot-root growth has the qualified explicit-retention-parent remedy;
+independent concurrent frontier width retains its separate scaling gate. See the
+[snapshot-retention report](phase-4-improvements/snapshot-retention-coverage-validation.md) and
 [improvement validation report](phase-4-improvements/validation.md) for current
 qualification. Storage, conflict, deletion and Undo policies remain intact.
 
@@ -17,8 +23,9 @@ then develops REVIEW-HISTORY-2, including packed membership and snapshot referen
 audits. The [recovery graph-reuse plan](phase-4-improvements/recovery-graph-reuse.md)
 develops REVIEW-HISTORY-3 through one checked final-prefix preparation before
 editable publication. The [benchmark backlog](phase-4-improvements/benchmark-backlog.md)
-records the four remaining startup/scoped-query investigations. Measurements and
-the original measurements below describe the starting implementation. The
+records the completed capture, startup/scoped-query and sequential snapshot-root
+remedies, plus remaining concurrent-width measurements. The original measurements
+below describe the starting implementation. The
 [validation report](phase-4-improvements/validation.md) records the new results
 and remaining qualification limits.
 
@@ -38,8 +45,9 @@ final-prefix installation; measured decoding cost remains executable evidence.
   mutually exclusive. `CurrentNoteCellV1` stores that enum and exposes read-only
   projections for existing consumers. Its constructors continue to check exact
   represented references, heads, result digest and deterministic identity.
-  The V1/V2 byte layouts remain identical; independent fixtures and a mixed-claim
-  decoder challenge verify this. Construction now uses `provenance:` rather
+  The compact V1 and extended V2 cell layouts retain their respective bytes
+  through this API refactor; independent fixtures and a mixed-claim decoder
+  challenge verify this. Construction now uses `provenance:` rather
   than two independent optional arguments. The library is unreleased.
 - `RetainedGraph` has a private constructor. Its file-private checking factory
   issues complete accepted prefixes after occurrence maps and operation/action
@@ -77,10 +85,10 @@ the affected performance or interrupted-diagnosis guarantee passed.
 
 | ID / test | Current status and required observation |
 | --- | --- |
-| REVIEW-START-1 / `returningOpenDecodesCurrentCellsOnce` | One complete current-row decode for open plus initial host capture. Current implementation performs three. Healthy opening still reads no old Changes payloads. |
-| REVIEW-START-2 / `optionalReadySnapshotKeepsReturningOpenHistoryBounded` | Optional snapshot verification does not require an old-history walk before a healthy current-row model is available. The root and pages remain durable and finish through real receive processing. |
-| REVIEW-START-3 / `repeatedSnapshotsKeepReturningOpenLeafWorkBounded` | Fixed logical history does not require reopening an increasing number of independent snapshot-root envelopes on every launch. All accepted snapshot evidence remains retained. |
-| REVIEW-HISTORY-1 / `scopedCommandsAvoidUnrelatedHistoryBodies` | Undo/conflict queries for an untouched note avoid bodies belonging only to other notes. Current implementation loads two complete collection graphs for the two queries. |
+| REVIEW-START-1 / `returningOpenDecodesCurrentCellsOnce` | Implemented: one complete current-row decode for open plus initial host capture. Healthy opening still reads no old Changes payloads. |
+| REVIEW-START-2 / `optionalReadySnapshotKeepsReturningOpenHistoryBounded` | Implemented: independent optional verification begins after actual checked host publication. The root/pages remain durable and finish through the reserved receive worker. |
+| REVIEW-START-3 / `repeatedSnapshotsKeepReturningOpenLeafWorkBounded` | Implemented: general-v1 explicit retention parents reduce a sequential chain to one startup root check while preserving every accepted byte. Independent concurrent tips remain until explicitly covered. [Qualification](phase-4-improvements/snapshot-retention-coverage-validation.md). |
+| REVIEW-HISTORY-1 / `scopedCommandsAvoidUnrelatedHistoryBodies` | Implemented: Undo/conflict queries for an untouched note read zero historical envelopes and build zero complete collection graphs. Complete global copied-source dispositions remain available. |
 | REVIEW-HISTORY-2 / `packedBootstrapGraphDecodesEachEnvelopeOnce` | Implemented: one decode per required Changes envelope per traversal, with exact membership and independent contents preserved. |
 | REVIEW-HISTORY-3 / `unappliedCompensationBatchesRecoverEveryAction` | Implemented before first editable publication: one checked final-prefix graph; all seven actions, exact bytes, Current and the next Undo candidate preserved. |
 | REVIEW-DAMAGE-1 / `nonfrontierHistoryDamageSurvivesMarkerFailureAndRestart` | Implemented: a durable unfinished-check request survives failed diagnosis writes and blocks damaged reopening. |
@@ -155,21 +163,24 @@ separate from deterministic work assertions.
    draining. It specifies exact target/view fences, independent lifecycle and
    crash checks, and one-graph work assertions. Live-session callers retain their
    current route pending separate qualification.
-4. **Read scope metadata before historical bodies.** Use current represented
+4. **Read scope metadata before historical bodies — implemented.** Use current represented
    heads and indexed action-scope relationships to select the relevant command
    graph. Load exact bodies for the chosen revisions, inverse effects, merge base
    and related restoration/preservation members only. Empty, fully represented
    scope queries are an economical first case. Tradeoff: more explicit traversal
    of compensation/family/cross-scope dependencies; collection-wide commands
    legitimately touch many notes. Keep the full reducer as an independently
-   checked fallback, with equivalent-result tests for real cross-note commands.
-5. **Separate optional snapshot preparation from startup prerequisites.** Retain
+   reference for selected-query comparisons and the route for genuinely broad
+   commands. Missing/contradictory selected evidence is an integrity/recovery
+   outcome, rather than a fallback to hide failed checks. See the
+   [startup/scoped-query report](phase-4-improvements/startup-and-scoped-queries-validation.md).
+5. **Separate optional snapshot preparation from startup prerequisites — implemented.** Retain
    roots/pages and their ready/wait state, process required causal Changes work
    before startup publication, and resume optional verification afterward without
    another provider event. Tradeoff: a received snapshot may not be available for
    acceleration immediately; queue classification and wakeup tests become
-   necessary. The normative broad ready-draining wording and the Phase 4
-   required-versus-optional guidance need an explicit aligned contract. Do not
+   necessary. The normative startup and implementation contracts now explicitly
+   distinguish required work from independent optional snapshots. Do not
    silently defer an actual history dependency or a required repair input.
 6. **Reuse the initial consistent current capture.** Have open validation produce
    the same checked current-row capture handed to the host, rather than discard
@@ -203,7 +214,10 @@ one remedy at a time against these witnesses and the connected lifecycle tests.
 
 These are the starting campaign's results. The
 [improvement report](phase-4-improvements/validation.md) records subsequent
-qualification, resolved assertions and the remaining four known-issue IDs.
+qualification and resolved assertions. The linked startup/scoped-query report
+records startup/query qualification; the separate
+[retention-coverage report](phase-4-improvements/snapshot-retention-coverage-validation.md)
+records the subsequent remedy for sequential snapshot-root growth.
 
 - Full local debug and optimized suites: 218 active functions (220 entries
   including two skipped opt-in benchmarks) each, with 20 expected

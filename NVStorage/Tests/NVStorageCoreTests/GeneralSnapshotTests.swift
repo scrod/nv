@@ -36,8 +36,8 @@ private actor SnapshotObjects {
 @Test func generalSnapshotLiteralLayoutsAndBounds() throws {
     let f = try snapshotFixture(), rootBytes = try #require(f["root"])
     let root = try GeneralSnapshotRootV1.decodeV1(rootBytes)
-    #expect(rootBytes.count == 228 && root.encodedV1() == rootBytes)
-    #expect(root.counts == [1, 1, 2, 1, 1, 1, 1])
+    #expect(rootBytes.count == 236 && root.encodedV1() == rootBytes)
+    #expect(root.counts == [1, 1, 2, 1, 1, 1, 1, 0])
     let stream = try #require(f["stream"])
     #expect(root.digest.bytes == f["digest"] && root.tree.byteCount == UInt64(stream.count))
     for name in ["dataPage", "indexPage"] {
@@ -63,15 +63,27 @@ private actor SnapshotObjects {
     #expect(throws: CanonicalEncodingError.noncanonicalSet) { try GeneralSnapshotV1.canonicalOrder(records + [records[0]]) }
     for cut in rootBytes.indices { #expect(throws: (any Error).self) { try GeneralSnapshotRootV1.decodeV1(Array(rootBytes.prefix(cut))) } }
     #expect(throws: CanonicalEncodingError.trailingBytes) { try GeneralSnapshotRootV1.decodeV1(rootBytes + [0]) }
+    for version in [UInt8(0), 2] {
+        for offset in [9, 11] {
+            var unsupported = rootBytes; unsupported[offset] = version
+            #expect(throws: CanonicalEncodingError.unsupportedFormat) { try GeneralSnapshotRootV1.decodeV1(unsupported) }
+        }
+    }
+    var incompleteCounts = rootBytes
+    incompleteCounts.removeSubrange(196..<204)
+    #expect(throws: CanonicalEncodingError.truncated) { try GeneralSnapshotRootV1.decodeV1(incompleteCounts) }
     #expect(throws: CanonicalEncodingError.lengthLimit) { try SnapshotPageRangeV1(locator: root.tree.locator, offset: UInt64.max, byteCount: 1) }
     #expect(throws: CanonicalEncodingError.lengthLimit) { try GeneralSnapshotPageV1(.data(offset: 0, bytes: [])) }
     let second = try SnapshotPageRangeV1(locator: root.bootstrapSnapshot, offset: root.tree.byteCount + 1, byteCount: 1)
     #expect(throws: CanonicalEncodingError.noncanonicalSet) { try GeneralSnapshotPageV1(.index([root.tree, second])) }
     #expect(throws: CanonicalEncodingError.invalidPayload) {
-        try GeneralSnapshotRootV1(bootstrapSnapshot: root.bootstrapSnapshot, tree: root.tree, counts: [1, 0, 2, 1, 1, 1, 1], digest: root.digest)
+        try GeneralSnapshotRootV1(bootstrapSnapshot: root.bootstrapSnapshot, tree: root.tree, counts: [1, 0, 2, 1, 1, 1, 1, 0], digest: root.digest)
+    }
+    #expect(throws: CanonicalEncodingError.invalidPayload) {
+        try GeneralSnapshotRootV1(bootstrapSnapshot: root.bootstrapSnapshot, tree: root.tree, counts: Array(root.counts.dropLast()), digest: root.digest)
     }
     #expect(throws: CanonicalEncodingError.lengthLimit) {
-        try GeneralSnapshotRootV1(bootstrapSnapshot: root.bootstrapSnapshot, tree: root.tree, counts: [UInt64.max, 1, 0, 0, 0, 0, 0], digest: root.digest)
+        try GeneralSnapshotRootV1(bootstrapSnapshot: root.bootstrapSnapshot, tree: root.tree, counts: [UInt64.max, 1, 0, 0, 0, 0, 0, 0], digest: root.digest)
     }
 }
 
@@ -85,7 +97,8 @@ func generalSnapshotCrossPageRecordsAndManifest(encrypted: Bool, chunk: Int) asy
     let map = await sink.objects
     let preview = try await GeneralSnapshotPreviewV1.read(snapshot: snapshot, collection: sink.collection, protection: sink.protection, read: { map[$0] })
     #expect(preview.records == records && preview.root.counts == fixtureRoot.counts)
-    #expect(preview.root.digest == fixtureRoot.digest && preview.root.encodedV1().count == 228)
+    #expect(preview.root.digest == fixtureRoot.digest && preview.root.encodedV1().count == 236)
+    #expect(preview.retentionParents.isEmpty && preview.requiredLocators == preview.historyLocators)
     #expect(preview.pages == Set(map.keys).subtracting([snapshot]))
     #expect(preview.historyLocators == [fixtureRoot.bootstrapSnapshot])
     if chunk < 20 { #expect(preview.pages.count > 40) }
@@ -99,6 +112,59 @@ func generalSnapshotCrossPageRecordsAndManifest(encrypted: Bool, chunk: Int) asy
                 protection: .encrypted(keyID: .init(bytes: Array(repeating: 22, count: 16)), key: SymmetricKey(data: [UInt8](repeating: 99, count: 32))))
         }
     }
+}
+
+@Test(arguments: [false, true], [1, 17, 262144])
+func generalSnapshotPagedRetentionLayouts(encrypted: Bool, chunk: Int) async throws {
+    let f = try snapshotFixture(), root = try GeneralSnapshotRootV1.decodeV1(#require(f["rootWithParents"]))
+    #expect(root.counts == [1, 1, 2, 1, 1, 1, 1, 2])
+    #expect(root.encodedV1() == f["rootWithParents"] && root.encodedV1().count == 236)
+    for cut in root.encodedV1().indices {
+        #expect(throws: (any Error).self) { try GeneralSnapshotRootV1.decodeV1(Array(root.encodedV1().prefix(cut))) }
+    }
+    let records = try (1...8).map { try GeneralSnapshotRecordV1.decodeV1(#require(f["record\($0)"])) }
+    let parents = try (1...2).map { try SegmentLocator.decodeV1(Array(#require(f["retentionParent\($0)"]).dropFirst(5))) }
+    let sink = try SnapshotObjects(encrypted: encrypted)
+    let snapshot = try await GeneralSnapshotV1.write(records: records, bootstrapSnapshot: root.bootstrapSnapshot,
+        retentionParents: parents.reversed(), chunkBytes: chunk, fanout: 2, emit: { try await sink.emit($0, $1) })
+    let map = await sink.objects
+    let preview = try await GeneralSnapshotPreviewV1.read(snapshot: snapshot, collection: sink.collection, protection: sink.protection, read: { map[$0] })
+    #expect(preview.root.digest.bytes == f["digestWithParents"])
+    #expect(preview.root.counts == root.counts && preview.root.tree.byteCount == root.tree.byteCount)
+    #expect(preview.records == records && preview.retentionParents == parents)
+    #expect(preview.historyLocators == [root.bootstrapSnapshot] && preview.requiredLocators == Set(parents))
+    #expect(preview.pages == Set(map.keys).subtracting([snapshot]))
+    await #expect(throws: CanonicalEncodingError.noncanonicalSet) {
+        try await GeneralSnapshotV1.write(records: records, bootstrapSnapshot: root.bootstrapSnapshot,
+            retentionParents: parents + [parents[0]], emit: { try await sink.emit($0, $1) })
+    }
+}
+
+@Test(arguments: [false, true], ["order", "duplicate", "counts", "length", "version-zero", "version-two"])
+func generalSnapshotAuthenticRetentionDefects(encrypted: Bool, fault: String) async throws {
+    let f = try snapshotFixture(), base = try GeneralSnapshotRootV1.decodeV1(#require(f["rootWithParents"]))
+    let prefix = Array(try #require(f["streamWithParents"]).dropLast(122))
+    var first = try #require(f["retentionParent1"]), second = try #require(f["retentionParent2"])
+    if fault == "length" { first[4] = 55; first.removeLast() }
+    var stream = prefix + (fault == "order" ? second + first : first + (fault == "duplicate" ? first : second))
+    if fault == "version-zero" { stream[9] = 0 }
+    if fault == "version-two" { stream[9] = 2 }
+    var counts = base.counts; if fault == "counts" { counts[7] = 1 }
+    let sink = try SnapshotObjects(encrypted: encrypted)
+    let page = try await sink.emit(.snapshotPage, GeneralSnapshotPageV1(.data(offset: 0, bytes: stream)).encodedV1())
+    let root = try GeneralSnapshotRootV1(bootstrapSnapshot: base.bootstrapSnapshot,
+        tree: .init(locator: page, offset: 0, byteCount: UInt64(stream.count)), counts: counts,
+        digest: .init(bytes: Array(SHA256.hash(data: Array("NV general snapshot state\0v1\0".utf8) + stream))))
+    let snapshot = try await sink.emit(.snapshotRoot, root.encodedV1()), map = await sink.objects
+    let expected: any Error
+    switch fault {
+    case "order", "duplicate": expected = CanonicalEncodingError.noncanonicalSet
+    case "length": expected = CanonicalEncodingError.truncated
+    case "version-zero", "version-two": expected = CanonicalEncodingError.unsupportedFormat
+    default: expected = GeneralSnapshotError.invalidState
+    }
+    await #expect { try await GeneralSnapshotPreviewV1.read(snapshot: snapshot, collection: sink.collection, protection: sink.protection, read: { map[$0] }) }
+        throws: { String(reflecting: $0) == String(reflecting: expected) }
 }
 
 @Test(arguments: [false, true]) func generalSnapshotMissingPagesNameExactInputs(encrypted: Bool) async throws {

@@ -1,3 +1,4 @@
+import NVStorageTestSupport
 import Foundation
 import NVStorageCore
 @testable import NVStorageRuntime
@@ -22,6 +23,8 @@ private func reopen(_ store: LocalStoreSession, _ protection: ObjectProtectionV1
     _ = try await left.receive(right.retainedObject(at: e.object))
     let temporary = try #require(try await left.snapshot().notes.first { $0.automatic != nil })
     #expect(temporary.value.body.string == "uncovered E" && temporary.birth != old)
+    try await expectScopedHistoryMatchesFull(left, birth: temporary.birth)
+    #expect(try await left.conflicts(for: temporary.birth).current.automatic == temporary.automatic)
     #expect(try await left.snapshot().notes.allSatisfy { $0.birth != old })
     _ = try snapshotReceipt(await left.persistGeneralSnapshot(capture: left.captureGeneralSnapshot()))
     let d1 = try await remove(old, right)
@@ -103,6 +106,9 @@ private func reopen(_ store: LocalStoreSession, _ protection: ObjectProtectionV1
         #expect(try await store.snapshot().notes.count == 4)
         #expect(try await store.conflicts(for: source).alternatives.isEmpty)
         #expect(try await store.conflicts(for: source).representedSeparately.isSuperset(of: [lID, rID]))
+        #expect(try await store.conflicts(for: n(2)).representedSeparately == [lID, rID], "Global dispositions remain visible on unrelated notes")
+        try await expectScopedHistoryMatchesFull(store, birth: source)
+        try await expectScopedHistoryMatchesFull(store, birth: n(2))
     }
     let pinnedPublication = try await right.prepareReduction(liveGeneration: 42)
     _ = try await right.releaseCurrentPin(for: source)
@@ -123,6 +129,8 @@ private func reopen(_ store: LocalStoreSession, _ protection: ObjectProtectionV1
     #expect(try await left.conflicts(for: source).alternatives.isEmpty)
     #expect(try await left.conflicts(for: source).representedSeparately.isSuperset(of: [lID, rID]))
     #expect(try await left.snapshot().notes.allSatisfy { $0.birth != copiedBirth })
+    #expect(try await left.conflicts(for: n(2)).representedSeparately == [lID, rID])
+    try await expectScopedHistoryMatchesFull(left, birth: source)
     // A later intentional copy uses another slot and preserves completed disposition history.
     let later = try await left.copyVersion(for: source, revision: rID, generation: 3)
     #expect(later.covered[0].birth != copiedBirth)
