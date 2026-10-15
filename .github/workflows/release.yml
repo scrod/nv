@@ -327,6 +327,7 @@ jobs:
             "$RUNNER_TEMP/sparkle-tools/bin/generate_appcast" \
               --ed-key-file - \
               "${DSA_ARGS[@]}" \
+              -o "$FEED_DIR/appcast.xml" \
               --maximum-versions 0 \
               --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
               --full-release-notes-url "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" \
@@ -337,7 +338,7 @@ jobs:
           XPATH="//*[local-name()='enclosure' and @url='$UPDATE_URL']"
           [ "$(xmllint --xpath "count($XPATH)" "$FEED_DIR/appcast.xml")" = 1 ] \
             || { echo "Appcast does not contain exactly one new archive" >&2; exit 1; }
-          [ "$(xmllint --xpath "string($XPATH/@*[local-name()='version'])" "$FEED_DIR/appcast.xml")" = "$BUILD_NUMBER" ] \
+          [ "$(xmllint --xpath "string($XPATH/../*[local-name()='version'])" "$FEED_DIR/appcast.xml")" = "$BUILD_NUMBER" ] \
             || { echo "Appcast build number is wrong" >&2; exit 1; }
           [ -n "$(xmllint --xpath "string($XPATH/@*[local-name()='edSignature'])" "$FEED_DIR/appcast.xml")" ] \
             || { echo "New appcast item lacks an EdDSA signature" >&2; exit 1; }
