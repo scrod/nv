@@ -375,6 +375,7 @@ jobs:
             DSA_ARGS=(-f "$DSA_PATH")
           fi
 
+          RELEASE_NOTES_URL="https://notational.net/releasenotes/release2/nv_$VERSION.html"
           printf '%s\n' "$SPARKLE_ED_PRIVATE_KEY" | \
             "$RUNNER_TEMP/sparkle-tools/bin/generate_appcast" \
               --ed-key-file - \
@@ -382,16 +383,54 @@ jobs:
               -o "$FEED_DIR/appcast.xml" \
               --maximum-versions 0 \
               --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
-              --full-release-notes-url "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" \
+              --full-release-notes-url "$RELEASE_NOTES_URL" \
               --link "https://github.com/$GITHUB_REPOSITORY" \
               "$FEED_DIR"
 
           UPDATE_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$(basename "$ZIP_PATH")"
+          # Sparkle 1.5 reads versions from the enclosure and HTML notes from releaseNotesLink.
+          python3 - "$FEED_DIR/appcast.xml" "$UPDATE_URL" "$RELEASE_NOTES_URL" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          path, update_url, release_notes_url = sys.argv[1:]
+          sparkle = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+          ET.register_namespace("sparkle", sparkle)
+          tree = ET.parse(path)
+          matches = [
+              (item, enclosure)
+              for item in tree.findall("./channel/item")
+              for enclosure in item.findall("enclosure")
+              if enclosure.get("url") == update_url
+          ]
+          if len(matches) != 1:
+              raise RuntimeError("Appcast must contain exactly one new archive")
+          item, enclosure = matches[0]
+          for name in ("version", "shortVersionString"):
+              key = f"{{{sparkle}}}{name}"
+              value = item.findtext(key)
+              if not value:
+                  raise RuntimeError(f"Appcast item is missing {name}")
+              enclosure.set(key, value)
+          notes_key = f"{{{sparkle}}}releaseNotesLink"
+          notes = item.find(notes_key)
+          if notes is None:
+              notes = ET.SubElement(item, notes_key)
+          notes.text = release_notes_url
+          tree.write(path, encoding="utf-8", xml_declaration=True)
+          PY
+
           XPATH="//*[local-name()='enclosure' and @url='$UPDATE_URL']"
           [ "$(xmllint --xpath "count($XPATH)" "$FEED_DIR/appcast.xml")" = 1 ] \
             || { echo "Appcast does not contain exactly one new archive" >&2; exit 1; }
           [ "$(xmllint --xpath "string($XPATH/../*[local-name()='version'])" "$FEED_DIR/appcast.xml")" = "$BUILD_NUMBER" ] \
             || { echo "Appcast build number is wrong" >&2; exit 1; }
+          [ "$(xmllint --xpath "string($XPATH/@*[local-name()='version'])" "$FEED_DIR/appcast.xml")" = "$BUILD_NUMBER" ] \
+            || { echo "Legacy appcast build number is wrong" >&2; exit 1; }
+          [ "$(xmllint --xpath "string($XPATH/@*[local-name()='shortVersionString'])" "$FEED_DIR/appcast.xml")" = "$VERSION" ] \
+            || { echo "Legacy appcast marketing version is wrong" >&2; exit 1; }
+          [ "$(xmllint --xpath "string($XPATH/../*[local-name()='releaseNotesLink'])" "$FEED_DIR/appcast.xml")" = "$RELEASE_NOTES_URL" ] \
+            || { echo "Appcast release notes URL is wrong" >&2; exit 1; }
           [ -n "$(xmllint --xpath "string($XPATH/@*[local-name()='edSignature'])" "$FEED_DIR/appcast.xml")" ] \
             || { echo "New appcast item lacks an EdDSA signature" >&2; exit 1; }
           if [ "${#DSA_ARGS[@]}" -ne 0 ]; then
