@@ -106,6 +106,14 @@ def main():
                 'connectionOwnershipChecksFenceResultsAndPermitExactRetry', 'connectionDelayedCommitKeepsHistoricalReceipt',
                 'connectionReconstructionRechecksRequiredPrivateInputs',
                 'privateRecordIndependentBytesAndBounds',
+                'privateCopyPreparationPreservesHistoryAndPrivateInputs',
+                'privateCopyPreparationFailurePreservesSourceAndBackup',
+                'privateBackupSourceFenceIncludesPrivateOnlyWrites',
+                'collectionCopySwitchPreservesHistoryAndPrivateInputs',
+                'collectionCopySwitchRefusesNewSourceWork', 'collectionCopySwitchSettlesSelectionFailures',
+                'collectionCopySwitchRechecksDestinationAndSelectionOwner', 'collectionCopySwitchClosePreservesRestartInputs',
+                'collectionCopySwitchKeepsCompetingPreparationScoped',
+                'collectionCopySwitchDefersOptionalInventory',
                 'privateSettingsRebuildAndStaleGenerations', 'pendingImportLostReceiptSurvivesDeleteAndNewPreview',
                 'pendingFailureIsolationAndNeutralCompletion', 'pendingCompetingReviewReusesBirthAndCommitsOnce',
                 'preservedRepairWaitsForPendingReservationOwner',
@@ -115,16 +123,32 @@ def main():
                 'neutralPendingRequiresFreshRepresentedState', 'neutralPendingWaitsForAcceptedDeleteMaterialization',
                 'fixedPrivateBackupIncludesWALAndPendingCut', 'backupBudgetReleasesReaderAndKeepsSourceWritable',
                 'complementaryRepairPreservesUnpublishedHistoryAndPrivateInputs',
+                'repositoryRepairGrowthYieldsToSavesAndKeepsCapturedCut',
+                'repairUnionChecksLogicalIdentity', 'repairUnionPreservesOrRefusesPendingGroups',
+                'privateRepairGrowthReadsExactObjectsIndividually', 'privateRepairRechecksWorkingCopy',
+                'repositoryRepairRechecksCapturedSource',
+                'repairUnionKeepsEarlierRepairCaptureScopes', 'repairUnionValidatesInheritedCaptureScope',
                 'repairedVerificationUsesMembershipRatherThanCopiedSequence',
                 'encryptedPageSalvageKeepsIndependentCommittedRows', 'partialPrivateSalvageContinuesIndependentReads',
                 'repairPreservesReceiveClassesAndWakesComplementedDependencies',
                 'complementaryRepairKeepsConflictRestoreAndCausalRedo',
                 'verifiedSelectionActivationAndFreshReopen',
                 'selectionFaultKeepsBothStoresAndHonestReadback',
+                'selectionResumptionChecksPhysicalIdentityAndCandidate',
                 'selectionRefusesWrongOwnerStaleRecordAndNewSourceWAL',
+                'selectionCancellationPreservesEffectBoundary',
+                'selectionClosedCandidatePreservesPendingExclusion',
                 'repositoryOnlyCopyPreservesLockedBytesMetadataAndUnknownFiles',
                 'repositoryCopyReportsChangingOrUnsafeInputs',
+                'coordinatedRepositoryCopyKeepsOwnedSourceAndStopsStaleWork',
+                'recoveryCopyUsesVerifiedHistoryAndReportsPreservedDamage',
+                'repositoryCopyStagesCanonicalBytesAndPreservesRaces',
+                'recoveryCopyReservesVerifiedNamesAfterInstallFailure',
+                'collectionCopyKeepsSourceSelectionAndLaterEdits', 'collectionCopyWithoutRootPreservesSavedHistory',
+                'repositoryCopyStreamsWideAndNestedInventories',
+                'repositorySavedCopyStreamsFixedHistory', 'repositorySavedCopyRechecksCapturedHistory',
                 'activeRecoveryCopyIncludesUnpublishedHistoryAndKeepsPrivateBuffers',
+                'activeRecoveryCopyPreservesSavedHistoryWithMissingRepository',
                 'explicitCurrentExportHasFreshBirthsAndUsableCredentials',
                 'verificationRecipeLiteralLayout', 'verificationCancellationReplaysExactScope',
                 'verificationFinalCheckKeepsFailedDiagnosisReplay', 'verificationAdmissionFailureStartsNoInspection',
@@ -251,6 +275,34 @@ def main():
                 'undoQueryRejectsBrokenScopeGraph',
                 'ordinarySaveWorkAcrossGrowingHistory', 'incrementalFrontierMatchesIndependentReachability',
                 'collectionStartupLiteralHealthDecisions', 'collectionStartupRequiresAssociationBeforeActualPublication',
+                'repositoryRepairChecksWholePrefixAndRetainsNewerWork',
+                'repositoryRepairInitialWrongKindOffersSaveAs',
+                'repositoryRepairOccupiedDamageOffersSaveAsAndKeepsLocalEdits',
+                'repositoryRepairLatePublicationCollisionOffersSaveAs',
+                'repositoryRepairContinuesAfterDamagedComplementWithExplicitReport',
+                'repositoryRepairReportsSourceAccessAndRequiresCompleteUnion',
+                'repositoryRepairReaderKeepsLostPermissionTerminal',
+                'repositoryRepairReaderPreservesCancellationAfterListing',
+                'repositoryRepairRejectsMissingLastObjectBeforeIssuingCoverage',
+                'repositoryRepairAutomaticallyRestoresWithoutBlockingLocalSave',
+                'repositoryRepairPreservesNamespaceRaceWinner',
+                'repositoryRepairFencesReplacedNamespaceBetweenBatches',
+                'repositoryRepairRespondsToLateDiscoveryWithoutAnotherEvent',
+                'repositoryRepairNamespaceRejectsWrongOwnerAndStaleAttempt',
+                'repositoryRepairClosePreservesPartialOutputForFreshRetry',
+                'repositoryRepairComplementsPrivateLossWithoutLosingUnpublishedWork',
+                'repositoryRepairRejectsMisnamedComplementAndMissingClosure',
+                'repositoryRepairIntegratedActivationPreservesSourceAndReportsAmbiguity',
+                'repositoryRepairConnectedActivationNamespaceRace',
+                'repositoryInventoryChecksCanonicalNames',
+                'repositoryInventoryLeavesUnpublishedWorkOwned',
+                'repositoryInventoryBindsPrefixStoreAndSession',
+                'repositoryInventoryRejectsChangedObservation',
+                'repositoryInventoryWarmWorkIsBounded',
+                'repositoryInventoryRetriesFailedBatchAndResumesExplicitly',
+                'collectionInventoryRepairsMissingAndPreservesDamage',
+                'repositoryRepairIntegratedPreservationClosesOldAdmission',
+                'repositoryRepairIntegratedBusyPreservationRetainsAdmission',
                 'collectionStartupPublishesWhileRootAcquisitionIsHeld', 'collectionStartupContentionAndFailureRemainScoped',
                 'collectionStartupRejectsForeignAndStalePublication', 'collectionStartupPublicationReservationPreventsReassociation',
                 'collectionStartupRetryRetainsSameRootAndPreservesReplacement', 'collectionStartupBindingFailureReadbackPreservesDurableState',
@@ -270,6 +322,8 @@ def main():
                 'collectionBootstrapSelectedIntakeResumesWithoutElectingOtherCollections', 'collectionBootstrapRetriesNormalOpenAfterCommittedImport'}
     if sys.platform == 'darwin':
         required.add('collectionStartupReassociationRetainsEnteredAccessorThroughSettlement')
+        required.add('collectionCopySwitchRefusesEnteredAccessorAndPreservesEditing')
+        required.add('collectionCopySwitchSettlesAccessorBeforeSelection')
         required.add('repositoryPresenterSeparatesOwnedWritesFromExternalHints')
     discovered = set(re.findall(r'Test (\w+)\([^\n]*\) (?:started\.|(?:with [1-9][0-9]* test cases? )?(?:passed|failed) after [0-9]+(?:\.[0-9]+)? seconds\b)', suite))
     assert required.issubset(discovered) and re.search(r'Test run with [1-9][0-9]* tests .*passed', suite), 'Required Swift test discovery missing'
@@ -303,6 +357,8 @@ def main():
     run('received-snapshot-process', ['python3', 'tools/test-storage-received-snapshot-process.py', '--binary', str(qualified)], timeout=3600)
     run('bootstrap-reconstruction-process', ['python3', 'tools/test-storage-bootstrap-reconstruction-process.py', '--binary', str(qualified)])
     run('private-process', ['python3', 'tools/test-storage-private-process.py', '--binary', str(qualified)])
+    run('repository-copy-process', ['python3', 'tools/test-storage-repository-copy-process.py', '--binary', str(qualified)])
+    run('repository-repair-process', ['python3', 'tools/test-storage-repository-repair-process.py', '--binary', str(qualified)])
     run('current-maintenance-process', ['python3', 'tools/test-storage-current-maintenance-process.py', '--binary', str(qualified)])
     run('restoration-process', ['python3', 'tools/test-storage-restoration-process.py', '--binary', str(qualified)])
     run('merge-process', ['python3', 'tools/test-storage-merge-process.py', '--binary', str(qualified)])

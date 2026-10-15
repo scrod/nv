@@ -1,4 +1,5 @@
 import Foundation
+import Crypto
 import CStorageIO
 import NVStorageCore
 
@@ -15,17 +16,58 @@ public struct PartialPrivateSalvage: Sendable {
 }
 public enum PrivateSalvageOutcome: Sendable { case complete(PrivateRepairEvidence), partial(PartialPrivateSalvage) }
 
+/// Selection durability and integrated ownership settle independently after sibling repair.
+public enum CollectionPrivateRepairOutcome: Sendable {
+    case opened(CollectionSession, selected: SelectedStoreState)
+    case activationPending(VerifiedReplacement, StoreActivationOutcome)
+    case activatedNeedsReopen(LocalStoreSelection, selected: SelectedStoreState, cause: StorageError)
+}
+
+/// Owns a verified independent private copy while its original source remains editable.
+struct PreparedPrivateStoreCopy: Sendable {
+    let selection: LocalStoreSelection
+    let through: Int64
+    fileprivate let candidate: LocalStoreSession
+    fileprivate let backup: CapturedPrivateBackup
+    fileprivate init(candidate: LocalStoreSession, through: Int64, backup: CapturedPrivateBackup) {
+        self.candidate = candidate; selection = candidate.selection; self.through = through; self.backup = backup
+    }
+    func checkSource(_ source: LocalStoreSession) async throws { try await source.checkBackupSource(backup) }
+    func close() async throws { try await candidate.quiesce() }
+    func copyRepository(from root: RepositoryRootSession?, to destination: String,
+        captured: (@Sendable (String) async -> Void)?) async throws -> ActiveRepositoryCopy {
+        try await candidate.copyRepositoryAndSavedWork(from: root, to: destination, captured: captured)
+    }
+    func bindDestination(_ root: RepositoryRootSession) async throws {
+        try await candidate.verifyCopiedHistory(at: root, through: through)
+        let before = try await candidate.localAssociation()
+        guard let prior = before.value else { throw StorageError.incomplete }
+        let value = try await root.association(for: selection, id: prior.id)
+        try await candidate.saveLocalAssociation(value, basedOn: before)
+        guard try await root.matches(value) == .same else { throw StorageError.wrongContext }
+    }
+    /// Only a checked, retired source can authorize replacement of its selected identity.
+    func retireSource(_ source: LocalStoreSession, destination: RepositoryRootSession) async throws -> VerifiedReplacement {
+        guard let association = try await candidate.localAssociation().value,
+              try await destination.matches(association) == .same else { throw StorageError.wrongContext }
+        let original = source.selection
+        let observation = try await source.retireForCopy(backup)
+        return VerifiedReplacement(candidate: candidate, selection: selection, through: through,
+            sources: [ActivationSource(selection: original, observation: observation)])
+    }
+}
+
 /// Preserved working-copy evidence separates committed membership from available byte validity.
 public struct PrivateRepairEvidence: Sendable {
     public let selection: LocalStoreSelection
     public let workingDirectory: String
     public let unavailableCommittedObjects: Set<[UInt8]>
     fileprivate let accepted: [[SQLValue]]
-    fileprivate let objects: [[SQLValue]]
+    fileprivate let objects: [RepairObjectReference]
     fileprivate let privateTables: [String: [[SQLValue]]]
     fileprivate let bootstrap: SegmentLocator
     fileprivate let sourceObservation: [UInt64]
-    fileprivate init(selection: LocalStoreSelection, workingDirectory: String, accepted: [[SQLValue]], objects: [[SQLValue]],
+    fileprivate init(selection: LocalStoreSelection, workingDirectory: String, accepted: [[SQLValue]], objects: [RepairObjectReference],
                      privateTables: [String: [[SQLValue]]], bootstrap: SegmentLocator, missing: Set<[UInt8]>, observation: [UInt64]) {
         self.selection = selection; self.workingDirectory = workingDirectory; self.accepted = accepted
         self.objects = objects; self.privateTables = privateTables; self.bootstrap = bootstrap; unavailableCommittedObjects = missing
@@ -33,30 +75,185 @@ public struct PrivateRepairEvidence: Sendable {
     }
 }
 
+/// Binds one validated envelope to its exact metadata and bytes for later bounded reads.
+fileprivate struct RepairObjectReference: Sendable, Equatable {
+    let metadata: [SQLValue]
+    let path: String
+    let byteCount: Int
+    let digest: [UInt8]
+    var id: [UInt8] { get throws { try metadata[0].bytes } }
+    fileprivate init(row: [SQLValue], descriptor: BootstrapDescriptorV1, protection: ObjectProtectionV1) throws {
+        guard row.count == 5 else { throw StorageError.integrity }
+        let bytes = try row[4].bytes, id = try row[0].bytes
+        if row[1] == .integer(0) {
+            let decoded = try BootstrapDescriptorV1.decodeV1(bytes)
+            guard decoded.descriptorID == id, decoded.collection == descriptor.collection,
+                  decoded.genesis == descriptor.genesis, decoded.keyID == descriptor.keyID,
+                  row[2] == .null, row[3] == .null else { throw StorageError.integrity }
+            path = ImmutableRepositoryLocator.descriptor(decoded).relativePath
+        } else {
+            let opened = try ObjectEnvelopeV1.open(bytes, collection: descriptor.collection, protection: protection)
+            guard opened.locator.segmentID.bytes == id, row[1] == .integer(Int64(opened.kind.rawValue)),
+                  row[2] == .blob(opened.locator.writerEpoch.bytes),
+                  row[3] == .blob(Array(opened.locator.encodedV1()[16..<24])) else { throw StorageError.integrity }
+            path = ImmutableRepositoryLocator.segment(opened.locator).relativePath
+        }
+        metadata = Array(row.prefix(4)); byteCount = bytes.count; digest = Array(SHA256.hash(data: bytes))
+    }
+    func check(_ row: [SQLValue]) throws {
+        guard row.count == 5, Array(row.prefix(4)) == metadata else { throw StorageError.integrity }
+        let bytes = try row[4].bytes
+        guard bytes.count == byteCount, Array(SHA256.hash(data: bytes)) == digest else { throw StorageError.integrity }
+    }
+}
+
+private let repairObjectQuery = "SELECT object_id,kind,writer_epoch,sequence,CASE WHEN length(encoded)<=\(ObjectLimitsV1.encodedPayloadBytes + 156) THEN encoded ELSE NULL END FROM objects WHERE object_id=?"
+
+/// Selects the preserved source for a checked inventory entry.
+private enum RepairObjectSource: Sendable {
+    case privateStore(PrivateRepairEvidence)
+    case repository(RepositoryRepairReader)
+
+    func read(_ reference: RepairObjectReference, protection: ObjectProtectionV1) async throws -> [SQLValue] {
+        try Task.checkCancellation()
+        let row: [SQLValue]
+        switch self {
+        case .privateStore(let evidence):
+            guard let found = try await readRepairRows(selection: evidence.selection, directory: evidence.workingDirectory,
+                protection: protection, sql: repairObjectQuery,
+                args: [.blob(reference.id)]).first else { throw StorageError.incomplete }
+            row = found
+        case .repository(let reader): row = try await reader.reread(reference.path, descriptor: reference.metadata[1] == .integer(0))
+        }
+        try reference.check(row)
+        return row
+    }
+}
+
+/// Isolates damaged-page failures while checking the working copy's original collection context.
+private func readRepairRows(selection: LocalStoreSelection, directory: String, protection: ObjectProtectionV1,
+    sql: String, args: [SQLValue] = []) async throws -> [[SQLValue]] {
+    let lane = DatabaseLane()
+    try await lane.open(directory: directory, create: false,
+        key: PrivateDatabaseKeyV1.derive(collection: selection.descriptor.collection, protection: protection))
+    do {
+        let result = try await lane.perform { db in
+            let header = try db.rows("SELECT local_store_id,collection_id,bootstrap_descriptor,genesis_locator FROM store_header WHERE singleton=1")
+            guard header == [[.blob(selection.store.bytes), .blob(selection.descriptor.collection.bytes),
+                .blob(selection.descriptor.descriptorID), .blob(selection.descriptor.genesis.encodedV1())]] else { throw StorageError.wrongContext }
+            return try db.rows(sql, args)
+        }
+        await lane.close(); return result
+    } catch { await lane.close(); throw error }
+}
+
+/// Qualification observes inventory preparation and each bounded source read independently.
+struct PrivateRepairWork: Sendable {
+    var prepared: (@Sendable () async throws -> Void)?
+    var read: (@Sendable ([UInt8], Int) async throws -> Void)?
+}
+
 /// A fresh candidate remains owned after normal reopening and complete repair verification.
 public struct VerifiedReplacement: Sendable {
     public let selection: LocalStoreSelection
     public let through: Int64
+    public let repositoryIssues: [RepositoryRepairSourceIssue]
     fileprivate let candidate: LocalStoreSession
-    fileprivate let sourceStores: Set<LocalStoreID>
-    fileprivate let sources: [PrivateRepairEvidence]
-    fileprivate init(candidate: LocalStoreSession, selection: LocalStoreSelection, through: Int64, sources: [PrivateRepairEvidence]) {
+    fileprivate let sources: [ActivationSource]
+    fileprivate init(candidate: LocalStoreSession, selection: LocalStoreSelection, through: Int64, sources: [ActivationSource],
+                     repositoryIssues: [RepositoryRepairSourceIssue] = []) {
         self.candidate = candidate; self.selection = selection; self.through = through; self.sources = sources
-        sourceStores = Set(sources.map(\.selection.store))
+        self.repositoryIssues = repositoryIssues
     }
     /// Releases the verified candidate while preserving its durable evidence for a later retry.
     public func close() async throws { try await candidate.quiesce() }
+    func adopt(repository: RepositoryRootSession) async throws -> CollectionSession {
+        try await CollectionSession.bindRepaired(candidate, root: repository)
+    }
     /// Holds verified candidate ownership through the independently fenced selection effect.
     public func activate(using owner: SelectedStoreOwner, basedOn state: SelectedStoreState) async throws -> StoreActivationOutcome {
+        try await withActivationInput { try await owner.install($0, basedOn: state) }
+    }
+    /// Finishes the existing selection attempt through its retained physical handles and barriers.
+    public func resumeActivation(using owner: SelectedStoreOwner) async throws -> StoreActivationOutcome {
+        try await withActivationInput { try await owner.resume($0) }
+    }
+    private func withActivationInput(_ body: (VerifiedActivationInput) async throws -> StoreActivationOutcome) async throws -> StoreActivationOutcome {
         try await candidate.reserveActivation(through: through)
         do {
             guard let association = try await candidate.localAssociation().value else { throw StorageError.incomplete }
             let input = VerifiedActivationInput(candidate: selection, association: association.id,
-                sources: sources.map { ActivationSource(selection: $0.selection, observation: $0.sourceObservation) })
-            let outcome = try await owner.install(input, basedOn: state)
+                sources: sources)
+            let outcome = try await body(input)
             await candidate.settleActivation()
             return outcome
         } catch { await candidate.settleActivation(); throw error }
+    }
+}
+
+extension CollectionSession {
+    /// Resumes an ambiguous selection barrier and adopts the verified owner after durable completion.
+    public static func resumePrivateRepair(_ replacement: VerifiedReplacement, repository: URL? = nil,
+        using selectionOwner: SelectedStoreOwner) async throws -> CollectionPrivateRepairOutcome {
+        var root: RepositoryRootSession?
+        do {
+            if let repository {
+                let opened = try await RepositoryRootSession.open(directory: repository)
+                root = opened
+                guard let association = try await replacement.candidate.localAssociation().value,
+                      try await opened.matches(association) == .same else { throw StorageError.wrongContext }
+            }
+            let outcome = try await replacement.resumeActivation(using: selectionOwner)
+            return await finishPrivateRepair(replacement, outcome: outcome, root: root)
+        } catch { await root?.close(); throw error }
+    }
+
+    /// Combines preserved private evidence with an owned repository before checked selection activation.
+    public static func repairPrivateStore(primary: PrivateRepairEvidence,
+        complementary: [PrivateRepairEvidence] = [], repository: URL? = nil,
+        to directory: String, protection: ObjectProtectionV1,
+        using selectionOwner: SelectedStoreOwner, basedOn selected: SelectedStoreState) async throws -> CollectionPrivateRepairOutcome {
+        guard selected.record?.store == primary.selection.store else { throw StorageError.wrongContext }
+        var root: RepositoryRootSession?
+        var replacement: VerifiedReplacement?
+        do {
+            var inputs: [RepositoryRepairSource] = []
+            if let repository {
+                let opened = try await RepositoryRootSession.open(directory: repository)
+                root = opened
+                inputs = [try await opened.repairSource(for: primary.selection.descriptor)]
+            }
+            let rebuilt = try await LocalStoreSession.buildVerifiedReplacement(to: directory, primary: primary,
+                complementary: complementary, repositories: inputs, protection: protection)
+            replacement = rebuilt
+            if let root {
+                guard let association = try await rebuilt.candidate.localAssociation().value,
+                      try await root.matches(association) == .same else { throw StorageError.wrongContext }
+            }
+            let outcome = try await rebuilt.activate(using: selectionOwner, basedOn: selected)
+            let result = await finishPrivateRepair(rebuilt, outcome: outcome, root: root)
+            root = nil; replacement = nil
+            return result
+        } catch {
+            try? await replacement?.close()
+            await root?.close()
+            throw error
+        }
+    }
+
+    static func finishPrivateRepair(_ replacement: VerifiedReplacement, outcome: StoreActivationOutcome,
+        root: RepositoryRootSession?) async -> CollectionPrivateRepairOutcome {
+        switch outcome {
+        case .activated(let state):
+            do { return try await .opened(bindRepaired(replacement.candidate, root: root), selected: state) }
+            catch {
+                await root?.close(); try? await replacement.close()
+                return .activatedNeedsReopen(replacement.selection, selected: state, cause: classify(error))
+            }
+        case .unchanged, .uncertain:
+            await root?.close()
+            return .activationPending(replacement, outcome)
+        }
     }
 }
 
@@ -97,6 +294,40 @@ private actor RepairReader {
 }
 
 extension LocalStoreSession {
+    /// Verifies a fixed backup before assigning independent private ownership and capture provenance.
+    func preparePrivateStoreCopy(to directory: String, budget: PrivateBackupBudget? = nil) async throws -> PreparedPrivateStoreCopy {
+        let backup = try await capturedPrivateBackup(to: directory, budget: budget)
+        let original = backup.result.selection
+        let copied = LocalStoreSelection(directory: directory, store: try LocalStoreID(bytes: uuidBytes()),
+                                         descriptor: selection.descriptor)
+        let lane = DatabaseLane()
+        do {
+            try await lane.open(directory: directory, create: false,
+                key: PrivateDatabaseKeyV1.derive(collection: copied.descriptor.collection, protection: protection))
+            try await lane.perform { db in
+                try db.validateHeader(store: original.store, descriptor: original.descriptor)
+                guard let association = try db.privateGroup("association") else { throw StorageError.incomplete }
+                let old = try db.decodedAssociation(association, selection: original)
+                let rebound = try LocalAssociationV1(id: old.id,
+                    scope: .init(collection: copied.descriptor.collection, store: copied.store,
+                                 descriptor: copied.descriptor.descriptorID), bookmark: old.bookmark)
+                try db.transaction {
+                    try db.run("UPDATE store_header SET local_store_id=? WHERE singleton=1", [.blob(copied.store.bytes)])
+                    try db.run("INSERT INTO private_groups VALUES(?,1,1,?) ON CONFLICT(group_key) DO NOTHING",
+                        [.blob(Array("repair-source/".utf8) + original.store.bytes),
+                         .blob(original.descriptor.collection.bytes + original.descriptor.descriptorID)])
+                    try db.replacePrivateGroup("association", generation: association[0].number, codec: 1, bytes: rebound.encodedV1())
+                }
+            }
+            await lane.close()
+        } catch { await lane.close(); throw error }
+        let reopened = try await LocalStoreSession.open(selection: copied, protection: protection)
+        do {
+            try await reopened.verifyCompletePrivateState()
+            return try await PreparedPrivateStoreCopy(candidate: reopened, through: reopened.snapshot().through, backup: backup)
+        } catch { try? await reopened.quiesce(); throw error }
+    }
+
     /// Normal owned opening, required state and a current capture issue fresh-selection activation evidence.
     func verifiedFreshSelection() async throws -> VerifiedReplacement {
         let selection = selection
@@ -129,20 +360,8 @@ extension LocalStoreSession {
         workingDirectory: String) async throws -> PrivateSalvageOutcome {
         let worker = RepairReader()
         let observation = try await worker.preserve(source: selection.directory, destination: workingDirectory)
-        let working = LocalStoreSelection(directory: workingDirectory, store: selection.store, descriptor: selection.descriptor)
         func read(_ sql: String, _ args: [SQLValue] = []) async throws -> [[SQLValue]] {
-            let lane = DatabaseLane()
-            try await lane.open(directory: workingDirectory, create: false,
-                key: PrivateDatabaseKeyV1.derive(collection: selection.descriptor.collection, protection: protection))
-            do {
-                let result = try await lane.perform { db in
-                    let h = try db.rows("SELECT local_store_id,collection_id,bootstrap_descriptor,genesis_locator FROM store_header WHERE singleton=1")
-                    guard h == [[.blob(working.store.bytes), .blob(working.descriptor.collection.bytes),
-                                 .blob(working.descriptor.descriptorID), .blob(working.descriptor.genesis.encodedV1())]] else { throw StorageError.wrongContext }
-                    return try db.rows(sql, args)
-                }
-                await lane.close(); return result
-            } catch { await lane.close(); throw error }
+            try await readRepairRows(selection: selection, directory: workingDirectory, protection: protection, sql: sql, args: args)
         }
         var tables: [String: [[SQLValue]]] = [:], failures: [String: StorageError] = [:]
         var queries = repairPrivateQueries.merging(pendingPrivateQueries) { existing, _ in existing }
@@ -172,23 +391,15 @@ extension LocalStoreSession {
         for name in ["object_waits", "ready_objects", "rejected_objects", "available_catalog"] {
             for row in tables[name] ?? [] { ids.insert(try row[0].bytes) }
         }
-        var objects: [[SQLValue]] = [], missing: Set<[UInt8]> = []
+        var objects: [RepairObjectReference] = [], missing: Set<[UInt8]> = []
         for id in ids.sorted(by: { $0.lexicographicallyPrecedes($1) }) {
             try Task.checkCancellation()
             do {
-                guard let row = try await read("SELECT object_id,kind,writer_epoch,sequence,encoded FROM objects WHERE object_id=?", [.blob(id)]).first else {
+                guard let row = try await read(repairObjectQuery, [.blob(id)]).first else {
                     missing.insert(id); continue
                 }
-                if row[1] == .integer(0) {
-                    let d = try BootstrapDescriptorV1.decodeV1(row[4].bytes)
-                    guard d.descriptorID == id, d.collection == selection.descriptor.collection, d.genesis == selection.descriptor.genesis,
-                          d.keyID == selection.descriptor.keyID else { throw StorageError.integrity }
-                } else {
-                    let opened = try ObjectEnvelopeV1.open(row[4].bytes, collection: selection.descriptor.collection, protection: protection)
-                    guard opened.locator.segmentID.bytes == id, row[1] == .integer(Int64(opened.kind.rawValue)),
-                          row[2] == .blob(opened.locator.writerEpoch.bytes), row[3] == .blob(Array(opened.locator.encodedV1()[16..<24])) else { throw StorageError.integrity }
-                }
-                objects.append(row)
+                guard try row[0].bytes == id else { throw StorageError.integrity }
+                objects.append(try RepairObjectReference(row: row, descriptor: selection.descriptor, protection: protection))
             } catch { missing.insert(id) }
         }
         let required = try Set(accepted.map { try $0[0].bytes })
@@ -202,28 +413,63 @@ extension LocalStoreSession {
 
     /// Reaccepts the union through ordinary validators, preserving source scope instead of copying local sequence numbers.
     public static func buildVerifiedReplacement(to directory: String, primary: PrivateRepairEvidence,
-        complementary: [PrivateRepairEvidence] = [], protection: ObjectProtectionV1) async throws -> VerifiedReplacement {
+        complementary: [PrivateRepairEvidence] = [], repositories: [RepositoryRepairSource] = [],
+        protection: ObjectProtectionV1) async throws -> VerifiedReplacement {
+        try await buildVerifiedReplacement(to: directory, primary: primary, complementary: complementary,
+            repositories: repositories, protection: protection, work: nil)
+    }
+
+    static func buildVerifiedReplacement(to directory: String, primary: PrivateRepairEvidence,
+        complementary: [PrivateRepairEvidence] = [], repositories: [RepositoryRepairSource] = [],
+        protection: ObjectProtectionV1, work: PrivateRepairWork?) async throws -> VerifiedReplacement {
         let sources = [primary] + complementary, descriptor = primary.selection.descriptor
         guard sources.allSatisfy({ $0.selection.descriptor.collection == descriptor.collection && $0.selection.descriptor.genesis == descriptor.genesis
             && $0.selection.descriptor.keyID == descriptor.keyID && $0.bootstrap == primary.bootstrap }) else { throw StorageError.wrongContext }
-        var objects: [[UInt8]: [SQLValue]] = [:], required: Set<[UInt8]> = []
+        var objects: [[UInt8]: RepairObjectReference] = [:], origins: [[UInt8]: RepairObjectSource] = [:], required: Set<[UInt8]> = []
         for source in sources {
             for row in source.accepted { required.insert(try row[0].bytes) }
-            for row in source.objects {
-                let id = try row[0].bytes
-                guard objects[id] == nil || objects[id] == row else { throw StorageError.integrity }
-                objects[id] = row
+            for reference in source.objects {
+                let id = try reference.id
+                guard objects[id] == nil || objects[id] == reference else { throw StorageError.integrity }
+                objects[id] = reference
+                origins[id] = .privateStore(source)
             }
         }
-        guard required.isSubset(of: Set(objects.keys)) else { throw StorageError.incomplete }
+        var repositoryIssues: [RepositoryRepairSourceIssue] = []
+        for (index, repository) in repositories.enumerated() {
+            let missing = required.subtracting(objects.keys)
+            let reader = try RepositoryRepairReader(source: repository, descriptor: descriptor, protection: protection, missing: missing, sourceIndex: index)
+            do {
+                if !missing.isEmpty {
+                    while let row = try await reader.next() {
+                        let reference = try RepairObjectReference(row: row, descriptor: descriptor, protection: protection), id = try reference.id
+                        guard objects[id] == nil || objects[id] == reference else { throw StorageError.integrity }
+                        objects[id] = reference
+                        origins[id] = .repository(reader)
+                    }
+                }
+                try await reader.close()
+                repositoryIssues += await reader.issues
+            } catch { try? await reader.close(); throw error }
+        }
+        guard required.isSubset(of: Set(objects.keys)) else { throw repositoryIssues.first?.error ?? StorageError.incomplete }
+        try await work?.prepared?()
+        func read(_ id: [UInt8]) async throws -> [SQLValue] {
+            guard let reference = objects[id], let source = origins[id] else { throw StorageError.incomplete }
+            let row = try await source.read(reference, protection: protection)
+            try await work?.read?(id, row[4].bytes.count)
+            return row
+        }
         let selection = try LocalStoreSelection(directory: directory, store: LocalStoreID(bytes: uuidBytes()), descriptor: descriptor)
         let candidate = try await BootstrapCandidate.create(selection: selection, snapshot: primary.bootstrap, protection: protection)
         var session: LocalStoreSession?
         do {
-            for (id, row) in objects where required.contains(id) && row[1] != .integer(0) { _ = try await candidate.retain(row[4].bytes) }
+            for (id, reference) in objects where required.contains(id) && reference.metadata[1] != .integer(0) {
+                _ = try await candidate.retain(read(id)[4].bytes)
+            }
             let completed = try await candidate.complete(snapshot: primary.bootstrap); session = completed
             for id in required.sorted(by: { $0.lexicographicallyPrecedes($1) }) {
-                guard let row = objects[id] else { throw StorageError.incomplete }
+                let row = try await read(id)
                 if row[1] == .integer(0) {
                     let d = try BootstrapDescriptorV1.decodeV1(row[4].bytes)
                     if d.descriptorID != descriptor.descriptorID {
@@ -246,6 +492,13 @@ extension LocalStoreSession {
                 }
             }
             try await completed.verifyCompletePrivateState()
+            for (id, reference) in objects where !required.contains(id) && reference.metadata[1] != .integer(0) {
+                let bytes = try await read(id)[4].bytes
+                let opened = try ObjectEnvelopeV1.open(bytes, collection: descriptor.collection, protection: protection)
+                try await completed.lane.perform { db in
+                    try db.transaction { try db.retainCandidate(bytes, opened: opened, ready: false) }
+                }
+            }
             try await completed.installRepairPrivateState(primary: primary, sources: sources, objects: objects, required: required)
             try await completed.lane.catchUp(selection: selection, protection: protection)
             try await completed.verifyCompletePrivateState()
@@ -256,13 +509,15 @@ extension LocalStoreSession {
             try await reopened.verifyCompletePrivateState()
             let through = try await reopened.snapshot().through
             session = nil
-            return VerifiedReplacement(candidate: reopened, selection: selection, through: through, sources: sources)
+            return VerifiedReplacement(candidate: reopened, selection: selection, through: through,
+                sources: sources.map { ActivationSource(selection: $0.selection, observation: $0.sourceObservation) },
+                repositoryIssues: repositoryIssues)
         } catch { try? await session?.quiesce(); try? await candidate.close(); throw error }
     }
 
     private func installRepairPrivateState(primary: PrivateRepairEvidence, sources: [PrivateRepairEvidence],
-        objects: [[UInt8]: [SQLValue]], required: Set<[UInt8]>) async throws {
-        let selection = selection, protection = protection
+        objects: [[UInt8]: RepairObjectReference], required: Set<[UInt8]>) async throws {
+        let selection = selection
         try await lane.perform { db in
             let groups = primary.privateTables["private_groups"] ?? []
             guard let settings = groups.first(where: { $0[0] == .blob(Array("settings".utf8)) }) else { throw StorageError.incomplete }
@@ -279,26 +534,38 @@ extension LocalStoreSession {
                               try scope.allSatisfy({ required.contains(try $0[0].bytes) }) else { throw StorageError.incomplete }
                     case .bootstrap(let root): guard root == source.bootstrap else { throw StorageError.incomplete }
                     case .object(let loc):
-                        guard let row = objects[loc.segmentID.bytes], row[1] != .integer(0),
+                        guard let row = objects[loc.segmentID.bytes]?.metadata, row[1] != .integer(0),
                               row[2] == .blob(loc.writerEpoch.bytes), row[3] == .blob(Array(loc.encodedV1()[16..<24])) else { throw StorageError.incomplete }
                     }
                 }
             }
             try db.transaction {
-                // Available uncommitted bytes retain their original scheduling class independently of accepted intent.
-                for (id, row) in objects where !required.contains(id) {
-                    guard row[1] != .integer(0) else { continue }
-                    let opened = try ObjectEnvelopeV1.open(row[4].bytes, collection: selection.descriptor.collection, protection: protection)
-                    try db.retainCandidate(row[4].bytes, opened: opened, ready: false)
+                // Retained pending inputs keep their original capture scope through repeated repairs.
+                func retainCaptureScope(_ row: [SQLValue]) throws {
+                    let prefix = Array("repair-source/".utf8), key = try row[0].bytes, payload = try row[3].bytes
+                    guard key.starts(with: prefix), key.count == prefix.count + 16, row[1] == .integer(1),
+                          payload.count == 48, Array(payload.prefix(16)) == selection.descriptor.collection.bytes else {
+                        throw StorageError.integrity
+                    }
+                    guard row[2] == .integer(1) else { throw StorageError.unsupported }
+                    let descriptorID = Array(payload.suffix(32))
+                    guard required.contains(descriptorID), objects[descriptorID]?.metadata[1] == .integer(0) else { throw StorageError.incomplete }
+                    let prior = try db.rows("SELECT group_key,generation,codec,payload FROM private_groups WHERE group_key=?", [row[0]])
+                    guard prior.isEmpty || prior == [row] else { throw StorageError.incomplete }
+                    try db.run("INSERT INTO private_groups VALUES(?,?,?,?) ON CONFLICT(group_key) DO NOTHING", row)
                 }
                 for source in sources {
                     let old = source.selection
-                    try db.run("INSERT INTO private_groups VALUES(?,1,1,?) ON CONFLICT(group_key) DO NOTHING",
-                        [.blob(Array("repair-source/".utf8) + old.store.bytes), .blob(old.descriptor.collection.bytes + old.descriptor.descriptorID)])
+                    try retainCaptureScope([.blob(Array("repair-source/".utf8) + old.store.bytes), .integer(1), .integer(1),
+                        .blob(old.descriptor.collection.bytes + old.descriptor.descriptorID)])
+                    for group in source.privateTables["private_groups"] ?? [] where (try group[0].bytes).starts(with: Array("repair-source/".utf8)) {
+                        try retainCaptureScope(group)
+                    }
                 }
                 for group in groups {
                     let key = try group[0].bytes
-                    if key == Array("bootstrap".utf8) || key == Array("history-damage".utf8) || key.starts(with: VerificationRecord.prefix) { continue }
+                    if key == Array("bootstrap".utf8) || key == Array("history-damage".utf8) || key.starts(with: VerificationRecord.prefix)
+                        || key.starts(with: Array("repair-source/".utf8)) { continue }
                     var row = group
                     if key == Array("association".utf8) {
                         let old = try db.decodedAssociation(Array(group.dropFirst()), selection: primary.selection)

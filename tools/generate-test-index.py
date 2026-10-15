@@ -21,7 +21,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs/test-index"
-RETIRED = "docs/tla/retired/impl-proposal-4"
+RETIRED = "docs/tla/retired/"
 UNKNOWN = object()
 EXCLUDED = {".git", ".deps", "__pycache__", "node_modules", "Vendor"}
 CASE_NAMES = {"cases", "selected_cases", "scenarios", "schedules", "mutations", "issuers", "actor_cases", "valid", "probes", "checks", "variants", "experiments", "tests", "commands", "independent_jobs"}
@@ -45,12 +45,15 @@ GOVERNING = [
     (r"Verification|verification", ["phase-4-improvements/durable-verification-recovery.md"]),
     (r"ScopedHistory|OptionalStartup|scoped-platform|OptionalReadyStartup", ["phase-4-improvements/startup-and-scoped-queries.md", "phase-4-improvements/startup-and-scoped-queries-validation.md"]),
     (r"Resumption|resumption|Rejection|rejection|ReceiveIsolation|ReceiveRejection|ReceiveResumption", ["validation-resumption-plan.md", "validation-resumption-results.md", "phase2-hardening-validation.md", "receive-model-validation.md"]),
-    (r"Repository|repository|CollectionStartup|CollectionBootstrap|CollectionWait|root-|immutable-|metadata-batch|discovery|directory-scan|apple-(?:peer|stage|startup|transport)|coordinated-install|startup-process|startup-remote", ["phase5-provider-root-implementation-plan.md", "phase5-provider-root-testing-plan.md"]),
+    (r"Phase5Connected|phase5-connected|phase5(?:Delayed|Collection|Driver|Publication)|p57-", ["phase5/07-connected-qualification.md", "phase5/07-connected-qualification-validation.md"]),
+    (r"Repository|repository|CollectionStartup|CollectionBootstrap|CollectionWait|root-|immutable-|metadata-batch|discovery|directory-scan|apple-(?:peer|repair|stage|startup|transport)|coordinated-install|startup-process|startup-remote", ["phase5-provider-root-implementation-plan.md", "phase5-provider-root-testing-plan.md"]),
     (r"RepositoryRoot|root-(?:c|process|types|volumes)|RepositoryRootIO", ["phase5/01-root-ownership-and-execution.md", "phase5/01-root-ownership-validation.md"]),
     (r"RepositoryFiles|RepositoryListing|immutable-|RepositoryFilesIO", ["phase5/02-immutable-files-and-namespace.md", "phase5/02-immutable-files-validation.md"]),
     (r"RepositoryExchange|RepositoryPublication|repository-exchange|repository-cross-host", ["phase5/03-local-repository-exchange.md", "phase5/03-local-repository-exchange-validation.md"]),
     (r"RepositoryCoordination|RepositoryTransport|RepositoryDriver|RepositoryAvailability|RepositoryAccessor|apple-|coordinated-install", ["phase5/04-apple-coordination-and-discovery.md", "phase5/04-apple-coordination-and-discovery-validation.md"]),
     (r"CollectionStartup|CollectionBootstrap|CollectionWait|CollectionController|startup-(?:process|remote)|apple-startup|collection-startup", ["phase5/05-startup-and-root-reassociation.md", "phase5/05-startup-and-root-reassociation-validation.md"]),
+    (r"RepositoryRepair|repositoryRepair|repairUnion|repair-union-|selectionResumption|activeRecoveryCopyPreservesSavedHistoryWithMissingRepository|private-repair-integrated|integrated-(?:private|repair|activated)|copy-unavailable-inventory|repair-(?:connected-settings|source-access-report|source-incomplete-candidate|source-cancelled-end|selection-barrier|preservation-busy|incomplete-prefix|newer-prefix|directory-binding|complement-locator|complement-report|occupied-request|late-collision|descriptor-kind|replacement-capability)", ["phase5/06-repair-replacement-and-copy.md", "phase5/06-repair-replacement-and-copy-validation.md"]),
+    (r"RepositoryCopy|repositoryCopy|collectionCopySwitch|apple-repair|repository-(?:copy|repair)-process|switch-skip-accessor-settlement|copy-(?:direct-canonical-write|hidden-source-damage|late-prefix|unreserve-failed-history)", ["phase5/06-repair-replacement-and-copy.md", "phase5/06-repair-replacement-and-copy-validation.md"]),
     (r"RepositoryBatch|RepositoryDiscovery|RepositoryMetadata|metadata-batch|discovery-(?:work|variants)|directory-scan", ["phase5/bounded-discovery-batches-plan.md", "phase5/bounded-discovery-batches-validation.md", "phase5/directory-scan-performance.md", "phase5/discovery-work-analysis.md"]),
     (r"sqlcipher|SQLCipher", ["sqlcipher-validation.md", "swift64-platform-qualification.md"]),
     (r"types\.py|TypedBoundary|Phase3Boundary", ["swift-storage-library-proposal-v2.md", "typed-runtime-boundaries-validation.md"]),
@@ -94,7 +97,7 @@ def words(name: str) -> str:
 def phase(path: str, name: str = "") -> str:
     text = path + " " + name
     if RETIRED in path:
-        return "retired proposal 4"
+        return "retired proposal 4" if "impl-proposal-4/" in path else "retired exploration"
     if "docs/tla/" in path:
         return "formal / cross-phase"
     if "NVStorageCoreTests" in path:
@@ -103,7 +106,7 @@ def phase(path: str, name: str = "") -> str:
         if re.search(r"Action|Connected|Merge|Restoration|Derived", text):
             return "3 (canonical records also qualify 1)"
         return "1"
-    if re.search(r"Repository|CollectionStartup|CollectionWait|repository|root-|immutable-|metadata-batch|apple-(?:peer|stage|startup|transport)|coordinated-install|discovery|directory-scan|startup-process|startup-remote", text):
+    if re.search(r"Phase5Connected|phase5-connected|phase5(?:Delayed|Collection|Driver)|p57-|Repository|CollectionStartup|CollectionWait|CollectionCopySwitch|collectionCopySwitch|repository|root-|immutable-|metadata-batch|apple-(?:peer|stage|startup|transport|repair)|coordinated-install|discovery|directory-scan|startup-process|startup-remote|repair-replacement-capability", text):
         return "5"
     if re.search(r"Snapshot|Reconstruction|MixedRecovery|Private|Backup|Repair|Selection|Maintenance|Verification|Traversal|CurrentRow|CurrentStartup|OptionalStartup|ScopedHistory|CurrentMaintenance|ReceivedSnapshot|snapshot|private-|repair|maintenance|locality|current-cell|general-snapshot|verification|recovery-artifact|disposal", text):
         return "4"
@@ -740,8 +743,8 @@ def render(catalog: dict[str, Any]) -> dict[str, str]:
                 lines += ["Runner arguments (from source):", ""] + ["- `" + clean(x) + "`" for x in items[0]["arguments"]] + [""]
         outputs[path] = "\n".join(lines) + "\n"
     # Retired details stay beside the retired models, outside the active catalogue.
-    path = RETIRED + "/Test-and-Validation-Index-Archived.md"
-    retired = [x for x in entries if RETIRED in x["source"]]
+    path = RETIRED + "impl-proposal-4/Test-and-Validation-Index-Archived.md"
+    retired = [x for x in entries if RETIRED + "impl-proposal-4/" in x["source"]]
     lines = ["# Retired proposal-4 validation inventory", "", "Generated inventory of archived checkpoint/WAL models. These checks describe the retired design; the [active index](../../../Test-and-Validation-Index.md) covers proposal 5 and the still-supported epoch-4 app path. Use the [archive guide](README.md) for historical interpretation.", "", "| Check | Purpose/configuration | Historical command | References |", "| --- | --- | --- | --- |"]
     for item in retired:
         detail = item.get("configuration", item.get("matrix", ""))
@@ -853,7 +856,7 @@ def build() -> dict[str, Any]:
     source_rows = []
     for path, text in files.items():
         role = "executable definitions" if counts[path] else "fixture / support / build prerequisite"
-        if RETIRED in path: role = "retired proposal-4 source"
+        if RETIRED in path: role = "retired source"
         source_rows.append(dict(path=path, role=role, entries=counts[path], sha256=hashlib.sha256(text.encode()).hexdigest()))
     swift_count = sum(len(re.findall(r"(?m)^\s*@Test\b", t)) for p, t in files.items() if p.endswith(".swift"))
     assert sum(x["kind"] == "swift" for x in entries) == swift_count, "Every @Test must have one catalogue entry"
@@ -892,6 +895,9 @@ def main():
     assert r.env["selected"] == ("A", "B")
     assert python_entries(ROOT / "tools/qualification_reuse.py", "def support(): pass\n")[0] == []
     assert python_entries(ROOT / "tools/compiler_probe_batches.py", "def support(): pass\n")[0] == []
+    assert phase("tools/test-storage-apple-repair.py") == "5"
+    assert phase("NVStorage/Tests/NVStorageRuntimeTests/CollectionCopySwitchTests.swift") == "5"
+    assert phase("tools/test-storage-private-process.py") == "4"
     r = DataReader(ast.parse('''def main():
     cases = [("restricted", "source", "private"), ("companion", "source", None)]
     count = 0
@@ -905,7 +911,7 @@ def main():
     assert [x[1][1:] for x in r.emissions] == [["ordinary", "restricted"], ["ordinary", "companion"],
                                             ["same-module", "restricted"], ["same-module", "companion"]]
     assert rebase_links("[contract](../Protocol.md#input)", "docs/impl-proposal-5/plan/check.md", "docs/test-index/checks.md") == "[contract](../impl-proposal-5/Protocol.md#input)"
-    print("PASS: data-only matrix expansion, compiler-batch modes, blocked operations, multiline Swift declarations, default selection and rebased document links")
+    print("PASS: data-only matrix expansion, compiler-batch modes, blocked operations, multiline Swift declarations, phase classification, default selection and rebased document links")
 
 
 def main():

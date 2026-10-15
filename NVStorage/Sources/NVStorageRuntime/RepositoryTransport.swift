@@ -32,6 +32,8 @@ enum RepositoryTransportWork: Sendable { case discovery, publication, materializ
 
 enum RepositoryTransportObservation: Sendable {
     case discovery(RepositoryDiscoveryTurn), published(PublishedRepositoryBatch)
+    case inventory(RepositoryInventoryCheck)
+    case inventoryDeferred
     case paused(RepositoryTransportFailure), waiting(RepositoryTransportWork), deadline, idle
     case notification(RepositoryTransportSignal)
     case materialization(SegmentLocator, RepositoryMaterializationRequest)
@@ -42,6 +44,7 @@ struct RepositoryTransportHooks: Sendable {
     var discovery = RepositoryDiscoveryHooks()
     var publication: (@Sendable (RepositoryPublicationBatch) async throws -> Void)?
     var installEntered: @Sendable (ImmutableRepositoryObject) -> Void = { _ in }
+    var inventoryObserved: (@Sendable () async throws -> Void)?
     var observation: (@Sendable (RepositoryTransportObservation) async -> Void)?
     var idleNanoseconds: UInt64 = 30_000_000_000
     var retryNanoseconds: [UInt64] = [1_000_000_000, 4_000_000_000]
@@ -84,6 +87,7 @@ private enum TransportDemand: Sendable {
 /// Coalesces repository opportunities using existing cursors, accepted bytes and owner notifications.
 public actor RepositoryTransportDriver {
     private enum Lifecycle { case attaching, active, fenced, stopping, stopped }
+    private enum DiscoveryPhase { case directory, inventory(RepositoryInventoryCursor?) }
     private typealias Work = RepositoryTransportWork
     private let identity = UUID()
     private let root: RepositoryRootSession
@@ -91,6 +95,7 @@ public actor RepositoryTransportDriver {
     private let hooks: RepositoryTransportHooks
     private var lifecycle: Lifecycle = .attaching
     private var discovery: TransportDemand = .ready(.init())
+    private var discoveryPhase: DiscoveryPhase = .directory
     private var publication: TransportDemand = .ready(.init())
     private var publicationCursor: RepositoryPublicationCursor?
     private var ownedPublication: RepositoryPublicationBatch?
@@ -101,11 +106,17 @@ public actor RepositoryTransportDriver {
     private var publicationAllowed = true
     private var namedInput: (DisclosedRepositoryObject, TransportDemand)?
     private let namedSettled: (@Sendable (SegmentLocator) async -> Void)?
+    private let repositoryObserved: (@Sendable (RepositoryTransportObservation) async -> Void)?
+    private let inventoryAllowed: (@Sendable () async -> Bool)?
 
     private init(root: RepositoryRootSession, store: LocalStoreSession, hooks: RepositoryTransportHooks,
-                 waiting: DisclosedRepositoryObject?, namedSettled: (@Sendable (SegmentLocator) async -> Void)?) {
+                 waiting: DisclosedRepositoryObject?, namedSettled: (@Sendable (SegmentLocator) async -> Void)?,
+                 repositoryObserved: (@Sendable (RepositoryTransportObservation) async -> Void)?,
+                 inventoryAllowed: (@Sendable () async -> Bool)?) {
         self.root = root; self.store = store; self.hooks = hooks
         self.namedSettled = namedSettled
+        self.repositoryObserved = repositoryObserved
+        self.inventoryAllowed = inventoryAllowed
         if let waiting {
             publicationAllowed = false; discovery = .idle; publication = .idle
             namedInput = (waiting, .ready(.init()))
@@ -118,11 +129,14 @@ public actor RepositoryTransportDriver {
 
     static func start(root: RepositoryRootSession, store: LocalStoreSession,
                       hooks: RepositoryTransportHooks, waiting: DisclosedRepositoryObject? = nil,
-                      namedSettled: (@Sendable (SegmentLocator) async -> Void)? = nil) async throws -> RepositoryTransportDriver {
+                      namedSettled: (@Sendable (SegmentLocator) async -> Void)? = nil,
+                      repositoryObserved: (@Sendable (RepositoryTransportObservation) async -> Void)? = nil,
+                      inventoryAllowed: (@Sendable () async -> Bool)? = nil) async throws -> RepositoryTransportDriver {
         guard hooks.idleNanoseconds > 0, hooks.retryNanoseconds.count == 2,
               hooks.retryNanoseconds.allSatisfy({ $0 > 0 }), hooks.deadlineNanoseconds > 0 else { throw StorageError.limit }
         try Task.checkCancellation()
-        let driver = RepositoryTransportDriver(root: root, store: store, hooks: hooks, waiting: waiting, namedSettled: namedSettled), owner = driver.identity
+        let driver = RepositoryTransportDriver(root: root, store: store, hooks: hooks, waiting: waiting,
+            namedSettled: namedSettled, repositoryObserved: repositoryObserved, inventoryAllowed: inventoryAllowed), owner = driver.identity
         let signal: @Sendable (RepositoryTransportSignal) -> Void = { [weak driver] signal in
             Task { await driver?.notified(signal) }
         }
@@ -204,6 +218,7 @@ public actor RepositoryTransportDriver {
             case .active:
                 if lifecycle == .fenced {
                     lifecycle = .active
+                    discoveryPhase = .directory
                     discovery = .ready(.init()); publication = .ready(.init())
                     if !publicationAllowed { discovery = .idle; publication = .idle }
                     if let input = namedInput { namedInput = (input.0, .ready(.init())) }
@@ -293,8 +308,18 @@ public actor RepositoryTransportDriver {
 
     private func perform(_ work: Work) async {
         guard case .ready(let prior) = demand(work) else { return }
+        set(.running(prior, again: false), for: work)
+        if work == .discovery, case .inventory = discoveryPhase,
+           let inventoryAllowed, await !inventoryAllowed() {
+            guard lifecycle == .active, !Task.isCancelled else { return }
+            // Preserve the next batch and retry budget for the existing periodic opportunity.
+            set(.delayed(prior, until: Self.now &+ hooks.idleNanoseconds), for: work)
+            await hooks.observation?(.inventoryDeferred)
+            return
+        }
+        guard lifecycle == .active, !Task.isCancelled, case .running(_, let again) = demand(work) else { return }
         let attempt = prior.starting(at: Self.now)
-        set(.running(attempt, again: false), for: work)
+        set(.running(attempt, again: again), for: work)
         deadlineExpired = false
         armWakeup(at: (attempt.firstStart ?? Self.now) &+ hooks.deadlineNanoseconds, deadline: true)
         do {
@@ -346,19 +371,47 @@ public actor RepositoryTransportDriver {
                     if case .running(_, let requested) = publication { again = requested } else { return }
                     publicationCursor = batch.continuation ?? batch.nextPass
                     ownedPublication = nil
-                    publication = batch.continuation != nil || again ? .ready(.init()) : .idle
+                    // An indexed empty pass closes the drain after every frozen prefix,
+                    // including saves notified during an earlier continuation batch.
+                    publication = !batch.locators.isEmpty || again ? .ready(.init()) : .idle
+                    if !published.locators.isEmpty { discovery.request(retrying: false) }
                     await hooks.observation?(.published(published))
                 }
             case .discovery:
+                if case .inventory(let cursor) = discoveryPhase {
+                    let batch = try await store.captureRepositoryInventory(continuing: cursor,
+                        through: publicationCursor?.inventoryThrough ?? 0)
+                    let checked = try await root.checkInventory(batch, from: store, observed: hooks.inventoryObserved)
+                    try await root.validate(checked, for: store)
+                    try finishDeadline()
+                    guard lifecycle == .active else { return }
+                    let again: Bool
+                    if case .running(_, let requested) = discovery { again = requested } else { return }
+                    let failure = checked.failures.first { $0 == .conflict || $0 == .kindCollision || $0 == .hardLinked }
+                        ?? checked.failures.first
+                    if let failure { publication = .paused(.file(failure)) }
+                    else {
+                        discoveryPhase = batch.continuation.map { .inventory($0) } ?? .directory
+                        discovery = batch.continuation != nil || again ? .ready(.init()) : .idle
+                        if batch.continuation == nil { idleDue = Self.now &+ hooks.idleNanoseconds }
+                    }
+                    await hooks.observation?(.inventory(checked))
+                    await repositoryObserved?(.inventory(checked))
+                    if let failure, lifecycle == .active {
+                        await failed(.file(failure), work: work, attempt: attempt)
+                    }
+                    return
+                }
                 let turn = try await root.discover(into: store, opportunity: .backgroundTurn, budget: 16, hooks: hooks.discovery)
                 try await root.validate(turn, for: store)
                 try finishDeadline()
                 guard lifecycle == .active else { return }
                 let again: Bool
                 if case .running(_, let requested) = discovery { again = requested } else { return }
-                discovery = !turn.passEnded || again || turn.latestInvalidation != turn.capturedInvalidation ? .ready(.init()) : .idle
-                if turn.passEnded { idleDue = Self.now &+ hooks.idleNanoseconds }
+                if turn.passEnded && !again && turn.latestInvalidation == turn.capturedInvalidation { discoveryPhase = .inventory(nil) }
+                discovery = .ready(.init())
                 await hooks.observation?(.discovery(turn))
+                await repositoryObserved?(.discovery(turn))
             }
         } catch {
             cancelWakeup()
@@ -394,6 +447,8 @@ public actor RepositoryTransportDriver {
     }
 
     private func failed(_ failure: RepositoryTransportFailure, work: Work, attempt: TransportAttempt) async {
+        await repositoryObserved?(.paused(failure))
+        guard lifecycle == .active else { return }
         let retryable: Bool
         switch failure {
         case .root(.unavailable), .file(.io), .file(.changed), .file(.absent): retryable = true

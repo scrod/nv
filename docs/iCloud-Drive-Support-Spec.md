@@ -43,7 +43,7 @@ IDs describe the current contract below. An older model using the same ID is not
 | HIST-01 | Retained inputs, deterministic conservative merging/provenance, portable causal compensation across validated action origins, and atomic note/action recovery. Provider arrival order never defines Undo; a unique causally maximal applicable scoped action may be undone on any Mac, while incomparable/overlapping candidates require review. |
 | CRYPT-01 | Immutable explicit profile, authenticated encrypted envelopes before decoding, separated keys/scopes, fresh nonces/epochs, verified add-only credential cutover and no plaintext fallback/leak. Authentication is not freshness or physical authority. |
 | BACKUP-01 | A full repository copy preserves available NV Data and associated text files/history, without requiring Application Support, unpublished work or other Macs. Validate copied bytes and report missing objects/dependencies; do not substitute a current-state export or claim global freshness. |
-| REPAIR-01 | Classify provider and private-store damage by positive identity, namespace kind, access, exact bytes and dependency closure—not presumed cause. Automatically repair a positively same-root local `NV Data` loss from the validated union, preserve displaced evidence, and activate a rebuilt private store only after its retained-history pin is durable. Offer Work Offline only for positively disclosed newer-provider or unmaterialized required data that NV cannot currently read. |
+| REPAIR-01 | Classify provider and private-store damage by positive identity, namespace kind, access, exact bytes and dependency closure—not presumed cause. Automatically repair positively same-root missing `NV Data` entries from the validated union; preserve occupied damage in place and offer Save As. Activate a rebuilt private store only after its retained-history pin is durable. Offer Work Offline only for positively disclosed newer-provider or unmaterialized required data that NV cannot currently read. |
 | IMPORT-01 | Automatically import an ordinary eligible external file after mandatory provenance/availability checks and narrowly scoped repair-candidate checks. Preserve independent births on late history; retries of one admitted observation reuse its identity. Retain one latest verified pending snapshot plus exact unfinished-operation inputs, with durable replacement and no replay of stale consent. |
 
 Principal ordering is admission → complete local segment/parent barrier → independent provider/projection work. Reception is exact local installation → dependency completion/validation → generation-fenced reduction. Neither path passes through a shared Notes & Settings transaction.
@@ -137,20 +137,69 @@ prerequisites may become usable under a future validator.
 
 NV classifies observable evidence, never presumed cause. Offline delivery, provider eviction, backup restoration, permissions changes, user deletion and filesystem damage may produce the same observation. For the selected root, `NV Data`, protocol subdirectories, the private Application Support hierarchy, Local State, descriptors and immutable objects, record: positive physical association, entry kind without following symlinks, readability/materialization, parent/final-name writability, exact format/hash/authentication result and required dependency closure. `NSError` domain/code and provider status may explain the UI and schedule Retry; neither turns unknown into absence, authorizes overwrite or selects a winner.
 
-The common repair source is the **repair union** of exact validated immutable descriptors/objects available from the private store, `NV Data`, or an explicitly selected backup. Missing entries never subtract from it. Complementary partial copies may repair one another. Never merge damaged bytes, synthesize a different payload under an existing immutable identity, or prefer bytes by timestamp. Preserve damaged/foreign evidence; the rows below permit replacing positively owned provider damage with an exact validated copy only after preserving the displaced evidence.
+The common repair source is the **repair union** of exact validated immutable descriptors/objects available from the private store, `NV Data`, or an explicitly selected backup. Missing entries never subtract from it. Complementary partial copies may repair one another. Never merge damaged bytes, synthesize a different payload under an existing immutable identity, or prefer bytes by timestamp. Preserve occupied damaged/foreign entries in place. Automatic provider repair is add-only; occupied damage uses stop-and-Save-As.
+
+Background transport also checks canonical names from a fixed accepted local
+history prefix in bounded metadata batches. Background checks cap that prefix at
+complete acceptance batches already covered by the existing publication cursor;
+new outgoing work stays owned by publication and its retries. This detects previously published
+objects that ordinary enumeration can no longer list. A fresh unchanged observation
+may reuse its checked hint only for that exact expected immutable identity; changed
+readable bytes must match the expected hash. Missing names enter normal verified
+add-only repair; occupied damage stops affected writes and offers Save As. Failed
+batches keep their position for bounded retries. Healthy current-row publication
+does not await this check. These observations retain the existing metadata-hint
+limitations: they establish neither globally complete provider disclosure nor
+detection of corruption that preserves every checked metadata field.
+
+Optional accepted-name checks yield to an existing collection-operation reservation,
+including Save As preparation. Preserve their cursor and attempt budget for the
+existing periodic worker. Already admitted checks retain their ownership and
+verification obligations; any resulting source write still invalidates a prepared
+switch. Ordinary saves, disclosed history and owned publication remain independent.
+After finite foreground work ends, periodic checking resumes without a new file
+or user command. Cancellation before switch admission retains the original selection
+and reports cancellation separately from invalid history.
+
+Report unreadable or wrong-kind source subtrees and requested objects by source and
+relative path. With that source's root permission still valid, continue to other
+available entries and explicitly selected sources. Such a report conveys unavailable
+evidence, not an empty subtree or complete source inventory. Lost root authority,
+cancellation and contradictory validated identities stop the attempt. Reconstruction
+still requires the complete known accepted union before creating its replacement;
+unrelated invalid files grant no repair authority and do not invalidate intact required
+evidence. Preserve source contents and permissions throughout.
 
 | Provider/root evidence | Required behavior |
 | --- | --- |
 | Same positively validated root; compatible readable/writable `NV Data`; complete required closure | Discover/receive and publish normally. Equal objects are idempotent after exact verification. |
 | Same root and compatible `NV Data`, but a protocol subdirectory or exact known object is absent | Exclusively recreate owned protocol directories and republish the missing exact local bytes automatically. Revalidate every final name; never replace a race winner. |
 | Same root; `NV Data` itself is positively observed locally absent; complete private retained closure; no positively disclosed unread newer-provider evidence | Immediately start transparent repository repair. Revalidate same-root identity and absence, exclusively create and verify the complete known repository, then resume publication. No Restore or Work Offline choice is shown. |
-| Same root; an owned `NV Data` entry is locally corrupt or the wrong kind; complete exact repair union; no positively disclosed unread newer-provider evidence | Transparently construct and verify its replacement, preserve the displaced exact evidence, and compare-and-swap only the captured generation. If preservation or installation is impossible, leave the source untouched and report repair failure/Save Current Collection As…; do not ask the user to authorize restoration. |
+| Same root; an occupied `NV Data` entry, protocol directory or immutable object is corrupt or the wrong kind | Preserve the occupant in place, stop affected provider writes, and offer **Save Current Collection As…** to a fresh destination. Healthy local editing continues. Retry may reobserve an externally corrected entry; it grants no replacement permission. A complete exact local copy does not authorize overwriting occupied damage. |
 | Provider positively discloses a newer version or required `NV Data` entry but its bytes are unmaterialized/unreadable | Bound materialization attempts; at startup offer **Work Offline** or **Save Current Collection As…**. If editing is already enabled, continue it and show pending sync status. Work Offline uses the complete local closure without treating delayed provider evidence as absent, stale, resolved or safe to overwrite. |
 | Root, `NV Data`, or an item is unavailable, unreadable, read-only, quota-blocked or access-ambiguous without positive unread newer-provider evidence | Keep complete local history editable; bound/back off provider work and Retry on useful evidence. Show repair/sync status and Save Current Collection As… where useful, but no Work Offline choice. Do not reinterpret the condition as absence or create alongside it. |
-| `NV Data` or a reserved entry is foreign/incompatible, symlinked, identity-ambiguous, or cannot be displaced without preserving it | Preserve it and stop only affected provider effects. Report the collision and offer reveal/retry, Re-open, or a different destination; never chmod, delete, or overwrite it automatically. Valid unrelated disclosed history may still be retained locally. |
+| `NV Data` or a reserved entry is foreign/incompatible, symlinked or identity-ambiguous | Preserve it and stop only affected provider effects. Report the collision and offer reveal/retry, Re-open, or Save As to a different destination; never chmod, delete, or overwrite it automatically. Valid unrelated disclosed history may still be retained locally. |
 | Selected root is deleted, revoked, replaced, or no longer positively the same directory object | Apply the root-unavailable policy: fence provider effects, retain healthy local editing, and offer Retry/Re-open/Save As/quit. A recreated pathname or matching collection ID is not a successor. |
 
-Automatic repository repair captures the same positively owned root, a fresh coordinated observation of each missing/damaged generation, a complete validated local retained-history closure and a writable destination. Build and verify an unattached ordinary directory/item, preserve displaced evidence, and install only against the still-current observation. For a missing top-level name, exclusively create the ordinary directory/protocol children and publish every validated retained descriptor/object by exact copy. A crash leaves only valid add-only partial output or an unattached verified replacement for retry. If any entry appears or authority changes, publish nothing further under the captured operation and reclassify; preserve and union a compatible race winner, never overwrite it. Completion means this Mac's complete known retained history, including previously unpublished durable objects—not proof that another Mac has disclosed every branch. No **Restore NV Data** control or durable restoration-consent state exists.
+Automatic repository repair captures the same positively owned root, a fresh coordinated observation of missing entries, a complete validated local retained-history closure and a writable destination. Build and verify staged bytes before exclusive installation; an appearing occupant stops that effect and is reclassified. Verified identical existing bytes may be reused. For a missing top-level name, exclusively create the ordinary directory/protocol children and publish every validated retained descriptor/object by exact copy. A crash preserves add-only partial output and owned stages for retry. A detected authority change stops further effects. Completion means this Mac's complete known retained history, including previously unpublished durable objects—not proof that another Mac has disclosed every branch. No **Restore NV Data** control or durable restoration-consent state exists.
+
+**Stop-and-Save-As:** occupied damaged entries stay at their current names, including populated directories and their descendants. Save As copies available repository evidence and the complete known saved local history to a fresh destination under the copy contract; unavailable extras remain explicit. Copy-only preserves the active association, and an optional switch requires separate verified activation. This policy requires no displacement or persistent replacement-reconciliation record. It concerns provider repository repair; private-store sibling reconstruction/selected-store activation and ordinary note-file save contracts remain separate.
+
+When damaged source bytes occupy a canonical name for which the private store has
+exact verified saved history, Save As installs the verified bytes at that name in
+the fresh destination. It reports the damaged source entry as preserved in place;
+it creates no additional recovery/archive directory. This also applies to wrong-kind
+source entries obstructing the verified destination hierarchy. Copy inventory
+coverage remains distinct from complete validated history: successfully recovering
+the latter does not imply that all source extras were copied.
+Canonical names remain reserved for the captured verified bytes after an installation
+failure. Report the unmet requirement and preserve the source; a partial copy cannot
+fall back to damaged source bytes at that name.
+Saved-history copying and destination verification use bounded payload batches
+at the captured accepted prefix. A checked name/hash inventory identifies the exact
+required bytes and detects omissions between batches; it may grow with history.
+Later saves remain separate, and failed or changed source reads cannot become a
+claim of complete history coverage.
 
 | Private Application Support evidence | Required behavior |
 | --- | --- |
@@ -168,6 +217,24 @@ Automatic repository repair captures the same positively owned root, a fresh coo
 Apply these rows compositionally. Provider-only failure never closes a healthy local edit gate. Local failure always prevents new admission until a complete writable private closure is activated. If the two copies contain complementary valid objects, rebuild the private store first, commit its retained-history pin, then repair the provider. If the same required evidence is gone from every copy, no metadata can reconstruct or even prove the contents that were erased; report that information-theoretic limit rather than fabricating success. Total loss of Application Support therefore has fresh-Mac private-state semantics, while total local loss of `NV Data` is repaired automatically when a complete private copy survives and no unread provider-held evidence is positively disclosed.
 
 For SQLite, preserve the damaged database and required journals before recovery on a working copy. Salvaged rows are candidates, not trusted acceptance/consent: revalidate exact immutable identities and complete history, and independently retain valid settings and pending latest/frozen inputs with their operation links. A repository-only reconstruction cannot silently discard known unpublished/private work. Reopen the fully committed fresh sibling with its usable recovery credentials before atomically switching the selected-store record; crashes or ambiguous cutover preserve both candidates. A surviving pin detects known missing history; no separate per-edit sidecar watermark is required. [Concrete backup/repair mapping](impl-proposal-5/LocalStore.md#sqlite-backup-salvage-and-replacement-activation).
+
+Repeated private repair preserves original pending-input capture bindings from
+every contributing private store, including earlier repairs. Validate their
+collection and retained descriptor context, coalesce exact repeated bindings, and
+keep contradictory private identities incomplete. Fresh physical checks and review
+still govern later file effects; readable historical input is not replayable consent.
+
+Standalone selection activation checks cancellation before admission and immediately before
+the physical installation. Cancellation observed there leaves the selected record
+unchanged. After installation starts, finish the existing readback and durability
+protocol, reporting either verified activation or uncertainty. Cancelling a retry
+leaves the uncertain attempt's retained handles and both candidates available for
+another retry or explicit close. Closing the candidate revokes its live activation
+authority; it does not certify or undo an already installed selection.
+An integrated Save As handoff already admitted before old-accessor settlement
+owns its remaining activation to completion. Late cancellation of that caller
+therefore waits for the handoff's independently settled activation task; it does
+not revoke the earlier admission or release resources underneath it.
 
 The retained-history pin is not the history or undo stack. It is private evidence of the maximal segment closure this store has accepted and therefore must still possess. After total Local State loss, validate the repository's disclosed closure and create a new pin for it. `ActionRecordV1` values, note revisions, causal scope-parent edges, compensations and restoration provenance rebuild Note History and portable durable Undo/Redo eligibility on any Mac. Only the lost installation's fine-grained native `NSUndoManager` objects, grouping and selections are unavailable.
 
@@ -271,6 +338,8 @@ The retained-history pin is not the history or undo stack. It is private evidenc
 - After local durability, provider/file delay offers Quit Without Waiting, retaining unpublished objects and restart-reconcilable projection intent. Local note failure retains live work and offers Retry/verified current-notes recovery export, not a repository-only copy that omits pending work. Unsaved settings are reported separately; failed mandatory association/key cutover is not success. Derived materialization failure alone cannot block durable quit. Cancel resumes only healthy admission.
 - No shared checkpoint CAS, whole-union retirement re-journaling, history deletion or current-checkpoint merge exists in segment collections. NVCheckpointInstallCurrentChanged belongs only to explicitly retained legacy/export callers.
 - Repository Save As copies available history/files with unchanged collection/birth/operation/action identities and sealed bytes; it is not fresh-genesis conversion. It needs no source Application Support, unpublished work or wait for other Macs. A copy-only command leaves the active root unchanged; if the requested Save As includes switching, verify the copy first and establish a fresh private store/writer epoch and physical ownership. Portable causal-undo eligibility derives from the copied action graph. The copy shares historical lineage, not root authority or a distributed writer identity. A collection-ID match never silently retargets an existing session.
+- A switch from the active source also preserves required private settings, latest/frozen pending inputs and admitted work. A background-prepared private copy is usable only after a serialized final source check. If newer source work arrived, keep the source selected and request a fresh preparation rather than abandon that work. This final handoff is separate from completing a repository-only byte copy.
+- Before switching, reacquire the destination under physical ownership and verify its exact saved-history bytes against the checked private copy. Complete known history and required private inputs authorize the switch; unavailable repository extras remain separately reported and preserved at the source. Retire the unchanged source connection before selection installation. Until an uncertain installation is settled, retain source exclusion, the candidate and both repository owners. Resume the same installed selection's readback/barriers. A known unchanged result keeps or reopens the source; a durable new selection followed by an opening failure reports that the new selection needs reopening. Closing or crashing preserves both stores and lets normal startup inspect the actual selected record.
 - Initial legacy migration, explicit current-notes export and key/profile conversion create fresh independently owned destinations. Capture coherent source after recovery/external settlement; verify complete genesis/import/snapshot/required plaintext output; provision/read back independent credentials; only then commit active private association. These current-state-only conversions must be labeled as such, never substituted for full repository Save As. Preserve source history/files/credentials until success and explicit cleanup. Source changes invalidate capture; no in-place conversion under an old writer. A repository-only copy is not recovery of unsaved/admitted work; retain that work until separately saved/exported.
 - Rewrapping a passphrase adds a same-key descriptor, not revocation; retained old descriptors/secrets may still unlock history. Full key/profile change gets a fresh collection/key. Never update/delete source credentials when making an independent destination; ambiguous target installation preserves necessary credentials.
 

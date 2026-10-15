@@ -7,8 +7,9 @@ public struct ImmutableRepositoryLocator: Equatable, Sendable {
     private init(_ path: String) { relativePath = path }
 
     static func descriptor(_ descriptor: BootstrapDescriptorV1) -> Self {
-        Self("NV Data/v1/keys/" + hex(descriptor.descriptorID) + ".nvkey")
+        descriptorID(descriptor.descriptorID)
     }
+    static func descriptorID(_ id: [UInt8]) -> Self { Self("NV Data/v1/keys/" + hex(id) + ".nvkey") }
     static func segment(_ locator: SegmentLocator) -> Self {
         let sequence = String(locator.sequence)
         return Self(writerDirectory(locator.writerEpoch) + "/"

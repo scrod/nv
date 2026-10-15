@@ -20,6 +20,46 @@ def main():
     args = parser.parse_args()
     modules = args.modules.resolve()
     cases = [
+        ('accepted-name cursor issuer', '''
+func wrong(_ store: LocalStoreID) {
+    _ = RepositoryInventoryCursor(store: store, session: UUID(), through: 1, afterSequence: 0, afterObject: []) // expected-error
+}
+''', ("cannot find 'RepositoryInventoryCursor' in scope", "'RepositoryInventoryCursor' initializer is inaccessible due to 'fileprivate' protection level")),
+        ('accepted-name batch issuer', '''
+func wrong() {
+    _ = RepositoryInventoryBatch(context: fatalError(), entries: [], continuation: nil) // expected-error
+}
+''', ("cannot find 'RepositoryInventoryBatch' in scope", "'RepositoryInventoryBatch' initializer is inaccessible due to 'fileprivate' protection level")),
+        ('accepted-name observation issuer', '''
+func wrong(_ permission: RepositoryRootPermission) {
+    _ = RepositoryInventoryCheck(batch: fatalError(), permission: permission, failures: [], reads: 0) // expected-error
+}
+''', ("cannot find 'RepositoryInventoryCheck' in scope", "'RepositoryInventoryCheck' initializer is inaccessible due to 'fileprivate' protection level")),
+        ('verified provider observation issuer', '''
+func wrong() {
+    _ = VerifiedRepositoryObservation(context: fatalError(), hint: fatalError(), object: fatalError()) // expected-error
+}
+''', ("cannot find 'VerifiedRepositoryObservation' in scope", "'VerifiedRepositoryObservation' initializer is inaccessible due to 'fileprivate' protection level")),
+        ('repair source issuer', '''
+func wrong(_ root: RepositoryRootSession, _ permission: RepositoryRootPermission, _ descriptor: BootstrapDescriptorV1) {
+    _ = RepositoryRepairSource(root: root, permission: permission, descriptor: descriptor) // expected-error
+}
+''', "'RepositoryRepairSource' initializer is inaccessible due to 'fileprivate' protection level"),
+        ('repair status consumer', '''
+func use(_ owner: CollectionSession) async {
+    _ = await owner.repositoryRepairStatus()
+}
+''', None),
+        ('complete repair prefix issuer', '''
+func wrong(_ cursor: RepositoryPublicationCursor) {
+    _ = CheckedRepositoryRepair(through: 1, objectCount: 1, beginning: cursor) // expected-error
+}
+''', ("cannot find 'CheckedRepositoryRepair' in scope", "'CheckedRepositoryRepair' initializer is inaccessible due to 'fileprivate' protection level")),
+        ('repair namespace issuer', '''
+func wrong(_ permission: RepositoryRootPermission) {
+    _ = RepositoryRepairNamespace(permission: permission, identity: UUID()) // expected-error
+}
+''', ("cannot find 'RepositoryRepairNamespace' in scope", "'RepositoryRepairNamespace' initializer is inaccessible due to 'fileprivate' protection level")),
         ('root consumer companion', '''
 func use(_ owner: RepositoryRootSession) async throws -> RepositoryEntryObservation {
     let permit = try await owner.permission()
@@ -316,6 +356,14 @@ func wrong(_ owner: CollectionSession) { _ = owner.decision() } // expected-erro
             count += checker.run_probes(invocation, clients, Path(tmp)/('same' if same else 'ordinary'),
                 label='same-module' if same else 'ordinary', timeout=90, maximum=args.batch_size)
         for name, source, diagnostic in [
+            ('prepared directory unique ownership', '''
+private func requireCopy<T>(_ value: borrowing T) {}
+private func wrong(_ stage: borrowing RootPreparedDirectory) { requireCopy(stage) } // expected-error
+''', "requires that 'RootPreparedDirectory' conform to 'Copyable'"),
+            ('prepared directory executor confinement', '''
+private func requireTransfer<T: ~Copyable & Sendable>(_ value: borrowing T) {}
+private func wrong(_ stage: borrowing RootPreparedDirectory) { requireTransfer(stage) } // expected-error
+''', "does not conform to the 'Sendable' protocol"),
             ('prepared stage unique ownership', '''
 private func requireCopy<T>(_ value: borrowing T) {}
 private func wrong(_ stage: borrowing RootPreparedStage) { requireCopy(stage) } // expected-error
@@ -335,7 +383,7 @@ private func wrong(_ stage: borrowing RootPreparedStage) { requireTransfer(stage
             assert checker.matches_contract(run.returncode, run.stderr, path, combined, diagnostic), (name, run.stderr)
             print('PASS: actual-file', name, flush=True)
             count += 1
-        assert count == 116
+        assert count == 134
 
 
 if __name__ == '__main__':

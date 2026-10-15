@@ -22,9 +22,37 @@ public struct CompletePrivateBackup: Sendable {
     fileprivate init(selection: LocalStoreSelection, through: Int64) { self.selection = selection; self.through = through }
 }
 
+/// Binds a fixed reader to its source connection's write count for a later short handoff.
+struct PrivateBackupSourceCut: Sendable {
+    fileprivate let connection: UUID
+    fileprivate let changes: Int64
+    fileprivate init(connection: UUID, changes: Int64) { self.connection = connection; self.changes = changes }
+}
+
+/// A complete backup paired with the live source incarnation that captured it.
+struct CapturedPrivateBackup: Sendable {
+    let result: CompletePrivateBackup
+    fileprivate let session: UUID
+    fileprivate let cut: PrivateBackupSourceCut
+    fileprivate init(result: CompletePrivateBackup, session: UUID, cut: PrivateBackupSourceCut) {
+        self.result = result; self.session = session; self.cut = cut
+    }
+    func checkSession(_ session: UUID, selection: LocalStoreSelection) throws {
+        guard self.session == session, result.selection.store == selection.store,
+              result.selection.descriptor.encodedBytes == selection.descriptor.encodedBytes else {
+            throw StorageError.wrongContext
+        }
+    }
+}
+
 extension LocalStoreSession {
     /// Copies a keyed fixed read state, closes its reader, and independently reopens the destination.
     public func backupPrivateStore(to directory: String, budget: PrivateBackupBudget? = nil) async throws -> CompletePrivateBackup {
+        try await capturedPrivateBackup(to: directory, budget: budget).result
+    }
+
+    /// Keeps the fixed-reader boundary available for a guarded copy/switch preparation.
+    func capturedPrivateBackup(to directory: String, budget: PrivateBackupBudget? = nil) async throws -> CapturedPrivateBackup {
         guard !closed, !quiescing else { throw StorageError.closed }
         guard !backupInFlight else { throw StorageError.busy }
         backupInFlight = true
@@ -83,12 +111,20 @@ extension LocalStoreSession {
             }
             try await destination.verifyCompletePrivateState()
             try await destination.quiesce(); opened = nil
-            return CompletePrivateBackup(selection: candidate, through: cut.through)
+            return CapturedPrivateBackup(result: CompletePrivateBackup(selection: candidate, through: cut.through),
+                                         session: incarnation, cut: cut.source)
         } catch {
             try? await lane.perform { $0.cancelPrivateBackup() }
             try? await opened?.quiesce()
             throw error
         }
+    }
+
+    /// Any intervening connection write requires a fresh preparation, including private-only updates.
+    func checkBackupSource(_ backup: CapturedPrivateBackup) async throws {
+        guard !closed, !quiescing else { throw StorageError.closed }
+        try backup.checkSession(incarnation, selection: selection)
+        try await lane.perform { db in try db.checkBackupSource(backup.cut) }
     }
 
     /// Audits complete history and every pending reference for exceptional backup/repair qualification.
@@ -138,6 +174,20 @@ extension LocalStoreSession {
 }
 
 extension Database {
+    func checkBackupSource(_ backup: CapturedPrivateBackup) throws { try checkBackupSource(backup.cut) }
+    /// Captured on the owning lane immediately after the fixed reader establishes its snapshot.
+    func captureBackupSource() throws -> PrivateBackupSourceCut {
+        let changes = try rows("SELECT total_changes()")[0][0].number
+        guard changes >= 0 else { throw StorageError.limit }
+        return PrivateBackupSourceCut(connection: incarnation, changes: changes)
+    }
+
+    func checkBackupSource(_ cut: PrivateBackupSourceCut) throws {
+        try requireHealthyHistory()
+        guard incarnation == cut.connection else { throw StorageError.wrongContext }
+        guard try rows("SELECT total_changes()") == [[.integer(cut.changes)]] else { throw StorageError.staleCapture }
+    }
+
     /// Streams the exact pending table cut into a transient, framed comparison digest.
     func pendingPrivateFingerprint() throws -> [UInt8] {
         var digest = SHA256()

@@ -71,7 +71,7 @@ extension LocalStoreSession {
                 case .incomplete: category = .requiredStateIncomplete
                 case .integrity: category = .requiredStateInvalid
                 case .database: category = .unlockingOrDatabaseUnreadable
-                case .ownership, .busy, .closed, .staleCapture, .limit: category = .ownershipOrAccess
+                case .ownership, .busy, .closed, .staleCapture, .limit, .cancelled: category = .ownershipOrAccess
                 }
             }
             return await .recoveryRequired(StorageHealthReport(directory: directory, database: database, category: category,

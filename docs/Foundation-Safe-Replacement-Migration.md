@@ -4,6 +4,15 @@ Status: implementation migration plan; behavior remains governed by [Atomic Note
 
 ## Decision and intended result
 
+The [P5.6 capability experiment](impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md#existing-item-replacement-capability-gap)
+shows that Foundation can retain concurrent file/directory contents in a backup
+while replacing the current name after an uncoordinated writer's change. Provider
+repository repair therefore uses **stop-and-Save-As for occupied damaged entries**
+and exclusive installation for missing entries. It has no existing-item replacement
+backend or displacement-reconciliation state. The experiment remains capability
+evidence, not a production repair gate. Private selected-store activation and
+ordinary note-file saving retain their separate intent-specific contracts.
+
 Migrate replacement of an existing regular file to one Foundation safe-save backend built around `-[NSFileManager replaceItemAtURL:withItemAtURL:backupItemName:options:resultingItemURL:error:]` after the acceptance gates preserve the current contract. Keep `NVRootedDirectory`'s descriptor-based safety envelope and its three explicit public intents: exclusive creation, conditional replacement, and unconditional replacement. The private selected-store record and legacy/export database callers can adopt the backend first; unconditional and conditional note-file replacement follow after their behavior tests pass. Private state/current rows use SQL transactions, not this backend. Immutable provider segment, descriptor and snapshot-page installation is exclusive creation, never replacement.
 
 If every deletion gate below passes, this removes the APFS `RENAME_SWAP`, HFS+ `exchangedata()`, and limited-filesystem ordinary-rename implementations used for existing destinations. It does not replace:

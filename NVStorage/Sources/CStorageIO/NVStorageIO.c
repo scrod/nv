@@ -6,6 +6,7 @@
 #endif
 
 #include "NVStorageIO.h"
+#include "NVRepositoryRootInternal.h"
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -208,6 +209,9 @@ static int owner_observation(NVStorageOwner *o, uint64_t words[25]) {
     }
     return 0;
 }
+int nv_storage_owner_observe(NVStorageOwner *o, uint64_t observation[25]) {
+    return owner_observation(o, observation);
+}
 int nv_storage_owner_matches(NVStorageOwner *o, const uint64_t expected[25]) {
     uint64_t actual[25];
     if (owner_observation(o, actual)) return -1;
@@ -369,59 +373,21 @@ void nv_selection_close(NVSelectionOwner *o) {
     free(o->path); free(o->leaf); free(o->destination); free(o->stage_leaf); free(o->stage_path); free(o);
 }
 
-struct NVRepositoryOwner { int directory; char *path; };
+struct NVRepositoryOwner { int directory; };
 struct NVRepositoryCatalog { DIR *directory; };
 int nv_repository_validate(NVRepositoryOwner *o) {
-    struct stat held, named;
-    if (fstat(o->directory, &held) || lstat(o->path, &named)) return -1;
-    if (!S_ISDIR(named.st_mode) || held.st_dev != named.st_dev || held.st_ino != named.st_ino) { errno = ESTALE; return -1; }
+    struct stat held;
+    if (fstat(o->directory, &held)) return -1;
+    if (!S_ISDIR(held.st_mode) || !held.st_nlink) { errno = ESTALE; return -1; }
     return 0;
 }
-NVRepositoryOwner *nv_repository_open(const char *path) {
-    struct stat st;
-    if (lstat(path, &st) || !S_ISDIR(st.st_mode)) { errno = EINVAL; return NULL; }
-    NVRepositoryOwner *o = calloc(1, sizeof(*o));
-    if (!o) return NULL;
-    o->directory = -1; o->path = realpath(path, NULL);
-    o->directory = open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    if (!o->path || o->directory < 0 || nv_repository_validate(o)) {
-        int saved = errno; nv_repository_close(o); errno = saved; return NULL;
-    }
-    return o;
-}
-NVRepositoryOwner *nv_repository_create(NVRepositoryOwner *source, const char *path) {
-    if (source && nv_repository_validate(source)) return NULL;
-    char *copy = strdup(path);
+NVRepositoryOwner *nv_repository_borrow_root(NVRootOwner *root) {
+    if (nv_root_validate(root)) return NULL;
+    NVRepositoryOwner *copy = calloc(1, sizeof(*copy));
     if (!copy) return NULL;
-    char *slash = strrchr(copy, '/');
-    if (!slash || !leaf_valid(slash + 1)) { free(copy); errno = EINVAL; return NULL; }
-    *slash = 0;
-    int parent = open(copy[0] ? copy : "/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    int ancestor = parent < 0 ? -1 : fcntl(parent, F_DUPFD_CLOEXEC, 0);
-    struct stat source_stat;
-    int failed = parent < 0 || ancestor < 0 || (source && fstat(source->directory, &source_stat));
-    while (source && !failed) {
-        struct stat here, above;
-        int next;
-        if (fstat(ancestor, &here)) { failed = 1; break; }
-        if (here.st_dev == source_stat.st_dev && here.st_ino == source_stat.st_ino) { errno = EINVAL; failed = 1; break; }
-        next = openat(ancestor, "..", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-        if (next < 0) { failed = 1; break; }
-        if (fstat(next, &above)) { close(next); failed = 1; break; }
-        close(ancestor); ancestor = next;
-        if (here.st_dev == above.st_dev && here.st_ino == above.st_ino) break;
-    }
-    if (!failed) failed = mkdirat(parent, slash + 1, 0700) || fsync(parent);
-    int saved = errno;
-    if (ancestor >= 0) close(ancestor);
-    if (parent >= 0) close(parent);
-    free(copy); errno = saved;
-    if (failed) return NULL;
-    NVRepositoryOwner *result = nv_repository_open(path);
-    if (result && flock(result->directory, LOCK_EX | LOCK_NB)) {
-        saved = errno; nv_repository_close(result); errno = saved; return NULL;
-    }
-    return result;
+    copy->directory = fcntl(root->directory, F_DUPFD_CLOEXEC, 0);
+    if (copy->directory < 0) { int saved = errno; free(copy); errno = saved; return NULL; }
+    return copy;
 }
 /* Every component is opened from the retained root; caller owns the returned parent and leaf. */
 static int repository_parent(NVRepositoryOwner *o, const char *relative, char **leaf) {
@@ -465,6 +431,15 @@ const char *nv_repository_next(NVRepositoryCatalog *catalog) {
     struct dirent *entry;
     do { errno = 0; entry = readdir(catalog->directory); } while (entry && (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")));
     return entry ? entry->d_name : NULL;
+}
+int nv_repository_catalog_validate(NVRepositoryOwner *owner, NVRepositoryCatalog *catalog, const char *relative) {
+    NVRepositoryCatalog *current = nv_repository_catalog(owner, relative);
+    if (!current) return -1;
+    struct stat held, named;
+    int result = fstat(dirfd(catalog->directory), &held) || fstat(dirfd(current->directory), &named);
+    if (!result && (held.st_dev != named.st_dev || held.st_ino != named.st_ino)) { errno = ESTALE; result = -1; }
+    int saved = errno; nv_repository_catalog_close(current); errno = saved;
+    return result ? -1 : 0;
 }
 void nv_repository_catalog_close(NVRepositoryCatalog *catalog) {
     if (!catalog) return;
@@ -571,23 +546,5 @@ done:;
     if (from_parent >= 0) close(from_parent); if (to_parent >= 0) close(to_parent);
     free(from_leaf); free(to_leaf); errno = saved; return result;
 }
-int nv_repository_install(NVRepositoryOwner *o, const char *relative, const uint8_t *bytes, uint64_t count) {
-    char *leaf = NULL; int parent = repository_parent(o, relative, &leaf);
-    if (parent < 0) return -1;
-    int fd = openat(parent, leaf, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600), result = -1;
-    uint64_t offset = 0;
-    if (fd >= 0) {
-        while (offset < count) {
-            ssize_t n = write(fd, bytes + offset, (size_t)(count - offset));
-            if (n < 0 && errno == EINTR) continue;
-            if (n <= 0) { if (!n) errno = EIO; goto done; }
-            offset += (uint64_t)n;
-        }
-        if (durable_file(fd) || fsync(parent) || installed_file_matches(parent, leaf, fd) || nv_repository_validate(o)) goto done;
-        result = 0;
-    }
-done:;
-    int saved = errno; if (fd >= 0) close(fd); close(parent); free(leaf); errno = saved; return result;
-}
 int nv_repository_sync(NVRepositoryOwner *o) { return nv_repository_validate(o) || fsync(o->directory) ? -1 : 0; }
-void nv_repository_close(NVRepositoryOwner *o) { if (o) { if (o->directory >= 0) close(o->directory); free(o->path); free(o); } }
+void nv_repository_close(NVRepositoryOwner *o) { if (o) { if (o->directory >= 0) close(o->directory); free(o); } }

@@ -27,7 +27,21 @@ func use(_ s: LocalStoreSession, _ item: PendingItemID, _ replacement: VerifiedR
     _ = try await s.persistPendingAction(prepared)
     _ = try await s.backupPrivateStore(to: target)
     _ = try await replacement.activate(using: owner, basedOn: state)
+    _ = try await replacement.resumeActivation(using: owner)
+    _ = try await CollectionSession.resumePrivateRepair(replacement, using: owner)
     _ = try await RepositoryCopy.preserveAvailable(from: target, to: target + "-copy")
+}
+func ownedCopy(_ store: LocalStoreSession, _ root: RepositoryRootSession, _ target: String) async throws {
+    _ = try await RepositoryCopy.preserveAvailable(from: root, to: target)
+    _ = try await store.copyRepositoryAndSavedWork(from: root, to: target)
+}
+func integratedCopy(_ collection: CollectionSession, _ target: String) async throws {
+    _ = try await collection.copyRepositoryAndSavedWork(to: target)
+}
+func integratedSwitch(_ collection: CollectionSession, _ owner: SelectedStoreOwner,
+                      _ state: SelectedStoreState, _ target: String) async throws {
+    _ = try await collection.switchRepositoryAndSavedWork(to: target, privateDirectory: target + "-private", using: owner, basedOn: state)
+    _ = try await collection.resumeCopySwitch()
 }
 ''', None)]
     for name, expression, parameters in [
@@ -41,6 +55,9 @@ func use(_ s: LocalStoreSession, _ item: PendingItemID, _ replacement: VerifiedR
         ('VerifiedReplacement', 'candidate: c, selection: s, through: 1, sources: []', '_ c: LocalStoreSession, _ s: LocalStoreSelection'),
         ('SelectedStoreState', 'record: nil, owner: UUID(), parent: []', ''),
         ('RepositoryCopyResult', 'destination: "x", files: [], issues: [], requirements: []', ''),
+        ('ActiveRepositoryCopy', 'repository: r, through: 1, pending: 0, receipts: []', '_ r: RepositoryCopyResult'),
+        ('CollectionCopySwitchResult', 'copy: c, outcome: .sourceRetained(cause: .incomplete)', '_ c: ActiveRepositoryCopy'),
+        ('RepositoryRepairSourceIssue', 'sourceIndex: 0, path: "x", failure: .store(.integrity)', ''),
         ('CurrentCollectionExport', 'selection: s, repository: r, births: []', '_ s: LocalStoreSelection, _ r: RepositoryCopyResult'),
     ]:
         cases.append((name + ' issuer', f'func wrong({parameters}) {{ _ = {name}({expression}) }} // expected-error\n',
@@ -49,6 +66,9 @@ func use(_ s: LocalStoreSession, _ item: PendingItemID, _ replacement: VerifiedR
 func take(_ r: VerifiedReplacement) {}
 func wrong(_ report: StorageHealthReport) { take(report) } // expected-error
 ''', "cannot convert value of type 'StorageHealthReport' to expected argument type 'VerifiedReplacement'"))
+    cases.append(('repair object reference visibility', '''
+func wrong() { _ = RepairObjectReference.self } // expected-error
+''', ("cannot find 'RepairObjectReference' in scope", "'RepairObjectReference' is inaccessible due to 'fileprivate' protection level")))
     with checks.temporary_artifacts(prefix='nv-private-typecheck-') as tmp:
         command = ['swiftc', '-swift-version', '6', '-strict-concurrency=complete', '-strict-memory-safety',
                    '-warnings-as-errors', '-typecheck', '-I', str(modules),
@@ -73,16 +93,26 @@ func wrong(_ report: StorageHealthReport) { take(report) } // expected-error
                 for name, expression, parameters in [
                     ('PendingAdmissionBinding', 'item: i, generation: 1, reservation: r', '_ i: PendingItemID, _ r: PendingReservationV1'),
                     ('VerifiedActivationInput', 'candidate: s, association: a, sources: []', '_ s: LocalStoreSelection, _ a: LocalAssociationID'),
-                    ('CapturedRepositoryHistory', 'through: 1, objects: []', ''),
+                    ('CapturedRepositoryHistory', 'source: s, beginning: c, through: 1, requirements: []', '_ s: LocalStoreSession, _ c: RepositoryPublicationCursor'),
+                    ('PrivateBackupSourceCut', 'connection: UUID(), changes: 0', ''),
+                    ('CapturedPrivateBackup', 'result: b, session: UUID(), cut: c', '_ b: CompletePrivateBackup, _ c: PrivateBackupSourceCut'),
+                    ('PreparedPrivateStoreCopy', 'candidate: c, through: 1, backup: b', '_ c: LocalStoreSession, _ b: CapturedPrivateBackup'),
+                    ('ActivationSource', 'selection: s, observation: []', '_ s: LocalStoreSelection'),
+                    ('RootCopyAccess', 'root: r, destination: "x"', '_ r: RepositoryRootSession'),
                 ]:
-                    selected.append((name + ' issuer', f'func wrong({parameters}) {{ _ = {name}({expression}) }} // expected-error\n',
-                                     f"'{name}' initializer is inaccessible due to 'fileprivate' protection level"))
+                    diagnostic = ("'RootCopyAccess' is inaccessible due to 'private' protection level", "cannot find 'RootCopyAccess' in scope") if name == 'RootCopyAccess' else f"'{name}' initializer is inaccessible due to 'fileprivate' protection level"
+                    selected.append((name + ' issuer', f'func wrong({parameters}) {{ _ = {name}({expression}) }} // expected-error\n', diagnostic))
+            else:
+                for name in ['capturedPrivateBackup', 'preparePrivateStoreCopy']:
+                    selected.append((name + ' internal consumer',
+                        f'func wrong(_ s: LocalStoreSession) async throws {{ _ = try await s.{name}(to: "x") }} // expected-error\n',
+                        f"'{name}' is inaccessible due to 'internal' protection level"))
             clients = [(name, 'import Foundation\nimport NVStorageCore\n' + ('' if same else 'import NVStorageRuntime\n') + source, expected)
                        for name, source, expected in selected]
             cmd = command + (['-package-name', 'nvstorage', '-module-name', 'NVStorageRuntime', *map(str, runtime)] if same else [])
             completed += checks.run_probes(cmd, clients, Path(tmp)/('same' if same else 'ordinary'),
                 label='same-module' if same else 'ordinary', timeout=120, maximum=args.batch_size)
-        assert completed == 29, completed
+        assert completed == 44, completed
 
 
 if __name__ == '__main__':

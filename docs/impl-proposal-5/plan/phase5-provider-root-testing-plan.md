@@ -1,8 +1,9 @@
 # Phase 5 testing plan: provider transport and physical roots
 
-Date: 2026-10-08
+Updated: 2026-10-14
 
-Status: implementation and qualification plan; the cases below are planned, not completed evidence.
+Status: implementation and qualification plan. The scenarios below define required
+coverage; revision-bound part ledgers record which production witnesses are complete.
 
 Scope: Phase 5 of the [Swift roadmap](swift-storage-implementation-plan.md#9-phase-5--provider-and-physical-root-adapters).
 
@@ -19,7 +20,23 @@ have revision-bound results in the
 The detailed [P5.5 plan](phase5/05-startup-and-root-reassociation.md) specializes
 startup/create/root/replay cases as P55-01–24, with ordered implementation gates,
 real admission/choice/transition consumers, independent observations, fault cuts
-and compiler/mutation checks. Those P5.5 witnesses remain planned.
+and compiler/mutation checks. Its
+[qualification ledger](phase5/05-startup-and-root-reassociation-validation.md)
+records completed headless witnesses and their capability/distribution limits.
+The expanded [P5.6 plan](phase5/06-repair-replacement-and-copy.md) specializes
+repair/copy, occupied-entry refusal and S4 through the
+[P56-01–25 matrix](phase5/06-repair-replacement-and-copy.md#4-scenario-and-independent-observation-matrix).
+It starts with P5.5's remaining effectful recovery-request consumers and preserves
+the established admission, wait and reassociation rules. Its
+[qualification ledger](phase5/06-repair-replacement-and-copy-validation.md)
+records the completed production witnesses and their limits.
+The [P5.7 execution plan](phase5/07-connected-qualification.md) now turns the
+remaining connected scope into ordered P57-01–24 cases, observer controls,
+bounded schedule generation and source-bound reuse rules. Its
+[execution ledger](phase5/07-connected-qualification-validation.md) records completed
+headless qualification, the corrected multi-batch publication defect and later
+release limits. New connected witnesses supplement the retained component checks;
+existing mutation cross-products remain unchanged.
 
 ## 1. Purpose, authority and boundaries
 
@@ -63,7 +80,7 @@ legacy evidence only.
 | Partial information grants no additional authority | Missing, unreadable, unsupported, wrong-context or stale evidence cannot authorize overwrite, partial acceptance, editable bootstrap or cleanup | START-01, PUB-01, REPAIR-01; TC-ASY-01, TC-START-02–03 |
 | Local saving is independent of transport | An actually entered, held provider accessor coexists with a completed local durability barrier and later fresh reopen | ROOT-01, WAIT-01; TC-LIVE-01 |
 | Valid work resumes | After finite interference ends, owned ready work finishes without another delivery; after storage failure, explicit recovery/retry resumes unrelated work | WAIT-01, DUR-01; TC-ASY-01, TC-DISC-01 |
-| Repair and copy preserve evidence | The exact validated union, private-only work and displaced artifacts remain accounted for; incomplete output is never reported as full history | REPAIR-01, BACKUP-01, CLEAN-01; TC-REPAIR-01, TC-COPY-01–02 |
+| Repair and copy preserve evidence | The exact validated union, private-only work, preserved sources and selection backups remain accounted for; incomplete output is never reported as full history | REPAIR-01, BACKUP-01, CLEAN-01; TC-REPAIR-01, TC-COPY-01–02 |
 | Privacy survives error handling | Real output, staging, recovery artifacts and diagnostic sinks satisfy the declared profile without plaintext fallback | CRYPT-01; TC-PRIV-01 |
 
 Agreement between two receivers is supplementary: they can agree after losing
@@ -173,7 +190,7 @@ production logs inspected by the privacy tests.
 | Coherent immutable read | Length/bounds before allocation; exact rooted open; truncate/rewrite/replace during observation; placeholder/read failure; changed collection/profile | Retained bytes and observation belong to the same verified object; failure/unknown is not absence or a valid empty object |
 | Exclusive immutable installation | Complete staged bytes; generated locator; file barrier; exclusive final-name install; rooted exact readback; every required directory barrier; equal/foreign/wrong-kind race winners | Only a complete verified object is published at the final name; equality is idempotent only with the required verification and durability work |
 | Existing regular-file replacement | Complete stage, same-volume operation, preserved displaced bytes, rooted installed identity/readback, required metadata and intent-specific barriers | Typed not-installed / verified / reconciliation-required result accurately accounts for old, new and displaced contents |
-| Protocol directory creation or directory repair | Nested creation barriers, populated directories, kind collisions, compatible/foreign concurrent occupants, preserved damaged input | Qualified add-only partial output or a verified replacement; complete known closure is required before reporting full repair |
+| Protocol directory creation or directory repair | Nested creation barriers, populated directories, kind collisions, compatible/foreign concurrent occupants, occupied damaged input | Qualified add-only partial output; occupied damage stays untouched with Save As available; complete known closure is required before reporting full repair |
 | Repository copy or recovery export | Captured source inventory, exact copy verification, independently inspected destination and missing dependencies; source changes | Exact captured inventory is preserved or reported incomplete. Full-history copy and current-state export remain distinct |
 
 ### 4.1 Strict new-object installation
@@ -202,6 +219,11 @@ and capability advertisements alone choose no policy. A missing primitive is a
 contract gap to report, not permission to weaken the contract silently.
 
 ### 4.2 Foundation replacement and caller gates
+
+These gates apply to private selected-store activation and the separate later
+note/legacy save callers. P5.6 provider repair exclusively installs missing entries;
+occupied damage uses stop-and-Save-As. The replacement capability experiment is
+retained rationale, not a pending provider-repair backend.
 
 Reuse the full [Foundation acceptance table](../../Foundation-Safe-Replacement-Migration.md#preservation-of-the-atomic-note-saves-contract).
 In particular:
@@ -253,7 +275,7 @@ from local SQL acceptance:
 | Synchronize affected directories | Failed barrier; nested parent not yet durable | Required namespace durability established separately from file synchronization |
 | Retain/park/accept incoming bytes | SQL/VFS failure, prerequisite arriving during parking, crash after commit before return | Old or complete committed membership/waits; exact bytes survive; no partial group |
 | Materialize/publish/complete | New local edit/Delete, same-body context change, closed session, held callback | History remains durable; only matching context/generations are consumed |
-| Diagnose/reject/repair/settle | Repeated write failure and a second crash during recovery | Durable verification/queue obligations and displaced/unique inputs survive; unrelated work can later resume |
+| Diagnose/reject/repair/settle | Repeated write failure and a second crash during recovery | Durable verification/queue obligations, preserved sources and unique inputs survive; unrelated work can later resume |
 
 At each reachable boundary first run single faults, then selected interference
 and second-failure schedules. Include cancellation before admission, after an
@@ -352,7 +374,7 @@ copies rather than claiming detection of information absent from every source.
 
 | Family / contract | Schedule and important variants | Assertions / defect control |
 | --- | --- | --- |
-| P5-REPAIR / TC-REPAIR-01, REPAIR-01 | Same-root local `NV Data` omission; owned damaged entry; complementary private/provider halves; unread disclosed evidence; compatible/foreign race winner; preservation/install/barrier failure; second crash during repair | Repair automatically only with required positive evidence; preserve damaged/foreign sources; rebuild private first if needed; union exact compatible inputs; retain unpublished objects and private obligations. No full-closure claim or activation until verified durable completion. Mutate timestamp preference, overwritten winner or premature cutover |
+| P5-REPAIR / TC-REPAIR-01, REPAIR-01 | Same-root local `NV Data` omission; owned damaged entry; complementary private/provider halves; unread disclosed evidence; compatible/foreign race winner; preservation/install/barrier failure; second crash during repair | Repair missing entries automatically only with required positive evidence; stop occupied damage and offer Save As; preserve damaged/foreign sources; rebuild private first if needed; union exact compatible inputs; retain unpublished objects and private obligations. No full-closure claim or activation until verified durable completion. Mutate timestamp preference, overwritten winner or premature cutover |
 | P5-COPY / TC-COPY-01–02 | Repository-only source without Application Support; placeholders, unknown files, dependency holes; source changes; independently verified destination; local failure with pending RAM edit | Preserve captured available inventory and report holes; full copy does not fabricate genesis or claim to save absent unpublished/RAM work. Current-state recovery export is separately disclosed. Source stays recoverable. Mutate missing-object success, source cleanup or private-state prerequisite |
 | P5-CLEAN / CLEAN-01 | Abandoned owned stage, foreign stage-like names, displaced recovery artifact, cancellation, name replaced between observation and cleanup | Remove only provably owned disposable staging within the helper's qualified race contract. Accepted/sealed history and foreign/recovery evidence survive. Uncertain cleanup retains evidence and reports its state. Mutate cleanup by filename prefix or upload/derived-view success |
 | P5-PRIV / TC-PRIV-01 | Synthetic body/title/passphrase/path/bookmark markers in encrypted sends, errors, malformed inputs, wrong credentials, repair/copy/staging and exported outputs; both private database profiles | No prohibited plaintext in actual production sinks or encrypted repository artifacts; nonsecret descriptor fields checked against their schema. Explicit plaintext export is confined to its chosen destination. Mutate plaintext fallback, error payload logging or an unprotected temporary output |
@@ -603,7 +625,7 @@ Implement isolated mutation campaigns as each witness becomes available:
 | Reject descendants wholesale or let one invalid object poison the queue | Valid neighbor/blocked-descendant outcomes and progress; P5-REJECT |
 | Reuse restored allocators or replay a logical effect | Fresh epoch/origin, exact actions/births; P5-REPLAY |
 | Infer absence/Work Offline from error, or edit partial bootstrap | Actual startup classifier/publication; P5-START |
-| Overwrite a repair race winner or activate incomplete union | Displaced/foreign inventory and pin/activation check; P5-REPAIR |
+| Overwrite occupied damage/a repair race winner or activate incomplete union | Unchanged occupied-source inventory, Save As availability and pin/activation check; P5-REPAIR |
 | Clean retained/foreign artifacts or report incomplete copy as full | Source inventory and explicit completeness; P5-CLEAN/COPY |
 | Leak plaintext through a stage/error or decrypt before authentication | Actual sink/profile and intended-layer checks; P5-PRIV |
 

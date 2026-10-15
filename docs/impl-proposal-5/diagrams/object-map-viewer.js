@@ -15,6 +15,7 @@ const progress = new Map(), mapTop = 242, mapHeight = geometry.height - mapTop;
 svg.setAttribute('viewBox', '0 ' + mapTop + ' ' + geometry.width + ' ' + mapHeight);
 const safe = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const plain = value => String(value).replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[`*]/g, '');
+const prose = value => glossaryHTML(value, model.glossary);
 const objectName = id => presentation.display[id]?.title || byID.get(id).title;
 const objectButton = id => '<button class="object-link" data-object="' + id + '">' + safe(objectName(id)) + '</button>';
 const sourceLink = (ref, label = ref.section) => '<a href="' + safe(ref.href) + '" target="_blank" rel="noopener" title="' + safe(plain(ref.title || ref.section || ref.path)) + '">' + safe(label) + '</a>';
@@ -101,12 +102,12 @@ function selectObject(id, move = false) {
   document.getElementById('close').setAttribute('aria-label', scenarioID ? 'Return to walkthrough' : 'Close details');
   const n = byID.get(id), incoming = model.edges.filter(e => e.target === id), outgoing = model.edges.filter(e => e.source === id);
   const path = geometry.ancestry[id].map(id => byGroup.get(id)).filter(g => g?.title);
-  showPanel(returnLink() + '<div class="eyebrow">' + safe(model.kinds[n.kind]) + '</div><h2>' + safe(n.title) + '</h2>' +
-    '<div class="breadcrumbs">' + path.map(g => safe(g.title)).join(' › ') + '</div><p>' + safe(n.purpose) + '</p>' +
+  showPanel(returnLink() + '<div class="eyebrow">' + safe(model.kinds[n.kind]) + '</div><h2>' + prose(n.title) + '</h2>' +
+    '<div class="breadcrumbs">' + path.map(g => safe(g.title)).join(' › ') + '</div><p>' + prose(n.purpose) + '</p>' +
     '<div>' + n.features.map(id => '<span class="badge">' + safe(model.features.find(f => f.id === id).label) + '</span>').join('') + '</div>' +
-    '<h3>Inside this object group</h3><ul class="members">' + n.members.map(member => '<li>' + safe(member) + '</li>').join('') + '</ul>' +
+    '<h3>Inside this object group</h3><ul class="members">' + n.members.map(member => '<li>' + prose(member) + '</li>').join('') + '</ul>' +
     (n.tables.length ? '<h3>SQL tables</h3><p>' + n.tables.map(safe).join(' · ') + '</p>' : '') +
-    '<p class="status">' + safe(n.status) + '</p>' +
+    '<p class="status">' + prose(n.status) + '</p>' +
     '<h3>Inputs / issuing operations</h3>' + (incoming.map(e => operationButton(e, id)).join('') || '<p>Physical contents are shown by nesting.</p>') +
     '<h3>Outputs / consuming operations</h3>' + (outgoing.map(e => operationButton(e, id)).join('') || '<p>Physical contents are shown by nesting.</p>') +
     '<h3>Source contracts</h3><ul>' + n.sourceLinks.map(source => '<li>' + sourceLink(source, source.path) + '</li>').join('') + '</ul>');
@@ -116,13 +117,13 @@ function selectTrace(id) {
   if (traceID === id) { reset(); return; }
   clearState(); traceID = id; apply();
   const trace = byTrace.get(id);
-  showPanel(returnLink() + '<div class="eyebrow">Operation trace · numbered on the map</div><h2>' + safe(trace.title) + '</h2><p>' + safe(trace.description) + '</p>' +
-    trace.stages.map((stage, i) => '<section class="step"><span>' + (i + 1) + '</span><h3>' + safe(stage.title) + '</h3><p>' + safe(stage.detail) + '</p><div>' + stage.nodes.map(objectButton).join('') + '</div></section>').join('') +
+  showPanel(returnLink() + '<div class="eyebrow">Operation trace · numbered on the map</div><h2>' + prose(trace.title) + '</h2><p>' + prose(trace.description) + '</p>' +
+    trace.stages.map((stage, i) => '<section class="step"><span>' + (i + 1) + '</span><h3>' + prose(stage.title) + '</h3><p>' + prose(stage.detail) + '</p><div>' + stage.nodes.map(objectButton).join('') + '</div></section>').join('') +
     '<details><summary>Exact operations in this trace (' + trace.edges.length + ')</summary>' + trace.edges.map(id => { const e = byEdge.get(id); return '<button class="operation" data-edge="' + id + '">' + safe(e.operation) + '<small>' + safe(objectName(e.source)) + ' → ' + safe(objectName(e.target)) + '</small></button>'; }).join('') + '</details>');
 }
 function selectEdge(id) {
   clearState(); edgeID = id; apply(); const edge = byEdge.get(id);
-  showPanel(returnLink() + '<div class="eyebrow">' + safe(edge.kind) + ' · one relationship</div><h2>' + safe(edge.operation) + '</h2><h3>Input / issuer</h3>' + objectButton(edge.source) + '<h3>Output / consumer</h3>' + objectButton(edge.target) + '<p>The map shows this one connector. Select either object to inspect its full inputs, outputs and source contracts.</p>');
+  showPanel(returnLink() + '<div class="eyebrow">' + safe(edge.kind) + ' · one relationship</div><h2>' + prose(edge.operation) + '</h2><h3>Input / issuer</h3>' + objectButton(edge.source) + '<h3>Output / consumer</h3>' + objectButton(edge.target) + '<p>The map shows this one connector. Select either object to inspect its full inputs, outputs and source contracts.</p>');
 }
 function resultPanel(active, title, eyebrow) {
   showPanel(returnLink() + '<div class="eyebrow">' + safe(eyebrow) + '</div><h2>' + safe(title) + '</h2><p>' + active.size + ' object groups highlighted within their existing containers.</p><ul>' + model.nodes.filter(n => active.has(n.id)).map(n => '<li>' + objectButton(n.id) + '<div class="breadcrumbs">' + geometry.ancestry[n.id].map(id => byGroup.get(id)?.title).filter(Boolean).map(safe).join(' › ') + '</div></li>').join('') + '</ul>');
@@ -175,18 +176,18 @@ function showWalkthrough(move = false) {
   document.getElementById('strip-prev').disabled = stepIndex === 0;
   document.getElementById('strip-next').disabled = stepIndex === s.steps.length - 1;
   document.getElementById('close').setAttribute('aria-label', 'Exit walkthrough');
-  showPanel('<div class="eyebrow">' + safe(category.title) + ' · specified scenario</div><h2 id="walkthrough-title">' + safe(s.title) + '</h2>' +
-    '<h4>Initial conditions</h4><p class="scenario-setup">' + safe(s.setup) + '</p><details class="scenario-context"><summary>Expected outcome</summary><p>' + safe(s.outcome) + '</p></details>' +
+  showPanel('<div class="eyebrow">' + safe(category.title) + ' · specified scenario</div><h2 id="walkthrough-title">' + prose(s.title) + '</h2>' +
+    '<h4>Initial conditions</h4><p class="scenario-setup">' + prose(s.setup) + '</p><details class="scenario-context"><summary>Expected outcome</summary><p>' + prose(s.outcome) + '</p></details>' +
     '<ol class="step-rail" aria-label="Walkthrough steps">' + s.steps.map((item, i) => '<li><button data-walk-step="' + i + '" ' + (i === stepIndex ? 'aria-current="step"' : '') + '><span>' + (i + 1) + '</span>' + safe(item.title) + '</button></li>').join('') + '</ol>' +
-    '<section class="walkthrough-step"><div class="eyebrow">' + safe(step.actor) + ' · step ' + (stepIndex + 1) + '</div><h3 data-step-title tabindex="-1">' + safe(step.title) + '</h3>' +
-    '<div class="user-result"><strong>Observable state</strong><p>' + safe(step.user) + '</p></div><h4>Storage operation</h4><p>' + safe(step.operation) + '</p>' +
+    '<section class="walkthrough-step"><div class="eyebrow">' + safe(step.actor) + ' · step ' + (stepIndex + 1) + '</div><h3 data-step-title tabindex="-1">' + prose(step.title) + '</h3>' +
+    '<div class="user-result"><strong>Observable state</strong><p>' + prose(step.user) + '</p></div><h4>Storage operation</h4><p>' + prose(step.operation) + '</p>' +
     '<div class="step-objects"><div class="objects-heading"><h4>Objects in this step</h4><button data-fit-step>Fit step</button></div><p class="hint">Select an object to inspect it and jump to its location.</p>' +
     ['read', 'write', 'guard'].filter(role => step.roles[role]?.length).map(role => '<div class="role-group role-' + role + '"><strong>' + roleNames[role] + '</strong><div>' + step.roles[role].map(objectButton).join('') + '</div></div>').join('') + '</div>' +
     (step.edges.length ? '<details><summary>Relationships in this step</summary>' + step.edges.map(id => operationButton(byEdge.get(id), byEdge.get(id).source)).join('') + '</details>' : '') +
-    '<div class="guarantee"><strong>Applicable rule</strong><p>' + safe(step.rule) + '</p></div></section>' +
-    '<div class="scenario-evidence"><h4>Requirements</h4><div class="evidence-chips">' + evidenceChips(s.requirements, byRequirement) + '</div><h4>Test contracts</h4><div class="evidence-chips contract-chips">' + evidenceChips(s.contracts, byContract) + '</div>' + (s.contractNote ? '<p class="contract-note">' + safe(s.contractNote) + '</p>' : '') +
+    '<div class="guarantee"><strong>Applicable rule</strong><p>' + prose(step.rule) + '</p></div></section>' +
+    '<div class="scenario-evidence"><h4>Requirements</h4><div class="evidence-chips">' + evidenceChips(s.requirements, byRequirement) + '</div><h4>Test contracts</h4><div class="evidence-chips contract-chips">' + evidenceChips(s.contracts, byContract) + '</div>' + (s.contractNote ? '<p class="contract-note">' + prose(s.contractNote) + '</p>' : '') +
     '<details><summary>Design and test-contract references</summary><ul class="contract-list">' + s.contracts.map(id => '<li>' + sourceLink(byContract.get(id), id) + '<span>' + safe(plain(byContract.get(id).title)) + '</span></li>').join('') + '</ul><ul class="design-links">' + s.sources.map(id => { const ref = catalog.references[id]; return '<li>' + sourceLink(ref) + '<small>' + safe(ref.path) + '</small></li>'; }).join('') + '</ul></details></div>' +
-    (stepIndex === s.steps.length - 1 ? '<div class="walkthrough-outcome"><strong>Expected outcome</strong><p>' + safe(s.outcome) + '</p><h4>Related scenarios</h4>' + s.related.map(id => '<button class="related-scenario" data-scenario="' + id + '">' + safe(byScenario.get(id).title) + ' →</button>').join('') + '</div>' : '') +
+    (stepIndex === s.steps.length - 1 ? '<div class="walkthrough-outcome"><strong>Expected outcome</strong><p>' + prose(s.outcome) + '</p><h4>Related scenarios</h4>' + s.related.map(id => '<button class="related-scenario" data-scenario="' + id + '">' + safe(byScenario.get(id).title) + ' →</button>').join('') + '</div>' : '') +
     '<div class="step-navigation"><button data-prev-step ' + (stepIndex === 0 ? 'disabled' : '') + '>← Previous</button><span>' + (stepIndex + 1) + ' / ' + s.steps.length + '</span><button data-next-step ' + (stepIndex === s.steps.length - 1 ? 'disabled' : '') + '>Next →</button></div>');
   if (move) { goToObject(step.focus); details.querySelector('[data-step-title]')?.focus({preventScroll: true}); }
 }
@@ -201,7 +202,7 @@ function matchingScenarios() {
 }
 function scenarioCard(s) {
   const saved = progress.get(s.id);
-  return '<article class="scenario-card"><button class="scenario-open" data-scenario="' + s.id + '"><span class="card-kicker">' + safe(byCategory.get(s.category).title) + '</span><h4>' + safe(s.title) + '</h4><p>' + safe(s.summary) + '</p><span class="card-action">' + (saved > 0 ? 'Resume at step ' + (saved + 1) : 'Open walkthrough') + ' <span>→</span></span></button><div class="card-evidence"><span>Requirements</span><div class="evidence-chips">' + evidenceChips(s.requirements, byRequirement) + '</div><span>Test contracts</span><div class="evidence-chips contract-chips">' + evidenceChips(s.contracts, byContract) + '</div></div></article>';
+  return '<article class="scenario-card"><button class="scenario-open" data-scenario="' + s.id + '"><span class="card-kicker">' + safe(byCategory.get(s.category).title) + '</span><h4>' + safe(s.title) + '</h4></button><p class="card-summary">' + prose(s.summary) + '</p><button class="card-action" data-scenario="' + s.id + '">' + (saved > 0 ? 'Resume at step ' + (saved + 1) : 'Open walkthrough') + ' <span>→</span></button><div class="card-evidence"><span>Requirements</span><div class="evidence-chips">' + evidenceChips(s.requirements, byRequirement) + '</div><span>Test contracts</span><div class="evidence-chips contract-chips">' + evidenceChips(s.contracts, byContract) + '</div></div></article>';
 }
 function renderCatalog() {
   const matches = matchingScenarios(), filtered = !!(categoryFilter || requirementFilter || scenarioQuery.trim());
@@ -212,7 +213,7 @@ function renderCatalog() {
   for (const category of catalog.categories) {
     const group = matches.filter(s => s.category === category.id);
     if (!group.length) continue;
-    content += '<section class="scenario-section"><div class="section-heading"><div><div class="eyebrow">' + group.length + ' ' + (group.length === 1 ? 'scenario' : 'scenarios') + '</div><h3>' + safe(category.title) + '</h3></div><p>' + safe(category.description) + '</p></div><div class="scenario-grid">' + group.map(scenarioCard).join('') + '</div></section>';
+    content += '<section class="scenario-section"><div class="section-heading"><div><div class="eyebrow">' + group.length + ' ' + (group.length === 1 ? 'scenario' : 'scenarios') + '</div><h3>' + safe(category.title) + '</h3></div><p>' + prose(category.description) + '</p></div><div class="scenario-grid">' + group.map(scenarioCard).join('') + '</div></section>';
   }
   if (!matches.length) content = '<div class="no-scenarios"><h3>No matching scenarios</h3><p>Search accepts scenario text, object names, requirement IDs (DUR-01), and test-contract IDs (TC-IMPORT-01).</p><button data-clear-filters>Clear filters</button></div>';
   document.getElementById('scenario-results').innerHTML = content;

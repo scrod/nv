@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { validateHierarchy, createNestedSVG, createHTML, createHierarchyDOT } from './nested-object-map.mjs';
 import { prepareScenarios } from './scenario-catalog.mjs';
+import { prepareGlossary, glossaryParts, glossaryHTML, glossaryMarkdown } from './glossary-links.mjs';
 
 // Render the same object inventory as a standalone SVG, interactive HTML and source index.
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -64,6 +65,8 @@ for (const t of coveredTables) if (!tables.includes(t)) throw Error('Unknown SQL
 for (const n of data.nodes) if (!data.edges.some(e=>e.source===n.id || e.target===n.id)) throw Error('Disconnected object '+n.id);
 const scenarios = await prepareScenarios(JSON.parse(scenarioText), data, corpus, root, relative);
 data.scenarioCatalog = scenarios.catalog;
+data.glossary = prepareGlossary(await fs.readFile(path.join(root,'CONTEXT.md'),'utf8'),relative('CONTEXT.md'));
+const glossaryCheck = {glossaryDefinitions:data.glossary.entries.length,glossarySections:new Set(data.glossary.entries.map(e=>e.anchor)).size};
 
 // The hierarchy and operation inventory share one stable geometry across outputs.
 data.sourceCount=sources.length;
@@ -73,7 +76,8 @@ const [css,viewer]=await Promise.all([
   fs.readFile(path.join(here,'object-map-viewer.css'),'utf8'),
   fs.readFile(path.join(here,'object-map-viewer.js'),'utf8')
 ]);
-const html=createHTML(data,layout,rendered,css,viewer);
+const glossaryScript=[glossaryParts,glossaryHTML].map(fn=>fn.toString()).join('\n');
+const html=createHTML(data,layout,rendered,css,glossaryScript+'\n'+viewer);
 const outputs=new Map([
   [path.join(here,'nvstorage-object-map.svg'),svg],
   [path.join(here,'nvstorage-object-map.html'),html],
@@ -87,6 +91,7 @@ const mdLink = p => '['+path.basename(p)+']('+path.relative(path.join(root,'docs
 let md='# NVStorage unified object map\n\nDate: '+data.date+'. Explanatory architecture inventory of the adopted segment-collection design. The normative specification, algorithm/wire annexes, ADRs and vocabulary retain their authority. The diagram includes documented Core, Runtime and Apple work alongside planned projection/application consumers, with implementation and qualification boundaries marked.\n\n'+
   '[Scenario reference and interactive map](diagrams/nvstorage-object-map.html) · [Scenario document](diagrams/NVStorage-Scenarios.md) · [Full-size SVG](diagrams/nvstorage-object-map.svg) · [Object inventory](diagrams/nvstorage-object-map.json) · [Editable hierarchy and traces](diagrams/nvstorage-object-map.layout.json)\n\n'+
   'The inventory contains '+data.nodes.length+' object groups, '+data.edges.length+' labeled operations/relationships, and all '+tables.length+' current private SQL tables. Containment represents process, directory and file boundaries; subheadings identify functional groups. The live in-memory session, private SQL store and provider repository have distinct responsibilities and boundaries.\n\n'+
+  'Object descriptions use plain language. Technical terms link to the relevant [CONTEXT.md](../../CONTEXT.md) section; the interactive map also shows each definition on hover.\n\n'+
   'The scenario index contains '+scenarios.check.scenarios+' cases in '+scenarios.check.scenarioCategories+' categories. Each case records initial conditions and an expected outcome, followed by three processing stages with observable state, storage operations and applicable rules. The map highlights objects read/consumed, written/produced, and checked as gates for the selected stage. Object controls open the corresponding inventory details and retain a return path to that stage. Previous/Next, numbered steps and Left/Right keys navigate. Search covers scenario text, object names, requirement IDs and test-contract IDs; the requirement filter covers all '+scenarios.check.linkedRequirements+' registry entries. References link each case to source sections and named conformance contracts. Implementation and platform qualification are recorded in the linked plans and reports.\n\n'+
   'The architecture-map view emphasizes structure. All SQL roles are nested inside `Collection.sqlite`; pager sidecars are siblings in its database-file bundle. Private unlock copies are outside that bundle, and the selected-store record sits outside either active or replacement store. Repository descriptors and segment objects sit inside the `NV Data/v1` hierarchy. Snapshot root/page families share the segment namespace. Apple unresolved-version evidence sits outside the physical repository boundary as associated OS state.\n\n'+
   'Functional groups say **Feature group**, **Operation values**, **Logical roles**, or **Session resources**. These express similarity and purpose. The enclosing process/directory/file/bundle labels establish physical or lifetime containment. Recovery/output locations have their own explicitly associated boundaries.\n\n'+
@@ -130,7 +135,7 @@ writeGroup(layout.tree);
 md+='## Earlier alternatives and deferred objects\n\n| Object family | Current disposition | Reason / source |\n| --- | --- | --- |\n';
 for(const x of data.excluded)md+='| '+x.name+' | '+x.state+' | '+x.reason+' '+mdLink(x.source)+' |\n';
 md+='\n## Regeneration and consistency checks\n\nThe renderer validates object/edge IDs, feature references, source paths, connectivity, unique hierarchy placement, lifetime boundaries, trace references, and complete one-owner mapping of the production SQL tables. Scenario checks resolve actual Markdown headings and requirement/test rows, validate every object/operation/related-story reference, and require scenario coverage of the full normative requirement registry. The hierarchy, SVG and HTML share one geometry. `--check` compares all six saved artifacts with freshly rendered content and reports stale or missing outputs without writing files. Generation uses Node built-ins; the saved HTML/SVG are standalone and use embedded resources. From the repository root:\n\n```sh\nnode docs/impl-proposal-5/diagrams/render-object-map.mjs\nnode docs/impl-proposal-5/diagrams/render-object-map.mjs --check\n```\n\nEdit `nvstorage-object-map.json` for records/relationships, `nvstorage-object-map.layout.json` for nesting/display/traces, and `nvstorage-scenarios.json` for scenario cards/steps/evidence. `scenario-catalog.mjs` validates and resolves their evidence links. `nested-object-map.mjs` renders the shared geometry; `object-map-viewer.js` and `.css` supply embedded controls. The [DOT export](diagrams/nvstorage-object-map.dot) retains the hierarchy and all relationships for external tooling. Product/model verification remains governed by the cited contracts.\n';
-outputs.set(path.join(root,'docs/impl-proposal-5/NVStorage-Object-Map.md'),md);
+outputs.set(path.join(root,'docs/impl-proposal-5/NVStorage-Object-Map.md'),glossaryMarkdown(md,{...data.glossary,entries:data.glossary.entries.map(e=>({...e,href:'../../CONTEXT.md#'+e.anchor}))}));
 const reqByID=new Map(scenarios.catalog.requirements.map(r=>[r.id,r])), tcByID=new Map(scenarios.catalog.contracts.map(c=>[c.id,c]));
 const evidenceLink=r=>'['+r.id+']('+r.href+')';
 let guide='# NVStorage scenario reference\n\n[Interactive scenario reference](nvstorage-object-map.html) · [Architecture inventory](../NVStorage-Object-Map.md)\n\n'+scenarios.catalog.scope+' Example names and values instantiate the cited requirements. Each diagram represents one Mac; the participant label identifies the Mac or external actor involved at that stage. Read/write labels record conceptual inputs and outputs. Transaction boundaries are specified in the operations and their references.\n\n';
@@ -147,7 +152,7 @@ for(const category of scenarios.catalog.categories){
 }
 guide+='## Requirement coverage\n\nEvery normative registry entry has at least one linked scenario. This is explanatory coverage; actual qualification evidence is tracked by the conformance strategy and validation reports.\n\n';
 for(const r of scenarios.catalog.requirements)guide+='- '+evidenceLink(r)+' — '+scenarios.catalog.coverage[r.id].map(id=>'['+scenarios.catalog.scenarios.find(s=>s.id===id).title+'](nvstorage-object-map.html#scenario='+id+'&step=1)').join('; ')+'.\n';
-outputs.set(path.join(here,'NVStorage-Scenarios.md'),guide);
+outputs.set(path.join(here,'NVStorage-Scenarios.md'),glossaryMarkdown(guide,data.glossary));
 const checking=process.argv.includes('--check');
 if(checking){
   const stale=[];
@@ -162,4 +167,4 @@ if(checking){
 }else{
   for(const [file,content] of outputs)await fs.writeFile(file,content);
 }
-console.log(JSON.stringify({objectGroups:data.nodes.length,relationships:data.edges.length,sqlTables:tables.length,sourceDocuments:sources.length,...hierarchyCheck,...scenarios.check,svgBytes:svg.length,htmlBytes:html.length,...(checking?{artifactsChecked:outputs.size}:{artifactsWritten:outputs.size})}));
+console.log(JSON.stringify({objectGroups:data.nodes.length,relationships:data.edges.length,sqlTables:tables.length,sourceDocuments:sources.length,...hierarchyCheck,...scenarios.check,...glossaryCheck,svgBytes:svg.length,htmlBytes:html.length,...(checking?{artifactsChecked:outputs.size}:{artifactsWritten:outputs.size})}));

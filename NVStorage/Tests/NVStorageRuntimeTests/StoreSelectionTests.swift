@@ -46,7 +46,7 @@ func verifiedSelectionActivationAndFreshReopen(encrypted: Bool) async throws {
     try await old.quiesce()
 }
 
-@Test(arguments: [false, true], [SelectionCut.beforeInstall, .afterInstall, .afterDurability])
+@Test(arguments: [false, true], [SelectionCut.beforeInstall, .afterInstall, .beforeDurability, .afterDurability])
 func selectionFaultKeepsBothStoresAndHonestReadback(encrypted: Bool, cut: SelectionCut) async throws {
     let (source, replacement, protection, parent, original) = try await selectionFixture(encrypted)
     let owner = try await SelectedStoreOwner.open(directory: parent), state = try await owner.capture()
@@ -54,17 +54,55 @@ func selectionFaultKeepsBothStoresAndHonestReadback(encrypted: Bool, cut: Select
     let result = try await replacement.activate(using: owner, basedOn: state)
     switch (cut, result) {
     case (.beforeInstall, .unchanged(let unchanged, _)): #expect(unchanged.record == original)
-    case (.afterInstall, .uncertain), (.afterDurability, .uncertain): break
+    case (.afterInstall, .uncertain), (.beforeDurability, .uncertain), (.afterDurability, .uncertain): break
     default: Issue.record("fault result misstated selection durability")
     }
     let actual = try SelectedStoreRecordV1.decodeV1(Array(Data(contentsOf: URL(fileURLWithPath: parent).appendingPathComponent("Selected Store"))))
     #expect(actual.store == (cut == .beforeInstall ? original.store : replacement.selection.store))
+    if cut != .beforeInstall {
+        await #expect(throws: (any Error).self) { try await LocalStoreSession.open(selection: source.selection, protection: protection) }
+    }
+    try await owner.close()
     try await replacement.close()
     for selection in [source.selection, replacement.selection] {
         let reopened = try await LocalStoreSession.open(selection: selection, protection: protection)
         #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["selected E", "untouched"])
         try await reopened.quiesce()
     }
+}
+
+@Test(arguments: [false, true])
+func selectionResumptionChecksPhysicalIdentityAndCandidate(encrypted: Bool) async throws {
+    let (_, replacement, _, parent, _) = try await selectionFixture(encrypted)
+    let owner = try await SelectedStoreOwner.open(directory: parent), state = try await owner.capture()
+    await owner.setFault { if $0 == .afterInstall { throw StorageError.database(10) } }
+    guard case .uncertain(let expected, _) = try await replacement.activate(using: owner, basedOn: state) else {
+        throw StorageError.incomplete
+    }
+    let bytes = try #require(expected).encodedV1()
+    let (_, wrong, _, _, _) = try await selectionFixture(encrypted)
+    await #expect(throws: StorageError.wrongContext) { try await wrong.resumeActivation(using: owner) }
+    try await wrong.close()
+    await #expect(throws: StorageError.busy) { try await owner.capture() }
+    await #expect(throws: (any Error).self) { try await SelectedStoreOwner.open(directory: parent) }
+    let destination = URL(fileURLWithPath: parent + "/Selected Store")
+    // An identical-byte replacement exercises the held installed item's physical identity.
+    try Data(bytes).write(to: destination, options: .atomic)
+    await owner.setFault(nil)
+    let result = try await replacement.resumeActivation(using: owner)
+    let refused: Bool
+    if case .uncertain(let observed, _) = result {
+        refused = true
+        #expect(observed == expected)
+    } else {
+        refused = false
+    }
+    #expect(refused)
+    #expect(try Data(contentsOf: destination) == Data(bytes))
+    try await owner.close(); try await replacement.close()
+    let fresh = try await SelectedStoreOwner.open(directory: parent)
+    #expect(try await fresh.capture().record == expected)
+    try await fresh.close()
 }
 
 @Test(arguments: [false, true])
@@ -88,4 +126,116 @@ func selectionRefusesWrongOwnerStaleRecordAndNewSourceWAL(encrypted: Bool) async
     await #expect(throws: StorageError.staleCapture) { try await replacement.activate(using: owner, basedOn: current) }
     #expect(try SelectedStoreRecordV1.decodeV1(Array(Data(contentsOf: path))) == changed)
     try await replacement.close(); try await other.close()
+}
+
+enum SelectionCancellation: CaseIterable, Sendable {
+    case beforeCall, beforeInstall, afterInstall, pendingResumption
+}
+
+@Test(.timeLimit(.minutes(1)), arguments: [false, true], SelectionCancellation.allCases)
+func selectionCancellationPreservesEffectBoundary(encrypted: Bool, cut: SelectionCancellation) async throws {
+    let (source, replacement, protection, parent, original) = try await selectionFixture(encrypted)
+    let sourceURL = URL(fileURLWithPath: source.selection.directory + "/Collection.sqlite")
+    let sourceBytes = try Data(contentsOf: sourceURL)
+    let selectedURL = URL(fileURLWithPath: parent + "/Selected Store")
+    let owner = try await SelectedStoreOwner.open(directory: parent), before = try await owner.capture()
+    await owner.setFault { point in
+        if (cut == .beforeInstall && point == .beforeInstall) || (cut == .afterInstall && point == .afterInstall) {
+            withUnsafeCurrentTask { $0?.cancel() }
+        }
+        if cut == .pendingResumption && point == .afterInstall { throw StorageError.database(10) }
+    }
+    let attempt = Task {
+        if cut == .beforeCall { withUnsafeCurrentTask { $0?.cancel() } }
+        return try await replacement.activate(using: owner, basedOn: before)
+    }
+    let result = await attempt.result
+    switch cut {
+    case .beforeCall:
+        let cancelled = if case .failure(let error) = result { error is CancellationError } else { false }
+        #expect(cancelled, "Cancellation before selection admission preserves the original selection")
+        guard cancelled else {
+            try await owner.close(); try await replacement.close(); return
+        }
+        #expect(try await owner.capture().record == original)
+    case .beforeInstall:
+        let unchanged = if case .success(.unchanged) = result { true } else { false }
+        #expect(unchanged, "Cancellation at the final pre-install check leaves selection unchanged")
+        guard case .success(.unchanged(let state, let error)) = result else {
+            try await owner.close(); try await replacement.close(); return
+        }
+        #expect(state.record == original && error == .cancelled)
+    case .afterInstall:
+        guard case .success(.activated(let state)) = result else {
+            Issue.record("An admitted selection effect must finish its durability checks")
+            try await owner.close(); try await replacement.close(); return
+        }
+        #expect(state.record?.store == replacement.selection.store)
+    case .pendingResumption:
+        guard case .success(.uncertain(let observed, _)) = result else { throw StorageError.incomplete }
+        #expect(observed?.store == replacement.selection.store)
+        await owner.setFault(nil)
+        let retry = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await replacement.resumeActivation(using: owner)
+        }
+        let retryResult = await retry.result
+        let cancelled = if case .failure(let error) = retryResult { error is CancellationError } else { false }
+        #expect(cancelled, "Cancelled resumption retains the pending selection for another attempt")
+        guard cancelled else {
+            try await owner.close(); try await replacement.close(); return
+        }
+        await #expect(throws: StorageError.busy) { try await owner.capture() }
+        await #expect(throws: (any Error).self) { try await LocalStoreSession.open(selection: source.selection, protection: protection) }
+        #expect(try SelectedStoreRecordV1.decodeV1(Array(Data(contentsOf: selectedURL))) == observed)
+        guard case .activated(let resumed) = try await replacement.resumeActivation(using: owner) else { throw StorageError.incomplete }
+        #expect(resumed.record == observed)
+    }
+    let actual = try SelectedStoreRecordV1.decodeV1(Array(Data(contentsOf: selectedURL)))
+    if cut == .beforeCall || cut == .beforeInstall {
+        #expect(actual.store == original.store)
+    } else {
+        #expect(actual.store == replacement.selection.store)
+    }
+    try await owner.close(); try await replacement.close()
+    #expect(try Data(contentsOf: sourceURL) == sourceBytes)
+    for selection in [source.selection, replacement.selection] {
+        let reopened = try await LocalStoreSession.open(selection: selection, protection: protection)
+        #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["selected E", "untouched"])
+        try await reopened.quiesce()
+    }
+}
+
+@Test(arguments: [false, true], [false, true])
+func selectionClosedCandidatePreservesPendingExclusion(encrypted: Bool, installed: Bool) async throws {
+    let (source, replacement, protection, parent, original) = try await selectionFixture(encrypted)
+    let owner = try await SelectedStoreOwner.open(directory: parent), before = try await owner.capture()
+    let savedEvidence = replacement
+    var expected = original
+    if installed {
+        await owner.setFault { if $0 == .afterInstall { throw StorageError.database(10) } }
+        guard case .uncertain(let observed, _) = try await replacement.activate(using: owner, basedOn: before) else {
+            throw StorageError.incomplete
+        }
+        expected = try #require(observed)
+    }
+    try await replacement.close(); try await replacement.close()
+    if installed {
+        await #expect(throws: StorageError.closed) { try await savedEvidence.resumeActivation(using: owner) }
+        await #expect(throws: StorageError.busy) { try await owner.capture() }
+        await #expect(throws: (any Error).self) { try await LocalStoreSession.open(selection: source.selection, protection: protection) }
+    } else {
+        await #expect(throws: StorageError.closed) { try await savedEvidence.activate(using: owner, basedOn: before) }
+        #expect(try await owner.capture().record == original)
+    }
+    #expect(try SelectedStoreRecordV1.decodeV1(Array(Data(contentsOf: URL(fileURLWithPath: parent + "/Selected Store")))) == expected)
+    try await owner.close(); try await owner.close()
+    let nextOwner = try await SelectedStoreOwner.open(directory: parent)
+    #expect(try await nextOwner.capture().record == expected)
+    try await nextOwner.close()
+    for selection in [source.selection, replacement.selection] {
+        let reopened = try await LocalStoreSession.open(selection: selection, protection: protection)
+        #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["selected E", "untouched"])
+        try await reopened.quiesce()
+    }
 }

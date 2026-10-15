@@ -12,9 +12,9 @@ Edit admission and capture, SQL acceptance, accepted-prefix startup, verificatio
 
 [Open walkthrough](nvstorage-object-map.html#scenario=offline-save&step=1)
 
-With a healthy, unlocked private store, edits enter the live model immediately. The local SQL transaction commits exact history and its required bookkeeping before acknowledgment; provider publication remains pending.
+With a healthy, unlocked [private store](../../../CONTEXT.md#1-collections-and-their-copies), edits appear immediately. One local database transaction saves their exact history and required records before acknowledgment. Copying that history to the provider can wait.
 
-**Initial conditions.** A returning Mac has a healthy, unlocked, exclusively owned private store. The user edits “Packing” while the provider is unavailable.
+**Initial conditions.** A returning Mac has a healthy, unlocked, exclusively owned [private store](../../../CONTEXT.md#1-collections-and-their-copies). The user edits “Packing” while the provider is unavailable.
 
 **Expected outcome.** After the complete local commit, the edit survives reopening and remains queued for exact publication.
 
@@ -36,9 +36,9 @@ With a healthy, unlocked private store, edits enter the live model immediately. 
 
    Observable state: Typing continues while the captured generation is encoded off the main thread.
 
-   Storage operation: Freeze the complete action, seal once, then atomically commit exact bytes, acceptance/indexes, retained pin and wakeups.
+   Storage operation: Freeze the complete action, seal once, then atomically commit exact bytes, acceptance/indexes, [retained pin](../../../CONTEXT.md#2-history-records-and-stored-objects) and wakeups.
 
-   Applicable rule: A qualified complete SQL commit is the local durability barrier. Capture scheduling is not an acknowledgment.
+   Applicable rule: A qualified complete SQL commit is the [local durability barrier](../../../CONTEXT.md#4-change-processing-and-durability). Capture scheduling is not an acknowledgment.
 
    Read / consume: `capture`, `seal`, `batch`.
 
@@ -50,7 +50,7 @@ With a healthy, unlocked private store, edits enter the live model immediately. 
 
    Observable state: Packing contains the durable edit and is searchable. Sync remains pending.
 
-   Storage operation: Recover the accepted suffix, load complete current rows/context, and later publish the same retained sealed objects.
+   Storage operation: Recover the accepted suffix, load complete current rows/context, and later publish the same retained [sealed objects](../../../CONTEXT.md#4-change-processing-and-durability).
 
    Applicable rule: Upload and plaintext installation are separate outcomes; local durability does not depend on either.
 
@@ -78,7 +78,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=save-crash&step=1)
 
-A pending edit becomes recoverable only after its complete local transaction commits. Recovery includes a committed action whose callback was lost; text still held only in RAM remains within the pending loss window.
+An edit is recoverable after its complete local transaction commits, even if the acknowledgment was lost. Text still held only in memory remains within the pending loss window.
 
 **Initial conditions.** “Trip” has a durable value A and a pending value B. Power is lost at different points in the next save.
 
@@ -86,7 +86,7 @@ A pending edit becomes recoverable only after its complete local transaction com
 
 1. **Pending value B before the durability barrier** (This Mac).
 
-   Observable state: B is visible with pending work; it has no completed durability acknowledgment.
+   Observable state: B is visible with pending work; it has no completed [durability acknowledgment](../../../CONTEXT.md#4-change-processing-and-durability).
 
    Storage operation: Capture/sealing may be scheduled, but the previous accepted closure A remains the recovery baseline.
 
@@ -116,7 +116,7 @@ A pending edit becomes recoverable only after its complete local transaction com
 
    Observable state: The recovered model shows A or committed B according to the durable evidence.
 
-   Storage operation: Query exact committed identities, drain required work and materialize the complete accepted prefix before editable publication.
+   Storage operation: Query exact committed identities, drain required work and materialize the complete history through the accepted local commit before editable publication.
 
    Applicable rule: Neither an upload flag nor a lost UI completion determines whether the action committed.
 
@@ -144,7 +144,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=delayed-save&step=1)
 
-Capture E contains AB. A later edit creates generation F containing ABC before E completes. E’s completion settles only E; F remains pending and its live value remains ABC.
+Save E captures AB. The user then types C, creating newer edit F with ABC. Completion of E clears only E’s pending work; F stays pending and the displayed text stays ABC.
 
 **Initial conditions.** Capture E contains “AB”. While E saves, another keystroke produces newer generation F with “ABC”.
 
@@ -156,7 +156,7 @@ Capture E contains AB. A later edit creates generation F containing ABC before E
 
    Storage operation: Copy complete E values/action metadata and bind the capture to exact pending generations.
 
-   Applicable rule: One collection sealer owns immutable retry input; later edits cannot alter that capture.
+   Applicable rule: One [collection](../../../CONTEXT.md#1-collections-and-their-copies) sealer owns immutable retry input; later edits cannot alter that capture.
 
    Read / consume: `pendinglive`.
 
@@ -184,7 +184,7 @@ Capture E contains AB. A later edit creates generation F containing ABC before E
 
    Storage operation: Settle only serviced generations; separately validate any prepared model publication and capture F next.
 
-   Applicable rule: Durable record completion and generation-fenced live publication have separate applicability checks.
+   Applicable rule: Durable record completion and [generation-fenced](../../../CONTEXT.md#9-authority-repair-and-transitions) live publication have separate applicability checks.
 
    Read / consume: `accepted`, `pendinglive`.
 
@@ -209,7 +209,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=fast-startup&step=1)
 
-Startup drains required Changes, prerequisites and unfinished verification, then captures all current rows and authoring context consistently. Independent optional snapshot work starts after checked publication of the editable model.
+Startup finishes required receive work and unfinished checks, then reads all current notes and editing context together. Independent optional snapshots continue after the complete editable model is published.
 
 **Initial conditions.** The returning store has valid current rows plus a small accepted suffix, a large old history, and an independent optional snapshot waiting.
 
@@ -235,7 +235,7 @@ Startup drains required Changes, prerequisites and unfinished verification, then
 
    Storage operation: Decode complete current rows and compact authoring frontiers directly into final unpublished memory under one consistent read capture.
 
-   Applicable rule: Validate scope/version/codecs, view epoch and accepted/materialized prefixes; final owner checks prevent stale publication.
+   Applicable rule: Check scope, decoding formats, view version and accepted/current-row history positions; final owner checks prevent stale publication.
 
    Read / consume: `current`, `view`, `dict`.
 
@@ -275,7 +275,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=work-offline&step=1)
 
-A complete returning local history can support Work Offline when startup is waiting for named, positively disclosed newer evidence. Generic provider unavailability is a synchronization status condition and does not require this choice.
+Work Offline can open complete local history when startup is waiting for a particular, positively disclosed newer object. Ordinary provider unavailability is a synchronization status and needs no such choice.
 
 **Initial conditions.** Local history is complete. At startup the provider positively discloses newer required object R, whose bytes cannot yet be read.
 
@@ -283,11 +283,11 @@ A complete returning local history can support Work Offline when startup is wait
 
 1. **Positive disclosure of named unread evidence R** (This Mac).
 
-   Observable state: Startup shows a bounded wait for R and offers Work Offline or Save Current Collection As….
+   Observable state: Startup shows a bounded wait for R and offers Work Offline or [Save Current Collection As…](../../../CONTEXT.md#9-authority-repair-and-transitions).
 
    Storage operation: Record positive disclosure and distinguish it from generic offline, quota, permission or timeout status.
 
-   Applicable rule: An evicted provider copy already retained exactly in the private store creates no such wait.
+   Applicable rule: An evicted provider copy already retained exactly in the [private store](../../../CONTEXT.md#1-collections-and-their-copies) creates no such wait.
 
    Read / consume: `appleowner`, `objects`, `pin`.
 
@@ -313,7 +313,7 @@ A complete returning local history can support Work Offline when startup is wait
 
    Observable state: New history reconciles with any local edits without revoking the active session’s editability.
 
-   Storage operation: Retain and validate R, resolve dependencies, then prepare and generation-check its reduction.
+   Storage operation: Retain and validate R, resolve dependencies, then prepare and generation-check its [reduction](../../../CONTEXT.md#3-history-relationships-and-derived-views).
 
    Applicable rule: Late positive disclosure in an already editing session is pending sync status, not a retroactive startup gate.
 
@@ -340,7 +340,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=derived-rebuild&step=1)
 
-Invalid current-row codecs, dictionaries or prefix binding require reconstruction from healthy retained history. Complete rows and authoring context install under a fresh view epoch while required private records and pending work are preserved.
+Invalid current-note rows, decoding dictionaries or history-position bindings require rebuilding from healthy retained history. The new view installs together while required private records and pending work stay preserved.
 
 **Initial conditions.** Retained history is healthy, but a current-cell codec/dictionary or represented-prefix binding is invalid.
 
@@ -348,7 +348,7 @@ Invalid current-row codecs, dictionaries or prefix binding require reconstructio
 
 1. **Classification of derived-row invalidity** (This Mac).
 
-   Observable state: Opening reports reconstruction instead of showing an empty or partial collection.
+   Observable state: Opening reports reconstruction instead of showing an empty or partial [collection](../../../CONTEXT.md#1-collections-and-their-copies).
 
    Storage operation: Separate current-row/dictionary/view invalidity from retained-history or required-private-state damage.
 
@@ -360,13 +360,13 @@ Invalid current-row codecs, dictionaries or prefix binding require reconstructio
 
    Check / gate: `localowner`.
 
-2. **Reconstruction through the captured accepted prefix** (This Mac).
+2. **Rebuild through the captured local history position** (This Mac).
 
    Observable state: Recovery prepares every note and compact authoring context off the main thread.
 
-   Storage operation: Verify the snapshot’s logical cut and all accepted outside-cut actions; reduce complete final values/context.
+   Storage operation: Verify the snapshot’s represented history, include every other accepted action, and compute complete final values and editing context.
 
-   Applicable rule: Snapshot values alone cannot omit earlier branches, Deletes, restorations or compensation context.
+   Applicable rule: Snapshot values alone cannot omit earlier branches, Deletes, restorations or [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) context.
 
    Read / consume: `objects`, `accepted`, `opindex`, `actionindex`.
 
@@ -374,9 +374,9 @@ Invalid current-row codecs, dictionaries or prefix binding require reconstructio
 
    Check / gate: `verification`.
 
-3. **Generation-checked installation of the complete derived view** (This Mac).
+3. **[Generation-checked](../../../CONTEXT.md#9-authority-repair-and-transitions) installation of the complete derived view** (This Mac).
 
-   Observable state: The complete collection reopens with its settings and pending decisions intact.
+   Observable state: The complete [collection](../../../CONTEXT.md#1-collections-and-their-copies) reopens with its settings and pending decisions intact.
 
    Storage operation: Atomically install complete rows/context with a fresh epoch only while owner, accepted target and starting view still match.
 
@@ -393,7 +393,7 @@ Requirements: [CKPT-01](../../iCloud-Drive-Support-Spec.md#normative-requirement
 Test contracts:
 
 - [TC-START-01](../plan/swift-storage-conformance-testing-strategy.md#tc-start-01--complete-bootstrap-and-current-row-startup) — Complete bootstrap and current-row startup
-- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/materialization-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total Local State loss in a distinct scenario
+- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/[materialization](../../../CONTEXT.md#1-collections-and-their-copies)-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total [Local State](../../../CONTEXT.md#1-collections-and-their-copies) loss in a distinct scenario
 
 Design / plans:
 
@@ -405,7 +405,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=verification-restart&step=1)
 
-A durable request records the exact scope before a check that may discover retained-history damage. If checking, diagnosis or settlement is interrupted, reopening replays that obligation before editable publication.
+Save a [verification request](../../../CONTEXT.md#1-collections-and-their-copies) before checking [accepted history](../../../CONTEXT.md#3-history-relationships-and-derived-views) that might be damaged. If checking or recording its result is interrupted, reopening repeats that exact obligation before publishing an editable model.
 
 **Initial conditions.** An on-demand history read may discover damage. The process can crash or fail a diagnosis write before recording its result.
 
@@ -439,7 +439,7 @@ A durable request records the exact scope before a check that may discover retai
 
    Check / gate: `gate`.
 
-3. **Replay of the unfinished verification request** (Restart).
+3. **Replay of the unfinished [verification request](../../../CONTEXT.md#1-collections-and-their-copies)** (Restart).
 
    Observable state: Editing waits for the required check or an explicit repair/recovery outcome.
 
@@ -459,7 +459,7 @@ Test contracts:
 
 - [TC-START-01](../plan/swift-storage-conformance-testing-strategy.md#tc-start-01--complete-bootstrap-and-current-row-startup) — Complete bootstrap and current-row startup
 - [TC-REPAIR-01](../plan/swift-storage-conformance-testing-strategy.md#tc-repair-01--complementary-copies-repair-private-history-first) — Complementary copies repair private history first
-- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/materialization-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total Local State loss in a distinct scenario
+- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/[materialization](../../../CONTEXT.md#1-collections-and-their-copies)-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total [Local State](../../../CONTEXT.md#1-collections-and-their-copies) loss in a distinct scenario
 
 Design / plans:
 
@@ -470,11 +470,11 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=idle-maintenance&step=1)
 
-Bounded row recoding preserves logical values and context under exact view/prefix checks. Opportunistic full VACUUM requires a healthy idle store, measured benefit and space budgets, and qualified interruption/commit latency; required persistence takes priority.
+Bounded row recoding preserves values and editing context after exact view/history-position checks. Optional full VACUUM needs a healthy idle store, measured benefit, space budgets and qualified interruption behavior. Required saving takes priority.
 
-**Initial conditions.** A healthy private store qualifies for explicit row recoding or opportunistic full VACUUM under measured fragmentation/space budgets.
+**Initial conditions.** A healthy [private store](../../../CONTEXT.md#1-collections-and-their-copies) qualifies for explicit row recoding or opportunistic full VACUUM under measured fragmentation/space budgets.
 
-**Expected outcome.** Values, accepted history, authoring context and Undo stay identical. Skipped/failed maintenance alone cannot invalidate a durable save.
+**Expected outcome.** Values, [accepted history](../../../CONTEXT.md#3-history-relationships-and-derived-views), authoring context and Undo stay identical. Skipped/failed maintenance alone cannot invalidate a durable save.
 
 1. **Capture of a bounded row-recoding candidate** (This Mac).
 
@@ -533,13 +533,13 @@ Design / plans:
 
 ## Immutable history, merge and deletion
 
-Dependency-aware reception and publication, note-head reduction, causal Delete/edit handling, and snapshot retention ancestry.
+Dependency-aware reception and publication, note-head [reduction](../../../CONTEXT.md#3-history-relationships-and-derived-views), causal Delete/edit handling, and snapshot retention ancestry.
 
 ### Receipt of a Delete before its parent edit
 
 [Open walkthrough](nvstorage-object-map.html#scenario=child-first&step=1)
 
-Mac B receives Delete D before edit P, which D observes. B retains D and its reverse waits across restart, then accepts and reduces the complete validated dependency closure when P arrives.
+Mac B receives Delete D before the edit P that D observes. It saves D and the missing-input wait across restart. When P arrives, B validates and accepts the complete required history before applying the result.
 
 **Initial conditions.** Mac A creates edit P then Delete D observing P. Mac B receives D first and restarts before P arrives.
 
@@ -559,7 +559,7 @@ Mac B receives Delete D before edit P, which D observes. B retains D and its rev
 
    Check / gate: `rootowner`.
 
-2. **Receipt of P and validation of D’s complete closure** (Mac B).
+2. **Receipt of P and validation of D’s [complete closure](../../../CONTEXT.md#3-history-relationships-and-derived-views)** (Mac B).
 
    Observable state: The durable waiting obligation survives the restart.
 
@@ -577,9 +577,9 @@ Mac B receives Delete D before edit P, which D observes. B retains D and its rev
 
    Observable state: B now reflects the applicable Delete without emitting a new local echo action.
 
-   Storage operation: Reduce the accepted operation set and publish atomically after current generation checks.
+   Storage operation: Reduce the accepted operation set and publish atomically after current [generation checks](../../../CONTEXT.md#9-authority-repair-and-transitions).
 
-   Applicable rule: Incoming Delete affects a logical birth; it never grants permission to unlink a remembered filename.
+   Applicable rule: Incoming Delete affects a logical [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence); it never grants permission to unlink a remembered filename.
 
    Read / consume: `accepted`, `graph`.
 
@@ -604,19 +604,19 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=publication-retry&step=1)
 
-A retry reuses exact locally accepted bytes and identity. Equal provider finals still require verification and namespace barriers; foreign or contradictory occupants are preserved, and duplicate receipt adds one semantic action.
+Retry uses the same saved bytes and identity. An equal existing file still needs verification and directory durability steps. Conflicting occupants are preserved; receiving an object twice creates one logical action.
 
-**Initial conditions.** A locally durable segment was installed at the provider, but its completion was lost. A duplicate or conflicting final name appears.
+**Initial conditions.** A locally durable [segment](../../../CONTEXT.md#2-history-records-and-stored-objects) was installed at the provider, but its completion was lost. A duplicate or conflicting final name appears.
 
-**Expected outcome.** Retry the same sealed bytes and identity; verify final/directory barriers and preserve conflicting evidence.
+**Expected outcome.** Retry the same [sealed bytes](../../../CONTEXT.md#4-change-processing-and-durability) and identity; verify final/directory barriers and preserve conflicting evidence.
 
 1. **Selection of exact locally accepted publication input** (This Mac).
 
-   Observable state: Pending sync selects objects already protected by the local barrier.
+   Observable state: Pending sync selects objects already protected by the [local barrier](../../../CONTEXT.md#4-change-processing-and-durability).
 
-   Storage operation: Capture an accepted prefix and retrieve its exact sealed objects/descriptors for publication.
+   Storage operation: Capture the accepted local history position and retrieve its exact [sealed objects](../../../CONTEXT.md#4-change-processing-and-durability) and descriptors for publication.
 
-   Applicable rule: A publication retry never reseals changed values under an old operation identity or nonce.
+   Applicable rule: A publication retry never reseals changed values under an old [operation identity](../../../CONTEXT.md#2-history-records-and-stored-objects) or nonce.
 
    Read / consume: `accepted`, `objects`, `pin`.
 
@@ -669,17 +669,17 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=separated-merge&step=1)
 
-Two heads share a unique common base. One changes line 1 and the other changes line 3, with an unchanged line between them. If every field satisfies the conservative rules, reduction derives a combined Current while retaining both inputs.
+Two revisions share one unambiguous base. One changes line 1 and the other line 3, leaving an unchanged line between them. If all fields satisfy the conservative rules, the combined [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) retains both inputs.
 
 **Initial conditions.** Both Macs know “Bread / Milk / Apples” on three LF-separated lines. A changes line 1 to Sourdough; B changes line 3 to Pears.
 
-**Expected outcome.** With exactly two eligible heads and a unique common base, Current becomes “Sourdough / Milk / Pears”; both inputs remain history.
+**Expected outcome.** With exactly two eligible heads and a unique common base, [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) becomes “Sourdough / Milk / Pears”; both inputs remain history.
 
 1. **Independent revisions from one common base** (Mac A + Mac B).
 
    Observable state: A sees its first-line edit; B sees its last-line edit.
 
-   Storage operation: Capture distinct complete actions with the exact represented note predecessors and scope parents.
+   Storage operation: Capture distinct complete actions with the exact represented [note predecessors](../../../CONTEXT.md#3-history-relationships-and-derived-views) and [scope parents](../../../CONTEXT.md#3-history-relationships-and-derived-views).
 
    Applicable rule: Dates and arrival order supply no winner; exact stored UTF-8/CRLF/LF distinctions are preserved.
 
@@ -693,7 +693,7 @@ Two heads share a unique common base. One changes line 1 and the other changes l
 
    Observable state: Each receiver retains both complete branches before attempting a merge.
 
-   Storage operation: Derive exact note heads and the unique best common base; calculate one prefix/suffix-bounded edit per branch.
+   Storage operation: Derive exact [note heads](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) and the unique best common base; calculate one prefix/suffix-bounded edit per branch.
 
    Applicable rule: Only strictly separated intervals merge. Other fields must also satisfy their rules, together as one result.
 
@@ -703,11 +703,11 @@ Two heads share a unique common base. One changes line 1 and the other changes l
 
    Check / gate: `verification`.
 
-3. **Fenced publication of the derived combined Current** (This Mac).
+3. **Fenced publication of the derived combined [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)** (This Mac).
 
    Observable state: The three lines read Sourdough, Milk, Pears. Both branch IDs remain inspectable.
 
-   Storage operation: Publish the complete derived value and its represented inputs after a live-generation recheck.
+   Storage operation: Publish the complete derived value and its [represented inputs](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) after a live-generation recheck.
 
    Applicable rule: Automatic recomputation does not mint a random local merge action; third-head or stale inputs require recomputation/review.
 
@@ -735,7 +735,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=merge-review&step=1)
 
-Overlapping or touching edits, ambiguous bases, a third head, or the two-sided line limit prevent automatic merge. All alternatives remain available; a prepared choice must match the complete current inputs at admission.
+Touching or overlapping edits, an ambiguous base, a third revision or the two-sided line limit require review. Every alternative stays available. A prepared choice must still match the complete current inputs when admitted.
 
 **Initial conditions.** Two Macs replace “Milk” differently, or a third independent head arrives while a two-head merge is being prepared.
 
@@ -743,9 +743,9 @@ Overlapping or touching edits, ambiguous bases, a third head, or the two-sided l
 
 1. **Discovery of incompatible exact heads** (This Mac).
 
-   Observable state: Current has unresolved alternatives, even if two previews happen to look equal.
+   Observable state: [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) has unresolved alternatives, even if two previews happen to look equal.
 
-   Storage operation: Retain exact revisions and build deterministic head/represented-input evidence.
+   Storage operation: Retain exact revisions and build deterministic head/[represented-input](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) evidence.
 
    Applicable rule: Touching edit intervals, same-boundary insertions, ambiguous best bases, and two-sided bodies over 10,000 lines require review.
 
@@ -759,7 +759,7 @@ Overlapping or touching edits, ambiguous bases, a third head, or the two-sided l
 
    Observable state: A prepared two-input result cannot overwrite the now-current three-head state.
 
-   Storage operation: Recheck the complete head set, generation and represented inputs immediately before publication or choice admission.
+   Storage operation: Recheck the complete head set, generation and [represented inputs](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) immediately before publication or choice admission.
 
    Applicable rule: Three heads are not pairwise merged into an invented winner; equal values do not erase revision identities.
 
@@ -789,7 +789,7 @@ Test contracts:
 
 - [TC-MERGE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Exact LF/CRLF/non-normalized Unicode, repeated lines, empty/unterminated bodies, strictly separated/touching intervals, equal/one-sided long bodies
 - [TC-MERGE-02](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Two heads with unique base; multiple best bases; third/dominating head arriving during preparation; equal-value heads
-- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple disposition, review, and history are separate commands
+- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple [disposition](../../../CONTEXT.md#8-explicit-conflict-choices), review, and history are separate commands
 
 Design / plans:
 
@@ -801,17 +801,17 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=ordinary-conflict-edit&step=1)
 
-An ordinary edit of displayed head A supersedes the represented A input. Known incompatible head B remains unresolved. Releasing the temporary local Current-head pin schedules reduction of the complete applied head set.
+Editing displayed revision A replaces the represented A input. Known conflicting revision B stays unresolved. Releasing the temporary editing pin schedules computation from the full set of applicable [note heads](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
-**Initial conditions.** Current represents A while incompatible head B is known. The user edits A to A′ before explicitly resolving B.
+**Initial conditions.** [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) represents A while incompatible head B is known. The user edits A to A′ before explicitly resolving B.
 
 **Expected outcome.** The ordinary edit supersedes its represented A input and preserves B and independently edited conflict notes.
 
-1. **Current A with unresolved alternative B** (This Mac).
+1. **[Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) A with unresolved alternative B** (This Mac).
 
    Observable state: The editor shows A; conflict attention retains B.
 
-   Storage operation: Pair Current with its actual represented note inputs and keep the full applied causal action frontier.
+   Storage operation: Pair [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) with its actual represented note inputs and keep the full applied causal [action frontier](../../../CONTEXT.md#6-actions-undo-and-editing).
 
    Applicable rule: Action awareness and note supersession answer different questions.
 
@@ -825,9 +825,9 @@ An ordinary edit of displayed head A supersedes the represented A input. Known i
 
    Observable state: A′ is visible and pending; B is still an alternative.
 
-   Storage operation: Freeze a faithful action before/after pair and predecessor set for Current’s represented A, without silently widening it to B.
+   Storage operation: Freeze a faithful action before/after pair and predecessor set for [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)’s represented A, without silently widening it to B.
 
-   Applicable rule: An explicit resolution or valid automatic merge needs its own complete represented-input evidence.
+   Applicable rule: An explicit resolution or valid automatic merge needs its own complete [represented-input](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) evidence.
 
    Read / consume: `live`, `pendinglive`.
 
@@ -835,13 +835,13 @@ An ordinary edit of displayed head A supersedes the represented A input. Known i
 
    Check / gate: `gate`.
 
-3. **Reduction after release of the temporary Current-head pin** (This Mac).
+3. **[Reduction](../../../CONTEXT.md#3-history-relationships-and-derived-views) after release of the temporary Current-head pin** (This Mac).
 
-   Observable state: After the exact local barrier, the full applied head set is reduced again.
+   Observable state: After the exact [local barrier](../../../CONTEXT.md#4-change-processing-and-durability), the full applied head set is reduced again.
 
-   Storage operation: Schedule reduction/publication when the temporary editing pin is released, even without another provider callback.
+   Storage operation: Schedule [reduction](../../../CONTEXT.md#3-history-relationships-and-derived-views)/publication when the temporary editing pin is released, even without another provider callback.
 
-   Applicable rule: Keep independently edited conflict copies; generation checks protect newer typing.
+   Applicable rule: Keep independently edited conflict copies; [generation checks](../../../CONTEXT.md#9-authority-repair-and-transitions) protect newer typing.
 
    Read / consume: `accepted`, `graph`, `conflicts`.
 
@@ -866,17 +866,17 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=delete-race&step=1)
 
-Delete D and edit E are authored independently from the same note. Causal reduction deletes the old birth and preserves an otherwise eligible concurrent E in a deterministic conflict birth; an edit covered by D has a different result.
+Delete D and edit E are created independently from the same note. History [reduction](../../../CONTEXT.md#3-history-relationships-and-derived-views) deletes the old [note birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) and preserves eligible concurrent E in a deterministic [conflict note](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence). An edit already observed by D is covered instead.
 
 **Initial conditions.** A and B know the same note. A deletes it while B independently edits it without observing the Delete.
 
-**Expected outcome.** The old birth is deleted, while an otherwise eligible concurrent edit is preserved in a deterministic conflict birth.
+**Expected outcome.** The old [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) is deleted, while an otherwise eligible concurrent edit is preserved in a deterministic conflict birth.
 
 1. **Independent local acceptance of Delete and edit** (Mac A + Mac B).
 
    Observable state: Each Mac completes its own full local action/parent barrier.
 
-   Storage operation: Record the Delete’s causal inputs and B’s separate note revision exactly.
+   Storage operation: Record the Delete’s causal inputs and B’s separate [note revision](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) exactly.
 
    Applicable rule: Logical deletion requires applicable explicit history; a missing provider file is not that intent.
 
@@ -886,13 +886,13 @@ Delete D and edit E are authored independently from the same note. Causal reduct
 
    Check / gate: `gate`.
 
-2. **Reduction of the complete Delete/edit history** (This Mac).
+2. **[Reduction](../../../CONTEXT.md#3-history-relationships-and-derived-views) of the complete Delete/edit history** (This Mac).
 
-   Observable state: The deleted source birth leaves Current; B’s concurrent value remains recoverable.
+   Observable state: The deleted source [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) leaves [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence); B’s concurrent value remains recoverable.
 
-   Storage operation: Reduce causal Delete/edit relationships and derive the eligible deterministic automatic-preservation birth.
+   Storage operation: Reduce causal Delete/edit relationships and derive the eligible deterministic automatic-[preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
-   Applicable rule: An edit already observed by the Delete is covered; an edit descended from the Delete does not revive the old birth.
+   Applicable rule: An edit already observed by the Delete is covered; an edit descended from the Delete does not revive the old [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
    Read / consume: `objects`, `graph`.
 
@@ -900,11 +900,11 @@ Delete D and edit E are authored independently from the same note. Causal reduct
 
    Check / gate: `gate`.
 
-3. **Inspection and fresh-birth restoration of deleted history** (This Mac).
+3. **Inspection and [fresh-birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) of deleted history** (This Mac).
 
-   Observable state: History/Recently Deleted retains exact prior branches. Explicit restoration creates a fresh birth.
+   Observable state: History/[Recently Deleted](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) retains exact prior branches. Explicit [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) creates a [fresh birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
-   Storage operation: Derive deleted-history entries and restoration provenance separately from filesystem Trash.
+   Storage operation: Derive deleted-history entries and [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) provenance separately from filesystem Trash.
 
    Applicable rule: An incoming Delete cannot physically remove a remembered path; the original exact-snapshot operation owns any such effect.
 
@@ -919,7 +919,7 @@ Requirements: [DELETE-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 Test contracts:
 
 - [TC-DUR-02](../plan/swift-storage-conformance-testing-strategy.md#tc-dur-02--a-dependent-delete-cannot-outrun-its-parent) — A dependent Delete cannot outrun its parent
-- [TC-SEM-02](../plan/swift-storage-conformance-testing-strategy.md#tc-sem-02--automatic-preservation-can-retract-without-erasing-independent-work) — Automatic preservation can retract without erasing independent work
+- [TC-SEM-02](../plan/swift-storage-conformance-testing-strategy.md#tc-sem-02--automatic-preservation-can-retract-without-erasing-independent-work) — [Automatic preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) can retract without erasing independent work
 
 Design / plans:
 
@@ -931,7 +931,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=retracted-copy&step=1)
 
-An initial Delete concurrent with E derives automatic copy C. A later Delete observing E can retract untouched C once no eligible source remains. Independent edits to C and still-eligible descendants of E remain preserved.
+Delete concurrent with E creates automatic [conflict note](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) C. A later Delete observing E can remove untouched C when no eligible source remains. Independent edits to C and still-eligible descendants of E survive.
 
 **Initial conditions.** D₀ races with E, creating automatic copy C. Later D₁ observes E. In one branch C is untouched; in another C was edited to P.
 
@@ -943,7 +943,7 @@ An initial Delete concurrent with E derives automatic copy C. A later Delete obs
 
    Storage operation: Retain source/provenance evidence for the deterministic automatic result.
 
-   Applicable rule: Automatic preservation is derived from complete history, not a new independent user import.
+   Applicable rule: [Automatic preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) is derived from complete history, not a new independent user import.
 
    Read / consume: `graph`, `objects`.
 
@@ -953,11 +953,11 @@ An initial Delete concurrent with E derives automatic copy C. A later Delete obs
 
 2. **Reevaluation after D₁ observes E** (This Mac).
 
-   Observable state: Eligibility is recomputed for the source and its preservation result.
+   Observable state: Eligibility is recomputed for the source and its [preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) result.
 
    Storage operation: Prepare retraction only if C has no independent edit and no remaining eligible source value.
 
-   Applicable rule: A new F descended from E but concurrent with D₁ still deserves preservation; P is independent work.
+   Applicable rule: A new F descended from E but concurrent with D₁ still deserves [preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence); P is independent work.
 
    Read / consume: `graph`, `live`.
 
@@ -965,13 +965,13 @@ An initial Delete concurrent with E derives automatic copy C. A later Delete obs
 
    Check / gate: `gate`.
 
-3. **Fenced retraction and projection reconciliation** (This Mac).
+3. **Fenced retraction and [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) reconciliation** (This Mac).
 
    Observable state: Untouched C disappears; independently edited P stays. Uncertain external bytes remain pending.
 
-   Storage operation: Generation-fence the model transition and inspect any exact projection before cleanup/import classification.
+   Storage operation: Generation-fence the model transition and inspect any exact [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) before cleanup/import classification.
 
-   Applicable rule: Do not create blind retirement/unlink effects or echo-import the obsolete automatic projection.
+   Applicable rule: Do not create blind retirement/unlink effects or echo-import the obsolete automatic [projection](../../../CONTEXT.md#7-note-files-and-provider-observations).
 
    Read / consume: `reduce`, `filework`.
 
@@ -983,7 +983,7 @@ Requirements: [DELETE-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-SEM-02](../plan/swift-storage-conformance-testing-strategy.md#tc-sem-02--automatic-preservation-can-retract-without-erasing-independent-work) — Automatic preservation can retract without erasing independent work
+- [TC-SEM-02](../plan/swift-storage-conformance-testing-strategy.md#tc-sem-02--automatic-preservation-can-retract-without-erasing-independent-work) — [Automatic preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) can retract without erasing independent work
 
 Design / plans:
 
@@ -991,23 +991,23 @@ Design / plans:
 - [Action records and cross-launch undo](../Protocol.md#action-records-and-cross-launch-undo) — Protocol.md
 - [Current-file decision matrix](../Protocol.md#current-file-decision-matrix) — Protocol.md
 
-### Snapshot retention ancestry and logical operation cuts
+### Snapshot state and required parent objects
 
 [Open walkthrough](nvstorage-object-map.html#scenario=snapshot-retention&step=1)
 
-A general v1 snapshot can retain an exact accepted parent root independently of its represented logical cut. Parent-frontier changes commit atomically; all required ancestor bytes and accepted outside-cut actions remain part of recovery.
+A general v1 snapshot can name an accepted parent snapshot independently of the history represented by its values. Acceptance updates the required-object frontier together. Parent objects and all accepted operations outside the snapshot’s represented history stay available.
 
-**Initial conditions.** General snapshot S₂ names accepted S₁ as a retention parent. A later captured snapshot may represent an older logical cut.
+**Initial conditions.** General snapshot S₂ names accepted S₁ as a [retention parent](../../../CONTEXT.md#2-history-records-and-stored-objects). A snapshot created later can represent an earlier set of [logical operations](../../../CONTEXT.md#2-history-records-and-stored-objects).
 
-**Expected outcome.** Exact parent closure stays retained; Current and Undo still derive from complete accepted operations, not snapshot age.
+**Expected outcome.** Exact parent closure stays retained; [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) and Undo still derive from complete accepted operations, not snapshot age.
 
-1. **Capture of accepted prefix and snapshot-root frontier** (This Mac).
+1. **Capture [accepted history](../../../CONTEXT.md#3-history-relationships-and-derived-views) and uncovered snapshot roots** (This Mac).
 
-   Observable state: Snapshot preparation captures a consistent accepted prefix plus exact accepted root tips.
+   Observable state: Snapshot preparation captures a consistent local history position and exact accepted roots not covered by another root.
 
-   Storage operation: Prepare bounded pages/root and explicit supported retention-parent locators from checked evidence.
+   Storage operation: Prepare bounded pages/root and explicit supported [retention-parent](../../../CONTEXT.md#2-history-records-and-stored-objects) locators from checked evidence.
 
-   Applicable rule: Snapshot retention parents cover object closure; note predecessors and action scope parents have separate roles.
+   Applicable rule: Snapshot retention parents cover object closure; [note predecessors](../../../CONTEXT.md#3-history-relationships-and-derived-views) and action [scope parents](../../../CONTEXT.md#3-history-relationships-and-derived-views) have separate roles.
 
    Read / consume: `accepted`, `pin`, `graph`.
 
@@ -1029,13 +1029,13 @@ A general v1 snapshot can retain an exact accepted parent root independently of 
 
    Check / gate: `localowner`.
 
-3. **Reconstruction including accepted outside-cut actions** (This Mac).
+3. **Reconstruct with accepted work outside the snapshot** (This Mac).
 
-   Observable state: Notes, conflicts, deleted history and Undo still include accepted outside-cut operations.
+   Observable state: Notes, conflicts, deleted history and Undo still include accepted operations outside the snapshot’s represented history.
 
    Storage operation: Reuse checked logical traversal and retained closure, then reconstruct the complete target prefix if needed.
 
-   Applicable rule: An older logical cut never rolls Current back or authorizes deleting retained ancestor bytes. Sequential covered chains reduce startup root work.
+   Applicable rule: Representing earlier history never rolls [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) back or permits removing required ancestor bytes. Snapshot chains can reduce the number of roots checked at startup.
 
    Read / consume: `objects`, `accepted`, `rgeneral`.
 
@@ -1058,21 +1058,21 @@ Design / plans:
 
 ## History, restoration and compensation
 
-Historical field recovery, fresh-birth Restore, causal Undo/Redo, native remaining-effect coverage, and shared-window ownership.
+Historical field recovery, [fresh-birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) Restore, [causal Undo/Redo](../../../CONTEXT.md#6-actions-undo-and-editing), native [remaining-effect coverage](../../../CONTEXT.md#6-actions-undo-and-editing), and shared-window ownership.
 
 ### Historical body restoration with current title and labels
 
 [Open walkthrough](nvstorage-object-map.html#scenario=selective-history&step=1)
 
-Note History supplies an exact retained body for a new recovery action. Body restoration preserves current title and labels unless those fields are explicitly selected, and admission revalidates Current and the complete preview.
+[Note History](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) can supply an older body for a new recovery action. [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) title and labels stay unchanged unless explicitly selected. Admission checks the complete preview and current note again.
 
-**Initial conditions.** “Travel 2027” has a current title and labels. The user opens Note History and selects an older body while retaining those current fields.
+**Initial conditions.** “Travel 2027” has a current title and labels. The user opens [Note History](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) and selects an older body while retaining those current fields.
 
-**Expected outcome.** A newly admitted historical-recovery action restores the selected fields after Current revalidation; the old history remains.
+**Expected outcome.** A newly admitted historical-recovery action restores the selected fields after [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) revalidation; the old history remains.
 
 1. **Read-only preview of a retained historical body** (This Mac).
 
-   Observable state: History shows read-only Current, known branches and informational dates. Preview changes nothing.
+   Observable state: History shows read-only [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence), known branches and informational dates. Preview changes nothing.
 
    Storage operation: Load a scoped historical query from retained exact revision/action evidence.
 
@@ -1084,13 +1084,13 @@ Note History supplies an exact retained body for a new recovery action. Body res
 
    Check / gate: `gate`.
 
-2. **Selection of body restoration against exact Current** (This Mac).
+2. **Selection of body [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) against exact [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)** (This Mac).
 
    Observable state: The review shows today’s title/labels preserved and the chosen historical body.
 
-   Storage operation: Capture the selected fields and complete preview with Current’s exact birth, value and generation.
+   Storage operation: Capture the selected fields and complete preview with [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)’s exact [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence), value and generation.
 
-   Applicable rule: Body is the default selection; title/labels require explicit selection. Stale Current requires fresh preparation.
+   Applicable rule: Body is the default selection; title/labels require explicit selection. Stale [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) requires fresh preparation.
 
    Read / consume: `history`, `live`, `graph`.
 
@@ -1102,9 +1102,9 @@ Note History supplies an exact retained body for a new recovery action. Body res
 
    Observable state: The restored body is ordinary current work with a durable source link and an actual inverse.
 
-   Storage operation: Admit the complete group, then seal/accept it through the ordinary local barrier.
+   Storage operation: Admit the complete group, then seal/accept it through the ordinary [local barrier](../../../CONTEXT.md#4-change-processing-and-durability).
 
-   Applicable rule: Save as new note is a separate fresh-birth action; history recovery neither disposes conflict heads nor resolves Apple versions.
+   Applicable rule: [Save as new note](../../../CONTEXT.md#8-explicit-conflict-choices) is a separate [fresh-birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) action; history recovery neither disposes conflict heads nor resolves Apple versions.
 
    Read / consume: `capture`, `seal`.
 
@@ -1116,7 +1116,7 @@ Requirements: [HIST-01](../../iCloud-Drive-Support-Spec.md#normative-requirement
 
 Test contracts:
 
-- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple disposition, review, and history are separate commands
+- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple [disposition](../../../CONTEXT.md#8-explicit-conflict-choices), review, and history are separate commands
 - [TC-CAP-01](../plan/swift-storage-conformance-testing-strategy.md#tc-cap-01--a-faithful-frozen-action-not-just-durable-bytes) — A faithful frozen action, not just durable bytes
 
 Design / plans:
@@ -1129,11 +1129,11 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=recently-deleted&step=1)
 
-Restore creates a fresh birth linked to a named deleted entry. Complete durable restoration evidence excludes that source entry from the default list; deleting the restored birth later creates a separate entry.
+Restore creates a new [note birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) linked to the selected deleted entry. Only complete durable [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) evidence removes that source entry from the default list. Deleting the restored note creates a separate entry.
 
-**Initial conditions.** “Ideas” appears in Recently Deleted. The user restores its named entry, then later deletes the restored birth.
+**Initial conditions.** “Ideas” appears in [Recently Deleted](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence). The user restores its named entry, then later deletes the restored [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
-**Expected outcome.** The original entry leaves the default list only after durable restoration evidence. The later Delete creates its own entry.
+**Expected outcome.** The original entry leaves the default list only after durable [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) evidence. The later Delete creates its own entry.
 
 1. **Selection of a named deleted-history entry** (This Mac).
 
@@ -1141,7 +1141,7 @@ Restore creates a fresh birth linked to a named deleted entry. Complete durable 
 
    Storage operation: Derive the entry from applicable Delete and exact revision/action evidence.
 
-   Applicable rule: This is retained note history, independent of Trash and any physical-file sweep.
+   Applicable rule: This is retained [note history](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence), independent of Trash and any physical-file sweep.
 
    Read / consume: `actionindex`, `opindex`, `objects`.
 
@@ -1149,13 +1149,13 @@ Restore creates a fresh birth linked to a named deleted entry. Complete durable 
 
    Check / gate: `gate`.
 
-2. **Restore admission and durability for fresh birth R** (This Mac).
+2. **Restore admission and durability for [fresh birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) R** (This Mac).
 
    Observable state: R is pending until its complete local action and source provenance are durable.
 
-   Storage operation: Capture a fresh birth with exact restoredFrom deletion/revision evidence and commit it with its action.
+   Storage operation: Capture a [fresh birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) with exact restoredFrom deletion/revision evidence and commit it with its action.
 
-   Applicable rule: Only completed named restoration hides the source entry; generic historical copies do not. Projection/upload need not finish.
+   Applicable rule: Only completed named [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) hides the source entry; generic historical copies do not. [Projection](../../../CONTEXT.md#7-note-files-and-provider-observations)/upload need not finish.
 
    Read / consume: `history`, `capture`.
 
@@ -1163,11 +1163,11 @@ Restore creates a fresh birth linked to a named deleted entry. Complete durable 
 
    Check / gate: `gate`.
 
-3. **Later deletion of R or concurrent independent restoration** (This Mac).
+3. **Later deletion of R or concurrent independent [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)** (This Mac).
 
-   Observable state: R’s Delete yields a new entry; a concurrent explicit restore on another Mac has its own birth.
+   Observable state: R’s Delete yields a new entry; a concurrent explicit restore on another Mac has its own [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
-   Storage operation: Retain the old source restoration link even if R is edited or deleted; reduce each fresh birth independently.
+   Storage operation: Retain the old source [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) link even if R is edited or deleted; reduce each [fresh birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) independently.
 
    Applicable rule: The original entry does not reappear based on whether R is live. Concurrent restores may both remain.
 
@@ -1181,8 +1181,8 @@ Requirements: [DELETE-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-ACT-05](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Restore a named Recently Deleted entry; fail/pause barrier; delete the fresh restored birth; generic historical copy; concurrent restores
-- [TC-ACT-03](../plan/swift-storage-conformance-testing-strategy.md#tc-act-03--concurrent-compensation-and-fresh-birth-continuation) — Concurrent compensation and fresh-birth continuation
+- [TC-ACT-05](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Restore a named [Recently Deleted](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) entry; fail/pause barrier; delete the fresh restored [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence); generic historical copy; concurrent restores
+- [TC-ACT-03](../plan/swift-storage-conformance-testing-strategy.md#tc-act-03--concurrent-compensation-and-fresh-birth-continuation) — Concurrent [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) and [fresh-birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) continuation
 
 Design / plans:
 
@@ -1194,7 +1194,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=portable-undo&step=1)
 
-Validated action records preserve exact members, before/after references and scope parents. Any Mac may compensate a unique applicable maximal action; incomparable or overlapping candidates require review, and bulk admission applies to the whole group.
+Saved [action records](../../../CONTEXT.md#2-history-records-and-stored-objects) retain their members, before/after values and Undo relationships. Any Mac can reverse an eligible action when it is the sole candidate at the end of the relevant Undo relationships. Concurrent or overlapping candidates need review; a bulk action is admitted as a complete group.
 
 **Initial conditions.** Mac A renames a note. After the action is durably synced, Mac B opens it and invokes Undo Rename.
 
@@ -1202,9 +1202,9 @@ Validated action records preserve exact members, before/after references and sco
 
 1. **Capture and acceptance of the rename action on Mac A** (Mac A).
 
-   Observable state: A sees the new title; its saved action includes exact before/after references and scope parents.
+   Observable state: A sees the new title; its saved action includes exact before/after references and [scope parents](../../../CONTEXT.md#3-history-relationships-and-derived-views).
 
-   Storage operation: Freeze operation members, origin provenance and every maximal action represented by the captured applied frontier.
+   Storage operation: Freeze operation members, origin provenance and every maximal action represented by the captured [applied frontier](../../../CONTEXT.md#3-history-relationships-and-derived-views).
 
    Applicable rule: Received-but-unapplied bytes and incompletely loaded history rows do not define the writer’s scope.
 
@@ -1218,7 +1218,7 @@ Validated action records preserve exact members, before/after references and sco
 
    Observable state: B offers the unique causally maximal applicable rename, regardless of its origin or arrival time.
 
-   Storage operation: Build a scoped candidate view from validated action/scope-parent/compensation evidence and actual Current.
+   Storage operation: Build a scoped candidate view from validated action/[scope-parent](../../../CONTEXT.md#3-history-relationships-and-derived-views)/[compensation](../../../CONTEXT.md#6-actions-undo-and-editing) evidence and actual [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
    Applicable rule: Old NSUndoManager entries, selectors and pointers are not persisted. Incomparable/overlapping candidates require review.
 
@@ -1228,11 +1228,11 @@ Validated action records preserve exact members, before/after references and sco
 
    Check / gate: `gate`.
 
-3. **Admission and acceptance of complete guarded compensation** (Mac B).
+3. **Admission and acceptance of complete guarded [compensation](../../../CONTEXT.md#6-actions-undo-and-editing)** (Mac B).
 
    Observable state: The title reverses while unrelated body/labels remain. History and causal eligibility recover together.
 
-   Storage operation: Admit all compensation members or none, then commit its complete action/parent closure.
+   Storage operation: Admit all [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) members or none, then commit its complete action/parent closure.
 
    Applicable rule: Bulk work is wholly revalidated; oversized groups must be disclosed as separate independently undoable batches before admission.
 
@@ -1260,19 +1260,19 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=reviewed-undo&step=1)
 
-Rename B was Shopping → Groceries, while a represented concurrent action makes Current Errands. Approved Undo B records Errands → Shopping; its Redo reverses that actual compensation to Errands.
+Rename B changed Shopping to Groceries, while a represented concurrent action made [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) Errands. Approved Undo B records Errands to Shopping. Redo reverses that actual [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) back to Errands.
 
-**Initial conditions.** Rename B was Shopping → Groceries. A represented concurrent action supplies Current = Errands. The user selects B through Undo review and explicitly approves replacement with Shopping.
+**Initial conditions.** Rename B was Shopping → Groceries. A represented concurrent action supplies [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) = Errands. The user selects B through Undo review and explicitly approves replacement with Shopping.
 
-**Expected outcome.** The new compensation records Errands → Shopping; its Redo returns to Errands, while preserving the remaining eligible redo chain.
+**Expected outcome.** The new [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) records Errands → Shopping; its Redo returns to Errands, while preserving the remaining eligible redo chain.
 
-1. **Undo B preparation against represented Current Errands** (This Mac).
+1. **Undo B preparation against represented [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) Errands** (This Mac).
 
    Observable state: A dismissible read-only review explains the overlap and the captured candidate frontier.
 
-   Storage operation: Prepare the actual proposed compensation from Errands to approved Shopping in the invocation’s Undo mode.
+   Storage operation: Prepare the actual proposed [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) from Errands to approved Shopping in the invocation’s Undo mode.
 
-   Applicable rule: Preview/Cancel consumes nothing. Note History and conflict commands remain distinct even with identical text.
+   Applicable rule: Preview/Cancel consumes nothing. [Note History](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) and conflict commands remain distinct even with identical text.
 
    Read / consume: `undo`, `graph`, `live`.
 
@@ -1282,11 +1282,11 @@ Rename B was Shopping → Groceries, while a represented concurrent action makes
 
 2. **Approval and admission of Errands → Shopping** (This Mac).
 
-   Observable state: Shopping becomes pending only if the captured Current and candidate frontier still match.
+   Observable state: Shopping becomes pending only if the captured [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) and candidate frontier still match.
 
    Storage operation: Freeze actual before = Errands and after = Shopping, with exact undoOf/action/causal evidence.
 
-   Applicable rule: Approval does not bypass missing evidence, no-op checks, format/birth/generation gates or retarget a changed candidate.
+   Applicable rule: Approval does not bypass missing evidence, no-op checks, format/[birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)/generation gates or retarget a changed candidate.
 
    Read / consume: `history`, `undo`, `live`.
 
@@ -1294,13 +1294,13 @@ Rename B was Shopping → Groceries, while a represented concurrent action makes
 
    Check / gate: `gate`.
 
-3. **Redo derived from the actual accepted compensation** (This Mac).
+3. **Redo derived from the actual accepted [compensation](../../../CONTEXT.md#6-actions-undo-and-editing)** (This Mac).
 
    Observable state: Redo restores Errands. Other eligible causal redo steps remain independently available.
 
    Storage operation: Validate and append the inverse of the actual reviewed action, not the historical Groceries value.
 
-   Applicable rule: Reviewed compensation affects the selected action; it never silently consumes siblings or substitutes generic recovery.
+   Applicable rule: [Reviewed compensation](../../../CONTEXT.md#6-actions-undo-and-editing) affects the selected action; it never silently consumes siblings or substitutes generic recovery.
 
    Read / consume: `actionindex`, `graph`, `undo`.
 
@@ -1312,8 +1312,8 @@ Requirements: [HIST-01](../../iCloud-Drive-Support-Spec.md#normative-requirement
 
 Test contracts:
 
-- [TC-ACT-02](../plan/swift-storage-conformance-testing-strategy.md#tc-act-02--reviewed-compensation-preserves-the-actual-inverse) — Reviewed compensation preserves the actual inverse
-- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple disposition, review, and history are separate commands
+- [TC-ACT-02](../plan/swift-storage-conformance-testing-strategy.md#tc-act-02--reviewed-compensation-preserves-the-actual-inverse) — [Reviewed compensation](../../../CONTEXT.md#6-actions-undo-and-editing) preserves the actual inverse
+- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple [disposition](../../../CONTEXT.md#8-explicit-conflict-choices), review, and history are separate commands
 
 Design / plans:
 
@@ -1325,17 +1325,17 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=concurrent-undo&step=1)
 
-Two Macs can each admit compensation of X before learning of the other. U and V remain distinct actions. Candidate ambiguity is relative to direction and compensation family, and reversing one restored birth preserves the other.
+Two Macs can each reverse X before learning of the other’s action. Both compensations stay in history. Review depends on the requested Undo/Redo family and current values; reversing one restored note preserves the other.
 
-**Initial conditions.** A and B independently prepare Undo of action X. Each commits its own compensation U or V before learning of the other.
+**Initial conditions.** A and B independently prepare Undo of action X. Each commits its own [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) U or V before learning of the other.
 
 **Expected outcome.** Both actions survive. Competing family descendants require scoped review; unrelated later actions retain their own eligibility.
 
 1. **Independent admission of Undo X on two Macs** (Mac A + Mac B).
 
-   Observable state: Each local capture is checked against its own complete candidate frontier and Current.
+   Observable state: Each local capture is checked against its own complete candidate frontier and [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
-   Storage operation: Allocate distinct immutable compensation identities and preserve exact undoOf evidence.
+   Storage operation: Allocate distinct immutable [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) identities and preserve exact undoOf evidence.
 
    Applicable rule: There is no distributed exactly-once pop or mutable cross-Mac undo cursor.
 
@@ -1349,7 +1349,7 @@ Two Macs can each admit compensation of X before learning of the other. U and V 
 
    Observable state: Equal effects may converge visibly, while competing descendants remain reviewable.
 
-   Storage operation: Derive direction-relative candidates and compensation families, keeping every causal action.
+   Storage operation: Derive direction-relative candidates and [compensation families](../../../CONTEXT.md#6-actions-undo-and-editing), keeping every causal action.
 
    Applicable rule: After reviewed Redo U, a now-no-op Redo V creates nothing and consumes no eligibility. A separate X family can still undo/redo automatically.
 
@@ -1359,13 +1359,13 @@ Two Macs can each admit compensation of X before learning of the other. U and V 
 
    Check / gate: `gate`.
 
-3. **Independent fresh-birth mappings for Undo Delete** (This Mac).
+3. **Independent [fresh-birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) mappings for Undo Delete** (This Mac).
 
    Observable state: Two concurrent restorations produce distinct fresh births; reversing one preserves the other.
 
-   Storage operation: Record exact fresh-birth mapping in each compensation and reverse only the selected mapping.
+   Storage operation: Record exact [fresh-birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) mapping in each [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) and reverse only the selected mapping.
 
-   Applicable rule: A later reversal of that deletion needs another fresh birth; no historical branch is collapsed by equal preview bytes.
+   Applicable rule: A later reversal of that deletion needs another [fresh birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence); no historical branch is collapsed by equal preview bytes.
 
    Read / consume: `undo`, `actionindex`.
 
@@ -1377,8 +1377,8 @@ Requirements: [HIST-01](../../iCloud-Drive-Support-Spec.md#normative-requirement
 
 Test contracts:
 
-- [TC-ACT-03](../plan/swift-storage-conformance-testing-strategy.md#tc-act-03--concurrent-compensation-and-fresh-birth-continuation) — Concurrent compensation and fresh-birth continuation
-- [TC-ACT-02](../plan/swift-storage-conformance-testing-strategy.md#tc-act-02--reviewed-compensation-preserves-the-actual-inverse) — Reviewed compensation preserves the actual inverse
+- [TC-ACT-03](../plan/swift-storage-conformance-testing-strategy.md#tc-act-03--concurrent-compensation-and-fresh-birth-continuation) — Concurrent [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) and [fresh-birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) continuation
+- [TC-ACT-02](../plan/swift-storage-conformance-testing-strategy.md#tc-act-02--reviewed-compensation-preserves-the-actual-inverse) — [Reviewed compensation](../../../CONTEXT.md#6-actions-undo-and-editing) preserves the actual inverse
 
 Design / plans:
 
@@ -1390,7 +1390,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=native-remaining&step=1)
 
-Partial native reversal records exact remaining-effect coverage for saved typing actions. Reopening derives portable eligibility from retained coverage and Current lineage, so an already reversed effect is not compensated twice.
+Partial native Undo saves which effects of a typing action remain. Reopening uses that record and [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)’s history to determine [portable Undo](../../../CONTEXT.md#6-actions-undo-and-editing) eligibility, so an already reversed effect is not reversed twice.
 
 **Initial conditions.** A saved typing action contains several edits. Native Undo reverses only part, then the app closes and reopens.
 
@@ -1410,11 +1410,11 @@ Partial native reversal records exact remaining-effect coverage for saved typing
 
    Check / gate: `gate`.
 
-2. **Durable remaining-effect coverage and note compensation** (This Mac).
+2. **Durable [remaining-effect coverage](../../../CONTEXT.md#6-actions-undo-and-editing) and note [compensation](../../../CONTEXT.md#6-actions-undo-and-editing)** (This Mac).
 
    Observable state: The partial reversal records which saved-action effects remain, with exact state references.
 
-   Storage operation: Commit the native-coverage compensation together with its complete note effects and dependencies.
+   Storage operation: Commit the native-coverage [compensation](../../../CONTEXT.md#6-actions-undo-and-editing) together with its complete note effects and dependencies.
 
    Applicable rule: Coverage follows action ancestry; incomparable maximal claims require review, not an arbitrary newest claim.
 
@@ -1428,7 +1428,7 @@ Partial native reversal records exact remaining-effect coverage for saved typing
 
    Observable state: Only the remaining eligible effect is proposed. Old Cocoa grouping/selection is not reconstructed.
 
-   Storage operation: Build candidates from retained coverage and Current’s represented lineage, including all relevant families.
+   Storage operation: Build candidates from retained coverage and [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)’s represented lineage, including all relevant families.
 
    Applicable rule: Saved-edit granularity survives; per-keystroke cross-device stacks and executable native objects do not.
 
@@ -1455,7 +1455,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=shared-windows&step=1)
 
-Two windows reference one live note and per-note Undo owner while retaining independent selections. Remote body publication observes the native input boundary and revalidates note, attachment, store, root and lifecycle generations.
+Two windows share one live note and its Undo owner while keeping independent selections. A remote body update waits for an applicable native input boundary and checks the note, attachment, store, root and lifecycle versions again.
 
 **Initial conditions.** Windows X and Y show the same note. X starts composition; Y changes selection or closes while a remote result is pending.
 
@@ -1463,7 +1463,7 @@ Two windows reference one live note and per-note Undo owner while retaining inde
 
 1. **Independent view attachments to one live note** (This Mac).
 
-   Observable state: Each view has its own selection/scroll while edits belong to the shared note and Undo scope.
+   Observable state: Each view has its own selection/scroll while edits belong to the shared note and [Undo scope](../../../CONTEXT.md#6-actions-undo-and-editing).
 
    Storage operation: Attach observers to one live model; retain remembered cursor updates as private presentation state.
 
@@ -1522,17 +1522,17 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=saved-search-windows&step=1)
 
-Each saved search owns a reusable ordinary window over the shared collection. Activation preserves other windows’ queries and selections; bookmark-scoped preferences retain frame and open state across launches.
+Each saved search reuses its own ordinary window over the shared [collection](../../../CONTEXT.md#1-collections-and-their-copies). Activating one preserves the other windows’ searches and selections. Bookmark preferences retain its frame and open state across launches.
 
 **Initial conditions.** An ordinary window shows “inbox”. The user activates saved searches Work and Personal, then activates Work again before relaunching.
 
-**Expected outcome.** Each bookmark reuses its dedicated shared-model window. Existing bookmark preferences remember its frame and open state; the collection and note Undo remain shared.
+**Expected outcome.** Each bookmark reuses its dedicated shared-model window. Existing bookmark preferences remember its frame and open state; the [collection](../../../CONTEXT.md#1-collections-and-their-copies) and note Undo remain shared.
 
 1. **Bookmark activation and dedicated-window creation** (This Mac).
 
    Observable state: A dedicated Work window opens with its saved search and remembered note. The inbox window keeps its own presentation.
 
-   Storage operation: The existing bookmark owner routes activation through open-window management and initializes a view over the same live collection.
+   Storage operation: The existing bookmark owner routes activation through open-window management and initializes a view over the same live [collection](../../../CONTEXT.md#1-collections-and-their-copies).
 
    Applicable rule: Search stays synchronous. Query, selection, layout and focus are view state; opening a window creates no second database, writer identity or action branch.
 
@@ -1562,7 +1562,7 @@ Each saved search owns a reusable ordinary window over the shared collection. Ac
 
    Storage operation: Persist bookmark-scoped frame/open-state through the existing bookmark preference path; rebuild views only after complete current/search readiness.
 
-   Applicable rule: This is private UI preference data, separate from causal note actions. It does not promise restoration of every arbitrary ordinary window; query-edit/removal behavior remains a named UI decision.
+   Applicable rule: This is private UI preference data, separate from causal note actions. It does not promise [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) of every arbitrary ordinary window; query-edit/removal behavior remains a named UI decision.
 
    Read / consume: `views`, `current`, `view`.
 
@@ -1576,7 +1576,7 @@ Test contracts:
 
 - [TC-CAP-02](../plan/swift-storage-conformance-testing-strategy.md#tc-cap-02--native-coverage-and-composition-survive-the-real-application-seam) — Native coverage and composition survive the real application seam
 - [TC-PERF-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Fixed realistic note/body/history fixtures, cold/warm reopen, small/large tail, current-cell decode bounds, provider backlog, KDF and active typing
-- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; materialization failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
+- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; [materialization](../../../CONTEXT.md#1-collections-and-their-copies) failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
 
 These contracts cover the shared-editor, synchronous-search and lifecycle seams. Dedicated bookmark activation/frame/reopen acceptance is specified in the linked window feature contract and retains its application integration gate.
 
@@ -1590,19 +1590,19 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=conflict-copy&step=1)
 
-Save as new note records exact copy and disposition evidence for the selected revision without superseding the source. Reciprocal explicit copies can produce distinct births; completed disposition survives later copy edits or deletion.
+[Save as new note](../../../CONTEXT.md#8-explicit-conflict-choices) records the exact copy and [disposition](../../../CONTEXT.md#8-explicit-conflict-choices) for a selected revision while preserving the source history. Independent explicit copies can create different note births. Completed disposition survives later edits or deletion of the copy.
 
-**Initial conditions.** Two Macs independently choose Save as new note for exact unresolved revision R of an NV-head conflict.
+**Initial conditions.** Two Macs independently choose [Save as new note](../../../CONTEXT.md#8-explicit-conflict-choices) for exact unresolved revision R of an NV-head conflict.
 
-**Expected outcome.** Each explicit copy may have its own birth. Completed preservation hides only the selected revision’s unresolved attention.
+**Expected outcome.** Each explicit copy may have its own [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence). Completed [preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) hides only the selected revision’s unresolved attention.
 
 1. **Captured preview of source revision R in NV-copy mode** (This Mac).
 
    Observable state: The resolver has a captured NV-copy command and exact selected revision.
 
-   Storage operation: Validate source revision, selected mode, Current and candidate copy evidence.
+   Storage operation: Validate source revision, selected mode, [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) and candidate copy evidence.
 
-   Applicable rule: A body-equal or already modified/deleted candidate is not automatically exact reusable preservation evidence.
+   Applicable rule: A body-equal or already modified/deleted candidate is not automatically exact reusable [preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) evidence.
 
    Read / consume: `conflicts`, `graph`, `history`.
 
@@ -1610,13 +1610,13 @@ Save as new note records exact copy and disposition evidence for the selected re
 
    Check / gate: `gate`.
 
-2. **Durable copy and source-disposition evidence** (This Mac).
+2. **Durable copy and source-[disposition](../../../CONTEXT.md#8-explicit-conflict-choices) evidence** (This Mac).
 
-   Observable state: The new note and completed source disposition become durable before attention is settled.
+   Observable state: The new note and completed source [disposition](../../../CONTEXT.md#8-explicit-conflict-choices) become durable before attention is settled.
 
-   Storage operation: Commit exact copy/action/provenance evidence and its complete dependency closure.
+   Storage operation: Commit exact copy/action/provenance evidence and its complete [dependency closure](../../../CONTEXT.md#3-history-relationships-and-derived-views).
 
-   Applicable rule: No source Put/Delete/Keep Current or supersession is emitted just to preserve R.
+   Applicable rule: No source Put/Delete/Keep [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) or supersession is emitted just to preserve R.
 
    Read / consume: `capture`, `seal`.
 
@@ -1630,7 +1630,7 @@ Save as new note records exact copy and disposition evidence for the selected re
 
    Storage operation: Derive unresolved attention from durable completed dispositions while reducing the source independently.
 
-   Applicable rule: Completed disposition survives copy edits/deletion and reopen; new source descendants remain reviewable.
+   Applicable rule: Completed [disposition](../../../CONTEXT.md#8-explicit-conflict-choices) survives copy edits/deletion and reopen; new source descendants remain reviewable.
 
    Read / consume: `actionindex`, `graph`.
 
@@ -1642,7 +1642,7 @@ Requirements: [HIST-01](../../iCloud-Drive-Support-Spec.md#normative-requirement
 
 Test contracts:
 
-- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple disposition, review, and history are separate commands
+- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple [disposition](../../../CONTEXT.md#8-explicit-conflict-choices), review, and history are separate commands
 - [TC-SEM-01](../plan/swift-storage-conformance-testing-strategy.md#tc-sem-01--ordinary-edits-preserve-unresolved-alternatives) — Ordinary edits preserve unresolved alternatives
 
 Design / plans:
@@ -1653,17 +1653,17 @@ Design / plans:
 
 ## Plaintext files and external versions
 
-File observation and provenance, automatic import, pending input retention, projection installation, external deletion, and Apple version disposition.
+[File observation](../../../CONTEXT.md#7-note-files-and-provider-observations) and provenance, automatic import, pending input retention, [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) installation, external deletion, and Apple version [disposition](../../../CONTEXT.md#8-explicit-conflict-choices).
 
 ### Automatic import of an eligible ordinary text file
 
 [Open walkthrough](nvstorage-object-map.html#scenario=automatic-import&step=1)
 
-An ordinary unstamped file imports after provenance, availability and narrowly scoped repair-candidate checks. One admitted observation retains its retry identity; later duplicate knowledge preserves independently created births.
+An ordinary unstamped file imports after its origin, availability and narrowly defined repair candidates are checked. One admitted observation keeps the same retry identity. Later discovery of a duplicate preserves independently created notes.
 
-**Initial conditions.** An ordinary unstamped txt file appears in the repository. Provenance and availability checks permit inspection, and there is no applicable association or narrowly scoped repair candidate.
+**Initial conditions.** An ordinary unstamped txt file appears in the [repository](../../../CONTEXT.md#1-collections-and-their-copies). Provenance and availability checks permit inspection, and there is no applicable association or narrowly scoped repair candidate.
 
-**Expected outcome.** NV creates one fresh birth for that admitted observation. If delayed history later reveals a duplicate, both independent births survive.
+**Expected outcome.** NV creates one [fresh birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) for that admitted observation. If delayed history later reveals a duplicate, both independent births survive.
 
 1. **Verified observation and ordinary-file classification** (This Mac).
 
@@ -1683,7 +1683,7 @@ An ordinary unstamped file imports after provenance, availability and narrowly s
 
    Observable state: The eligible file becomes a new note through ordinary admission and complete action capture.
 
-   Storage operation: Reserve exact observation/operation identity and freeze input values; commit its history and eventual relationship evidence.
+   Storage operation: Reserve exact observation/[operation identity](../../../CONTEXT.md#2-history-records-and-stored-objects) and freeze input values; commit its history and eventual relationship evidence.
 
    Applicable rule: Retry of one admitted observation reuses its identity; equal independent files are not globally deduplicated by body/name.
 
@@ -1711,7 +1711,7 @@ Requirements: [IMPORT-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C projections; repeated crashes before/after operation/pin/receipt; later Delete
+- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C [projections](../../../CONTEXT.md#7-note-files-and-provider-observations); repeated crashes before/after operation/pin/receipt; later Delete
 - [TC-PROJ-01](../plan/swift-storage-conformance-testing-strategy.md#tc-proj-01--body-stamp-and-history-arrive-independently) — Body, stamp, and history arrive independently
 
 Design / plans:
@@ -1725,19 +1725,19 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=stamp-waits&step=1)
 
-A file with a projection stamp naming unavailable history waits for that exact evidence. Once the represented state and unique association validate against current bytes, the file associates with the existing birth without an echo Put.
+A [projection stamp](../../../CONTEXT.md#7-note-files-and-provider-observations) can name history that has not arrived yet. NV keeps the file and waits for that exact evidence. Once the represented state and unique association match current bytes, it associates the file without recording a duplicate edit.
 
-**Initial conditions.** A note body and bounded projection stamp arrive, but the exact immutable history named by the stamp has not.
+**Initial conditions.** A note body and bounded [projection stamp](../../../CONTEXT.md#7-note-files-and-provider-observations) arrive, but the exact immutable history named by the stamp has not.
 
 **Expected outcome.** NV waits for the named evidence; once exact represented state validates, it associates without an echo Put.
 
 1. **Independent observation of body and bounded stamp** (This Mac).
 
-   Observable state: The file is not imported as a new birth merely because its history is delayed.
+   Observable state: The file is not imported as a new [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) merely because its history is delayed.
 
    Storage operation: Parse bounded advisory metadata and record exact missing locators while preserving body bytes.
 
-   Applicable rule: Body/xattr arrival is not atomic; a stamp is neither physical authority nor an authenticated substitute for history.
+   Applicable rule: Body/xattr arrival is not atomic; a stamp is neither [physical authority](../../../CONTEXT.md#9-authority-repair-and-transitions) nor an authenticated substitute for history.
 
    Read / consume: `rnotes`, `filework`.
 
@@ -1747,11 +1747,11 @@ A file with a projection stamp naming unavailable history waits for that exact e
 
 2. **Validation of the stamp’s named history and represented state** (This Mac).
 
-   Observable state: Complete dependencies establish the represented birth/state and exact output digest.
+   Observable state: Complete dependencies establish the represented [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence)/state and exact output digest.
 
-   Storage operation: Validate envelope/schema/history and unique association evidence against the actual current file.
+   Storage operation: Validate [envelope](../../../CONTEXT.md#2-history-records-and-stored-objects)/schema/history and unique association evidence against the actual current file.
 
-   Applicable rule: Malformed/copied/wrong-collection/stale stamps authorize no alias, overwrite or deletion; uncertainty preserves bytes.
+   Applicable rule: Malformed/copied/wrong-[collection](../../../CONTEXT.md#1-collections-and-their-copies)/stale stamps authorize no alias, overwrite or deletion; uncertainty preserves bytes.
 
    Read / consume: `rchanges`, `pendingdisk`.
 
@@ -1765,7 +1765,7 @@ A file with a projection stamp naming unavailable history waits for that exact e
 
    Storage operation: Commit freshly validated relationship/receipt state, then reconcile subsequent external changes normally.
 
-   Applicable rule: No timeout or quiet-catalog count converts missing named history into a new-birth permission.
+   Applicable rule: No timeout or quiet-catalog count converts missing named history into a new-[birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) permission.
 
    Read / consume: `graph`, `filework`.
 
@@ -1790,7 +1790,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=pending-choice&step=1)
 
-A pending choice previews A, then the source changes to B before approval. Latest-reference replacement is durable and generation-checked; the old A preparation is rejected rather than retargeted to B.
+A choice previews A, then another editor saves B before approval. NV durably replaces the latest preview after checking its version. The old preparation for A becomes stale and cannot reuse its consent for B.
 
 **Initial conditions.** A repair/recovery choice previews external value A. Another editor saves B before the user approves A.
 
@@ -1842,8 +1842,8 @@ Requirements: [IMPORT-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C projections; repeated crashes before/after operation/pin/receipt; later Delete
-- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple disposition, review, and history are separate commands
+- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C [projections](../../../CONTEXT.md#7-note-files-and-provider-observations); repeated crashes before/after operation/pin/receipt; later Delete
+- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple [disposition](../../../CONTEXT.md#8-explicit-conflict-choices), review, and history are separate commands
 
 Design / plans:
 
@@ -1855,15 +1855,15 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=admitted-file&step=1)
 
-An admitted operation retains frozen input A while newer B becomes a subsequent observation. After restart, exact operation/action evidence determines whether A committed; receipt recovery continues the same operation and birth.
+An admitted operation keeps frozen input A while newer B becomes a later observation. After restart, exact saved action evidence determines whether A committed. Receipt recovery continues the same operation and [note birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
 **Initial conditions.** An operation on external A is admitted. Before history/receipt completion, another editor saves B and the app crashes.
 
-**Expected outcome.** Recovery locates the exact A operation and finishes association/settlement; it does not allocate another birth or discard B.
+**Expected outcome.** Recovery locates the exact A operation and finishes association/settlement; it does not allocate another [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) or discard B.
 
 1. **Admission of A with its exact operation link** (This Mac).
 
-   Observable state: A becomes ordinary pending history with its frozen input and provisional relationship claim.
+   Observable state: A becomes ordinary pending history with its frozen input and [provisional relationship claim](../../../CONTEXT.md#7-note-files-and-provider-observations).
 
    Storage operation: Atomically revalidate/admit the note mutation and claim after asynchronous preparation/reservation.
 
@@ -1881,7 +1881,7 @@ An admitted operation retains frozen input A while newer B becomes a subsequent 
 
    Storage operation: Durably replace the latest reference without releasing A’s unfinished-operation ownership; complete A’s history barrier.
 
-   Applicable rule: A later Delete does not erase the earlier import’s committed identity or authorize re-admission into the deleted birth.
+   Applicable rule: A later Delete does not erase the earlier import’s committed identity or authorize re-admission into the deleted [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
    Read / consume: `filework`, `capture`.
 
@@ -1891,11 +1891,11 @@ An admitted operation retains frozen input A while newer B becomes a subsequent 
 
 3. **Recovery of committed A before receipt settlement** (Restart).
 
-   Observable state: The same A operation/birth is recovered, even if that birth was later deleted. B remains subsequent work.
+   Observable state: The same A operation/[birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) is recovered, even if that birth was later deleted. B remains subsequent work.
 
-   Storage operation: Resolve ambiguous SQL outcomes, validate exact operation/action/parent closure, then freshly account for the chosen actual projection and settle links.
+   Storage operation: Resolve ambiguous SQL outcomes, validate exact operation/action/parent closure, then freshly account for the chosen actual [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) and settle links.
 
-   Applicable rule: Lookup must not ask only whether the birth is currently live. No receipt retry replays the note mutation or old consent.
+   Applicable rule: Lookup must not ask only whether the [birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) is currently live. No receipt retry replays the note mutation or old consent.
 
    Read / consume: `pendingdisk`, `objects`, `actionindex`.
 
@@ -1907,7 +1907,7 @@ Requirements: [IMPORT-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C projections; repeated crashes before/after operation/pin/receipt; later Delete
+- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C [projections](../../../CONTEXT.md#7-note-files-and-provider-observations); repeated crashes before/after operation/pin/receipt; later Delete
 - [TC-DUR-01](../plan/swift-storage-conformance-testing-strategy.md#tc-dur-01--earlier-completion-cannot-clear-later-work) — Earlier completion cannot clear later work
 
 Design / plans:
@@ -1920,7 +1920,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=disappeared-file&step=1)
 
-The last durably retained readable snapshot survives later source disappearance or unreadability. Its bytes support renewed applicable decisions or explicit recovery, while association and physical effects still require fresh evidence.
+The last durably retained readable file snapshot survives later disappearance or unreadability. Its bytes remain available for a fresh applicable decision or explicit recovery. Association and physical changes still need fresh evidence.
 
 **Initial conditions.** A verified external snapshot is pending, then its file disappears or becomes unreadable before a decision.
 
@@ -1940,13 +1940,13 @@ The last durably retained readable snapshot survives later source disappearance 
 
    Check / gate: `localowner`.
 
-2. **Current observation of disappearance or unreadability** (This Mac).
+2. **[Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) observation of disappearance or unreadability** (This Mac).
 
    Observable state: NV preserves the snapshot and reports uncertainty; it does not infer a committed note Delete.
 
    Storage operation: Retain last readable input and reclassify current physical/provenance evidence.
 
-   Applicable rule: Missing source bytes grant no stale import, restoration, association or physical permission.
+   Applicable rule: Missing source bytes grant no stale import, [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence), association or [physical permission](../../../CONTEXT.md#9-authority-repair-and-transitions).
 
    Read / consume: `pendingdisk`, `filework`.
 
@@ -1958,7 +1958,7 @@ The last durably retained readable snapshot survives later source disappearance 
 
    Observable state: A separate recovery can create a fresh note from the retained input.
 
-   Storage operation: Prepare/approve current target and source evidence, then admit a new exact recovery action through the complete local barrier.
+   Storage operation: Prepare/approve current target and source evidence, then admit a new exact recovery action through the complete [local barrier](../../../CONTEXT.md#4-change-processing-and-durability).
 
    Applicable rule: An already admitted operation resumes its own identity; an unadmitted reservation returns to fresh decision work after restart.
 
@@ -1972,7 +1972,7 @@ Requirements: [IMPORT-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C projections; repeated crashes before/after operation/pin/receipt; later Delete
+- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C [projections](../../../CONTEXT.md#7-note-files-and-provider-observations); repeated crashes before/after operation/pin/receipt; later Delete
 - [TC-PROJ-02](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — External disappearance while confirmation is open; file returns, note changes, or remote committed Delete arrives; stale Delete/Restore click
 
 Design / plans:
@@ -1985,9 +1985,9 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=external-deletion&step=1)
 
-A missing projection can trigger the configured external-deletion choice. File return, changed Current or a received committed Delete invalidates or changes that choice; a new local Delete still requires fresh admission and its complete local barrier.
+A missing note file can trigger the configured deletion choice. File return, changed [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) or a received Delete can invalidate that choice. A new local Delete needs fresh admission and its complete local save barrier.
 
-**Initial conditions.** The external-deletion preference asks about a missing projection. The file may return, the note may change, or remote Delete may arrive.
+**Initial conditions.** The external-deletion preference asks about a missing [projection](../../../CONTEXT.md#7-note-files-and-provider-observations). The file may return, the note may change, or remote Delete may arrive.
 
 **Expected outcome.** Revalidate the exact current candidate before a new local Delete; committed received Delete follows its own causal semantics.
 
@@ -2021,11 +2021,11 @@ A missing projection can trigger the configured external-deletion choice. File r
 
 3. **Fresh Delete admission and exact-snapshot physical effect** (This Mac).
 
-   Observable state: A newly admitted local Delete takes its complete parent barrier; restoration uses a fresh birth.
+   Observable state: A newly admitted local Delete takes its complete parent barrier; [restoration](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) uses a [fresh birth](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence).
 
-   Storage operation: Only the original exact-snapshot operation may physically remove a still-matching accepted projection after local durability.
+   Storage operation: Only the original exact-snapshot operation may physically remove a still-matching [accepted projection](../../../CONTEXT.md#7-note-files-and-provider-observations) after local durability.
 
-   Applicable rule: No startup tombstone sweep or physical permission replay follows restart; newer bytes are preserved/reconciled.
+   Applicable rule: No startup tombstone sweep or [physical permission](../../../CONTEXT.md#9-authority-repair-and-transitions) replay follows restart; newer bytes are preserved/reconciled.
 
    Read / consume: `capture`, `accepted`, `projection`.
 
@@ -2050,19 +2050,19 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=projection-abc&step=1)
 
-A is the accepted projection when B starts. New intent C arrives before B’s installation or receipt completes. B settles only its captured output and serviced generations; C remains intended until its own applicable installation.
+A is the verified note file when update B starts. New intent C arrives before B finishes. B settles only its own output and captured edit versions; C stays pending until its own applicable installation.
 
-**Initial conditions.** A is installed. Projection B starts, then a newer intended value C is admitted before B’s result or receipt returns.
+**Initial conditions.** A is installed. [Projection](../../../CONTEXT.md#7-note-files-and-provider-observations) B starts, then a newer intended value C is admitted before B’s result or receipt returns.
 
 **Expected outcome.** B can settle only its captured work. C remains intended/pending until the correct file and receipt evidence exist.
 
-1. **Preparation of B against accepted projection A** (This Mac).
+1. **Preparation of B against [accepted projection](../../../CONTEXT.md#7-note-files-and-provider-observations) A** (This Mac).
 
    Observable state: The file plan captures expected A and exact output B.
 
-   Storage operation: Bind the projection to the note/root/relationship generations and locally durable represented history.
+   Storage operation: Bind the [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) to the note/root/relationship generations and locally durable represented history.
 
-   Applicable rule: Mutable note replacement uses the expected-snapshot contract, distinct from immutable object exclusive creation.
+   Applicable rule: Mutable note replacement uses the expected-snapshot contract, distinct from [immutable object](../../../CONTEXT.md#2-history-records-and-stored-objects) exclusive creation.
 
    Read / consume: `projectiondisk`, `live`.
 
@@ -2072,7 +2072,7 @@ A is the accepted projection when B starts. New intent C arrives before B’s in
 
 2. **Admission of newer intent C before B settles** (This Mac).
 
-   Observable state: The live note and intended projection become C while B retains its own owned inputs.
+   Observable state: The live note and intended [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) become C while B retains its own owned inputs.
 
    Storage operation: Record newer pending generations and retain the latest external observation separately from frozen B.
 
@@ -2088,7 +2088,7 @@ A is the accepted projection when B starts. New intent C arrives before B’s in
 
    Observable state: The system records only the actual applicable B outcome and still owes C.
 
-   Storage operation: Reobserve exact file/claim state, transfer only serviced links into a receipt, and schedule C’s proper projection.
+   Storage operation: Reobserve exact file/claim state, transfer only serviced links into a receipt, and schedule C’s proper [projection](../../../CONTEXT.md#7-note-files-and-provider-observations).
 
    Applicable rule: Retiring accepted B for a later observation never clears intended C or manufactures an echo import.
 
@@ -2102,7 +2102,7 @@ Requirements: [PUB-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-
 
 Test contracts:
 
-- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C projections; repeated crashes before/after operation/pin/receipt; later Delete
+- [TC-IMPORT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Adopted import/pending matrix](../Verification.md#external-file-admission-and-pending-recovery--adopted-policy): ordinary new files, unrelated missing notes, per-note active path/exact nonempty-content candidates, missing/copied provenance; latest B versus admitted frozen A; competing/no-op associations; A→B→C [projections](../../../CONTEXT.md#7-note-files-and-provider-observations); repeated crashes before/after operation/pin/receipt; later Delete
 - [TC-DUR-01](../plan/swift-storage-conformance-testing-strategy.md#tc-dur-01--earlier-completion-cannot-clear-later-work) — Earlier completion cannot clear later work
 - [TC-PROJ-01](../plan/swift-storage-conformance-testing-strategy.md#tc-proj-01--body-stamp-and-history-arrive-independently) — Body, stamp, and history arrive independently
 
@@ -2116,11 +2116,11 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=apple-versions&step=1)
 
-For captured version V, disposition follows admission, complete local history durability, exact plaintext installation and final coordinated revalidation. Only still-applicable captured members receive resolved = YES, followed by a fresh verification query.
+Resolving captured Apple version V requires admission, complete local history durability, exact plaintext installation and final coordinated checks. Only still-applicable captured members are marked resolved, followed by a fresh query.
 
-**Initial conditions.** The conflict resolver presents selected Apple unresolved member V. The user chooses Use or Save as new note for that captured member.
+**Initial conditions.** The conflict resolver presents selected Apple unresolved member V. The user chooses Use or [Save as new note](../../../CONTEXT.md#8-explicit-conflict-choices) for that captured member.
 
-**Expected outcome.** Only applicable captured members receive resolved = YES after exact local history, projection and final coordinated checks.
+**Expected outcome.** Only applicable captured members receive resolved = YES after exact local history, [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) and final coordinated checks.
 
 1. **Version capture, bounded preview and choice admission** (This Mac).
 
@@ -2128,7 +2128,7 @@ For captured version V, disposition follows admission, complete local history du
 
    Storage operation: Capture invocation mode, exact source/member/root observations and selected content; revalidate then admit the chosen action.
 
-   Applicable rule: Preview/Cancel has no disposition effect. Re-presentation retries applicable work without overlapping accessors.
+   Applicable rule: Preview/Cancel has no [disposition](../../../CONTEXT.md#8-explicit-conflict-choices) effect. Re-presentation retries applicable work without overlapping accessors.
 
    Read / consume: `appleversions`, `filework`.
 
@@ -2150,7 +2150,7 @@ For captured version V, disposition follows admission, complete local history du
 
    Check / gate: `rootowner`, `gate`.
 
-3. **Final coordinated member check and scoped disposition** (This Mac).
+3. **Final coordinated member check and scoped [disposition](../../../CONTEXT.md#8-explicit-conflict-choices)** (This Mac).
 
    Observable state: Set resolved only for still-applicable captured members, then verify via a successful fresh query.
 
@@ -2168,7 +2168,7 @@ Requirements: [REC-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-
 
 Test contracts:
 
-- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple disposition, review, and history are separate commands
+- [TC-UI-01](../plan/swift-storage-conformance-testing-strategy.md#tc-ui-01--apple-disposition-review-and-history-are-separate-commands) — Apple [disposition](../../../CONTEXT.md#8-explicit-conflict-choices), review, and history are separate commands
 - [TC-ROOT-01](../plan/swift-storage-conformance-testing-strategy.md#tc-root-01--physical-ownership-cannot-be-replaced-by-matching-names-or-bytes) — Physical ownership cannot be replaced by matching names or bytes
 
 Design / plans:
@@ -2182,7 +2182,7 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=external-editor&step=1)
 
-An explicit handoff uses owned plaintext scratch outside the provider namespace with disclosed external-app retention risks. Returned edits take the ordinary local barrier; cleanup applies only to the matching serviced scratch generation.
+An explicit handoff creates owned plaintext scratch outside the provider folder and discloses external-app retention risks. Returned edits use the ordinary local save barrier. Cleanup applies only to the exact serviced scratch generation.
 
 **Initial conditions.** The user explicitly opens an encrypted note in an external editor through a disclosed plaintext scratch file outside the provider folder.
 
@@ -2194,7 +2194,7 @@ An explicit handoff uses owned plaintext scratch outside the provider namespace 
 
    Storage operation: Capture exact note/root/generation and create owned scratch outside the encrypted provider namespace.
 
-   Applicable rule: Encryption does not implicitly create plaintext projections or authorize undisclosed temporary exports.
+   Applicable rule: Encryption does not implicitly create plaintext [projections](../../../CONTEXT.md#7-note-files-and-provider-observations) or authorize undisclosed temporary exports.
 
    Read / consume: `live`, `secrets`.
 
@@ -2208,7 +2208,7 @@ An explicit handoff uses owned plaintext scratch outside the provider namespace 
 
    Storage operation: Revalidate read/attachment/current inputs and force asynchronous capture for external settlement.
 
-   Applicable rule: A failed local barrier retains admitted text and owned scratch. Handoff completion requires that exact generation’s complete local durability barrier.
+   Applicable rule: A failed [local barrier](../../../CONTEXT.md#4-change-processing-and-durability) retains admitted text and owned scratch. Handoff completion requires that exact generation’s complete local durability barrier.
 
    Read / consume: `scratch`, `filework`, `live`.
 
@@ -2218,7 +2218,7 @@ An explicit handoff uses owned plaintext scratch outside the provider namespace 
 
 3. **Scratch settlement after exact-generation durability** (This Mac).
 
-   Observable state: After its complete local barrier, matching owned scratch can settle; newer scratch/work remains.
+   Observable state: After its complete [local barrier](../../../CONTEXT.md#4-change-processing-and-durability), matching owned scratch can settle; newer scratch/work remains.
 
    Storage operation: Check exact-generation completion and the still-identifiable owned resource before cleanup.
 
@@ -2235,7 +2235,7 @@ Requirements: [DUR-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-
 Test contracts:
 
 - [TC-CAP-01](../plan/swift-storage-conformance-testing-strategy.md#tc-cap-01--a-faithful-frozen-action-not-just-durable-bytes) — A faithful frozen action, not just durable bytes
-- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; materialization failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
+- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; [materialization](../../../CONTEXT.md#1-collections-and-their-copies) failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
 - [TC-PRIV-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Synthetic title/body/path/bookmark/secret markers through success, malformed input, key errors, preview, repair and export
 
 Design / plans:
@@ -2246,21 +2246,21 @@ Design / plans:
 
 ## Damage classification, repair and backup
 
-Same-root repository repair, retained-history reconstruction, fresh-store activation, bootstrap, and complete private backups.
+Same-root [repository](../../../CONTEXT.md#1-collections-and-their-copies) repair, retained-history reconstruction, fresh-store activation, bootstrap, and complete private backups.
 
 ### Automatic repair of positively absent same-root NV Data
 
 [Open walkthrough](nvstorage-object-map.html#scenario=repository-repair&step=1)
 
-With the same positively owned root, a complete private closure and no disclosed unread newer evidence, positively absent NV Data triggers automatic exact reconstruction. Exclusive creation preserves a competing namespace occupant.
+If the same owned root has lost [NV Data](../../../CONTEXT.md#1-collections-and-their-copies), a complete private copy can reconstruct it automatically when no unread newer evidence is disclosed. Exclusive creation preserves a competing directory or file that appears meanwhile.
 
-**Initial conditions.** The positively owned root remains the same directory. NV Data is positively absent, local closure is complete, and no unread newer evidence is disclosed.
+**Initial conditions.** The positively owned root remains the same directory. [NV Data](../../../CONTEXT.md#1-collections-and-their-copies) is positively absent, local closure is complete, and no unread newer evidence is disclosed.
 
-**Expected outcome.** NV transparently reconstructs the known repository; it does not ask Restore or Work Offline for this case.
+**Expected outcome.** NV transparently reconstructs the known [repository](../../../CONTEXT.md#1-collections-and-their-copies); it does not ask Restore or Work Offline for this case.
 
 1. **Classification of same-root top-level absence** (This Mac).
 
-   Observable state: Healthy local editing continues while automatic repository repair starts.
+   Observable state: Healthy local editing continues while automatic [repository](../../../CONTEXT.md#1-collections-and-their-copies) repair starts.
 
    Storage operation: Verify held root identity, exact top-level absence, complete local closure and writable namespace.
 
@@ -2278,7 +2278,7 @@ With the same positively owned root, a complete private closure and no disclosed
 
    Storage operation: Exclusively create ordinary protocol directories, verify final names and perform required barriers.
 
-   Applicable rule: A race winner is reclassified/preserved. Damaged owned replacement needs displaced evidence preserved before a generation-checked install.
+   Applicable rule: A race winner is reclassified/preserved. Occupied damaged entries remain in place; affected provider writes stop and Save As uses a fresh destination.
 
    Read / consume: `repairwork`, `objects`.
 
@@ -2286,11 +2286,11 @@ With the same positively owned root, a complete private closure and no disclosed
 
    Check / gate: `rootowner`.
 
-3. **Verification and resumption of provider publication** (This Mac).
+3. **Verification and resumption of [provider publication](../../../CONTEXT.md#4-change-processing-and-durability)** (This Mac).
 
    Observable state: Sync resumes from the same local history; available remote branches still union later.
 
-   Storage operation: Verify the reconstructed known repository and retain all accepted history plus restartable unfinished work.
+   Storage operation: Verify the reconstructed known [repository](../../../CONTEXT.md#1-collections-and-their-copies) and retain all [accepted history](../../../CONTEXT.md#3-history-relationships-and-derived-views) plus restartable unfinished work.
 
    Applicable rule: Foreign collisions stop affected provider effects; cleanup removes only exact owned disposable artifacts.
 
@@ -2318,19 +2318,19 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=private-repair&step=1)
 
-A surviving pin requires G+L+R; private history supplies G+L and the repository supplies G+R. A validated union populates a fresh sibling, whose complete closure and retained pin must be durable before activation.
+The surviving [retained-history pin](../../../CONTEXT.md#2-history-records-and-stored-objects) requires G+L+R. Private history supplies G+L and the [repository](../../../CONTEXT.md#1-collections-and-their-copies) supplies G+R. Their validated union builds a separate replacement; complete history and the pin must be durable before activation.
 
-**Initial conditions.** The surviving pin names closure G+L+R. The damaged private store has G+L; the repository has G+R. Neither alone is complete.
+**Initial conditions.** The surviving pin names closure G+L+R. The damaged [private store](../../../CONTEXT.md#1-collections-and-their-copies) has G+L; the [repository](../../../CONTEXT.md#1-collections-and-their-copies) has G+R. Neither alone is complete.
 
-**Expected outcome.** Use the validated union to build a fresh sibling; activate it only after its complete closure and retained pin are durable.
+**Expected outcome.** Use the validated union to build a fresh sibling; activate it only after its [complete closure](../../../CONTEXT.md#3-history-relationships-and-derived-views) and [retained pin](../../../CONTEXT.md#2-history-records-and-stored-objects) are durable.
 
-1. **Capture and preservation of independently valid repair evidence** (This Mac).
+1. **Capture and [preservation](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) of independently valid repair evidence** (This Mac).
 
    Observable state: Recovery preserves the damaged source and identifies independently valid objects from each copy.
 
-   Storage operation: Classify identity, entry kind, access, exact authenticated bytes and required closure, not presumed cause or timestamps.
+   Storage operation: Classify identity, entry kind, access, exact authenticated bytes and [required closure](../../../CONTEXT.md#3-history-relationships-and-derived-views), not presumed cause or timestamps.
 
-   Applicable rule: Missing entries never subtract from the repair union; contradictory bytes are not merged into a synthetic payload.
+   Applicable rule: Missing entries never subtract from the [repair union](../../../CONTEXT.md#9-authority-repair-and-transitions); contradictory bytes are not merged into a synthetic payload.
 
    Read / consume: `objects`, `rchanges`, `rkeys`, `pin`.
 
@@ -2354,11 +2354,11 @@ A surviving pin requires G+L+R; private history supplies G+L and the repository 
 
 3. **Activation after candidate verification and pin durability** (This Mac).
 
-   Observable state: The repaired collection reopens through normal startup gates with a fresh session/origin/epoch.
+   Observable state: The repaired [collection](../../../CONTEXT.md#1-collections-and-their-copies) reopens through normal startup gates with a fresh session/origin/epoch.
 
    Storage operation: Durably commit the candidate pin, verify activation and selection cutover, then establish new ownership.
 
-   Applicable rule: Copied state never restores old physical permission or allocation epochs. Preserve displaced evidence.
+   Applicable rule: Copied state never restores old [physical permission](../../../CONTEXT.md#9-authority-repair-and-transitions) or allocation epochs. Preserve displaced evidence.
 
    Read / consume: `candidate`.
 
@@ -2371,7 +2371,7 @@ Requirements: [REPAIR-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 Test contracts:
 
 - [TC-REPAIR-01](../plan/swift-storage-conformance-testing-strategy.md#tc-repair-01--complementary-copies-repair-private-history-first) — Complementary copies repair private history first
-- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/materialization-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total Local State loss in a distinct scenario
+- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/[materialization](../../../CONTEXT.md#1-collections-and-their-copies)-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total [Local State](../../../CONTEXT.md#1-collections-and-their-copies) loss in a distinct scenario
 
 Design / plans:
 
@@ -2383,9 +2383,9 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=missing-history&step=1)
 
-A surviving pin names a leaf or descriptor absent from private history, repository and selected backup. Editable publication waits for complete repair or an explicit recovery outcome; apparently valid derived rows cannot waive the dependency.
+A surviving pin names required history missing from the [private store](../../../CONTEXT.md#1-collections-and-their-copies), [repository](../../../CONTEXT.md#1-collections-and-their-copies) and selected backup. Readable current-note rows cannot waive that obligation. Editable publication needs complete repair or an explicit recovery outcome.
 
-**Initial conditions.** Current rows exist, but the required retained pin names a missing leaf or descriptor absent from private store, repository and selected backup.
+**Initial conditions.** Current rows exist, but the required [retained pin](../../../CONTEXT.md#2-history-records-and-stored-objects) names a missing leaf or descriptor absent from [private store](../../../CONTEXT.md#1-collections-and-their-copies), [repository](../../../CONTEXT.md#1-collections-and-their-copies) and selected backup.
 
 **Expected outcome.** Editable success waits for complete repair or an explicit recovery outcome; an unrelated malformed extra remains a separate case.
 
@@ -2405,9 +2405,9 @@ A surviving pin names a leaf or descriptor absent from private history, reposito
 
 2. **Inspection of available exact repair sources** (This Mac).
 
-   Observable state: Available evidence is preserved while repository/backup reads are bounded.
+   Observable state: Available evidence is preserved while [repository](../../../CONTEXT.md#1-collections-and-their-copies)/backup reads are bounded.
 
-   Storage operation: Try exact named copies and validate complete closure; record unfinished verification/damage durably when possible.
+   Storage operation: Try exact named copies and validate [complete closure](../../../CONTEXT.md#3-history-relationships-and-derived-views); record unfinished verification/damage durably when possible.
 
    Applicable rule: Provider unavailability is not deletion; contradictory/unsupported required data cannot become silent omission.
 
@@ -2419,7 +2419,7 @@ A surviving pin names a leaf or descriptor absent from private history, reposito
 
 3. **Explicit unresolved-damage or separate salvage outcome** (This Mac).
 
-   Observable state: The affected collection stays noneditable until its requirements are satisfied.
+   Observable state: The affected [collection](../../../CONTEXT.md#1-collections-and-their-copies) stays noneditable until its requirements are satisfied.
 
    Storage operation: Offer applicable Retry/another source or explicitly labeled fresh current-note/file salvage with disclosed limits.
 
@@ -2435,7 +2435,7 @@ Requirements: [REPAIR-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/materialization-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total Local State loss in a distinct scenario
+- [TC-DUR-06](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Delete/[materialization](../../../CONTEXT.md#1-collections-and-their-copies)-loss plus removal of a pinned leaf or descriptor; unrelated invalid extra; total [Local State](../../../CONTEXT.md#1-collections-and-their-copies) loss in a distinct scenario
 - [TC-START-01](../plan/swift-storage-conformance-testing-strategy.md#tc-start-01--complete-bootstrap-and-current-row-startup) — Complete bootstrap and current-row startup
 - [TC-REPAIR-01](../plan/swift-storage-conformance-testing-strategy.md#tc-repair-01--complementary-copies-repair-private-history-first) — Complementary copies repair private history first
 
@@ -2449,19 +2449,19 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=fresh-mac&step=1)
 
-A new Mac or total private-state loss requires explicit physical association and complete verified bootstrap closure. A complete authenticated snapshot can support read-only preview while editing waits for required history and a durable fresh local pin.
+A new Mac, or total loss of private state, needs explicit folder association and complete verified [collection](../../../CONTEXT.md#1-collections-and-their-copies)-bootstrap history. A verified snapshot can support read-only preview while editing waits for required history and a durable new local pin.
 
-**Initial conditions.** The repository is selected explicitly. No old private store survives; initial-import closure may arrive in pieces.
+**Initial conditions.** The [repository](../../../CONTEXT.md#1-collections-and-their-copies) is selected explicitly. No old [private store](../../../CONTEXT.md#1-collections-and-their-copies) survives; initial-import closure may arrive in pieces.
 
 **Expected outcome.** Complete authenticated snapshot preview can be read-only. Editing needs complete bootstrap/closure and a fresh private pin/origin/epoch.
 
 1. **Explicit root selection, ownership and profile unlock** (New Mac).
 
-   Observable state: The selected folder and key are independently validated; no auto-attachment follows a collection-ID match.
+   Observable state: The selected folder and key are independently validated; no auto-attachment follows a [collection](../../../CONTEXT.md#1-collections-and-their-copies)-ID match.
 
    Storage operation: Acquire ownership and read bounded descriptors/bootstrap evidence into a fresh private candidate.
 
-   Applicable rule: An incomplete import is not a successful empty/partial collection. Missing keys keep it locked.
+   Applicable rule: An incomplete import is not a successful empty/partial [collection](../../../CONTEXT.md#1-collections-and-their-copies). Missing keys keep it locked.
 
    Read / consume: `rdirs`, `rkeys`, `selection`.
 
@@ -2473,7 +2473,7 @@ A new Mac or total private-state loss requires explicit physical association and
 
    Observable state: A fully authenticated complete snapshot can be previewed read-only while named batches/parents arrive.
 
-   Storage operation: Verify genesis commitment, ImportComplete, snapshot pages/counts/digests and required exact history closure.
+   Storage operation: Verify [genesis](../../../CONTEXT.md#2-history-records-and-stored-objects) commitment, ImportComplete, snapshot pages/counts/digests and required exact history closure.
 
    Applicable rule: Usable assembly pages are not accepted causal history. No preview grants editability or globally latest knowledge.
 
@@ -2485,11 +2485,11 @@ A new Mac or total private-state loss requires explicit physical association and
 
 3. **Fresh private acceptance and checked editable publication** (New Mac).
 
-   Observable state: All current/search values and authoring frontiers appear together; portable Undo is reconstructed from action history.
+   Observable state: All current/search values and authoring frontiers appear together; [portable Undo](../../../CONTEXT.md#6-actions-undo-and-editing) is reconstructed from action history.
 
-   Storage operation: Commit complete acceptance/pin and derived rows, establish fresh origin/writer epoch, and final-check the opening handoff.
+   Storage operation: Commit complete acceptance/pin and derived rows, establish fresh origin/[writer epoch](../../../CONTEXT.md#2-history-records-and-stored-objects), and final-check the opening handoff.
 
-   Applicable rule: Old native stacks, physical permissions and source private settings are not transplanted from repository identities.
+   Applicable rule: Old native stacks, physical permissions and source private settings are not transplanted from [repository](../../../CONTEXT.md#1-collections-and-their-copies) identities.
 
    Read / consume: `objects`, `accepted`, `actionindex`.
 
@@ -2502,7 +2502,7 @@ Requirements: [AUTH-01](../../iCloud-Drive-Support-Spec.md#normative-requirement
 Test contracts:
 
 - [TC-START-01](../plan/swift-storage-conformance-testing-strategy.md#tc-start-01--complete-bootstrap-and-current-row-startup) — Complete bootstrap and current-row startup
-- [TC-START-03](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Total private store loss with complete repository; explicit root selection; unknown orphan objects and missing key variants
+- [TC-START-03](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Total [private store](../../../CONTEXT.md#1-collections-and-their-copies) loss with complete [repository](../../../CONTEXT.md#1-collections-and-their-copies); explicit root selection; unknown orphan objects and missing key variants
 - [TC-KEY-01](../plan/swift-storage-conformance-testing-strategy.md#tc-key-01--credential-and-association-cutover-have-different-failure-boundaries) — Credential and association cutover have different failure boundaries
 
 Design / plans:
@@ -2516,9 +2516,9 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=private-backup&step=1)
 
-A consistent keyed SQLite backup or quiesced complete pager capture includes unpublished accepted history, required private records and pending recovery links. Usable unlock descriptors accompany encrypted backups; restore establishes fresh ownership.
+A consistent SQLite backup or stopped-writer copy of the complete database and required journals includes unpublished history, private records and pending file inputs. Usable unlocking descriptors accompany encrypted backups. Restore establishes fresh ownership.
 
-**Initial conditions.** The provider is offline. The private store holds unpublished accepted actions, settings and pending external-file recovery buffers.
+**Initial conditions.** The provider is offline. The [private store](../../../CONTEXT.md#1-collections-and-their-copies) holds unpublished accepted actions, settings and pending external-file recovery buffers.
 
 **Expected outcome.** A consistent keyed database backup or quiesced complete pager copy, plus unlock descriptors, preserves the private recovery state.
 
@@ -2554,7 +2554,7 @@ A consistent keyed SQLite backup or quiesced complete pager capture includes unp
 
    Observable state: Exact retained actions and pending work recover before editing, using fresh session/epoch allocation.
 
-   Storage operation: Revalidate root/key/bootstrap/association and complete closure; recover exact admitted external operations before rescanning.
+   Storage operation: Revalidate root/key/bootstrap/association and [complete closure](../../../CONTEXT.md#3-history-relationships-and-derived-views); recover exact admitted external operations before rescanning.
 
    Applicable rule: Old receipts require fresh physical evidence and grant no surviving file-delete permission.
 
@@ -2569,7 +2569,7 @@ Requirements: [BACKUP-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 Test contracts:
 
 - [TC-REPAIR-01](../plan/swift-storage-conformance-testing-strategy.md#tc-repair-01--complementary-copies-repair-private-history-first) — Complementary copies repair private history first
-- [TC-START-03](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Total private store loss with complete repository; explicit root selection; unknown orphan objects and missing key variants
+- [TC-START-03](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Total [private store](../../../CONTEXT.md#1-collections-and-their-copies) loss with complete [repository](../../../CONTEXT.md#1-collections-and-their-copies); explicit root selection; unknown orphan objects and missing key variants
 - [TC-KEY-01](../plan/swift-storage-conformance-testing-strategy.md#tc-key-01--credential-and-association-cutover-have-different-failure-boundaries) — Credential and association cutover have different failure boundaries
 
 Design / plans:
@@ -2586,11 +2586,11 @@ Password/key recovery, add-only key wrapping, authenticated decoding, and explic
 
 [Open walkthrough](nvstorage-object-map.html#scenario=unlock&step=1)
 
-When Keychain is locked or unavailable, a usable wrapped descriptor and authorized password can recover the same collection key. Remembering a new key item requires add-only creation and verified readback before association refers to it.
+If Keychain is unavailable, a usable wrapped-key descriptor and authorized password can recover the same [collection](../../../CONTEXT.md#1-collections-and-their-copies) key. Remembering it requires add-only Keychain creation and verified readback before the association references the new item.
 
-**Initial conditions.** An encrypted collection’s device-bound remembered key is unavailable or locked, but a usable wrapped descriptor and password survive.
+**Initial conditions.** An encrypted [collection](../../../CONTEXT.md#1-collections-and-their-copies)’s device-bound remembered key is unavailable or locked, but a usable wrapped descriptor and password survive.
 
-**Expected outcome.** The authorized password unlocks the same collection key; failed unlock preserves ciphertext and never produces empty plaintext.
+**Expected outcome.** The authorized password unlocks the same [collection](../../../CONTEXT.md#1-collections-and-their-copies) key; failed unlock preserves ciphertext and never produces empty plaintext.
 
 1. **Profile and unlock-route validation before editable opening** (This Mac).
 
@@ -2598,7 +2598,7 @@ When Keychain is locked or unavailable, a usable wrapped descriptor and authoriz
 
    Storage operation: Read bounded provider/private unlock descriptors and distinguish unavailable Keychain from corrupt history.
 
-   Applicable rule: Profile, key scope and physical association are independently checked; a matching collection ID proves none of them.
+   Applicable rule: Profile, key scope and physical association are independently checked; a matching [collection](../../../CONTEXT.md#1-collections-and-their-copies) ID proves none of them.
 
    Read / consume: `rkeys`, `unlock`, `keychain`.
 
@@ -2610,7 +2610,7 @@ When Keychain is locked or unavailable, a usable wrapped descriptor and authoriz
 
    Observable state: The reviewed KDF/descriptor route unwraps CK, then domain-separated keys open database and objects.
 
-   Storage operation: Authenticate envelopes before decompression/value decoding; enforce bounds and semantic consistency separately.
+   Storage operation: Authenticate [envelopes](../../../CONTEXT.md#2-history-records-and-stored-objects) before decompression/value decoding; enforce bounds and semantic consistency separately.
 
    Applicable rule: Unsupported profiles, malformed input or authentication failure yield typed failure; there is no weaker/plaintext fallback.
 
@@ -2651,9 +2651,9 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=password-rewrap&step=1)
 
-Password rewrap adds a descriptor for the existing CK while retaining history and prior descriptors. A full key/profile change creates an independently owned current-state destination whose output and credentials are verified before cutover.
+Changing a password adds another wrapping of the existing [collection](../../../CONTEXT.md#1-collections-and-their-copies) key while retaining history and old descriptors. A full key/profile change uses a separate destination, verifies output and credentials, and preserves the source until cutover.
 
-**Initial conditions.** The collection is unlocked with CK. The requested operation is either a new password wrapping that same CK or a full conversion to a fresh key/profile destination.
+**Initial conditions.** The [collection](../../../CONTEXT.md#1-collections-and-their-copies) is unlocked with CK. The requested operation is either a new password wrapping that same CK or a full conversion to a fresh key/profile destination.
 
 **Expected outcome.** Rewrap preserves exact history and old descriptors. A full key/profile change uses a source-preserving fresh destination and verified cutover.
 
@@ -2689,7 +2689,7 @@ Password rewrap adds a descriptor for the existing CK while retaining history an
 
    Observable state: Current-state conversion is explicitly labeled and verified before switching.
 
-   Storage operation: Capture coherent source values, create fresh collection/key/bootstrap, verify complete output and only then change active association.
+   Storage operation: Capture coherent source values, create fresh [collection](../../../CONTEXT.md#1-collections-and-their-copies)/key/bootstrap, verify complete output and only then change active association.
 
    Applicable rule: Source changes invalidate capture. Independent destinations never update/delete source credentials automatically.
 
@@ -2716,9 +2716,9 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=privacy-profile&step=1)
 
-Encrypted current/history/deleted values, previews and diagnostics follow their profile-specific handling rules. Explicit plaintext output has a disclosed destination and scope; unsupported rich or attachment conversion preserves source data before cutover.
+The encrypted profile protects current, historical and deleted values and governs previews and diagnostics. Explicit plaintext output has a disclosed scope and destination. Unsupported rich-text or attachment conversion preserves the source.
 
-**Initial conditions.** An encrypted collection contains sensitive current, deleted and historical values. The requested operation is an explicit plaintext export or a conversion whose target may not support the source content.
+**Initial conditions.** An encrypted [collection](../../../CONTEXT.md#1-collections-and-their-copies) contains sensitive current, deleted and historical values. The requested operation is an explicit plaintext export or a conversion whose target may not support the source content.
 
 **Expected outcome.** Encrypted provider/private history stays within its profile; explicit output discloses scope and preserves source on unsupported or failed conversion.
 
@@ -2726,9 +2726,9 @@ Encrypted current/history/deleted values, previews and diagnostics follow their 
 
    Observable state: Previews are available in memory; encrypted at-rest values and diagnostics retain their prescribed privacy.
 
-   Storage operation: Use bounded authenticated envelopes before decoding; encrypt sensitive private rows/indexes and keep provider IDs opaque.
+   Storage operation: Use bounded authenticated [envelopes](../../../CONTEXT.md#2-history-records-and-stored-objects) before decoding; encrypt sensitive private rows/indexes and keep provider IDs opaque.
 
-   Applicable rule: Authentication does not prove freshness/physical authority. Production diagnostics use closed IDs/counts/status, not titles, paths or keys.
+   Applicable rule: Authentication does not prove freshness/[physical authority](../../../CONTEXT.md#9-authority-repair-and-transitions). Production diagnostics use closed IDs/counts/status, not titles, paths or keys.
 
    Read / consume: `objects`, `secrets`.
 
@@ -2771,7 +2771,7 @@ Test contracts:
 - [TC-PRIV-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Synthetic title/body/path/bookmark/secret markers through success, malformed input, key errors, preview, repair and export
 - [TC-RICH-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Existing rich or attachment-bearing legacy inputs presented to a plaintext-only destination; unsupported format/conversion and failed migration
 - [TC-CRYPT-01](../plan/swift-storage-conformance-testing-strategy.md#tc-crypt-01--authentication-coverage-and-semantic-validation-are-separate-gates) — Authentication coverage and semantic validation are separate gates
-- [TC-ZSTD-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Both suites with authentic envelopes around short/long output claims, truncation, concatenated/skippable frames, dictionaries, unknown content sizes, oversized windows and trailing bytes; genuine valid compressed examples and independent writer checks
+- [TC-ZSTD-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Both suites with authentic [envelopes](../../../CONTEXT.md#2-history-records-and-stored-objects) around short/long output claims, truncation, concatenated/skippable frames, dictionaries, unknown content sizes, oversized windows and trailing bytes; genuine valid compressed examples and independent writer checks
 - [TC-BYTE-02](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Truncate every short fixed fixture at each byte; invalid counts/tags/order/duplicates, overflow lengths, nested trailing data and invalid UTF-8
 - [TC-LIMIT-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Below/at/above each finalized object, descriptor, stamp, passphrase and record bound; normalized rather than input character count
 
@@ -2784,21 +2784,21 @@ Design / plans:
 
 ## Root ownership and collection transitions
 
-Repository copy, current-note recovery export, root moves, close ordering, collection switching, and epoch-4 migration.
+[Repository copy](../../../CONTEXT.md#9-authority-repair-and-transitions), current-note recovery export, root moves, close ordering, [collection](../../../CONTEXT.md#1-collections-and-their-copies) switching, and epoch-4 migration.
 
 ### Repository copy with unavailable entries and no private store
 
 [Open walkthrough](nvstorage-object-map.html#scenario=repository-copy&step=1)
 
-The captured inventory includes available immutable history, descriptors and associated unknown files. Unreadable placeholders or changed captured files are reported; source Application Support is outside the repository-copy boundary.
+Copy captures available immutable history, descriptors and associated unknown files. It reports unreadable placeholders or inputs that changed. The source Mac’s Application Support data is outside this [repository](../../../CONTEXT.md#1-collections-and-their-copies)-copy boundary.
 
-**Initial conditions.** A repository is copied from Finder or backup without source Application Support. One provider placeholder is unreadable and an unknown text file is present.
+**Initial conditions.** A [repository](../../../CONTEXT.md#1-collections-and-their-copies) is copied from Finder or backup without source Application Support. One provider placeholder is unreadable and an unknown text file is present.
 
 **Expected outcome.** Preserve the exact available captured inventory and report holes/changed inputs. A current-state export remains a separate command.
 
-1. **Rooted capture of the repository inventory** (This Mac).
+1. **Rooted capture of the [repository](../../../CONTEXT.md#1-collections-and-their-copies) inventory** (This Mac).
 
-   Observable state: The requested copy includes visible NV Data, historical objects/descriptors and associated unknown/unimported files.
+   Observable state: The requested copy includes visible [NV Data](../../../CONTEXT.md#1-collections-and-their-copies), historical objects/descriptors and associated unknown/unimported files.
 
    Storage operation: Use rooted bounded enumeration and capture actual available bytes and known missing/unreadable dependencies.
 
@@ -2816,7 +2816,7 @@ The captured inventory includes available immutable history, descriptors and ass
 
    Storage operation: Verify copied inventory; preserve useful available evidence even if editable recovery waits for a missing dependency.
 
-   Applicable rule: Do not fabricate a new genesis/current-state history or claim global freshness/completeness.
+   Applicable rule: Do not fabricate a new [genesis](../../../CONTEXT.md#2-history-records-and-stored-objects)/current-state history or claim global freshness/completeness.
 
    Read / consume: `repairwork`.
 
@@ -2830,7 +2830,7 @@ The captured inventory includes available immutable history, descriptors and ass
 
    Storage operation: Explicitly validate destination physical root/bootstrap/key and activate a fresh private association.
 
-   Applicable rule: Historical lineage and portable Undo transfer through bytes; old root authority, receipts and distributed writer identity do not.
+   Applicable rule: Historical lineage and [portable Undo](../../../CONTEXT.md#6-actions-undo-and-editing) transfer through bytes; old root authority, receipts and distributed writer identity do not.
 
    Read / consume: `copy`, `objects`.
 
@@ -2842,7 +2842,7 @@ Requirements: [BACKUP-01](../../iCloud-Drive-Support-Spec.md#normative-requireme
 
 Test contracts:
 
-- [TC-COPY-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Repository-only copy with no source private store, unknown text files and retained old actions/deletes; unreadable placeholder; source text changes
+- [TC-COPY-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — [Repository](../../../CONTEXT.md#1-collections-and-their-copies)-only copy with no source [private store](../../../CONTEXT.md#1-collections-and-their-copies), unknown text files and retained old actions/deletes; unreadable placeholder; source text changes
 - [TC-ROOT-01](../plan/swift-storage-conformance-testing-strategy.md#tc-root-01--physical-ownership-cannot-be-replaced-by-matching-names-or-bytes) — Physical ownership cannot be replaced by matching names or bytes
 
 Design / plans:
@@ -2856,13 +2856,13 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=unsaved-recovery&step=1)
 
-An admitted edit remains visible when its SQL barrier fails. Retry retains exact pending identity; a recovery export must explicitly include coherent live pending values and verify a fresh destination before source work is released.
+An admitted edit stays visible when its local save barrier fails. Retry keeps the exact pending identity. Recovery export must include consistent live pending values and verify a fresh destination before releasing source work.
 
 **Initial conditions.** An admitted edit is visible but its local SQL barrier fails. The user requests recovery Save As while that live work remains pending.
 
 **Expected outcome.** Retain the live work, retry the urgent barrier or create a disclosed verified current-notes recovery export before transition.
 
-1. **Local barrier failure after edit admission** (This Mac).
+1. **[Local barrier](../../../CONTEXT.md#4-change-processing-and-durability) failure after edit admission** (This Mac).
 
    Observable state: The visible pending text remains available; subsequent mutation is gated by local failure policy.
 
@@ -2882,7 +2882,7 @@ An admitted edit remains visible when its SQL barrier fails. Retry retains exact
 
    Storage operation: Capture a coherent complete source and verify a fresh destination with explicitly disclosed history limits.
 
-   Applicable rule: A repository-only copy may omit admitted RAM edits and cannot serve as evidence those edits were saved.
+   Applicable rule: A [repository](../../../CONTEXT.md#1-collections-and-their-copies)-only copy may omit admitted RAM edits and cannot serve as evidence those edits were saved.
 
    Read / consume: `live`, `pendinglive`, `repairwork`.
 
@@ -2890,7 +2890,7 @@ An admitted edit remains visible when its SQL barrier fails. Retry retains exact
 
    Check / gate: `selectowner`, `gate`.
 
-3. **Verification before source release or collection transition** (This Mac).
+3. **Verification before source release or [collection](../../../CONTEXT.md#1-collections-and-their-copies) transition** (This Mac).
 
    Observable state: Source live work stays retained until the chosen recovery result is verified and the transition is applicable.
 
@@ -2909,7 +2909,7 @@ Requirements: [DUR-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-
 Test contracts:
 
 - [TC-COPY-02](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Recovery Save As during local failure with admitted unsaved work; current-state export; source changes during capture
-- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; materialization failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
+- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; [materialization](../../../CONTEXT.md#1-collections-and-their-copies) failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
 - [TC-DUR-04](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Sweep actual SQL transaction/VFS write/sync/commit outcomes, including persistent failures and interrupted recovery
 
 Design / plans:
@@ -2922,9 +2922,9 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=quit-offline&step=1)
 
-One close owner quiesces admission and drains complete local actions plus required private state. After local durability, Quit Without Waiting retains unpublished objects and reconcilable projection intent; derived-row failure alone does not block close.
+One close owner stops new edits and saves complete admitted actions and required private state. After local durability, Quit Without Waiting preserves unpublished history and restartable note-file intent. Failure of rebuildable current rows alone does not block close.
 
-**Initial conditions.** Edits and an external-editor handoff are pending. Provider work is stalled and current materialization may fail independently.
+**Initial conditions.** Edits and an external-editor handoff are pending. Provider work is stalled and current [materialization](../../../CONTEXT.md#1-collections-and-their-copies) may fail independently.
 
 **Expected outcome.** One close owner drains mandatory local state. After that, Quit Without Waiting retains unpublished objects and reconcilable file intent.
 
@@ -2944,9 +2944,9 @@ One close owner quiesces admission and drains complete local actions plus requir
 
 2. **Required-state persistence and separate external waits** (This Mac).
 
-   Observable state: A derived materialization failure alone does not make a durable quit fail.
+   Observable state: A derived [materialization](../../../CONTEXT.md#1-collections-and-their-copies) failure alone does not make a durable quit fail.
 
-   Storage operation: Persist required settings/association and restart-reconcilable projection intent; optionally wait for captured provider/file work.
+   Storage operation: Persist required settings/association and restart-reconcilable [projection](../../../CONTEXT.md#7-note-files-and-provider-observations) intent; optionally wait for captured provider/file work.
 
    Applicable rule: Unsaved required settings or mandatory key/association cutover failure is reported separately and cannot count as success.
 
@@ -2974,7 +2974,7 @@ Requirements: [DUR-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-
 
 Test contracts:
 
-- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; materialization failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
+- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; [materialization](../../../CONTEXT.md#1-collections-and-their-copies) failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
 - [TC-LIVE-01](../plan/swift-storage-conformance-testing-strategy.md#tc-live-01--local-durability-progresses-with-a-stuck-provider) — Local durability progresses with a stuck provider
 - [TC-ASY-01](../plan/swift-storage-conformance-testing-strategy.md#tc-asy-01--real-actorqueue-wiring-not-only-pure-transitions) — Real actor/queue wiring, not only pure transitions
 
@@ -2988,9 +2988,9 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=root-move&step=1)
 
-Held authority follows the positively same directory object through a move. A new directory at the old path remains a separate target despite matching collection identity or bytes, and delayed operations revalidate their captured physical/session context.
+Ownership follows the same physical directory through a move. A different directory at the old path remains separate even if its [collection identity](../../../CONTEXT.md#1-collections-and-their-copies) and bytes match. Delayed operations recheck their captured physical and session context.
 
-**Initial conditions.** Finder moves owned root R. A different directory appears at R’s old pathname with the same collection ID and protocol bytes.
+**Initial conditions.** Finder moves owned root R. A different directory appears at R’s old pathname with the same [collection](../../../CONTEXT.md#1-collections-and-their-copies) ID and protocol bytes.
 
 **Expected outcome.** Held authority continues only for the positively same root. Replacement/loss fences affected provider effects while healthy local editing continues.
 
@@ -3054,15 +3054,15 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=collection-switch&step=1)
 
-One transition owner settles source work and verifies the chosen destination before association cutover. Cancellation resumes only healthy admission; late callbacks retain their original session scope and cannot affect the new collection.
+One transition owner finishes source work and verifies the chosen destination before changing the association. Cancellation resumes editing only when healthy. Late callbacks retain their original session and cannot change the new [collection](../../../CONTEXT.md#1-collections-and-their-copies).
 
 **Initial conditions.** A folder switch is requested while edits are pending. The transition may be canceled, or it may finish while old provider/read callbacks remain outstanding.
 
 **Expected outcome.** Admitted work settles under its original owner; only a verified explicit transition changes selection and activates a fresh session.
 
-1. **Transition capture and source quiescing** (This Mac).
+1. **Transition capture and stopping new edits in the source** (This Mac).
 
-   Observable state: One close/transition owner quiesces admission and settles mandatory source work.
+   Observable state: One close/transition owner stops new edits and settles mandatory source work.
 
    Storage operation: Capture session/root/store generations and destination intent while retaining continuous source locks.
 
@@ -3080,7 +3080,7 @@ One transition owner settles source work and verifies the chosen destination bef
 
    Storage operation: Recheck bootstrap/key/closure and durable private selection/association before final publication.
 
-   Applicable rule: Matching collection ID does not transfer root permission or existing file receipts.
+   Applicable rule: Matching [collection](../../../CONTEXT.md#1-collections-and-their-copies) ID does not transfer root permission or existing file receipts.
 
    Read / consume: `copy`, `candidate`, `secrets`.
 
@@ -3090,7 +3090,7 @@ One transition owner settles source work and verifies the chosen destination bef
 
 3. **Fencing of an old callback after cutover** (This Mac).
 
-   Observable state: The new collection’s text, pending work and view stay unchanged by the stale result.
+   Observable state: The new [collection](../../../CONTEXT.md#1-collections-and-their-copies)’s text, pending work and view stay unchanged by the stale result.
 
    Storage operation: Consume late work only against its captured operation/session resources, retaining ownership until it settles.
 
@@ -3106,7 +3106,7 @@ Requirements: [ROOT-01](../../iCloud-Drive-Support-Spec.md#normative-requirement
 
 Test contracts:
 
-- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; materialization failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
+- [TC-CLOSE-01](../plan/swift-storage-conformance-testing-strategy.md#9-remaining-scenario-backlog-and-caller-coverage) — Close with pending edits/external-editor handoff; [materialization](../../../CONTEXT.md#1-collections-and-their-copies) failure; pin/settings failure; provider wait; cancel/retry; old callbacks after switch
 - [TC-ASY-01](../plan/swift-storage-conformance-testing-strategy.md#tc-asy-01--real-actorqueue-wiring-not-only-pure-transitions) — Real actor/queue wiring, not only pure transitions
 - [TC-ROOT-01](../plan/swift-storage-conformance-testing-strategy.md#tc-root-01--physical-ownership-cannot-be-replaced-by-matching-names-or-bytes) — Physical ownership cannot be replaced by matching names or bytes
 
@@ -3120,15 +3120,15 @@ Design / plans:
 
 [Open walkthrough](nvstorage-object-map.html#scenario=legacy-migration&step=1)
 
-Migration first recovers and coherently captures legacy current values. The fresh destination must verify its complete genesis/import/snapshot, required output and credentials before association changes; failure preserves the legacy source.
+Migration first recovers and consistently captures legacy current values. Verify the new [collection](../../../CONTEXT.md#1-collections-and-their-copies)’s complete initial history, snapshot, required output and credentials before changing the association. Failure preserves the legacy source.
 
-**Initial conditions.** The legacy Notes & Settings/WAL path first recovers current notes. Migration targets a new segment collection with a supported codec/profile.
+**Initial conditions.** The legacy Notes & Settings/WAL path first recovers current notes. Migration targets a new [segment collection](../../../CONTEXT.md#1-collections-and-their-copies) with a supported codec/profile.
 
-**Expected outcome.** Complete genesis/import/snapshot and required outputs are verified before cutover; failed migration preserves legacy source and credentials.
+**Expected outcome.** Complete [genesis](../../../CONTEXT.md#2-history-records-and-stored-objects)/import/snapshot and required outputs are verified before cutover; failed migration preserves legacy source and credentials.
 
 1. **Recovery and coherent capture of legacy source values** (This Mac).
 
-   Observable state: Current legacy values are recovered through the genuine epoch-4 path before conversion.
+   Observable state: [Current](../../../CONTEXT.md#5-notes-deletion-and-conflict-evidence) legacy values are recovered through the genuine epoch-4 path before conversion.
 
    Storage operation: Settle external work and capture complete initial values/count/canonical digest with disclosed target format/profile.
 
@@ -3142,11 +3142,11 @@ Migration first recovers and coherently captures legacy current values. The fres
 
 2. **Complete initial-history construction and verification** (This Mac).
 
-   Observable state: Genesis, dependency-linked batches, ImportComplete and complete snapshot agree with the commitment.
+   Observable state: [Genesis](../../../CONTEXT.md#2-history-records-and-stored-objects), dependency-linked batches, ImportComplete and complete snapshot agree with the commitment.
 
    Storage operation: Seal/validate all initial objects, durably accept their closure, and verify required plaintext/credential output independently.
 
-   Applicable rule: Interrupted or contradictory bootstrap cannot become a successful partial/empty collection.
+   Applicable rule: Interrupted or contradictory bootstrap cannot become a successful partial/empty [collection](../../../CONTEXT.md#1-collections-and-their-copies).
 
    Read / consume: `capture`, `snapwork`.
 
@@ -3160,7 +3160,7 @@ Migration first recovers and coherently captures legacy current values. The fres
 
    Storage operation: Read back independent credentials and recheck source generation before durable selection cutover.
 
-   Applicable rule: Explicit legacy export remains genuine epoch-4 current-state output. No live compatibility archive or mixed-version segment writer is introduced.
+   Applicable rule: Explicit legacy export remains genuine epoch-4 current-state output. No live compatibility archive or mixed-version [segment](../../../CONTEXT.md#2-history-records-and-stored-objects) writer is introduced.
 
    Read / consume: `candidate`, `repairwork`.
 
@@ -3193,13 +3193,13 @@ Every normative registry entry has at least one linked scenario. This is explana
 - [DISC-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Receipt of a Delete before its parent edit](nvstorage-object-map.html#scenario=child-first&step=1); [Publication retry after an uncertain completion](nvstorage-object-map.html#scenario=publication-retry&step=1); [Automatic import of an eligible ordinary text file](nvstorage-object-map.html#scenario=automatic-import&step=1); [Projection stamp arriving before its named history](nvstorage-object-map.html#scenario=stamp-waits&step=1).
 - [PUB-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Local save while the provider is unavailable](nvstorage-object-map.html#scenario=offline-save&step=1); [Delayed save completion with a newer pending generation](nvstorage-object-map.html#scenario=delayed-save&step=1); [Returning startup with optional snapshot work queued](nvstorage-object-map.html#scenario=fast-startup&step=1); [Automatic merge of strictly separated line edits](nvstorage-object-map.html#scenario=separated-merge&step=1); [Review after overlapping edits or a third head](nvstorage-object-map.html#scenario=merge-review&step=1); [Ordinary editing of one unresolved head](nvstorage-object-map.html#scenario=ordinary-conflict-edit&step=1); [Retraction after a later Delete covers a preserved edit](nvstorage-object-map.html#scenario=retracted-copy&step=1); [Historical body restoration with current title and labels](nvstorage-object-map.html#scenario=selective-history&step=1); [Causal Undo after relaunch or on another Mac](nvstorage-object-map.html#scenario=portable-undo&step=1); [Reviewed Undo with an actual-current inverse](nvstorage-object-map.html#scenario=reviewed-undo&step=1); [Partial native Undo followed by relaunch](nvstorage-object-map.html#scenario=native-remaining&step=1); [Shared-note windows during composition and remote publication](nvstorage-object-map.html#scenario=shared-windows&step=1); [Dedicated saved-search windows and bookmark preferences](nvstorage-object-map.html#scenario=saved-search-windows&step=1); [Automatic import of an eligible ordinary text file](nvstorage-object-map.html#scenario=automatic-import&step=1); [Source change before external-file choice admission](nvstorage-object-map.html#scenario=pending-choice&step=1); [Source change after external-file operation admission](nvstorage-object-map.html#scenario=admitted-file&step=1); [External disappearance during deletion confirmation](nvstorage-object-map.html#scenario=external-deletion&step=1); [New projection intent C while installation B is unfinished](nvstorage-object-map.html#scenario=projection-abc&step=1); [Scoped disposition of an Apple unresolved version](nvstorage-object-map.html#scenario=apple-versions&step=1); [External-editor handoff from an encrypted collection](nvstorage-object-map.html#scenario=external-editor&step=1); [Collection switch, cancellation and late completion](nvstorage-object-map.html#scenario=collection-switch&step=1).
 - [REC-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Review after overlapping edits or a third head](nvstorage-object-map.html#scenario=merge-review&step=1); [Historical body restoration with current title and labels](nvstorage-object-map.html#scenario=selective-history&step=1); [Durable preservation of a selected unresolved revision](nvstorage-object-map.html#scenario=conflict-copy&step=1); [Source change before external-file choice admission](nvstorage-object-map.html#scenario=pending-choice&step=1); [Scoped disposition of an Apple unresolved version](nvstorage-object-map.html#scenario=apple-versions&step=1).
-- [DUR-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Local save while the provider is unavailable](nvstorage-object-map.html#scenario=offline-save&step=1); [Crash recovery before and after the local commit](nvstorage-object-map.html#scenario=save-crash&step=1); [Delayed save completion with a newer pending generation](nvstorage-object-map.html#scenario=delayed-save&step=1); [Restart during retained-history verification](nvstorage-object-map.html#scenario=verification-restart&step=1); [Receipt of a Delete before its parent edit](nvstorage-object-map.html#scenario=child-first&step=1); [Publication retry after an uncertain completion](nvstorage-object-map.html#scenario=publication-retry&step=1); [Concurrent Delete and offline edit on separate Macs](nvstorage-object-map.html#scenario=delete-race&step=1); [Snapshot retention ancestry and logical operation cuts](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Named restoration followed by deletion of the fresh birth](nvstorage-object-map.html#scenario=recently-deleted&step=1); [Causal Undo after relaunch or on another Mac](nvstorage-object-map.html#scenario=portable-undo&step=1); [Reviewed Undo with an actual-current inverse](nvstorage-object-map.html#scenario=reviewed-undo&step=1); [Concurrent compensation of the same action](nvstorage-object-map.html#scenario=concurrent-undo&step=1); [Partial native Undo followed by relaunch](nvstorage-object-map.html#scenario=native-remaining&step=1); [Durable preservation of a selected unresolved revision](nvstorage-object-map.html#scenario=conflict-copy&step=1); [Source change after external-file operation admission](nvstorage-object-map.html#scenario=admitted-file&step=1); [New projection intent C while installation B is unfinished](nvstorage-object-map.html#scenario=projection-abc&step=1); [Scoped disposition of an Apple unresolved version](nvstorage-object-map.html#scenario=apple-versions&step=1); [External-editor handoff from an encrypted collection](nvstorage-object-map.html#scenario=external-editor&step=1); [Automatic repair of positively absent same-root NV Data](nvstorage-object-map.html#scenario=repository-repair&step=1); [Fresh-store repair from complementary retained copies](nvstorage-object-map.html#scenario=private-repair&step=1); [Required retained object missing from all available sources](nvstorage-object-map.html#scenario=missing-history&step=1); [Private backup containing unpublished and pending work](nvstorage-object-map.html#scenario=private-backup&step=1); [Same-key password rewrap and full key/profile conversion](nvstorage-object-map.html#scenario=password-rewrap&step=1); [Current-note recovery after local acceptance failure](nvstorage-object-map.html#scenario=unsaved-recovery&step=1); [Close with local work pending and provider work stalled](nvstorage-object-map.html#scenario=quit-offline&step=1); [Collection switch, cancellation and late completion](nvstorage-object-map.html#scenario=collection-switch&step=1); [Verified migration from recovered epoch-4 state](nvstorage-object-map.html#scenario=legacy-migration&step=1); [Optional current-row recoding and full-VACUUM maintenance](nvstorage-object-map.html#scenario=idle-maintenance&step=1).
-- [CLEAN-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Publication retry after an uncertain completion](nvstorage-object-map.html#scenario=publication-retry&step=1); [Retraction after a later Delete covers a preserved edit](nvstorage-object-map.html#scenario=retracted-copy&step=1); [Snapshot retention ancestry and logical operation cuts](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Automatic repair of positively absent same-root NV Data](nvstorage-object-map.html#scenario=repository-repair&step=1); [Fresh-store repair from complementary retained copies](nvstorage-object-map.html#scenario=private-repair&step=1).
+- [DUR-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Local save while the provider is unavailable](nvstorage-object-map.html#scenario=offline-save&step=1); [Crash recovery before and after the local commit](nvstorage-object-map.html#scenario=save-crash&step=1); [Delayed save completion with a newer pending generation](nvstorage-object-map.html#scenario=delayed-save&step=1); [Restart during retained-history verification](nvstorage-object-map.html#scenario=verification-restart&step=1); [Receipt of a Delete before its parent edit](nvstorage-object-map.html#scenario=child-first&step=1); [Publication retry after an uncertain completion](nvstorage-object-map.html#scenario=publication-retry&step=1); [Concurrent Delete and offline edit on separate Macs](nvstorage-object-map.html#scenario=delete-race&step=1); [Snapshot state and required parent objects](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Named restoration followed by deletion of the fresh birth](nvstorage-object-map.html#scenario=recently-deleted&step=1); [Causal Undo after relaunch or on another Mac](nvstorage-object-map.html#scenario=portable-undo&step=1); [Reviewed Undo with an actual-current inverse](nvstorage-object-map.html#scenario=reviewed-undo&step=1); [Concurrent compensation of the same action](nvstorage-object-map.html#scenario=concurrent-undo&step=1); [Partial native Undo followed by relaunch](nvstorage-object-map.html#scenario=native-remaining&step=1); [Durable preservation of a selected unresolved revision](nvstorage-object-map.html#scenario=conflict-copy&step=1); [Source change after external-file operation admission](nvstorage-object-map.html#scenario=admitted-file&step=1); [New projection intent C while installation B is unfinished](nvstorage-object-map.html#scenario=projection-abc&step=1); [Scoped disposition of an Apple unresolved version](nvstorage-object-map.html#scenario=apple-versions&step=1); [External-editor handoff from an encrypted collection](nvstorage-object-map.html#scenario=external-editor&step=1); [Automatic repair of positively absent same-root NV Data](nvstorage-object-map.html#scenario=repository-repair&step=1); [Fresh-store repair from complementary retained copies](nvstorage-object-map.html#scenario=private-repair&step=1); [Required retained object missing from all available sources](nvstorage-object-map.html#scenario=missing-history&step=1); [Private backup containing unpublished and pending work](nvstorage-object-map.html#scenario=private-backup&step=1); [Same-key password rewrap and full key/profile conversion](nvstorage-object-map.html#scenario=password-rewrap&step=1); [Current-note recovery after local acceptance failure](nvstorage-object-map.html#scenario=unsaved-recovery&step=1); [Close with local work pending and provider work stalled](nvstorage-object-map.html#scenario=quit-offline&step=1); [Collection switch, cancellation and late completion](nvstorage-object-map.html#scenario=collection-switch&step=1); [Verified migration from recovered epoch-4 state](nvstorage-object-map.html#scenario=legacy-migration&step=1); [Optional current-row recoding and full-VACUUM maintenance](nvstorage-object-map.html#scenario=idle-maintenance&step=1).
+- [CLEAN-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Publication retry after an uncertain completion](nvstorage-object-map.html#scenario=publication-retry&step=1); [Retraction after a later Delete covers a preserved edit](nvstorage-object-map.html#scenario=retracted-copy&step=1); [Snapshot state and required parent objects](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Automatic repair of positively absent same-root NV Data](nvstorage-object-map.html#scenario=repository-repair&step=1); [Fresh-store repair from complementary retained copies](nvstorage-object-map.html#scenario=private-repair&step=1).
 - [ROOT-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Local save while the provider is unavailable](nvstorage-object-map.html#scenario=offline-save&step=1); [Startup with positively disclosed but unreadable newer evidence](nvstorage-object-map.html#scenario=work-offline&step=1); [Shared-note windows during composition and remote publication](nvstorage-object-map.html#scenario=shared-windows&step=1); [Dedicated saved-search windows and bookmark preferences](nvstorage-object-map.html#scenario=saved-search-windows&step=1); [Fresh-store repair from complementary retained copies](nvstorage-object-map.html#scenario=private-repair&step=1); [Current-note recovery after local acceptance failure](nvstorage-object-map.html#scenario=unsaved-recovery&step=1); [Close with local work pending and provider work stalled](nvstorage-object-map.html#scenario=quit-offline&step=1); [Root move followed by replacement at the old pathname](nvstorage-object-map.html#scenario=root-move&step=1); [Collection switch, cancellation and late completion](nvstorage-object-map.html#scenario=collection-switch&step=1); [Optional current-row recoding and full-VACUUM maintenance](nvstorage-object-map.html#scenario=idle-maintenance&step=1).
-- [CKPT-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Local save while the provider is unavailable](nvstorage-object-map.html#scenario=offline-save&step=1); [Delayed save completion with a newer pending generation](nvstorage-object-map.html#scenario=delayed-save&step=1); [Returning startup with optional snapshot work queued](nvstorage-object-map.html#scenario=fast-startup&step=1); [Reconstruction of invalid derived current rows](nvstorage-object-map.html#scenario=derived-rebuild&step=1); [Snapshot retention ancestry and logical operation cuts](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Close with local work pending and provider work stalled](nvstorage-object-map.html#scenario=quit-offline&step=1); [Optional current-row recoding and full-VACUUM maintenance](nvstorage-object-map.html#scenario=idle-maintenance&step=1).
+- [CKPT-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Local save while the provider is unavailable](nvstorage-object-map.html#scenario=offline-save&step=1); [Delayed save completion with a newer pending generation](nvstorage-object-map.html#scenario=delayed-save&step=1); [Returning startup with optional snapshot work queued](nvstorage-object-map.html#scenario=fast-startup&step=1); [Reconstruction of invalid derived current rows](nvstorage-object-map.html#scenario=derived-rebuild&step=1); [Snapshot state and required parent objects](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Close with local work pending and provider work stalled](nvstorage-object-map.html#scenario=quit-offline&step=1); [Optional current-row recoding and full-VACUUM maintenance](nvstorage-object-map.html#scenario=idle-maintenance&step=1).
 - [WAIT-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Startup with positively disclosed but unreadable newer evidence](nvstorage-object-map.html#scenario=work-offline&step=1); [Scoped disposition of an Apple unresolved version](nvstorage-object-map.html#scenario=apple-versions&step=1); [Close with local work pending and provider work stalled](nvstorage-object-map.html#scenario=quit-offline&step=1); [Root move followed by replacement at the old pathname](nvstorage-object-map.html#scenario=root-move&step=1).
 - [DELETE-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Receipt of a Delete before its parent edit](nvstorage-object-map.html#scenario=child-first&step=1); [Concurrent Delete and offline edit on separate Macs](nvstorage-object-map.html#scenario=delete-race&step=1); [Retraction after a later Delete covers a preserved edit](nvstorage-object-map.html#scenario=retracted-copy&step=1); [Named restoration followed by deletion of the fresh birth](nvstorage-object-map.html#scenario=recently-deleted&step=1); [Concurrent compensation of the same action](nvstorage-object-map.html#scenario=concurrent-undo&step=1); [Disappearance of an unadmitted pending external file](nvstorage-object-map.html#scenario=disappeared-file&step=1); [External disappearance during deletion confirmation](nvstorage-object-map.html#scenario=external-deletion&step=1).
-- [HIST-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Crash recovery before and after the local commit](nvstorage-object-map.html#scenario=save-crash&step=1); [Automatic merge of strictly separated line edits](nvstorage-object-map.html#scenario=separated-merge&step=1); [Review after overlapping edits or a third head](nvstorage-object-map.html#scenario=merge-review&step=1); [Ordinary editing of one unresolved head](nvstorage-object-map.html#scenario=ordinary-conflict-edit&step=1); [Concurrent Delete and offline edit on separate Macs](nvstorage-object-map.html#scenario=delete-race&step=1); [Retraction after a later Delete covers a preserved edit](nvstorage-object-map.html#scenario=retracted-copy&step=1); [Snapshot retention ancestry and logical operation cuts](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Historical body restoration with current title and labels](nvstorage-object-map.html#scenario=selective-history&step=1); [Named restoration followed by deletion of the fresh birth](nvstorage-object-map.html#scenario=recently-deleted&step=1); [Causal Undo after relaunch or on another Mac](nvstorage-object-map.html#scenario=portable-undo&step=1); [Reviewed Undo with an actual-current inverse](nvstorage-object-map.html#scenario=reviewed-undo&step=1); [Concurrent compensation of the same action](nvstorage-object-map.html#scenario=concurrent-undo&step=1); [Partial native Undo followed by relaunch](nvstorage-object-map.html#scenario=native-remaining&step=1); [Shared-note windows during composition and remote publication](nvstorage-object-map.html#scenario=shared-windows&step=1); [Dedicated saved-search windows and bookmark preferences](nvstorage-object-map.html#scenario=saved-search-windows&step=1); [Durable preservation of a selected unresolved revision](nvstorage-object-map.html#scenario=conflict-copy&step=1); [Fresh private-store bootstrap from a selected repository](nvstorage-object-map.html#scenario=fresh-mac&step=1); [Encrypted history, plaintext output and conversion limits](nvstorage-object-map.html#scenario=privacy-profile&step=1).
+- [HIST-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Crash recovery before and after the local commit](nvstorage-object-map.html#scenario=save-crash&step=1); [Automatic merge of strictly separated line edits](nvstorage-object-map.html#scenario=separated-merge&step=1); [Review after overlapping edits or a third head](nvstorage-object-map.html#scenario=merge-review&step=1); [Ordinary editing of one unresolved head](nvstorage-object-map.html#scenario=ordinary-conflict-edit&step=1); [Concurrent Delete and offline edit on separate Macs](nvstorage-object-map.html#scenario=delete-race&step=1); [Retraction after a later Delete covers a preserved edit](nvstorage-object-map.html#scenario=retracted-copy&step=1); [Snapshot state and required parent objects](nvstorage-object-map.html#scenario=snapshot-retention&step=1); [Historical body restoration with current title and labels](nvstorage-object-map.html#scenario=selective-history&step=1); [Named restoration followed by deletion of the fresh birth](nvstorage-object-map.html#scenario=recently-deleted&step=1); [Causal Undo after relaunch or on another Mac](nvstorage-object-map.html#scenario=portable-undo&step=1); [Reviewed Undo with an actual-current inverse](nvstorage-object-map.html#scenario=reviewed-undo&step=1); [Concurrent compensation of the same action](nvstorage-object-map.html#scenario=concurrent-undo&step=1); [Partial native Undo followed by relaunch](nvstorage-object-map.html#scenario=native-remaining&step=1); [Shared-note windows during composition and remote publication](nvstorage-object-map.html#scenario=shared-windows&step=1); [Dedicated saved-search windows and bookmark preferences](nvstorage-object-map.html#scenario=saved-search-windows&step=1); [Durable preservation of a selected unresolved revision](nvstorage-object-map.html#scenario=conflict-copy&step=1); [Fresh private-store bootstrap from a selected repository](nvstorage-object-map.html#scenario=fresh-mac&step=1); [Encrypted history, plaintext output and conversion limits](nvstorage-object-map.html#scenario=privacy-profile&step=1).
 - [CRYPT-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [External-editor handoff from an encrypted collection](nvstorage-object-map.html#scenario=external-editor&step=1); [Fresh private-store bootstrap from a selected repository](nvstorage-object-map.html#scenario=fresh-mac&step=1); [Private backup containing unpublished and pending work](nvstorage-object-map.html#scenario=private-backup&step=1); [Password unlock with an unavailable remembered key](nvstorage-object-map.html#scenario=unlock&step=1); [Same-key password rewrap and full key/profile conversion](nvstorage-object-map.html#scenario=password-rewrap&step=1); [Encrypted history, plaintext output and conversion limits](nvstorage-object-map.html#scenario=privacy-profile&step=1); [Verified migration from recovered epoch-4 state](nvstorage-object-map.html#scenario=legacy-migration&step=1).
 - [BACKUP-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Private backup containing unpublished and pending work](nvstorage-object-map.html#scenario=private-backup&step=1); [Same-key password rewrap and full key/profile conversion](nvstorage-object-map.html#scenario=password-rewrap&step=1); [Encrypted history, plaintext output and conversion limits](nvstorage-object-map.html#scenario=privacy-profile&step=1); [Repository copy with unavailable entries and no private store](nvstorage-object-map.html#scenario=repository-copy&step=1); [Current-note recovery after local acceptance failure](nvstorage-object-map.html#scenario=unsaved-recovery&step=1); [Verified migration from recovered epoch-4 state](nvstorage-object-map.html#scenario=legacy-migration&step=1).
 - [REPAIR-01](../../iCloud-Drive-Support-Spec.md#normative-requirement-registry) — [Startup with positively disclosed but unreadable newer evidence](nvstorage-object-map.html#scenario=work-offline&step=1); [Reconstruction of invalid derived current rows](nvstorage-object-map.html#scenario=derived-rebuild&step=1); [Restart during retained-history verification](nvstorage-object-map.html#scenario=verification-restart&step=1); [Disappearance of an unadmitted pending external file](nvstorage-object-map.html#scenario=disappeared-file&step=1); [Automatic repair of positively absent same-root NV Data](nvstorage-object-map.html#scenario=repository-repair&step=1); [Fresh-store repair from complementary retained copies](nvstorage-object-map.html#scenario=private-repair&step=1); [Required retained object missing from all available sources](nvstorage-object-map.html#scenario=missing-history&step=1); [Fresh private-store bootstrap from a selected repository](nvstorage-object-map.html#scenario=fresh-mac&step=1); [Private backup containing unpublished and pending work](nvstorage-object-map.html#scenario=private-backup&step=1); [Repository copy with unavailable entries and no private store](nvstorage-object-map.html#scenario=repository-copy&step=1).

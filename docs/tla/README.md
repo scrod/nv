@@ -441,9 +441,104 @@ their concrete schedules and independent observations.
 
 The ordinary-conflict scenario in `SegmentMergeSafety` deliberately lets an edit know both heads while replacing only Current; separate causal and note-predecessor graphs prevent implicit resolution. [`SegmentDeletionOrderingSafety.tla`](SegmentDeletionOrderingSafety.tla) fixes the source DAG D₀ concurrent with E→D₁, optionally extended by E→F concurrent with D₁, and explores both observers' deliveries/publications plus independent copy edits and a view restart. It rejects sticky temporary copies, per-Delete unions, overbroad descendant suppression and erased independent work. Its accepted history is already durable; it complements rather than replaces the installer/crash model.
 
-[`ProjectionStampSafety.tla`](ProjectionStampSafety.tla) independently varies current bytes, stamp and retained history. It checks waiting for referenced evidence, exact/unique association, and preservation of explicit Imports; hashes/schema/root fences are assumptions to verify in concrete callers. [`RepositoryCopySafety.tla`](RepositoryCopySafety.tla) copies a captured available inventory including historical/deleted and unimported data with no source private store. Its progress mutation rejects a private-state prerequisite; its retention mutation rejects current-only export. Neither model proves actual xattr transport, Finder behavior, filesystem atomicity or globally complete history. The spec's copy scope is the available repository, not all application state.
+[`ProjectionStampSafety.tla`](ProjectionStampSafety.tla) independently varies current bytes, stamp and retained history. It checks waiting for referenced evidence, exact/unique association, and preservation of explicit Imports; hashes/schema/root fences are assumptions to verify in concrete callers. [`RepositoryCopySafety.tla`](RepositoryCopySafety.tla) copies a captured available inventory including historical/deleted and unimported data with no source private store. Its progress mutation rejects a private-state prerequisite; its retention mutation rejects current-only export. Additional saved-history scenarios reserve exact local bytes at damaged canonical names, preserve source damage and report it separately. They cover one damaged file and an obstructed history hierarchy, with progress/reachability witnesses and controls for copying bad bytes, hiding damage and overwriting the source. These correspond to `RepositoryCopyWorker.copyOwned`/`installSaved`; concrete tests exercise coordinated reads, exact bytes and destination reconstruction. Neither model proves actual xattr transport, Finder behavior, filesystem atomicity or globally complete history. The spec's copy scope is the available repository, not all application state; saved-work supplementation is separately captured.
 
-[`RepositoryRepairSafety.tla`](RepositoryRepairSafety.tla) separates observable provider/private damage from presumed cause and splits exact-copy construction, verification, private pinning and activation. Eighteen finite scenarios include disclosure during an already editable session and positively disclosed newer/unmaterialized provider evidence to missing/partial/inaccessible/foreign provider data, root replacement, missing/partial/unreadable/unwritable private data, complementary copies and shared loss. Its controls reject a manual top-level `NV Data` restore gate, Work Offline for generic failure, foreign overwrite, incomplete/fabricated claims, stale-root use, provider-gated ordinary editing, revoking active editing on disclosure, incremental republishing before complete local repair, and destructive local repair. The repair union, positive disclosure classification, exact-byte validation, permission results and retained frontier are trusted finite inputs; actual filesystem/API tests remain required.
+[`RepositoryRepairSafety.tla`](RepositoryRepairSafety.tla) separates observable provider/private damage from presumed cause and splits exact-copy construction, verification, private pinning and activation. Twenty finite scenarios include disclosure during an already editable session and positively disclosed newer/unmaterialized provider evidence to missing/partial/inaccessible/foreign provider data, root replacement, missing/partial/unreadable/unwritable private data, complementary copies and shared loss. Occupied corrupt/wrong-kind entries remain untouched while Save As and healthy local editing become available. Its controls reject an occupied-damage overwrite or missing Save As outcome, a manual top-level `NV Data` restore gate, Work Offline for generic failure, foreign overwrite, incomplete/fabricated claims, stale-root use, provider-gated ordinary editing, revoking active editing on disclosure, incremental republishing before complete local repair, and destructive local repair. The repair union, positive disclosure classification, exact-byte validation, permission results and retained frontier are trusted finite inputs; actual filesystem/API tests remain required.
+
+[`RepositorySwitchSafety.tla`](RepositorySwitchSafety.tla) connects a fixed private
+copy to source retirement, selection exclusion, uncertain namespace installation,
+durability acknowledgement and restart. Two finite late-write tokens distinguish
+ordinary edits from new private inputs; a cooperating opener may intervene between
+retirement and selection's source reacquisition. Successful selection requires every
+source token, including settings and the original retained preview. A bounded crash
+may recover the old or new record before acknowledgement. The normal/crash scenarios
+check coverage, durable acknowledgement, pending exclusion, source preservation and
+settlement under weak fairness of the actual recovery steps. Separate witnesses reach
+successful switching, late-private refusal and both restart outcomes. Mutants skip
+the final cut check, omit private input, release pending exclusion or acknowledge
+before the barrier. Exact SQL backup/codec semantics, physical observation quality,
+root validation and actual power-loss behavior remain executable/platform obligations.
+The correspondence is `preparePrivateStoreCopy` → `DatabaseLane.retireForCopy` →
+`SelectedStoreOwner.install/resume` → `CollectionSession.resumeCopySwitch`; see the
+[P5.6 qualification ledger](../impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md).
+Run this bounded suite with `check-segment-models.py --model RepositorySwitchSafety`
+and the Java/JAR arguments documented above. The 2026-10-14 run completes all 18
+cases: 10 exhaustive safety/progress checks and eight designated mutation/reachability
+counterexamples. The largest safe scenario has 92 states. This is finite model
+checking, not an arbitrary-size or physical-filesystem proof.
+
+The [partial P5.6 implementation](../impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md)
+connects complete fixed-prefix private capture to add-only repair, held physical
+directory identity and exact complementary repository reads. Its native race
+tests and compiler probes supplement the model's physical assumptions. The
+existing-item replacement experiment motivates stop-and-Save-As for occupied damage;
+automatic repair remains exclusive/add-only. Integrated private activation has
+actual consumer, retry and fresh-process qualification entries in that ledger;
+bounded S4 schedules are qualified while broader combinations remain open. The integrated copy/switch
+handoff and its narrower model are described above; platform/crash qualification
+remains explicitly scoped in the ledger.
+`repositoryRepairReportsSourceAccessAndRequiresCompleteUnion` adds executable
+permission/wrong-kind/source-report checks for complementary acquisition, including
+an unavailable-everywhere refusal before candidate creation. Lost root permission
+remains terminal. This supplies concrete tests for the repair model's exact-union
+input assumption; errno handling and source-index reports are outside that abstraction.
+The `repairUnion*` executable tests additionally challenge its coherent-input
+assumption with individually accepted histories, contradictory action identities,
+repackaged operations, colliding pending records and repeated-repair capture scopes.
+They check both input orders and original file preservation. The finite model
+does not encode those private SQL records or claim to prove their byte-level union.
+Coordinated copy now uses the same complete-stage exclusive installer as ordinary
+immutable publication. `repositoryCopyStagesCanonicalBytesAndPreservesRaces`
+checks its actual pre-rename boundary; `tools/test-storage-repository-copy-process.py`
+reconstructs edited/deleted/restored history with both original sources unavailable.
+Those executable checks connect the copy model's preserved-byte assumption to
+the physical implementation; they do not replace integrated activation coverage.
+
+The saved-work implementation preflights a name/hash inventory and rereads bounded
+publication batches at that fixed prefix for installation and destination checks.
+`repositorySavedCopyRechecksCapturedHistory` exercises later saves, record loss,
+corruption, closure and cancellation between batches; the growth test separately
+checks production batch counts. This changes payload representation, not the model's
+captured inventory or complete-coverage condition.
+
+`recoveryCopyReservesVerifiedNamesAfterInstallFailure` additionally interrupts
+the destination stage and checks that a failed install retains the verified-name
+reservation instead of falling back to damaged source contents. Its negative
+control restores that incorrect fallback without changing model safety claims.
+Fixed-private-copy preparation reuses qualified SQLCipher backup and complete
+private/history checks. Executable tests cover changed source notes, settings and
+pending inputs, and issuer-restricted source-cut comparisons. The integrated
+copy/switch consumer and `RepositorySwitchSafety` connect that comparison to final
+selection as described above. The two `collectionCopySwitch*Accessor*` tests now
+hold a real entered Foundation accessor: pre-admission refusal preserves editing,
+and admitted handoff retains the original connection until the accessor settles.
+The targeted settlement mutation fails at that connection-lifetime assertion.
+`test-storage-repository-repair-process.py` separately exercises complementary
+history, unpublished edits and required private inputs through repeated failures
+and activation callback loss in fresh processes. The connected namespace-race test
+then follows a repaired selection through another provider loss, a competing
+namespace and a newer local save. These executable boundaries
+supplement the models' settlement and exact-union assumptions; they are not formal
+refinement or physical power-loss proofs. The P5.6 ledger retains the remaining
+connected S4 and platform qualification limits.
+Selection retry refines the existing verify/pin/activate boundary with held-item
+readback and barriers, preserving its safety predicates.
+`selectionCancellationPreservesEffectBoundary` qualifies cancellation before
+admission, at the final pre-install check, after installation and during pending
+resumption. `selectionClosedCandidatePreservesPendingExclusion` checks copied
+evidence after close and separately held source exclusion. The model abstracts
+installed/uncertain/durable states; it does not represent task cancellation or
+revocation of a closed candidate's live evidence. Those remain executable
+correspondence obligations, not a formal refinement claim. Its existing safety
+conditions and fair-completion assumptions remain unchanged. The executable tests
+check actual record bytes, source ownership and normal reopening, including
+successful resumption after a cancelled retry.
+
+The withdrawn displacement protocol and its recorded results are kept in the
+[retired exploration](retired/impl-proposal-5/preserved-replacement/README.md),
+outside the active runner. The current repair model adds occupied-damage safety,
+Save As/editing progress and targeted negative/reachability controls; native tests
+qualify the actual exclusive installer and source-preserving refusal.
 
 The [Phase 4C–4E implementation report](../impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md)
 maps these repair/copy and pending-reference obligations to the real private
@@ -504,6 +599,35 @@ monotonic revisits and lifecycle settlement. Actual byte/barrier truth, SQL
 acceptance, crypto, rejection persistence and detailed note reducers remain the
 obligations of their independent models and executable tests. These checks are
 not a whole-protocol composition proof.
+
+P5.7's `phase5PublicationFinishesPrefixThenFindsInterveningSave` exposed a
+concrete gap beneath this abstraction: the model selects individual retained
+objects, whereas production freezes a prefix across multiple publication batches.
+A save notification could be consumed by an intermediate continuation and leave
+the newer accepted object unpublished. The executable test holds that actual
+continuation, waits for the save notification, and requires exact installation
+without another hint or revisit. The corrected driver closes a drain only after
+an indexed empty pass. This realizes the existing `SavedOutputProgress` obligation;
+these 17 model checks do not separately prove that concrete batching algorithm.
+The [P5.7 ledger](../impl-proposal-5/plan/phase5/07-connected-qualification-validation.md)
+records the failing witness, correction and targeted mutation. No modeled safety
+or fairness condition was weakened, and no new TLC result is claimed here.
+
+P5.6's accepted-name pass shares that worker and bounded retry lifecycle. Background
+selection uses the existing publication cursor's completed acceptance batches, so
+outstanding outgoing retries remain distinct from loss of previously published
+objects. This refinement is checked by the actual driver's retry companion. Its
+fixed-prefix cursor retains a failed batch until successful observation; it
+supplies concrete missing/damaged evidence to `RepositoryRepairSafety`'s existing
+classification inputs. Canonical-name selection, exact expected-hash matching,
+metadata-hint reuse and directory-handle cleanup are executable-test obligations,
+not newly proven by either model. No repair effect or fairness condition changes.
+Collection-owned inventory also yields to an existing foreground-operation reservation
+and resumes through the same periodic opportunity. That concrete admission preference
+is covered by quiet-copy, newer-save and cancellation/resumption tests. It supplies
+no modeled stability authority: `RepositorySwitchSafety` still requires the unchanged
+source cut, and already-entered checks may cause safe refusal. No safety assertion
+or model fairness premise is relaxed for this scheduling refinement.
 
 Root acquisition capability remains an OS/filesystem input, outside the scheduling
 model's positive-owned-root assumption. The approved fresh deep-HFS+ opening

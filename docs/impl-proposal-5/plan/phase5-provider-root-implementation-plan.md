@@ -1,6 +1,6 @@
 # Phase 5: dependency-ordered implementation plan
 
-Updated: 2026-10-13
+Updated: 2026-10-14
 
 Status: P5.1 and P5.2 are implemented and qualified within their documented
 capability and distribution limits.
@@ -17,7 +17,23 @@ both profiles. P5.5's headless startup/association implementation is
 [qualified within its documented limits](phase5/05-startup-and-root-reassociation-validation.md),
 including completed component reruns, compiler/sanitizer/mutation checks and
 signed two-Mac startup/reassociation for both profiles.
-P5.6–P5.7 remain planned.
+P5.6 is [implemented and qualified within its documented limits](phase5/06-repair-replacement-and-copy-validation.md):
+add-only repair, complementary private recovery, occupied-entry stop-and-Save-As,
+coordinated copy and verified switching. Its witnesses include held-accessor
+handoff, bounded S4 recovery/interference schedules, signed two-Mac repair/copy,
+Intel macOS 11/14 process checks and affected Linux debug/optimized qualification.
+Its component evidence is combined with P5.7's bounded connected schedules;
+release qualification remains separate.
+P5.7 is [implemented and qualified within its recorded limits](phase5/07-connected-qualification-validation.md).
+Its [detailed connected-qualification plan](phase5/07-connected-qualification.md)
+orders evidence reuse, harness controls, S1–S6 connections, bounded exploration,
+platform/privacy/scaling deltas and final handoff. The ledger separates new
+executed witnesses, later release obligations and reviewed reuse of unchanged
+component results within their recorded source and capability scope. Its connected
+tests found and corrected a publication notification lost across an older multi-batch
+prefix, with no additional state or public API. Actual two-Mac iCloud, Linux and
+macOS 11 checks qualify the affected driver; plaintext and AppKit callers remain
+Phases 6 and 7.
 
 The P5.3 [bounded metadata and accepted-hint batch plan](phase5/bounded-discovery-batches-plan.md)
 is implemented. Its [qualification report](phase5/bounded-discovery-batches-validation.md)
@@ -42,7 +58,20 @@ connected qualification. Its P55-01–24 matrix specifies real consumers, indepe
 observations, crash/recovery cuts, compiler/mutation challenges and work/platform
 gates. It reuses existing required state and ownership; repair/copy effects remain
 P5.6 and final application adoption remains Phase 7. The P5.5 ledger separates
-completed production witnesses from ongoing final/platform qualification.
+completed production witnesses from explicit capability/distribution limits and
+earlier interrupted campaigns.
+
+The expanded [P5.6 plan](phase5/06-repair-replacement-and-copy.md) starts with those
+remaining effect consumers, then orders exact complementary evidence, private-first
+recovery, automatic missing-entry repair, occupied-entry refusal, repository Save As
+and verified optional switching. Its P56-01–25 matrix includes connected S4,
+independent artifact observations, second recovery failures and compiler boundaries.
+Existing P5.5 qualification carries forward. Occupied repository damage stays in
+place; the existing replacement experiment supports that policy. Private selected-
+store activation and ordinary note-file replacement retain separate gates.
+The [P5.6 ledger](phase5/06-repair-replacement-and-copy-validation.md) records the
+completed consumers and their scenario crosswalk, including independent recovery
+observations, compiler/mutation checks and explicit platform limits.
 
 ## Purpose and reading order
 

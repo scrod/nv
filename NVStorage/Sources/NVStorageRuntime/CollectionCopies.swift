@@ -2,26 +2,6 @@ import Foundation
 import Crypto
 import NVStorageCore
 
-/// One exact accepted envelope/descriptor and its canonical add-only repository name.
-struct CapturedRepositoryObject: Sendable {
-    let path: String
-    let bytes: [UInt8]
-    let requirement: RepositoryByteRequirement
-    var sha256: [UInt8] { requirement.sha256 }
-    fileprivate init(path: String, bytes: [UInt8]) throws {
-        self.path = path; self.bytes = bytes
-        requirement = try RepositoryByteRequirement(path: path, sha256: Array(SHA256.hash(data: bytes)))
-    }
-}
-
-/// The committing source issues a dependency-closed exact-byte capture at one private prefix.
-struct CapturedRepositoryHistory: Sendable {
-    let through: Int64
-    let objects: [CapturedRepositoryObject]
-    var requirements: [RepositoryByteRequirement] { objects.map(\.requirement) }
-    fileprivate init(through: Int64, objects: [CapturedRepositoryObject]) { self.through = through; self.objects = objects }
-}
-
 /// Saved-history coverage and source-private pending buffers are reported independently.
 public struct ActiveRepositoryCopy: Sendable {
     public let repository: RepositoryCopyResult
@@ -79,8 +59,41 @@ public struct CurrentCollectionExport: Sendable {
 }
 
 extension LocalStoreSession {
+    /// Checks the complete saved cut under the destination's newly acquired physical ownership.
+    func verifyCopiedHistory(at root: RepositoryRootSession, through: Int64) async throws {
+        let history = try await captureRepositoryHistory(through: through)
+        let permission = try await root.permission()
+        try await history.forEachBatch { objects in
+            for object in objects {
+                let observed = try await root.observe(object.locator.relativePath, using: permission)
+                guard case .contents(let contents) = try await root.read(observed, maximumBytes: object.bytes.count, using: permission),
+                      contents.bytes == object.bytes else { throw StorageError.integrity }
+            }
+        }
+    }
+
     /// Drains owned admitted history, then preserves the captured repository plus this Mac's committed bytes.
     public func copyRepositoryAndSavedWork(from source: String, to destination: String) async throws -> ActiveRepositoryCopy {
+        try await copyRepositoryAndSavedWork(source: .path(source), to: destination)
+    }
+
+    /// Captures saved work while borrowing the active collection's existing physical root owner.
+    public func copyRepositoryAndSavedWork(from source: RepositoryRootSession, to destination: String) async throws -> ActiveRepositoryCopy {
+        try await copyRepositoryAndSavedWork(source: .owned(source), to: destination)
+    }
+
+    /// The integrated owner supplies its available root while local-only recovery reports excluded repository extras.
+    func copyRepositoryAndSavedWork(from source: RepositoryRootSession?, to destination: String,
+        captured: (@Sendable (String) async -> Void)?,
+        beforeInstall: @escaping @Sendable (String) -> Void = { _ in }) async throws -> ActiveRepositoryCopy {
+        try await copyRepositoryAndSavedWork(source: source.map(CopySource.owned) ?? .unavailable,
+                                            to: destination, captured: captured, beforeInstall: beforeInstall)
+    }
+
+    private enum CopySource { case path(String), owned(RepositoryRootSession), unavailable }
+    private func copyRepositoryAndSavedWork(source: CopySource, to destination: String,
+        captured: (@Sendable (String) async -> Void)? = nil,
+        beforeInstall: @escaping @Sendable (String) -> Void = { _ in }) async throws -> ActiveRepositoryCopy {
         guard !closed, !quiescing else { throw StorageError.closed }
         while inFlight || requiredReceiveInFlight || pendingPreparationInFlight {
             await withCheckedContinuation { drained.append($0) }
@@ -96,8 +109,15 @@ extension LocalStoreSession {
         let pending = try await lane.perform { db in
             try db.rows("SELECT COUNT(*) FROM pending_items WHERE latest IS NOT NULL OR EXISTS(SELECT 1 FROM pending_reservations r WHERE r.item_id=pending_items.item_id)")[0][0].number
         }
-        let copied = try await RepositoryCopyWorker().copy(source: source, destination: destination,
-            requirements: [], saved: history)
+        let copied: RepositoryCopyResult
+        switch source {
+        case .path(let path):
+            copied = try await RepositoryCopyWorker().copy(source: path, destination: destination, requirements: [], saved: history)
+        case .owned(let root):
+            copied = try await root.copyRepository(to: destination, saved: history, captured: captured, beforeInstall: beforeInstall)
+        case .unavailable:
+            copied = try await RepositoryCopyWorker().export(history, to: destination, unavailable: .incomplete)
+        }
         return ActiveRepositoryCopy(repository: copied, through: cut.through, pending: Int(pending), receipts: receipts)
     }
 
@@ -109,38 +129,4 @@ extension LocalStoreSession {
             toRepository: destination, privateDirectory: privateDirectory)
     }
 
-    fileprivate func captureRepositoryHistory(through: Int64) async throws -> CapturedRepositoryHistory {
-        let selection = selection, protection = protection
-        return try await lane.verifyingHistory {
-            let ids = try await lane.perform { db in
-                guard try db.acceptedThrough() >= through else { throw StorageError.staleCapture }
-                guard try db.rows("SELECT 1 FROM accepted_dependencies d JOIN accepted_objects c ON c.object_id=d.child LEFT JOIN accepted_objects p ON p.object_id=d.prerequisite WHERE c.seq<=? AND (p.seq IS NULL OR p.seq>?) LIMIT 1", [.integer(through), .integer(through)]).isEmpty else { throw StorageError.incomplete }
-                return try db.rows("SELECT object_id FROM accepted_objects WHERE seq<=? ORDER BY object_id", [.integer(through)])
-            }
-            var captured: [CapturedRepositoryObject] = []
-            for row in ids {
-                let object = try await lane.perform { db in
-                    try db.checkingRetainedHistory {
-                        guard let r = try db.rows("SELECT kind,writer_epoch,sequence,encoded FROM objects WHERE object_id=?", [row[0]]).first else { throw StorageError.incomplete }
-                        let bytes = try r[3].bytes, id = try row[0].bytes, path: String
-                        if r[0] == .integer(0) {
-                            let d = try BootstrapDescriptorV1.decodeV1(bytes)
-                            guard d.collection == selection.descriptor.collection, d.genesis == selection.descriptor.genesis,
-                                  d.keyID == selection.descriptor.keyID, d.descriptorID == id else { throw StorageError.integrity }
-                            path = ImmutableRepositoryLocator.descriptor(d).relativePath
-                        } else {
-                            let opened = try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection)
-                            let l = opened.locator
-                            guard l.segmentID.bytes == id, r[0] == .integer(Int64(opened.kind.rawValue)),
-                                  r[1] == .blob(l.writerEpoch.bytes), r[2] == .blob(Array(l.encodedV1()[16..<24])) else { throw StorageError.integrity }
-                            path = ImmutableRepositoryLocator.segment(l).relativePath
-                        }
-                        return try CapturedRepositoryObject(path: path, bytes: bytes)
-                    }
-                }
-                captured.append(object)
-            }
-            return CapturedRepositoryHistory(through: through, objects: captured)
-        }
-    }
 }

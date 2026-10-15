@@ -214,6 +214,13 @@ batch's exact bytes for retry; use the existing incremental next-pass capture
 instead of a full-history capture on every hint/save. Restart reconstructs work
 from accepted membership and retained receive state, not a persisted scan cursor.
 
+After a nonempty publication batch, continue the indexed drain until an empty
+pass observes the current accepted prefix. This preserves saves admitted while
+an earlier frozen prefix traversed several batches: advancing to its continuation
+must not consume the only demand for a later prefix. The terminating empty pass
+adds bounded indexed bookkeeping, with no historical body decode or additional
+stored flag. P5.7 qualifies the actual multi-batch/notification schedule.
+
 Make idle discovery opportunities concrete. Prefer existing owner work sources;
 if a headless idle owner has none, use one cancellable session-owned monotonic
 wakeup with bounded cadence/backoff. Record its latency/idle-I/O tradeoff. A test

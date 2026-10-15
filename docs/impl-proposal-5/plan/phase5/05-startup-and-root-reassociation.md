@@ -201,8 +201,9 @@ restoration consent, permission ledger, outbox, copied allocator or startup cach
    from an already editable session; preserve known contention/refusal without
    substituting private ownership or Work Offline for the contended resource.
 4. Return scoped unlock/recovery/repair/reselection/Save As requests. A P5.6 request
-   is `repair required`, not completed repair. Locally repairable same-root NV Data
-   follows the adopted automatic policy, with no Restore control.
+   is `repair required`, not completed repair. Missing same-root NV Data entries
+   follow automatic add-only repair; occupied damage stays in place and offers
+   Save As. No Restore control is added.
 
 **Gate:** literal table plus real diagnostic-to-decision-to-consumer companions
 pass. Equal observations from different causes yield equal decisions. Contradictory
@@ -627,6 +628,9 @@ P5.5 completes when:
    independent outcomes, mutation verdicts, capabilities and artifacts. Inventory
    and roadmap link actual evidence and retain later consumer gates.
 
-Then proceed to P5.6 with typed repair/copy requests and qualified startup/
-reassociation consumers. Application dialogs, keyboard behavior and final quit/
-selection adoption remain Phase 7 human-reviewed work.
+Then proceed to the [expanded P5.6 plan](06-repair-replacement-and-copy.md) with
+typed repair/copy requests and qualified startup/reassociation consumers. Its first
+increment connects those requests to effectful recovery; later increments qualify
+complementary private repair, automatic missing-entry repair, occupied-entry refusal,
+copy and optional switching. Application dialogs, keyboard behavior and final
+quit/selection adoption remain Phase 7 human-reviewed work.

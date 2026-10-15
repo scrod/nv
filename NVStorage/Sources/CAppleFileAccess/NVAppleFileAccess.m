@@ -83,6 +83,14 @@ void NVAppleCoordinateInstall(NSFileCoordinator *coordinator, CFURLRef source, C
             accessor((__bridge CFURLRef)actualSource, (__bridge CFURLRef)actualDestination);
         }];
 }
+void NVAppleCoordinateCopy(NSFileCoordinator *coordinator, CFURLRef source, CFURLRef destination,
+    NSError **error, void (NS_NOESCAPE ^accessor)(CFURLRef, CFURLRef)) {
+    [coordinator coordinateReadingItemAtURL:(__bridge NSURL *)source options:NSFileCoordinatorReadingWithoutChanges
+        writingItemAtURL:(__bridge NSURL *)destination options:0 error:error
+        byAccessor:^(NSURL *actualSource, NSURL *actualDestination) {
+            accessor((__bridge CFURLRef)actualSource, (__bridge CFURLRef)actualDestination);
+        }];
+}
 
 static int errorDomain(NSError *error) {
     if (!error) return 0;

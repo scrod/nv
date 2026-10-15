@@ -19,7 +19,7 @@ public enum StoreActivationOutcome: Sendable {
     case uncertain(observed: SelectedStoreRecordV1?, cause: StorageError)
 }
 
-enum SelectionCut: Sendable { case beforeInstall, afterInstall, afterDurability }
+enum SelectionCut: Sendable { case beforeInstall, afterInstall, beforeDurability, afterDurability }
 
 /// Owns the selection parent and runs its bounded filesystem effects on a dedicated executor.
 public actor SelectedStoreOwner {
@@ -31,6 +31,13 @@ public actor SelectedStoreOwner {
     private var lease: SelectionLease?
     private var working = false
     private var fault: (@Sendable (SelectionCut) throws -> Void)?
+    private struct PendingSelection {
+        let input: VerifiedActivationInput
+        let record: SelectedStoreRecordV1
+        let backup: String?
+        let sources: [SourceSelectionLease]
+    }
+    private var pending: PendingSelection?
 
     private init(directory: String, leaf: String) { self.directory = directory; self.leaf = leaf }
     public static func open(directory: String, leaf: String = "Selected Store") async throws -> SelectedStoreOwner {
@@ -44,18 +51,21 @@ public actor SelectedStoreOwner {
         lease = try SelectionLease(directory: directory, executor: executor)
     }
     public func capture() throws -> SelectedStoreState {
-        guard !working, let lease else { throw StorageError.busy }
+        guard !working, pending == nil, let lease else { throw StorageError.busy }
         return try SelectedStoreState(record: lease.read(leaf: leaf), owner: identity, parent: lease.parent())
     }
     public func close() throws {
         guard !working else { throw StorageError.busy }
-        lease?.close(); lease = nil
+        for source in pending?.sources ?? [] { source.close() }
+        lease?.close(); lease = nil; pending = nil
     }
     func setFault(_ fault: (@Sendable (SelectionCut) throws -> Void)?) { self.fault = fault }
 
     /// Consumes fresh-open evidence while both candidate and original store leases remain held.
     func install(_ input: VerifiedActivationInput, basedOn state: SelectedStoreState) throws -> StoreActivationOutcome {
+        try Task.checkCancellation()
         guard !working, let lease else { throw StorageError.closed }
+        guard pending == nil else { throw StorageError.busy }
         guard state.owner == identity, try lease.parent() == state.parent else { throw StorageError.wrongContext }
         guard try lease.read(leaf: leaf) == state.record else { throw StorageError.staleCapture }
         guard state.record.map({ current in current.association == input.association &&
@@ -63,10 +73,13 @@ public actor SelectedStoreOwner {
             throw StorageError.wrongContext
         }
         working = true
-        defer { working = false; lease.close(); self.lease = nil }
+        defer {
+            working = false
+            if pending == nil { lease.close(); self.lease = nil }
+        }
         var sources: [SourceSelectionLease] = []
+        defer { if pending == nil { for source in sources { source.close() } } }
         for source in input.sources { sources.append(try SourceSelectionLease(source, executor: executor)) }
-        defer { for source in sources { source.close() } }
         let record = try SelectedStoreRecordV1(association: input.association, store: input.candidate.store,
                                              generation: SelectionGeneration(bytes: uuidBytes()))
         let destination = URL(fileURLWithPath: directory).appendingPathComponent(leaf)
@@ -85,23 +98,25 @@ public actor SelectedStoreOwner {
             try fault?(.beforeInstall)
             for source in sources { try source.check() }
             try lease.checkExpected()
+            try Task.checkCancellation()
             attempted = true
             var backup: String?
             #if os(macOS)
             if state.record != nil {
                 backup = ".nv-previous-selection-" + UUID().uuidString
+                pending = PendingSelection(input: input, record: record, backup: backup, sources: sources)
                 _ = try FileManager.default.replaceItemAt(destination, withItemAt: URL(fileURLWithPath: lease.stagePath()),
                     backupItemName: backup, options: [.withoutDeletingBackupItem, .usingNewMetadataOnly])
-            } else { try lease.installPortable() }
+            } else {
+                pending = PendingSelection(input: input, record: record, backup: nil, sources: sources)
+                try lease.installPortable()
+            }
             #else
+            pending = PendingSelection(input: input, record: record, backup: nil, sources: sources)
             try lease.installPortable()
             #endif
             try fault?(.afterInstall)
-            try lease.complete(backup: backup)
-            try fault?(.afterDurability)
-            let observed = try lease.read(leaf: leaf)
-            guard observed == record else { throw StorageError.staleCapture }
-            return try .activated(SelectedStoreState(record: observed, owner: identity, parent: lease.parent()))
+            return try finishSelection(record: record, backup: backup, lease: lease)
         } catch {
             let cause = filesystemFailure(error)
             let observed = try? lease.read(leaf: leaf)
@@ -110,6 +125,40 @@ public actor SelectedStoreOwner {
             }
             return .uncertain(observed: observed, cause: cause)
         }
+    }
+
+    /// Rechecks the held installed item and completes its durability barriers after an ambiguous result.
+    func resume(_ input: VerifiedActivationInput) throws -> StoreActivationOutcome {
+        try Task.checkCancellation()
+        guard !working, let lease else { throw StorageError.closed }
+        guard let pending else { throw StorageError.staleCapture }
+        guard pending.input.candidate.store == input.candidate.store,
+              pending.input.candidate.directory == input.candidate.directory,
+              pending.input.candidate.descriptor.encodedBytes == input.candidate.descriptor.encodedBytes,
+              pending.input.association == input.association else { throw StorageError.wrongContext }
+        working = true
+        defer {
+            working = false
+            if self.pending == nil { lease.close(); self.lease = nil }
+        }
+        do {
+            for source in pending.sources { try source.check() }
+            return try finishSelection(record: pending.record, backup: pending.backup, lease: lease)
+        } catch {
+            return .uncertain(observed: try? lease.read(leaf: leaf), cause: filesystemFailure(error))
+        }
+    }
+
+    private func finishSelection(record: SelectedStoreRecordV1, backup: String?, lease: SelectionLease) throws -> StoreActivationOutcome {
+        try fault?(.beforeDurability)
+        try lease.complete(backup: backup)
+        try fault?(.afterDurability)
+        let observed = try lease.read(leaf: leaf)
+        guard observed == record else { throw StorageError.staleCapture }
+        let state = try SelectedStoreState(record: observed, owner: identity, parent: lease.parent())
+        for source in pending?.sources ?? [] { source.close() }
+        pending = nil
+        return .activated(state)
     }
 }
 
@@ -172,7 +221,7 @@ private final class SourceSelectionLease {
         guard observation.count == 25 else { throw StorageError.wrongContext }
         unsafe raw = nv_storage_owner_open(source.selection.directory, 0)
         guard unsafe raw != nil else { throw StorageError.ownership(errno) }
-        try check()
+        do { try check() } catch { close(); throw error }
     }
     deinit { unsafe executor.retireSource(raw) }
     func close() { if let raw = unsafe raw { unsafe nv_storage_owner_close(raw); unsafe self.raw = nil } }

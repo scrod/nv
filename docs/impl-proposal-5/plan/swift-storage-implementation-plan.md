@@ -387,19 +387,39 @@ Its headless implementation is qualified within the recorded limits; the
 [P5.5 ledger](phase5/05-startup-and-root-reassociation-validation.md) records
 completed production, recovery, compiler, model and platform witnesses, with
 aggregate-budget failures and passing component reruns distinguished. Repair/copy
-effects remain P5.6.
+effects are implemented in P5.6. The expanded
+[P5.6 plan](phase5/06-repair-replacement-and-copy.md) starts by connecting those
+requests, then sequences complementary evidence, private-first repair, automatic
+missing-entry repair, stop-and-Save-As for occupied damage, and
+verified optional switching. Its P56-01–25 matrix includes second recovery failures,
+independent artifact/semantic observations and compiler-enforced boundaries.
+The [P5.6 qualification ledger](phase5/06-repair-replacement-and-copy-validation.md)
+records completed headless consumers, connected S4 and signed two-Mac witnesses,
+and affected Intel macOS/Linux checks. P5.7 adds bounded generated combinations;
+application adoption and distribution qualification retain their separate gates.
+The [detailed P5.7 plan](phase5/07-connected-qualification.md) begins with a
+revision-bound evidence audit, then connects S1–S6 through actual consumers,
+fresh-process recovery and independent observations. It preserves compiler
+boundaries and mutation coverage, reuses qualified unchanged components, and
+separates new platform/privacy/scaling checks from later application/release gates.
+Its [execution ledger](phase5/07-connected-qualification-validation.md) records
+completed headless qualification: actual collection-publication/resumption tests,
+rooted fresh-process and three-writer schedules, exact-byte replay and source-bound
+component reuse. A discovered multi-batch publication stall is fixed and qualified
+through its exact regression/mutation, debug/optimized suites and affected platforms.
+The ledger's seven-gate audit preserves the later application and release limits.
 
 The [Phase 5 testing plan](phase5-provider-root-testing-plan.md) sequences production
 adapter witnesses, independent observations, physical/API capability qualification,
-connected crash/race schedules and compiler/mutation checks. Its cases are planned
-work; completed evidence must be recorded separately for each qualified target.
+connected crash/race schedules and compiler/mutation checks. It defines required
+coverage; completed evidence is recorded separately for each qualified target.
 
 **Implement**
 
 - Bind the qualified rooted helpers to Runtime's exact intents; keep provider immutable installation, private SQL transactions and expected-projection replacement separate. Follow [safe replacement](../../Foundation-Safe-Replacement-Migration.md), including preserved displaced bytes and typed reconciliation-required outcomes—not a fictional atomic compare-and-swap against unrelated writers.
 - One independently owned provider/root lane, bounded disclosure/discovery, exact sealed-byte publication and local receive/acceptance. Retain resources through timed-out accessors; no shared serial resource that strands local saves behind provider work.
 - Translate actual provider/file observations into classifications without inventing authority. No reverse-provider lookup, portable historical Apple IDs, uploaded-as-durable, sequence-max completeness or callback-as-global-barrier.
-- Transparent repair of locally missing/repairable `NV Data` only under positive same-root and complete required local evidence. Work Offline is only the specified startup option for positively disclosed newer/required unread evidence; generic offline/full errors or later disclosure do not revoke healthy editing.
+- Transparent add-only repair of missing `NV Data` entries under positive same-root and complete required local evidence; occupied damage stays in place and offers Save As. Work Offline is only the specified startup option for positively disclosed newer/required unread evidence; generic offline/full errors or later disclosure do not revoke healthy editing.
 
 **Tests**
 

@@ -42,12 +42,12 @@ def reply(child):
 
 
 class Install:
-    def __init__(self, binary, root, input_file, *, fault='', nth=1, code=errno.EIO, trace=True, stage=None, read=False, relative=RELATIVE, split=False):
+    def __init__(self, binary, root, input_file, *, fault='', nth=1, code=errno.EIO, trace=True, stage=None, read=False, relative=RELATIVE, split=False, repair=False, create_repair=False):
         self.root = root
         self.stage = stage or '.nv-stage-' + str(uuid.uuid4())
         self.stderr = tempfile.TemporaryFile()
         self.child = subprocess.Popen([str(binary), str(root), str(input_file), relative,
-            ('read-trace' if trace else 'read') if read else (('split-trace' if trace else 'split') if split else ('trace' if trace else 'quiet')), fault, str(nth), str(code), self.stage],
+            ('create-repair-trace' if trace else 'create-repair') if create_repair else (('repair-trace' if trace else 'repair') if repair else (('read-trace' if trace else 'read') if read else (('split-trace' if trace else 'split') if split else ('trace' if trace else 'quiet')))), fault, str(nth), str(code), self.stage],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self.stderr, text=True, bufsize=1)
         self.events = []
 
@@ -257,6 +257,54 @@ def qualify(binary, artifacts, *, cuts=True):
                 assert result['stage_retained'] == 1 and (root/'owned-displaced').read_bytes() == expected, 'Cleanup must preserve displaced foreign stage'
                 assert next(p for p in root.iterdir() if p.name.startswith('.nv-stage-')).read_bytes() == b'foreign evidence'
     print('PASS: equal/contradictory final and compatible directory winners, nested/stage/final replacement and root moves', flush=True)
+
+    for boundary in [None, 'repair-namespace-held', 'repair-path-entered', 'stage-verified', 'name-installed']:
+        root = fresh(); (root/'NV Data').mkdir()
+        changed = False
+        def replace_namespace(_, event):
+            nonlocal changed
+            if event['event'] == boundary and not changed:
+                (root/'NV Data').rename(root/'preserved-namespace')
+                (root/'NV Data').mkdir()
+                (root/'NV Data/foreign').write_bytes(b'preserved race winner')
+                changed = True
+        result = start(root, repair=True).finish(replace_namespace)
+        if boundary is None:
+            assert result['outcome'] == 1 and (root/RELATIVE).read_bytes() == expected
+        else:
+            assert changed and result['outcome'] != 1, (boundary, result)
+            assert list((root/'NV Data').iterdir()) == [root/'NV Data/foreign']
+            assert (root/'NV Data/foreign').read_bytes() == b'preserved race winner'
+            if boundary == 'name-installed':
+                assert (root/'preserved-namespace'/Path(RELATIVE).relative_to('NV Data')).read_bytes() == expected
+    print('PASS: held repair namespace preserves competing directories before, during and after installation', flush=True)
+
+    for race in [None, 'final-winner', 'stage-replaced', 'installed-replaced']:
+        root = fresh(); changed = False
+        def replace_created_namespace(operation, event):
+            nonlocal changed
+            if changed: return
+            if event['event'] == 'repair-stage-held' and race in ['final-winner', 'stage-replaced']:
+                target = root/'NV Data' if race == 'final-winner' else root/operation.stage
+                if race == 'stage-replaced': target.rename(root/'preserved-stage')
+                target.mkdir(); (target/'foreign').write_bytes(b'preserved directory')
+                changed = True
+            elif event['event'] == 'repair-name-installed' and race == 'installed-replaced':
+                (root/'NV Data').rename(root/'preserved-namespace')
+                (root/'NV Data').mkdir(); (root/'NV Data/foreign').write_bytes(b'preserved directory')
+                changed = True
+        operation = start(root, create_repair=True)
+        result = operation.finish(replace_created_namespace)
+        if race is None:
+            assert result['outcome'] == 1 and (root/RELATIVE).read_bytes() == expected
+            names = [e['event'] for e in operation.events]
+            assert names.index('repair-stage-held') < names.index('repair-name-installed') < names.index('repair-directory-synced')
+        else:
+            assert changed and result['outcome'] != 1, (race, result)
+            target = root/operation.stage if race == 'stage-replaced' else root/'NV Data'
+            assert list(target.iterdir()) == [target/'foreign'] and (target/'foreign').read_bytes() == b'preserved directory'
+            if race == 'stage-replaced': assert not (root/'NV Data').exists()
+    print('PASS: staged repair namespace binds before publication and preserves every competing directory', flush=True)
 
     # Repeated cleanup failure retains its exact stage and preserves the equal final.
     root = fresh(); final = root/RELATIVE; final.parent.mkdir(parents=True); final.write_bytes(expected)

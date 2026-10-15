@@ -7,6 +7,8 @@ typedef struct NVRootOwner NVRootOwner;
 NVRootOwner *nv_root_open(const char *path);
 /* Exclusively creates the selected final directory and retains its physical ownership. */
 NVRootOwner *nv_root_create(const char *path);
+/* Creates a separately owned destination outside the continuously held source hierarchy. */
+NVRootOwner *nv_root_create_copy_destination(NVRootOwner *source, const char *path);
 /* Checks retained identity and delivered deletion/revocation events on that object. */
 int nv_root_validate(NVRootOwner *owner);
 /* Returns 1 for the same directory, 0 for another object, and -1 on failed observation. */
@@ -65,6 +67,17 @@ void nv_root_install(NVRootOwner *owner, const char *relative, const char *stage
 void nv_root_make_directory(NVRootOwner *owner, const char *relative, NVRootInstallResult *result);
 /* Reserves a newly initialized namespace by failing on every existing final entry. */
 void nv_root_create_directory(NVRootOwner *owner, const char *relative, NVRootInstallResult *result);
+/* Holds the observed NV Data directory throughout a repair's individually coordinated effects. */
+int nv_root_begin_repair_namespace(NVRootOwner *owner, uint64_t device, uint64_t inode);
+/* Releases the attempt's namespace hold after all of its effects settle. */
+void nv_root_end_repair_namespace(NVRootOwner *owner);
+typedef struct NVRootPreparedDirectory NVRootPreparedDirectory;
+/* Holds a private empty directory before publishing its name exclusively. */
+NVRootPreparedDirectory *nv_root_prepare_repair_directory(NVRootOwner *owner, const char *stage);
+/* Transfers the held descriptor to the repair owner after verified installation and barriers. */
+void nv_root_install_repair_directory(NVRootOwner *owner, NVRootPreparedDirectory *stage, NVRootInstallResult *result);
+/* Preserves any stage artifact while releasing its open resource. */
+void nv_root_prepared_directory_close(NVRootPreparedDirectory *stage);
 typedef struct NVRootPreparedStage NVRootPreparedStage;
 /* Retains the verified open stage across separately granted coordination intervals. */
 NVRootPreparedStage *nv_root_prepare_owned_stage(NVRootOwner *owner, const char *stage,

@@ -126,10 +126,30 @@ int nv_root_validate(NVRootOwner *owner) {
     return 0;
 }
 
-static NVRootOwner *root_open(const char *path, int create) {
+static int copy_parent_outside_source(int parent, NVRootOwner *source) {
+    if (nv_root_validate(source)) return -1;
+    int ancestor = fcntl(parent, F_DUPFD_CLOEXEC, 0), result = -1;
+    if (ancestor < 0) return -1;
+    for (;;) {
+        struct stat here, above;
+        if (fstat(ancestor, &here)) break;
+        if (here.st_dev == source->device && here.st_ino == source->inode) { errno = EINVAL; break; }
+        int next = openat(ancestor, "..", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (next < 0) break;
+        if (fstat(next, &above)) { int saved = errno; close(next); errno = saved; break; }
+        close(ancestor); ancestor = next;
+        if (here.st_dev == above.st_dev && here.st_ino == above.st_ino) { result = nv_root_validate(source); break; }
+    }
+    int saved = errno; close(ancestor); errno = saved; return result;
+}
+
+static NVRootOwner *root_open(const char *path, int create, NVRootOwner *copy_source) {
     char *leaf = NULL;
     int parent = candidate_parent(path, &leaf);
     if (parent < 0) return NULL;
+    if (copy_source && copy_parent_outside_source(parent, copy_source)) {
+        int saved = errno; close(parent); free(leaf); errno = saved; return NULL;
+    }
     if (create && (mkdirat(parent, leaf, 0700) || fsync(parent))) {
         int saved = errno; close(parent); free(leaf); errno = saved; return NULL;
     }
@@ -144,7 +164,7 @@ static NVRootOwner *root_open(const char *path, int create) {
     }
     NVRootOwner *owner = malloc(sizeof(*owner));
     if (!owner) { int saved = errno; close(fd); errno = saved; return NULL; }
-    owner->directory = fd; owner->events = -1; owner->invalidated = 0;
+    owner->directory = fd; owner->events = -1; owner->invalidated = 0; owner->repair_namespace = -1;
     owner->device = st.st_dev; owner->inode = st.st_ino;
     owner->events = root_events_open(fd);
     if (owner->events < 0) { saved = errno; nv_root_close(owner); errno = saved; return NULL; }
@@ -155,8 +175,12 @@ static NVRootOwner *root_open(const char *path, int create) {
     return owner;
 }
 
-NVRootOwner *nv_root_open(const char *path) { return root_open(path, 0); }
-NVRootOwner *nv_root_create(const char *path) { return root_open(path, 1); }
+NVRootOwner *nv_root_open(const char *path) { return root_open(path, 0, NULL); }
+NVRootOwner *nv_root_create(const char *path) { return root_open(path, 1, NULL); }
+NVRootOwner *nv_root_create_copy_destination(NVRootOwner *source, const char *path) {
+    if (!source) { errno = EINVAL; return NULL; }
+    return root_open(path, 1, source);
+}
 
 int nv_root_compare(NVRootOwner *owner, const char *candidate) {
     if (nv_root_validate(owner)) return -1;
@@ -212,5 +236,6 @@ done:;
 void nv_root_close(NVRootOwner *owner) {
     if (!owner) return;
     if (owner->events >= 0) close(owner->events);
+    if (owner->repair_namespace >= 0) close(owner->repair_namespace);
     close(owner->directory); free(owner);
 }

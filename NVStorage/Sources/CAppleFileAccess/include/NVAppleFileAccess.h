@@ -16,6 +16,9 @@ void NVAppleCoordinateWrite(NSFileCoordinator *coordinator, CFURLRef url, NSFile
     NSError * _Nullable * _Nullable error, void (NS_NOESCAPE ^accessor)(CFURLRef actual));
 void NVAppleCoordinateInstall(NSFileCoordinator *coordinator, CFURLRef source, CFURLRef destination,
     NSError * _Nullable * _Nullable error, void (NS_NOESCAPE ^accessor)(CFURLRef actualSource, CFURLRef actualDestination));
+/* Uses Foundation's canonical read/write lock ordering for a byte-preserving copy. */
+void NVAppleCoordinateCopy(NSFileCoordinator *coordinator, CFURLRef source, CFURLRef destination,
+    NSError * _Nullable * _Nullable error, void (NS_NOESCAPE ^accessor)(CFURLRef actualSource, CFURLRef actualDestination));
 
 typedef struct {
     int ubiquitous, downloading, uploaded, unresolved, download;

@@ -321,7 +321,7 @@ extension RepositoryRootSession {
         }
     }
 
-    private static func writerEpoch(_ bytes: [UInt8]) -> WriterEpoch? {
+    static func writerEpoch(_ bytes: [UInt8]) -> WriterEpoch? {
         guard bytes.count == 32 else { return nil }
         func nibble(_ c: UInt8) -> UInt8? {
             switch c { case 48...57: c - 48; case 97...102: c - 87; default: nil }
@@ -386,6 +386,11 @@ extension LocalStoreSession {
             try db.run("INSERT INTO private_groups VALUES(?,1,1,?) ON CONFLICT(group_key) DO UPDATE SET generation=1,codec=1,payload=excluded.payload",
                 [.blob(hint.key), .blob(payload)])
         }
+    }
+
+    func rememberInventoryHint(_ checked: VerifiedRepositoryObservation) async throws {
+        guard checked.store == selection.store, checked.session == incarnation else { throw StorageError.wrongContext }
+        try await rememberDiscoveryHint(checked.hint, object: checked.object)
     }
 
     fileprivate func discoveryRejection(_ bytes: [UInt8]) async throws -> ReceiveRejection? {

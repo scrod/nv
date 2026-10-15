@@ -149,20 +149,26 @@ func verificationReplayIncludesAcceptedSnapshotPages(encrypted: Bool) async thro
     #expect(throws: StorageError.unsupported) { try VerificationRecipe.decode([9]) }
 }
 
-@Test(arguments: [false, true])
-func verificationCancellationReplaysExactScope(encrypted: Bool) async throws {
+@Test(arguments: [false, true], [false, true])
+func verificationCancellationReplaysExactScope(encrypted: Bool, classified: Bool) async throws {
     let (initial, protection) = try testInitial(encrypted), session = try await newSession(initial, protection)
     let lane = await session.lane, selection = await session.selection
     let before = try await session.snapshot()
     let retryGate = ImprovementGate()
     try await lane.perform { db in db.work = StorageWork(); db.work?.verificationReplayWillStart = { await retryGate.hold() } }
-    await #expect(throws: CancellationError.self) {
+    do {
         try await lane.verifying(.history(before.through)) {
             #expect(try await lane.perform { try $0.rows(reminderQuery, reminderRange) }.count == 1)
             _ = try await lane.retainedGraph(through: before.through, selection: selection, protection: protection)
             #expect(try await lane.perform { try $0.rows(reminderQuery, reminderRange) }.count == 1)
-            throw CancellationError()
+            if classified { throw classify(CancellationError()) }
+            else { throw CancellationError() }
         }
+        Issue.record("Cancelled verification must retain its interruption outcome")
+    } catch {
+        if classified { #expect(error as? StorageError == .cancelled) }
+        else { #expect(error is CancellationError) }
+        #expect(ReceiveRejection(error) == nil)
     }
     #expect(try await lane.perform { try $0.rows(reminderQuery, reminderRange) }.count == 1)
     await retryGate.wait()

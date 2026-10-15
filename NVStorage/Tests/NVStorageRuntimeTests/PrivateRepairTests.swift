@@ -4,6 +4,334 @@ import Testing
 import NVStorageCore
 @testable import NVStorageRuntime
 
+private actor RepairReads {
+    private(set) var counts: [[UInt8]: Int] = [:]
+    private(set) var largestBytes = 0
+    func record(_ id: [UInt8], _ bytes: Int) {
+        counts[id, default: 0] += 1; largestBytes = max(largestBytes, bytes)
+    }
+}
+
+@Test(.timeLimit(.minutes(10)), arguments: [false, true], [64, 256, 1024])
+func privateRepairGrowthReadsExactObjectsIndividually(encrypted: Bool, actions: Int) async throws {
+    let fixture = try await GrowthHistoryFixtures.shared.fixture(encrypted: encrypted, actions: actions)
+    let source = try await fixture.openSender(), original = await source.selection
+    let start = ContinuousClock.now
+    let evidence = try await source.preserveForRepair(to: privateTempPath())
+    let sourceImage = try repairSourceImage(original)
+    let salvageTime = start.duration(to: .now), reads = RepairReads(), buildStart = ContinuousClock.now
+    let replacement = try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: evidence,
+        protection: fixture.protection, work: .init(read: { await reads.record($0, $1) }))
+    let buildTime = buildStart.duration(to: .now)
+    try await replacement.close()
+    let reopened = try await LocalStoreSession.open(selection: replacement.selection, protection: fixture.protection)
+    #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["E\(actions)", "untouched"])
+    let expected = fixture.initial.objects.map { ($0.key.segmentID.bytes, $0.value) }
+        + fixture.history.map { ($0.locator.segmentID.bytes, $0.bytes) }
+        + [(fixture.initial.descriptor.descriptorID, fixture.initial.descriptor.encodedBytes)]
+    let actual = try await reopened.lane.perform { try $0.rows("SELECT object_id,length(encoded) FROM objects ORDER BY object_id") }
+    #expect(try actual.map { try $0[0].bytes } == expected.map(\.0).sorted { $0.lexicographicallyPrecedes($1) })
+    for (id, bytes) in expected {
+        let stored = try await reopened.lane.perform { try $0.rows("SELECT encoded FROM objects WHERE object_id=?", [.blob(id)]) }
+        #expect(stored == [[.blob(bytes)]])
+    }
+    let counts = await reads.counts, maximum = await reads.largestBytes
+    #expect(counts.count == expected.count)
+    #expect(counts[fixture.initial.descriptor.descriptorID] == 1)
+    #expect(counts.filter { $0.key != fixture.initial.descriptor.descriptorID }.values.allSatisfy { $0 == 2 })
+    #expect(maximum == expected.map { $0.1.count }.max())
+    #expect(try repairSourceImage(original) == sourceImage)
+    print("PRIVATE-REPAIR-GROWTH encrypted=\(encrypted) actions=\(actions) objects=\(expected.count) largestRead=\(maximum) salvage=\(salvageTime) reconstruction=\(buildTime)")
+    try await reopened.quiesce()
+}
+
+private enum RepairWorkingChange: CaseIterable, Sendable {
+    case intact, body, metadata, missing, context, afterFirstRead
+}
+
+@Test(arguments: [false, true], RepairWorkingChange.allCases)
+private func privateRepairRechecksWorkingCopy(encrypted: Bool, change: RepairWorkingChange) async throws {
+    let (initial, protection) = try testInitial(encrypted), source = try await newSession(initial, protection)
+    let birth = try NoteBirth(bytes: .init(repeating: 1, count: 16))
+    let edit = try await put("retained exact bytes", birth: birth, generation: 1, session: source)
+    let row = try #require(await source.lane.perform { try $0.rows("SELECT object_id,kind,writer_epoch,sequence,encoded FROM objects WHERE object_id=?", [.blob(edit.object.segmentID.bytes)]).first })
+    let evidence = try await source.preserveForRepair(to: privateTempPath()), image = try repairSourceImage(evidence.selection)
+    @Sendable func alter(restoring: Bool) async throws {
+        let lane = DatabaseLane()
+        try await lane.open(directory: evidence.workingDirectory, create: false,
+            key: PrivateDatabaseKeyV1.derive(collection: initial.descriptor.collection, protection: protection))
+        do {
+            try await lane.perform { db in
+                try db.exec("PRAGMA foreign_keys=OFF; DROP TRIGGER IF EXISTS objects_no_update; DROP TRIGGER IF EXISTS objects_no_delete")
+                if restoring {
+                    try db.run("UPDATE store_header SET local_store_id=?", [.blob(evidence.selection.store.bytes)])
+                    try db.run("DELETE FROM objects WHERE object_id=?", [row[0]])
+                    try db.run("INSERT INTO objects VALUES(?,?,?,?,?)", row)
+                } else {
+                    switch change {
+                    case .intact: break
+                    case .body, .afterFirstRead:
+                        var bytes = try row[4].bytes; bytes[bytes.count - 1] ^= 1
+                        try db.run("UPDATE objects SET encoded=? WHERE object_id=?", [.blob(bytes), row[0]])
+                    case .metadata: try db.run("UPDATE objects SET kind=3 WHERE object_id=?", [row[0]])
+                    case .missing: try db.run("DELETE FROM objects WHERE object_id=?", [row[0]])
+                    case .context: try db.run("UPDATE store_header SET local_store_id=?", [.blob(.init(repeating: 98, count: 16))])
+                    }
+                }
+            }
+            await lane.close()
+        } catch { await lane.close(); throw error }
+    }
+    let reads = RepairReads()
+    let work = PrivateRepairWork(prepared: {
+        if change != .afterFirstRead { try await alter(restoring: false) }
+    }, read: { id, count in
+        await reads.record(id, count)
+        if change == .afterFirstRead, id == edit.object.segmentID.bytes, await reads.counts[id] == 1 {
+            try await alter(restoring: false)
+        }
+    })
+    if change == .intact {
+        let replacement = try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: evidence,
+            protection: protection, work: work)
+        try await replacement.close()
+    } else {
+        let expected: StorageError = change == .missing ? .incomplete : change == .context ? .wrongContext : .integrity
+        await #expect(throws: expected) {
+            try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: evidence, protection: protection, work: work)
+        }
+        try await alter(restoring: true)
+        let retry = try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: evidence, protection: protection)
+        try await retry.close()
+        let reopened = try await LocalStoreSession.open(selection: retry.selection, protection: protection)
+        #expect(try await reopened.retainedObject(at: edit.object) == row[4].bytes)
+        #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["retained exact bytes", "untouched"])
+        try await reopened.quiesce()
+    }
+    #expect(try repairSourceImage(evidence.selection) == image)
+}
+
+private enum RepairHistoryPair: CaseIterable, Sendable {
+    case repackaged, independent, conflictingAction
+}
+
+/// Each source accepts its own complete history before repair combines their evidence.
+@Test(arguments: [false, true], RepairHistoryPair.allCases)
+private func repairUnionChecksLogicalIdentity(encrypted: Bool, pair: RepairHistoryPair) async throws {
+    let (initial, protection) = try testInitial(encrypted)
+    let left = try await newSession(initial, protection), right = try await newSession(initial, protection)
+    let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
+    let original = try await left.snapshot(), prior = try #require(original.notes.first { $0.birth == birth })
+    let firstID = try ActionID(bytes: Array(repeating: 71, count: 16))
+    func envelope(side: UInt8) throws -> [UInt8] {
+        let actionID = try pair == .independent && side == 2 ? ActionID(bytes: Array(repeating: 72, count: 16)) : firstID
+        let body = pair == .repackaged || side == 1 ? "Left" : "Right"
+        let op = try IdentifiedOperation(nonce: OperationNonce(bytes: Array(repeating: 73, count: 16)),
+            effect: .put(action: actionID, birth: birth, value: testValue(body)),
+            causalParents: CausalParentSet(original.context.operations.map(\.id)),
+            notePredecessors: NotePredecessorSet([prior.revision.id]))
+        let record = try OperationRecordV1(operation: op, causalReferences: original.context.operations.map(\.reference),
+            noteReferences: [prior.revision.reference], earlierOperations: [])
+        let action = try ActionRecordV1(id: actionID, origin: ActionOriginID(bytes: Array(repeating: 74, count: 16)),
+            previousOrigin: nil, scope: .note(birth), scopeParents: prior.scopeFrontier.map(\.reference), kind: .savedEdit,
+            members: [OperationIndex(0)], affected: [.init(birth: birth, before: .value(prior.revision.reference),
+                after: .value(.earlierLocal(index: OperationIndex(0))))], operations: [op], earlierActions: [])
+        let dependencies = Set(original.context.operations.map(\.locator) + [prior.revision.locator] + prior.scopeFrontier.map(\.locator))
+        let payload = try ChangesPayloadV1(dependencies: DependencyLocatorTable(Array(dependencies)), operations: [record], actions: [action])
+        return try ObjectEnvelopeV1.seal(payload: payload.encodedV1(), kind: .changes, collection: initial.descriptor.collection,
+            writer: WriterEpoch(bytes: Array(repeating: side, count: 16)), sequence: 0, protection: protection)
+    }
+    let leftBytes = try envelope(side: 1), rightBytes = try envelope(side: 2)
+    let leftLocator = try ObjectEnvelopeV1.open(leftBytes, collection: initial.descriptor.collection, protection: protection).locator
+    let rightLocator = try ObjectEnvelopeV1.open(rightBytes, collection: initial.descriptor.collection, protection: protection).locator
+    #expect(leftLocator != rightLocator)
+    _ = try await left.receive(leftBytes); _ = try await right.receive(rightBytes)
+    #expect(try await left.snapshot().notes.first { $0.birth == birth }?.value.body.string == "Left")
+    #expect(try await right.snapshot().notes.first { $0.birth == birth }?.value.body.string == (pair == .repackaged ? "Left" : "Right"))
+    let primary = try await left.preserveForRepair(to: privateTempPath())
+    let complement = try await right.preserveForRepair(to: privateTempPath())
+    let leftImage = try repairSourceImage(primary.selection), rightImage = try repairSourceImage(complement.selection)
+    for reversed in [false, true] {
+        let first = reversed ? complement : primary, second = reversed ? primary : complement
+        if pair == .conflictingAction {
+            await #expect(throws: OrdinaryHistoryError.conflictingClaim) {
+                try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: first,
+                    complementary: [second], protection: protection)
+            }
+        } else {
+            let result = try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: first,
+                complementary: [second], protection: protection)
+            try await result.close()
+            let opened = try await LocalStoreSession.open(selection: result.selection, protection: protection)
+            #expect(try await opened.retainedObject(at: leftLocator) == leftBytes)
+            #expect(try await opened.retainedObject(at: rightLocator) == rightBytes)
+            let entries = try await opened.history(for: .note(birth)).entries
+            #expect(entries.count == (pair == .repackaged ? 2 : 3))
+            let expected: Set<String> = pair == .repackaged ? ["A", "Left"] : ["A", "Left", "Right"]
+            var bodies: Set<String> = []
+            for entry in entries {
+                if case .value(let operation) = try await opened.preview(entry).state,
+                   let value = operation.effect.noteValue { bodies.insert(value.body.string) }
+            }
+            #expect(bodies == expected)
+            let conflicts = try await opened.conflicts(for: birth)
+            #expect(conflicts.alternatives.count == (pair == .repackaged ? 0 : 1))
+            #expect(try await opened.snapshot().notes.first { $0.birth != birth }?.value.body.string == "untouched")
+            try await opened.quiesce()
+        }
+        #expect(try repairSourceImage(primary.selection) == leftImage)
+        #expect(try repairSourceImage(complement.selection) == rightImage)
+    }
+}
+
+@Test(arguments: [false, true], [false, true])
+func repairUnionPreservesOrRefusesPendingGroups(encrypted: Bool, conflicting: Bool) async throws {
+    let (initial, protection) = try testInitial(encrypted)
+    let left = try await newSession(initial, protection), right = try await newSession(initial, protection)
+    let leftItem = try PendingItemID(bytes: uuidBytes())
+    let rightItem = try conflicting ? leftItem : PendingItemID(bytes: uuidBytes())
+    let leftFrozen = try await pendingInput(left, body: "left frozen"), rightFrozen = try await pendingInput(right, body: "right frozen")
+    try await left.retainPendingSnapshot(leftFrozen, basedOn: left.pendingItem(leftItem))
+    try await right.retainPendingSnapshot(rightFrozen, basedOn: right.pendingItem(rightItem))
+    let leftAction = try await left.preparePendingImport(basedOn: left.pendingItem(leftItem), automatic: false)
+    let rightAction = try await right.preparePendingImport(basedOn: right.pendingItem(rightItem), automatic: false)
+    let leftLatest = try await pendingInput(left, body: "left latest"), rightLatest = try await pendingInput(right, body: "right latest")
+    try await left.retainPendingSnapshot(leftLatest, basedOn: left.pendingItem(leftItem))
+    try await right.retainPendingSnapshot(rightLatest, basedOn: right.pendingItem(rightItem))
+    let primary = try await left.preserveForRepair(to: privateTempPath())
+    let complement = try await right.preserveForRepair(to: privateTempPath())
+    let leftImage = try repairSourceImage(primary.selection), rightImage = try repairSourceImage(complement.selection)
+    for reversed in [false, true] {
+        let first = reversed ? complement : primary, second = reversed ? primary : complement
+        if conflicting {
+            await #expect(throws: StorageError.incomplete) {
+                try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: first,
+                    complementary: [second], protection: protection)
+            }
+        } else {
+            let result = try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: first,
+                complementary: [second], protection: protection)
+            try await result.close()
+            let opened = try await LocalStoreSession.open(selection: result.selection, protection: protection)
+            for payload in [leftFrozen, leftLatest, rightFrozen, rightLatest] {
+                #expect(try await opened.retainedPendingSnapshot(payload.id) == payload)
+            }
+            for (item, latest, action) in [(leftItem, leftLatest, leftAction), (rightItem, rightLatest, rightAction)] {
+                #expect(try await opened.pendingItem(item).latest == latest.id)
+                let recoveries = try await opened.pendingRecovery(item)
+                #expect(recoveries.count == 1)
+                guard case .review(let reservation) = try #require(recoveries.first) else {
+                    Issue.record("Uncommitted retained input acquired committed consent"); continue
+                }
+                #expect(reservation == action.reservation)
+            }
+            #expect(try await opened.snapshot().notes.map(\.value.body.string).sorted() == ["A", "untouched"])
+            try await opened.quiesce()
+        }
+        #expect(try repairSourceImage(primary.selection) == leftImage)
+        #expect(try repairSourceImage(complement.selection) == rightImage)
+    }
+}
+
+@Test(arguments: [false, true])
+func repairUnionKeepsEarlierRepairCaptureScopes(encrypted: Bool) async throws {
+    let (initial, protection) = try testInitial(encrypted)
+    let source = try await newSession(initial, protection), primary = try await newSession(initial, protection)
+    let item = try PendingItemID(bytes: uuidBytes()), frozen = try await pendingInput(source, body: "original frozen input")
+    try await source.retainPendingSnapshot(frozen, basedOn: source.pendingItem(item))
+    let action = try await source.preparePendingImport(basedOn: source.pendingItem(item), automatic: false)
+    let latest = try await pendingInput(source, body: "original latest input")
+    try await source.retainPendingSnapshot(latest, basedOn: source.pendingItem(item))
+    let firstEvidence = try await source.preserveForRepair(to: privateTempPath())
+    let firstRepair = try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: firstEvidence, protection: protection)
+    try await firstRepair.close()
+    let onceRepaired = try await LocalStoreSession.open(selection: firstRepair.selection, protection: protection)
+    #expect(try await onceRepaired.retainedPendingSnapshot(frozen.id) == frozen)
+    let left = try await primary.preserveForRepair(to: privateTempPath())
+    let right = try await onceRepaired.preserveForRepair(to: privateTempPath())
+    let leftImage = try repairSourceImage(left.selection), rightImage = try repairSourceImage(right.selection)
+    for reversed in [false, true] {
+        let first = reversed ? right : left, second = reversed ? left : right
+        let rebuilt = try? await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: first,
+            complementary: [second], protection: protection)
+        #expect(rebuilt != nil, "All retained capture scopes survive complementary repair")
+        #expect(try repairSourceImage(left.selection) == leftImage)
+        #expect(try repairSourceImage(right.selection) == rightImage)
+        guard let result = rebuilt else { continue }
+        try await result.close()
+        let opened = try await LocalStoreSession.open(selection: result.selection, protection: protection)
+        #expect(try await opened.retainedPendingSnapshot(frozen.id) == frozen)
+        #expect(try await opened.retainedPendingSnapshot(latest.id) == latest)
+        #expect(try await opened.pendingItem(item).latest == latest.id)
+        let recoveries = try await opened.pendingRecovery(item)
+        #expect(recoveries.count == 1)
+        guard case .review(let reservation) = try #require(recoveries.first) else {
+            Issue.record("Retained review acquired committed consent during second repair"); return
+        }
+        #expect(reservation == action.reservation)
+        #expect(try await opened.snapshot().notes.map(\.value.body.string).sorted() == ["A", "untouched"])
+        try await opened.quiesce()
+        #expect(try repairSourceImage(left.selection) == leftImage)
+        #expect(try repairSourceImage(right.selection) == rightImage)
+    }
+}
+
+private enum RepairScopeFault: CaseIterable, Sendable { case valid, foreignCollection, missingDescriptor, unsupportedCodec }
+
+@Test(arguments: [false, true], RepairScopeFault.allCases)
+private func repairUnionValidatesInheritedCaptureScope(encrypted: Bool, fault: RepairScopeFault) async throws {
+    let (initial, protection) = try testInitial(encrypted)
+    let source = try await newSession(initial, protection), primary = try await newSession(initial, protection)
+    let scopeStore = try LocalStoreID(bytes: Array(repeating: 86, count: 16))
+    let key = Array("repair-source/".utf8) + scopeStore.bytes
+    let collection = fault == .foreignCollection ? Array(repeating: UInt8(87), count: 16) : initial.descriptor.collection.bytes
+    let descriptor = fault == .missingDescriptor ? Array(repeating: UInt8(88), count: 32) : initial.descriptor.descriptorID
+    let codec: Int64 = fault == .unsupportedCodec ? 2 : 1
+    let row: [SQLValue] = [.blob(key), .integer(1), .integer(codec), .blob(collection + descriptor)]
+    try await source.lane.perform { try $0.run("INSERT INTO private_groups VALUES(?,?,?,?)", row) }
+    let left = try await primary.preserveForRepair(to: privateTempPath())
+    let right = try await source.preserveForRepair(to: privateTempPath())
+    let leftImage = try repairSourceImage(left.selection), rightImage = try repairSourceImage(right.selection)
+    if fault == .valid {
+        let result = try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: left,
+            complementary: [right], protection: protection)
+        try await result.close()
+        let opened = try await LocalStoreSession.open(selection: result.selection, protection: protection)
+        let retained = try await opened.lane.perform {
+            try $0.rows("SELECT group_key,generation,codec,payload FROM private_groups WHERE group_key=?", [.blob(key)])
+        }
+        #expect(retained == [row])
+        try await opened.quiesce()
+    } else {
+        let expected: StorageError = switch fault {
+        case .foreignCollection: .integrity
+        case .missingDescriptor: .incomplete
+        case .unsupportedCodec: .unsupported
+        case .valid: .integrity
+        }
+        await #expect(throws: expected) {
+            try await LocalStoreSession.buildVerifiedReplacement(to: privateTempPath(), primary: left,
+                complementary: [right], protection: protection)
+        }
+    }
+    #expect(try repairSourceImage(left.selection) == leftImage)
+    #expect(try repairSourceImage(right.selection) == rightImage)
+}
+
+/// Compares original database, journal and descriptor bytes after each repair attempt.
+private func repairSourceImage(_ selection: LocalStoreSelection) throws -> [String: Data] {
+    let root = URL(fileURLWithPath: selection.directory)
+    return try Dictionary(uniqueKeysWithValues: FileManager.default.subpathsOfDirectory(atPath: selection.directory).map { path in
+        let url = root.appendingPathComponent(path)
+        let type = try FileManager.default.attributesOfItem(atPath: url.path)[.type] as? FileAttributeType
+        switch type {
+        case .typeRegular: return (path, try Data(contentsOf: url))
+        case .typeDirectory: return (path + "/", Data())
+        default: throw StorageError.integrity
+        }
+    })
+}
+
 @Test(arguments: [false, true])
 func complementaryRepairPreservesUnpublishedHistoryAndPrivateInputs(encrypted: Bool) async throws {
     let (initial, protection) = try testInitial(encrypted), source = try await newSession(initial, protection)

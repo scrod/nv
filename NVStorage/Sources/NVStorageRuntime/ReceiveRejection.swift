@@ -36,7 +36,7 @@ public enum ReceiveRejection: Int64, Sendable {
     private init?(storage error: StorageError) {
         switch error {
         case .unsupported: self = .unsupported
-        case .ownership, .database, .wrongContext, .incomplete, .integrity, .closed, .busy, .staleCapture, .limit: return nil
+        case .ownership, .database, .wrongContext, .incomplete, .integrity, .closed, .busy, .staleCapture, .limit, .cancelled: return nil
         }
     }
 

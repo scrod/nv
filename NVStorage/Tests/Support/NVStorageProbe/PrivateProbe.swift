@@ -4,6 +4,104 @@ import NVStorageRuntime
 import CStorageFaults
 
 extension Probe {
+    /// Observes automatic repair through the public collection owner, including local saves while repair is paused.
+    static func collectionRepositoryRepair(_ args: [String]) async throws -> Bool {
+        guard args.first == "collection-repair", args.count == 6 else { return false }
+        let selected = try JSONDecoder().decode(SelectionFile.self, from: Data(contentsOf: URL(fileURLWithPath: args[2])))
+        let selection = try selected.selection(args[1])
+        let protection: ObjectProtectionV1 = try selection.descriptor.keyID.map {
+            try .encrypted(keyID: $0, key: selection.descriptor.unwrap(passphrase: "probe password"))
+        } ?? .publicHash
+        let opened = await CollectionSession.open(selection: selection, protection: protection,
+            repository: URL(fileURLWithPath: args[3]))
+        guard case .opened(let owner) = opened else {
+            guard case .recovery(let health) = opened else { throw StorageError.incomplete }
+            try output(["open": "recovery", "failure": String(describing: health.failure),
+                "phase": String(describing: health.phase), "category": String(describing: health.category)])
+            return true
+        }
+        do {
+            let deadline = Date().addingTimeInterval(30)
+            var observation: [String: Any]?
+            while observation == nil, Date() < deadline {
+                let request = await owner.pendingRepositoryRequest()
+                switch await owner.repositoryRepairStatus() {
+                case .complete(let through, let objects):
+                    observation = ["repair": "complete", "through": through, "objects": objects]
+                case .paused(let failure):
+                    var stopped: [String: Any] = ["repair": "paused", "failure": String(describing: failure)]
+                    switch failure {
+                    case .root(.unavailable(let code)): stopped["nativeError"] = code; stopped["boundary"] = "root"
+                    case .file(.io(let code)): stopped["nativeError"] = code; stopped["boundary"] = "file"
+                    default: break
+                    }
+                    observation = stopped
+                case .idle where request?.kind == .preserveRepositoryCollision:
+                    observation = ["repair": "preserved"]
+                case .idle, .checking, .installing: await Task.yield()
+                }
+            }
+            guard var result = observation else { throw StorageError.busy }
+            if let request = await owner.pendingRepositoryRequest() { result["recovery"] = String(describing: request.kind) }
+            _ = try await owner.publish(owner.preparePublication(liveGeneration: 0), liveGeneration: 0) { $0 }
+            if args[4] == "save" {
+                let change = try CapturedNoteChange.put(.init(birth: .init(bytes: .init(repeating: 1, count: 16)), generation: 1), value(args[5]))
+                switch try await owner.persist(owner.capture(kind: .savedEdit, changes: [change])) {
+                case .accepted(let receipt): result["saved"] = hex(receipt.object.segmentID.bytes)
+                case .pending(_, let cause): result["saveFailure"] = String(describing: cause)
+                }
+            } else if args[4] != "normal", args[4] != "complete-exit" { throw StorageError.unsupported }
+            let state = try await owner.publish(owner.preparePublication(liveGeneration: 0), liveGeneration: 0) { $0 }
+            result["notes"] = state.notes.map { ["birth": hex($0.birth.bytes), "body": $0.value.body.string] }
+            if args[4] == "complete-exit" {
+                guard result["repair"] as? String == "complete" else { throw StorageError.incomplete }
+                _exit(86)
+            }
+            try await owner.close()
+            try output(result)
+        } catch { try? await owner.close(); throw error }
+        return true
+    }
+
+    /// Recovers a preserved damaged store using independently acquired repository bytes before ordinary opening.
+    static func complementaryPrivateRepair(_ args: [String], selection: LocalStoreSelection,
+        protection: ObjectProtectionV1) async throws -> Bool {
+        guard args[0] == "private-repair-complementary", args.count == 7 else { return false }
+        let repository = URL(fileURLWithPath: args[3]), selectedDirectory = args[4]
+        let attempt = URL(fileURLWithPath: args[5]), cut = args[6]
+        let evidence = try await LocalStoreSession.salvagePrivateStore(selection: selection, protection: protection,
+            workingDirectory: attempt.appendingPathComponent("working").path)
+        let selector = try await SelectedStoreOwner.open(directory: selectedDirectory), before = try await selector.capture()
+        let fault: (Int32, Int32)? = switch cut {
+        case "private-before": (4, -1)
+        case "private-after": (5, -1)
+        case "private-enospc": (1, 13)
+        case "private-eio": (2, 1034)
+        default: nil
+        }
+        if let (event, code) = fault { nv_faults_arm_on_repair_private_installation(event, 1, code) }
+        let result: CollectionPrivateRepairOutcome
+        do {
+            result = try await CollectionSession.repairPrivateStore(primary: evidence, repository: repository,
+                to: attempt.appendingPathComponent("candidate").path, protection: protection, using: selector, basedOn: before)
+        } catch {
+            let hits = nv_faults_hits()
+            nv_faults_arm(0, 0, 0)
+            try await selector.close()
+            guard fault != nil, hits > 0 else { throw error }
+            try output(["built": false, "hits": hits, "error": String(describing: error)]); return true
+        }
+        guard case .opened(let owner, let selected) = result else { throw StorageError.incomplete }
+        let candidate = await owner.selection
+        guard selected.record?.store == candidate.store else { throw StorageError.wrongContext }
+        if cut == "activated" { _exit(86) }
+        try JSONEncoder().encode(SelectionFile(store: candidate.store.bytes, descriptor: candidate.descriptor.encodedBytes))
+            .write(to: attempt.appendingPathComponent("selection.json"))
+        try await owner.close()
+        try output(["built": true, "missingPrivate": evidence.unavailableCommittedObjects.map(hex).sorted()])
+        return true
+    }
+
     /// Process cases receive surviving selection/unlock inputs and emit observations for the independent parent oracle.
     static func privateCommand(_ args: [String], session: LocalStoreSession, protection: ObjectProtectionV1) async throws -> Bool {
         let command = args[0], selection = await session.selection
@@ -16,6 +114,17 @@ extension Probe {
                 observation: PassivePlatformRecordV1(codec: 1, bytes: [42]), source: Array(body.utf8), value: value(body))
         }
         switch command {
+        case "private-bind-repository":
+            guard args.count == 5 else { throw StorageError.unsupported }
+            let root = try await RepositoryRootSession.open(directory: args[3])
+            let association = try await root.association(for: selection,
+                id: LocalAssociationID(bytes: withUnsafeBytes(of: UUID().uuid) { Array($0) }))
+            try await session.saveLocalAssociation(association, basedOn: session.localAssociation())
+            await root.close()
+            let selected = try SelectedStoreRecordV1(association: association.id, store: selection.store,
+                generation: SelectionGeneration(bytes: withUnsafeBytes(of: UUID().uuid) { Array($0) }))
+            try Data(selected.encodedV1()).write(to: URL(fileURLWithPath: args[4] + "/Selected Store"))
+            try output(["bound": true])
         case "private-seed":
             try await session.saveCollectionSettings(try CollectionSettingsV1([.secureTextEntry(true), .confirmFileDeletion(false)]), basedOn: session.collectionSettings())
             let a = try input("frozen A")
@@ -65,7 +174,7 @@ extension Probe {
                 guard args.count == 7 else { throw error }
                 try output(["copied": false, "error": String(describing: error), "hits": nv_faults_hits()])
             }
-        case "private-repair":
+        case "private-repair", "private-repair-integrated":
             let root = URL(fileURLWithPath: args[3])
             let association = try LocalAssociationV1(id: LocalAssociationID(bytes: withUnsafeBytes(of: UUID().uuid) { Array($0) }),
                 scope: PrivateRecordScopeV1(collection: selection.descriptor.collection, store: selection.store, descriptor: selection.descriptor.descriptorID),
@@ -84,6 +193,27 @@ extension Probe {
             default: nil
             }
             if let (event, result) = repairFault { nv_faults_arm_on_repair_private_installation(event, 1, result) }
+            if command == "private-repair-integrated" {
+                let owner = try await SelectedStoreOwner.open(directory: root.path), state = try await owner.capture()
+                let result: CollectionPrivateRepairOutcome
+                do {
+                    result = try await CollectionSession.repairPrivateStore(primary: evidence,
+                        to: root.appendingPathComponent("candidate").path, protection: protection, using: owner, basedOn: state)
+                } catch {
+                    guard repairFault != nil else { throw error }
+                    try await owner.close()
+                    try output(["built": false, "hits": nv_faults_hits(), "error": String(describing: error)])
+                    return true
+                }
+                guard case .opened(let collection, _) = result else { throw StorageError.incomplete }
+                let candidate = await collection.selection
+                try JSONEncoder().encode(SelectionFile(store: candidate.store.bytes, descriptor: candidate.descriptor.encodedBytes))
+                    .write(to: root.appendingPathComponent("selection.json"))
+                if cut == "activated" { exit(86) }
+                try await collection.close()
+                try output(["activated": true])
+                return true
+            }
             let candidate: VerifiedReplacement
             do { candidate = try await LocalStoreSession.buildVerifiedReplacement(to: root.appendingPathComponent("candidate").path, primary: evidence, protection: protection) }
             catch {

@@ -40,6 +40,11 @@ association requires explicit binding, and known root contention remains scoped.
 Missing or damaged repository data dispatches to the typed P5.6 repair request;
 P5.5 never reports that repair has already occurred.
 
+The subsequent [P5.6 implementation ledger](06-repair-replacement-and-copy-validation.md)
+records the automatic missing-repository repair consumer and its separate
+qualification. The P5.5 results and source hashes here describe the earlier
+request-producing boundary; they do not qualify every P5.6 effect.
+
 An initial named unread object absent locally can issue Work Offline. Exact bytes
 already retained, late disclosure and generic errors cannot issue that choice.
 One named materialization demand shares the existing transport worker, wakeup and

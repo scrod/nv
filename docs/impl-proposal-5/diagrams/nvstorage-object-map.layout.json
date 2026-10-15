@@ -68,12 +68,12 @@
           {
             "id": "core",
             "title": "Prepared storage values",
-            "caption": "Portable Core / Runtime · bounded, captured inputs",
+            "caption": "Portable Core / Runtime · bounded inputs captured for a job",
             "children": [
               {
                 "id": "save",
                 "title": "Capture → validate",
-                "caption": "A complete meaningful action becomes checked bytes",
+                "caption": "Freeze complete actions and check their encoded history",
                 "children": [
                   {
                     "object": "capture"
@@ -94,7 +94,7 @@
               {
                 "id": "read",
                 "title": "Query → reconstruct",
-                "caption": "Checked history produces views and snapshots",
+                "caption": "Checked history supplies views and snapshots",
                 "children": [
                   {
                     "object": "graph"
@@ -120,12 +120,12 @@
           {
             "id": "effect",
             "title": "Sessions and external work",
-            "caption": "Resources fence effects; jobs carry captured evidence",
+            "caption": "Session resources govern file work; jobs retain captured inputs",
             "children": [
               {
                 "id": "owners",
                 "title": "Live session resources",
-                "caption": "Owners, permissions, keys and generations",
+                "caption": "Owners, permissions, keys and captured versions",
                 "children": [
                   {
                     "object": "localowner"
@@ -237,7 +237,7 @@
                           {
                             "id": "sql-left",
                             "title": "History and materialization",
-                            "caption": "Stored authority and its derived current view",
+                            "caption": "Saved history and rebuildable current rows",
                             "children": [
                               {
                                 "id": "retained",
@@ -264,7 +264,7 @@
                               {
                                 "id": "materialized",
                                 "title": "Rebuildable current view",
-                                "caption": "Startup acceleration from an exact accepted prefix",
+                                "caption": "Fast startup from rows representing a known history position",
                                 "children": [
                                   {
                                     "object": "current"
@@ -291,7 +291,7 @@
                           {
                             "id": "required-state",
                             "title": "Required local state",
-                            "caption": "Pins, restart obligations and private relationships",
+                            "caption": "Required history records, unfinished checks and file relationships",
                             "children": [
                               {
                                 "object": "header"
@@ -373,7 +373,7 @@
                       {
                         "id": "segments",
                         "title": "segments/<writerEpoch>/",
-                        "caption": "One immutable-object namespace · roots and pages use ordinary .nvseg leaves",
+                        "caption": "Immutable objects · snapshot roots/pages share ordinary .nvseg files",
                         "children": [
                           {
                             "object": "rchanges",
@@ -550,8 +550,8 @@
       "caption": "In-memory indexes + current filter"
     },
     "pendinglive": {
-      "title": "Pending edit generations",
-      "caption": "UUID / LSN + action context"
+      "title": "Pending edit versions",
+      "caption": "Each save settles its own input"
     },
     "views": {
       "title": "Attached native note views",
@@ -570,84 +570,84 @@
       "caption": "Candidates + reviewed commands"
     },
     "projection": {
-      "title": "Projection transition",
-      "caption": "Intended output + accepted receipt"
+      "title": "Note-file update",
+      "caption": "Intended output + verified receipt"
     },
     "capture": {
-      "title": "Frozen action capture",
-      "caption": "Values + generations + graph roles"
+      "title": "Frozen edit and action",
+      "caption": "Complete values + captured versions"
     },
     "seal": {
-      "title": "Sealed bytes / retry input",
-      "caption": "Exact envelope bytes · seal once"
+      "title": "Fixed bytes for retry",
+      "caption": "Encode + protect once"
     },
     "decoded": {
-      "title": "Decoded records / claims",
-      "caption": "Bounded codecs + exact identities"
+      "title": "Decoded records",
+      "caption": "Size limits + exact identities"
     },
     "batch": {
-      "title": "Validated batch / receipts",
-      "caption": "Same bytes + checked semantics"
+      "title": "Validated history batch",
+      "caption": "Checked history + commit result"
     },
     "graph": {
-      "title": "Checked history / query",
-      "caption": "RetainedGraph / scoped evidence"
+      "title": "Checked history queries",
+      "caption": "Relationships + query evidence"
     },
     "reduce": {
-      "title": "Prepared reconstruction",
-      "caption": "Exact cut + outside-cut work"
+      "title": "Compute current state",
+      "caption": "Saved history + checked inputs"
     },
     "snapwork": {
-      "title": "Snapshot assembly",
-      "caption": "Separate semantic / retention checks"
+      "title": "Build and check snapshots",
+      "caption": "State checks + retained objects"
     },
     "maintenance": {
-      "title": "Recoding / maintenance",
-      "caption": "Captured rows + one reservation"
+      "title": "Optional database jobs",
+      "caption": "Recode rows / compact storage"
     },
     "localowner": {
-      "title": "Local store owner",
-      "caption": "Database actor / local lane"
+      "title": "Private database owner",
+      "caption": "One serialized database worker"
     },
     "rootowner": {
-      "title": "Repository root owner",
-      "caption": "RootLane / RootLease"
+      "title": "Owned repository directory",
+      "caption": "Physical identity + session checks"
     },
     "appleowner": {
-      "title": "Apple provider context",
-      "caption": "Coordination / observations"
+      "title": "Apple file coordination",
+      "caption": "Held callbacks + fresh observations"
     },
     "selectowner": {
-      "title": "Selection owner",
-      "caption": "Expected-generation cutover"
+      "title": "Store selection / transitions",
+      "caption": "Verified destination + selection"
     },
     "gate": {
-      "title": "Lifecycle / input fences",
-      "caption": "Store / root / view generations"
+      "title": "Edit and completion checks",
+      "caption": "Recheck captured context before use"
     },
     "secrets": {
-      "title": "Unlock / crypto state",
-      "caption": "CK → object / database keys"
+      "title": "Unlocking and key state",
+      "caption": "Validated collection key context"
     },
     "recvwork": {
-      "title": "Discovery / receive turn",
-      "caption": "Batches + requirements + cursors"
+      "title": "Discover and receive",
+      "caption": "Bounded reads + durable waiting"
     },
     "pubwork": {
-      "title": "Publication input / result",
-      "caption": "Accepted prefix + install evidence"
+      "title": "Publish saved objects",
+      "caption": "Exact bytes + verified installation"
     },
     "filework": {
-      "title": "File observations / plans",
-      "caption": "Fresh expected-current evidence"
+      "title": "File observations / output",
+      "caption": "Fresh reads + applicable changes"
     },
     "pendingwork": {
-      "title": "Pending-file decision",
-      "caption": "Latest preview / frozen admission"
+      "title": "File previews / decisions",
+      "caption": "Keep input + check consent"
     },
     "repairwork": {
-      "title": "Repair / copy evidence",
-      "caption": "Validated union + fixed-cut inventory"
+      "title": "Repair / backup / copy",
+      "caption": "Checked sources + verified results"
     },
     "selection": {
       "title": "Selected-store record",
@@ -682,40 +682,40 @@
       "caption": "store_header"
     },
     "pin": {
-      "title": "Required history pin",
-      "caption": "Frontier + retained descriptors"
+      "title": "Required history record",
+      "caption": "Detects loss of accepted history"
     },
     "receiveq": {
-      "title": "Durable receive queue",
-      "caption": "Ready / waiting / rejected"
+      "title": "Pending receive work",
+      "caption": "Ready / waiting / rejected inputs"
     },
     "private": {
       "title": "Required private groups",
       "caption": "Settings + association + bootstrap"
     },
     "verification": {
-      "title": "Verification / damage state",
-      "caption": "private_groups · protected scope"
+      "title": "Unfinished checks / damage",
+      "caption": "Durable checks before editing"
     },
     "pendingdisk": {
-      "title": "Pending-file recovery",
-      "caption": "Payload / latest / frozen / settlement"
+      "title": "Pending file inputs",
+      "caption": "Latest preview + frozen operations"
     },
     "projectiondisk": {
-      "title": "Physical projection state",
-      "caption": "Required receipts + pending sources"
+      "title": "Note/file relationships",
+      "caption": "Required private observations"
     },
     "current": {
-      "title": "Current-note cells",
-      "caption": "current_notes · values + context"
+      "title": "Current-note rows",
+      "caption": "Rebuildable values + editing context"
     },
     "view": {
-      "title": "View / authoring context",
-      "caption": "view_meta · represented prefix"
+      "title": "View version and context",
+      "caption": "Captured history position"
     },
     "dict": {
-      "title": "Current-row dictionaries",
-      "caption": "current_dictionaries · hash bound"
+      "title": "Compression dictionaries",
+      "caption": "Private current-row decoding"
     },
     "hints": {
       "title": "Accepted-file scan hints",
@@ -779,7 +779,7 @@
       "id": "save",
       "title": "Edit → local durability",
       "short": "Edit / save",
-      "description": "Immediate edits become captured, sealed and validated input. Acceptance retains complete groups and required closure in one private transaction.",
+      "description": "Edits appear immediately, then complete actions are frozen, encoded and checked. One private transaction saves the exact history and every required related record.",
       "stages": [
         {
           "title": "Admit the edit",
@@ -787,24 +787,24 @@
             "live",
             "pendinglive"
           ],
-          "detail": "The live collection accepts input immediately; exact generations track pending work."
+          "detail": "The live note store changes immediately; a local version identifies each pending edit."
         },
         {
-          "title": "Freeze and seal once",
+          "title": "Freeze and encode once",
           "nodes": [
             "capture",
             "seal"
           ],
-          "detail": "Capture complete meaningful actions and produce exact retryable immutable bytes."
+          "detail": "Capture the complete action and fix the exact bytes that saving and retry will use."
         },
         {
-          "title": "Establish semantic agreement",
+          "title": "Check history consistency",
           "nodes": [
             "decoded",
             "graph",
             "batch"
           ],
-          "detail": "Use the permitted checked-current basis or full declared-history validation."
+          "detail": "Validate against a checked current-state basis or the complete declared history."
         },
         {
           "title": "Commit locally",
@@ -815,7 +815,7 @@
             "opindex",
             "actionindex"
           ],
-          "detail": "Retain bytes, accepted membership, indexes and required closure atomically; acknowledge covered generations."
+          "detail": "Save exact bytes, accepted membership, indexes and all required history together; acknowledge only the captured edit versions."
         }
       ],
       "edges": [
@@ -839,10 +839,10 @@
       "id": "reopen",
       "title": "Private current rows → live model",
       "short": "Reopen",
-      "description": "Open the owned keyed store, drain startup-required work and catch up any indexed accepted suffix. A consistent complete current-row/context read supplies the live model. Invalid materialization or unfinished verification follows its separate required reconstruction/check path.",
+      "description": "Open and unlock the owned private store, finish required receive/check work, and bring current rows through any new accepted history. Read all current values and editing context together. Invalid rows or unfinished verification take their required rebuild/check path.",
       "stages": [
         {
-          "title": "Unlock and bind the store",
+          "title": "Unlock and check the selected store",
           "nodes": [
             "unlock",
             "keychain",
@@ -851,10 +851,10 @@
             "header",
             "localowner"
           ],
-          "detail": "Recover a usable key, open the keyed container and validate selected store / bootstrap scope."
+          "detail": "Recover a usable key, open the database and check its selected-store and collection-bootstrap bindings."
         },
         {
-          "title": "Drain required work / catch up the suffix",
+          "title": "Finish required work / update current rows",
           "nodes": [
             "receiveq",
             "recvwork",
@@ -862,25 +862,25 @@
             "verification",
             "reduce"
           ],
-          "detail": "Drain required Changes and prerequisites, replay unfinished verification, and bring lagging materialization to the accepted prefix. Independent optional snapshots stay queued until publication. Healthy settled startup reads no old history envelopes."
+          "detail": "Handle required Changes and prerequisites, repeat unfinished checks, and bring current rows through the accepted history. Optional independent snapshots stay queued until the model is published. A healthy settled launch reads only the current state and required indexed work."
         },
         {
-          "title": "Capture complete current rows and context",
+          "title": "Read complete values and editing context",
           "nodes": [
             "current",
             "view",
             "dict"
           ],
-          "detail": "One consistent read captures all current bodies, compact authoring context, view epoch and represented prefix. Invalid rows or named codec data require exceptional reconstruction from retained history."
+          "detail": "One consistent read captures all current bodies, editing frontiers, the view version and represented history position. Invalid rows or decoding metadata require reconstruction from healthy retained history."
         },
         {
-          "title": "Publish the app model",
+          "title": "Publish the complete app model",
           "nodes": [
             "live",
             "search",
             "gate"
           ],
-          "detail": "Construct all notes/search state, then recheck owner, lifecycle, view epoch and accepted/materialized prefixes before atomic host publication. Search remains synchronous."
+          "detail": "Construct all notes and search state. Recheck the owner, lifecycle, view version and accepted/current-row history positions before making the complete model visible. Search remains synchronous."
         }
       ],
       "edges": [
@@ -908,10 +908,10 @@
       "id": "receive",
       "title": "Repository → accepted history",
       "short": "Receive",
-      "description": "Discovery supplies candidates. Retention, prerequisites, validation and acceptance establish local history independently of arrival order.",
+      "description": "Discovery supplies possible incoming objects. Store their exact bytes, wait for required inputs, validate the complete history unit, and then accept it. Arrival order supplies no causal ordering.",
       "stages": [
         {
-          "title": "Discover and read candidates",
+          "title": "Discover and read objects",
           "nodes": [
             "rkeys",
             "rchanges",
@@ -920,35 +920,35 @@
             "recvwork",
             "rootowner"
           ],
-          "detail": "Rooted bounded discovery and exact reads capture candidate bytes."
+          "detail": "Bounded reads from the owned repository capture exact candidate bytes."
         },
         {
-          "title": "Retain before accepting",
+          "title": "Keep bytes before accepting history",
           "nodes": [
             "objects",
             "receiveq"
           ],
-          "detail": "Durable candidate bytes and ready / wait / reject obligations survive restart."
+          "detail": "Save incoming bytes and their ready, waiting or rejected status so receive work survives restart."
         },
         {
-          "title": "Check the complete unit",
+          "title": "Check the complete history unit",
           "nodes": [
             "decoded",
             "graph",
             "snapwork",
             "batch"
           ],
-          "detail": "Resolve requirements and verify protections, graph roles and complete semantic units."
+          "detail": "Resolve required inputs and check protection, history relationships and complete action groups."
         },
         {
-          "title": "Accept and publish locally",
+          "title": "Accept history and update the model",
           "nodes": [
             "accepted",
             "pin",
             "reduce",
             "live"
           ],
-          "detail": "Atomically accept history, advance the pin and generation-fence model publication."
+          "detail": "Commit accepted history and the retained-history pin together. Check the current live generation before publishing prepared model changes."
         }
       ],
       "edges": [
@@ -975,35 +975,35 @@
       "id": "publish",
       "title": "Accepted bytes → repository",
       "short": "Publish",
-      "description": "Publication copies exact locally durable objects into the repository through owned stages and checked installation.",
+      "description": "Copy exact locally durable objects into the repository through owned temporary files. Verify the final installation and complete the required durability steps.",
       "stages": [
         {
-          "title": "Select accepted transport input",
+          "title": "Select exact saved objects",
           "nodes": [
             "accepted",
             "objects",
             "pubwork"
           ],
-          "detail": "Capture an exact accepted prefix, retained bytes and dependency closure."
+          "detail": "Capture the accepted history position, exact retained bytes and all required related objects."
         },
         {
-          "title": "Own a complete stage",
+          "title": "Own the complete temporary output",
           "nodes": [
             "rstages",
             "rootowner",
             "appleowner"
           ],
-          "detail": "Entered work keeps its exact retry input and same-root physical permission."
+          "detail": "Entered work retains its exact retry bytes and permission for the same physical directory."
         },
         {
-          "title": "Install immutable objects",
+          "title": "Install and verify immutable objects",
           "nodes": [
             "rkeys",
             "rchanges",
             "rinitial",
             "rgeneral"
           ],
-          "detail": "Exclusively install and verify exact bytes with qualified file / directory barriers."
+          "detail": "Use exclusive creation, check exact bytes, and complete the qualified file and directory durability steps."
         }
       ],
       "edges": [
@@ -1022,42 +1022,42 @@
       "id": "plaintext",
       "title": "External file → admitted operation",
       "short": "Plaintext",
-      "description": "Fresh observations and explicit decisions preserve external bytes before admitting an import or associated update.",
+      "description": "Fresh file observations and explicit choices preserve external input before admitting an import or associated update.",
       "stages": [
         {
-          "title": "Observe exact source files",
+          "title": "Read the exact selected files",
           "nodes": [
             "rnotes",
             "appleversions",
             "filework"
           ],
-          "detail": "Capture selected reads and fresh catalogs, including specifically disclosed Apple versions."
+          "detail": "Capture fresh file observations and selected bodies, including explicitly disclosed Apple versions."
         },
         {
-          "title": "Review and retain input",
+          "title": "Keep and review the input",
           "nodes": [
             "pendingwork",
             "pendingdisk",
             "projectiondisk"
           ],
-          "detail": "Separate latest previews, frozen admitted input and required physical relationships."
+          "detail": "Preserve the latest preview, frozen inputs for admitted operations and required note/file relationships separately."
         },
         {
-          "title": "Admit a fresh action",
+          "title": "Admit the applicable action",
           "nodes": [
             "capture",
             "batch"
           ],
-          "detail": "Admit the reviewed import / update / recovery through ordinary durable history."
+          "detail": "Admit the reviewed import, update or recovery through the ordinary complete local history transaction."
         },
         {
-          "title": "Project accepted intent",
+          "title": "Update the note file",
           "nodes": [
             "live",
             "projection",
             "rstages"
           ],
-          "detail": "Capture intended output, install against fresh expected-current evidence, and retain the verified association."
+          "detail": "Capture intended output, check the expected current file before replacement, then retain the verified association."
         }
       ],
       "edges": [
@@ -1082,10 +1082,10 @@
       "id": "repair",
       "title": "Independent evidence → verified replacement",
       "short": "Repair / copy",
-      "description": "Validated surviving history and required private state form a repair union. A fresh sibling is reopened and verified before selection changes.",
+      "description": "Combine independently validated surviving history and required private records. Build a separate replacement store and reopen it successfully before changing the active selection.",
       "stages": [
         {
-          "title": "Capture independent evidence",
+          "title": "Capture surviving evidence",
           "nodes": [
             "objects",
             "pin",
@@ -1096,22 +1096,22 @@
             "rchanges",
             "rkeys"
           ],
-          "detail": "Preserve exact local, repository and explicitly selected backup input with coherent required groups."
+          "detail": "Preserve exact local, repository and selected backup inputs with consistent required private records."
         },
         {
-          "title": "Prepare a verified union",
+          "title": "Verify the combined inputs",
           "nodes": [
             "repairwork"
           ],
-          "detail": "Check exact bytes, retention closure, private records and copy inventories."
+          "detail": "Check exact bytes, all required history, private records and captured copy inventories."
         },
         {
-          "title": "Build and verify the sibling",
+          "title": "Build and reopen the replacement",
           "nodes": [
             "candidate",
             "selectowner"
           ],
-          "detail": "Rebuild a fresh private store and reopen it with recovery credentials."
+          "detail": "Reconstruct a fresh private store and verify reopening with usable recovery credentials."
         },
         {
           "title": "Activate or copy explicitly",
@@ -1120,7 +1120,7 @@
             "copy",
             "localowner"
           ],
-          "detail": "Expected-generation selection activates the replacement; separately selected copy output preserves captured history."
+          "detail": "Changing selection checks its expected version. A separately requested copy preserves the captured history in its own destination."
         }
       ],
       "edges": [

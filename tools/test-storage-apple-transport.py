@@ -178,6 +178,13 @@ class Driver:
         assert self.call('stop') == {'state': 'stopped'}
         assert self.process.wait(timeout=60) == 0
 
+    def settle(self, timeout):
+        """Waits for current-row catch-up before joining finite transport work for semantic observation."""
+        config = json.loads(self.config.read_text())
+        eventually(lambda: self.host.probe('inspect', config['directory'], config['selection']),
+            current_rows_caught_up, timeout, 'Accepted history materialized before observation')
+        self.call('pause-transport')
+
     def diagnose(self):
         self.host.run(['/usr/bin/sample', str(self.trace[0]['pid']), '2', '1', '-file',
                        str(self.config)+'.sample'], check=False, timeout=15)
@@ -200,9 +207,21 @@ def locator_path(encoded):
     return f'NV Data/v1/segments/{raw[:16].hex()}/{int.from_bytes(raw[16:24], "big"):020d}-{raw[24:].hex()}.nvseg'
 
 
+def current_rows_caught_up(report):
+    assert report['integrity'] == [['ok']] and report['foreign_keys'] == []
+    accepted = [int(row[5]) for row in report['objects'] if row[5] != '']
+    assert accepted and len(report['view']) == 1
+    return int(report['view'][0][1]) == max(accepted)
+
+
 def main():
+    if not __debug__: raise SystemExit('Qualification requires Python assertions')
     check_line_reader()
+    companion = dict(integrity=[['ok']], foreign_keys=[], objects=[['id', 1, '', '', '', '2']], view=[['epoch', '2']])
+    assert current_rows_caught_up(companion)
+    assert not current_rows_caught_up(dict(companion, view=[['epoch', '1']]))
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--self-test', action='store_true', help='Check buffered replies and accepted/current-prefix observation companions.')
     parser.add_argument('--relay', type=Path)
     parser.add_argument('--app', type=Path)
     parser.add_argument('--make-app', nargs=3)
@@ -213,6 +232,9 @@ def main():
     parser.add_argument('--repository-parent', type=Path)
     parser.add_argument('--timeout', type=int, default=300)
     args = parser.parse_args()
+    if args.self_test:
+        print('PASS: buffered replies and current-prefix observation companions')
+        return
     if args.make_app: make_app(*args.make_app); return
     if args.relay: relay(args.relay, str(args.app)); return
     assert args.local_binary and bool(args.ssh_target) == bool(args.ssh_key)
@@ -282,30 +304,39 @@ def main():
             return receipt
         marker = 'P54 synthetic secret '+uuid.uuid4().hex
         first = remember(source.call('put', body=marker))
-        remember(source.call('create', birth=3, body='new left note'))
-        state = eventually(lambda: delivery(lambda: peer.call('state')), lambda result:
-            sorted(note['body'] for note in result['notes']) == sorted([marker, 'new left note', 'untouched']), args.timeout, 'Automatic left-to-right delivery')
+        creation = remember(source.call('create', birth=3, body='new left note'))
+        eventually(lambda: delivery(lambda: peer.call('accepted')), lambda result:
+            locator_path(creation['object']) in result['paths'], args.timeout, 'Automatic left-to-right acceptance')
+        peer.settle(args.timeout)
+        state = peer.call('state')
+        assert sorted(note['body'] for note in state['notes']) == sorted([marker, 'new left note', 'untouched'])
+        peer.call('resume-transport')
         remember(peer.call('put', body='right saved edit'))
-        remember(peer.call('delete', birth=2))
-        eventually(lambda: delivery(lambda: source.call('state')), lambda result:
-            sorted(note['body'] for note in result['notes']) == ['new left note', 'right saved edit'], args.timeout, 'Automatic right-to-left edit/Delete')
+        removal = remember(peer.call('delete', birth=2))
+        eventually(lambda: delivery(lambda: source.call('accepted')), lambda result:
+            locator_path(removal['object']) in result['paths'], args.timeout, 'Automatic right-to-left edit/Delete acceptance',
+            diagnose=lambda: print('Publication source at deadline:', peer.call('state'), flush=True))
+        source.settle(args.timeout)
+        assert sorted(note['body'] for note in source.call('state')['notes']) == ['new left note', 'right saved edit']
+        source.call('resume-transport')
         root1, root2 = source.call('snapshot-save'), source.call('snapshot-save')
         eventually(lambda: delivery(lambda: peer.call('accepted')), lambda result: locator_path(root2['root']) in result['paths'], args.timeout, 'Snapshot and retention-parent acceptance')
-        for driver in (source, peer): driver.call('pause-transport')
+        for driver in (source, peer): driver.settle(args.timeout)
         a = remember(source.call('put', body='left overlapping edit'))
         b = remember(peer.call('put', body='right overlapping edit'))
         for driver in (source, peer): driver.call('resume-transport')
         for driver, receipt in ((source, b), (peer, a)):
             eventually(lambda: delivery(lambda: driver.call('accepted')), lambda result: locator_path(receipt['object']) in result['paths'], args.timeout, 'Concurrent branch acceptance')
+        for driver in (source, peer): driver.settle(args.timeout)
         left_conflicts, right_conflicts = source.call('conflicts'), peer.call('conflicts')
         assert left_conflicts == right_conflicts and len(left_conflicts['heads']) == 2 and left_conflicts['alternatives']
         assert source.call('state')['notes'] == peer.call('state')['notes']
-        for driver in (source, peer): driver.call('pause-transport')
         deletion = remember(source.call('delete', birth=3))
         overlap = remember(peer.call('put', birth=3, body='preserved overlapping deletion'))
         for driver in (source, peer): driver.call('resume-transport')
         for driver, receipt in ((source, overlap), (peer, deletion)):
             eventually(lambda: delivery(lambda: driver.call('accepted')), lambda result: locator_path(receipt['object']) in result['paths'], args.timeout, 'Delete/edit history acceptance')
+        for driver in (source, peer): driver.settle(args.timeout)
         for driver in (source, peer):
             state = driver.call('state')
             assert '03'*16 not in [note['birth'] for note in state['notes']]

@@ -7,45 +7,45 @@ subgraph cluster_application { label="Application live model\nApplication integr
 subgraph cluster_immediate { label="Immediate note interaction\nSynchronous input and search";
 "live" [label="Authoritative live note collection"];
 "search" [label="Synchronous search / live indexes"];
-"pendinglive" [label="Pending generations / action context"];
+"pendinglive" [label="Pending edit versions and action context"];
 "views" [label="Native undo + attached note views"];
 }
 subgraph cluster_features { label="Derived feature views\nQueries, review and external-file intent";
 "history" [label="History / Recently Deleted views"];
 "conflicts" [label="Derived merges / conflict attention"];
 "undo" [label="Causal Undo/Redo / reviewed commands"];
-"projection" [label="Active projection transition"];
+"projection" [label="Note-file update in progress"];
 }
 }
-subgraph cluster_core { label="Prepared storage values\nPortable Core / Runtime · bounded, captured inputs";
-subgraph cluster_save { label="Capture → validate\nA complete meaningful action becomes checked bytes";
-"capture" [label="Frozen admitted action captures"];
-"seal" [label="Sealed immutable bytes / retry input"];
-"decoded" [label="Bounded decoded records / claims"];
-"batch" [label="Validated history batch + receipts"];
+subgraph cluster_core { label="Prepared storage values\nPortable Core / Runtime · bounded inputs captured for a job";
+subgraph cluster_save { label="Capture → validate\nFreeze complete actions and check their encoded history";
+"capture" [label="Frozen edit and action captures"];
+"seal" [label="Fixed object bytes for saving and retry"];
+"decoded" [label="Decoded records awaiting history checks"];
+"batch" [label="Validated batch and durability results"];
 }
-subgraph cluster_read { label="Query → reconstruct\nChecked history produces views and snapshots";
-"graph" [label="Checked history / query evidence"];
-"reduce" [label="Prepared reduction / reconstruction"];
-"snapwork" [label="Snapshot capture / assembly evidence"];
+subgraph cluster_read { label="Query → reconstruct\nChecked history supplies views and snapshots";
+"graph" [label="Checked history and query results"];
+"reduce" [label="Prepared current-state computation"];
+"snapwork" [label="Snapshot capture and validation"];
 "maintenance" [label="Recoding / maintenance job state"];
 }
 }
-subgraph cluster_effect { label="Sessions and external work\nResources fence effects; jobs carry captured evidence";
-subgraph cluster_owners { label="Live session resources\nOwners, permissions, keys and generations";
+subgraph cluster_effect { label="Sessions and external work\nSession resources govern file work; jobs retain captured inputs";
+subgraph cluster_owners { label="Live session resources\nOwners, permissions, keys and captured versions";
 "localowner" [label="Local store / database owner"];
 "rootowner" [label="Physical repository root owner"];
 "appleowner" [label="Apple coordination / provider observations"];
 "selectowner" [label="Selection / transition ownership"];
-"gate" [label="Admission / publication / close fences"];
+"gate" [label="Edit, publication and close checks"];
 "secrets" [label="Unlock context / transient crypto state"];
 }
 subgraph cluster_jobs { label="External operation values\nDiscovery, transport, file review and repair";
-"recvwork" [label="Receive / discovery turn"];
-"pubwork" [label="Publication batch / installation evidence"];
-"filework" [label="File observations / projection plans"];
-"pendingwork" [label="Pending-file preview / decision capture"];
-"repairwork" [label="Repair / backup / copy evidence"];
+"recvwork" [label="Receive and discovery work"];
+"pubwork" [label="Publication work and installation results"];
+"filework" [label="File observations and output plans"];
+"pendingwork" [label="Pending file previews and decisions"];
+"repairwork" [label="Repair, backup and copy results"];
 }
 }
 }
@@ -60,27 +60,27 @@ subgraph cluster_active_store { label="Selected <LocalStoreID> directory\nThe ac
 subgraph cluster_database { label="Database files\nOne private durable container per LocalStoreID";
 "dbcontainer" [label="Private database + pager files"];
 subgraph cluster_sqlite { label="Collection.sqlite\nOne keyed SQLCipher file · all 27 production SQL tables";
-subgraph cluster_sql_left { label="History and materialization\nStored authority and its derived current view";
+subgraph cluster_sql_left { label="History and materialization\nSaved history and rebuildable current rows";
 subgraph cluster_retained { label="Accepted and retained history\nExact bytes, accepted membership and query indexes";
-"objects" [label="Exact retained object BLOBs"];
-"accepted" [label="Acceptance batches + dependencies"];
-"opindex" [label="Operation / note relationship indexes"];
-"actionindex" [label="Action / restoration indexes"];
+"objects" [label="Stored copies of exact object bytes"];
+"accepted" [label="Committed history and prerequisites"];
+"opindex" [label="Operation and note-relationship indexes"];
+"actionindex" [label="Action and restoration indexes"];
 }
-subgraph cluster_materialized { label="Rebuildable current view\nStartup acceleration from an exact accepted prefix";
-"current" [label="Derived current-note cells"];
-"view" [label="View epoch + authoring context"];
-"dict" [label="Private current-row dictionaries"];
+subgraph cluster_materialized { label="Rebuildable current view\nFast startup from rows representing a known history position";
+"current" [label="Rebuildable current-note rows"];
+"view" [label="Current-view version and editing context"];
+"dict" [label="Current-row compression dictionaries"];
 "hints" [label="Accepted-file scan hints"];
 }
 }
-subgraph cluster_required_state { label="Required local state\nPins, restart obligations and private relationships";
+subgraph cluster_required_state { label="Required local state\nRequired history records, unfinished checks and file relationships";
 "header" [label="Store header / scope binding"];
-"pin" [label="Required retained-history pin"];
+"pin" [label="Required retained-history record"];
 "receiveq" [label="Durable receive work"];
 "private" [label="Required private record groups"];
-"verification" [label="Verification obligations + damage marker"];
-"pendingdisk" [label="Pending-file recovery reference graph"];
+"verification" [label="Unfinished checks and known damage"];
+"pendingdisk" [label="Pending file inputs and their references"];
 "projectiondisk" [label="Required projection relationship state"];
 }
 }
@@ -94,7 +94,7 @@ subgraph cluster_nvdata { label="NV Data/ → v1/\nVisible ordinary protocol dir
 subgraph cluster_keys { label="keys/\nBootstrap and unlocking descriptors";
 "rkeys" [label="Bootstrap / key descriptors"];
 }
-subgraph cluster_segments { label="segments/<writerEpoch>/\nOne immutable-object namespace · roots and pages use ordinary .nvseg leaves";
+subgraph cluster_segments { label="segments/<writerEpoch>/\nImmutable objects · snapshot roots/pages share ordinary .nvseg files";
 "rchanges" [label="Changes segment files"];
 subgraph cluster_snapshots { label="Snapshot representations\nLogical families in the same segment namespace";
 "rinitial" [label="Initial snapshot root + pages"];
@@ -137,7 +137,7 @@ subgraph cluster_destinations { label="Import and output destinations\nExplicitl
 "seal" -> "batch" [label="pair same exact bytes with validated contents"];
 "batch" -> "objects" [label="retain exact immutable bytes"];
 "batch" -> "accepted" [label="commit complete validated unit"];
-"accepted" -> "pin" [label="advance maximal required closure atomically"];
+"accepted" -> "pin" [label="update uncovered required-object references together; retain every ancestor"];
 "accepted" -> "opindex" [label="insert logical records / occurrences / edges"];
 "accepted" -> "actionindex" [label="insert complete actions / restore provenance"];
 "accepted" -> "receiveq" [label="wake every affected dependent"];
@@ -150,12 +150,12 @@ subgraph cluster_destinations { label="Import and output destinations\nExplicitl
 "current" -> "graph" [label="checked current basis / scoped query context"];
 "graph" -> "reduce" [label="reduce exact declared/applied history"];
 "reduce" -> "current" [label="install affected rows / remove absent births"];
-"reduce" -> "view" [label="advance rows + context + prefix together"];
-"view" -> "current" [label="bind exact epoch and represented prefix"];
+"reduce" -> "view" [label="commit current rows, editing context and history position together"];
+"view" -> "current" [label="bind the current-view version to its history position"];
 "current" -> "live" [label="stream complete checked startup / publish model"];
-"view" -> "live" [label="restore compact authoring frontiers"];
+"view" -> "live" [label="restore the history references needed to author new actions"];
 "live" -> "search" [label="initialize + synchronously filter current notes"];
-"reduce" -> "live" [label="generation-fenced atomic live publication"];
+"reduce" -> "live" [label="check current generations; publish live changes together"];
 "live" -> "views" [label="attach shared note / independent presentation"];
 "views" -> "pendinglive" [label="ordinary input + native action accounting"];
 "graph" -> "history" [label="page metadata / verify selected history preview"];
@@ -187,14 +187,14 @@ subgraph cluster_destinations { label="Import and output destinations\nExplicitl
 "recvwork" -> "hints" [label="remember accepted identity + fresh immutable fingerprint"];
 "hints" -> "recvwork" [label="checked batch hit skips unchanged body read"];
 "rootowner" -> "recvwork" [label="fresh held-directory metadata / single-use streams"];
-"graph" -> "snapwork" [label="capture stated operation cut + accepted root frontier"];
+"graph" -> "snapwork" [label="capture represented history and accepted snapshot roots requiring coverage"];
 "snapwork" -> "seal" [label="emit bounded initial/general root/page envelopes"];
 "snapwork" -> "batch" [label="verify complete bootstrap or snapshot unit"];
 "rgeneral" -> "rgeneral" [label="exact v1 retention parents cover prior root closures"];
 "rkeys" -> "rchanges" [label="pins exact Genesis locator"];
 "rinitial" -> "rchanges" [label="verifies Genesis / ImportComplete / import closure"];
 "rgeneral" -> "rchanges" [label="represents stated logical operation cut"];
-"snapwork" -> "reduce" [label="verified snapshot basis + all accepted outside-cut actions"];
+"snapwork" -> "reduce" [label="use verified snapshot state plus every accepted action outside its history"];
 "rnotes" -> "filework" [label="coordinated catalogs + selected exact read"];
 "appleversions" -> "filework" [label="read selected disclosed member in resolver context"];
 "filework" -> "pendingwork" [label="classify provenance / own repair candidates"];
@@ -265,6 +265,6 @@ subgraph cluster_destinations { label="Import and output destinations\nExplicitl
 "verification" -> "gate" [label="known damage or unfinished required checks fence startup"];
 "gate" -> "live" [label="final synchronous publication / mutation admission"];
 "gate" -> "capture" [label="force lifecycle / resolver / external-handoff capture"];
-"gate" -> "localowner" [label="quiesce, drain admitted history + required state"];
-"gate" -> "rootowner" [label="fence / drain entered effects; release ownership last"];
+"gate" -> "localowner" [label="stop new edits; finish saving admitted history and required private state"];
+"gate" -> "rootowner" [label="invalidate stale work; wait for entered effects; release ownership last"];
 }

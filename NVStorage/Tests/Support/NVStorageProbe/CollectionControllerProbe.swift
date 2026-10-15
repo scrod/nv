@@ -93,8 +93,43 @@ func runCollectionControllerProbe(_ args: [String]) async throws -> Bool {
         }
         if let request = await owner.pendingRepositoryRequest() { result["recovery"] = String(describing: request.kind) }
         if let pending = await owner.pendingProviderObject() { result["pending"] = hex(pending.encodedV1()) }
+        result["repair"] = String(describing: await owner.repositoryRepairStatus())
         result.merge(await transportStatus(owner)) { _, status in status }
         return result
+    }
+    func copied(_ result: ActiveRepositoryCopy) -> [String: Any] {
+        ["through": result.through, "excludedPending": result.excludedPrivatePendingItems,
+         "completeInventory": result.repository.capturedInventoryComplete,
+         "files": result.repository.files.map { ["path": $0.path, "sha256": hex($0.sha256)] },
+         "issues": result.repository.issues.map { ["path": $0.path, "cause": String(describing: $0.cause)] },
+         "unmet": result.repository.unmetRequirements.map(\.path)]
+    }
+    func switchCollection(_ source: CollectionSession, request: DriverCommand) async throws -> [String: Any] {
+        guard let repository = request.repository, let directory = request.privateDirectory,
+              let selectionDirectory = request.selectionDirectory else { throw StorageError.incomplete }
+        let initial = try await SelectedStoreOwner.open(directory: selectionDirectory)
+        let first = try await initial.capture()
+        if first.record == nil {
+            guard case .activated = try await source.activateFreshSelection(using: initial, basedOn: first) else {
+                throw StorageError.incomplete
+            }
+        } else { try await initial.close() }
+        let selector = try await SelectedStoreOwner.open(directory: selectionDirectory)
+        do {
+            let result = try await source.switchRepositoryAndSavedWork(to: repository, privateDirectory: directory,
+                using: selector, basedOn: selector.capture())
+            if case .sourceRetained(let cause) = result.outcome {
+                try? await selector.close()
+                return ["outcome": "source-retained", "cause": String(describing: cause), "copy": copied(result.copy)]
+            }
+            guard case .opened(let successor, let selected) = result.outcome else { throw StorageError.incomplete }
+            let selection = await successor.selection
+            guard selected.record?.store == selection.store else { throw StorageError.wrongContext }
+            owner = successor
+            try saveSelection(selection)
+            return ["outcome": "opened", "copy": copied(result.copy), "current": try await current(successor),
+                    "store": hex(selection.store.bytes)]
+        } catch { try? await selector.close(); throw error }
     }
     do {
         try emit(["state": "running", "pid": ProcessInfo.processInfo.processIdentifier, "eviction": eviction])
@@ -123,6 +158,10 @@ func runCollectionControllerProbe(_ args: [String]) async throws -> Bool {
             switch request.command {
             case "state": try await emit(current(owner))
             case "transport-status": try await emit(transportStatus(owner))
+            case "copy":
+                guard let repository = request.repository else { throw StorageError.incomplete }
+                try await emit(copied(owner.copyRepositoryAndSavedWork(to: repository)))
+            case "switch": try await emit(switchCollection(owner, request: request))
             case "put", "create", "delete":
                 generation += 1
                 let birth = try NoteBirth(bytes: Array(repeating: request.birth ?? 1, count: 16))

@@ -90,12 +90,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .scenario-card{display:flex;flex-direction:column;min-width:0;border:1px solid #d8e2ed;background:#fff;border-radius:10px;box-shadow:0 2px 6px #263f5904;overflow:hidden;transition:box-shadow .12s,border-color .12s}
 .scenario-card:hover,.scenario-card:focus-within{border-color:#99b1c9;box-shadow:0 4px 16px #2746640d}
-.scenario-open{display:flex;flex-direction:column;align-items:flex-start;flex:1;width:100%;text-align:left;border:0;border-radius:0;padding:20px 20px 16px;line-height:1.55}
+.scenario-open{display:flex;flex-direction:column;align-items:flex-start;width:100%;text-align:left;border:0;border-radius:0;padding:20px 20px 0;line-height:1.55}
 .scenario-open:hover{background:#fbfdff}
 .card-kicker{font-size:8px;text-transform:uppercase;letter-spacing:.8px;color:#8d9bad}
 .scenario-open h4{font-size:17px;line-height:1.35;letter-spacing:-.3px;color:#2d4966;font-weight:650;margin:8px 0}
-.scenario-open p{font-size:12px;color:#7a8b9f;margin:0 0 18px}
-.card-action{display:flex;width:100%;justify-content:space-between;margin-top:auto;font-size:11px;font-weight:600;color:#416f98}
+.card-summary{flex:1;font-size:12px;line-height:1.55;color:#7a8b9f;margin:0;padding:0 20px 18px}
+.card-action{display:flex;width:100%;justify-content:space-between;margin-top:auto;padding:0 20px 16px;border:0;border-radius:0;text-align:left;font-size:11px;font-weight:600;color:#416f98}
 .card-action>span{font-size:17px;line-height:1}
 .card-evidence{background:#f8fafd;border-top:1px solid #edf1f6;padding:10px 20px 13px}
 .card-evidence>span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.7px;color:#90a0b2;margin:4px 0 4px}
@@ -165,3 +165,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .scenario-setup{font-size:11px;color:#778b9f;line-height:1.7;margin:12px 0!important}
 @media(max-width:1000px){h1{font-size:19px}.scenario-strip>strong{max-width:210px}.header-links a:first-child{display:none}}
 .contract-note{font-size:10px;color:#8b7c61;line-height:1.65;margin:10px 0!important}
+.glossary-term,.inspector .glossary-term{color:inherit;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;text-decoration-color:#8ca2b8}
+.glossary-term:hover,.inspector .glossary-term:hover{color:#285e8c;text-decoration-style:solid}
+.glossary-help{margin-top:10px!important;font-size:11px!important}

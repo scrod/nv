@@ -398,14 +398,33 @@ def cases():
     yield ("repository-reject-currentOnly", r, "currentOnly", "repository", 1, "HistoryNotFlattened", False, True)
     yield ("repository-reject-privateRequired", r, "privateRequired", "repository", 1, "RepositoryAloneSuffices", True, True)
     yield ("repository-NeverCopiedWithoutPrivateStore", r, "safe", "repository", 1, "NeverCopiedWithoutPrivateStore", False, True)
+    for scenario in ("damagedFile", "damagedHierarchy"):
+        yield (f"repository-copy-{scenario}", r, "safe", scenario, 1, "Safety", False, False)
+        yield (f"repository-progress-{scenario}", r, "safe", scenario, 1, "SavedRecoveryCompletes", True, False)
+        yield (f"repository-reached-{scenario}", r, "safe", scenario, 1, "NeverRecoveredWithPreservedDamage", False, True)
+        for policy, prop in (("copyDamaged", "ExactHistory"), ("hideDamage", "DamageReported"),
+                             ("repairSource", "SourceDamagePreserved")):
+            yield (f"repository-reject-{scenario}-{policy}", r, policy, scenario, 1, prop, False, True)
+    switch = "RepositorySwitchSafety"
+    for scenario in ("normal", "crash"):
+        for prop in ("SelectionCoversSource", "AcknowledgmentIsDurable", "PendingKeepsExclusion", "SourcePreserved"):
+            yield (f"repository-switch-{scenario}-{prop}", switch, "safe", scenario, 1, prop, False, False)
+        yield (f"repository-switch-{scenario}-progress", switch, "safe", scenario, 1, "Settles", True, False)
+    for policy, prop in (("skipCut", "SelectionCoversSource"), ("omitPrivate", "SelectionCoversSource"),
+                         ("releasePending", "PendingKeepsExclusion"), ("earlyAck", "AcknowledgmentIsDurable")):
+        yield (f"repository-switch-reject-{policy}", switch, policy, "crash", 1, prop, False, True)
+    for prop in ("NeverSwitched", "NeverRefusedLatePrivate", "NeverReopenedNew", "NeverReopenedOld"):
+        yield (f"repository-switch-{prop}", switch, "safe", "crash", 1, prop, False, True)
     repair = "RepositoryRepairSafety"
     for scenario in ("healthy", "providerAbsent", "providerPartial", "providerUnavailable",
                      "providerRemoteNewer", "providerUnmaterialized", "providerForeign",
                      "rootReplaced", "localAbsent", "localPartial", "localUnreadable",
                      "localUnwritable", "bothPartial", "bothMissing", "runningDisclosure",
-                     "providerRootRace", "localRootRace", "localStoreRace"):
+                     "providerRootRace", "localRootRace", "localStoreRace", "providerDamaged", "providerWrongKind"):
         yield (f"repair-{scenario}", repair, "safe", scenario, 1, "Safety", False, False)
-    for scenario, prop in (("providerAbsent", "ProviderRepairCompletes"),
+    for scenario, prop in (("providerDamaged", "SaveAsAndEditingAvailable"),
+                           ("providerWrongKind", "SaveAsAndEditingAvailable"),
+                           ("providerAbsent", "ProviderRepairCompletes"),
                            ("providerPartial", "ProviderRepairCompletes"),
                            ("localAbsent", "LocalRepairCompletes"),
                            ("localPartial", "LocalRepairCompletes"),
@@ -415,6 +434,9 @@ def cases():
         yield (f"repair-progress-{scenario}-{prop}", repair, "safe", scenario, 1,
                prop, True, False)
     for policy, scenario, prop, temporal in (
+        ("overwriteDamaged", "providerDamaged", "OccupiedDamageIsPreserved", False),
+        ("overwriteDamaged", "providerWrongKind", "OccupiedDamageIsPreserved", False),
+        ("omitSaveAs", "providerDamaged", "SaveAsAndEditingAvailable", True),
         ("manualRestore", "providerAbsent", "ProviderRepairCompletes", True),
         ("offerOfflineAnyFailure", "providerUnavailable", "WorkOfflineOnlyForWithheldEvidence", False),
         ("overwriteForeign", "providerForeign", "ForeignEvidenceIsPreserved", False),
@@ -427,8 +449,11 @@ def cases():
         ("repairBeforeLocal", "bothPartial", "ProviderRepairUsesCompleteLocal", True),
         ("providerRevokesEditing", "runningDisclosure", "ActiveSessionRemainsEditable", False),
     ):
-        yield (f"repair-reject-{policy}", repair, policy, scenario, 1, prop, temporal, True)
-    for scenario, prop in (("providerRemoteNewer", "NeverOfferedWorkOffline"),
+        suffix = f"-{scenario}" if policy == "overwriteDamaged" else ""
+        yield (f"repair-reject-{policy}{suffix}", repair, policy, scenario, 1, prop, temporal, True)
+    for scenario, prop in (("providerDamaged", "NeverOfferedSaveAs"),
+                           ("providerWrongKind", "NeverOfferedSaveAs"),
+                           ("providerRemoteNewer", "NeverOfferedWorkOffline"),
                            ("providerRemoteNewer", "NeverChoseWorkOffline"),
                            ("providerAbsent", "NeverBuiltProviderCopy"),
                            ("localAbsent", "NeverBuiltLocalCopy"),
@@ -438,7 +463,8 @@ def cases():
                            ("providerRootRace", "NeverInterruptedProviderCopy"),
                            ("localRootRace", "NeverActivatedFromRetainedBuild"),
                            ("localStoreRace", "NeverInterruptedStoreCopy")):
-        yield (f"repair-{prop}", repair, "safe", scenario, 1, prop, False, True)
+        suffix = f"-{scenario}" if prop == "NeverOfferedSaveAs" else ""
+        yield (f"repair-{prop}{suffix}", repair, "safe", scenario, 1, prop, False, True)
     for policy, scenario, prop in (
         ("staleCopy", "providerRootRace", "ProviderEffectsHaveAuthority"),
         ("staleCopy", "localRootRace", "LocalCopiesHaveAvailableSource"),

@@ -119,7 +119,9 @@ final class Inspector {
         if try await runRepositoryExchangeProbe(args) { return }
         if try await runRepositoryDriverProbe(args) { return }
         if try await runCollectionControllerProbe(args) { return }
+        if try await collectionRepositoryRepair(args) { return }
         if try await runCollectionStartupProbe(args) { return }
+        if try await runRepositoryCopyProbe(args) { return }
         if args.count == 4, args[0] == "seed-pair" {
             let protection: ObjectProtectionV1 = args[2] == "encrypted" ? .encrypted(keyID: try .init(bytes: Array(repeating: 3, count: 16)), key: SymmetricKey(data: Array(repeating: 4, count: 32))) : .publicHash
             let initial = try InitialCollectionV1.build(collection: CollectionID(bytes: Array(repeating: 1, count: 16)),
@@ -258,6 +260,7 @@ final class Inspector {
         let protection: ObjectProtectionV1
         if let id = selection.descriptor.keyID { protection = try .encrypted(keyID: id, key: selection.descriptor.unwrap(passphrase: "probe password")) }
         else { protection = .publicHash }
+        if try await complementaryPrivateRepair(args, selection: selection, protection: protection) { return }
         if command == "bootstrap-retain" || command == "bootstrap-complete" {
             let input = URL(fileURLWithPath: args[3])
             let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: input.appendingPathComponent("manifest.json"))) as! [String: Any]

@@ -12,17 +12,18 @@ ASSUME Policy \in {"safe", "manualRestore", "offerOfflineAnyFailure",
                    "overwriteForeign", "claimIncomplete", "fabricate",
                    "editWithoutClosure", "providerGatesEditing", "staleRoot",
                    "destructiveLocal", "repairBeforeLocal", "providerRevokesEditing",
-                   "staleCopy", "staleStore"}
+                   "staleCopy", "staleStore", "overwriteDamaged", "omitSaveAs"}
    /\ Scenario \in {"healthy", "providerAbsent", "providerPartial",
                     "providerUnavailable", "providerRemoteNewer",
                     "providerUnmaterialized", "providerForeign", "rootReplaced",
                     "localAbsent", "localPartial", "localUnreadable",
                     "localUnwritable", "bothPartial", "bothMissing", "runningDisclosure",
-                    "providerRootRace", "localRootRace", "localStoreRace"}
+                    "providerRootRace", "localRootRace", "localStoreRace",
+                    "providerDamaged", "providerWrongKind"}
 
 Objects == {"base", "local", "peer"}
 Required == Objects
-Entries == {"valid", "absent", "inaccessible", "foreign", "building"}
+Entries == {"valid", "absent", "inaccessible", "foreign", "building", "damaged", "wrongKind"}
 Phases == {"idle", "building", "verified", "pinned", "active"}
 
 InitialLocal ==
@@ -34,6 +35,7 @@ InitialLocal ==
 InitialProvider ==
  CASE Scenario \in {"providerAbsent", "providerRootRace", "providerForeign"} -> {}
  [] Scenario = "providerPartial" -> {"base", "local"}
+ [] Scenario \in {"providerDamaged", "providerWrongKind"} -> {"base", "peer"}
  [] Scenario = "bothPartial" -> {"base", "peer"}
  [] Scenario = "bothMissing" -> {"base"}
  [] OTHER -> Objects
@@ -43,6 +45,8 @@ InitialProviderEntry ==
  [] Scenario \in {"providerUnavailable", "providerRemoteNewer",
                    "providerUnmaterialized"} -> "inaccessible"
  [] Scenario = "providerForeign" -> "foreign"
+ [] Scenario = "providerDamaged" -> "damaged"
+ [] Scenario = "providerWrongKind" -> "wrongKind"
  [] OTHER -> "valid"
 
 InitialLocalEntry ==
@@ -68,7 +72,7 @@ Init == s = [
  root |-> IF Scenario = "rootReplaced" THEN "different" ELSE "same",
  store |-> "same", activatedWithoutProvider |-> FALSE,
  remotePending |-> Scenario \in {"providerRemoteNewer", "providerUnmaterialized"},
- offlineOffered |-> FALSE, offlineChosen |-> FALSE, created |-> FALSE,
+ offlineOffered |-> FALSE, offlineChosen |-> FALSE, created |-> FALSE, saveAsOffered |-> FALSE,
  foreignSeen |-> Scenario = "providerForeign",
  fabricated |-> FALSE,
  localBuild |-> {}, providerBuild |-> {},
@@ -88,7 +92,8 @@ BeginProviderRestore ==
  /\ s.providerPhase = "idle" /\ s.root = "same"
  /\ CompleteLocal
  /\ ((s.providerEntry = "absent" /\ Policy # "manualRestore")
-     \/ (Policy = "overwriteForeign" /\ s.providerEntry = "foreign"))
+     \/ (Policy = "overwriteForeign" /\ s.providerEntry = "foreign")
+     \/ (Policy = "overwriteDamaged" /\ s.providerEntry \in {"damaged", "wrongKind"}))
  /\ s' = [s EXCEPT
       !.providerEntry = "building", !.providerPhase = "building",
       !.providerBuild = {}, !.created = TRUE]
@@ -200,7 +205,14 @@ DisclosePending ==
       !.providerActive = FALSE,
       !.editing = IF Policy = "providerRevokesEditing" THEN FALSE ELSE @]
 
-Next == BeginProviderRestore \/ OfferWorkOffline \/ ChooseWorkOffline
+\* The existing recovery request keeps a fresh destination available while local saves remain usable.
+OfferSaveAs ==
+ /\ ~s.saveAsOffered /\ Policy # "omitSaveAs"
+ /\ s.providerEntry \in {"damaged", "wrongKind", "foreign"}
+ /\ CompleteLocal
+ /\ s' = [s EXCEPT !.saveAsOffered = TRUE]
+
+Next == BeginProviderRestore \/ OfferWorkOffline \/ ChooseWorkOffline \/ OfferSaveAs
  \/ VerifyProviderRestore \/ ActivateProviderRestore
  \/ VerifyLocalRepair \/ CommitLocalFrontier \/ ActivateLocalRepair
  \/ BeginLocalRepair \/ ActivateExistingProvider \/ StartEditing \/ DisclosePending
@@ -210,6 +222,7 @@ Next == BeginProviderRestore \/ OfferWorkOffline \/ ChooseWorkOffline
 
 Spec == Init /\ [][Next]_vars
 FairSpec == Spec
+ /\ WF_vars(OfferSaveAs)
  /\ WF_vars(BeginProviderRestore) /\ WF_vars(OfferWorkOffline)
  /\ WF_vars(VerifyProviderRestore) /\ WF_vars(ActivateProviderRestore)
  /\ WF_vars(BeginLocalRepair) /\ WF_vars(VerifyLocalRepair)
@@ -230,7 +243,7 @@ TypeOK ==
  /\ \A f \in {"localReadable", "localWritable",
                "localParentWritable", "providerReadable", "providerWritable",
                "remotePending", "offlineOffered", "offlineChosen", "created",
-               "foreignSeen", "fabricated",
+               "foreignSeen", "fabricated", "saveAsOffered",
                "claimedLocal", "claimedProvider",
                "editing", "providerActive"}: s[f] \in BOOLEAN
 
@@ -244,6 +257,8 @@ ProviderCreationUsesCompleteLocal == s.created => CompleteLocal
 WorkOfflineOnlyForWithheldEvidence ==
  (s.offlineOffered \/ s.offlineChosen) => s.remotePending
 ForeignEvidenceIsPreserved == s.foreignSeen => s.providerEntry = "foreign"
+OccupiedDamageIsPreserved == Scenario \in {"providerDamaged", "providerWrongKind"} =>
+ s.providerEntry = InitialProviderEntry /\ s.provider = InitialProvider
 RepairUsesOnlyExactAvailableBytes == ~s.fabricated
 LocalRepairPreservesOldEvidence == s.oldLocal = InitialLocal
 ActiveSessionRemainsEditable == Scenario # "runningDisclosure" \/ s.editing
@@ -253,7 +268,7 @@ Safety == NoEditWithoutCompleteLocal /\ NoProviderUseWithoutAuthority
  /\ ProviderClaimHasKnownClosure /\ LocalClaimHasKnownClosure
  /\ ProviderCreationIsAutomaticLocalRepair /\ ProviderCreationUsesCompleteLocal
  /\ WorkOfflineOnlyForWithheldEvidence
- /\ ForeignEvidenceIsPreserved
+ /\ ForeignEvidenceIsPreserved /\ OccupiedDamageIsPreserved
  /\ RepairUsesOnlyExactAvailableBytes /\ LocalRepairPreservesOldEvidence
  /\ ActiveSessionRemainsEditable /\ NoActiveSessionOfflinePrompt
 
@@ -280,6 +295,7 @@ RepairEffectsAreFenced == ProviderEffectsHaveAuthority
  /\ LocalRepairEffectsHaveStoreAuthority /\ LocalCopiesHaveAvailableSource
 
 OfflineEditingAvailable == <>s.editing
+SaveAsAndEditingAvailable == <>(s.saveAsOffered /\ s.editing)
 ProviderRepairCompletes == <>s.claimedProvider
 LocalRepairCompletes == <>s.claimedLocal
 BidirectionalRepairCompletes == <>(s.claimedLocal /\ s.claimedProvider)
@@ -290,6 +306,7 @@ NeverChoseWorkOffline == ~s.offlineChosen
 NeverBuiltProviderCopy == s.providerBuild = {}
 NeverBuiltLocalCopy == s.localBuild = {}
 NeverWorkedOffline == ~s.editing
+NeverOfferedSaveAs == ~s.saveAsOffered
 NeverActivatedProvider == ~s.providerActive
 NeverContinuedEditingDuringDisclosure == ~(Scenario = "runningDisclosure" /\ s.remotePending /\ s.editing)
 NeverInterruptedProviderCopy == ~(s.root = "different" /\ s.providerPhase = "building" /\ s.providerBuild # {})

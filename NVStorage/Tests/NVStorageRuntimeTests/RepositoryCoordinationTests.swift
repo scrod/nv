@@ -366,4 +366,163 @@ func collectionStartupReassociationRetainsEnteredAccessorThroughSettlement(fixtu
     #expect(try await independent.snapshot().notes.map(\.value.body.string) == ["saved during old accessor", "untouched"])
     await targetOwner.close(); try await independent.quiesce()
 }
+@Test(.timeLimit(.minutes(1)), arguments: try RepositoryLocalFixture.prepared.get())
+func collectionCopySwitchRefusesEnteredAccessorAndPreservesEditing(fixture: RepositoryLocalFixture) async throws {
+    let source = try repositoryDirectory(), selection = try await associatedSelection(fixture, repository: source)
+    let setup = try await RepositoryRootSession.open(directory: source)
+    let descriptor = try ImmutableRepositoryObject.descriptor(selection.descriptor,
+        collection: selection.descriptor.collection, keyID: selection.descriptor.keyID)
+    guard case .verified = try await setup.install(descriptor, for: selection.descriptor, using: setup.permission()) else {
+        throw StorageError.incomplete
+    }
+    await setup.close()
+    let entered = CoordinationSignal(), release = DispatchSemaphore(value: 0)
+    let firstEntry = DispatchSemaphore(value: 0), watchdog = coordinationWatchdog(entered, release: release)
+    firstEntry.signal()
+    defer { watchdog.cancel(); release.signal() }
+    var hooks = CollectionStartupHooks()
+    hooks.transport.installEntered = { _ in
+        if firstEntry.wait(timeout: .now()) == .success { Task { await entered.signal() }; release.wait() }
+    }
+    hooks.transport.observation = { if case .idle = $0 { await entered.signal() } }
+    let owner = try openedCollection(await CollectionSession.open(selection: selection, protection: fixture.protection,
+        repository: URL(fileURLWithPath: source), hooks: hooks))
+    await owner.settleAcquisition()
+    #expect(try await collectionBodies(owner) == ["A", "untouched"])
+    await entered.wait(); try #require(await !entered.expired)
+    let directory = try repositoryDirectory(), first = try await SelectedStoreOwner.open(directory: directory)
+    guard case .activated = try await owner.activateFreshSelection(using: first, basedOn: first.capture()) else {
+        throw StorageError.incomplete
+    }
+    let selector = try await SelectedStoreOwner.open(directory: directory), selected = try await selector.capture()
+    let recordURL = URL(fileURLWithPath: directory + "/Selected Store"), original = try Data(contentsOf: recordURL)
+    let destination = privateTempPath()
+    await #expect(throws: RepositoryRootError.busy) {
+        try await owner.switchRepositoryAndSavedWork(to: destination, privateDirectory: privateTempPath(),
+            using: selector, basedOn: selected)
+    }
+    #expect(try Data(contentsOf: recordURL) == original)
+    #expect(!FileManager.default.fileExists(atPath: destination))
+    let birth = try NoteBirth(bytes: .init(repeating: 1, count: 16))
+    let action = try await owner.capture(kind: .savedEdit,
+        changes: [.put(.init(birth: birth, generation: 1), testValue("saved after busy copy"))])
+    _ = try requireReceipt(await owner.persist(action))
+    #expect(try await collectionBodies(owner) == ["saved after busy copy", "untouched"])
+    #expect(await !entered.expired, "Busy copy preserves local editing while the provider accessor remains entered")
+    release.signal()
+    await entered.wait(2); try #require(await !entered.expired)
+    var completed: CollectionCopySwitchResult?
+    // A late discovery can write verification/hint rows and conservatively invalidate the fixed copy.
+    for attempt in 0..<3 {
+        while await !entered.expired {
+            let status = await owner.transportStatus()
+            if status?.discovery == .idle && status?.publication == .idle { break }
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+        try #require(await !entered.expired)
+        do {
+            let result = try await owner.switchRepositoryAndSavedWork(to: attempt == 0 ? destination : privateTempPath(),
+                privateDirectory: privateTempPath(), using: selector, basedOn: selected)
+            if case .opened = result.outcome { completed = result; break }
+            guard case .sourceRetained(let cause) = result.outcome else {
+                Issue.record("Refused preparation must preserve its editable source: \(result.outcome)"); return
+            }
+            #expect(cause == .staleCapture || cause == .busy)
+        } catch RepositoryRootError.busy {
+            // A queued root turn may enter between the idle observation and copy admission.
+        } catch StorageError.busy {
+            // The existing store owner retains concurrently admitted bookkeeping.
+        }
+        #expect(try Data(contentsOf: recordURL) == original)
+        #expect(try await collectionBodies(owner) == ["saved after busy copy", "untouched"])
+    }
+    guard let completed, case .opened(let successor, let activated) = completed.outcome else {
+        Issue.record("Finite background interference must permit a fresh explicit preparation")
+        try await owner.close(); try await selector.close(); return
+    }
+    #expect(try SelectedStoreRecordV1.decodeV1(Array(Data(contentsOf: recordURL))) == activated.record)
+    #expect(try await collectionBodies(successor) == ["saved after busy copy", "untouched"])
+    try await successor.close()
+    let originalStore = try await LocalStoreSession.open(selection: selection, protection: fixture.protection)
+    #expect(try await originalStore.snapshot().notes.map(\.value.body.string).sorted() == ["saved after busy copy", "untouched"])
+    try await originalStore.quiesce()
+    let released = try await RepositoryRootSession.open(directory: source); await released.close()
+}
+
+@Test(.timeLimit(.minutes(1)), arguments: try RepositoryLocalFixture.prepared.get(), [false, true])
+func collectionCopySwitchSettlesAccessorBeforeSelection(fixture: RepositoryLocalFixture, cancel: Bool) async throws {
+    let source = try repositoryDirectory(), selection = try await associatedSelection(fixture, repository: source)
+    let setup = try await RepositoryRootSession.open(directory: source)
+    let descriptor = try ImmutableRepositoryObject.descriptor(selection.descriptor,
+        collection: selection.descriptor.collection, keyID: selection.descriptor.keyID)
+    guard case .verified = try await setup.install(descriptor, for: selection.descriptor, using: setup.permission()) else {
+        throw StorageError.incomplete
+    }
+    await setup.close()
+    let publication = ImprovementGate(), entered = CoordinationSignal(), release = DispatchSemaphore(value: 0)
+    let firstEntry = DispatchSemaphore(value: 0), watchdog = coordinationWatchdog(entered, release: release)
+    firstEntry.signal()
+    defer { watchdog.cancel(); release.signal(); Task { await publication.release() } }
+    var hooks = CollectionStartupHooks(copySwitchPrepared: {
+        await publication.release(); await entered.wait()
+    })
+    hooks.transport.publication = { _ in await publication.hold() }
+    hooks.transport.installEntered = { _ in
+        if firstEntry.wait(timeout: .now()) == .success { Task { await entered.signal() }; release.wait() }
+    }
+    let owner = try openedCollection(await CollectionSession.open(selection: selection, protection: fixture.protection,
+        repository: URL(fileURLWithPath: source), hooks: hooks))
+    await owner.settleAcquisition()
+    #expect(try await collectionBodies(owner) == ["A", "untouched"])
+    await publication.wait()
+    let directory = try repositoryDirectory(), first = try await SelectedStoreOwner.open(directory: directory)
+    guard case .activated = try await owner.activateFreshSelection(using: first, basedOn: first.capture()) else {
+        throw StorageError.incomplete
+    }
+    let selector = try await SelectedStoreOwner.open(directory: directory), selected = try await selector.capture()
+    let recordURL = URL(fileURLWithPath: directory + "/Selected Store"), original = try Data(contentsOf: recordURL)
+    let destination = privateTempPath(), candidate = privateTempPath()
+    let switching = Task { try await owner.switchRepositoryAndSavedWork(to: destination, privateDirectory: candidate,
+        using: selector, basedOn: selected) }
+    await entered.wait()
+    while await !entered.expired {
+        if await owner.transportStatus()?.stopped == true { break }
+        try await Task.sleep(nanoseconds: 1_000_000)
+    }
+    try #require(await !entered.expired)
+    #expect(await owner.transportStatus()?.stopped == true)
+    let sourceOpen: Bool
+    do { _ = try await owner.startupMeasurements(); sourceOpen = true }
+    catch { sourceOpen = false }
+    #expect(sourceOpen, "The original connection remains open until its provider accessor settles")
+    #expect(try Data(contentsOf: recordURL) == original, "Entered old-root work must settle before selection changes")
+    guard case .transition = await owner.decision() else { Issue.record("Final handoff owns admission"); return }
+    await #expect(throws: StorageError.busy) { try await owner.preparePublication(liveGeneration: 0) }
+    await #expect(throws: StorageError.busy) { try await owner.close() }
+    await #expect(throws: RepositoryRootError.contention) { try await RepositoryRootSession.open(directory: source) }
+    await #expect(throws: RepositoryRootError.contention) { try await RepositoryRootSession.open(directory: destination) }
+    if cancel { switching.cancel() }
+    release.signal()
+    let result = try await switching.value
+    let completed = if case .opened = result.outcome { true } else { false }
+    #expect(completed, "Admitted handoff settles after the old accessor returns")
+    guard case .opened(let successor, let activated) = result.outcome else {
+        try await owner.close(); try await selector.close(); return
+    }
+    #expect(try SelectedStoreRecordV1.decodeV1(Array(Data(contentsOf: recordURL))) == activated.record)
+    #expect(try await collectionBodies(successor) == ["A", "untouched"])
+    let birth = try NoteBirth(bytes: .init(repeating: 1, count: 16))
+    let edit = try await successor.capture(kind: .savedEdit,
+        changes: [.put(.init(birth: birth, generation: 1), testValue("new selected owner"))])
+    _ = try requireReceipt(await successor.persist(edit))
+    let nextSelection = await successor.selection
+    try await successor.close()
+    let reopened = try await LocalStoreSession.open(selection: nextSelection, protection: fixture.protection)
+    #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["new selected owner", "untouched"])
+    try await reopened.quiesce()
+    let oldStore = try await LocalStoreSession.open(selection: selection, protection: fixture.protection)
+    #expect(try await oldStore.snapshot().notes.map(\.value.body.string).sorted() == ["A", "untouched"])
+    try await oldStore.quiesce()
+    let released = try await RepositoryRootSession.open(directory: source); await released.close()
+}
 #endif

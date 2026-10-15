@@ -22,6 +22,71 @@ func collectionBodies(_ owner: CollectionSession) async throws -> [String] {
     try await publishCollection(owner).notes.map(\.value.body.string).sorted()
 }
 
+@Test(.timeLimit(.minutes(1)), arguments: try RepositoryLocalFixture.prepared.get())
+func collectionCopyKeepsSourceSelectionAndLaterEdits(fixture: RepositoryLocalFixture) async throws {
+    let path = try repositoryDirectory(), selection = try await associatedSelection(fixture, repository: path)
+    let damage = Data("preserved source obstruction".utf8)
+    try damage.write(to: URL(fileURLWithPath: path + "/NV Data"))
+    let gate = ImprovementGate()
+    let owner = try openedCollection(await CollectionSession.open(selection: selection, protection: fixture.protection,
+        repository: URL(fileURLWithPath: path), hooks: .init(repositoryCopyCaptured: { relative in
+            if relative == "NV Data" { await gate.hold() }
+        })))
+    await owner.settleAcquisition()
+    #expect(try await collectionBodies(owner) == ["A", "untouched"])
+    #expect(await owner.pendingRepositoryRequest()?.kind == .preserveRepositoryCollision)
+    let selectionDirectory = try repositoryDirectory()
+    let selector = try await SelectedStoreOwner.open(directory: selectionDirectory)
+    guard case .activated = try await owner.activateFreshSelection(using: selector, basedOn: selector.capture()) else {
+        throw StorageError.incomplete
+    }
+    let selectedURL = URL(fileURLWithPath: selectionDirectory + "/Selected Store")
+    let selectedBefore = try Data(contentsOf: selectedURL)
+    let destination = privateTempPath()
+    let copying = Task { try await owner.copyRepositoryAndSavedWork(to: destination) }
+    await gate.wait()
+    defer { Task { await gate.release() } }
+    await #expect(throws: StorageError.busy) { try await owner.close() }
+    await #expect(throws: StorageError.busy) { try await owner.retryRepository(at: URL(fileURLWithPath: path)) }
+    let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
+    let capture = try await owner.capture(kind: .savedEdit, changes: [.put(.init(birth: birth, generation: 1), testValue("newer than copy"))])
+    let receipt = try requireReceipt(await owner.persist(capture))
+    #expect(try await collectionBodies(owner) == ["newer than copy", "untouched"])
+    await gate.release()
+    let copied = try await copying.value
+    #expect(copied.through == 1 && copied.repository.unmetRequirements.isEmpty)
+    #expect(copied.repository.issues.map(\.path) == ["NV Data"])
+    #expect(!copied.repository.files.contains { $0.path == ImmutableRepositoryLocator.segment(receipt.object).relativePath })
+    #expect(try Data(contentsOf: selectedURL) == selectedBefore)
+    #expect(try Data(contentsOf: URL(fileURLWithPath: path + "/NV Data")) == damage)
+    #expect(await owner.selection.store == selection.store)
+    #expect(try await collectionBodies(owner) == ["newer than copy", "untouched"])
+    for (locator, bytes) in fixture.initial.objects {
+        let relative = ImmutableRepositoryLocator.segment(locator).relativePath
+        #expect(try Data(contentsOf: URL(fileURLWithPath: destination + "/" + relative)) == Data(bytes))
+    }
+    try await owner.close()
+    let reopened = try openedCollection(await CollectionSession.open(selection: selection, protection: fixture.protection))
+    #expect(try await collectionBodies(reopened) == ["newer than copy", "untouched"])
+    try await reopened.close()
+}
+
+@Test(arguments: try RepositoryLocalFixture.prepared.get())
+func collectionCopyWithoutRootPreservesSavedHistory(fixture: RepositoryLocalFixture) async throws {
+    let source = try repositoryDirectory(), selection = try await associatedSelection(fixture, repository: source)
+    let owner = try openedCollection(await CollectionSession.open(selection: selection, protection: fixture.protection))
+    let copied = try await owner.copyRepositoryAndSavedWork(to: privateTempPath())
+    #expect(copied.repository.unmetRequirements.isEmpty && copied.repository.issues.map(\.path) == [""])
+    #expect(await owner.selection.store == selection.store)
+    #expect(try await collectionBodies(owner) == ["A", "untouched"])
+    let occupied = try repositoryDirectory(), marker = URL(fileURLWithPath: occupied + "/preserved")
+    try Data("foreign".utf8).write(to: marker)
+    await #expect(throws: (any Error).self) { try await owner.copyRepositoryAndSavedWork(to: occupied) }
+    #expect(try Data(contentsOf: marker) == Data("foreign".utf8))
+    #expect(try await collectionBodies(owner) == ["A", "untouched"])
+    try await owner.close()
+}
+
 @Test func collectionStartupLiteralHealthDecisions() throws {
     let rows: [(StartupRepositoryHealth, Bool, Bool, StartupClassification)] = [
         (.pending, false, false, .ready), (.compatible, false, false, .ready),
@@ -65,7 +130,9 @@ func collectionStartupRequiresAssociationBeforeActualPublication(fixture: Reposi
     let path = try repositoryDirectory()
     try await owner.reopenRepository(at: URL(fileURLWithPath: path), descriptor: fixture.initial.descriptor)
     #expect(try await collectionBodies(owner) == ["A", "untouched"])
-    #expect(await owner.pendingRepositoryRequest()?.kind == .automaticRepositoryRepair)
+    await owner.settleRepositoryRepair()
+    #expect(await owner.pendingRepositoryRequest() == nil)
+    guard case .complete = await owner.repositoryRepairStatus() else { throw StorageError.incomplete }
     let capture = try await owner.capture(kind: .savedEdit, changes: [.put(.init(birth: NoteBirth(bytes: .init(repeating: 1, count: 16)), generation: 1), testValue("integrated E"))])
     let saved = try requireReceipt(await owner.persist(capture))
     try await owner.close()
@@ -88,7 +155,9 @@ func collectionStartupPublishesWhileRootAcquisitionIsHeld(fixture: RepositoryLoc
     #expect(try await collectionBodies(owner) == ["A", "untouched"], "A reached provider hold cannot gate healthy local publication")
     await #expect(throws: RepositoryRootError.contention) { try await RepositoryRootSession.open(directory: path) }
     await gate.release(); await owner.settleAcquisition()
-    #expect(await owner.pendingRepositoryRequest()?.kind == .automaticRepositoryRepair)
+    await owner.settleRepositoryRepair()
+    #expect(await owner.pendingRepositoryRequest() == nil)
+    guard case .complete = await owner.repositoryRepairStatus() else { throw StorageError.incomplete }
     try await owner.close()
     let next = try await RepositoryRootSession.open(directory: path); await next.close()
 }
@@ -258,12 +327,16 @@ func collectionStartupPassiveBindingChecksMovedAndReplacedCandidates(fixture: Re
         repository: URL(fileURLWithPath: moved)))
     await owner.settleAcquisition()
     if continuity == .same {
-        #expect(await owner.pendingRepositoryRequest()?.kind == .automaticRepositoryRepair)
+        await owner.settleRepositoryRepair()
+        #expect(await owner.pendingRepositoryRequest() == nil)
+        guard case .complete = await owner.repositoryRepairStatus() else { throw StorageError.incomplete }
     } else {
         #expect(replace, "A bookmark may select the replacement path; independent comparison still prevents adoption")
         #expect(await owner.pendingRepositoryRequest()?.kind == .association)
         try await owner.reopenRepository(at: URL(fileURLWithPath: moved), descriptor: selection.descriptor)
-        #expect(await owner.pendingRepositoryRequest()?.kind == .automaticRepositoryRepair)
+        await owner.settleRepositoryRepair()
+        #expect(await owner.pendingRepositoryRequest() == nil)
+        guard case .complete = await owner.repositoryRepairStatus() else { throw StorageError.incomplete }
     }
     #expect(try await collectionBodies(owner) == ["A", "untouched"])
     try await owner.close()

@@ -301,6 +301,15 @@ public enum RepositoryInstallationResult: Sendable {
     case verified(ImmutableInstallation), notInstalled(RepositoryInstallationFailure), uncertain(RepositoryInstallationFailure)
 }
 
+/// An attempt-owned hold keeps repair effects bound to the observed NV Data directory.
+struct RepositoryRepairNamespace: Sendable {
+    fileprivate let permission: RepositoryRootPermission
+    fileprivate let identity: UUID
+    fileprivate init(permission: RepositoryRootPermission, identity: UUID) {
+        self.permission = permission; self.identity = identity
+    }
+}
+
 /// Owns repository admission while blocking rooted effects execute on their own resource.
 public actor RepositoryRootSession {
     private let session = UUID()
@@ -310,6 +319,7 @@ public actor RepositoryRootSession {
     public private(set) var state: RepositoryRootState = .active
     private var running = false
     private var providerLookupRunning = false
+    private var repairNamespace: UUID?
     var discoveryState: RepositoryDiscoveryState?
     var discoveryRunning = false
     var discoveryInvalidation: UInt64 = 0
@@ -362,13 +372,46 @@ public actor RepositoryRootSession {
         return RepositoryRootPermission(session: session, generation: generation)
     }
 
-    /// Reserves NV Data for an explicitly requested new collection through exclusive creation.
+    /// Reserves an absent NV Data name through exclusive creation and namespace barriers.
     func createRepositoryNamespace() async throws {
         let permission = try permission()
         guard !running else { throw RepositoryRootError.busy }
         running = true; defer { settleTurn() }
         try await coordinatedTurn { try await lane.createRepositoryNamespace() }
         try validate(permission)
+    }
+
+    func beginRepairNamespace(_ observation: RepositoryEntryObservation,
+                              using permission: RepositoryRootPermission) async throws -> RepositoryRepairNamespace {
+        try validate(permission); try validate(observation.permission)
+        guard observation.relative == "NV Data", observation.kind == .directory else { throw RepositoryRootError.wrongContext }
+        guard !running, repairNamespace == nil else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        do {
+            try await coordinatedTurn { try await lane.beginRepairNamespace(observation.identity) }
+            try validate(permission)
+            let identity = UUID(); repairNamespace = identity
+            return .init(permission: permission, identity: identity)
+        } catch { await lane.endRepairNamespace(); throw error }
+    }
+
+    func createRepairNamespace(using permission: RepositoryRootPermission) async throws -> RepositoryRepairNamespace {
+        try validate(permission)
+        guard !running, repairNamespace == nil else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        do {
+            try await coordinatedTurn { try await lane.createRepairNamespace() }
+            try validate(permission)
+            let identity = UUID(); repairNamespace = identity
+            return .init(permission: permission, identity: identity)
+        } catch { await lane.endRepairNamespace(); throw error }
+    }
+
+    func endRepairNamespace(_ namespace: RepositoryRepairNamespace) async throws {
+        guard namespace.permission.session == session, repairNamespace == namespace.identity else {
+            throw RepositoryRootError.wrongContext
+        }
+        await lane.endRepairNamespace(); repairNamespace = nil
     }
 
     /// Captures a passive bookmark and physical hints from the continuously owned directory.
@@ -621,6 +664,47 @@ public actor RepositoryRootSession {
 
     func listingResourceCount() async -> Int { await lane.listingResourceCount() }
 
+    /// Reserves the owned source through a byte-preserving, individually coordinated copy.
+    func copyRepository(to destination: String, requirements: [RepositoryByteRequirement] = [],
+                        saved: CapturedRepositoryHistory? = nil,
+                        captured: (@Sendable (String) async -> Void)? = nil,
+                        beforeInstall: @escaping @Sendable (String) -> Void = { _ in }) async throws -> RepositoryCopyResult {
+        try Task.checkCancellation()
+        guard !destination.isEmpty, !destination.utf8.contains(0) else { throw RepositoryRootError.unsafePath }
+        let permission = try permission()
+        guard !running, !discoveryRunning else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        do {
+            let result = try await coordinatedTurn {
+                try await lane.copyRepository(to: destination, requirements: requirements, saved: saved, captured: captured, beforeInstall: beforeInstall)
+            }
+            try validate(permission)
+            return result
+        } catch let failure as RootAccessFailure {
+            try validate(permission); invalidate(); throw RepositoryRootError.unavailable(failure.code)
+        } catch { try validate(permission); throw error }
+    }
+
+    /// Exports captured history through a fresh root and the ordinary complete-file installer.
+    static func exportHistory(_ saved: CapturedRepositoryHistory, to destination: String,
+                              issues: [RepositoryCopyIssue]) async throws -> RepositoryCopyResult {
+        let owner = try await create(directory: URL(fileURLWithPath: destination))
+        do {
+            let result = try await owner.installSavedHistory(saved, destination: destination, issues: issues)
+            await owner.close(); return result
+        } catch { await owner.close(); throw error }
+    }
+
+    private func installSavedHistory(_ saved: CapturedRepositoryHistory, destination: String,
+                                    issues: [RepositoryCopyIssue]) async throws -> RepositoryCopyResult {
+        let permission = try permission()
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        let result = try await coordinatedTurn { try await lane.exportHistory(saved, destination: destination, issues: issues) }
+        try validate(permission)
+        return result
+    }
+
     /// Observes or refreshes a bounded group under the stream's current single-use cursor.
     func metadata(_ directory: RepositoryProtocolDirectory, continuing cursor: RepositoryListingCursor? = nil,
                   refreshing names: [RepositoryDiscoveredLeaf]? = nil, budget: Int = 16,
@@ -658,6 +742,34 @@ public actor RepositoryRootSession {
     }
 
     func measureMetadata(_ enabled: Bool) async -> RepositoryMetadataWork? { await lane.measureMetadata(enabled) }
+
+    /// Refreshes exact canonical names in one owned directory and releases its temporary stream in the same turn.
+    func inspectExpectedNames(_ names: [String], in directory: RepositoryProtocolDirectory,
+                              using permission: RepositoryRootPermission) async throws -> [RepositoryMetadataEntry] {
+        try Task.checkCancellation(); try validate(permission)
+        guard !names.isEmpty, names.count <= 64 else { throw StorageError.limit }
+        guard names.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 255 && !$0.contains("/") && !$0.utf8.contains(0) }) else {
+            throw RepositoryRootError.unsafePath
+        }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        do {
+            let result = try await coordinatedTurn {
+                try await lane.performExpectedMetadata(directory.relativePath, names: names.map { Array($0.utf8) })
+            }
+            try validate(permission)
+            guard result.entries.map({ String(decoding: $0.name, as: UTF8.self) }) == names else { throw RepositoryRootError.wrongContext }
+            return try result.entries.map { entry in
+                let leaf = RepositoryDiscoveredLeaf(bytes: entry.name), path = try leaf.relativePath(in: directory)
+                let outcome: RepositoryMetadataResult = entry.error == 0 ?
+                    .observed(try RepositoryEntryObservation(permission: permission, words: entry.words, relative: path)) :
+                    .unavailable(.init(code: entry.error))
+                return .init(leaf: leaf, result: outcome)
+            }
+        } catch let failure as RootAccessFailure {
+            try validate(permission); invalidate(); throw RepositoryRootError.unavailable(failure.code)
+        } catch { try validate(permission); throw error }
+    }
 
     public func install(_ object: ImmutableRepositoryObject, for descriptor: BootstrapDescriptorV1,
                         using permission: RepositoryRootPermission) async throws -> RepositoryInstallationResult {
@@ -794,18 +906,30 @@ private actor RootLane {
     nonisolated var unownedExecutor: UnownedSerialExecutor { unsafe executor.asUnownedSerialExecutor() }
     private var root: RootLease?
     private var metadataWork: RepositoryMetadataWork?
+    private var copying = false
+    private var copyWaiters: [CheckedContinuation<Void, Never>] = []
     private let coordination: RootCoordinationControl
 
     init(coordination: RootCoordinationControl) { self.coordination = coordination }
 
     func open(directory: String, securityScope: URL?, create: Bool) throws {
         try Task.checkCancellation()
-        root = try RootLease(directory: directory, securityScope: securityScope, executor: executor, coordination: coordination, create: create)
+        root = try RootLease.acquire(directory: directory, securityScope: securityScope, executor: executor,
+                                     coordination: coordination, create: create)
     }
     func createRepositoryNamespace() throws {
         guard let root else { throw RepositoryRootError.closed }
         try root.createRepositoryNamespace()
     }
+    func beginRepairNamespace(_ words: [UInt64]) throws {
+        guard let root else { throw RepositoryRootError.closed }
+        try root.beginRepairNamespace(words)
+    }
+    func createRepairNamespace() throws {
+        guard let root else { throw RepositoryRootError.closed }
+        try root.createRepairNamespace()
+    }
+    func endRepairNamespace() { root?.endRepairNamespace() }
     func registerPresenter(_ event: @escaping @Sendable (RootPresentationEvent) -> Void) throws {
 #if canImport(Darwin)
         guard let root else { throw RepositoryRootError.closed }
@@ -864,11 +988,64 @@ private actor RootLane {
         metadataWork = enabled ? RepositoryMetadataWork() : nil
         return previous
     }
+    func performExpectedMetadata(_ relative: String, names: [[UInt8]]) throws -> MetadataTurn {
+        guard let root else { throw RepositoryRootError.closed }
+        let result = try root.expectedMetadata(relative, names: names)
+        if metadataWork != nil {
+            metadataWork!.batches += 1; metadataWork!.bulkCalls += result.bulkCalls
+            metadataWork!.statCalls += result.statCalls; metadataWork!.ancestorChecks += result.ancestorChecks
+            metadataWork!.largestBatch = max(metadataWork!.largestBatch, result.entries.count)
+            metadataWork!.largestNameBytes = max(metadataWork!.largestNameBytes, result.entries.reduce(0) { $0 + $1.name.count })
+        }
+        return result
+    }
     func cancelListing(_ identifier: UUID, relative: String) throws {
         guard let root else { throw RepositoryRootError.closed }
         try root.cancelListing(identifier, relative: relative)
     }
     func listingResourceCount() -> Int { root?.listingResourceCount ?? 0 }
+    func copyRepository(to destination: String, requirements: [RepositoryByteRequirement],
+                        saved: CapturedRepositoryHistory?, captured: (@Sendable (String) async -> Void)?,
+                        beforeInstall: @escaping @Sendable (String) -> Void) async throws -> RepositoryCopyResult {
+        guard let root else { throw RepositoryRootError.closed }
+        guard !copying else { throw RepositoryRootError.busy }
+        copying = true
+        defer {
+            copying = false
+            let waiting = copyWaiters; copyWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
+        let from = try root.borrowForCopy()
+        defer { from.close() }
+        let access = RootCopyAccess(root: root, destination: destination, beforeInstall: beforeInstall)
+        let destinationRoot = try access.writing("") {
+            try RootLease(directory: destination, securityScope: nil, executor: executor,
+                          coordination: coordination, create: true, copySource: root)
+        }
+        defer { destinationRoot.close() }
+        let to = try destinationRoot.borrowForCopy()
+        defer { to.close() }
+        try access.bind(destinationRoot)
+        return try await RepositoryCopyWorker.copyOwned(from: from, to: to, destination: destination,
+            requirements: requirements, saved: saved, access: access, captured: captured, isolation: self)
+    }
+    func exportHistory(_ saved: CapturedRepositoryHistory, destination: String,
+                       issues initialIssues: [RepositoryCopyIssue]) async throws -> RepositoryCopyResult {
+        guard let root else { throw RepositoryRootError.closed }
+        guard !copying else { throw RepositoryRootError.busy }
+        copying = true
+        defer {
+            copying = false
+            let waiting = copyWaiters; copyWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
+        let access = RootCopyAccess(root: root, destination: destination)
+        try access.bind(root)
+        let result = try await RepositoryCopyWorker.exportOwned(saved, destination: destination, issues: initialIssues,
+                                                                access: access, isolation: self)
+        try access.writing("") { try root.checkCopyRoot() }
+        return result
+    }
     func install(_ object: ImmutableRepositoryObject, stage: String, beforeInstall: @Sendable () -> Void,
                  afterInstall: @Sendable () -> Void) -> NVRootInstallResult {
         guard let root else { return NVRootInstallResult(outcome: NV_ROOT_INSTALL_NO_EFFECT, error: EBADF, existing: 0, namespace_changed: 0, stage_retained: 0, cleanup_error: 0, root_lost: 1) }
@@ -879,7 +1056,10 @@ private actor RootLane {
         beforeCompare()
         return root.compare(candidate)
     }
-    func close() { root?.close(); root = nil }
+    func close() async {
+        root?.close(); root = nil
+        while copying { await withCheckedContinuation { copyWaiters.append($0) } }
+    }
     /// Joins entered filesystem turns on the root's execution resource.
     func settle() { executor.checkIsolation() }
 }
@@ -940,9 +1120,18 @@ private final class RootCoordinationControl: Sendable {
             state.coordinator?.cancel()
         }
     }
+    func checkCopyCancellation() throws {
+        if withState({ $0.cancelled }) { throw RepositoryRootError.unavailable(ECANCELED) }
+    }
 #else
-    func startTurn() {}
-    func cancel() {}
+    private let lock = NSLock()
+    nonisolated(unsafe) private var cancelled = false
+    func startTurn() { lock.lock(); unsafe cancelled = false; lock.unlock() }
+    func cancel() { lock.lock(); unsafe cancelled = true; lock.unlock() }
+    func checkCopyCancellation() throws {
+        lock.lock(); let stopped = unsafe cancelled; lock.unlock()
+        if stopped { throw RepositoryRootError.unavailable(ECANCELED) }
+    }
 #endif
 }
 
@@ -1009,6 +1198,19 @@ private struct RootPreparedStage: ~Copyable {
     }
 }
 
+/// Owns an empty stage until its checked descriptor transfers to the repair attempt.
+@safe
+private struct RootPreparedDirectory: ~Copyable {
+    private let pointer: OpaquePointer
+    init(_ pointer: OpaquePointer) { unsafe self.pointer = pointer }
+    deinit { unsafe nv_root_prepared_directory_close(pointer) }
+    func install(owner: OpaquePointer) -> NVRootInstallResult {
+        var result = NVRootInstallResult()
+        unsafe nv_root_install_repair_directory(owner, pointer, &result)
+        return result
+    }
+}
+
 /// Retains one directory-object lock through rooted observations and owner handoffs.
 @safe
 private final class RootLease {
@@ -1022,13 +1224,93 @@ private final class RootLease {
     private var securityScope: RootSecurityScope?
 #endif
     var listingResourceCount: Int { listings.count }
-    init(directory: String, securityScope: URL?, executor: StorageExecutor, coordination: RootCoordinationControl, create: Bool) throws {
+    /// Creates the selected directory within its synchronous writer grant before opening the owner.
+    static func acquire(directory: String, securityScope: URL?, executor: StorageExecutor,
+                        coordination: RootCoordinationControl, create: Bool) throws -> RootLease {
+#if canImport(Darwin)
+        if create {
+            let coordinator = NSFileCoordinator(filePresenter: nil), requested = URL(fileURLWithPath: directory) as CFURL
+            guard coordination.begin(coordinator) else { throw RepositoryRootError.unavailable(ECANCELED) }
+            defer { coordination.finish(coordinator) }
+            var error: NSError?, result: Result<RootLease, Error>?
+            unsafe NVAppleCoordinateWrite(coordinator, requested, [], &error) { actual in
+                result = Result {
+                    guard NVAppleReferenceHasRoot(actual, requested, "" as CFString) else { throw RepositoryRootError.stalePermission }
+                    return try RootLease(directory: directory, securityScope: securityScope, executor: executor,
+                                         coordination: coordination, create: true)
+                }
+            }
+            guard let result else { throw RepositoryRootError.unavailable(repositoryCoordinationCode(error)) }
+            return try result.get()
+        }
+#endif
+        return try RootLease(directory: directory, securityScope: securityScope, executor: executor,
+                             coordination: coordination, create: create)
+    }
+    func checkCopyRoot() throws {
+        try coordination.checkCopyCancellation()
+        guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+        guard unsafe nv_root_validate(raw) == 0 else { throw RootAccessFailure(code: errno) }
+    }
+    func borrowForCopy() throws -> RepositoryLease {
+        guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+        return try coordinatedRead("", metadataOnly: true) { _ in
+            try unsafe RepositoryLease(root: raw, executor: executor)
+        }
+    }
+
+    func copyRead<Value>(_ path: String, metadataOnly: Bool, _ action: () throws -> Value) throws -> Value {
+        try coordination.checkCopyCancellation()
+        return try coordinatedRead(path, metadataOnly: metadataOnly) { _ in
+            guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+            guard unsafe nv_root_validate(raw) == 0 else { throw RootAccessFailure(code: errno) }
+            let result = try action()
+            guard unsafe nv_root_validate(raw) == 0 else { throw RootAccessFailure(code: errno) }
+            return result
+        }
+    }
+
+#if canImport(Darwin)
+    func copyWrite<Value>(base: CFURL, path: String, readSource: Bool, _ action: () throws -> Value) throws -> Value {
+        let source = try currentReference(), target = NVAppleAppendReference(base, path as CFString)
+        return try withCoordinator { coordinator in
+            var error: NSError?, result: Result<Value, Error>?
+            func write(_ actual: CFURL) {
+                result = Result {
+                    guard NVAppleReferenceHasRoot(actual, base, path as CFString) else { throw RepositoryRootError.unavailable(ESTALE) }
+                    let value = try action()
+                    _ = try self.currentReference()
+                    return value
+                }
+            }
+            if readSource {
+                unsafe NVAppleCoordinateCopy(coordinator, NVAppleAppendReference(source, path as CFString), target, &error) { actualSource, actualTarget in
+                    do { _ = try self.checkedRelative(actualSource, expected: path); write(actualTarget) }
+                    catch { result = .failure(error) }
+                }
+            } else { unsafe NVAppleCoordinateWrite(coordinator, target, [], &error) { actual in write(actual) } }
+            if let result { return try result.get() }
+            _ = try currentReference()
+            throw RepositoryRootError.unavailable(repositoryCoordinationCode(error))
+        }
+    }
+#else
+    func copyWrite<Value>(path: String, readSource: Bool, _ action: () throws -> Value) throws -> Value {
+        try copyRead(readSource ? path : "", metadataOnly: !readSource, action)
+    }
+#endif
+    init(directory: String, securityScope: URL?, executor: StorageExecutor, coordination: RootCoordinationControl,
+         create: Bool, copySource: RootLease? = nil) throws {
         self.executor = executor
         self.coordination = coordination
 #if canImport(Darwin)
         self.securityScope = securityScope.map { RootSecurityScope($0, executor: executor) }
 #endif
-        unsafe raw = create ? nv_root_create(directory) : nv_root_open(directory)
+        if let copySource {
+            try copySource.checkCopyRoot()
+            guard create, let source = unsafe copySource.raw else { throw RepositoryRootError.wrongContext }
+            unsafe raw = nv_root_create_copy_destination(source, directory)
+        } else { unsafe raw = create ? nv_root_create(directory) : nv_root_open(directory) }
         guard let opened = unsafe raw else {
             let code = errno
             if code == EWOULDBLOCK { throw RepositoryRootError.contention }
@@ -1218,6 +1500,11 @@ private final class RootLease {
             try metadataNative(actual, identifier: identifier, names: names, budget: budget, portable: portable)
         }
     }
+    func expectedMetadata(_ relative: String, names: [[UInt8]]) throws -> MetadataTurn {
+        guard listings.isEmpty else { throw RepositoryRootError.busy }
+        defer { listings.removeAll() }
+        return try metadata(relative, identifier: nil, names: names, budget: names.count, portable: false)
+    }
     private func metadataNative(_ relative: String, identifier: UUID?, names: [[UInt8]]?, budget: Int, portable: Bool) throws -> MetadataTurn {
         guard let raw = unsafe raw else { throw RepositoryRootError.closed }
         let stream = try listing(relative, identifier: identifier, metadata: true, portable: portable)
@@ -1272,11 +1559,17 @@ private final class RootLease {
 
     func install(_ object: ImmutableRepositoryObject, stage: String, beforeInstall: @Sendable () -> Void,
                  afterInstall: @Sendable () -> Void) -> NVRootInstallResult {
+        installExact(bytes: object.bytes, at: object.locator.relativePath, stage: stage,
+                     beforeInstall: beforeInstall, afterInstall: afterInstall)
+    }
+
+    /// Installs frozen copy bytes with the same owned stage, readbacks and barriers as publication.
+    func installExact(bytes: [UInt8], at path: String, stage: String, beforeInstall: @Sendable () -> Void,
+                      afterInstall: @Sendable () -> Void) -> NVRootInstallResult {
         guard let raw = unsafe raw else { return NVRootInstallResult(outcome: NV_ROOT_INSTALL_NO_EFFECT, error: EBADF, existing: 0, namespace_changed: 0, stage_retained: 0, cleanup_error: 0, root_lost: 1) }
-#if canImport(Darwin)
         var changed = false, retainedStage = false
         do {
-            let components = object.locator.relativePath.split(separator: "/")
+            let components = path.split(separator: "/")
             let directories = (1..<components.count).map { components.prefix($0).joined(separator: "/") }
             // Metadata identifies preparation work; every creation rechecks its exact parent.
             let missing = try coordinatedRead("", metadataOnly: true) { _ -> [String] in
@@ -1303,7 +1596,7 @@ private final class RootLease {
             var created: OpaquePointer?
             let prepared = try coordinatedWrite(stage) { actual in
                 var result = NVRootInstallResult()
-                object.bytes.withUnsafeBufferPointer { bytes in
+                bytes.withUnsafeBufferPointer { bytes in
                     unsafe created = nv_root_prepare_owned_stage(raw, actual, bytes.baseAddress, UInt64(bytes.count), &result)
                 }
                 return result
@@ -1312,9 +1605,9 @@ private final class RootLease {
             guard prepared.outcome == NV_ROOT_INSTALL_VERIFIED else { return combining(prepared, changed: changed) }
             guard let created = unsafe created else { throw RepositoryRootError.unavailable(EIO) }
             let heldStage = unsafe RootPreparedStage(created)
-            let result = try coordinatedInstallation(stage, at: object.locator.relativePath) { _, destination in
+            let result = try coordinatedInstallation(stage, at: path) { _, destination in
                 beforeInstall()
-                let result = unsafe heldStage.install(owner: raw, at: destination, bytes: object.bytes)
+                let result = unsafe heldStage.install(owner: raw, at: destination, bytes: bytes)
                 afterInstall()
                 return result
             }
@@ -1330,15 +1623,6 @@ private final class RootLease {
                 error: code, existing: 0, namespace_changed: changed ? 1 : 0,
                 stage_retained: retainedStage ? 1 : 0, cleanup_error: 0, root_lost: lost)
         }
-#else
-        beforeInstall()
-        var result = NVRootInstallResult()
-        object.bytes.withUnsafeBufferPointer {
-            unsafe nv_root_install(raw, object.locator.relativePath, stage, $0.baseAddress, UInt64($0.count), &result)
-        }
-        afterInstall()
-        return result
-#endif
     }
     func compare(_ candidate: String) -> RepositoryRootContinuity {
         guard let raw = unsafe raw else { return .unavailable(EBADF) }
@@ -1374,6 +1658,51 @@ private final class RootLease {
 #endif
         if result.root_lost != 0 { throw RootAccessFailure(code: result.error) }
         guard result.outcome == NV_ROOT_INSTALL_VERIFIED else { throw RepositoryRootError.unavailable(result.error) }
+    }
+
+    func createRepairNamespace() throws {
+        guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+        let name = ".nv-stage-" + UUID().uuidString.lowercased()
+        var created: OpaquePointer?
+        let prepare: (String) throws -> Void = { actual in
+            guard let pointer = unsafe nv_root_prepare_repair_directory(raw, actual) else {
+                throw RepositoryRootError.unavailable(errno)
+            }
+            unsafe created = pointer
+        }
+#if canImport(Darwin)
+        try coordinatedWrite(name, prepare)
+#else
+        try prepare(name)
+#endif
+        guard let pointer = unsafe created else { throw RepositoryRootError.unavailable(EIO) }
+        let held = unsafe RootPreparedDirectory(pointer)
+        let result: NVRootInstallResult
+#if canImport(Darwin)
+        result = try coordinatedInstallation(name, at: "NV Data") { _, _ in unsafe held.install(owner: raw) }
+#else
+        result = unsafe held.install(owner: raw)
+#endif
+        if result.root_lost != 0 { throw RootAccessFailure(code: result.error) }
+        guard result.outcome == NV_ROOT_INSTALL_VERIFIED else { throw RepositoryRootError.unavailable(result.error) }
+    }
+
+    func beginRepairNamespace(_ words: [UInt64]) throws {
+        guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+        guard words.count == 9 else { throw RepositoryRootError.wrongContext }
+        let effect = {
+            guard unsafe nv_root_begin_repair_namespace(raw, words[1], words[2]) == 0 else {
+                throw RepositoryRootError.unavailable(errno)
+            }
+        }
+#if canImport(Darwin)
+        try coordinatedRead("NV Data", metadataOnly: true) { _ in try effect() }
+#else
+        try effect()
+#endif
+    }
+    func endRepairNamespace() {
+        if let raw = unsafe raw { unsafe nv_root_end_repair_namespace(raw) }
     }
 
     private func associationIdentity() throws -> [UInt8] {
@@ -1463,7 +1792,7 @@ private final class RootLease {
     private func checkedRelative(_ actual: CFURL, expected: String) throws -> String {
         let base = try currentReference()
         let tail = expected.isEmpty ? [] : expected.split(separator: "/").map(String.init)
-        guard tail.count <= 6, tail.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && $0.utf8.count <= 255 && !$0.utf8.contains(0) }) else {
+        guard tail.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && $0.utf8.count <= 255 && !$0.utf8.contains(0) }) else {
             throw RepositoryRootError.unsafePath
         }
         guard NVAppleReferenceHasRoot(actual, base, expected as CFString) else {
@@ -1512,6 +1841,18 @@ private final class RootLease {
         }
     }
 
+#else
+    private func coordinatedWrite<Value>(_ relative: String, _ write: (String) throws -> Value) throws -> Value {
+        try checkCopyRoot()
+        return try write(relative)
+    }
+    private func coordinatedInstallation(_ stage: String, at destination: String,
+                                         _ install: (String, String) -> NVRootInstallResult) throws -> NVRootInstallResult {
+        try checkCopyRoot()
+        return install(stage, destination)
+    }
+#endif
+
     private func combining(_ result: NVRootInstallResult, changed: Bool) -> NVRootInstallResult {
         var value = result
         if changed {
@@ -1521,7 +1862,74 @@ private final class RootLease {
         return value
     }
 
+}
+
+/// Couples source coordination to the exclusively created destination's identity checks.
+private final class RootCopyAccess: RepositoryCopyCoordination {
+    private let root: RootLease
+    private let destination: String
+    private var destinationRoot: RootLease?
+    private let beforeInstall: @Sendable (String) -> Void
+#if canImport(Darwin)
+    private var reference: CFURL
 #endif
+    init(root: RootLease, destination: String, beforeInstall: @escaping @Sendable (String) -> Void = { _ in }) {
+        self.root = root
+        self.destination = destination
+        self.beforeInstall = beforeInstall
+#if canImport(Darwin)
+        reference = URL(fileURLWithPath: destination) as CFURL
+#endif
+    }
+    func bind(_ destination: RootLease) throws {
+        try destination.checkCopyRoot()
+#if canImport(Darwin)
+        guard let created = unsafe CFURLCreateFileReferenceURL(nil, reference, nil) else { throw RepositoryRootError.unavailable(ESTALE) }
+        self.reference = unsafe created.takeRetainedValue()
+#endif
+        try destination.checkCopyRoot(); self.destinationRoot = destination
+    }
+    func install(_ bytes: [UInt8], at path: String) throws {
+        try root.checkCopyRoot()
+        guard let destinationRoot else { throw RepositoryRootError.wrongContext }
+        try checkDestination()
+        let beforeInstall = beforeInstall
+        let result = destinationRoot.installExact(bytes: bytes, at: path,
+            stage: ".nv-stage-" + UUID().uuidString.lowercased(), beforeInstall: { beforeInstall(path) }, afterInstall: {})
+        try root.checkCopyRoot()
+        try checkDestination()
+        guard result.outcome == NV_ROOT_INSTALL_VERIFIED else {
+            throw StorageError.ownership(result.error == 0 ? EIO : result.error)
+        }
+    }
+    private func checkDestination() throws {
+        if let destinationRoot {
+            try destinationRoot.checkCopyRoot()
+            guard destinationRoot.compare(destination) == .same else { throw RepositoryRootError.stalePermission }
+        }
+    }
+    func reading<Value>(_ path: String, metadataOnly: Bool, _ action: () throws -> Value) throws -> Value {
+        try root.copyRead(path, metadataOnly: metadataOnly, action)
+    }
+    func writing<Value>(_ path: String, _ action: () throws -> Value) throws -> Value {
+        try grant(path, readSource: false, action)
+    }
+    func copying<Value>(_ path: String, _ action: () throws -> Value) throws -> Value {
+        try grant(path, readSource: true, action)
+    }
+    private func grant<Value>(_ path: String, readSource: Bool, _ action: () throws -> Value) throws -> Value {
+        let checked = {
+            try self.checkDestination()
+            let value = try action()
+            try self.checkDestination()
+            return value
+        }
+#if canImport(Darwin)
+        return try root.copyWrite(base: reference, path: path, readSource: readSource, checked)
+#else
+        return try root.copyWrite(path: path, readSource: readSource, checked)
+#endif
+    }
 }
 
 /// Owns one shallow stream; the root's bounded stack preserves suspended parents.

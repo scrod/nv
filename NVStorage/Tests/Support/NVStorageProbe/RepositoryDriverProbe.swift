@@ -14,6 +14,7 @@ struct DriverCommand: Decodable {
     let birth: UInt8?
     let relative: String?
     let repository, locator: String?
+    let privateDirectory, selectionDirectory: String?
 }
 private let driverControlQueue = DispatchQueue(label: "org.notationalvelocity.storage.contract-control")
 

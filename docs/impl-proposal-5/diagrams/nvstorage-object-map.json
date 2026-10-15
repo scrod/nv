@@ -1,6 +1,6 @@
 {
   "title": "NVStorage — objects, features and derivation operations",
-  "date": "2026-10-13",
+  "date": "2026-10-14",
   "scope": "Adopted segment-collection design, including documented Core/Runtime/Apple work and planned projection/application consumers. Each box groups domain objects with the same ownership and purpose; expanding a box lists its constituent records. SQL boxes are logical roles inside one private database.",
   "lanes": [
     {
@@ -120,7 +120,7 @@
         "Interim Note-Changes legacy recovery evidence",
         "Legacy credentials and settings import"
       ],
-      "purpose": "Opening/recovery retains the legacy path. Migration captures complete source values; explicit epoch-4 export writes current values to its separately selected destination.",
+      "purpose": "The legacy database and recovery journal supply the current notes for migration or explicit legacy export. Import first recovers the legacy store, then captures a consistent set of note values.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
@@ -147,7 +147,7 @@
         "Complete service/account/access-group identity",
         "Local remember-unlock preference"
       ],
-      "purpose": "Remember on this Mac caches the encrypted collection key after add-only provisioning and readback. Password/recovery-key unlocking remains independently usable.",
+      "purpose": "Remember on this Mac stores the encrypted collection key in a device-bound Keychain item after add-only creation and verified readback. Password and recovery-key unlocking remain independently usable.",
       "sources": [
         "docs/impl-proposal-5/Encryption.md",
         "docs/impl-proposal-5/LocalStore.md"
@@ -174,7 +174,7 @@
         "Content-hash filenames",
         "Same-CK password rewrap routes"
       ],
-      "purpose": "These nonsecret descriptors sit outside SQLCipher so a password can recover CK before opening the database. Private backups include usable copies.",
+      "purpose": "These nonsecret unlocking descriptors sit outside the encrypted database so a password can recover the collection key before opening it. Private backups include usable copies.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/Encryption.md"
@@ -202,7 +202,7 @@
         "Selected LocalStoreID",
         "Selection generation and checksum"
       ],
-      "purpose": "Expected-generation durable replacement chooses the verified private-store candidate. Its locator is revalidated under ownership when opening.",
+      "purpose": "This durable record selects the active private store. Switching it requires a verified replacement and usable unlocking credentials; uncertain completion keeps both candidates available.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-plan.md"
@@ -231,7 +231,7 @@
         "Journal-recovered working copy",
         "Quarantined partial salvage and displaced evidence"
       ],
-      "purpose": "A fixed-cut keyed SQLite backup preserves accepted history, required state and pending references. Repair preserves originals and salvages candidates on a working copy.",
+      "purpose": "A private backup contains history, settings, pending file inputs and unlocking descriptors. Capture it with SQLite’s consistent backup API or by copying the complete database and required journal files while writes are stopped.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-validation.md"
@@ -260,7 +260,7 @@
         "Validated private groups and pending links",
         "Fresh unlock descriptors"
       ],
-      "purpose": "Repair reconstructs a new store, retains complete required history/pin/private records, reopens it with recovery credentials, then activates it through the selected-store record.",
+      "purpose": "Repair builds a new private store from validated surviving history and required private records. Reopen and verify it with usable recovery credentials before selecting it as the active store.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md"
@@ -288,7 +288,7 @@
         "Unknown/unimported repository entries",
         "Captured copy inventory and reported holes"
       ],
-      "purpose": "Repository copy preserves exact bytes and collection/birth/operation/action identities. Active-session saved-work copy additionally includes the captured durable local union.",
+      "purpose": "A repository copy preserves exact history and collection identities at another location. Copying from an active session also includes its captured, durably saved local work.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/impl-proposal-5/Protocol.md",
@@ -318,7 +318,7 @@
         "Fresh-genesis profile/key conversion destination",
         "Legacy export output"
       ],
-      "purpose": "Explicit external editing uses owned scratch outside an encrypted provider root. Current-state export or key/profile conversion captures coherent current values into a fresh destination.",
+      "purpose": "Explicit external editing uses an owned plaintext file outside the encrypted repository. Export or key/profile conversion captures consistent current notes into a separately verified destination.",
       "sources": [
         "docs/impl-proposal-5/Encryption.md",
         "docs/impl-proposal-5/Implementation.md",
@@ -346,7 +346,7 @@
         "Application-owned window/search presentation preferences",
         "Explicitly mapped collection overrides"
       ],
-      "purpose": "The existing host preference owner preserves application-global defaults. Collection-specific settings and remembered note cursor ranges have independently versioned private SQL records.",
+      "purpose": "The application’s existing preferences store keeps settings shared across collections. Collection-specific settings and remembered note cursor positions live in private database records.",
       "sources": [
         "docs/impl-proposal-5/plan/private-record-contract.md",
         "docs/impl-proposal-5/Window-UI-Architecture.md"
@@ -375,7 +375,7 @@
         "Genesis segment locator",
         "Argon2id salt/profile and wrapped CK for encrypted mode"
       ],
-      "purpose": "An immutable descriptor anchors bootstrap and unlocking. Same-key password changes add a descriptor while preserving old routes.",
+      "purpose": "Immutable descriptors identify the collection’s bootstrap and how to unlock its key. Changing a password adds another wrapping of the same key while preserving earlier unlocking routes.",
       "sources": [
         "docs/impl-proposal-5/Encryption.md",
         "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
@@ -407,7 +407,7 @@
         "ActionRecordV1",
         "Projection/merge/restoration/compensation subrecords"
       ],
-      "purpose": "Exact sealed provider files transport complete immutable groups. Operation kinds include Genesis, ImportComplete, Create/Import, Put, Delete, RecoverCopy, RetireConflict and AdoptAutomatic.",
+      "purpose": "Changes segments store exact sealed bytes for complete action groups. Their operations record creation/import, edits, deletion, recovery copies and conflict decisions.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/Encryption.md",
@@ -437,7 +437,7 @@
         "ImportComplete operation frontier",
         "Exact initial history locators"
       ],
-      "purpose": "The initial root/pages bind the complete imported note set to its retained operations/actions. A complete preview and editable bootstrap have separate evidence requirements.",
+      "purpose": "The initial snapshot root and pages describe the complete imported note set and reference its history. A verified read-only preview and an editable collection require different checks.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/plan/first-save-reopen-contract.md"
@@ -466,11 +466,11 @@
         "GeneralSnapshotRootV1: 236-byte root with eight category counts",
         "GeneralSnapshotPageV1 index/data ranges",
         "Canonical paged state stream",
-        "Current cells, operation frontier, action-scope maxima",
+        "Current values, represented frontier and action frontier",
         "Deletes, retirements, copied-source dispositions, restorations",
         "Tag 8 exact retention-parent locators; zero count when empty"
       ],
-      "purpose": "Snapshots preserve seven logical state classes at a stated operation cut; their eighth v1 category independently covers accepted snapshot-object closures. Reconstruction unions all accepted outside-cut operations while retaining every ancestor byte.",
+      "purpose": "A general snapshot records seven kinds of logical state at a stated set of represented operations. Its eighth v1 category names snapshot retention parents whose required objects stay stored. Reconstruction also includes every accepted operation outside the history covered by that snapshot.",
       "sources": [
         "docs/impl-proposal-5/plan/general-snapshot-record-contract.md",
         "docs/impl-proposal-5/LocalStore.md",
@@ -500,7 +500,7 @@
         "Revision/equal/merge or automatic-source reference",
         "Unknown ordinary external files"
       ],
-      "purpose": "Files are interoperable current inputs/outputs. Advisory stamps name represented history and exact projected bytes; physical association uses fresh observations and the current-file decision matrix.",
+      "purpose": "Separate note files let other applications read and edit current note values. Projection stamps identify claimed source history and exact output bytes; fresh file observations determine whether an association or update is applicable.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/iCloud-Drive-Support-Spec.md",
@@ -533,7 +533,7 @@
         "Uncertain or cleanup-failed artifacts",
         "Foreign protocol-name occupants"
       ],
-      "purpose": "Exclusive immutable installation verifies complete stages and final bytes with file/nested-directory barriers. Mutable replacement preserves displaced evidence through its separately qualified caller contract.",
+      "purpose": "Owned temporary files hold complete output before installation. Immutable installation verifies exact bytes and completes the required file/directory durability steps. Replacing a mutable file uses its separate checked-replacement contract and preserves displaced evidence.",
       "sources": [
         "docs/impl-proposal-5/plan/phase5/02-immutable-files-validation.md",
         "docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md",
@@ -561,7 +561,7 @@
         "Captured version URL/body",
         "Member-specific resolved disposition"
       ],
-      "purpose": "Explicit resolver requests copy selected unresolved bodies. Apple disposition requires exact local note/action durability and verified plaintext installation for its captured member scope.",
+      "purpose": "An explicit resolver request reads the selected unresolved provider versions. Marking a captured version resolved requires locally durable note history, verified plaintext output and a final check of that exact version.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/Apple-API-Contract-Validation.md",
@@ -592,7 +592,7 @@
         "Writer-epoch subdirectories",
         "Rooted directory identities and namespace entries"
       ],
-      "purpose": "The physical directory tree contains protocol objects and plaintext files. Held/named ancestor checks and add-only directory creation preserve competing occupants; collection identity and physical root identity retain separate roles.",
+      "purpose": "The selected directory contains NV Data history and any separate note files. Operations check the held directory and its named ancestors; creating directories preserves competing occupants. Collection identity and physical authority answer different questions.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/impl-proposal-5/plan/phase5/02-immutable-files-and-namespace.md"
@@ -620,7 +620,7 @@
         "SQLCipher encrypted database pages for both profiles",
         "SQLite-owned WAL/SHM or rollback journal"
       ],
-      "purpose": "One private database file contains retained history, required private state, indexes and rebuildable current rows. Qualified commit supplies local durability; sibling pager files follow SQLite recovery and backup ownership.",
+      "purpose": "One private database stores exact history, required private records, query indexes and rebuildable current-note rows. Its qualified transaction commit provides local durability. SQLite’s associated journal files follow the same recovery and backup ownership rules.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/sqlite-local-schema.md"
@@ -648,7 +648,7 @@
         "Profile/key/codec/schema versions",
         "Bootstrap descriptor and genesis binding"
       ],
-      "purpose": "Opening compares the required header with independently selected ownership/association and validated unlock context.",
+      "purpose": "Opening checks that the database header agrees with the selected private store, physical association and validated unlocking context.",
       "sources": [
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
         "docs/impl-proposal-5/LocalStore.md"
@@ -661,7 +661,7 @@
     {
       "id": "objects",
       "lane": "local",
-      "title": "Exact retained object BLOBs",
+      "title": "Stored copies of exact object bytes",
       "subtitle": [
         "objects",
         "Stored bytes and checked locator"
@@ -682,7 +682,7 @@
         "Exact descriptor bytes",
         "Unaccepted parked/rejected incoming objects"
       ],
-      "purpose": "One row retains exact immutable bytes under their checked identity. Retention and accepted-history membership have distinct roles; accepted/sealed history stays retained in v1.",
+      "purpose": "Each row stores one immutable object’s exact bytes under its checked identity. Receiving and retaining bytes precede acceptance of their history; accepted history and its required objects remain stored.",
       "sources": [
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
         "docs/impl-proposal-5/LocalStore.md"
@@ -695,7 +695,7 @@
     {
       "id": "accepted",
       "lane": "local",
-      "title": "Acceptance batches + dependencies",
+      "title": "Committed history and prerequisites",
       "subtitle": [
         "accepted_objects / dependencies",
         "Atomic local accepted prefix H"
@@ -712,9 +712,9 @@
         "acceptance_batches",
         "accepted_objects",
         "accepted_dependencies",
-        "Accepted prefix and object-evidence frontier"
+        "Captured local history position and required object references"
       ],
-      "purpose": "A single qualified transaction joins full validation, exact object retention, complete membership/edges, pin advancement, wakeups and exact pending-operation links. Local sequences drive indexed suffix catch-up.",
+      "purpose": "One transaction stores complete validated history, its relationships, retained-history pin, dependent-work notifications and pending-operation links. Local commit sequence numbers let current rows catch up through only the new history.",
       "sources": [
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
         "docs/impl-proposal-5/LocalStore.md"
@@ -729,7 +729,7 @@
     {
       "id": "opindex",
       "lane": "local",
-      "title": "Operation / note relationship indexes",
+      "title": "Operation and note-relationship indexes",
       "subtitle": [
         "IDs + exact envelope occurrences",
         "Causality and supersession separately"
@@ -749,7 +749,7 @@
         "note_predecessors supersession graph",
         "Per-birth and logical-Delete listing indexes"
       ],
-      "purpose": "Indexes locate canonical logical operations in exact accepted envelopes. Causal parents describe observed history; note predecessors determine heads and supersession.",
+      "purpose": "These indexes locate logical operations inside accepted objects. Causal parents identify observed history; note predecessors identify revisions replaced by a new note value.",
       "sources": [
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
         "docs/impl-proposal-5/Protocol.md"
@@ -765,7 +765,7 @@
     {
       "id": "actionindex",
       "lane": "local",
-      "title": "Action / restoration indexes",
+      "title": "Action and restoration indexes",
       "subtitle": [
         "Scope ancestry + complete membership",
         "Portable meaningful-action history"
@@ -787,7 +787,7 @@
         "Conflict-copy partial index",
         "restorations source-deletion → first durable restoration"
       ],
-      "purpose": "Complete actions retain before/after, scope/origin, compensation/native coverage and restoration provenance. Derived restoration/copy lookup indexes accelerate listing and commands.",
+      "purpose": "Action records preserve group membership, before/after values, Undo relationships and restoration provenance. Rebuildable lookup indexes support history views, copies and restoration commands.",
       "sources": [
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
         "docs/impl-proposal-5/plan/restoration-record-contract.md",
@@ -805,7 +805,7 @@
     {
       "id": "pin",
       "lane": "local",
-      "title": "Required retained-history pin",
+      "title": "Required retained-history record",
       "subtitle": [
         "retained_frontier + retained_descriptors",
         "Maximal exact object closure"
@@ -819,11 +819,11 @@
         "Q"
       ],
       "members": [
-        "Full required SegmentLocator frontier",
+        "Required object references not covered by other objects (SegmentLocator)",
         "Required descriptor identities",
         "Validated snapshot retention-parent coverage"
       ],
-      "purpose": "Acceptance advances the pin atomically. Surviving locators expose loss of previously accepted evidence independently of valid current rows; all ancestor bytes remain retained.",
+      "purpose": "The retained-history pin names the history this local store has accepted and must still possess. Acceptance updates it in the same transaction. A surviving pin can reveal missing history even when current-note rows remain readable.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
@@ -856,7 +856,7 @@
         "Versioned candidate-local rejection reason",
         "Retained blocked descendants and restart obligations"
       ],
-      "purpose": "Arrival/acceptance wakes dependents transactionally. Parking rechecks requirements; rejection settles only the checked candidate. Startup selects required Changes/prerequisites before optional snapshots.",
+      "purpose": "This durable queue records incoming objects and the prerequisites they await. Arrival or acceptance schedules affected dependents in the same transaction. Startup handles required Changes and prerequisites before independent optional snapshots.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
@@ -891,7 +891,7 @@
         "LocalAssociationV1 bookmark/scope bytes",
         "Selected initial-root bootstrap group"
       ],
-      "purpose": "Generation-checked groups preserve host-private settings and association independently of derived rows. Physical receipts remain historical observations requiring fresh checks after restart.",
+      "purpose": "These required records preserve collection settings, physical association and other private state independently of rebuildable current rows. Updates check the captured record version. Stored file receipts need fresh physical validation before another operation.",
       "sources": [
         "docs/impl-proposal-5/plan/private-record-contract.md",
         "docs/impl-proposal-5/LocalStore.md",
@@ -905,7 +905,7 @@
     {
       "id": "verification",
       "lane": "local",
-      "title": "Verification obligations + damage marker",
+      "title": "Unfinished checks and known damage",
       "subtitle": [
         "private_groups: verification/*, history-damage",
         "Exact replay scope"
@@ -924,7 +924,7 @@
         "Bound store/collection/descriptor context",
         "Persistent known-history-damage marker"
       ],
-      "purpose": "Commit a request before protected checks and retain it through final semantic verification. Success settles that exact request; discovered damage fences publication and replaces the request atomically.",
+      "purpose": "A verification request is saved before a check that could discover damage to accepted history. It remains pending until the complete check succeeds. Discovered damage blocks publication and replaces the request with a durable damage record.",
       "sources": [
         "docs/impl-proposal-5/plan/phase-4-improvements/durable-verification-recovery.md",
         "docs/impl-proposal-5/plan/sqlite-local-schema.md"
@@ -935,7 +935,7 @@
     {
       "id": "pendingdisk",
       "lane": "local",
-      "title": "Pending-file recovery reference graph",
+      "title": "Pending file inputs and their references",
       "subtitle": [
         "latest + frozen payload owners",
         "Reservations and exact settlements"
@@ -953,7 +953,7 @@
         "pending_reservations exact birth/action/nonce/Current binding",
         "pending_settlements committed observation/operation links"
       ],
-      "purpose": "One latest verified preview and exact admitted frozen inputs survive crashes. Payload/reference switches and settlement transfer are transactional; release requires every owner to be gone.",
+      "purpose": "The latest verified file preview and frozen inputs for admitted operations survive crashes. Transactions switch their references together. A payload is released only after every operation or preview using it has finished.",
       "sources": [
         "docs/impl-proposal-5/plan/private-record-contract.md",
         "docs/impl-proposal-5/Protocol.md",
@@ -988,7 +988,7 @@
         "Unfinished save/rename/format source-accounting evidence",
         "Settled external observation and exact operation linkage"
       ],
-      "purpose": "Required Local State preserves physical relationship observations independently of derived current rows. Reconciliation revalidates observed files and derives current intent from accepted history. Concrete projection/publication tables belong to their actual adapter increment.",
+      "purpose": "Required Local State records locally observed note/file relationships. Reconciliation checks the files again and derives intended output from accepted history. The concrete storage and adapter belong to the projection implementation phase.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
@@ -1001,7 +1001,7 @@
     {
       "id": "current",
       "lane": "derived",
-      "title": "Derived current-note cells",
+      "title": "Rebuildable current-note rows",
       "subtitle": [
         "current_notes → framed CurrentNoteCellV1",
         "Full current values + compact context"
@@ -1017,12 +1017,12 @@
       "members": [
         "Complete current NoteValue title/body/labels/dates/format",
         "Representative occurrence and represented revisions",
-        "All note heads and note scope frontier",
+        "All note heads and the note’s action frontier",
         "Equal/merge descriptor",
         "Automatic source and deterministic conflict identity",
         "CurrentRowFrameV1 raw/zstd/dictionary payload"
       ],
-      "purpose": "Cells represent one exact accepted prefix for startup and ordinary authoring. Current heads and represented inputs remain explicit even when note bodies compare equal.",
+      "purpose": "These rebuildable rows hold current note values and editing context through a specific local history commit. They retain the exact represented revisions, including distinct revisions with equal text.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/sqlite-local-schema.md",
@@ -1036,7 +1036,7 @@
     {
       "id": "view",
       "lane": "derived",
-      "title": "View epoch + authoring context",
+      "title": "Current-view version and editing context",
       "subtitle": [
         "view_meta / AuthoringContextV1",
         "viewThrough ≤ acceptedThrough"
@@ -1050,12 +1050,12 @@
       ],
       "members": [
         "Reducer version",
-        "Fresh view epoch",
-        "Materialized local acceptance prefix",
-        "Global operation frontier",
-        "Collection-scoped action frontier"
+        "Fresh current-view version (view epoch)",
+        "Local history position represented by the current rows",
+        "Represented frontier of incorporated operations",
+        "Action frontier for collection-wide Undo"
       ],
-      "purpose": "Rows, global context and prefix advance in one guarded materialization transaction. New epoch/prefix and final host generations fence stale reconstruction or startup output.",
+      "purpose": "Current rows, editing context and the represented local history position advance in one checked transaction. Rebuilding assigns a new view version so older prepared results cannot install or publish into that view.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/sqlite-local-schema.md"
@@ -1068,7 +1068,7 @@
     {
       "id": "dict",
       "lane": "derived",
-      "title": "Private current-row dictionaries",
+      "title": "Current-row compression dictionaries",
       "subtitle": [
         "current_dictionaries",
         "Immutable SHA-256-addressed zstd bytes"
@@ -1084,7 +1084,7 @@
         "Mixed dictionary generations",
         "Per-job bounded prepared ZSTD dictionaries"
       ],
-      "purpose": "Training/recoding installs dictionaries with referencing rows atomically. Missing or invalid named dictionaries require complete materialization rebuild from healthy history.",
+      "purpose": "Compression dictionaries and the current rows using them install in the same transaction. A missing or invalid named dictionary requires rebuilding the current view from healthy retained history.",
       "sources": [
         "docs/impl-proposal-5/plan/private-current-row-codec.md",
         "docs/impl-proposal-5/LocalStore.md"
@@ -1112,7 +1112,7 @@
         "Kind/device/inode/size/link count/mtime/ctime fingerprint",
         "Exact accepted-object ID and hint codec"
       ],
-      "purpose": "Fresh rooted observations plus exact accepted membership allow unchanged-body reuse across ordinary reopen. Each hint remains acceleration advice with separately checked session permissions.",
+      "purpose": "Previously checked file fingerprints and exact accepted-object identities help discovery skip unchanged file bodies, including after reopening. Each use still checks the current rooted observation, accepted membership and session permission.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/plan/phase5/bounded-discovery-batches-plan.md",
@@ -1143,7 +1143,7 @@
         "MaintenanceState and unique cancellation identity",
         "VacuumBudget / VacuumOutcome"
       ],
-      "purpose": "Explicit bounded recoding rechecks exact view/physical inputs; optional compaction settles completion or rollback before releasing resources. Automatic training/recoding/VACUUM and physical read-ahead hints retain independent gates.",
+      "purpose": "Optional jobs recode a bounded set of current rows or compact the database. They check captured row/view versions and retain resources until completion or rollback settles. Automatic training, recoding, VACUUM and read-ahead each have their own qualification gates.",
       "sources": [
         "docs/impl-proposal-5/plan/private-current-row-codec.md",
         "docs/impl-proposal-5/plan/phase4-current-row-locality-maintenance-plan.md"
@@ -1154,7 +1154,7 @@
     {
       "id": "capture",
       "lane": "work",
-      "title": "Frozen admitted action captures",
+      "title": "Frozen edit and action captures",
       "subtitle": [
         "Values + generations + exact graph roles",
         "Complete meaningful groups"
@@ -1172,10 +1172,10 @@
         "CapturedNoteGeneration UUID/LSN",
         "PlaintextNoteValue / NoteValueV1",
         "CausalParentSet and NotePredecessorSet",
-        "Scope frontier, before/after and restoration/merge/native provenance",
+        "Action frontier, before/after values and restoration/merge/native-Undo references",
         "DependencyLocatorTable"
       ],
-      "purpose": "The main-thread bridge freezes complete already-admitted values and semantics. Workers preserve identities and action boundaries through encoding, retry and local commit.",
+      "purpose": "The main-thread bridge freezes complete values and action context after an edit is admitted. Background work preserves those identities and group boundaries through encoding, retry and local commit.",
       "sources": [
         "docs/impl-proposal-5/plan/first-save-reopen-contract.md",
         "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md"
@@ -1186,7 +1186,7 @@
     {
       "id": "seal",
       "lane": "work",
-      "title": "Sealed immutable bytes / retry input",
+      "title": "Fixed object bytes for saving and retry",
       "subtitle": [
         "Changes + snapshot + descriptor encodings",
         "One local sealer"
@@ -1205,7 +1205,7 @@
         "OwnedCommit / CommitHandle",
         "SnapshotCommitHandle"
       ],
-      "purpose": "Encoding, optional zstd and authenticated sealing fix bytes once. Retry reuses exact sealed objects and resolves ambiguous completion by committed identity.",
+      "purpose": "Encoding, optional compression and integrity/encryption protection fix an object’s final bytes once. Retry uses the same sealed object; uncertain completion is checked against the committed identity.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/Encryption.md",
@@ -1217,7 +1217,7 @@
     {
       "id": "decoded",
       "lane": "work",
-      "title": "Bounded decoded records / claims",
+      "title": "Decoded records awaiting history checks",
       "subtitle": [
         "Envelope + value + action + snapshot codecs",
         "Exact nominal identities and references"
@@ -1239,7 +1239,7 @@
         "Projection / pending / private record decodes",
         "ExactUTF8, labels, display dates and nominal ID wrappers"
       ],
-      "purpose": "Decode complete bounded records after protection checks. Computed identities and structurally valid references name evidence for subsequent semantic validation.",
+      "purpose": "Decoding checks protection and size limits before constructing complete records. Their identities and references then supply inputs for checking history meaning and consistency.",
       "sources": [
         "docs/impl-proposal-5/Encryption.md",
         "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
@@ -1251,7 +1251,7 @@
     {
       "id": "graph",
       "lane": "work",
-      "title": "Checked history / query evidence",
+      "title": "Checked history and query results",
       "subtitle": [
         "RetainedGraph or scoped CheckedQueryHistory",
         "Exact captured prefix and occurrences"
@@ -1273,7 +1273,7 @@
         "Current/context capture, exact occurrence coverage",
         "CheckedCurrentBasis for qualifying ordinary saves"
       ],
-      "purpose": "Indexed bounded reads and one-decode-per-envelope traversal verify complete membership/links. Scoped query evidence retains its checked owner/session/prefix/view/scope; full graph evidence serves reconstruction and collection commands.",
+      "purpose": "Indexed reads check complete action membership and history relationships while decoding each object once. Query evidence records the owner, session and history/view position checked. Full-history evidence supports reconstruction and collection-wide commands.",
       "sources": [
         "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
         "docs/impl-proposal-5/plan/phase-4-improvements/at-most-once-envelope-decoding.md",
@@ -1285,7 +1285,7 @@
     {
       "id": "batch",
       "lane": "work",
-      "title": "Validated history batch + receipts",
+      "title": "Validated batch and durability results",
       "subtitle": [
         "Same exact objects + dependency semantics",
         "Acceptance transaction input/output"
@@ -1305,7 +1305,7 @@
         "AcceptedSnapshotReceipt",
         "Exact covered-generation commit outcome"
       ],
-      "purpose": "Bootstrap, current-basis or full declared-history validation issues the contextual batch. The owned transaction rechecks context and commits all acceptance facts before issuing durability evidence.",
+      "purpose": "History validation produces a batch tied to its checked bootstrap, current-state basis or declared history. The database owner checks that context again and commits all acceptance records before issuing a durability acknowledgment.",
       "sources": [
         "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
         "docs/impl-proposal-5/plan/typed-runtime-boundaries-validation.md",
@@ -1317,7 +1317,7 @@
     {
       "id": "reduce",
       "lane": "work",
-      "title": "Prepared reduction / reconstruction",
+      "title": "Prepared current-state computation",
       "subtitle": [
         "Exact logical cut + all outside-cut work",
         "Generation-bound install result"
@@ -1338,7 +1338,7 @@
         "StoreSnapshot checked complete capture",
         "One-shot opening handoff"
       ],
-      "purpose": "Reduction runs detached from live editing and SQL writes. Installation rechecks complete starting view and accepted target; final host publication independently checks live context.",
+      "purpose": "Reduction computes current notes and related views separately from live editing and database writes. Installation checks the starting view and target history again. Publishing to the app separately checks that its live context still matches.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/phase4-bootstrap-reconstruction-plan.md",
@@ -1350,7 +1350,7 @@
     {
       "id": "snapwork",
       "lane": "work",
-      "title": "Snapshot capture / assembly evidence",
+      "title": "Snapshot capture and validation",
       "subtitle": [
         "Frozen prefix, pages and represented cut",
         "Separate semantic and retention checks"
@@ -1365,13 +1365,13 @@
       ],
       "members": [
         "InitialCollectionV1 / BootstrapCandidate",
-        "InitialBootstrapValidationV1 / scope-frontier facts",
+        "InitialBootstrapValidationV1 / checked action frontiers",
         "GeneralSnapshotCapture / PreviewV1",
         "VerifiedGeneralSnapshotClaims",
         "CheckedRetentionParents / CheckedSnapshotAcceptance",
         "Page-stream readers, hashing and owned sink buffers"
       ],
-      "purpose": "Incremental construction emits bounded envelopes. Assembly verifies complete page tree/counts/digest; semantic verification checks the stated history, while retention-parent checks cover exact accepted object closures.",
+      "purpose": "Snapshot capture builds bounded roots and pages incrementally. Assembly checks the entire page tree, counts and digest. Separate checks verify the represented history and the required objects named by snapshot retention parents.",
       "sources": [
         "docs/impl-proposal-5/plan/general-snapshot-record-contract.md",
         "docs/impl-proposal-5/plan/phase4-bootstrap-reconstruction-plan.md"
@@ -1382,7 +1382,7 @@
     {
       "id": "recvwork",
       "lane": "work",
-      "title": "Receive / discovery turn",
+      "title": "Receive and discovery work",
       "subtitle": [
         "Requirements, metadata batches, cursors",
         "Bounded root → durable handoff"
@@ -1402,7 +1402,7 @@
         "RepositoryEntryObservation metadata batches",
         "RepositoryHintLookup ordered answers"
       ],
-      "purpose": "Discovery copies rooted observations, checks bounded hints and hands unknown exact bytes into durable receive. Preparation yields between turns; missing/rejected prerequisites keep their separate classifications.",
+      "purpose": "Discovery copies observations from the owned repository, checks bounded file hints and retains unknown exact bytes for receive processing. Work yields between turns; missing and rejected prerequisites keep distinct outcomes.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/phase5/03-local-repository-exchange.md",
@@ -1414,7 +1414,7 @@
     {
       "id": "pubwork",
       "lane": "work",
-      "title": "Publication batch / installation evidence",
+      "title": "Publication work and installation results",
       "subtitle": [
         "Accepted-prefix selection + exact bytes",
         "Provider installation separately checked"
@@ -1433,7 +1433,7 @@
         "RepositoryInstallationFailure installed/uncertain/stage accounting",
         "Exact accepted-dependency lookup"
       ],
-      "purpose": "Bounded publication captures accepted exact objects and releases SQL turns before root effects. Physical installation evidence is checked against the captured batch and live root; later upload remains advisory.",
+      "purpose": "Publication captures a bounded batch of exact accepted objects, then releases the database turn before file work. It checks installation evidence against that batch and the current physical root. Provider upload status remains separate.",
       "sources": [
         "docs/impl-proposal-5/plan/phase5/03-local-repository-exchange-validation.md",
         "docs/impl-proposal-5/plan/phase5/02-immutable-files-validation.md"
@@ -1444,7 +1444,7 @@
     {
       "id": "filework",
       "lane": "work",
-      "title": "File observations / projection plans",
+      "title": "File observations and output plans",
       "subtitle": [
         "Equal shallow catalogs + selected reads",
         "Fresh expected-current evidence"
@@ -1464,7 +1464,7 @@
         "ExpectedProjectionReplacement / external-delete plan",
         "Exact body/mandatory-metadata readback"
       ],
-      "purpose": "Current-file reconciliation captures catalogs, exact selected bytes and model generations, then revalidates before publication or physical effects. Immutable-object discovery uses its own bounded namespace path.",
+      "purpose": "Reconciliation captures current-file observations, selected bytes and live-model versions. It checks applicability again before changing the model or files. Immutable-object discovery follows its own bounded directory traversal.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/iCloud-Drive-Support-Spec.md",
@@ -1476,7 +1476,7 @@
     {
       "id": "pendingwork",
       "lane": "work",
-      "title": "Pending-file preview / decision capture",
+      "title": "Pending file previews and decisions",
       "subtitle": [
         "Latest readable vs frozen admitted input",
         "Fresh consent and relationship claim"
@@ -1496,7 +1496,7 @@
         "Operation reservation / frozen pending input",
         "Provisional relationship claim and current content review"
       ],
-      "purpose": "Classification and targeted review use one note’s active path/bytes. Reservations preserve retry identity; fresh decisions/generation checks admit complete captures, and exact committed evidence later settles references.",
+      "purpose": "File review compares the selected input with one note’s active path and bytes. Reservations preserve retry identity. Fresh decisions admit a complete capture; later exact committed evidence settles its pending references.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/plan/private-record-contract.md",
@@ -1508,7 +1508,7 @@
     {
       "id": "repairwork",
       "lane": "work",
-      "title": "Repair / backup / copy evidence",
+      "title": "Repair, backup and copy results",
       "subtitle": [
         "Validated union and fixed-cut inventories",
         "Verified replacement + activation input"
@@ -1530,7 +1530,7 @@
         "RepositoryCopyResult / issues",
         "Transient pending/reference/dictionary fingerprints"
       ],
-      "purpose": "Repair combines independently valid exact objects and preserves unique private records. Copy/backup outcomes report their captured coverage; activation consumes separately issued verified replacement context.",
+      "purpose": "Repair combines independently validated objects with surviving required private records. Backup and copy report which captured inputs they include. Activating a replacement additionally requires separately verified selection context.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-plan.md",
@@ -1562,7 +1562,7 @@
         "Automatic preservation births / independently edited conflict notes",
         "Temporary local Current-head/presentation pin"
       ],
-      "purpose": "Admission updates the live store immediately. Incoming prepared changes publish atomically after final checks; admitted pending generations remain protected while history becomes durable.",
+      "purpose": "Edits enter the complete live note store immediately. Incoming prepared changes become visible together after final checks. Pending edits stay protected until their exact history is durably saved.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "CONTEXT.md",
@@ -1589,7 +1589,7 @@
         "Window query/filter/list selection",
         "Host case-insensitive label lookup distinct from exact stored label tokens"
       ],
-      "purpose": "The complete model is initialized before editable startup. Searching and filtering run synchronously in the same input/runloop/view-refresh cycle.",
+      "purpose": "All current notes and search indexes are ready before editable startup. Searching and filtering run synchronously with input processing and the same view-refresh cycle.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/impl-proposal-5/plan/first-save-reopen-contract.md",
@@ -1601,7 +1601,7 @@
     {
       "id": "pendinglive",
       "lane": "live",
-      "title": "Pending generations / action context",
+      "title": "Pending edit versions and action context",
       "subtitle": [
         "UUID/LSN + structural generation",
         "Applied frontier + scope maxima"
@@ -1620,7 +1620,7 @@
         "Writer epoch / sequence allocator",
         "Fresh independent action origin / previous-origin action"
       ],
-      "purpose": "Complete capture preserves the dependencies of newer admitted work. Exact completion clears only covered generations. Fresh editable sessions allocate new writer and action-origin context.",
+      "purpose": "Each pending edit records the version and action context needed to save it faithfully. Completion clears only the generations it actually saved. A fresh editable session creates new writer-epoch and action-origin contexts.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/Implementation.md",
@@ -1651,7 +1651,7 @@
         "Window focus/selection/scroll/layout/geometry",
         "AppKit-managed marked input"
       ],
-      "purpose": "Views share note and undo ownership while retaining presentation state. Native undo routes through causal eligibility; durable native compensation records remaining effects through ordinary action capture.",
+      "purpose": "Windows share the live note and its Undo owner while keeping their own presentation state. Native typing undo checks causal eligibility. Durable action records retain the remaining effects needed for portable Undo.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/impl-proposal-5/Window-UI-Architecture.md",
@@ -1681,7 +1681,7 @@
         "Retained branch and merge previews/diff buffers",
         "CapturedRestoration fresh-birth command"
       ],
-      "purpose": "Indexed queries load exact retained evidence on demand. Durable restoration provenance excludes only its named source deletion, including after the restored birth is later deleted.",
+      "purpose": "On-demand indexed queries load exact retained history. Durable restoration evidence removes only its named source entry from Recently Deleted, even if the restored note is later deleted.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/plan/phase3-history-validation.md",
@@ -1714,7 +1714,7 @@
         "Unresolved NV attention minus exact completed copies",
         "Invocation-scoped resolver Current and selected member previews"
       ],
-      "purpose": "Note predecessors determine source heads and Current. Conservative merge retains exact input/base provenance; copy disposition changes exact conflict attention. Apple member scopes remain a separate source.",
+      "purpose": "Note predecessors determine alternative note heads and Current. Conservative merging preserves the exact inputs and base. Copy disposition changes attention to selected conflicts; Apple version choices retain their separate scope.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/plan/conservative-merge-contract.md",
@@ -1747,7 +1747,7 @@
         "Native remaining-effect claims",
         "Invocation-scoped explicit approval context"
       ],
-      "purpose": "Scope-parent ancestry orders candidates, while compensation targets identify actual reversals. Preparation and admission revalidate complete commands; reviewed or automatic execution appends new ordinary captured operations/actions.",
+      "purpose": "Scope parents order Undo/Redo candidates; compensation targets identify the action being reversed. Preparation and admission check the complete command again. Execution records a new action rather than rewriting earlier history.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
@@ -1759,7 +1759,7 @@
     {
       "id": "projection",
       "lane": "live",
-      "title": "Active projection transition",
+      "title": "Note-file update in progress",
       "subtitle": [
         "Current intended + last accepted output",
         "A → B → C source accounting"
@@ -1778,7 +1778,7 @@
         "Pending source-accounting obligation",
         "Active projection comparison set"
       ],
-      "purpose": "An unfinished transition retains its last accepted representation for repair matching. Settling B may advance accepted A to B while newer intended C stays pending; receipts advance after exact verification and source accounting.",
+      "purpose": "An unfinished note-file update retains the last verified representation for repair matching. If B finishes while newer C is pending, B settles only its own work. A projection receipt advances after exact file verification and completed source accounting.",
       "sources": [
         "docs/impl-proposal-5/Protocol.md",
         "docs/iCloud-Drive-Support-Spec.md"
@@ -1813,7 +1813,7 @@
         "SQLite pager cache and keyed connections",
         "Fixed-cut SQLite backup connection and job ownership"
       ],
-      "purpose": "One owner serializes synchronous SQL turns and reserves work before suspension. Separate worker preparation and provider resources preserve opportunities for local durability.",
+      "purpose": "One owner serializes database work and reserves jobs before waiting. Separate background preparation and provider resources leave local saving able to proceed.",
       "sources": [
         "docs/impl-proposal-5/plan/swift-storage-library-proposal-v2.md",
         "docs/impl-proposal-5/plan/actor-database-adoption.md",
@@ -1844,7 +1844,7 @@
         "Nested enumeration streams and cleanup ownership",
         "Entered operation reservation and rooted ancestor handles"
       ],
-      "purpose": "Positive same-root continuity permits physical operations and survives moves. Root/lifecycle checks bracket blocking effects; quiesce retains ownership until entered work settles.",
+      "purpose": "Positive evidence of the same owned directory permits physical operations and follows that directory through a move. Root/lifecycle checks surround blocking work. Closing retains ownership until entered work finishes.",
       "sources": [
         "docs/impl-proposal-5/plan/phase5/01-root-ownership-and-execution.md",
         "docs/impl-proposal-5/plan/phase5/02-immutable-files-and-namespace.md",
@@ -1879,7 +1879,7 @@
         "Nonce, bounded byte cursor, zstd/AEAD working buffers",
         "Prepared per-job dictionaries"
       ],
-      "purpose": "Validated descriptors or optional Keychain input unlock a pinned context. Authenticate encrypted provider bytes before decompression/decoding; password-free SQLCipher uses the documented public key.",
+      "purpose": "Validated descriptors or optional Keychain input unlock the selected collection context. Encrypted provider bytes are authenticated before decompression and decoding. Password-free database encryption uses the documented public key.",
       "sources": [
         "docs/impl-proposal-5/Encryption.md",
         "docs/impl-proposal-5/LocalStore.md",
@@ -1911,7 +1911,7 @@
         "Materialization requests and copied availability/upload status",
         "Opaque provider identity / visibility witnesses"
       ],
-      "purpose": "Rooted I/O stays inside the actual accessor interval. Callbacks request fresh observation; entered accessors retain owned resources through delayed completion, cancellation and close.",
+      "purpose": "Rooted file work runs inside Foundation’s actual coordination callback. Notifications request fresh observations. An entered callback retains its resources through delayed completion, cancellation and close.",
       "sources": [
         "docs/impl-proposal-5/plan/phase5/04-apple-coordination-and-discovery.md",
         "docs/Apple-API-Contract-Validation.md",
@@ -1943,7 +1943,7 @@
         "Fresh store/session/writer/origin context",
         "Independent add-only credential provisioning/readback"
       ],
-      "purpose": "A verified candidate and durable unlocking route precede selected-store activation. Fresh physical selection/association supplies new authority after recovery or a requested root switch.",
+      "purpose": "A verified candidate and durable unlocking route precede selecting a new active store. Recovery or an explicit root switch establishes a fresh physical association and its own authority.",
       "sources": [
         "docs/impl-proposal-5/LocalStore.md",
         "docs/impl-proposal-5/plan/phase4-private-state-repair-copy-plan.md",
@@ -1955,7 +1955,7 @@
     {
       "id": "gate",
       "lane": "authority",
-      "title": "Admission / publication / close fences",
+      "title": "Edit, publication and close checks",
       "subtitle": [
         "Store, root, lifecycle, view, note generations",
         "One asynchronous lifecycle owner"
@@ -1976,11 +1976,11 @@
         "Edit-admission gate independent local-health/startup/lock/lifecycle reasons",
         "Store incarnation, root/lifecycle/structural/note generations",
         "Final synchronous model-publication callback",
-        "Quit/folder-switch quiesce, forced capture and drain",
+        "Quit/folder switch: stop new edits, force captures and finish pending work",
         "Projection deferral / captured upload wait",
         "Operation-specific completion ownership"
       ],
-      "purpose": "Final consumers revalidate captured applicability. Quit forces admitted history and private-state barriers before optional provider waiting, fences/drains callbacks, and releases ownership last.",
+      "purpose": "Each final consumer checks that its captured context still applies. Quit saves admitted history and required private state before optional provider waiting, drains or invalidates callbacks, and releases ownership last.",
       "sources": [
         "docs/iCloud-Drive-Support-Spec.md",
         "docs/impl-proposal-5/Implementation.md",
@@ -2122,7 +2122,7 @@
       "id": "e11",
       "source": "accepted",
       "target": "pin",
-      "operation": "advance maximal required closure atomically",
+      "operation": "update uncovered required-object references together; retain every ancestor",
       "kind": "commit",
       "features": [
         "D",
@@ -2289,7 +2289,7 @@
       "id": "e24",
       "source": "reduce",
       "target": "view",
-      "operation": "advance rows + context + prefix together",
+      "operation": "commit current rows, editing context and history position together",
       "kind": "commit",
       "features": [
         "B",
@@ -2302,7 +2302,7 @@
       "id": "e25",
       "source": "view",
       "target": "current",
-      "operation": "bind exact epoch and represented prefix",
+      "operation": "bind the current-view version to its history position",
       "kind": "reference",
       "features": [
         "B",
@@ -2326,7 +2326,7 @@
       "id": "e27",
       "source": "view",
       "target": "live",
-      "operation": "restore compact authoring frontiers",
+      "operation": "restore the history references needed to author new actions",
       "kind": "derive",
       "features": [
         "B",
@@ -2350,7 +2350,7 @@
       "id": "e29",
       "source": "reduce",
       "target": "live",
-      "operation": "generation-fenced atomic live publication",
+      "operation": "check current generations; publish live changes together",
       "kind": "derive",
       "features": [
         "E",
@@ -2721,7 +2721,7 @@
       "id": "e61",
       "source": "graph",
       "target": "snapwork",
-      "operation": "capture stated operation cut + accepted root frontier",
+      "operation": "capture represented history and accepted snapshot roots requiring coverage",
       "kind": "derive",
       "features": [
         "B",
@@ -2805,7 +2805,7 @@
       "id": "e68",
       "source": "snapwork",
       "target": "reduce",
-      "operation": "verified snapshot basis + all accepted outside-cut actions",
+      "operation": "use verified snapshot state plus every accepted action outside its history",
       "kind": "derive",
       "features": [
         "B",
@@ -3650,7 +3650,7 @@
       "id": "e139",
       "source": "gate",
       "target": "localowner",
-      "operation": "quiesce, drain admitted history + required state",
+      "operation": "stop new edits; finish saving admitted history and required private state",
       "kind": "guard",
       "features": [
         "D",
@@ -3662,7 +3662,7 @@
       "id": "e140",
       "source": "gate",
       "target": "rootowner",
-      "operation": "fence / drain entered effects; release ownership last",
+      "operation": "invalidate stale work; wait for entered effects; release ownership last",
       "kind": "guard",
       "features": [
         "S",

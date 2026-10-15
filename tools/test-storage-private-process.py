@@ -71,7 +71,13 @@ def main():
                      ('repair-private-after', 'repair-fault', 'private-after'), ('repair-private-enospc', 'repair-fault', 'private-enospc'),
                      ('repair-private-eio', 'repair-fault', 'private-eio'), ('connected-repair', 'repair', 'normal'),
                      ('repair-verified', 'repair', 'verified'),
-                     ('repair-activated', 'repair', 'activated'), ('repair-closed', 'repair', 'closed'), ('repair', 'repair', 'normal')]
+                     ('repair-activated', 'repair', 'activated'), ('repair-closed', 'repair', 'closed'), ('repair', 'repair', 'normal'),
+                     ('integrated-private-before', 'integrated-repair-fault', 'private-before'),
+                     ('integrated-private-after', 'integrated-repair-fault', 'private-after'),
+                     ('integrated-private-enospc', 'integrated-repair-fault', 'private-enospc'),
+                     ('integrated-private-eio', 'integrated-repair-fault', 'private-eio'),
+                     ('integrated-repair', 'integrated-repair', 'normal'),
+                     ('integrated-activated', 'integrated-repair', 'activated')]
         for name, kind, fault in schedules:
             if args.only and args.only not in name:
                 continue
@@ -133,7 +139,7 @@ def main():
                 assert oracle.returncode == 0, oracle.stderr
                 (case/'independent-history.json').write_text(oracle.stdout)
             else:
-                if kind == 'repair-fault' or name == 'connected-repair':
+                if kind.endswith('repair-fault') or name == 'connected-repair' or kind.startswith('integrated-'):
                     invoke('private-import', 5, 1, -1, code=86)
                     invoke('private-latest')
                     invoke('private-delete')
@@ -154,11 +160,12 @@ def main():
                     actual = invoke('private-dump', source=case/'backup', inputs=copied_selection)
                     inspect = invoke('inspect', source=case/'backup', inputs=copied_selection)
                 else:
+                    repair_command = 'private-repair-integrated' if kind.startswith('integrated-') else 'private-repair'
                     repair = case/'repair'
                     make_directory(repair)
-                    if kind == 'repair-fault':
+                    if kind.endswith('repair-fault'):
                         killed = fault in ['private-before', 'private-after']
-                        failed = invoke('private-repair', repair, fault, code=86 if killed else 0)
+                        failed = invoke(repair_command, repair, fault, code=86 if killed else 0)
                         if not killed: assert failed['built'] is False and failed['hits'] == 1, failed
                         assert not exists(repair/'selection.json')
                         selected = read_bytes(repair/'Selected Store')
@@ -166,13 +173,13 @@ def main():
                         assert invoke('private-dump')['notes'] == expected['notes']
                         retry = case/'repair-second-failure'
                         make_directory(retry)
-                        failed = invoke('private-repair', retry, 'private-enospc')
+                        failed = invoke(repair_command, retry, 'private-enospc')
                         assert failed['built'] is False and failed['hits'] == 1, failed
                         assert not exists(retry/'selection.json')
                         repair = case/'repair-success'
                         make_directory(repair)
                         fault = 'normal'
-                    invoke('private-repair', repair, fault, code=0 if fault == 'normal' else 86)
+                    invoke(repair_command, repair, fault, code=0 if fault == 'normal' else 86)
                     candidate_selection = repair/'selection.json'
                     candidate = json.loads(read_bytes(candidate_selection))
                     selected = read_bytes(repair/'Selected Store')

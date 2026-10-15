@@ -1,8 +1,11 @@
 import Foundation
+import Crypto
 import NVStorageCore
 
 /// Resumes indexed selection at a frozen prefix, or starts the next pass after a completed prefix.
 public struct RepositoryPublicationCursor: Sendable {
+    /// Complete acceptance batches already passed by the publication cursor.
+    var inventoryThrough: Int64 { through == nil ? afterSequence : max(0, afterSequence - 1) }
     fileprivate let store: LocalStoreID
     fileprivate let session: UUID
     fileprivate let through: Int64?
@@ -53,7 +56,104 @@ public enum RepositoryPublicationResult: Sendable {
     case incomplete(installed: [ImmutableInstallation], failure: RepositoryInstallationFailure)
 }
 
+/// A complete checked prefix supplies the fixed inventory for an automatic repair attempt.
+struct CheckedRepositoryRepair: Sendable {
+    let through: Int64
+    let objectCount: Int
+    fileprivate let beginning: RepositoryPublicationCursor
+    fileprivate init(through: Int64, objectCount: Int, beginning: RepositoryPublicationCursor) {
+        self.through = through; self.objectCount = objectCount; self.beginning = beginning
+    }
+}
+
+/// Frozen canonical names and hashes bind bounded rereads to one checked saved-history cut.
+struct CapturedRepositoryHistory: Sendable {
+    let through: Int64
+    let requirements: [RepositoryByteRequirement]
+    fileprivate let source: LocalStoreSession
+    fileprivate let beginning: RepositoryPublicationCursor
+    fileprivate init(source: LocalStoreSession, beginning: RepositoryPublicationCursor,
+                     through: Int64, requirements: [RepositoryByteRequirement]) {
+        self.source = source; self.beginning = beginning; self.through = through; self.requirements = requirements
+    }
+
+    /// Reuses the publication reader's byte/object budgets and keeps verification pending through consumption.
+    func forEachBatch(isolation: isolated (any Actor)? = #isolation,
+                      _ consume: ([ImmutableRepositoryObject]) async throws -> Void) async throws {
+        let lane = source.lane
+        try await lane.verifying(.history(through), isolation: isolation) {
+            let expected = Dictionary(requirements.map { ($0.path, $0.sha256) }, uniquingKeysWith: { first, _ in first })
+            var cursor: RepositoryPublicationCursor? = beginning, seen = Set<String>()
+            repeat {
+                try Task.checkCancellation()
+                let batch = try await source.captureRepositoryPublication(continuing: cursor)
+                let entries = batch.objects.map { ($0.locator.relativePath, Array(SHA256.hash(data: $0.bytes))) }
+                try await lane.perform { db in
+                    try db.checkingRetainedHistory {
+                        guard batch.through == through,
+                              entries.allSatisfy({ expected[$0.0] == $0.1 }) else { throw StorageError.integrity }
+                    }
+                }
+                seen.formUnion(entries.map(\.0))
+                try await consume(batch.objects)
+                cursor = batch.continuation
+            } while cursor != nil
+            let complete = seen.count == expected.count
+            try await lane.perform { db in
+                try db.checkingRetainedHistory { guard complete else { throw StorageError.incomplete } }
+            }
+        }
+    }
+}
+
 extension LocalStoreSession {
+    /// Preflights the fixed cut in bounded batches; the retained capture contains inventory metadata.
+    func captureRepositoryHistory(through: Int64) async throws -> CapturedRepositoryHistory {
+        let beginning = RepositoryPublicationCursor(store: selection.store, session: incarnation,
+            through: through, afterSequence: 0, afterObject: [])
+        return try await lane.verifying(.history(through)) {
+            var cursor: RepositoryPublicationCursor? = beginning, requirements: [RepositoryByteRequirement] = []
+            repeat {
+                try Task.checkCancellation()
+                let batch = try await captureRepositoryPublication(continuing: cursor)
+                requirements += try batch.objects.map {
+                    try RepositoryByteRequirement(path: $0.locator.relativePath, sha256: Array(SHA256.hash(data: $0.bytes)))
+                }
+                cursor = batch.continuation
+            } while cursor != nil
+            return CapturedRepositoryHistory(source: self, beginning: beginning, through: through, requirements: requirements)
+        }
+    }
+
+    /// Checks every accepted object before repair begins, retaining only a bounded batch at a time.
+    func prepareRepositoryRepair(maximumObjects: Int = 16) async throws -> CheckedRepositoryRepair {
+        var batch = try await captureRepositoryPublication(maximumObjects: maximumObjects)
+        let beginning = RepositoryPublicationCursor(store: batch.store, session: batch.session,
+            through: batch.through, afterSequence: 0, afterObject: [])
+        var count = batch.locators.count
+        while let cursor = batch.continuation {
+            try Task.checkCancellation()
+            batch = try await captureRepositoryPublication(continuing: cursor, maximumObjects: maximumObjects)
+            count += batch.locators.count
+        }
+        try Task.checkCancellation()
+        try await checkPublication(batch)
+        return CheckedRepositoryRepair(through: batch.through, objectCount: count, beginning: beginning)
+    }
+
+    /// Re-reads exact repair bytes at the checked prefix while newer accepted work remains independent.
+    func captureRepositoryRepair(_ repair: CheckedRepositoryRepair,
+                                 continuing cursor: RepositoryPublicationCursor? = nil,
+                                 maximumObjects: Int = 16) async throws -> RepositoryPublicationBatch {
+        guard repair.beginning.store == selection.store, repair.beginning.session == incarnation else {
+            throw StorageError.wrongContext
+        }
+        if let cursor {
+            guard cursor.through == repair.through else { throw StorageError.wrongContext }
+        }
+        return try await captureRepositoryPublication(continuing: cursor ?? repair.beginning, maximumObjects: maximumObjects)
+    }
+
     /// Selects accepted objects by private sequence and identity, releasing every SQL turn before transport.
     /// One oversized object advances a byte-budgeted turn within the existing envelope ceiling.
     public func captureRepositoryPublication(continuing cursor: RepositoryPublicationCursor? = nil,
@@ -110,6 +210,11 @@ extension LocalStoreSession {
                         next = try RepositoryPublicationCursor(store: selection.store, session: session, through: through,
                             afterSequence: last[0].number, afterObject: last[1].bytes)
                     } else { next = nil }
+                    db.countWork {
+                        $0.publicationBatches += 1
+                        $0.largestPublicationObjects = max($0.largestPublicationObjects, objects.count)
+                        $0.largestPublicationBytes = max($0.largestPublicationBytes, size)
+                    }
                     return RepositoryPublicationBatch(store: selection.store, session: session, descriptor: selection.descriptor,
                         through: through, objects: objects, continuation: next)
                 }

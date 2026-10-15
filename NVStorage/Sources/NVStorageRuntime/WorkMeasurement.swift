@@ -49,6 +49,9 @@ struct StorageWork: Sendable {
         var discoveryHintBatches = 0
         var discoveryHintInputs = 0
         var discoveryHintHits = 0
+        var publicationBatches = 0
+        var largestPublicationObjects = 0
+        var largestPublicationBytes = 0
         var physicalOwnerChecks = 0
         var connectionContextChecks = 0
     }

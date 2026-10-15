@@ -6,7 +6,7 @@ import NVStorageCore
 
 public enum StorageError: Error, Equatable, Sendable {
     case ownership(Int32), database(Int32), unsupported, wrongContext, incomplete, integrity
-    case closed, busy, staleCapture, limit
+    case closed, busy, staleCapture, limit, cancelled
 }
 
 enum SQLValue: Equatable, Sendable {
@@ -143,6 +143,17 @@ final class Database {
         checkedContext = nil
         if let handle = unsafe handle { unsafe sqlite3_close_v2(handle); unsafe self.handle = nil }
         if let owner = unsafe owner { unsafe nv_storage_owner_close(owner); unsafe self.owner = nil }
+    }
+    /// Settles the connection while retaining physical exclusion for the final source observation.
+    fileprivate func retireForSelection() -> Result<[UInt64], StorageError> {
+        executor.checkIsolation()
+        guard let handle = unsafe handle, let owner = unsafe owner else { return .failure(.closed) }
+        let result = unsafe sqlite3_close(handle)
+        guard result == SQLITE_OK else { return .failure(.database(result)) }
+        unsafe self.handle = nil
+        var observation = [UInt64](repeating: 0, count: 25)
+        let rc = observation.withUnsafeMutableBufferPointer { unsafe nv_storage_owner_observe(owner, $0.baseAddress) }
+        return rc == 0 ? .success(observation) : .failure(.ownership(errno))
     }
     func validateOwner() throws {
         if ownedOperationActive { try requireOwnedConnection() }
@@ -381,7 +392,7 @@ final class Database {
             let current = try reader.rows("SELECT birth,cell FROM current_notes ORDER BY birth")
             let dictionaries = try reader.rows("SELECT dictionary_id,encoded FROM current_dictionaries ORDER BY dictionary_id")
             let cut = try PrivateBackupCapture(through: through, groups: groups, pin: pin, current: current, dictionaries: dictionaries, view: meta,
-                pending: reader.pendingPrivateFingerprint())
+                pending: reader.pendingPrivateFingerprint(), source: captureBackupSource())
             guard let task = unsafe sqlite3_backup_init(destination.handle, "main", reader.handle, "main") else {
                 throw StorageError.database(unsafe sqlite3_errcode(destination.handle))
             }
@@ -426,6 +437,7 @@ struct PrivateBackupCapture: Sendable {
     let dictionaries: [[SQLValue]]
     let view: [[SQLValue]]
     let pending: [UInt8]
+    let source: PrivateBackupSourceCut
 }
 
 @safe
@@ -592,6 +604,14 @@ actor DatabaseLane {
         database = try Database(directory: directory, create: create, key: key, executor: executor)
     }
     func close() { verificationReplayContext = nil; database?.close(); database = nil }
+    /// The source comparison and connection retirement occupy one uninterrupted database turn.
+    func retireForCopy(_ backup: CapturedPrivateBackup) throws -> Result<[UInt64], StorageError> {
+        guard let db = database else { throw StorageError.closed }
+        try db.withOwnedOperation { try db.requireHealthyHistory(); try db.checkBackupSource(backup) }
+        let result = db.retireForSelection()
+        close()
+        return result
+    }
     /// Retires an abandoned pre-run maintenance borrow on the connection's executor.
     func retireVacuum(_ request: VacuumRequest) { nv_sql_vacuum_finish(request.identity) }
 }

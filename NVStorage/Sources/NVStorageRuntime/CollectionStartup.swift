@@ -16,6 +16,13 @@ public struct CollectionRecoveryRequest: Sendable {
     }
 }
 
+/// Describes automatic repository repair independently of local editing admission.
+public enum CollectionRepositoryRepairStatus: Sendable {
+    case idle, checking, installing
+    case complete(through: Int64, objects: Int)
+    case paused(RepositoryTransportFailure)
+}
+
 /// A startup choice binds one named unread object to one owner and selection attempt.
 public struct WorkOfflineChoice: Sendable {
     public let object: SegmentLocator
@@ -49,6 +56,24 @@ public enum CollectionOpenOutcome: Sendable {
         case .ready, .editable, .wait, .contention: return .init(.privateState, failure: health.failure)
         }
     }
+}
+
+/// The copy report describes repository bytes; a switched owner also retains the complete private inputs.
+public struct CollectionCopySwitchResult: Sendable {
+    public let copy: ActiveRepositoryCopy
+    public let outcome: CollectionCopySwitchOutcome
+    fileprivate init(copy: ActiveRepositoryCopy, outcome: CollectionCopySwitchOutcome) {
+        self.copy = copy; self.outcome = outcome
+    }
+}
+
+/// Selection durability determines which owner can admit new edits after Save As.
+public enum CollectionCopySwitchOutcome: Sendable {
+    case sourceRetained(cause: StorageError)
+    case opened(CollectionSession, selected: SelectedStoreState)
+    case activationPending(cause: StorageError)
+    case activatedNeedsReopen(LocalStoreSelection, selected: SelectedStoreState, cause: StorageError)
+    case sourceNeedsReopen(LocalStoreSelection, cause: StorageError)
 }
 
 /// A reduction retains the integrated selection and the existing store's checked view.
@@ -106,6 +131,10 @@ struct CollectionStartupHooks: Sendable {
     var afterBinding: (@Sendable () async throws -> Void)?
     var beforePublication: (@Sendable () async throws -> Void)?
     var beforeNamedTransportAdoption: (@Sendable () async -> Void)?
+    var repairPrepared: (@Sendable (CheckedRepositoryRepair) async throws -> Void)?
+    var repairBatch: (@Sendable (RepositoryPublicationBatch) async throws -> Void)?
+    var repositoryCopyCaptured: (@Sendable (String) async -> Void)?
+    var copySwitchPrepared: (@Sendable () async throws -> Void)?
     var transport = RepositoryTransportHooks()
     var measuring: StorageWork?
 }
@@ -113,7 +142,15 @@ struct CollectionStartupHooks: Sendable {
 private enum StartupPhase: Sendable {
     case ready, editable, association, contention
     case waiting(DisclosedRepositoryObject)
-    case publishing, transitioning, bindingPending(AssociationTransition), closed
+    case publishing, transitioning, bindingPending(AssociationTransition), copySwitchPending(PendingCopySwitch), closed
+}
+
+/// Retains both physical roots and the selection attempt while its durability remains unsettled.
+private struct PendingCopySwitch: Sendable {
+    let replacement: VerifiedReplacement
+    let destination: RepositoryRootSession
+    let copy: ActiveRepositoryCopy
+    let selector: SelectedStoreOwner
 }
 private enum AcquiredStartupRoot: Sendable {
     case owned(RepositoryRootSession), failed(RepositoryRootError)
@@ -133,12 +170,17 @@ private enum StartupTransport: Sendable {
     var driver: RepositoryTransportDriver? { if case .attached(let value) = self { value } else { nil } }
 }
 
+private struct RepositoryRepairFlight: Sendable {
+    let id: UUID
+    let task: Task<Void, Never>
+}
+
 /// Joins checked local startup with physical association and independently scheduled provider work.
 public actor CollectionSession {
     public var selection: LocalStoreSelection { store.selection }
     private let identity = UUID()
     private var attempt = UUID()
-    private let store: LocalStoreSession
+    private var store: LocalStoreSession
     private var root: RepositoryRootSession?
     private var acquisition: Task<Void, Never>?
     private var acquired: AcquiredStartupRoot?
@@ -150,6 +192,8 @@ public actor CollectionSession {
     private var operations = 0
     private var deferredDisclosure: DisclosedRepositoryObject?
     private let hooks: CollectionStartupHooks
+    private var repair: RepositoryRepairFlight?
+    private var repairStatus: CollectionRepositoryRepairStatus = .idle
 
     private init(store: LocalStoreSession, association: LocalAssociationState, hooks: CollectionStartupHooks) {
         self.store = store; self.association = association; self.hooks = hooks
@@ -196,7 +240,7 @@ public actor CollectionSession {
         guard captured == attempt else { if case .owned(let root) = result { await root.close() }; return }
         switch phase {
         case .closed: if case .owned(let root) = result { await root.close() }
-        case .publishing, .transitioning, .bindingPending: acquired = result
+        case .publishing, .transitioning, .bindingPending, .copySwitchPending: acquired = result
         case .ready, .editable, .association, .contention, .waiting:
             acquired = result
             await consumeAcquisition()
@@ -220,6 +264,7 @@ public actor CollectionSession {
                 }
                 self.root = root
                 try await inspectRepository(root)
+                startRepositoryRepairIfApplicable()
                 await attachIfApplicable()
             } catch {
                 if self.root == nil { await root.close() }
@@ -231,9 +276,12 @@ public actor CollectionSession {
     /// Returns a truthful scoped decision; provider status remains separately inspectable while editing.
     public func decision() -> CollectionStartupDecision {
         switch phase {
-        case .publishing, .transitioning, .bindingPending: return .transition
+        case .publishing, .transitioning, .bindingPending, .copySwitchPending: return .transition
         case .closed: return .closed
         case .ready, .editable, .association, .contention, .waiting:
+            if case .paused(.store(let failure)) = repairStatus, failure == .integrity || failure == .incomplete {
+                return .recovery(.init(.requiredHistory, failure: failure))
+            }
             let local: StartupLocalHealth = phase.needsAssociation ? .association : .ready
             switch classifyStartup(local: local, repository: repositoryHealth,
                 published: phase.isEditable, unreadAbsentLocally: phase.disclosure != nil) {
@@ -249,6 +297,8 @@ public actor CollectionSession {
         }
     }
     public func pendingRepositoryRequest() -> CollectionRecoveryRequest? { repositoryRequest }
+    public func repositoryRepairStatus() -> CollectionRepositoryRepairStatus { repairStatus }
+    func settleRepositoryRepair() async { if let repair { await repair.task.value } }
     public func transportStatus() async -> RepositoryTransportStatus? { await transport.driver?.status() }
     func settleAcquisition() async { if let acquisition { await acquisition.value } }
     /// Copied measurements let qualification observe startup's existing database work.
@@ -280,6 +330,7 @@ public actor CollectionSession {
             let value = try await store.publish(prepared.model, liveGeneration: liveGeneration, apply: apply)
             phase = .editable
             await consumeAcquisition()
+            startRepositoryRepairIfApplicable()
             await attachIfApplicable()
             return value
         } catch {
@@ -307,6 +358,114 @@ public actor CollectionSession {
         try requireEditable()
         operations += 1; defer { operations -= 1 }
         return try await store.retry(commit: handle)
+    }
+
+    /// Preserves the captured saved history and available repository while this collection keeps accepting edits.
+    public func copyRepositoryAndSavedWork(to destination: String) async throws -> ActiveRepositoryCopy {
+        try requireStable()
+        operations += 1; defer { operations -= 1 }
+        try await checkLocalAdmission(requireAssociation: false)
+        let source = root
+        let available = await source?.state == .active ? source : nil
+        return try await store.copyRepositoryAndSavedWork(from: available, to: destination, captured: hooks.repositoryCopyCaptured)
+    }
+
+    /// Prepares a complete independent copy, then retires the unchanged source before selecting its successor.
+    public func switchRepositoryAndSavedWork(to destination: String, privateDirectory: String,
+        using selector: SelectedStoreOwner, basedOn selected: SelectedStoreState) async throws -> CollectionCopySwitchResult {
+        try requireStable()
+        guard selected.record?.store == store.selection.store,
+              selected.record?.association == association.value?.id else { throw StorageError.wrongContext }
+        operations += 1
+        var reserved = true
+        defer { if reserved { operations -= 1 } }
+        var prepared: PreparedPrivateStoreCopy?
+        var target: RepositoryRootSession?
+        var copied: ActiveRepositoryCopy?
+        var previous: StartupPhase?
+        do {
+            try await checkLocalAdmission()
+            let copy = try await store.preparePrivateStoreCopy(to: privateDirectory)
+            prepared = copy
+            let source = root
+            let available = await source?.state == .active ? source : nil
+            let report = try await copy.copyRepository(from: available, to: destination, captured: hooks.repositoryCopyCaptured)
+            copied = report
+            guard report.repository.unmetRequirements.isEmpty else { throw StorageError.incomplete }
+            let opened = try await RepositoryRootSession.open(directory: destination)
+            target = opened
+            try await copy.bindDestination(opened)
+            try await hooks.copySwitchPrepared?()
+            try Task.checkCancellation()
+            operations -= 1; reserved = false
+            previous = try await reserveTransition()
+            await settleRepositoryTeardown()
+            let replacement = try await copy.retireSource(store, destination: opened)
+            attempt = UUID()
+            let pending = PendingCopySwitch(replacement: replacement, destination: opened, copy: report, selector: selector)
+            // The admitted handoff owns selection settlement through late caller cancellation.
+            let activation = Task { try await replacement.activate(using: selector, basedOn: selected) }
+            let result = try await activation.value
+            switch result {
+            case .activated(let selected):
+                prepared = nil; target = nil
+                return await adoptCopySwitch(pending, selected: selected)
+            case .uncertain(_, let cause):
+                phase = .copySwitchPending(pending); prepared = nil; target = nil
+                return .init(copy: report, outcome: .activationPending(cause: cause))
+            case .unchanged(_, let cause): throw cause
+            }
+        } catch {
+            try? await prepared?.close()
+            await target?.close()
+            if let previous {
+                let failure = await restoreCopySource(previous, cause: classify(error))
+                if let copied { return .init(copy: copied, outcome: failure) }
+            } else if let copied { return .init(copy: copied, outcome: .sourceRetained(cause: classify(error))) }
+            throw error
+        }
+    }
+
+    /// Completes the retained selection attempt before returning the successor owner to the host.
+    public func resumeCopySwitch() async throws -> CollectionCopySwitchResult {
+        guard case .copySwitchPending(let pending) = phase else { throw StorageError.staleCapture }
+        phase = .transitioning
+        do {
+            let result = try await pending.replacement.resumeActivation(using: pending.selector)
+            switch result {
+            case .activated(let selected): return await adoptCopySwitch(pending, selected: selected)
+            case .uncertain(_, let cause), .unchanged(_, let cause):
+                phase = .copySwitchPending(pending)
+                return .init(copy: pending.copy, outcome: .activationPending(cause: cause))
+            }
+        } catch { phase = .copySwitchPending(pending); throw error }
+    }
+
+    private func adoptCopySwitch(_ pending: PendingCopySwitch, selected: SelectedStoreState) async -> CollectionCopySwitchResult {
+        await root?.close(); root = nil; phase = .closed
+        do {
+            let owner = try await pending.replacement.adopt(repository: pending.destination)
+            return .init(copy: pending.copy, outcome: .opened(owner, selected: selected))
+        } catch {
+            await pending.destination.close(); try? await pending.replacement.close()
+            return .init(copy: pending.copy, outcome: .activatedNeedsReopen(pending.replacement.selection,
+                selected: selected, cause: classify(error)))
+        }
+    }
+
+    private func restoreCopySource(_ previous: StartupPhase, cause: StorageError) async -> CollectionCopySwitchOutcome {
+        do {
+            if await store.closed {
+                store = try await LocalStoreSession.open(selection: store.selection, protection: store.protection)
+                association = try await store.localAssociation(); attempt = UUID()
+            }
+            phase = previous
+            await attachIfApplicable()
+            return .sourceRetained(cause: cause)
+        } catch {
+            await root?.close(); root = nil; phase = .closed
+            return .sourceNeedsReopen(store.selection, cause: classify(error))
+        }
     }
 
     /// Activates a complete fresh selection through the existing expected-current record boundary.
@@ -381,7 +540,9 @@ public actor CollectionSession {
         transport = .attaching
         do {
             let driver = try await RepositoryTransportDriver.start(root: root, store: store, hooks: hooks.transport,
-                waiting: evidence, namedSettled: { [weak self] locator in await self?.namedInputSettled(locator, root: root) })
+                waiting: evidence, namedSettled: { [weak self] locator in await self?.namedInputSettled(locator, root: root) },
+                repositoryObserved: { [weak self] turn in await self?.observedRepository(turn, root: root) },
+                inventoryAllowed: { [weak self] in await self?.canCheckInventory(root: root) ?? false })
             await hooks.beforeNamedTransportAdoption?()
             guard captured == attempt, self.root === root else { await driver.stop(); throw StorageError.staleCapture }
             transport = .attached(driver)
@@ -397,45 +558,43 @@ public actor CollectionSession {
 
     /// Retry restores permissions only for the continuously held directory after positive comparison.
     public func retryRepository(at candidate: URL) async throws -> RepositoryRootContinuity {
-        try reserveTransition()
-        let previous = phaseBeforeTransition
+        let previous = try await reserveTransition()
         let previousAttempt = attempt
-        defer { phaseBeforeTransition = nil }
         do {
             guard let root else { throw RepositoryRootError.fenced }
             let continuity = try await root.revalidate(candidate: candidate.path)
             attempt = UUID()
-            phase = previous?.isEditable == true ? .editable : (association.value == nil ? .association : .ready)
+            phase = previous.isEditable ? .editable : (association.value == nil ? .association : .ready)
             if continuity == .same {
                 try await inspectRepository(root)
-                if let evidence = previous?.disclosure {
+                if let evidence = previous.disclosure {
                     if repositoryHealth == .compatible { try await considerProviderObject(evidence.locator) }
                     else { deferredDisclosure = evidence }
                 }
                 await transport.driver?.revisit(.refresh)
+                repairStatus = .idle
+                startRepositoryRepairIfApplicable()
                 await attachIfApplicable()
             } else {
-                if let evidence = previous?.disclosure { deferredDisclosure = evidence }
+                if let evidence = previous.disclosure { deferredDisclosure = evidence }
                 repositoryHealth = .unavailable; repositoryRequest = .init(.providerUnavailable)
             }
             return continuity
         } catch {
             let rootIsActive = await root?.state == .active
             if attempt != previousAttempt || !rootIsActive {
-                if let evidence = previous?.disclosure { deferredDisclosure = evidence }
-                phase = previous?.isEditable == true ? .editable : (association.value == nil ? .association : .ready)
+                if let evidence = previous.disclosure { deferredDisclosure = evidence }
+                phase = previous.isEditable ? .editable : (association.value == nil ? .association : .ready)
                 repositoryHealth = .unavailable; repositoryRequest = .init(.providerUnavailable)
-            } else { phase = previous ?? .ready }
+            } else { phase = previous }
             throw error
         }
     }
 
-    private var phaseBeforeTransition: StartupPhase?
     /// Explicitly binds this complete collection to a selected directory, preserving its private history.
     public func reopenRepository(at candidate: URL, descriptor: BootstrapDescriptorV1) async throws {
         guard descriptor.encodedBytes == store.selection.descriptor.encodedBytes else { throw StorageError.wrongContext }
-        try reserveTransition()
-        let previous = phaseBeforeTransition ?? .association
+        let previous = try await reserveTransition()
         let oldRoot = root, oldDriver = transport.driver
         var selected: RepositoryRootSession?
         var binding: AssociationTransition?
@@ -475,7 +634,8 @@ public actor CollectionSession {
             try await hooks.afterBinding?()
             try await inspectRepository(selected)
             phase = settledPhase ?? .association
-            phaseBeforeTransition = nil
+            repairStatus = .idle
+            startRepositoryRepairIfApplicable()
             await attachIfApplicable()
             await consumeAcquisition()
         } catch {
@@ -488,7 +648,6 @@ public actor CollectionSession {
                 if let selected, selected !== oldRoot { await selected.close() }
                 phase = previous
             }
-            phaseBeforeTransition = nil
             throw error
         }
     }
@@ -501,6 +660,8 @@ public actor CollectionSession {
             let stable = try await settleBinding(binding)
             if root === binding.target { try await inspectRepository(binding.target) }
             phase = stable
+            repairStatus = .idle
+            startRepositoryRepairIfApplicable()
             await attachIfApplicable()
         } catch { phase = .bindingPending(binding); throw error }
     }
@@ -522,30 +683,76 @@ public actor CollectionSession {
 
     /// Terminal teardown retains the reservation until every owned store/root effect has settled.
     public func close() async throws {
+        if case .copySwitchPending(let pending) = phase {
+            phase = .transitioning
+            do {
+                try await pending.selector.close()
+                try await pending.replacement.close()
+                await pending.destination.close(); await root?.close(); root = nil
+                phase = .closed
+            } catch { phase = .copySwitchPending(pending); throw error }
+            return
+        }
         try requireStable()
         guard operations == 0 else { throw StorageError.busy }
         let previous = phase
         phase = .transitioning
         do {
-            acquisition?.cancel()
-            if let acquisition { await acquisition.value }
-            if case .owned(let unadopted) = acquired { await unadopted.close() }
-            acquired = nil
-            await transport.driver?.stop(); transport = .idle
+            await settleRepositoryTeardown()
             try await store.quiesce()
             await root?.close(); root = nil
             phase = .closed
         } catch { phase = previous; throw error }
     }
 
-    private func reserveTransition() throws {
+    /// Fences this integrated owner and preserves its private inputs for sibling reconstruction.
+    public func preserveForPrivateRepair(to directory: String) async throws -> PrivateRepairEvidence {
+        try requireStable()
+        guard operations == 0 else { throw StorageError.busy }
+        let previous = phase
+        phase = .transitioning; attempt = UUID()
+        await settleRepositoryTeardown()
+        do {
+            let preserved = try await store.preserveForRepair(to: directory)
+            await root?.close(); root = nil; phase = .closed
+            return preserved
+        } catch {
+            if await store.closed {
+                await root?.close(); root = nil; phase = .closed
+            } else {
+                phase = previous
+                await attachIfApplicable()
+            }
+            throw error
+        }
+    }
+
+    /// Adopts a verified private replacement through ordinary integrated admission.
+    static func bindRepaired(_ store: LocalStoreSession, root: RepositoryRootSession?) async throws -> CollectionSession {
+        if let root { return try await bindFresh(store, root: root) }
+        return try await CollectionSession(store: store, association: store.localAssociation(), hooks: .init())
+    }
+
+    private func settleRepositoryTeardown() async {
+        acquisition?.cancel()
+        if let acquisition { await acquisition.value }
+        if case .owned(let unadopted) = acquired { await unadopted.close() }
+        acquired = nil
+        await stopRepositoryRepair()
+        await transport.driver?.stop(); transport = .idle
+    }
+
+    private func reserveTransition() async throws -> StartupPhase {
         try requireStable()
         guard operations == 0, acquisition == nil else { throw StorageError.busy }
-        phaseBeforeTransition = phase; phase = .transitioning
+        let previous = phase
+        phase = .transitioning
+        await stopRepositoryRepair()
+        return previous
     }
     private func requireStable() throws {
         switch phase {
-        case .publishing, .transitioning, .bindingPending: throw StorageError.busy
+        case .publishing, .transitioning, .bindingPending, .copySwitchPending: throw StorageError.busy
         case .closed: throw StorageError.closed
         case .ready, .editable, .association, .contention, .waiting: break
         }
@@ -560,7 +767,7 @@ public actor CollectionSession {
     }
     private func requireEditable() throws {
         try requireStable()
-        guard case .editable = phase else { throw StorageError.incomplete }
+        guard case .editable = decision() else { throw StorageError.incomplete }
     }
     private func checkLocalAdmission(requireAssociation: Bool = true) async throws {
         let selection = store.selection
@@ -582,44 +789,52 @@ public actor CollectionSession {
     }
     private func inspectRepository(_ root: RepositoryRootSession) async throws {
         let permission = try await root.permission()
-        switch try await root.inspect("NV Data", using: permission) {
-        case .unavailable(.absent): repositoryHealth = .repair; repositoryRequest = .init(.automaticRepositoryRepair)
-        case .unavailable: repositoryHealth = .unavailable; repositoryRequest = .init(.providerUnavailable)
-        case .observed(let entry):
-            guard entry.kind == .directory else {
-                repositoryHealth = .foreign; repositoryRequest = .init(.preserveRepositoryCollision); return
+        for directory: RepositoryProtocolDirectory in [.repository, .version, .keys] {
+            switch try await root.inspect(directory.relativePath, using: permission) {
+            case .unavailable(let failure): classifyRepositoryReadFailure(failure); return
+            case .observed(let entry):
+                guard entry.kind == .directory else { preserveOccupiedRepositoryEntry(); return }
             }
-            let descriptor = store.selection.descriptor
-            let path = ImmutableRepositoryLocator.descriptor(descriptor).relativePath
-            switch try await root.inspect(path, using: permission) {
-            case .unavailable(.absent): repositoryHealth = .repair; repositoryRequest = .init(.automaticRepositoryRepair)
-            case .unavailable: repositoryHealth = .unavailable; repositoryRequest = .init(.providerUnavailable)
-            case .observed(let observed):
-                switch try await root.read(observed, maximumBytes: 16384, using: permission) {
-                case .contents(let data) where data.bytes == descriptor.encodedBytes:
-                    repositoryHealth = .compatible; repositoryRequest = nil
-                case .contents: repositoryHealth = .foreign; repositoryRequest = .init(.preserveRepositoryCollision)
-                case .unavailable: repositoryHealth = .unavailable; repositoryRequest = .init(.providerUnavailable)
-                }
+        }
+        let descriptor = store.selection.descriptor
+        let path = ImmutableRepositoryLocator.descriptor(descriptor).relativePath
+        switch try await root.inspect(path, using: permission) {
+        case .unavailable(let failure): classifyRepositoryReadFailure(failure)
+        case .observed(let observed):
+            guard observed.kind == .regularFile else { preserveOccupiedRepositoryEntry(); return }
+            switch try await root.read(observed, maximumBytes: 16384, using: permission) {
+            case .contents(let data) where data.bytes == descriptor.encodedBytes:
+                repositoryHealth = .compatible; repositoryRequest = nil
+            case .contents: preserveOccupiedRepositoryEntry()
+            case .unavailable(let failure): classifyRepositoryReadFailure(failure)
             }
         }
     }
     private func attachIfApplicable() async {
-        guard case .editable = phase, repositoryHealth == .compatible, let root else { return }
+        guard case .editable = phase, repositoryHealth == .compatible, repair == nil, let root else { return }
         if let driver = transport.driver { await driver.allowPublication(); return }
         guard case .idle = transport else { return }
         let captured = attempt
         transport = .attaching; operations += 1
         defer { operations -= 1 }
         do {
-            let driver = try await RepositoryTransportDriver.start(root: root, store: store, hooks: hooks.transport)
+            let driver = try await RepositoryTransportDriver.start(root: root, store: store, hooks: hooks.transport,
+                repositoryObserved: { [weak self] turn in await self?.observedRepository(turn, root: root) },
+                inventoryAllowed: { [weak self] in await self?.canCheckInventory(root: root) ?? false })
             guard attempt == captured, self.root === root else { await driver.stop(); transport = .idle; return }
             transport = .attached(driver)
+            startRepositoryRepairIfApplicable()
         } catch { transport = .idle; repositoryRequest = .init(.providerUnavailable, failure: classify(error)) }
     }
 
+    /// Gives reserved collection work priority over optional verification writes.
+    private func canCheckInventory(root source: RepositoryRootSession) -> Bool {
+        root === source && phase.isEditable && operations == 0
+    }
+
     /// Adopts a complete normally reopened bootstrap while its independently acquired root stays owned.
-    static func bindFresh(_ store: LocalStoreSession, root: RepositoryRootSession) async throws -> CollectionSession {
+    static func bindFresh(_ store: LocalStoreSession, root: RepositoryRootSession,
+        hooks: CollectionStartupHooks = .init()) async throws -> CollectionSession {
         let current = try await store.localAssociation()
         if let existing = current.value {
             guard try await root.matches(existing) == .same else { throw StorageError.wrongContext }
@@ -630,7 +845,7 @@ public actor CollectionSession {
                 guard try await store.localAssociation().value == value else { throw error }
             }
         }
-        let owner = try await CollectionSession(store: store, association: store.localAssociation(), hooks: .init())
+        let owner = try await CollectionSession(store: store, association: store.localAssociation(), hooks: hooks)
         await owner.adopt(root)
         return owner
     }
@@ -638,8 +853,173 @@ public actor CollectionSession {
         self.root = root
         do { try await inspectRepository(root) }
         catch { repositoryHealth = .unavailable; repositoryRequest = .init(.providerUnavailable) }
+        startRepositoryRepairIfApplicable()
+    }
+
+    private func startRepositoryRepairIfApplicable() {
+        guard repair == nil, case .idle = repairStatus,
+              repositoryHealth == .repair, association.value != nil, deferredDisclosure == nil,
+              phase.disclosure == nil, let root else { return }
+        if case .attaching = transport { return }
+        switch phase {
+        case .ready, .editable: break
+        case .association, .contention, .waiting, .publishing, .transitioning, .bindingPending, .copySwitchPending, .closed: return
+        }
+        let id = UUID(), captured = attempt
+        repairStatus = .checking
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.runRepositoryRepair(id: id, attempt: captured, root: root)
+        }
+        repair = RepositoryRepairFlight(id: id, task: task)
+    }
+
+    private func checkRepositoryRepair(_ id: UUID, attempt captured: UUID, root source: RepositoryRootSession) throws {
+        try Task.checkCancellation()
+        guard repair?.id == id, attempt == captured, root === source, phase.disclosure == nil,
+              deferredDisclosure == nil else { throw StorageError.staleCapture }
+        switch phase {
+        case .ready, .editable, .publishing: break
+        case .association, .contention, .waiting, .transitioning, .bindingPending, .copySwitchPending, .closed: throw StorageError.staleCapture
+        }
+    }
+
+    private func runRepositoryRepair(id: UUID, attempt captured: UUID, root source: RepositoryRootSession) async {
+        var namespace: RepositoryRepairNamespace?
+        do {
+            if let driver = transport.driver { await driver.stop(); transport = .idle }
+            try checkRepositoryRepair(id, attempt: captured, root: source)
+            try await checkLocalAdmission()
+            let permission = try await source.permission()
+            let original = try await source.inspect("NV Data", using: permission)
+            let checked = try await store.prepareRepositoryRepair()
+            try await hooks.repairPrepared?(checked)
+            try checkRepositoryRepair(id, attempt: captured, root: source)
+            switch original {
+            case .unavailable(.absent):
+                namespace = try await source.createRepairNamespace(using: permission)
+            case .observed(let observed) where observed.kind == .directory:
+                namespace = try await source.beginRepairNamespace(observed, using: permission)
+            case .observed: throw RepositoryRootError.unavailable(ENOTDIR)
+            case .unavailable(let failure): throw RepairStopped.failure(.file(failure))
+            }
+            repairStatus = .installing
+            var cursor: RepositoryPublicationCursor?, installed = 0
+            repeat {
+                try checkRepositoryRepair(id, attempt: captured, root: source)
+                let batch = try await store.captureRepositoryRepair(checked, continuing: cursor)
+                try await hooks.repairBatch?(batch)
+                try checkRepositoryRepair(id, attempt: captured, root: source)
+                switch try await source.publish(batch, from: store, using: permission) {
+                case .complete(let receipt):
+                    try await source.validate(receipt, from: store, using: permission)
+                    installed += receipt.locators.count
+                case .incomplete(_, let failure): throw RepairStopped.failure(.file(failure.reason))
+                }
+                cursor = batch.continuation
+            } while cursor != nil
+            guard installed == checked.objectCount else { throw StorageError.incomplete }
+            if let held = namespace { try await source.endRepairNamespace(held); namespace = nil }
+            try checkRepositoryRepair(id, attempt: captured, root: source)
+            try await inspectRepository(source)
+            try checkRepositoryRepair(id, attempt: captured, root: source)
+            guard repositoryHealth == .compatible else { throw StorageError.staleCapture }
+            repairStatus = .complete(through: checked.through, objects: installed)
+        } catch {
+            if let namespace { try? await source.endRepairNamespace(namespace) }
+            if repair?.id == id, attempt == captured {
+                let failure: RepositoryTransportFailure
+                switch error {
+                case RepairStopped.failure(let value): failure = value
+                case let value as RepositoryRootError: failure = .root(value)
+                default: failure = .store(classify(error))
+                }
+                repairStatus = .paused(failure)
+                if case .store(let cause) = failure, cause == .integrity || cause == .incomplete {
+                    repositoryRequest = .init(.requiredHistory, failure: cause)
+                } else if failure.requiresOccupiedEntryPreservation {
+                    preserveOccupiedRepositoryEntry()
+                } else { repositoryRequest = .init(.automaticRepositoryRepair, failure: classify(error)) }
+            }
+        }
+        if repair?.id == id { repair = nil }
+        await attachIfApplicable()
+    }
+
+    private func stopRepositoryRepair() async {
+        if let repair { repair.task.cancel(); await repair.task.value }
+    }
+
+    /// Keeps the occupied source available for inspection and a fresh Save As destination.
+    private func preserveOccupiedRepositoryEntry() {
+        repositoryHealth = .foreign
+        repositoryRequest = .init(.preserveRepositoryCollision)
+    }
+
+    private func classifyRepositoryReadFailure(_ failure: RepositoryFileFailure) {
+        if failure == .absent {
+            repositoryHealth = .repair; repositoryRequest = .init(.automaticRepositoryRepair)
+        } else if RepositoryTransportFailure.file(failure).requiresOccupiedEntryPreservation {
+            preserveOccupiedRepositoryEntry()
+        } else {
+            repositoryHealth = .unavailable; repositoryRequest = .init(.providerUnavailable)
+        }
+    }
+
+    /// Bounded discovery and accepted-name checks route late repository damage to repair or preservation.
+    private func observedRepository(_ event: RepositoryTransportObservation, root source: RepositoryRootSession) async {
+        guard root === source, repair == nil, phase.isEditable else { return }
+        let captured = attempt
+        do {
+            switch event {
+            case .inventory(let checked):
+                guard !checked.failures.isEmpty else { return }
+                try await source.validate(checked, for: store)
+                try await inspectRepository(source)
+                guard root === source, attempt == captured, phase.isEditable else { return }
+                if repositoryHealth == .compatible {
+                    if let occupied = checked.failures.first(where: { RepositoryTransportFailure.file($0).requiresOccupiedEntryPreservation }) {
+                        classifyRepositoryReadFailure(occupied)
+                    } else if checked.failures.contains(.absent) {
+                        classifyRepositoryReadFailure(.absent)
+                    } else if let failure = checked.failures.first { classifyRepositoryReadFailure(failure) }
+                }
+                if repositoryHealth == .repair { repairStatus = .idle; startRepositoryRepairIfApplicable() }
+                return
+            case .discovery(let turn):
+                guard turn.entries.contains(where: { if case .unavailable = $0.outcome { true } else { false } }) else { return }
+                try await source.validate(turn, for: store)
+            case .paused(let failure) where failure.requiresOccupiedEntryPreservation:
+                preserveOccupiedRepositoryEntry()
+                return
+            case .paused(.root), .paused(.file): break
+            case .paused(.store), .paused(.deadline), .published, .waiting, .deadline, .idle, .notification, .materialization, .inventoryDeferred: return
+            }
+            try await inspectRepository(source)
+            guard root === source, attempt == captured, phase.isEditable else { return }
+            if repositoryHealth == .repair { repairStatus = .idle; startRepositoryRepairIfApplicable() }
+        } catch RepositoryRootError.busy {
+            // The next ordinary discovery opportunity reobserves the unsettled namespace.
+        } catch {
+            if root === source, attempt == captured {
+                repositoryRequest = .init(.providerUnavailable, failure: classify(error))
+            }
+        }
     }
 }
+
+private extension RepositoryTransportFailure {
+    /// Exact install collisions and unsupported occupied kinds require source-preserving recovery.
+    var requiresOccupiedEntryPreservation: Bool {
+        switch self {
+        case .file(.kindCollision), .file(.hardLinked), .file(.conflict): true
+        case .root(.unavailable(let code)): code == ENOTDIR || code == ELOOP || code == EEXIST || code == EMLINK
+        case .root, .file, .store, .deadline: false
+        }
+    }
+}
+
+private enum RepairStopped: Error { case failure(RepositoryTransportFailure) }
 
 private extension StartupPhase {
     var isEditable: Bool { if case .editable = self { true } else { false } }

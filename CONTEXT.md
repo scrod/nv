@@ -65,6 +65,14 @@ The complete current in-memory note collection and its pending admitted changes,
 The local store's required settings, collection/root association, history-loss evidence, unfinished verification requests, local observations and pending-file references/operation reservations. These are logically separate from portable history and disposable acceleration, even when stored in the same private database.
 _Avoid_: Synced preferences, startup cache
 
+Verified private repair/copy retains older pending-input capture scopes as provenance
+while assigning independent private ownership. Those retained scopes make the exact
+saved inputs readable; new physical effects still require the destination's fresh
+root/file checks. Repeated repair carries these existing bindings from every
+contributing private source and requires exact agreement on repeated identities.
+See [private record layout](docs/impl-proposal-5/plan/private-record-contract.md#encodings)
+and [private copy preparation](docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md#fixed-copy-preparation-and-final-handoff).
+
 **Verification request**:
 A small host-private durable record identifying the exact accepted object, bootstrap or local accepted prefix whose checks remain unfinished. Commit it before inspecting that evidence and retain it through the final consistency check. Successful completion settles that exact request; discovered damage replaces it atomically with the required-history damage marker. Reopening repeats unresolved checks before editable publication. Its prefix belongs to its original private store. See [verification recovery](docs/impl-proposal-5/plan/phase-4-improvements/durable-verification-recovery.md).
 
@@ -582,6 +590,20 @@ _Avoid_: All future versions, undo scope
 
 Definition sources: [damage/repair policy](docs/iCloud-Drive-Support-Spec.md#repository-and-private-store-damage-and-repair), [repair protocol](docs/impl-proposal-5/Protocol.md#repository-and-private-store-repair-protocol), [RepositoryRepairSafety](docs/tla/RepositoryRepairSafety.tla). That model assumes a finite required-object set; it does not establish globally complete provider discovery.
 
+**Accepted-name check**:
+A bounded background observation of canonical repository names selected from a
+fixed private accepted-history prefix. Background transport caps the prefix at
+complete batches already passed by its publication cursor, leaving new outgoing
+objects to their owned publication attempts. Its cursor belongs to the issuing store
+session; its result also belongs to the observed root permission. An unchanged
+hint can skip a body read only for the exact expected identity. Missing names and
+changed occupied bytes feed ordinary repair/preservation classification. This is
+distinct from validating the complete private repair union or a globally complete
+provider inventory. See the [P5.6 mapping](docs/impl-proposal-5/plan/phase5/06-repair-replacement-and-copy.md#detecting-loss-after-publication).
+The collection operation reservation defers admission of optional checks to the
+existing periodic worker. This scheduling preference grants no source-stability
+evidence; an entered check's writes still participate in the final copy/switch fence.
+
 **Root session**:
 One period of positively established authority over a particular physical collection directory and the work bound to it. “Root” here is the selected directory, not genesis or a snapshot-root object.
 _Avoid_: Global notes path, collection identity
@@ -623,13 +645,50 @@ Use of complete positively associated local history without waiting for provider
 
 **Repair union**:
 The exact independently validated immutable objects available across the selected repair sources. It combines intact evidence, not damaged byte fragments or whichever file appears newest.
+An unavailable subtree/file is reported by source and path while other selected
+sources may supply its required objects. Continued acquisition retains its root
+permission checks; only a complete known accepted union permits reconstruction.
 _Avoid_: Newest copy, merged damaged bytes
+
+**Stop-and-Save-As (occupied repository damage)**:
+Preserve an occupied damaged protocol entry in place, pause affected provider writes and offer a fresh destination for available repository evidence plus saved local history. Healthy private editing continues. Missing entries still receive automatic exclusive repair; private-store activation and ordinary note-saving replacement are separate contracts.
 
 **Save Current Collection As**:
 An explicit history-preserving repository copy to another location, distinct from export of only current note values.
 
+**Selection activation boundary**:
+The owned physical installation of the selected-store record after candidate
+verification and expected-current checks. Cancellation observed before installation
+leaves the record unchanged; an entered effect uses durability/readback settlement.
+An uncertain attempt retains its selection resources until retry or explicit close.
+Closing a candidate revokes its live activation evidence while preserving its files.
+An integrated Save As handoff reserves its admission earlier and owns a bounded,
+independently settled activation task through late caller cancellation.
+See [private repair activation](docs/impl-proposal-5/LocalStore.md#sqlite-backup-salvage-and-replacement-activation).
+
 **Repository copy**:
 A copy of all available NV Data contents and associated note files, preserving their retained history without requiring private local state or unpublished work.
+
+An active saved-work copy reserves canonical destination names for exact verified
+local history. Damaged source occupants at those names remain in the source and
+are reported; no separate archive directory is added. Source-inventory coverage
+and verified-history completeness are independent results.
+An installation failure leaves its captured name reserved and its byte requirement
+unmet; it does not select the damaged source as replacement contents.
+
+**Saved-history copy inventory**:
+A checked inventory of canonical names and hashes
+at one accepted prefix. Bounded rereads supply the exact payloads for copying and
+destination verification; inventory metadata grows with history, payload buffers
+do not accumulate across batches.
+
+**Verified copy switch**:
+The integrated transition from an unchanged active source to a normally reopened
+independent private copy and checked destination root. The final source check and
+connection retirement precede selection installation. Uncertain selection keeps
+both candidates and source exclusion until readback/durability settlement or close.
+Known history and required private inputs have full coverage; unavailable repository
+extras are separately reported and remain preserved at the source.
 
 **Current-notes export**:
 An explicitly current-state-only output, including legacy-format export or fresh-collection conversion, distinct from a history-preserving repository copy.

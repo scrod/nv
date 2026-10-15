@@ -42,6 +42,17 @@ local-store16, descriptor32, UInt32 bookmark codec > 0, length-prefixed bookmark
 The original binding is historical evidence during repair; the new store binding
 is established explicitly. Decoding supplies neither ownership nor access rights.
 
+Retained capture scope: a `private_groups` key of UTF-8 `repair-source/` followed
+by the original local-store16, with generation 1, codec 1 and payload
+`collection16 || descriptor32`. Repair preserves these existing bindings from
+every contributing private source, including bindings inherited from an earlier
+repair. The descriptor must belong to the completely validated retained union.
+Identical records coalesce; contradictory records leave repair incomplete.
+Malformed framing/collection is an integrity failure, an unsupported codec remains
+unsupported, and a missing required descriptor leaves repair incomplete. The
+binding lets existing pending-record readers verify historical capture context;
+fresh observation and consent checks still govern external effects.
+
 Pending snapshot: `NVPAY1\r\n`, UInt16 version 1, snapshot16, collection16,
 source-store16, descriptor32, presence byte (1 present, 2 absent, 3 unreadable),
 length-prefixed exact path UTF-8, UInt32 observation codec > 0,

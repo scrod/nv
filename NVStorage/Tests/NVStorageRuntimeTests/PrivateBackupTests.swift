@@ -5,6 +5,111 @@ import NVStorageCore
 @testable import NVStorageRuntime
 
 @Test(arguments: [false, true])
+func privateCopyPreparationPreservesHistoryAndPrivateInputs(encrypted: Bool) async throws {
+    let (initial, protection) = try testInitial(encrypted), source = try await newSession(initial, protection)
+    let selection = await source.selection
+    let association = try LocalAssociationV1(id: LocalAssociationID(bytes: uuidBytes()),
+        scope: .init(collection: selection.descriptor.collection, store: selection.store,
+                     descriptor: selection.descriptor.descriptorID), bookmark: .init(codec: 1, bytes: []))
+    try await source.saveLocalAssociation(association, basedOn: source.localAssociation())
+    let settings = try CollectionSettingsV1([.secureTextEntry(true), .confirmFileDeletion(false)])
+    try await source.saveCollectionSettings(settings, basedOn: source.collectionSettings())
+    let item = try PendingItemID(bytes: uuidBytes()), frozen = try await pendingInput(source, body: "frozen choice")
+    try await source.retainPendingSnapshot(frozen, basedOn: source.pendingItem(item))
+    let reservation = try await source.preparePendingImport(basedOn: source.pendingItem(item), automatic: false)
+    let latest = try await pendingInput(source, body: "latest preview")
+    try await source.retainPendingSnapshot(latest, basedOn: source.pendingItem(item))
+    _ = try await put("saved source body", birth: NoteBirth(bytes: Array(repeating: 1, count: 16)), generation: 1, session: source)
+    let inventory = try await source.lane.perform { try $0.rows("SELECT object_id,encoded FROM objects ORDER BY object_id") }
+    let copied = try #require(try? await source.preparePrivateStoreCopy(to: privateTempPath()))
+    #expect(copied.selection.store != selection.store && copied.through == 2)
+    try await copied.checkSource(source)
+    try await copied.close()
+    let reopened = try await LocalStoreSession.open(selection: copied.selection, protection: protection)
+    #expect(try await reopened.snapshot().notes.map(\.value.body.string).sorted() == ["saved source body", "untouched"])
+    #expect(try await reopened.lane.perform { try $0.rows("SELECT object_id,encoded FROM objects ORDER BY object_id") } == inventory)
+    #expect(try await reopened.collectionSettings().value == settings)
+    #expect(try await reopened.localAssociation().value?.id == association.id)
+    #expect(try await reopened.localAssociation().value?.scope.store == copied.selection.store)
+    #expect(try await reopened.pendingItem(item).latest == latest.id)
+    let copiedFrozen = try? await reopened.retainedPendingSnapshot(frozen.id)
+    let copiedLatest = try? await reopened.retainedPendingSnapshot(latest.id)
+    #expect(copiedFrozen == frozen)
+    #expect(copiedLatest == latest)
+    guard case .review(let recovered) = try #require(await reopened.pendingRecovery(item).first) else {
+        throw StorageError.incomplete
+    }
+    #expect(recovered == reservation.reservation)
+    let newEdit = try await put("independent copy edit", birth: NoteBirth(bytes: Array(repeating: 1, count: 16)), generation: 2, session: reopened)
+    let oldEdit = try await put("independent source edit", birth: NoteBirth(bytes: Array(repeating: 1, count: 16)), generation: 2, session: source)
+    #expect(newEdit.object.writerEpoch != oldEdit.object.writerEpoch)
+    await #expect(throws: StorageError.staleCapture) { try await copied.checkSource(source) }
+    #expect(try await source.snapshot().notes.map(\.value.body.string).sorted() == ["independent source edit", "untouched"])
+    try await reopened.quiesce(); try await source.quiesce()
+}
+
+@Test(arguments: [false, true])
+func privateCopyPreparationFailurePreservesSourceAndBackup(encrypted: Bool) async throws {
+    let (initial, protection) = try testInitial(encrypted), source = try await newSession(initial, protection)
+    let original = await source.selection, path = privateTempPath()
+    await #expect(throws: StorageError.incomplete) { try await source.preparePrivateStoreCopy(to: path) }
+    let preserved = try await LocalStoreSession.open(selection: .init(directory: path, store: original.store,
+        descriptor: original.descriptor), protection: protection)
+    #expect(try await preserved.snapshot().notes.map(\.value.body.string).sorted() == ["A", "untouched"])
+    #expect(try await preserved.localAssociation().value == nil)
+    try await preserved.quiesce()
+    _ = try await put("after failed preparation", birth: NoteBirth(bytes: Array(repeating: 1, count: 16)), generation: 1, session: source)
+    #expect(try await source.snapshot().notes.map(\.value.body.string).sorted() == ["after failed preparation", "untouched"])
+    try await source.quiesce()
+}
+
+enum BackupInterference: CaseIterable, Sendable { case none, edit, settings, pending, rollback }
+
+@Test(.timeLimit(.minutes(1)), arguments: [false, true], BackupInterference.allCases)
+func privateBackupSourceFenceIncludesPrivateOnlyWrites(encrypted: Bool, interference: BackupInterference) async throws {
+    let (initial, protection) = try testInitial(encrypted), source = try await newSession(initial, protection)
+    let gate = ImprovementGate()
+    try await source.lane.perform { $0.work = StorageWork(backupCaptured: { await gate.hold() }) }
+    let copying = Task { try await source.capturedPrivateBackup(to: privateTempPath()) }
+    await gate.wait()
+    defer { Task { await gate.release() } }
+    switch interference {
+    case .none: _ = try await source.collectionSettings()
+    case .edit:
+        _ = try await put("after backup cut", birth: NoteBirth(bytes: Array(repeating: 1, count: 16)), generation: 1, session: source)
+    case .settings:
+        try await source.saveCollectionSettings(try .init([.secureTextEntry(true)]), basedOn: source.collectionSettings())
+    case .pending:
+        let item = try PendingItemID(bytes: uuidBytes()), value = try await pendingInput(source, body: "new private input")
+        try await source.retainPendingSnapshot(value, basedOn: source.pendingItem(item))
+    case .rollback:
+        await #expect(throws: StorageError.incomplete) {
+            try await source.lane.perform { db in
+                try db.transaction {
+                    try db.run("INSERT INTO private_groups VALUES(?,1,1,?)", [.blob(Array("rollback-test".utf8)), .blob([])])
+                    throw StorageError.incomplete
+                }
+            }
+        }
+    }
+    await gate.release()
+    let backup = try await copying.value
+    if interference == .none { try await source.checkBackupSource(backup) }
+    else { await #expect(throws: StorageError.staleCapture) { try await source.checkBackupSource(backup) } }
+    let copy = try await LocalStoreSession.open(selection: backup.result.selection, protection: protection)
+    await #expect(throws: StorageError.wrongContext) { try await copy.checkBackupSource(backup) }
+    #expect(try await copy.snapshot().notes.map(\.value.body.string).sorted() == ["A", "untouched"])
+    #expect(try await copy.collectionSettings().value == CollectionSettingsV1([]))
+    #expect(try await copy.lane.perform { try $0.rows("SELECT item_id FROM pending_items") }.isEmpty)
+    _ = try await put("source stays usable", birth: NoteBirth(bytes: Array(repeating: 2, count: 16)), generation: 1, session: source)
+    try await copy.quiesce(); try await source.quiesce()
+    let reopened = try await LocalStoreSession.open(selection: source.selection, protection: protection)
+    await #expect(throws: StorageError.wrongContext) { try await reopened.checkBackupSource(backup) }
+    #expect(try await reopened.snapshot().notes.contains { $0.value.body.string == "source stays usable" })
+    try await reopened.quiesce()
+}
+
+@Test(arguments: [false, true])
 func fixedPrivateBackupIncludesWALAndPendingCut(encrypted: Bool) async throws {
     let (initial, protection) = try testInitial(encrypted), source = try await newSession(initial, protection)
     let settings = try CollectionSettingsV1([.secureTextEntry(true), .confirmFileDeletion(false)])

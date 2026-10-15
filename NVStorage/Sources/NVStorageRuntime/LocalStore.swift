@@ -193,6 +193,23 @@ public actor LocalStoreSession {
         transport?.1(.closed)
         await lane.close()
     }
+    /// Fences new admission and checks the exact fixed copy before retiring the source connection.
+    func retireForCopy(_ backup: CapturedPrivateBackup) async throws -> [UInt64] {
+        guard !closed, !quiescing else { throw StorageError.closed }
+        try backup.checkSession(incarnation, selection: selection)
+        cancelMaintenance()
+        guard !backupInFlight, !activationInFlight, !pendingPreparationInFlight, !rowEncodingInFlight,
+              !maintenance.active, !receiving, !inFlight, commitState.owned == nil else { throw StorageError.busy }
+        lifecycle = .quiescing
+        do {
+            let result = try await lane.retireForCopy(backup)
+            lifecycle = .closed; transport?.1(.closed)
+            return try result.get()
+        } catch {
+            if lifecycle != .closed { lifecycle = .open }
+            throw error
+        }
+    }
     /// Reserves the candidate's live owner through a separately serialized selection operation.
     func reserveActivation(through: Int64) async throws {
         guard !closed, !quiescing, !activationInFlight else { throw StorageError.closed }

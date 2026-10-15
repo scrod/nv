@@ -285,12 +285,28 @@ Build a fresh sibling `localStoreID` using the common repair union:
    committed copy; valid bytes alone do not prove a local action committed.
    Do not trust recovered acceptance flags, keys or current rows as history.
    No custom damaged-page parser is required for v1.
+   Retain only checked object metadata, canonical paths, lengths and hashes in the
+   transient repair inventory. Preserved working copies and the explicitly owned
+   repository remain the byte sources. Reacquire one bounded object at a time,
+   check its exact metadata/length/hash against that inventory, and then feed the
+   ordinary bootstrap/intake validators. Source loss, changed bytes or revoked
+   permission stops complete activation and preserves partial candidate output.
+   The complete known membership is still checked before candidate creation;
+   later read failures cannot turn partial output into a complete replacement.
+   This bounds encoded-payload buffers independently of history length. Inventory,
+   required private records and reconstruction graphs retain their existing
+   size-dependent costs. It adds source reads rather than a second disk spool or
+   persistent validation cache.
 2. Preserve readable required private settings and latest/frozen pending payloads,
    reservations and exact operation links. Validate each complete record group
    and reference graph. A partial group is quarantined evidence, not replayable
    consent. Recover completion by exact accepted operation identity; otherwise
    require fresh review/association. Never regenerate lost pending text from
    provider history or replace an admitted snapshot with a newer preview.
+   Retain the existing historical capture-scope bindings from every private source,
+   including previously repaired sources. Validate their framing, collection and
+   retained descriptors, and require exact agreement for a repeated binding key.
+   A source's position in the input list cannot discard its older pending bindings.
 3. Verify coverage of the surviving required pin and every known unique local
    object, unpublished edit and pending payload before claiming complete repair.
    A pin can reveal a gap, not supply its bytes. Missing required history blocks
@@ -314,12 +330,31 @@ Build a fresh sibling `localStoreID` using the common repair union:
    Open fresh writer/action origins. Root loss meanwhile still fences external
    effects; a complete local repair can remain useful offline.
 
+A healthy-source Save As switch can prepare from the existing fixed SQLCipher
+backup. That retains its already validated acceptance bookkeeping and every private
+input; complete verification and normal reopening still qualify the new physical
+candidate. Give it a fresh local-store ID, rebind its association scope, and retain
+the original private capture scope as passive provenance. At the final serialized
+handoff compare the captured live connection and write count: any intervening
+history or private-state write requires a fresh preparation while the source stays
+selected. The [P5.6 contract](plan/phase5/06-repair-replacement-and-copy.md#fixed-copy-preparation-and-final-handoff)
+separates this healthy-copy path from damaged-source salvage and from selection
+activation. A prior successful comparison is not a reusable activation grant.
+The integrated consumer verifies exact saved bytes under the destination's acquired
+root, settles provider work, then compares and retires the source in one database
+turn. Selection reacquires source exclusion against its settled file/journal
+observation and retains that lease across uncertain installation. Explicit pending
+state owns both roots and the verified candidate until resumption or close. Known
+unchanged failure reopens the source when necessary; durable activation followed by
+an adoption failure reports the new selected identity needing reopening.
+
 An incomplete candidate is never activated as a complete store. If it is impossible
 to preserve or validate required state, retain the old evidence and follow the
 existing explicit recovery/export choices. Settings that truly cannot be recovered
 may start fresh with disclosure; they cannot authorize abandoning retained pending
 contents. Once a complete local store is active, it can transparently repair
-positively owned local `NV Data` damage under the existing root/generation rules.
+positively missing `NV Data` entries under the existing root/generation rules.
+Occupied damaged entries remain in place and offer Save As to a fresh destination.
 There is still no Restore NV Data button or generic Work Offline error mode.
 [SQLite recovery limitations](https://www.sqlite.org/recovery.html).
 

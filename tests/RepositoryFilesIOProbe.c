@@ -162,7 +162,14 @@ int main(int argc, char **argv) {
     if (!bytes || fread(bytes, 1, (size_t)size, input) != (size_t)size) return 98;
     if (fclose(input)) return 99;
     int descriptors = descriptor_count();
-    trace_events = !strcmp(argv[4], "trace") || !strcmp(argv[4], "read-trace") || !strcmp(argv[4], "split-trace"); fault_name = argv[5]; fault_at = atoi(argv[6]); fault_code = atoi(argv[7]);
+    trace_events = !strcmp(argv[4], "trace") || !strcmp(argv[4], "read-trace") || !strcmp(argv[4], "split-trace") || !strcmp(argv[4], "repair-trace") || !strcmp(argv[4], "create-repair-trace"); fault_name = argv[5]; fault_at = atoi(argv[6]); fault_code = atoi(argv[7]);
+    int repairing = !strncmp(argv[4], "repair", 6);
+    int creating_repair = !strncmp(argv[4], "create-repair", 13);
+    if (repairing) {
+        uint64_t words[9];
+        if (nv_root_snapshot(owner, "NV Data", words) || nv_root_begin_repair_namespace(owner, words[1], words[2])) return 100;
+        test_event("repair-namespace-held", owner->directory);
+    }
     if (!strncmp(argv[4], "read", 4)) {
         uint64_t words[9];
         int status = nv_root_snapshot(owner, argv[3], words), error = errno;
@@ -177,6 +184,13 @@ int main(int argc, char **argv) {
         free(bytes); nv_root_close(owner); return 0;
     }
     NVRootInstallResult result;
+    if (creating_repair) {
+        NVRootPreparedDirectory *stage = nv_root_prepare_repair_directory(owner, argv[8]);
+        if (!stage) result = (NVRootInstallResult){.outcome = NV_ROOT_INSTALL_NO_EFFECT, .error = errno};
+        else nv_root_install_repair_directory(owner, stage, &result);
+        nv_root_prepared_directory_close(stage);
+        if (result.outcome != NV_ROOT_INSTALL_VERIFIED) goto installed;
+    }
     if (!strncmp(argv[4], "split", 5)) {
         char *relative = strdup(argv[3]);
         if (!relative) return 99;
@@ -199,6 +213,8 @@ split_done:
         }
         free(relative);
     } else { nv_root_install(owner, argv[3], argv[8], bytes, (uint64_t)size, &result); }
+installed:
+    if (repairing || creating_repair) nv_root_end_repair_namespace(owner);
     printf("{\"outcome\":%d,\"error\":%d,\"existing\":%d,\"namespace_changed\":%d,\"stage_retained\":%d,\"cleanup_error\":%d,\"fault_count\":%d,\"descriptor_delta\":%d}\n",
            result.outcome, result.error, result.existing, result.namespace_changed, result.stage_retained, result.cleanup_error, fault_count, descriptor_count()-descriptors);
     fflush(stdout);

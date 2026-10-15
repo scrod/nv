@@ -4,6 +4,21 @@ This document records Apple/File Provider behaviors that the implementation and 
 
 No elapsed-time threshold proves freshness, catalog completeness, conflict absence, upload, or root continuity (`WAIT-01`). Tests distinguish documented API contract, observed provider behavior, and application policy. Every inconclusive result fails closed for the operation that needed it.
 
+## P5.6 repair replacement capability (2026-10-14)
+
+The [repair qualification ledger](impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md#existing-item-replacement-capability-gap)
+records five local macOS 26.6.2 arm64 Foundation tests. A pipe-controlled
+uncoordinated writer runs after the last expected-entry check inside the real
+dual-URL accessor. Regular-file and populated-directory replacement preserve
+the concurrent contents in a retained backup while changing the current name.
+This validates preservation in those schedules, not repair's stronger no-write
+mismatch condition. Apple promises no expected-generation parameter here; this
+is not an API-contract violation. The adopted policy is stop-and-Save-As for occupied damaged entries,
+with automatic exclusive installation for missing entries. The experiment remains
+evidence for that decision; preserved replacement is not a pending production
+feature. The private selected-store owner and ordinary note-saving contracts remain
+separate.
+
 ## Exploratory incarnation metadata observations (not adopted policy)
 
 The [2026-09-04 metadata experiments](tla/Incarnation-Metadata-Experiments.md) add local APFS/iCloud probes and a separate causal-incarnation model. The current proposal adopts a bounded body-bound projection stamp, not authoritative bare UUID xattrs. Those endpoint experiments inform its fallback rules; the new stamp codec and actual caller integration remain explicit validation gates below.
@@ -286,6 +301,33 @@ uncoordinated fallback is authorized by that observation.
 
 Run the focused suite from the actual app context with stable bundle identity on a user-selected root outside an app-owned ubiquitous container. Record API authorization errors separately from provider/network errors. Retain one release-signed smoke test; provider behavior does not depend on parsing signature identity.
 
+### Repository byte-copy coordination
+
+The P5.6 copy consumer uses the existing source root owner, bounded directory turns
+and synchronous per-file accessors. Reads and destination writes use Foundation's
+[combined read/write coordination](https://developer.apple.com/documentation/foundation/nsfilecoordinator/coordinate(readingitemat:options:writingitemat:options:error:byaccessor:)),
+which documents canonical lock ordering and synchronous accessor completion.
+Actual accessor URLs are checked against the held source and fresh destination;
+rooted no-follow reads and exact observations remain required. Coordination is
+cooperative, so source changes and destination interference still require explicit
+failure outcomes. `coordinatedRepositoryCopyKeepsOwnedSourceAndStopsStaleWork`
+exercises moved roots, invalidation, cancellation and changed subdirectories.
+Canonical history bytes now use the existing complete-stage immutable installer:
+readback, exclusive rename and final file/directory barriers precede reporting.
+`repositoryCopyStagesCanonicalBytesAndPreservesRaces` exercises competing final
+names, substituted stages and destination movement at that actual boundary.
+The fresh-process `tools/test-storage-repository-copy-process.py` reader then
+reconstructs the copy with the source private store and repository unavailable.
+Its successful reconstruction is distinct from switching the active collection.
+The signed P56-25 runner additionally qualifies actual copy-only and verified
+switch consumers, preserved occupied damage, automatic missing-namespace repair,
+fresh peer reconstruction and portable Undo/Redo for both profiles across
+macOS 26.6.2/14.8.9. History travels through iCloud, with independent exact-byte
+and semantic checks after the owners settle. The
+[qualification ledger](impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md#signed-repaircopy-lifecycle-runner)
+records the bounded schedules and artifacts. Production distribution and physical
+power loss remain separate gates.
+
 ## AV-14 — copy-on-write Keychain cutover
 
 Scope clarification: [password-free private SQLite recovery](impl-proposal-5/LocalStore.md#database-keys-and-password-free-recovery) uses a documented nonsecret key, not Keychain. AV-14 applies to optional Remember on this Mac for encrypted CKs and legacy/independent target credential handling. Encrypted DB keys derive from CK; password changes reuse same-CK wrapped-key descriptors, not a new database-secret cutover. Keychain loss must leave password/descriptor recovery available. The SQLCipher backup/salvage probes do not qualify signed-app Keychain behavior.
@@ -364,7 +406,7 @@ The existing Foundation replacement and WAL barrier probes do not establish thes
 - delayed nested-namespace disclosure and copied/malformed names cannot bypass object validation;
 - cache loss, retained-history-pin write/readback failure, a pinned missing leaf, private/root lock ownership and fresh-sibling repair are tested independently.
 
-For repository repair, a coordinated local ENOENT observation proves only that the name is absent from that accessor's current namespace. It is sufficient input to the app's explicitly authorized exclusive-create attempt after positive root validation; it is not proof of remote deletion, global absence or permission to overwrite something that appears before installation. Test concurrent creation and peer-observed results without requiring Apple to merge two directories or disclose a globally complete inventory. These are uncompleted implementation/contract gates, not new empirical Apple observations.
+For repository repair, a coordinated local ENOENT observation proves only that the name is absent from that accessor's current namespace. It is sufficient input to the app's explicitly authorized exclusive-create attempt after positive root validation; it is not proof of remote deletion, global absence or permission to overwrite something that appears before installation. P5.6 tests compatible/foreign namespace contenders at the actual installer and independently checks the resulting bytes; its signed two-Mac witness exercises complete missing-namespace repair followed by copy/switch and peer reconstruction. Neither requires Apple to merge directories or disclose a globally complete inventory. See the [repair qualification ledger](impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md) for exact schedules, platform evidence and remaining limits.
 
 The Work Offline classifier needs two layers of tests. Scope the choice to startup with already disclosed evidence missing locally; late disclosure after local editing begins cannot close admission or demand the choice. An evicted provider copy of bytes already retained locally creates no missing-evidence wait. A table-driven application test supplies positive disclosed-newer, positive disclosed-unmaterialized, generic unavailable/full/permission/timeout and unknown inputs and verifies that only the first two offer the choice. A live provider probe may establish the raw input by enumerating a named required item/version and observing its materialization state, but cannot require Apple to reveal an undisclosed server branch or use `DownloadingStatusCurrent` as a no-newer oracle. If the platform exposes no positive newer evidence in a case, the app continues from healthy local history and reconciles later discovery; it does not show Work Offline on speculation.
 

@@ -14,6 +14,8 @@ int nv_storage_entry_kind(const char *path, int *kind);
 /* Quiesced evidence copy includes the main file and every present required journal. */
 int nv_storage_preserve_copy(const char *source, const char *destination, uint64_t observation[25]);
 int nv_storage_owner_matches(NVStorageOwner *owner, const uint64_t observation[25]);
+/* Captures the owned main file and journals after the SQL connection has settled. */
+int nv_storage_owner_observe(NVStorageOwner *owner, uint64_t observation[25]);
 typedef struct NVSelectionOwner NVSelectionOwner;
 NVSelectionOwner *nv_selection_open(const char *directory);
 int nv_selection_validate(NVSelectionOwner *owner);
@@ -30,17 +32,18 @@ void nv_selection_close(NVSelectionOwner *owner);
 typedef struct NVRepositoryOwner NVRepositoryOwner;
 typedef struct NVRepositoryCatalog NVRepositoryCatalog;
 /* Rooted copy primitives preserve exclusive destinations and compare captured entry generations. */
-NVRepositoryOwner *nv_repository_open(const char *path);
-NVRepositoryOwner *nv_repository_create(NVRepositoryOwner *source, const char *path);
+/* Duplicates an owned root descriptor for a copy confined to that root's coordinated turns. */
+NVRepositoryOwner *nv_repository_borrow_root(NVRootOwner *owner);
 int nv_repository_validate(NVRepositoryOwner *owner);
 NVRepositoryCatalog *nv_repository_catalog(NVRepositoryOwner *owner, const char *relative);
+/* Checks that a resumed directory stream still names the observed directory object. */
+int nv_repository_catalog_validate(NVRepositoryOwner *owner, NVRepositoryCatalog *catalog, const char *relative);
 const char *nv_repository_next(NVRepositoryCatalog *catalog);
 void nv_repository_catalog_close(NVRepositoryCatalog *catalog);
 int nv_repository_observe(NVRepositoryOwner *owner, const char *relative, uint64_t words[9]);
 int nv_repository_read_open(NVRepositoryOwner *owner, const char *relative, const uint64_t expected[9]);
 int nv_repository_mkdir(NVRepositoryOwner *owner, const char *relative);
 int nv_repository_copy(NVRepositoryOwner *source, NVRepositoryOwner *destination, const char *relative, const uint64_t expected[9]);
-int nv_repository_install(NVRepositoryOwner *destination, const char *relative, const uint8_t *bytes, uint64_t count);
 int nv_repository_sync(NVRepositoryOwner *owner);
 void nv_repository_close(NVRepositoryOwner *owner);
 int nv_storage_owner_validate(NVStorageOwner *owner);

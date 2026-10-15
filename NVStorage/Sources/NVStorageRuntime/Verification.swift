@@ -148,7 +148,7 @@ extension Database {
 private func verificationNeedsRetry(_ error: any Error) -> Bool {
     if error is CancellationError { return true }
     if let error = error as? StorageError {
-        switch error { case .database, .closed, .ownership, .busy: return true; default: break }
+        switch error { case .database, .closed, .ownership, .busy, .cancelled: return true; default: break }
     }
     return false
 }

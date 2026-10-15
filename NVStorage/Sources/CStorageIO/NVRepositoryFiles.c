@@ -28,6 +28,40 @@
 
 typedef struct { int fd[NV_PROTOCOL_COMPONENTS]; unsigned count; char *names[NV_PROTOCOL_COMPONENTS]; char *storage; char *leaf; } FilePath;
 
+/* A held directory prevents reuse of its identity between bounded repair turns. */
+static int repair_namespace_check(NVRootOwner *owner) {
+    if (owner->repair_namespace < 0) return 0;
+    struct stat held, named;
+    if (fstat(owner->repair_namespace, &held) ||
+        fstatat(owner->directory, "NV Data", &named, AT_SYMLINK_NOFOLLOW)) return -1;
+    if (!S_ISDIR(named.st_mode) || held.st_dev != named.st_dev || held.st_ino != named.st_ino) {
+        errno = ESTALE; return -1;
+    }
+    return 0;
+}
+
+int nv_root_begin_repair_namespace(NVRootOwner *owner, uint64_t device, uint64_t inode) {
+    if (nv_root_validate(owner)) return -1;
+    if (owner->repair_namespace >= 0) { errno = EBUSY; return -1; }
+    int fd = openat(owner->directory, "NV Data", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (fd < 0) return -1;
+    struct stat held;
+    if (fstat(fd, &held)) { int saved = errno; close(fd); errno = saved; return -1; }
+    if ((uint64_t)held.st_dev != device || (uint64_t)held.st_ino != inode) {
+        close(fd); errno = ESTALE; return -1;
+    }
+    owner->repair_namespace = fd;
+    if (repair_namespace_check(owner)) {
+        int saved = errno; nv_root_end_repair_namespace(owner); errno = saved; return -1;
+    }
+    return 0;
+}
+
+void nv_root_end_repair_namespace(NVRootOwner *owner) {
+    if (owner->repair_namespace >= 0) close(owner->repair_namespace);
+    owner->repair_namespace = -1;
+}
+
 static void path_close(FilePath *path) {
     for (unsigned i = 0; i < path->count; i++) close(path->fd[i]);
     free(path->storage);
@@ -55,6 +89,8 @@ static int file_relative(const char *relative) {
 /* Retains every namespace parent so verification and barriers address the same objects. */
 static int path_open(NVRootOwner *owner, const char *relative, int create, FilePath *path, int *changed) {
     memset(path, 0, sizeof(*path));
+    if (repair_namespace_check(owner)) return -1;
+    if (owner->repair_namespace >= 0) NV_REPOSITORY_EVENT("repair-path-entered", owner->repair_namespace);
     if (!file_relative(relative)) { errno = EINVAL; return -1; }
     path->storage = strdup(relative);
     if (!path->storage) return -1;
@@ -69,12 +105,14 @@ static int path_open(NVRootOwner *owner, const char *relative, int create, FileP
         struct stat st;
         if (fstatat(parent, component, &st, AT_SYMLINK_NOFOLLOW)) {
             if (!create || errno != ENOENT) return -1;
-            if (mkdirat(parent, component, 0700)) { if (errno != EEXIST) return -1; }
+            if (mkdirat(parent, component, 0700)) { if (errno != EEXIST || owner->repair_namespace >= 0) return -1; }
             else { *changed = 1; NV_REPOSITORY_EVENT("directory-created", parent); }
             if (fstatat(parent, component, &st, AT_SYMLINK_NOFOLLOW)) return -1;
         }
         if (!S_ISDIR(st.st_mode)) { errno = ENOTDIR; return -1; }
-        int child = openat(parent, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        int child = owner->repair_namespace >= 0 && path->count == 1 && !strcmp(component, "NV Data")
+            ? fcntl(owner->repair_namespace, F_DUPFD_CLOEXEC, 0)
+            : openat(parent, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
         if (child < 0) return -1;
         path->names[path->count] = component;
         path->fd[path->count++] = child;
@@ -90,6 +128,7 @@ static int path_open(NVRootOwner *owner, const char *relative, int create, FileP
 
 static int path_check(NVRootOwner *owner, FilePath *path) {
     if (nv_root_validate(owner)) return -2;
+    if (repair_namespace_check(owner)) return -1;
     for (unsigned i = 1; i < path->count; i++) {
         struct stat held, named;
         if (fstat(path->fd[i], &held) || fstatat(path->fd[i-1], path->names[i], &named, AT_SYMLINK_NOFOLLOW)) return -1;
@@ -441,6 +480,63 @@ static int exclusive_rename(int source, const char *stage, int destination, cons
 #endif
 }
 
+struct NVRootPreparedDirectory { int fd; char *name; dev_t root_device; ino_t root_inode; };
+
+void nv_root_prepared_directory_close(NVRootPreparedDirectory *stage) {
+    if (!stage) return;
+    if (stage->fd >= 0) close(stage->fd);
+    free(stage->name); free(stage);
+}
+
+/* Reserved stage producers retain exclusive control of their unique staging name. */
+NVRootPreparedDirectory *nv_root_prepare_repair_directory(NVRootOwner *owner, const char *name) {
+    if (nv_root_validate(owner)) return NULL;
+    if (!file_component(name) || strchr(name, '/') || strncmp(name, ".nv-stage-", 10)) { errno = EINVAL; return NULL; }
+    NVRootPreparedDirectory *stage = calloc(1, sizeof(*stage));
+    if (!stage) return NULL;
+    stage->fd = -1; stage->name = strdup(name);
+    if (!stage->name) goto failed;
+    struct stat root;
+    if (fstat(owner->directory, &root)) goto failed;
+    stage->root_device = root.st_dev; stage->root_inode = root.st_ino;
+    if (mkdirat(owner->directory, name, 0700)) goto failed;
+    stage->fd = openat(owner->directory, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (stage->fd < 0) goto failed;
+    NV_REPOSITORY_EVENT("repair-stage-held", stage->fd);
+    return stage;
+failed: {
+    int saved = errno; nv_root_prepared_directory_close(stage); errno = saved; return NULL;
+    }
+}
+
+void nv_root_install_repair_directory(NVRootOwner *owner, NVRootPreparedDirectory *stage, NVRootInstallResult *result) {
+    *result = (NVRootInstallResult){.outcome = NV_ROOT_INSTALL_NO_EFFECT, .stage_retained = 1};
+    struct stat root, held, named;
+    if (nv_root_validate(owner)) { result->root_lost = 1; goto failed; }
+    if (owner->repair_namespace >= 0) { errno = EBUSY; goto failed; }
+    if (fstat(owner->directory, &root) || fstat(stage->fd, &held) ||
+        fstatat(owner->directory, stage->name, &named, AT_SYMLINK_NOFOLLOW)) goto failed;
+    if (root.st_dev != stage->root_device || root.st_ino != stage->root_inode ||
+        !S_ISDIR(named.st_mode) || held.st_dev != named.st_dev || held.st_ino != named.st_ino) { errno = ESTALE; goto failed; }
+    int barrier;
+    do { barrier = fsync(stage->fd); } while (barrier && errno == EINTR);
+    if (barrier) goto failed;
+    if (exclusive_rename(owner->directory, stage->name, owner->directory, "NV Data")) goto failed;
+    result->namespace_changed = 1; result->stage_retained = 0;
+    owner->repair_namespace = stage->fd; stage->fd = -1;
+    NV_REPOSITORY_EVENT("repair-name-installed", owner->directory);
+    if (repair_namespace_check(owner)) goto failed;
+    do { barrier = fsync(owner->directory); } while (barrier && errno == EINTR);
+    if (barrier) goto failed;
+    NV_REPOSITORY_EVENT("repair-directory-synced", owner->directory);
+    if (nv_root_validate(owner)) { result->root_lost = 1; goto failed; }
+    if (repair_namespace_check(owner)) goto failed;
+    result->outcome = NV_ROOT_INSTALL_VERIFIED; return;
+failed:
+    result->error = errno;
+    if (result->namespace_changed) { result->outcome = NV_ROOT_INSTALL_UNCERTAIN; nv_root_end_repair_namespace(owner); }
+}
+
 /* Cleanup's identity check preserves displaced names under the reserved-stage producer contract. */
 static int cleanup_stage(NVRootOwner *owner, const char *stage, int heldfd) {
     struct stat named, held_value;
@@ -461,7 +557,7 @@ static void make_directory(NVRootOwner *owner, const char *relative, NVRootInsta
     FilePath path; int fd = -1;
     if (path_open(owner, relative, 0, &path, &result->namespace_changed) || path_check(owner, &path)) goto failed;
     int parent = path.fd[path.count-1];
-    if (mkdirat(parent, path.leaf, 0700)) { if (errno != EEXIST || exclusive) goto failed; }
+    if (mkdirat(parent, path.leaf, 0700)) { if (errno != EEXIST || exclusive || owner->repair_namespace >= 0) goto failed; }
     else { result->namespace_changed = 1; NV_REPOSITORY_EVENT("directory-created", parent); }
     fd = openat(parent, path.leaf, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (fd < 0) goto failed;

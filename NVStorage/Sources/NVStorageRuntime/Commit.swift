@@ -285,6 +285,7 @@ extension LocalStoreSession {
 }
 
 func classify(_ error: Error) -> StorageError {
+    if error is CancellationError { return .cancelled }
     if error is HistoryValidationInterrupted { return .busy }
     if let e = error as? StorageError { return e }
     if let e = error as? OrdinaryHistoryError, e == .requiresLaterReducer { return .unsupported }
