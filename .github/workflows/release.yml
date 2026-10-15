@@ -171,6 +171,36 @@ jobs:
           [ -d "$APP_PATH" ] || { echo "No $APP_NAME.app found in export" >&2; exit 1; }
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
+      - name: Normalize resource filenames and seal app
+        run: |
+          set -euo pipefail
+          # Decomposed resource names survive Archive Utility's ZIP extraction.
+          # https://developer.apple.com/forums/thread/706379
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import tempfile
+          import unicodedata
+
+          resources = Path(os.environ["APP_PATH"]) / "Contents/Resources"
+          for directory, subdirectories, filenames in os.walk(resources, topdown=False):
+              for name in subdirectories + filenames:
+                  normalized = unicodedata.normalize("NFD", name)
+                  if normalized == name:
+                      continue
+                  source = Path(directory) / name
+                  destination = source.with_name(normalized)
+                  if os.path.lexists(destination) and not os.path.samestat(source.lstat(), destination.lstat()):
+                      raise RuntimeError(f"Resource normalization collision: {source}")
+                  with tempfile.TemporaryDirectory(prefix=".nv-normalize-", dir=directory) as staging:
+                      temporary = Path(staging) / "resource"
+                      source.rename(temporary)
+                      temporary.rename(destination)
+                  print(f"Normalized resource: {destination.relative_to(resources)}")
+          PY
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --timestamp \
+            --preserve-metadata=identifier,entitlements,requirements "$APP_PATH"
+
       - name: Validate app and signature
         run: |
           set -euo pipefail
@@ -280,6 +310,28 @@ jobs:
 
           rm -f "$ZIP_PATH"
           ditto -c -k --keepParent --sequesterRsrc "$APP_PATH" "$ZIP_PATH"
+
+      - name: Validate extracted release archive
+        run: |
+          set -euo pipefail
+          EXTRACTED_DIR="$RUNNER_TEMP/extracted-release"
+          mkdir -p "$EXTRACTED_DIR"
+          ditto -x -k "$ZIP_PATH" "$EXTRACTED_DIR"
+          EXTRACTED_APP="$EXTRACTED_DIR/$APP_NAME.app"
+          # Check the filename form used by Archive Utility before verifying the seal.
+          python3 - "$EXTRACTED_APP" <<'PY'
+          from pathlib import Path
+          import sys
+          import unicodedata
+
+          resources = Path(sys.argv[1]) / "Contents/Resources"
+          for path in resources.rglob("*"):
+              if unicodedata.normalize("NFD", path.name) != path.name:
+                  raise RuntimeError(f"Resource filename requires normalization: {path}")
+          PY
+          codesign --verify --deep --strict --all-architectures --verbose=2 "$EXTRACTED_APP"
+          xcrun stapler validate "$EXTRACTED_APP"
+          spctl -a -t exec -vv "$EXTRACTED_APP"
 
       - name: Generate Sparkle appcast
         env:
