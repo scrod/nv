@@ -132,7 +132,7 @@ jobs:
           echo "SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
           echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
 
-      - name: Archive and sign
+      - name: Archive app
         run: |
           set -euo pipefail
           xcodebuild archive \
@@ -140,14 +140,35 @@ jobs:
             -scheme Notation \
             -configuration Deployment \
             -archivePath "$RUNNER_TEMP/Notation.xcarchive" \
+            INSTALL_PATH=/Applications \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
             PROVISIONING_PROFILE_SPECIFIER=""
 
-          APP_PATH=$(find "$RUNNER_TEMP/Notation.xcarchive/Products" -maxdepth 5 \
-            -type d -name "$APP_NAME.app" -print -quit)
-          [ -d "$APP_PATH" ] || { echo "No $APP_NAME.app found in archive" >&2; exit 1; }
+      - name: Export Developer ID app
+        run: |
+          set -euo pipefail
+          # Export signs Sparkle's nested helpers for distribution.
+          # https://sparkle-project.org/documentation/#4-distributing-your-app
+          EXPORT_OPTIONS="$RUNNER_TEMP/ExportOptions.plist"
+          plutil -create xml1 "$EXPORT_OPTIONS"
+          PLISTBUDDY=/usr/libexec/PlistBuddy
+          "$PLISTBUDDY" -c 'Add :method string developer-id' "$EXPORT_OPTIONS"
+          "$PLISTBUDDY" -c 'Add :destination string export' "$EXPORT_OPTIONS"
+          "$PLISTBUDDY" -c 'Add :signingStyle string manual' "$EXPORT_OPTIONS"
+          "$PLISTBUDDY" -c "Add :signingCertificate string $SIGNING_IDENTITY" "$EXPORT_OPTIONS"
+          "$PLISTBUDDY" -c "Add :teamID string $TEAM_ID" "$EXPORT_OPTIONS"
+          "$PLISTBUDDY" -c 'Add :manageAppVersionAndBuildNumber bool false' "$EXPORT_OPTIONS"
+
+          EXPORT_PATH="$RUNNER_TEMP/export"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Notation.xcarchive" \
+            -exportOptionsPlist "$EXPORT_OPTIONS" \
+            -exportPath "$EXPORT_PATH"
+
+          APP_PATH="$EXPORT_PATH/$APP_NAME.app"
+          [ -d "$APP_PATH" ] || { echo "No $APP_NAME.app found in export" >&2; exit 1; }
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
       - name: Validate app and signature
@@ -185,14 +206,29 @@ jobs:
               || { echo "$binary is not universal: $ARCHS" >&2; exit 1; }
           done
 
-          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          SIGNATURE=$(codesign -dv --verbose=4 "$APP_PATH" 2>&1)
-          grep -q 'flags=.*runtime' <<< "$SIGNATURE" \
-            || { echo "Hardened runtime is missing" >&2; exit 1; }
-          grep -q '^Authority=Developer ID Application' <<< "$SIGNATURE" \
-            || { echo "Not signed with Developer ID Application" >&2; exit 1; }
-          grep -q '^Timestamp=' <<< "$SIGNATURE" \
-            || { echo "Secure timestamp is missing" >&2; exit 1; }
+          codesign --verify --deep --strict --all-architectures --verbose=2 "$APP_PATH"
+          SPARKLE="$APP_PATH/Contents/Frameworks/Sparkle.framework"
+          for component in \
+            "$SPARKLE/Versions/B/Autoupdate" \
+            "$SPARKLE/Versions/B/Updater.app" \
+            "$SPARKLE/Versions/B/XPCServices/Installer.xpc" \
+            "$SPARKLE/Versions/B/XPCServices/Downloader.xpc" \
+            "$SPARKLE" \
+            "$APP_PATH"; do
+            codesign --verify --strict --all-architectures --verbose=2 "$component"
+            for arch in arm64 x86_64; do
+              echo "Checking distribution signature: $component ($arch)"
+              SIGNATURE=$(codesign -dv --verbose=4 --arch "$arch" "$component" 2>&1)
+              grep -q 'flags=.*runtime' <<< "$SIGNATURE" \
+                || { echo "Hardened runtime is missing: $component ($arch)" >&2; exit 1; }
+              grep -Fxq "Authority=$SIGNING_IDENTITY" <<< "$SIGNATURE" \
+                || { echo "Developer ID identity differs: $component ($arch)" >&2; exit 1; }
+              grep -Fxq "TeamIdentifier=$TEAM_ID" <<< "$SIGNATURE" \
+                || { echo "Signing team differs: $component ($arch)" >&2; exit 1; }
+              grep -q '^Timestamp=' <<< "$SIGNATURE" \
+                || { echo "Secure timestamp is missing: $component ($arch)" >&2; exit 1; }
+            done
+          done
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
 
       - name: Package notarization ZIP
