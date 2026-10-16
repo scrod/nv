@@ -684,10 +684,12 @@ terminateApp:
 	[splitView setDivider: horiz ? nil : verticalDividerImg];
 	[splitView setDividerThickness: horiz ? 0.0 : 8.0];
 
-	[[notesTableView enclosingScrollView] setBorderType: horiz ? NSNoBorder : NSBezelBorder];
+	//An unbordered scroll view inset by a point from its top and left edges keeps macOS 26's scroll edge
+	//handling clear of the table's column header, so the header and the rows occupy separate bands in both layouts.
+	[[notesTableView enclosingScrollView] setBorderType:NSNoBorder];
 
 	NSSize size = [[splitView subviewAtPosition:0] frame].size;
-	[[notesTableView enclosingScrollView] setFrame: horiz ? NSMakeRect(1, 0, size.width - 1, size.height - 1) : (NSRect){.size = size, .origin = NSZeroPoint}];
+	[[notesTableView enclosingScrollView] setFrame:NSMakeRect(1, 0, size.width - 1, size.height - 1)];
 
 	[[splitView subviewAtPosition:0] setMinDimension:horiz ? 100.0 : 0.0 andMaxDimension:0.0];
 	[splitSubview setMinDimension:horiz ? 100.0 : 0.0 andMaxDimension:0.0];
