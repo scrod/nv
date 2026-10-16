@@ -196,6 +196,8 @@ CGFloat _perceptualDarkness(NSColor*a);
 		screenForegroundColor = [fgColor retain];
 	}
 	[self setBackgroundColor:bgColor];
+	//the scroll view fills the scroller column and overscroll edges, so it tracks the same color
+	[[self enclosingScrollView] setBackgroundColor:bgColor];
 	[self setInsertionPointColor:[self _insertionPointColorForForegroundColor:fgColor backgroundColor:bgColor]];
 	[self setLinkTextAttributes:[self preferredLinkAttributes]];
 	[self setSelectedTextAttributes:[NSDictionary dictionaryWithObject:[self _selectionColorForForegroundColor:fgColor backgroundColor:bgColor] 
