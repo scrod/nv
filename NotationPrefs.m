@@ -462,21 +462,29 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 	return YES;
 }
 
+- (NSData*)derivedMasterKeyCandidateFromPassphraseData:(NSData*)passData {
+	/* Computes a candidate master key given the stored salt and the iteration count calibrated (see
+	 * KeyDerivationManager) as a deliberate, possibly multi-second brute-force-resistance cost factor. This
+	 * reads only this instance's immutable salt/iteration/length state and mutates nothing, so unlike
+	 * -canLoadPassphraseData:, it is safe to call from a background queue; apply its result on the main
+	 * thread afterward with -acceptMasterKeyIfValid:. */
+	return [passData derivedKeyOfLength:keyLengthInBits/8 salt:masterSalt iterations:hashIterationCount];
+}
+
+- (BOOL)acceptMasterKeyIfValid:(NSData*)candidateMasterKey {
+	/* Call on the main thread with a key already derived by -derivedMasterKeyCandidateFromPassphraseData:. */
+	if (![self _masterKeyMatchesVerifier:candidateMasterKey])
+		return NO;
+
+	//if candidateMasterKey is good, and we don't already have a master key, then this is it
+	if (!masterKey)
+		self.masterKey = candidateMasterKey;
+
+	return YES;
+}
+
 - (BOOL)canLoadPassphraseData:(NSData*)passData {
-
-	//compute master key given stored salt and # of iterations
-	NSData *computedMasterKey = [passData derivedKeyOfLength:keyLengthInBits/8 salt:masterSalt iterations:hashIterationCount];
-
-	if ([self _masterKeyMatchesVerifier:computedMasterKey]) {
-		//if computedMasterKey is good, and we don't already have a master key, then this is it
-		if (!masterKey)
-			self.masterKey = computedMasterKey;
-		
-		return YES;
-	}
-	
-	return NO;
-	
+	return [self acceptMasterKeyIfValid:[self derivedMasterKeyCandidateFromPassphraseData:passData]];
 }
 
 - (BOOL)canLoadPassphrase:(NSString*)pass {

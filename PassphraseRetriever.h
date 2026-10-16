@@ -30,6 +30,7 @@
     IBOutlet NSPanel *window;
 	NotationPrefs *notationPrefs;
 	NSArray *passphraseRetrieverTopLevelObjects;
+	NSProgressIndicator *keyDerivationSpinner;
 
 }
 

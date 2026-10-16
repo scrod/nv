@@ -102,6 +102,8 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 - (void)setStoresPasswordInKeychain:(BOOL)value;
 - (BOOL)canLoadPassphraseData:(NSData*)passData;
 - (BOOL)canLoadPassphrase:(NSString*)pass;
+- (NSData*)derivedMasterKeyCandidateFromPassphraseData:(NSData*)passData;
+- (BOOL)acceptMasterKeyIfValid:(NSData*)candidateMasterKey;
 - (BOOL)hasMasterKey;
 - (BOOL)loadMasterKeyFromUnlockedPrefs:(NotationPrefs*)unlockedPrefs;
 - (void)setPassphraseData:(NSData*)passData inKeychain:(BOOL)inKeychain;
