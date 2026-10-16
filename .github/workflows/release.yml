@@ -412,6 +412,11 @@ jobs:
               if not value:
                   raise RuntimeError(f"Appcast item is missing {name}")
               enclosure.set(key, value)
+          # 2.0b5's Sparkle can see macOS 11+ as 10.16; use that feed threshold
+          # for the app's 11.5 deployment target so its predecessor sees the update.
+          minimum = item.find(f"{{{sparkle}}}minimumSystemVersion")
+          if minimum is not None and minimum.text in ("11.5", "11.5.0"):
+              minimum.text = "10.16"
           notes_key = f"{{{sparkle}}}releaseNotesLink"
           notes = item.find(notes_key)
           if notes is None:
@@ -431,6 +436,8 @@ jobs:
             || { echo "Legacy appcast marketing version is wrong" >&2; exit 1; }
           [ "$(xmllint --xpath "string($XPATH/../*[local-name()='releaseNotesLink'])" "$FEED_DIR/appcast.xml")" = "$RELEASE_NOTES_URL" ] \
             || { echo "Appcast release notes URL is wrong" >&2; exit 1; }
+          [ "$(xmllint --xpath "string($XPATH/../*[local-name()='minimumSystemVersion'])" "$FEED_DIR/appcast.xml")" = 10.16 ] \
+            || { echo "Appcast must support the predecessor's macOS compatibility version" >&2; exit 1; }
           [ -n "$(xmllint --xpath "string($XPATH/@*[local-name()='edSignature'])" "$FEED_DIR/appcast.xml")" ] \
             || { echo "New appcast item lacks an EdDSA signature" >&2; exit 1; }
           if [ "${#DSA_ARGS[@]}" -ne 0 ]; then
