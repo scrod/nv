@@ -38,6 +38,7 @@
 #import "LinkingEditor.h"
 #import "EmptyView.h"
 #import "DualField.h"
+#import "NVStrandedKeyResponder.h"
 #import "TitlebarButton.h"
 #import "RBSplitView/RBSplitView.h"
 #import <objc/message.h>
@@ -189,6 +190,11 @@
 	[window setShowsToolbarButton:NO];
 	titleBarButton = [[TitlebarButton alloc] initWithFrame:NSMakeRect(0, 0, 17.0, 17.0) pullsDown:YES];
 	[titleBarButton addToWindow:window];
+
+	//key events that travel the entire responder chain resume in the note list,
+	//which keeps typing in the titlebar or toolbar a search as it is everywhere else
+	keyRedirector = [[NVStrandedKeyResponder alloc] initWithNotesTableView:notesTableView];
+	[keyRedirector installAsTailOfResponderChainForWindow:window];
 
 //	[window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces];
 

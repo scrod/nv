@@ -148,6 +148,7 @@
 		A17F00012F00000100000001 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A17F00002F00000100000001 /* UniformTypeIdentifiers.framework */; };
 		A17F10022F00000100000001 /* StartupRecovery.m in Sources */ = {isa = PBXBuildFile; fileRef = A17F10012F00000100000001 /* StartupRecovery.m */; };
 		A17F20042F00000100000001 /* NVRootedDirectory.m in Sources */ = {isa = PBXBuildFile; fileRef = A17F20022F00000100000001 /* NVRootedDirectory.m */; };
+		A17F20122F00000100000001 /* NVStrandedKeyResponder.m in Sources */ = {isa = PBXBuildFile; fileRef = A17F20112F00000100000001 /* NVStrandedKeyResponder.m */; };
 		B037CD6F87964DDB8606FAEC /* Atajos de teclado terriblemente útiles.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = E49F3983743347C6AF0EEBE1 /* Atajos de teclado terriblemente útiles.nvhelp */; };
 		C0D3A1002F00000100000001 /* ImportingUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = C0D3A1002F00000100000003 /* ImportingUtils.m */; };
 		CEB9ED1F168B49E99C02285D /* Esto es el título de una nota.nvhelp in Resources */ = {isa = PBXBuildFile; fileRef = 9F14E9C28F6E4B8483B0083E /* Esto es el título de una nota.nvhelp */; };
@@ -519,6 +520,8 @@
 		A17F10012F00000100000001 /* StartupRecovery.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = StartupRecovery.m; sourceTree = "<group>"; };
 		A17F20012F00000100000001 /* NVRootedDirectory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVRootedDirectory.h; sourceTree = "<group>"; };
 		A17F20022F00000100000001 /* NVRootedDirectory.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NVRootedDirectory.m; sourceTree = "<group>"; };
+		A17F20102F00000100000001 /* NVStrandedKeyResponder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVStrandedKeyResponder.h; sourceTree = "<group>"; };
+		A17F20112F00000100000001 /* NVStrandedKeyResponder.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NVStrandedKeyResponder.m; sourceTree = "<group>"; };
 		A17F20032F00000100000001 /* NVRootedDirectory_Private.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NVRootedDirectory_Private.h; sourceTree = "<group>"; };
 		A81DB66667C84815A75E5E8A /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/ImporterAccessory.nib; sourceTree = "<group>"; };
 		AB2F85A8F390428AB6389C8C /* es */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = es; path = es.lproj/Preferences.nib; sourceTree = "<group>"; };
@@ -807,6 +810,8 @@
 				219192D309CFBC8700586B15 /* NoteAttributeColumn.m */,
 				2191930109CFBEBD00586B15 /* NotesTableView.h */,
 				2191930209CFBEBD00586B15 /* NotesTableView.m */,
+				A17F20102F00000100000001 /* NVStrandedKeyResponder.h */,
+				A17F20112F00000100000001 /* NVStrandedKeyResponder.m */,
 				21DB49BA12DE19480057F52B /* UnifiedCell.h */,
 				21B64C4D12E62A5700D87EFC /* UnifiedCell.m */,
 				21B64A2412E61FA700D87EFC /* LabelColumnCell.h */,
@@ -1130,6 +1135,7 @@
 				212DCA470A6AD28700F74E46 /* EncodingsManager.m in Sources */,
 				212DCF610A6DEECB00F74E46 /* DeletionManager.m in Sources */,
 				218D43330AA2ABC600F36CCA /* NotesTableView.m in Sources */,
+				A17F20122F00000100000001 /* NVStrandedKeyResponder.m in Sources */,
 				214495130ADC8A6600E2A2B6 /* PassphrasePicker.m in Sources */,
 				219739FB0AFE42A10046683E /* PassphraseRetriever.m in Sources */,
 				21544FC10B06332600C0D1D5 /* KeyDerivationManager.m in Sources */,

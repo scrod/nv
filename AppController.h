@@ -33,6 +33,7 @@
 @class TitlebarButton;
 @class LinearDividerShader;
 @class TagEditingManager;
+@class NVStrandedKeyResponder;
 
 @interface AppController : NSObject <NSToolbarDelegate, NSTableViewDelegate, NSWindowDelegate, NSTextFieldDelegate, NSTextViewDelegate, NSMenuItemValidation>
 {
@@ -54,6 +55,7 @@
 	NSToolbarItem *dualFieldItem;
 	NSToolbarItem *appTitleItem;
 	TitlebarButton *titleBarButton;
+	NVStrandedKeyResponder *keyRedirector;
 	
 	BOOL waitedForUncommittedChanges;
 	BOOL externalEditingTerminationInProgress;
