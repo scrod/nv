@@ -66,7 +66,8 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 - (void)_removeNotesAfterExternalEditing:(NSArray*)notes;
 - (void)_externalEditingTeardownFailed;
 - (id)_initWithRootedDirectory:(NVRootedDirectory*)directory recoveredNotes:(NSDictionary*)recoveredNotes
-	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)error;
+	stagingRecovery:(BOOL)stagingRecovery unlockedPrefs:(NotationPrefs*)unlockedPrefs
+	error:(OSStatus*)error;
 @end
 
 @implementation NotationController
@@ -167,11 +168,12 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 
 - (id)initWithRootedDirectory:(NVRootedDirectory*)directory error:(OSStatus*)err {
 	return [self _initWithRootedDirectory:directory recoveredNotes:nil
-		stagingRecovery:NO error:err];
+		stagingRecovery:NO unlockedPrefs:nil error:err];
 }
 
 - (id)_initWithRootedDirectory:(NVRootedDirectory*)directory recoveredNotes:(NSDictionary*)recoveredNotes
-	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)err {
+	stagingRecovery:(BOOL)stagingRecovery unlockedPrefs:(NotationPrefs*)unlockedPrefs
+	error:(OSStatus*)err {
 	/* Normal initialization creates the WAL and, if one already exists, delegates
 	 * the entire recovery transaction to StartupRecovery.  Staging initialization
 	 * only loads a database and persists recoveredNotes while the coordinator
@@ -197,7 +199,7 @@ static id UnarchiveRootObject(NSData *data, NSError **error) {
 		
 		//first read cache file
 		OSStatus anErr = noErr;
-		if ((anErr = [self _readAndInitializeSerializedNotes]) != noErr) {
+		if ((anErr = [self _readAndInitializeSerializedNotesWithUnlockedPrefs:unlockedPrefs]) != noErr) {
 			if (err)
 				*err = anErr;
 			[self release];
@@ -381,7 +383,7 @@ returnResult:
 }
 
 
-- (OSStatus)_readAndInitializeSerializedNotes {
+- (OSStatus)_readAndInitializeSerializedNotesWithUnlockedPrefs:(NotationPrefs*)unlockedPrefs {
 
     OSStatus err = noErr;
 	NSError *readError = nil;
@@ -433,6 +435,8 @@ returnResult:
 	if (!(notationPrefs = [[frozenNotation notationPrefs] retain]))
 		notationPrefs = [[NotationPrefs alloc] init];
 	[notationPrefs setDelegate:self];
+	//a staged recovery controller reuses the passphrase already entered for this database
+	if (unlockedPrefs) [notationPrefs loadMasterKeyFromUnlockedPrefs:unlockedPrefs];
 
 	[self initializeFileMetadataVolumeUUID];
 	

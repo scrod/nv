@@ -428,19 +428,46 @@ NSMutableDictionary *ServiceAccountDictInit(NotationPrefs *prefs, NSString* serv
 		[self removeKeychainData];
 }
 
-- (BOOL)canLoadPassphraseData:(NSData*)passData {
-	
-	int keyLength = keyLengthInBits/8;
-	
-	//compute master key given stored salt and # of iterations
-	NSData *computedMasterKey = [passData derivedKeyOfLength:keyLength salt:masterSalt iterations:hashIterationCount];
-
-	//compute verify key given "verify" salt and 1 iteration
+- (BOOL)_masterKeyMatchesVerifier:(NSData*)candidateMasterKey {
+	//compute verify key given "verify" salt and 1 iteration, then check against verify key data
 	NSData *verifySalt = [NSData dataWithBytesNoCopy:VERIFY_SALT length:sizeof(VERIFY_SALT) freeWhenDone:NO];
-	NSData *computedVerifyKey = [computedMasterKey derivedKeyOfLength:keyLength salt:verifySalt iterations:1];
-	
-	//check against verify key data
-	if ([computedVerifyKey isEqualToData:verifierKey]) {
+	NSData *computedVerifyKey = [candidateMasterKey derivedKeyOfLength:keyLengthInBits/8 salt:verifySalt iterations:1];
+	return [computedVerifyKey isEqualToData:verifierKey];
+}
+
+- (BOOL)hasMasterKey {
+	return masterKey != nil;
+}
+
+- (BOOL)loadMasterKeyFromUnlockedPrefs:(NotationPrefs*)unlockedPrefs {
+	/* Startup recovery reopens the database in a second controller.  Its freshly
+	 * decoded prefs adopt the key unlocked by the first controller when that key
+	 * matches this database's verifier, along with the keychain choice made while
+	 * unlocking it, so the user enters the passphrase once per launch. */
+	NSData *unlockedKey = unlockedPrefs ? unlockedPrefs->masterKey : nil;
+	if (!doesEncryption || masterKey || !unlockedKey || ![self _masterKeyMatchesVerifier:unlockedKey])
+		return NO;
+
+	self.masterKey = unlockedKey;
+
+	NSString *unlockedIdentifier = unlockedPrefs->keychainDatabaseIdentifier;
+	if (storesPasswordInKeychain != unlockedPrefs->storesPasswordInKeychain ||
+		(keychainDatabaseIdentifier != unlockedIdentifier &&
+		 ![keychainDatabaseIdentifier isEqualToString:unlockedIdentifier])) {
+		storesPasswordInKeychain = unlockedPrefs->storesPasswordInKeychain;
+		[keychainDatabaseIdentifier autorelease];
+		keychainDatabaseIdentifier = [unlockedIdentifier copy];
+		preferencesChanged = YES;
+	}
+	return YES;
+}
+
+- (BOOL)canLoadPassphraseData:(NSData*)passData {
+
+	//compute master key given stored salt and # of iterations
+	NSData *computedMasterKey = [passData derivedKeyOfLength:keyLengthInBits/8 salt:masterSalt iterations:hashIterationCount];
+
+	if ([self _masterKeyMatchesVerifier:computedMasterKey]) {
 		//if computedMasterKey is good, and we don't already have a master key, then this is it
 		if (!masterKey)
 			self.masterKey = computedMasterKey;

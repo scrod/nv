@@ -105,7 +105,7 @@ extern NSString * const NotesDatabaseFileName;
 - (id)initWithRootedDirectory:(NVRootedDirectory*)directory error:(OSStatus*)err;
 - (NSURL*)noteDirectoryURL;
 - (NVRootedDirectory*)noteDirectory;
-- (OSStatus)_readAndInitializeSerializedNotes;
+- (OSStatus)_readAndInitializeSerializedNotesWithUnlockedPrefs:(NotationPrefs*)unlockedPrefs;
 - (void)processRecoveredNotes:(NSDictionary*)dict;
 - (BOOL)initializeJournaling;
 - (void)handleJournalError;

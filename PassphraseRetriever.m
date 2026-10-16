@@ -81,7 +81,13 @@
 	[rememberKeychainButton setState:[notationPrefs storesPasswordInKeychain]];
 	
 		NSInteger result = [NSApp runModalForWindow:window];
-	
+	// Closing this panel only tells the window server to remove it; that removal is carried out on a later turn
+	// of this thread's run loop, which the caller does not otherwise return to before it starts decrypting and
+	// unarchiving the whole note database -- several blocking seconds for a large database. Briefly running the
+	// run loop here lets the window server finish removing the panel before that work ever begins; without it,
+	// the panel stays genuinely on screen for the whole wait and is only actually removed once the wait ends.
+	[[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+
 	[passphraseField setStringValue:@""];
 	[self textDidChange:nil];
 	
@@ -89,10 +95,15 @@
 }
 
 - (void)awakeFromNib {
-	
+
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textDidChange:)
 												 name:NSControlTextDidChangeNotification object:passphraseField];
-}	
+	// Closing this panel is immediately followed by the main thread decrypting and unarchiving the whole note
+	// database, synchronously and without returning to the run loop -- several seconds for a large database.
+	// A system-animated close left mid-flight when that work starts can resurface the panel once the main
+	// thread frees up and the run loop resumes; an unanimated close finishes before that work ever begins.
+	[window setAnimationBehavior:NSWindowAnimationBehaviorNone];
+}
 
 - (void)textDidChange:(NSNotification *)aNotification {
 	[okButton setEnabled:([[passphraseField stringValue] length] > 0)];

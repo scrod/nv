@@ -140,7 +140,7 @@ _Avoid_: Segment payload, every envelope is synced
 The byte-level rules for optional compression, separate from encryption and logical
 history identity. New storage uses zstd; provider envelope tag `1` means exactly
 one bounded, dictionary-free frame. Private current-row dictionaries have their
-own local codec metadata. Zlib is legacy epoch-4 database/WAL compatibility only.
+own local codec metadata. Zlib is legacy epoch-4/epoch-5 database/WAL compatibility only.
 See the [exact acceptance rules](docs/impl-proposal-5/Encryption.md#compression-profile).
 _Avoid_: SQLCipher page encryption, a shared stream across segments
 
@@ -848,7 +848,7 @@ The verified transition to independently provisioned credentials/association whi
 Definition sources: [legacy compatibility](docs/impl-proposal-5/README.md), [retired-model boundaries](docs/tla/README.md). The modern durability/deletion models call their derived state `materialization`; it is not a legacy checkpoint. Interpret other model identifiers through the model-name guide.
 
 **Legacy database checkpoint**:
-The complete Notes & Settings archive used by legacy stores and explicit epoch-4 exports.
+The complete Notes & Settings archive used by legacy stores and explicit epoch-4/epoch-5 exports.
 
 **Accepted checkpoint / checkpoint base identity**:
 The exact predecessor evidence used by legacy checkpoint/WAL recovery, not segment ancestry.

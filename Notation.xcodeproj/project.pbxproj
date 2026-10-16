@@ -1768,6 +1768,7 @@
 				SDKROOT = macosx;
 				VERSIONING_SYSTEM = "apple-generic";
 				WRAPPER_EXTENSION = app;
+				__DIAGNOSE_INVALID_DEPLOYMENT_TARGET_AS_ERROR = NO;
 			};
 			name = Development;
 		};
@@ -1829,6 +1830,7 @@
 				SDKROOT = macosx;
 				VERSIONING_SYSTEM = "apple-generic";
 				WRAPPER_EXTENSION = app;
+				__DIAGNOSE_INVALID_DEPLOYMENT_TARGET_AS_ERROR = NO;
 			};
 			name = Deployment;
 		};
@@ -1886,6 +1888,7 @@
 				SDKROOT = macosx;
 				VERSIONING_SYSTEM = "apple-generic";
 				WRAPPER_EXTENSION = app;
+				__DIAGNOSE_INVALID_DEPLOYMENT_TARGET_AS_ERROR = NO;
 			};
 			name = Default;
 		};

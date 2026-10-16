@@ -4,8 +4,8 @@ Portable Swift values and history validation, plus the private SQLCipher
 storage runtime. The Objective-C app does not import this package yet.
 
 NVStorage and all segment/private formats are unreleased. NV's last public
-release was in 2011 and used epoch-4 Notes & Settings. Compatibility covers
-epoch-4 opening, journal recovery and explicit legacy export in the macOS app;
+release used epoch-5 Notes & Settings. Compatibility covers
+epoch-4 and epoch-5 opening, journal recovery and explicit legacy export in the macOS app;
 superseded development encodings require no reader or migration in this library.
 
 ## Build and test

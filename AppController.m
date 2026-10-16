@@ -124,6 +124,17 @@
 	dualFieldItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"DualField"];
 	//[[dualSV superview] setFrameSize:NSMakeSize([[dualSV superview] frame].size.width, [[dualSV superview] frame].size.height -1)];
 	[dualFieldItem setView:dualSV];
+	// Size the field's toolbar item through Auto Layout so it stretches across the remaining titlebar width:
+	// the toolbar treats an item whose width spans a range as flexible and grows it into the free space.
+	// The range alone drives the stretching, so the toolbar measures the item at its minimum width and installs
+	// the field in the window immediately, where it can become the window's initial first responder.
+	{
+		CGFloat fieldHeight = [dualSV frame].size.height;
+		[dualSV setTranslatesAutoresizingMaskIntoConstraints:NO];
+		[[dualSV.heightAnchor constraintEqualToConstant:fieldHeight] setActive:YES];
+		[[dualSV.widthAnchor constraintGreaterThanOrEqualToConstant:50.0] setActive:YES];
+		[[dualSV.widthAnchor constraintLessThanOrEqualToConstant:10000.0] setActive:YES];
+	}
 
 	// Create a static label toolbar item titled "Notation" to the left of the DualField
 	appTitleItem = [[NSToolbarItem alloc] initWithItemIdentifier:@"AppTitleLabel"];
@@ -336,6 +347,14 @@ terminate:
 	}
 
 	[NSApp setServicesProvider:self];
+
+	// AppKit renders the search field's focus ring while the main window finishes becoming key, and that first
+	// rendering comes out empty when another window, such as the launch passphrase prompt, held key status until
+	// just before this point. This delayed action already runs after launch and any such prompt have settled, on
+	// their own later run-loop turn, so requesting the ring here draws it around the field without disturbing
+	// whatever closed that prompt.
+	if ([window isKeyWindow] && [field currentEditor] && [window firstResponder] == [field currentEditor])
+		[field noteFocusRingMaskChanged];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification*)aNote {

@@ -187,7 +187,9 @@ static id UnarchiveObject(NSData *data, NSString *key, NSError **error) {
 		@try {
 			if ([prefs doesEncryption]) {
 				BOOL keychainGood = YES;
-				if (![prefs storesPasswordInKeychain] || !(keychainGood = [prefs canLoadPassphraseData:[prefs passwordDataFromKeychain]])) {
+				//prefs unlocked earlier during this launch (startup recovery) decrypt directly
+				if (![prefs hasMasterKey] && (![prefs storesPasswordInKeychain] ||
+					!(keychainGood = [prefs canLoadPassphraseData:[prefs passwordDataFromKeychain]]))) {
 					
 					if (!keychainGood) {
 						//reset keychain identifier in case database file was duplicated and password was changed, and this is the old DB

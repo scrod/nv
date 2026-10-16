@@ -158,6 +158,7 @@ static IMP originalJournalFlockImplementation;
 static IMP originalExternalDatabaseInitializationImplementation;
 static IMP originalPassphraseRetrieverImplementation;
 static NSData *injectedDatabasePassphrase;
+static NSUInteger injectedPassphraseRequestCount;
 static IMP originalExternalEditorOpenImplementation;
 static BOOL interceptExternalEditorOpen;
 static NSURL *observedExternalEditorURL;
@@ -207,6 +208,7 @@ static void InstallExternalDatabaseInitializationObservation(void) {
 static int NVInjectedLoadedUserPassphraseData(id object, SEL selector) {
 	if (!injectedDatabasePassphrase)
 		return ((int (*)(id, SEL))originalPassphraseRetrieverImplementation)(object, selector);
+	injectedPassphraseRequestCount++;
 	Ivar prefsIvar = class_getInstanceVariable([PassphraseRetriever class], "notationPrefs");
 	NotationPrefs *prefs = object_getIvar(object, prefsIvar);
 	return [prefs canLoadPassphraseData:injectedDatabasePassphrase] ? 1 : 0;
@@ -620,7 +622,7 @@ static char NVPreparedNoteDeallocationProbeKey;
 @interface NotationController (NVIntegrationRootedInitialization)
 - (id)_initWithRootedDirectory:(NVRootedDirectory*)directory
 	recoveredNotes:(NSDictionary*)recoveredNotes stagingRecovery:(BOOL)stagingRecovery
-	error:(OSStatus*)error;
+	unlockedPrefs:(NotationPrefs*)unlockedPrefs error:(OSStatus*)error;
 @end
 
 @interface NVTestNotationController : NotationController {
@@ -787,9 +789,9 @@ static char NVPreparedNoteDeallocationProbeKey;
 
 - (id)_initWithRootedDirectory:(NVRootedDirectory*)directory
 	recoveredNotes:(NSDictionary*)recoveredNotes stagingRecovery:(BOOL)stagingRecovery
-	error:(OSStatus*)error {
+	unlockedPrefs:(NotationPrefs*)unlockedPrefs error:(OSStatus*)error {
 	self = [super _initWithRootedDirectory:directory recoveredNotes:recoveredNotes
-		stagingRecovery:stagingRecovery error:error];
+		stagingRecovery:stagingRecovery unlockedPrefs:unlockedPrefs error:error];
 	if (self && [directory isKindOfClass:[NVTestRootedDirectory class]])
 		[(NVTestRootedDirectory*)directory setHookTarget:self];
 	return self;
@@ -8703,6 +8705,112 @@ static void TestEncryptedWALChild(void) {
 	_exit(76);
 }
 
+static NotationPrefs *ArchivedCopyOfPrefs(NotationPrefs *prefs) {
+	/* Archiving omits the master key, matching prefs decoded at startup. */
+	NSData *data = [NSKeyedArchiver archivedDataWithRootObject:prefs
+		requiringSecureCoding:NO error:NULL];
+	REQUIRE(data != nil);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+	NotationPrefs *copy = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+#pragma clang diagnostic pop
+	REQUIRE(copy != nil);
+	return copy;
+}
+
+static void TestEncryptedKeyHandoff(NSData *passphrase) {
+	NotationPrefs *unlocked = [[[NotationPrefs alloc] init] autorelease];
+	[unlocked setPassphraseData:passphrase inKeychain:NO];
+	[unlocked setDoesEncryption:YES];
+	[unlocked setPreferencesAreStored];
+	NotationPrefs *reopened = ArchivedCopyOfPrefs(unlocked);
+	/* The unlocking prompt's keychain choice and identifier reset exist only in memory. */
+	NSString *storedIdentifier = [NSString stringWithUTF8String:[reopened setKeychainIdentifier]];
+	[unlocked setStoresPasswordInKeychain:YES];
+	[unlocked forgetKeychainIdentifier];
+	REQUIRE(![storedIdentifier isEqualToString:
+		[NSString stringWithUTF8String:[unlocked setKeychainIdentifier]]]);
+	REQUIRE([reopened doesEncryption]);
+	REQUIRE(![reopened hasMasterKey]);
+	REQUIRE(![reopened storesPasswordInKeychain]);
+	REQUIRE([reopened loadMasterKeyFromUnlockedPrefs:unlocked]);
+	REQUIRE([reopened hasMasterKey]);
+	REQUIRE([reopened storesPasswordInKeychain]);
+	REQUIRE(strcmp([reopened setKeychainIdentifier], [unlocked setKeychainIdentifier]) == 0);
+	REQUIRE([reopened preferencesChanged]);
+	REQUIRE([[reopened WALSessionKey] isEqualToData:[unlocked WALSessionKey]]);
+	REQUIRE(![reopened loadMasterKeyFromUnlockedPrefs:unlocked]);
+
+	NotationPrefs *otherDatabase = [[[NotationPrefs alloc] init] autorelease];
+	[otherDatabase setPassphraseData:[@"different-passphrase"
+		dataUsingEncoding:NSUTF8StringEncoding] inKeychain:NO];
+	[otherDatabase setDoesEncryption:YES];
+	NotationPrefs *otherReopened = ArchivedCopyOfPrefs(otherDatabase);
+	REQUIRE(![otherReopened loadMasterKeyFromUnlockedPrefs:unlocked]);
+	REQUIRE(![otherReopened hasMasterKey]);
+
+	NotationPrefs *lockedSource = ArchivedCopyOfPrefs(unlocked);
+	NotationPrefs *lockedTarget = ArchivedCopyOfPrefs(unlocked);
+	REQUIRE(![lockedTarget loadMasterKeyFromUnlockedPrefs:lockedSource]);
+	REQUIRE(![lockedTarget hasMasterKey]);
+}
+
+static void TestEncryptedEpochFourJournalRecoveryPromptsOnce(NSString *directoryPath,
+	NVTestControllerDelegate *delegate, NSData *legacyDatabase, NSData *legacySecretData) {
+	/* An epoch-4 encrypted database beside a journal left by an interrupted
+	 * session recovers through a staged controller after a single prompt. */
+	NSData *legacyPassphrase = [@"legacy-fixture-passphrase"
+		dataUsingEncoding:NSUTF8StringEncoding];
+	NSString *databasePath = [directoryPath stringByAppendingPathComponent:NotesDatabaseFileName];
+	REQUIRE([legacyDatabase writeToFile:databasePath options:NSDataWritingAtomic error:NULL]);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+	FrozenNotation *legacyFrozen = [NSKeyedUnarchiver unarchiveObjectWithData:legacyDatabase];
+#pragma clang diagnostic pop
+	NotationPrefs *legacyPrefs = [legacyFrozen notationPrefs];
+	REQUIRE([legacyPrefs canLoadPassphraseData:legacyPassphrase]);
+	NSString *journalSecret = @"EPOCH4-JOURNAL-SECRET-6F1D";
+	WALStorageController *writer = [[WALStorageController alloc]
+		initWithRootedDirectory:RootedDirectoryForPath(directoryPath)
+		encryptionKey:[legacyPrefs WALSessionKey]];
+	NoteObject *journalNote = [[NoteObject alloc] initWithNoteBody:
+		[[[NSAttributedString alloc] initWithString:journalSecret] autorelease]
+		title:@"Journal Note" format:SingleDatabaseFormat labels:@""];
+	REQUIRE(writer != nil && journalNote != nil &&
+		[writer writeEstablishedNote:journalNote] && [writer synchronize]);
+	[journalNote release];
+	[writer release];
+
+	NVTestNotationController *controller = nil;
+	@try {
+		InstallPassphraseRetrieverInjection();
+		injectedDatabasePassphrase = legacyPassphrase;
+		injectedPassphraseRequestCount = 0;
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(injectedPassphraseRequestCount == 1);
+		[controller stopFileNotifications];
+		REQUIRE([[controller notationPrefs] doesEncryption]);
+		REQUIRE(NoteContaining(controller, @"LEGACY-ENCRYPTED-CONTENT") != nil);
+		REQUIRE(NoteContaining(controller, journalSecret) != nil);
+		NSData *rewritten = [NSData dataWithContentsOfFile:databasePath];
+		NSData *journalSecretData = [journalSecret dataUsingEncoding:NSUTF8StringEncoding];
+		REQUIRE([rewritten rangeOfData:legacySecretData options:0
+			range:NSMakeRange(0, [rewritten length])].location == NSNotFound);
+		REQUIRE([rewritten rangeOfData:journalSecretData options:0
+			range:NSMakeRange(0, [rewritten length])].location == NSNotFound);
+		CloseController(&controller);
+
+		injectedPassphraseRequestCount = 0;
+		controller = CreateController(directoryPath, delegate);
+		REQUIRE(injectedPassphraseRequestCount == 1);
+		REQUIRE([[controller notationPrefs] epochIteration] == EPOC_ITERATION);
+		REQUIRE(NoteContaining(controller, journalSecret) != nil);
+	} @finally {
+		injectedDatabasePassphrase = nil;
+		CloseController(&controller);
+	}
+}
+
 static void TestEncryption(void) {
 	if ([[[[NSProcessInfo processInfo] environment]
 		objectForKey:@"NV_EPOCH5_DATABASE_DIRECTORY"] length]) {
@@ -8793,11 +8901,19 @@ static void TestEncryption(void) {
 		CloseController(&controller);
 		RemoveTemporaryDirectory(directoryPath);
 		directoryPath = CreateTemporaryDirectory();
+		TestEncryptedKeyHandoff(passphrase);
+		TestEncryptedEpochFourJournalRecoveryPromptsOnce(directoryPath, delegate,
+			legacyDatabase, legacySecretData);
+
+		RemoveTemporaryDirectory(directoryPath);
+		directoryPath = CreateTemporaryDirectory();
 		SpawnScenarioWithEnvironment(@"encrypted-wal-child",
 			"NV_ENCRYPTED_WAL_DIRECTORY", directoryPath, 76);
 		InstallPassphraseRetrieverInjection();
 		injectedDatabasePassphrase = passphrase;
+		injectedPassphraseRequestCount = 0;
 		controller = CreateController(directoryPath, delegate);
+		REQUIRE(injectedPassphraseRequestCount == 1);
 		[controller stopFileNotifications];
 		REQUIRE([[controller notationPrefs] epochIteration] == EPOC_ITERATION);
 		REQUIRE([[controller notationPrefs] doesEncryption]);

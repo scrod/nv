@@ -382,8 +382,7 @@ The epoch-4 archive compatibility smoke test is intentionally outside `run-core`
 tools/test-epoch4-v5-compatibility.sh
 ```
 
-NV's last public release was in 2011 and used epoch-4 Notes & Settings. Every
-segment/private format remains unreleased. This test exercises the legacy
+NV's last public release used epoch-5 Notes & Settings. Most people are still using a release from 2011 based on epoch-4. Every segment/private format remains unreleased. This test exercises the legacy
 archive/export boundary, independently of NVStorage and its development bytes.
 Its filename and `NV_EPOCH5_DATABASE_DIRECTORY` retain development-era names.
 

@@ -101,7 +101,8 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 
 @interface NotationController (StartupRecoveryInitialization)
 - (id)_initWithRootedDirectory:(NVRootedDirectory*)directory recoveredNotes:(NSDictionary*)recoveredNotes
-	stagingRecovery:(BOOL)stagingRecovery error:(OSStatus*)error;
+	stagingRecovery:(BOOL)stagingRecovery unlockedPrefs:(NotationPrefs*)unlockedPrefs
+	error:(OSStatus*)error;
 @end
 
 @interface NotationController (StartupRecoveryPrivate)
@@ -351,13 +352,15 @@ static NSString *NVRecoveryName(NSString *filename, NSString *kind, NSString *id
 	/* Staging validates and snapshots the selected database while the old WAL is
 	 * still canonical.  Retire that WAL last, then finish all normal startup work.
 	 * The caller owns filesystem rollback because database-replacement recovery
-	 * must restore its database and WAL as one transaction. */
+	 * must restore its database and WAL as one transaction.  The staged controller
+	 * receives these prefs so a passphrase already entered for a database with the
+	 * same verifier unlocks it again without another prompt. */
 	OSStatus restartError = noErr;
 	NSError *activationError = nil;
 	NotationController *controller = [[[self class] alloc]
 		_initWithRootedDirectory:[self noteDirectory]
 		recoveredNotes:recoveredNotes
-		stagingRecovery:YES error:&restartError];
+		stagingRecovery:YES unlockedPrefs:notationPrefs error:&restartError];
 	if (!controller) goto failed;
 	if (![self _renameLockedJournal:reader toName:backupName error:&activationError])
 		goto failed;
