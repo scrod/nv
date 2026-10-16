@@ -23,13 +23,17 @@ public enum ObjectProtectionV1: Sendable {
 /// Verified envelope identity and bounded decoded payload: public-profile hashes
 /// detect corruption, while encrypted-profile authentication verifies possession of the key.
 public struct OpenedObjectV1: Sendable {
+    public let collection: CollectionID
+    public let profile: CollectionProfileV1
     public let kind: ProviderObjectKind
     public let locator: SegmentLocator
     public let payload: [UInt8]
 
     // Only the envelope implementation in this file may issue verified bytes.
-    fileprivate init(kind: ProviderObjectKind, locator: SegmentLocator, payload: [UInt8]) {
+    fileprivate init(kind: ProviderObjectKind, locator: SegmentLocator, payload: [UInt8],
+                     collection: CollectionID, profile: CollectionProfileV1) {
         self.kind = kind; self.locator = locator; self.payload = payload
+        self.collection = collection; self.profile = profile
     }
 }
 
@@ -112,7 +116,8 @@ public enum ObjectEnvelopeV1 {
         }
         try cursor.requireEnd()
         let payload = try compression == .zstd ? ZstdFrameV1.expand(clear, count: Int(plainLength)) : clear
-        return OpenedObjectV1(kind: kind, locator: locator, payload: payload)
+        return OpenedObjectV1(kind: kind, locator: locator, payload: payload, collection: collection,
+                             profile: protection.suite == 0 ? .plaintextFiles : .encryptedSegments)
     }
 
 }

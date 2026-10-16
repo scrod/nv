@@ -66,8 +66,8 @@ public struct InitialBootstrapValidationV1: Sendable {
         var facts = BootstrapFacts(snapshot: snapshot, genesis: descriptor.genesis)
         while let request = try facts.next() { try facts.consume(open(request.locator), request: request) }
         for locator in facts.order {
-            let payload = try ChangesPayloadV1.decodeV1(open(locator).payload)
-            try payload.checkExternalReferences(at: locator) { try ChangesPayloadV1.decodeV1(open($0).payload) }
+            let payload = try ChangesPayloadV1.decodeV1(open(locator))
+            try payload.checkExternalReferences(at: locator) { try ChangesPayloadV1.decodeV1(open($0)) }
         }
         return try Self(facts: facts, collection: expectedCollection, descriptor: descriptor,
                         snapshot: snapshot, allowLaterHistory: false)
@@ -87,8 +87,8 @@ public struct InitialBootstrapValidationV1: Sendable {
         var facts = BootstrapFacts(snapshot: snapshot, genesis: descriptor.genesis)
         while let request = try facts.next() { try facts.consume(await open(request.locator), request: request) }
         for locator in facts.order {
-            let payload = try ChangesPayloadV1.decodeV1(await open(locator).payload)
-            try await payload.checkExternalReferences(at: locator) { try ChangesPayloadV1.decodeV1(await open($0).payload) }
+            let payload = try ChangesPayloadV1.decodeV1(await open(locator))
+            try await payload.checkExternalReferences(at: locator) { try ChangesPayloadV1.decodeV1(await open($0)) }
         }
         return try Self(facts: facts, collection: expectedCollection, descriptor: descriptor,
                         snapshot: snapshot, allowLaterHistory: true)
@@ -175,7 +175,7 @@ private struct BootstrapFacts {
             stack += page.dependencies.entries.map { .init(locator: $0, kind: .changes) }
         case .changes:
             guard opened.kind == .changes else { throw CanonicalEncodingError.invalidReference }
-            let payload = try ChangesPayloadV1.decodeV1(opened.payload)
+            let payload = try ChangesPayloadV1.decodeV1(opened)
             occurrences[request.locator] = payload.operations.map(\.operation.id)
             for record in payload.operations {
                 let id = record.operation.id, metadata = try BootstrapOperation(record.operation)

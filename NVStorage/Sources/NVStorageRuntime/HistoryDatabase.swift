@@ -51,15 +51,16 @@ private struct ValidatedHistoryBatch: Sendable {
         case bootstrap(InitialBootstrapValidationV1, LocalStoreSelection, ObjectProtectionV1, UUID)
     }
     private let source: Source
+    private let projectionCoverage: CheckedProjectionCoverage?
     let descriptor: BootstrapDescriptorV1?
 
-    private init(objects: [HistoryObject], descriptor: BootstrapDescriptorV1? = nil) {
-        source = .decoded(objects); self.descriptor = descriptor
+    private init(objects: [HistoryObject], descriptor: BootstrapDescriptorV1? = nil, projectionCoverage: CheckedProjectionCoverage? = nil) {
+        source = .decoded(objects); self.descriptor = descriptor; self.projectionCoverage = projectionCoverage
     }
-    private init(snapshot: CheckedSnapshotAcceptance) { source = .snapshot(snapshot); descriptor = nil }
+    private init(snapshot: CheckedSnapshotAcceptance) { source = .snapshot(snapshot); descriptor = nil; projectionCoverage = nil }
     private init(bootstrap: InitialBootstrapValidationV1, selection: LocalStoreSelection,
                  protection: ObjectProtectionV1, connection: UUID) {
-        source = .bootstrap(bootstrap, selection, protection, connection); descriptor = selection.descriptor
+        source = .bootstrap(bootstrap, selection, protection, connection); descriptor = selection.descriptor; projectionCoverage = nil
     }
 
     static func snapshot(_ checked: CheckedSnapshotAcceptance, database: Database, selection: LocalStoreSelection) throws -> Self {
@@ -113,7 +114,7 @@ private struct ValidatedHistoryBatch: Sendable {
             return try await lane.historyWork {
                 let opened = try ObjectEnvelopeV1.open(bytes, collection: checked.collection, protection: protection, expectedLocator: locator)
                 guard opened.kind == .changes else { throw CanonicalEncodingError.invalidReference }
-                return try ChangesPayloadV1.decodeV1(opened.payload)
+                return try ChangesPayloadV1.decodeV1(opened)
             }
         }
         var operationRefs: [OperationID: StoredOperationReferenceV1] = [:]
@@ -190,6 +191,8 @@ private struct ValidatedHistoryBatch: Sendable {
         }
         await historyCheck?()
         guard let payload = object.changes else { throw StorageError.unsupported }
+        let coverage = try await CheckedProjectionCoverage.read(payload, at: locator, through: through,
+            lane: lane, selection: selection, protection: protection)
         try await OrdinaryHistoryV1.validate(payload, at: locator, collection: selection.descriptor.collection,
             payloadAt: { target in try await lane.historyRead(through: through) {
                 try $0.payload(target, collection: selection.descriptor.collection, protection: protection)
@@ -203,7 +206,59 @@ private struct ValidatedHistoryBatch: Sendable {
             birthExists: { birth in try await lane.historyRead(through: through) {
                 try !$0.rows("SELECT 1 FROM operations WHERE birth=? LIMIT 1", [.blob(birth.bytes)]).isEmpty
             } })
-        return Self(objects: [object])
+        return Self(objects: [object], projectionCoverage: coverage)
+    }
+
+    func checkProjectionCoverage(database: Database) throws {
+        try projectionCoverage?.check(database: database)
+    }
+}
+
+/// Exact accepted parent bytes reused for a description's additional retention edges.
+private struct CheckedProjectionCoverage: Sendable {
+    private let parents: [(SegmentLocator, [UInt8])]
+    private let through: Int64
+    private let connection: UUID
+
+    private init(parents: [(SegmentLocator, [UInt8])], through: Int64, connection: UUID) {
+        self.parents = parents; self.through = through; self.connection = connection
+    }
+
+    static func read(_ payload: ChangesPayloadV1, at locator: SegmentLocator, through: Int64,
+                     lane: DatabaseLane, selection: LocalStoreSelection, protection: ObjectProtectionV1) async throws -> Self? {
+        guard !payload.projections.isEmpty else { return nil }
+        let sources = Set(payload.projections.flatMap { $0.dependencies.entries })
+        let coverage = payload.dependencies.entries.filter { !sources.contains($0) }
+        guard !coverage.isEmpty else { return nil }
+        let connection = try await lane.historyRead(through: through) { $0.incarnation }
+        var parents: [(SegmentLocator, [UInt8])] = []
+        for parent in coverage {
+            guard parent != locator else { throw CanonicalEncodingError.invalidReference }
+            let bytes = try await lane.historyRead(through: through) { db in
+                guard let (bytes, opened) = try db.acceptedEnvelope(parent, collection: selection.descriptor.collection, protection: protection) else {
+                    throw CanonicalEncodingError.missingDependency
+                }
+                guard opened.kind == .changes else { throw CanonicalEncodingError.invalidReference }
+                _ = try db.checkingRetainedHistory { try ChangesPayloadV1.decodeV1(opened) }
+                db.countWork { $0.retentionParentChecks += 1 }
+                return bytes
+            }
+            parents.append((parent, bytes))
+        }
+        return Self(parents: parents, through: through, connection: connection)
+    }
+
+    func check(database db: Database) throws {
+        guard db.incarnation == connection else { throw StorageError.wrongContext }
+        guard try db.acceptedThrough() == through else { throw StorageError.staleCapture }
+        try db.checkingRetainedHistory {
+            for (locator, bytes) in parents {
+                let rows = try db.rows("SELECT o.encoded,o.writer_epoch,o.sequence,a.seq FROM accepted_objects a LEFT JOIN objects o USING(object_id) WHERE a.object_id=?", [.blob(locator.segmentID.bytes)])
+                guard let row = rows.first, row[0] != .null else { throw StorageError.incomplete }
+                guard row[0] == .blob(bytes), row[1] == .blob(locator.writerEpoch.bytes),
+                      row[2] == .blob(Array(locator.encodedV1()[16..<24])), try row[3].number <= through else { throw StorageError.integrity }
+            }
+        }
     }
 }
 
@@ -215,7 +270,7 @@ private struct CheckedCurrentBasis {
     let represented: Set<OperationID>
 
     init?(database db: Database, payload: ChangesPayloadV1) throws {
-        guard payload.actions.count == 1, let action = payload.actions.first?.action,
+        guard payload.projections.isEmpty, payload.actions.count == 1, let action = payload.actions.first?.action,
               action.restorations.isEmpty, action.details == nil,
               action.members == payload.operations.map(\.operation.id),
               action.members.count == action.affected.count else { return nil }
@@ -296,7 +351,7 @@ extension Database {
         guard let (_, opened) = try acceptedEnvelope(locator, collection: collection, protection: protection) else { return nil }
         guard opened.kind == .changes else { throw CanonicalEncodingError.invalidReference }
         return try checkingRetainedHistory {
-            return try ChangesPayloadV1.decodeV1(opened.payload)
+            return try ChangesPayloadV1.decodeV1(opened)
         }
     }
     func acceptedEnvelope(_ locator: SegmentLocator, collection: CollectionID,
@@ -338,6 +393,7 @@ extension Database {
     }
     /// Commits exact objects and complete membership from one validated batch.
     fileprivate func accept(_ batch: ValidatedHistoryBatch) throws -> Int64 {
+        try batch.checkProjectionCoverage(database: self)
         // Snapshot membership keeps addresses and edges while each bounded page buffer is consumed.
         var fresh: [(locator: SegmentLocator, dependencies: [SegmentLocator])] = []
         func retain(id: [UInt8], kind: Int64, writer: SQLValue, sequence: SQLValue, bytes: [UInt8]) throws -> Bool {

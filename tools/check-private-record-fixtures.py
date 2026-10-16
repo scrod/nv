@@ -30,7 +30,14 @@ value = cell[30:30+value_size]
 value_digest = hashlib.sha256(b'NV note value\0v1\0' + value).digest()
 fixtures['neutralReservation'] = header('NVRSV1\r\n') + bytes([7])*16 + bytes([6])*16 + b'\4' + bytes([2])*16
 fixtures['neutralReservation'] += hashlib.sha256(b'NV pending Current\0v1\0' + cell).digest() + value_digest
+settlement_header = header('NVPST1\r\n') + scope + bytes([12])*16
+fixtures['consumedSettlement'] = settlement_header + blob(fixtures['reservation']) + b'\1' + blob(platform) + b'\1' + bytes([13])*16
+fixtures['neutralSettlement'] = settlement_header + blob(fixtures['neutralReservation']) + b'\1' + blob(platform) + b'\0'
+projection = bytes.fromhex(json.loads((ROOT/'NVStorage/Tests/NVStorageCoreTests/Fixtures/projection-observations.json').read_text())['settlement'])
+fixtures['projectionSettlement'] = settlement_header + blob(fixtures['neutralReservation']) + b'\2' + blob(projection) + b'\0'
 fixtures = {k: v.hex() for k, v in fixtures.items()}
+if '--write' in sys.argv:
+    (ROOT/'NVStorage/Tests/NVStorageCoreTests/Fixtures/private-records.json').write_text(json.dumps(fixtures, indent=2) + '\n')
 if '--print' in sys.argv:
     print(json.dumps(fixtures, indent=2))
 else:

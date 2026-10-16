@@ -21,7 +21,7 @@ production runtime integration is no longer wholly absent.
 - [ ] Define UTF-8 validity, embedded NUL handling, permitted empty strings, and normalization separately for each string field. Stored body spelling remains exact; conflict-recovery-key NFC rules must not silently normalize note contents.
 - [ ] Fix UUID and digest widths and validation. Preserve the distinction between ordinary births, deterministic recovery identities, action IDs, operation IDs, writer epochs and collection IDs; UUID version bits alone do not classify a recovery note.
 - [ ] Fix filename grammar for every provider and local artifact: UUID/hash text alphabet and casing, fixed widths, sequence radix/padding/range, separators and suffixes. Define sequence exhaustion handling without resuming an old writer allocator.
-- [ ] Specify direct-child projection-name validation and reserved-name comparisons on supported case-sensitive/case-insensitive filesystems, including Unicode ambiguity and names such as `NV Data`. Reuse existing filename collision adjustment where its contract fits.
+- [x] Specify direct-child projection-name validation, reserved-name comparisons, exact Unicode spelling and case/normalization ambiguity. The [captured filename contract](plan/phase6/04-filename-preparation-contract.md) and independent tests preserve legacy extension/collision adjustment with scalar-safe truncation. Physical filesystem representability/occupancy remains a rooted-adapter gate.
 - [ ] Separate protocol-required version handling from optional extensions and local current-row versions. Unknown required formats remain unsupported evidence; specify whether any optional fields can be skipped, and whether their bytes participate in identity/authentication.
 
 ## 2. Segment payload, references and operation identities
@@ -39,6 +39,7 @@ production runtime integration is no longer wholly absent.
 ## 3. Note values and content formats
 
 - [ ] Define the complete note-value field layout: title, body/content, labels, content-format tag, creation/modification display dates and any projection descriptor. Inventory legacy source fields and explicitly map each to synced values, private state, derived state or legacy-only data.
+  Plaintext projection descriptions are now a [separate optional Changes section](plan/phase6/08-portable-projection-contract.md), outside note/action identity. Contextual decoding and exact source acceptance are implemented. [Captured encoded output](plan/phase6/09-exact-output-contract.md) adds requested-encoding/fallback preparation and exact private bytes; local producer/query and settlement-owner integration retain their P6.1 gates.
 - [x] Fix display-date encoding: finite binary64 seconds from 2001-01-01T00:00:00Z; preserve finite precision/negative dates, canonical positive zero, reject NaN/infinities/encoded negative zero. Required dates are not absent or replaced by the current clock. Swift literal/rejection fixtures cover this value encoding, not legacy invalid-date UI handling.
 - [x] Specify stored label values as exact nonempty UTF-8 tokens in strictly increasing raw-byte order, distinct from case-insensitive host lookup. Preserve case-distinct and canonically equivalent spellings as separate stored tokens; ordinary per-membership merge uses those tokens. Existing recovery-key NFC transformations remain separate. Swift fixtures cover case/normalization distinctions, duplicate/reversed encodings and empty-token rejection.
 - [ ] Define the plaintext representation and its relationship to separately encoded note-file bytes, including encoding metadata and line endings. A projection digest hashes exact output bytes, which may differ from the canonical value payload.
@@ -101,9 +102,20 @@ separates executed production checks from later provider/host adapter work.
 
 ## 8. Plaintext projection metadata
 
-- [ ] Freeze `NVProjectionStampV1` under the exact name `org.notationalvelocity.projection#S`: version/tags, collection, birth, format, exact file digest and represented-state reference.
-- [ ] Cover ordinary revision, equal-value, two-input merge and automatic-preservation variants with exact locators and canonical ordering.
-- [ ] Define the complete portable projection descriptor carried inside segments and its relationship to stamps and private receipts. Decide exactly when it is required or absent under each profile.
+The [Phase 6 plan](plan/phase6-plaintext-reconciliation-plan.md#5-p61--freeze-canonical-projection-and-observation-records)
+orders these remaining definitions and independent fixtures before production
+writes, including their relationship to private physical observations and the
+existing note-value/hash consumers. Current development encodings are revised
+directly; checked items identify their implemented scope below.
+
+- [x] Freeze the advisory `NVProjectionStampV1` wire value (Swift `ProjectionStampV1`) under the exact name `org.notationalvelocity.projection#S`: version/tags, collection, birth, format, exact file digest and represented-state reference. The [P6.1 record contract](plan/phase6/01-projection-record-contract.md) defines bounded parsing and complete oversized-stamp omission.
+- [x] Encode ordinary revision, equal-value, two-input merge and automatic-preservation variants with exact locators, canonical ordering and independent literal fixtures. See [qualification and remaining consumer gates](plan/phase6/01-projection-record-validation.md); this codec completion does not qualify physical association or xattr installation.
+- [x] Freeze the passive path/format/exact-digest descriptor value and validated exact filename type, including profile, malformed-name and alias tests; see the [P6.1 descriptor contract](plan/phase6/02-projection-descriptor-contract.md).
+- [x] Bind private output descriptions to complete source occurrences, retaining wide source sets independently of optional stamps. Encode accepted/intended descriptions with raw metadata presence, captured source obligations and generation-fenced intent writes. See the [history/observation contract](plan/phase6/03-history-observation-contract.md); production receipt issuance still requires the rooted consumer.
+- [x] Complete general text-output encoding and exact reconstruction. The [exact-output contract](plan/phase6/09-exact-output-contract.md) captures actual native-encoded bytes, preserves canonical note text and requested-encoding/UTF-8 promotion semantics, and supports cross-platform recovery without re-encoding. The [Foundation experiment](plan/phase6/05-text-encoding-investigation.md) explains why an encoding identifier alone was insufficient.
+- [x] Bind the portable projection descriptor inside segments, with canonical presence, hash participation, complete source dependencies and actual acceptance. See [portable placement](plan/phase6/08-portable-projection-contract.md), [complete queries](plan/phase6/10-complete-binding-query-contract.md), and the [local producer](plan/phase6/11-projection-producer-contract.md).
+- [x] Encode one independent frozen projection transition and preserve its output/source through newer intentions. Release only superseded unowned chunks atomically with the intent switch using note-scoped keys; see the [ownership contract](plan/phase6/13-frozen-output-contract.md).
+- [x] Complete private settlement transfer mapping for those owners and existing pending records, with [independent records and qualified consumed-input transactions](plan/phase6/14-settlement-record-validation.md). Production physical receipts retain the rooted installation/settlement gates; see the [P6.1 ledger](plan/phase6/06-completion-ledger.md).
 - [ ] Supply malformed, foreign, copied, stale, body-mismatched and missing-dependency examples. Matching bytes/stamps do not independently authorize aliasing or deletion.
 - [ ] Preserve the 4-KiB ceiling and complete omission fallback for oversized stamps. Do not truncate represented input sets or introduce a sidecar. Distinguish optional stamp failure from uncertain body/mandatory-metadata installation.
 

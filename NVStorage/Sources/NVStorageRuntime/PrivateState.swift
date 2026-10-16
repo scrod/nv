@@ -87,6 +87,9 @@ extension Database {
         if let association = try privateGroup("association") {
             _ = try decodedAssociation(association, selection: .init(directory: "", store: store, descriptor: descriptor))
         }
+        try validateProjectionObservations(selection: .init(directory: "", store: store, descriptor: descriptor))
+        try validateProjectionReplacementAttempts(selection: .init(directory: "", store: store, descriptor: descriptor))
+        try validateProjectionSourceAttempts(selection: .init(directory: "", store: store, descriptor: descriptor))
         let bootstrap = try rows("SELECT codec,payload FROM private_groups WHERE group_key=?", [.blob(Array("bootstrap".utf8))])
         guard bootstrap.count == 1 else { throw StorageError.incomplete }
         guard bootstrap[0][0] == .integer(1) else { throw StorageError.unsupported }

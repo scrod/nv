@@ -20,7 +20,7 @@ enum ReceivedPayload: Sendable {
 
     init(_ opened: OpenedObjectV1) throws {
         switch opened.kind {
-        case .changes: self = .changes(try ChangesPayloadV1.decodeV1(opened.payload))
+        case .changes: self = .changes(try ChangesPayloadV1.decodeV1(opened))
         case .snapshotPage:
             if opened.payload.starts(with: Array("NVGPG1\r\n".utf8)) {
                 self = .generalPage(try GeneralSnapshotPageV1.decodeV1(opened.payload))

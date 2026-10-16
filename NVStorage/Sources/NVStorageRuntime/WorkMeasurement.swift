@@ -63,6 +63,8 @@ struct StorageWork: Sendable {
     var vacuumPrepared: (@Sendable () async -> Void)?
     var commandCheck: (@Sendable () -> Void)?
     var historyValidated: (@Sendable () async -> Void)?
+    /// Holds a locally sealed command before its acceptance for ordering qualification.
+    var localCommitSealed: (@Sendable () async -> Void)?
     var acceptanceCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
     var snapshotCandidateCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
     var receiveRetentionCompletion: (@Sendable (SegmentLocator) async throws -> Void)?
@@ -70,6 +72,7 @@ struct StorageWork: Sendable {
     var receiveRecordsPerTurn = 64
     var publishedReceiveStart: (@Sendable () async -> Void)?
     var querySelected: (@Sendable () async -> Void)?
+    var projectionDescriptionSealed: (@Sendable () async -> Void)?
     var snapshotPreparationYield: (@Sendable (SegmentLocator, Int) async -> Void)?
     var reconstructionPrepared: (@Sendable () async -> Void)?
     var recoveryPrepared: (@Sendable () async -> Void)?

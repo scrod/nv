@@ -20,6 +20,73 @@ def main():
     args = parser.parse_args()
     modules = args.modules.resolve()
     cases = [
+        ('replacement input preserves issuer across decoding', '''
+func decode<T: Decodable>(_ value: T.Type) {}
+func wrong() { decode(PreparedProjectionReplacement.self) } // expected-error
+''', "requires that 'PreparedProjectionReplacement' conform to 'Decodable'"),
+        ('replacement input is immutable', '''
+func wrong(_ input: inout PreparedProjectionReplacement, _ output: ProjectionOutputV1) { input.output = output } // expected-error
+''', "cannot assign to property: 'output' is a 'let' constant"),
+        ('replacement input cannot authorize exclusive creation', '''
+func wrong(_ root: RepositoryRootSession, _ store: LocalStoreSession, _ input: PreparedProjectionReplacement,
+           _ permission: RepositoryRootPermission) async throws {
+    _ = try await root.createProjection(input, from: store, using: permission) // expected-error
+}
+''', "cannot convert value of type 'PreparedProjectionReplacement' to expected argument type 'PreparedProjectionCreation'"),
+        ('projection creation consumer companion', '''
+func use(_ root: RepositoryRootSession, _ store: LocalStoreSession, _ input: PreparedProjectionCreation,
+         _ permission: RepositoryRootPermission) async throws {
+    switch try await root.createProjection(input, from: store, using: permission) {
+    case .verified(let receipt): try await root.validate(receipt, for: input, from: store, using: permission)
+    case .notInstalled(let failure), .uncertain(let failure): _ = failure.retry
+    }
+}
+''', None),
+        ('projection creation receipt issuer', '''
+func wrong(_ file: ProjectionFileSnapshot, _ input: PreparedProjectionCreation) {
+    _ = ProjectionCreationReceipt(file: file, input: input, native: fatalError()) // expected-error
+}
+''', "'ProjectionCreationReceipt' initializer is inaccessible due to 'fileprivate' protection level"),
+        ('projection creation residue issuer', '''
+func wrong(_ directory: URL) { _ = ProjectionStagingResidue(directory: directory) } // expected-error
+''', "'ProjectionStagingResidue' initializer is inaccessible due to 'fileprivate' protection level"),
+        ('projection creation requires checked frozen input', '''
+func wrong(_ root: RepositoryRootSession, _ store: LocalStoreSession, _ input: PreparedProjectionIntent,
+           _ permission: RepositoryRootPermission) async throws {
+    _ = try await root.createProjection(input, from: store, using: permission) // expected-error
+}
+''', "cannot convert value of type 'PreparedProjectionIntent' to expected argument type 'PreparedProjectionCreation'"),
+        ('projection creation preserves issuer across decoding', '''
+func decode<T: Decodable>(_ value: T.Type) {}
+func wrong() { decode(PreparedProjectionCreation.self) } // expected-error
+''', "requires that 'PreparedProjectionCreation' conform to 'Decodable'"),
+        ('projection creation receipt preserves issuer across decoding', '''
+func decode<T: Decodable>(_ value: T.Type) {}
+func wrong() { decode(ProjectionCreationReceipt.self) } // expected-error
+''', "requires that 'ProjectionCreationReceipt' conform to 'Decodable'"),
+        ('projection creation output is immutable', '''
+func wrong(_ input: inout PreparedProjectionCreation, _ output: ProjectionOutputV1) { input.output = output } // expected-error
+''', "cannot assign to property: 'output' is a 'let' constant"),
+        ('projection creation receipt is immutable', '''
+func wrong(_ receipt: inout ProjectionCreationReceipt, _ file: ProjectionFileSnapshot) { receipt.file = file } // expected-error
+''', "cannot assign to property: 'file' is a 'let' constant"),
+        ('projection read consumer companion', '''
+func use(_ root: RepositoryRootSession, _ observation: RepositoryEntryObservation, _ permission: RepositoryRootPermission) async throws -> ProjectionFileReadResult {
+    try await root.readProjection(observation, maximumBytes: 1024, using: permission)
+}
+''', None),
+        ('projection snapshot issuer', '''
+func wrong(_ name: ProjectionLeafNameV1, _ observation: RepositoryEntryObservation) {
+    _ = ProjectionFileSnapshot(name: name, value: fatalError(), observation: observation) // expected-error
+}
+''', "'ProjectionFileSnapshot' initializer is inaccessible due to 'fileprivate' protection level"),
+        ('projection snapshot preserves issuer across decoding', '''
+func decode<T: Decodable>(_ value: T.Type) {}
+func wrong() { decode(ProjectionFileSnapshot.self) } // expected-error
+''', "requires that 'ProjectionFileSnapshot' conform to 'Decodable'"),
+        ('projection snapshot is immutable', '''
+func wrong(_ snapshot: inout ProjectionFileSnapshot) { snapshot.bytes = [] } // expected-error
+''', "cannot assign to property: 'bytes' is a 'let' constant"),
         ('accepted-name cursor issuer', '''
 func wrong(_ store: LocalStoreID) {
     _ = RepositoryInventoryCursor(store: store, session: UUID(), through: 1, afterSequence: 0, afterObject: []) // expected-error
@@ -356,6 +423,14 @@ func wrong(_ owner: CollectionSession) { _ = owner.decision() } // expected-erro
             count += checker.run_probes(invocation, clients, Path(tmp)/('same' if same else 'ordinary'),
                 label='same-module' if same else 'ordinary', timeout=90, maximum=args.batch_size)
         for name, source, diagnostic in [
+            ('projection stage unique ownership', '''
+private func requireCopy<T>(_ value: borrowing T) {}
+private func wrong(_ stage: borrowing RootProjectionStage) { requireCopy(stage) } // expected-error
+''', "requires that 'RootProjectionStage' conform to 'Copyable'"),
+            ('projection stage executor confinement', '''
+private func requireTransfer<T: ~Copyable & Sendable>(_ value: borrowing T) {}
+private func wrong(_ stage: borrowing RootProjectionStage) { requireTransfer(stage) } // expected-error
+''', "does not conform to the 'Sendable' protocol"),
             ('prepared directory unique ownership', '''
 private func requireCopy<T>(_ value: borrowing T) {}
 private func wrong(_ stage: borrowing RootPreparedDirectory) { requireCopy(stage) } // expected-error
@@ -383,7 +458,7 @@ private func wrong(_ stage: borrowing RootPreparedStage) { requireTransfer(stage
             assert checker.matches_contract(run.returncode, run.stderr, path, combined, diagnostic), (name, run.stderr)
             print('PASS: actual-file', name, flush=True)
             count += 1
-        assert count == 134
+    assert count == 166
 
 
 if __name__ == '__main__':

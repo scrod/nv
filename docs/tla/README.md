@@ -43,6 +43,32 @@ Read each model's `Init`, actions, checked properties and runner configuration t
 
 ## Retained identity experiments — not proposal-5 acceptance proofs
 
+The [P6.1 history/observation implementation](../impl-proposal-5/plan/phase6/03-history-observation-contract.md)
+now supplies concrete complete source bindings and generation-fenced private intent
+records beneath `ProjectionTransitionSafety`/`ProjectionRecoveryBridge`. Exact
+occurrence checks and fresh-process SQL failure tests qualify those inputs.
+Accepted-description decoding and preservation do not discharge the models'
+physical verification, source-accounting or receipt-publication obligations;
+those remain P6.2/P6.4 consumers. No model guard or safety assertion is relaxed.
+
+The [P6.2 original-Delete permission boundary](../impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#original-local-delete-permission--internal-implementation)
+now checks the model's supplied original local command/barrier against real
+accepted action membership, pre-admission file capture and live owner context.
+Permission preparation alone has no namespace effect. Its subsequent durable
+source reservation, quarantine and cleanup qualify physical effects separately;
+settlement must still qualify completed source accounting. Existing model assertions and transitions are unchanged; this
+typed-input slice is executable boundary evidence rather than a new refinement
+or a reason to rerun unchanged state graphs.
+
+[Exact-output retention](../impl-proposal-5/plan/phase6/09-exact-output-contract.md)
+implements the models' captured-byte input with atomic private chunk/intent writes.
+Native encoding identifiers are not assumed to reproduce bytes across hosts.
+[Frozen output ownership](../impl-proposal-5/plan/phase6/13-frozen-output-contract.md)
+maps the latest/frozen retention and cleanup obligations to guarded private SQL
+transactions. Its executable rollback/restart checks qualify that storage mapping;
+physical settlement and source accounting remain explicit implementation gates,
+not model-derived proof. The model transitions and safety assertions are unchanged.
+
 [`UUIDAssociationLab.tla`](UUIDAssociationLab.tla) compares association and deletion-intent rules across copies, stripped attributes, restoration, and observationally indistinguishable inputs. The [association experiment report](UUID-Reconciliation-Experiments.md) records counterexamples, conditional rules, and missing evidence. This is not the adopted import classifier.
 
 [`CausalIncarnationSafety.tla`](CausalIncarnationSafety.tla) separately tests fresh birth tokens, observed-remove causal context, delayed deletion, and crash recovery against an overwritable metadata register. Its [metadata experiment report](Incarnation-Metadata-Experiments.md) connects these rules to live xattr/copy/replacement probes and the consumer/provider API boundary. Birth association and local durability are inputs to this small model, not proved by it; complete-exchange agreement is not unconditional provider convergence. The shared runner's `--only Causal` option selects its 12 checks.
@@ -317,6 +343,14 @@ connect these boundaries to `GeneralSnapshotCapture`, file-private parent eviden
 and the real SQL acceptance transaction. Accepted parents reuse prior validated
 closure; neither the model nor implementation grants permission to prune bytes.
 
+The [P6.1 description-retention qualification](../impl-proposal-5/plan/phase6/12-projection-retention-validation.md)
+maps the same immutable-parent/final-recheck/atomic-frontier rules to portable
+Changes descriptions. Source bindings remain independent of retention coverage;
+snapshot roots retain their own coverage. Executable tests add actual two-producer
+delivery, parent damage, exact-envelope recovery and bounded-work witnesses.
+This reuses the unchanged model's graph obligations, not its snapshot-specific
+encoding assumptions as proof of the descriptor format.
+
 `python3 docs/tla/check-receive-models.py --only assembly --timeout 300 --java
 /path/to/java --jar /path/to/tla2tools.jar` selects the snapshot bridge. Its five exhaustive
 configurations, five exact mutation counterexamples and five reachability witnesses
@@ -444,6 +478,153 @@ The ordinary-conflict scenario in `SegmentMergeSafety` deliberately lets an edit
 [`ProjectionStampSafety.tla`](ProjectionStampSafety.tla) independently varies current bytes, stamp and retained history. It checks waiting for referenced evidence, exact/unique association, and preservation of explicit Imports; hashes/schema/root fences are assumptions to verify in concrete callers. [`RepositoryCopySafety.tla`](RepositoryCopySafety.tla) copies a captured available inventory including historical/deleted and unimported data with no source private store. Its progress mutation rejects a private-state prerequisite; its retention mutation rejects current-only export. Additional saved-history scenarios reserve exact local bytes at damaged canonical names, preserve source damage and report it separately. They cover one damaged file and an obstructed history hierarchy, with progress/reachability witnesses and controls for copying bad bytes, hiding damage and overwriting the source. These correspond to `RepositoryCopyWorker.copyOwned`/`installSaved`; concrete tests exercise coordinated reads, exact bytes and destination reconstruction. Neither model proves actual xattr transport, Finder behavior, filesystem atomicity or globally complete history. The spec's copy scope is the available repository, not all application state; saved-work supplementation is separately captured.
 
 [`RepositoryRepairSafety.tla`](RepositoryRepairSafety.tla) separates observable provider/private damage from presumed cause and splits exact-copy construction, verification, private pinning and activation. Twenty finite scenarios include disclosure during an already editable session and positively disclosed newer/unmaterialized provider evidence to missing/partial/inaccessible/foreign provider data, root replacement, missing/partial/unreadable/unwritable private data, complementary copies and shared loss. Occupied corrupt/wrong-kind entries remain untouched while Save As and healthy local editing become available. Its controls reject an occupied-damage overwrite or missing Save As outcome, a manual top-level `NV Data` restore gate, Work Offline for generic failure, foreign overwrite, incomplete/fabricated claims, stale-root use, provider-gated ordinary editing, revoking active editing on disclosure, incremental republishing before complete local repair, and destructive local repair. The repair union, positive disclosure classification, exact-byte validation, permission results and retained frontier are trusted finite inputs; actual filesystem/API tests remain required.
+
+The [P6.1 standalone history reader](../impl-proposal-5/plan/phase6/07-inbound-history-contract.md)
+refines `ProjectionStampSafety`'s known-history input with exact accepted
+occurrences, selected note ancestry and store/view-fenced consumption. Its
+qualification is separate from the model's physical-byte and unique-association
+inputs; those remain obligations for the later rooted file classifier. This
+refinement changes no model transition or safety condition.
+The [complete-binding consumer](../impl-proposal-5/plan/phase6/10-complete-binding-query-contract.md)
+shares that history predicate for oversized source sets and checks private-output
+ownership again after asynchronous reconstruction. Its held-read and exact-byte
+tests refine the existing capture/final-check premises, without changing a
+modeled action or weakening its physical-receipt requirements.
+
+The [P6.2 coherent reader](../impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md)
+qualifies the observation side of these physical premises with actual descriptor
+reads, metadata/name races, owner-generation checks and entered-accessor lifetime
+tests. Its Foundation constructor experiments distinguish a directory-relative
+namespace target from a reference that follows a moved leaf. Replacement,
+removal and receipt settlement retain their independent implementation gates;
+this read slice changes no modeled transition or safety assertion.
+The native exclusive-creation primitive now separately exercises private-stage
+preparation, exclusive namespace effects, exact readback and interrupted-process
+retry. The Swift creation bridge now connects that primitive to exact frozen
+history/private input and tests newer edit/Delete, cancellation, close, root
+movement, reassociation and fresh-process retry. Final rooted/history fences
+preserve frozen B and newer intended C; physical completion still does not clear
+private owners. Completed projection settlement and other mutable-file operations
+retain their own gates. These are refinements of existing physical-effect and
+capture/final-check premises; no model transition or safety assertion changes.
+The native boundary qualifies filesystem date representation before issuing
+physical evidence: HFS+/HFSX rounds to whole seconds, with exact stage/install
+checks and final body/metadata readback. The abstract verified-output predicate
+still requires the supported representation of every mandatory field; logical
+note dates and model transitions remain unchanged. The volume/fault witnesses
+qualify this representation mapping rather than a weaker metadata predicate.
+The [native relocation candidate](../impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#native-renameupdate-candidate)
+preserves the actual captured source, installs complete output exclusively,
+and independently observes source/backup/installed state. Its crash and race
+checks qualify the existing physical-preservation inputs to these models;
+the internal Swift bridge now supplies history-bound issuance, a pinned original,
+the existing committed attempt and three-name read-only recovery. Receipt
+settlement remains a separate consumer. Case-only namespace aliases and Foundation's optional
+case-only presenter callback are concrete platform checks, rather than new
+formal coverage claims. No model transition or safety condition is changed.
+The bridge's final metadata comparison uses the native verifier's exact observed
+birth time and complete raw fields; kernel stat-word equality alone cannot issue
+a verified output. Its restricted evidence types and crash/volume tests refine
+the existing physical-effect, retained-attempt and final-check premises. No
+additional model state or weaker assertion is introduced for these concrete
+representation checks.
+
+`ProjectionRecoveryBridge` already assigns each attempt a unique backup slot.
+Its concrete mapping uses the migration's user-reaffirmed UUIDv4 naming
+assumption, accessor-local absence check and occupied-candidate retirement.
+The documented Foundation experiment deliberately injects that exact private
+name after its check; it records a limit outside this premise. Target races and
+retained displaced contents remain modeled and required in production. This
+clarification changes neither the modeled unique slots nor safety assertions.
+The [private replacement reservation](../impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#durable-replacement-candidate-reservation)
+now records that candidate slot with its frozen transition before a physical
+consumer can proceed. Restart can locate possibly displaced material while
+retaining the source/output owners. Its decoded record remains passive; the
+native replacement, fresh recovery inspection and final source-accounting
+consumers retain their own gates. This supplies concrete storage for the existing
+retained-attempt premise rather than changing a modeled effect or authorizing
+historical replay. No TLC rerun is claimed for this record/SQL-only change.
+The internal rooted replacement consumer now commits that reservation before
+entering native replacement. A returned no-effect result can retire the exact
+candidate through issuer-restricted evidence; each retry reserves a fresh UUID.
+The integrated tests retain installed/displaced snapshots and frozen inputs
+through late editing, Delete, cancellation and close. This exercises the existing
+capture/effect/final-check assumptions. The fresh recovery inspector reconstructs
+comparison bytes and reads both retained names under current root/store checks;
+its observations grant no replay, cleanup or completed-settlement permission.
+Exec'ed crash/recovery witnesses qualify that concrete observation boundary;
+artifact settlement retains its separate gate. No abstract transition or safety
+assertion changes, and no additional model proof is claimed.
+
+The [native source-quarantine candidate](../impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#native-source-quarantine--candidate-under-qualification)
+tests an exclusive source-to-recovery move and comparison of the actual moved
+file. Mismatches restore exclusively or remain retained; the primitive preserves
+all contents and reports both names' present/absent/unavailable states. Its
+native result remains separate from `SourceAccount` and completed projection
+settlement. The original-Delete Runtime consumer instead commits its required
+recovery record and performs protected capture/comparison/removal inside one
+deletion accessor. Its original coherent-read descriptor remains owned through
+the effect. Fresh source/protected-child observations, exact command and owner
+checks fence its privately issued removal receipt. The consumer checks the same
+original lease identity; independently read captures of the same file/command
+cannot exchange evidence. Successful/uncertain effects and even an empty owned
+directory after failure retain their attempt. Only an exact pre-capture result
+that created no owned directory permits early candidate retirement.
+
+Fresh Swift child processes actually exit inside native directory sync before
+capture, after capture and after unlink, or receive EIO while the owned directory
+is empty. Their next processes recover solely from surviving storage. Separate
+changed/malformed fixtures preserve their own classification. These witnesses
+exercise existing retained-attempt and physical-effect premises; recovery still
+issues read-only inspection, and complete `SourceAccount`/receipt settlement
+belongs to P6.4.
+`LAST_UNLINK_REPLACEMENT` found a concrete counterexample against the earlier
+public-name cleanup: a child replaces the checked artifact and pathname unlink
+deletes foreign bytes. The replacement moves the actual public occupant into a
+protected persistent directory, compares the captured item and restores or
+retains mismatches. Its native race/crash and fresh read-only recovery witnesses
+qualify that boundary separately; they are not proof of completed `SourceAccount`.
+The protected location derives from the already retained attempt, with no added
+semantic table or model state. Its ownership/privacy premise is the existing
+owned-private-staging premise, not a waiver for public-file replacement.
+No safety assertion or supported public execution is weakened to obtain a pass.
+Active-presenter witnesses additionally found that separate recovery moves can
+redirect an editor's subsequent save. The direct native correction puts protected
+capture/comparison/removal inside one `.forDeleting` accessor, keeps internal
+names private and retains the existing record, original descriptor and mismatch
+preservation. Ordinary safe saves use update coordination (`0`); genuine public
+moves retain their move notices. The superseded two-step Runtime methods and
+intermediate evidence are removed. These are concrete API/interop mappings of existing
+preservation and physical-effect premises, not new abstract Delete authority or
+weakened safety. No TLC rerun or completed `SourceAccount` proof is claimed for
+the adapter experiment.
+These witnesses refine existing retained-attempt and physical-effect premises;
+they change no abstract transition or safety condition. No additional TLC proof
+is claimed for the concrete record/SQL/descriptor bridge.
+The accepted-to-captured boundary now compares nine physical words plus a compact
+commitment to the complete raw metadata. Equal-stat metadata-change witnesses
+and a Python stat/encoding/hash oracle test that concrete comparison independently.
+This helps discharge the models' exact-observation premise; fixture tokens in
+`ProjectionRecoveryBridge` remain distinct file states/identities, not hashes.
+The digest itself supplies neither identity lifetime nor `SourceAccount`.
+The descriptor-lifetime witnesses qualify the original-Delete pin premise only;
+they leave source accounting and later callers' applicability checks separate.
+No model transition/assertion changes or additional TLC proof is claimed.
+
+The [portable Changes section](../impl-proposal-5/plan/phase6/08-portable-projection-contract.md)
+implements complete source claims and existing dependency-closed retention for
+projection metadata. Its concrete tests require metadata-only receipt to preserve
+logical notes/actions and require crash recovery to retain either complete
+membership or exact retryable input. This refines the existing history-validation
+and atomic-acceptance premises; it adds no physical association permission and
+changes no model transition or safety condition.
+
+The [local portable producer](../impl-proposal-5/plan/phase6/11-projection-producer-contract.md)
+adds unique address reservation, store-session-bound exact-byte retry and restart
+through that same receive queue. Its completion preserves current notes and newer
+private intentions. These are concrete witnesses for the existing immutable-input,
+atomic-acceptance and metadata-neutrality premises; physical receipt transitions
+remain separate.
 
 [`RepositorySwitchSafety.tla`](RepositorySwitchSafety.tla) connects a fixed private
 copy to source retirement, selection exclusion, uncertain namespace installation,

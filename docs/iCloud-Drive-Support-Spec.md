@@ -278,10 +278,28 @@ The retained-history pin is not the history or undo stack. It is private evidenc
 
 ## Separate plaintext files
 
+Rename/update must preserve the actual captured source while independently
+verifying the new output and accounting for all surviving names. Restoration
+after a known installation refusal is exclusive; late source or destination
+occupants remain preserved. A case-only old spelling can identify the new
+output on a case-insensitive filesystem, so filename presence alone cannot
+settle the original-source obligation.
+
+Both replacement and rename/update retain their exact frozen source/output and
+fresh candidate before physical work, using one private per-birth attempt slot.
+Fresh recovery inspects each surviving name independently and revalidates the
+current root/store; persisted locations never restore an interrupted physical
+permission. Only a completed no-effect result that left the source uncaptured
+may retire a rename candidate before source accounting.
+
 - Preserve rooted safe-save, metadata/encoding, external-editor interoperability, long-path/move tolerance and format-loss disclosures. [Foundation replacement](Foundation-Safe-Replacement-Migration.md) governs mutable files; immutable segments require exclusive creation.
+- Coordinate ordinary note-content safe saves as updates (writing options `0`), including temporary-file replacement. Original physical Delete uses `.forDeleting`; its protected capture, comparison and removal belong to one accessor. Temporary preservation names are implementation details, while a genuine user-visible rename sends move notifications to its final public destination. A cooperating editor's saved change must still satisfy the exact original-source checks; refusal or changed contents preserves the file. A later external recreation is a new observation, never permission to replay the Delete.
+- Qualify requested file dates in the supported filesystem's documented precision during staging, then verify that exact representation at installation. HFS+/HFSX uses whole seconds; APFS preserves nanoseconds. Logical history retains the original dates. A timestamp tolerance or coarse change-time match alone cannot replace exact body/metadata readback.
 - Equal complete shallow before/after catalogs around selected coordinated reads and unchanged root/model inputs fence reconciliation. Exclude directories (including NV Data), Notes & Settings, exact legacy WALs and owned hidden residue. Visible recovery files remain candidates. Unreadable placeholders/incomplete catalogs/changed fences retain dirty work and authorize no destructive inference.
 - Optional filesystem evidence is volume-qualified nonzero document ID or session-local nonzero file ID, unique on both sides. Generation metadata is not identity. No persistence through eviction/replacement/restart is assumed. PlaintextFilesV1 stages a bounded advisory projection stamp with NV-generated file bytes where supported; missing/stripped attributes remain supported. Filename/body/UUID/xattr/Apple identifiers never prove permanent incarnation.
-- A portable projection descriptor may name birth/revision, validated direct-child leaf, format and exact output digest. A unique live matching descriptor may associate that represented state, not physical identity or remote installation. Local snapshots/receipts remain private and require fresh checks.
+- A portable projection descriptor may name birth/revision, validated direct-child leaf, format and exact output digest. Its [optional Changes section](impl-proposal-5/plan/phase6/08-portable-projection-contract.md) carries complete external source bindings and accepted dependencies separately from note/action identity; receiving metadata alone emits no note mutation. A unique live matching descriptor may associate that represented state, not physical identity or remote installation. Local snapshots/receipts remain private and require fresh checks.
+- [Local description production](impl-proposal-5/plan/phase6/11-projection-producer-contract.md) freezes an owned, verified output under a unique writer address. Retry uses those exact sealed bytes; committed candidate/ready rows own restart recovery. A later edit/Delete or newer intention leaves the frozen historical description intact. Its acceptance acknowledges metadata only and cannot clear newer note/file work or record physical installation.
+- Description production includes the captured accepted Changes frontier in its existing dependency table. Additional retention parents preserve earlier metadata without changing source-revision meaning. Check their exact accepted bytes before coverage and again in the atomic acceptance transaction; reuse validated closure and retain every ancestor. Clear only explicitly covered tips so concurrent arrivals remain required. Sequential descriptions therefore bound returning-startup checks by the retained frontier rather than descriptor count.
 - [Projection stamps](impl-proposal-5/Protocol.md#projection-stamp-and-delayed-history-handling) use the fixed `org.notationalvelocity.projection#S` name, bounded versioned collection/birth/state/locator/format/digest fields, and exact byte verification. Missing dependencies park association; successful state validation avoids a duplicate Import/echo Put. Body/xattr arrival is not assumed atomic. Stale/malformed/copied/wrong-collection stamps authorize no overwrite, alias or deletion; preserve uncertain bytes. No full segment/action metadata is copied into an xattr and encrypted collections gain no plaintext channel.
 - Segment-first/file-first delivery is independent. Preserve changed files before replacement. A validated reference to unavailable history waits for those exact dependencies; bounded attempts/re-observation never declare it new by timeout. Known deletion, obsolete automatic projections, copied/foreign/contradictory provenance, name collisions, unreadable input and invalid root/catalog/generations retain their specific handling before heuristics. Old bytes applicable only to a deleted birth are possible stale projection/restoration, not automatic resurrection or unlink authority; explicit fresh import is available without suppressing the file forever.
 - An eligible readable unassociated file is automatically imported as a fresh ordinary birth if those exceptions do not apply and no plausible live repair candidate exists. Missing/omitted advisory metadata alone is not a reason to ask. A locally complete scan does not prove global newness: delayed history may reveal a duplicate or old content returning under a new birth. Accept that trade-off, preserve independently admitted identities and their edits, and never retroactively alias/suppress them or apply another birth's Delete. Ordinary equal-title creations remain distinct; deterministic path-slot co-add stays disabled.
@@ -293,8 +311,43 @@ The retained-history pin is not the history or undo stack. It is private evidenc
 - The [private commit/recovery contract](impl-proposal-5/Protocol.md#pending-file-commit-and-recovery-records) is also part of IMPORT-01: payload retention and generation-checked reference switching share one SQL transaction; cleanup protects all referenced/in-flight inputs until an ambiguous commit is reconciled. Admission publishes a provisional per-note relationship claim with any note mutation, not a completed file receipt. A neutral association waits for existing Current history, not a fabricated Put; choosing Current/merged output still requires its exact physical projection. Receipt and pending settlement commit together only after fresh checks. Incoming Delete invalidates association authority without canceling already-admitted history. Recovery recognizes an earlier Import even if its birth was subsequently edited/deleted, and never restores consent or physical authority from a private record.
 - Settling output B while newer output C is pending may advance the accepted projection A→B, retiring A from repair matching, but cannot clear C's pending generation. Installation alone does not settle a rename/format transition: exact destination verification, source accounting and current receipt publication are required. A late B completion cannot roll accepted C backward. These are local projection observations, not additional note history or deletion permission.
 - Only the original user deletion operation may remove its still-matching accepted/installed file snapshot after the complete local Delete/action/parent barrier. Mismatch preserves/imports current bytes. Incoming Delete removes logical notes, not a remembered pathname. No startup tombstone sweep or physical permission replay after crash.
+  The [P6.2 implementation mapping](impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#durable-original-source-reservation-and-inspection)
+  commits a required-private recovery-location record before original-source
+  protected capture. Reopening may inspect that location under fresh context;
+  completed source accounting and settlement remain distinct from physical removal.
+  Accepted-to-captured matching includes complete raw metadata, even when coarse
+  stat timestamps coincide. The local metadata commitment implements that state
+  comparison; root/session and original-operation lifetime checks still establish
+  physical applicability.
+  The original local Delete capture retains the descriptor from its coordinated
+  coherent read through removal. Its immutable retry inputs share one
+  close owner; failed capture releases it. Root closure invalidates permission,
+  and restart retains only inspection inputs, never a reconstructed live lease.
+  Protected removal requires that same live original command and
+  exact retained descriptor, complete current contents/metadata and rooted checks.
+  It observes the original note pathname separately and preserves any new occupant.
+  Its receipt binds the exact original capture's existing descriptor-lease identity.
+  The physical result leaves the required attempt record intact for later
+  source accounting; restart can inspect an already absent artifact without
+  acquiring permission to remove any file.
+  An empty owned directory surviving failure also retains that attempt. Early
+  candidate retirement requires a verified no-removal result that created no
+  owned directory; an occupied foreign candidate remains untouched. Fresh
+  read-only recovery rejects a known wrong kind or ambiguous hard-link ownership
+  before content coordination and body-size checks.
+  A final identity check followed by pathname unlink is insufficient: an
+  intervening replacement must survive. P6.2 therefore captures the actual public
+  artifact into an exclusively owned persistent same-volume directory before
+  comparison and private cleanup. Derive its location from the existing durable
+  attempt; inspect both locations after interruption. A mismatch is restored
+  exclusively or retained. The UUIDv4 backup-creation assumption does not waive
+  cleanup's public-name preservation requirement. Filesystem/provider ownership,
+  privacy and effect qualification remain required before enabling that consumer.
 - Retain trustworthy accepted projection bases for external reconciliation. Segment history/hash alone is not installation evidence. Unsafe changes preserve inputs; legacy fuzzy-helper callers do not define segment merge semantics.
+- Preserve the actual encoded output and resolved encoding through pending projection recovery. UTF-8 is reconstructible from exact retained note bytes; native non-UTF-8 conversion is not assumed byte-identical across hosts. [Captured output](impl-proposal-5/plan/phase6/09-exact-output-contract.md) and its private owner commit together, preserve existing note limits through bounded chunks, and require exact byte verification before use. These private inputs grant neither physical installation nor deletion authority.
 - External-editor handoff/cleanup uses asynchronous exact-generation durability. Retain scratch until accepted edits are durable; encrypted-profile plaintext scratch stays outside the provider folder with disclosed autosave/backup risks. Stale completions cannot remove newer scratch or clear newer work.
+- The serialized per-note transition retains a [frozen output and source](impl-proposal-5/plan/phase6/13-frozen-output-contract.md) independently of the latest intention. Generation-checked private transactions preserve every accepted/intended/source/frozen byte owner and release only superseded unowned chunks atomically. Restart recovers those inputs for revalidation, not physical permission. Advancing accepted state or settling a pending file still requires the specified exact rooted checks and atomic ownership transfer.
+- [Private settlement records](impl-proposal-5/plan/phase6/14-settlement-record-contract.md) retain the complete admitted decision after preview release and distinguish consumed input from completed physical projection. Completing frozen B transfers accepted ownership to B while keeping newer C intended with B as source. The encoded record and pure transfer calculation remain passive; fresh rooted/source/relationship checks govern publication.
 
 ## Conflict resolver and Apple disposition
 

@@ -15,6 +15,7 @@ func runRepositoryRootProbe(_ args: [String]) async throws -> Bool {
     if args[0] == "root-try" { await root.close(); try output(["state": "acquired"]); return true }
     var permission = try await root.permission()
     let original = permission
+    var projection: RepositoryEntryObservation?
     try output(["state": "owned"])
     while let line = readLine() {
         let request = try JSONDecoder().decode(RootRequest.self, from: Data(line.utf8))
@@ -29,6 +30,31 @@ func runRepositoryRootProbe(_ args: [String]) async throws -> Bool {
                     throw RepositoryRootError.unavailable(EIO)
                 }
                 try output(["hex": hex(contents.bytes)])
+            case "capture-projection":
+                projection = try await root.observe(request.argument ?? "", using: permission)
+                try output(["state": "captured"])
+            case "read-projection", "read-captured-projection":
+                let observation: RepositoryEntryObservation
+                if request.command == "read-captured-projection" {
+                    guard let projection else { throw RepositoryRootError.wrongContext }
+                    observation = projection
+                } else {
+                    observation = try await root.observe(request.argument ?? "", using: permission)
+                }
+                switch try await root.readProjection(observation, maximumBytes: 65536, using: permission) {
+                case .snapshot(let snapshot):
+                    try output(["hex": hex(snapshot.bytes), "name": snapshot.name.spelling.string,
+                        "encoding": projectionAttributeReport(snapshot.encoding),
+                        "tags": projectionAttributeReport(snapshot.tags),
+                        "finderTags": projectionAttributeReport(snapshot.finderTags),
+                        "stamp": projectionAttributeReport(snapshot.stamp),
+                        "permissions": snapshot.permissions,
+                        "modifiedSeconds": snapshot.modified.seconds,
+                        "modifiedNanoseconds": snapshot.modified.nanoseconds,
+                        "hasCreationTime": snapshot.created != nil])
+                case .placeholder: try output(["state": "placeholder"])
+                case .unavailable(let failure): try output(["unavailable": String(describing: failure)])
+                }
             case "availability":
                 let observation = try await root.observe(request.argument ?? "", using: permission)
                 guard case .observed(let status) = try await root.availability(observation, using: permission) else {
@@ -61,4 +87,12 @@ func runRepositoryRootProbe(_ args: [String]) async throws -> Bool {
     }
     await root.close()
     return true
+}
+
+private func projectionAttributeReport(_ value: ProjectionFileAttribute) -> [String: String] {
+    switch value {
+    case .absent: ["state": "absent"]
+    case .present(let bytes): ["state": "present", "hex": hex(bytes)]
+    case .unsupported: ["state": "unsupported"]
+    }
 }

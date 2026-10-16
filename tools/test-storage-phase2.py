@@ -36,7 +36,7 @@ def main():
     if args.compiler_suite_timeout < 1:
         parser.error('--compiler-suite-timeout must be positive')
     fixture_names = ['initial-bootstrap', 'initial-snapshot', 'recovery-artifact', 'current-state',
-                     'restoration', 'merge', 'derived-state', 'connected-record', 'current-cell', 'general-snapshot', 'verification', 'private-record']
+                     'restoration', 'merge', 'derived-state', 'connected-record', 'current-cell', 'general-snapshot', 'verification', 'private-record', 'projection-stamp', 'projection-descriptor', 'projection-observation', 'projection-filename']
     for fixture in fixture_names:
         checker = ROOT/'tools'/f'check-{fixture}-fixtures.py'
         assert checker.is_file(), ('Missing fixture checker', checker)
@@ -102,10 +102,83 @@ def main():
     suite = run('swift', ['make', '-C', 'tests', 'run-swift-storage', 'SWIFT_STORAGE_TEST_FLAGS=' + test_flags], timeout=args.suite_timeout)
     assert 'Build complete!' in suite and 'Build cancelled!' not in suite, 'SwiftPM must finish building the tested sources'
     required = {'ordinaryEditDeleteAndCreateReopen', 'oldCompletionPreservesNewerPendingWork',
+                'projectionFileReadRetainsExactBytes',
+                'projectionFileReadRejectsChangedContextAndOversize',
+                'projectionFileReadPreservesUnsupportedOccupants',
+                'projectionFileReadOwnsEnteredWorkThroughClose',
+                'projectionFileReadFollowsOwnedRootMove',
+                'projectionFileReadCancellationFencesPublication',
+                'projectionReplacementAttemptIndependentLayout',
+                'projectionReplacementAttemptRequiresSameNameSource',
+                'projectionReplacementInputRetainsBothExactGenerations',
+                'projectionReplacementInputRequiresSameNamedSourceAndOwner',
+                'projectionReplacementInputRejectsChangedApplicability',
+                'projectionReplacementInputVerifiesSourceHistory',
+                'projectionReplacementReservationSurvivesRestartAndNewerWork',
+                'projectionReplacementReservationFailureKeepsFrozenInputs',
+                'projectionReplacementReservationRejectsDamagedRecovery',
+                'projectionTransportIndependentBytesAndCanonicalAbsence',
+                'projectionTransportChecksAuthenticatedContext',
+                'projectionTransportChecksDerivedSourceAndPreservesLogicalIdentity',
+                'projectionTransportValidatesCompleteOversizedSource',
+                'projectionTransportAcceptsHistoryWithoutEditingNotes',
+                'projectionTransportRejectsClaimsBeforeAcceptance',
+                'projectionTransportParkingAndAcceptanceRollbackSurviveReopen',
+                'standaloneDerivedSourceUsesExactOccurrencesAndAncestry',
+                'projectionHistoryValidatesStandaloneAcceptedSources',
+                'projectionHistoryRejectsClaimsWithoutPoisoningRetainedHistory',
+                'projectionHistoryWaitsForExactAcceptedInputAndRetainsRejectionReason',
+                'projectionHistoryFencesConcurrentHistoryAndEvidenceConsumers',
+                'projectionHistoryDiagnosesActualRetainedDamage',
+                'projectionHistoryRepackagingPreservesLogicalCurrent',
+                'projectionHistoryEncryptedProfileRejectsPlaintextConsumer',
+                'projectionCompleteBindingSupportsWideAcceptedSources',
+                'projectionCompleteBindingFencesConsumersAndReadCompletion',
+                'projectionDescriptionsReadExactAcceptedEnvelope',
+                'projectionProducerPreservesExactOutputAndMetadataNeutrality',
+                'projectionProducerKeepsCapturedDescriptionAfterNewerWork',
+                'projectionProducerRetriesExactBytesAfterFailure',
+                'projectionProducerOwnedReceiveSurvivesCloseAndBusyRetry',
+                'projectionProducerFencesPreparationCompletion',
+                'projectionProducerReservesDistinctAddressesAndRejectsEncryptedProfile',
+                'projectionProducerRestartsRetainedWorkWithoutHandle',
+                'projectionProducerRetentionBoundsStartupAndAcceptanceWork',
+                'projectionProducerRetentionPreservesConcurrentTipsAndDelayedJoin',
+                'projectionProducerRetentionRejectsDamagedParentBeforeCoverage',
+                'projectionProducerRetentionRejectsMisaddressedCoverage',
+                'projectionOutputReadsOwnedHistoricalBytes',
+                'projectionOutputChecksUTF8DigestAndPrivateOwner',
+                'projectionOutputFencesConcurrentPrivateIntent',
+                'projectionStampIndependentLayouts', 'projectionStampExactDigestAndProfile',
+                'projectionStampRejectsMalformedClaims', 'projectionStampRequiresExactDependencySet',
+                'projectionStampBoundedCompleteOmission', 'projectionStampRetainsDerivedReconstruction',
+                'projectionDescriptorIndependentLayouts', 'projectionLeafExactSpellingAndAliases',
+                'projectionLeafRejectsUnsafeNames', 'projectionDescriptorRejectsMalformedAndWrongProfile',
+                'projectionDescriptorUsesExistingPayloadBound',
+                'projectionObservationsIndependentLayouts', 'projectionObservationsRejectWrongScopeAndOrdering',
+                'projectionFrozenOwnershipRejectsContradictoryGenerations',
+                'projectionFrozenOutputPreservesSourceAcrossNewerIntentAndRestart',
+                'projectionFrozenBytesRemainOwnedAfterLatestReplacement',
+                'projectionByteReleaseIsAtomicAndNoteScoped', 'projectionFreezeChecksOwnerAndAtomicFailure',
+                'projectionBindingReconstructsDerivedAndRetainsWideSources',
+                'projectionIntentPreservesAcceptedAcrossFailureAndReopen', 'projectionIntentRejectsIncompatibleContext',
+                'projectionIntentChecksRealRetainedVariants', 'projectionObservationsClassifyDamage',
+                'projectionObservationsRepairUnionPreservesOrRefuses',
+                'projectionTextUTF8PreservesExactInput', 'projectionTextRequestedEncodingAndPromotion',
+                'projectionTextMatchesRecordedLegacyMatrix',
+                'projectionTextCapturedOutputIndependentEncoding', 'projectionEncodedOutputSurvivesReopen',
+                'projectionEncodedChunksCommitWithTheirOwner', 'projectionEncodedBytesRejectDamagedOrForeignInputs',
+                'projectionEncodedChunkBoundaries', 'projectionEncodedReadFencesConcurrentIntent',
+                'projectionFilenameIndependentCases', 'projectionFilenameUTF16Budget',
+                'projectionFilenameRejectsAmbiguousInventory', 'projectionFilenameRejectsUnsafeInputs',
+                'projectionFilenameUsesCapturedInventory', 'projectionIntentRetainsSelectedFilename',
                 'connectionContextReusesFixedChecks', 'connectionCandidateChecksRequireCompleteBootstrap',
                 'connectionOwnershipChecksFenceResultsAndPermitExactRetry', 'connectionDelayedCommitKeepsHistoricalReceipt',
                 'connectionReconstructionRechecksRequiredPrivateInputs',
                 'privateRecordIndependentBytesAndBounds',
+                'pendingSettlementIndependentLayouts', 'projectionSettlementTransfersExactFrozenOwners',
+                'projectionSettlementRejectsIncompleteSourceAccounting',
+                'pendingSettlementRecordIsAtomicAndRetainsDecision', 'pendingSettlementChecksIndexedIdentityAndScope',
                 'privateCopyPreparationPreservesHistoryAndPrivateInputs',
                 'privateCopyPreparationFailurePreservesSourceAndBackup',
                 'privateBackupSourceFenceIncludesPrivateOnlyWrites',
@@ -321,6 +394,15 @@ def main():
                 'collectionBootstrapExplicitCreationPreservesOccupantsAndReopens',
                 'collectionBootstrapSelectedIntakeResumesWithoutElectingOtherCollections', 'collectionBootstrapRetriesNormalOpenAfterCommittedImport'}
     if sys.platform == 'darwin':
+        required.update({'projectionReplacementInstallsAndRetainsDisplacedSource',
+            'projectionReplacementBurnsOccupiedCandidates', 'projectionReplacementReservationFailurePreventsEffect',
+            'projectionReplacementPreservesInterferingFiles', 'projectionReplacementFencesHeldCompletion',
+            'projectionReplacementFollowsMovedRoot', 'projectionReplacementRejectsForeignEvidenceBeforeEffect',
+            'projectionReplacementFailedRetirementRetainsCandidate',
+            'projectionReplacementRecoveryInspectsRetainedFiles', 'projectionReplacementRecoveryFencesCompletion',
+            'projectionReplacementRecoveryRejectsForeignAndPriorSessions', 'projectionReplacementFreshProcessRecovery',
+            'projectionReplacementRecoveryRequiresHistoricalBytes', 'projectionReplacementRecoveryBindsInspectionToCandidate',
+            'projectionReplacementRecoverySurvivesPrivateCopy'})
         required.add('collectionStartupReassociationRetainsEnteredAccessorThroughSettlement')
         required.add('collectionCopySwitchRefusesEnteredAccessorAndPreservesEditing')
         required.add('collectionCopySwitchSettlesAccessorBeforeSelection')
@@ -357,6 +439,10 @@ def main():
     run('received-snapshot-process', ['python3', 'tools/test-storage-received-snapshot-process.py', '--binary', str(qualified)], timeout=3600)
     run('bootstrap-reconstruction-process', ['python3', 'tools/test-storage-bootstrap-reconstruction-process.py', '--binary', str(qualified)])
     run('private-process', ['python3', 'tools/test-storage-private-process.py', '--binary', str(qualified)])
+    run('projection-transport-fixtures', ['python3', 'tools/check-projection-transport-fixtures.py'])
+    run('projection-transport-process', ['python3', 'tools/test-projection-transport-process.py', '--binary', str(qualified)])
+    run('projection-output-process', ['python3', 'tools/test-projection-output-process.py', '--binary', str(qualified)])
+    run('projection-producer-process', ['python3', 'tools/test-projection-producer-process.py', '--binary', str(qualified)])
     run('repository-copy-process', ['python3', 'tools/test-storage-repository-copy-process.py', '--binary', str(qualified)])
     run('repository-repair-process', ['python3', 'tools/test-storage-repository-repair-process.py', '--binary', str(qualified)])
     run('current-maintenance-process', ['python3', 'tools/test-storage-current-maintenance-process.py', '--binary', str(qualified)])

@@ -4,6 +4,51 @@ Status: implementation migration plan; behavior remains governed by [Atomic Note
 
 ## Decision and intended result
 
+P6.2's [controlled destination-reference races](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#destination-reference-race-investigation)
+refine the URL adapter below. Use a validated leaf **relative to the held directory's
+system-issued reference**, constructed with
+`fileURLWithPath:isDirectory:relativeToURL:`. A reference to the leaf object itself
+follows that object outside the root; `URLByAppendingPathComponent:` and its
+CoreFoundation counterpart convert the root reference to an ordinary pathname.
+Neither supplies the intended namespace operation under both relocation races.
+The relative-file-URL constructor passed both schedules on macOS 11, 14 and 26;
+complete volume/provider/production qualification remains required. This corrects
+API use while preserving the adopted containment and displaced-content policy.
+
+The [P6.2 original-source consumer](impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#durable-original-source-reservation-and-inspection)
+reuses that constructor for exact namespace URLs. Active-presenter experiments
+supersede its earlier two-step original-Delete mapping: use `.forDeleting` on the
+original source and `0` on the exclusive protected child, capturing, comparing
+and removing the matching original within one accessor. Temporary recovery
+moves stay implementation details. Required recovery inputs still commit before
+entry; the exact original descriptor, metadata and bytes remain checked, and
+restart supplies fresh inspection only. The Runtime now consumes this direct
+adapter, with exact original-capture receipts and retained ownership of even an
+empty protected directory after failure. Native and integrated recovery evidence
+retain their separate qualification scope.
+Final source accounting and legacy Objective-C migration remain separate.
+
+Ordinary content safe saves use destination writing options `0`, even when
+implemented with a temporary file and `replaceItemAtURL:`. The SDK explicitly
+reserves `WritingForReplacing` for replacing a document with a different one;
+using it for an ordinary update asks relevant presenters to accommodate deletion
+and can close their documents. Genuine public moves retain the documented
+`.forMoving` / `.forReplacing` coordination and successful move notifications.
+Accessor URL validation accepts equivalent URL representations only when their
+exact components and system-issued root reference agree. String/object equality
+alone rejects legitimate normalized grants; path similarity alone grants nothing.
+
+**Adopted naming assumption (reaffirmed 2026-10-15):** the
+[late backup-name collision experiment](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#backup-name-assumption-and-api-limit)
+on macOS 11/14/26 confirms that Foundation removes an occupant deliberately
+created at the exact backup name after its absence check, as documented by Apple.
+The user retained the original fresh-UUIDv4 naming assumption: check absence
+inside the accessor, burn every observed occupied candidate, and use a new name
+for each attempt. Deliberate injection at that exact private name is outside this
+assumption. The experiment records that API limit; ordinary target-file races and
+actual displaced-content preservation remain required qualification. Production,
+volume and provider gates still apply.
+
 The [P5.6 capability experiment](impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md#existing-item-replacement-capability-gap)
 shows that Foundation can retain concurrent file/directory contents in a backup
 while replacing the current name after an uncoordinated writer's change. Provider
@@ -32,6 +77,18 @@ The steady state therefore has two namespace installation mechanisms, selected b
 There is no production `NSDataWritingAtomic` branch and no permanent parallel provider-only replacement implementation. A filesystem or provider that cannot establish the Foundation replacement contract retains the current implementation until support is deliberately narrowed or another safe backend is specified.
 
 ## Caller scope under proposal 5
+
+P6.2's [rename/update candidate](impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#native-renameupdate-candidate)
+reuses complete source-metadata preparation and exclusive new-name installation.
+It retains the old file at its reserved backup and observes source/output
+independently. In particular it implements case-only changes without the legacy
+check-then-overwriting-rename fallback. Ordinary existing-name replacement
+continues to use the single Foundation backend described here. The internal Swift
+bridge now binds each operation to retained history and the existing durable
+per-birth attempt before entering native work. Fresh readback checks complete
+metadata, including the native verifier's qualified creation-time representation.
+Read-only restart inspection and distinct permission types preserve the separate
+cleanup/settlement gate.
 
 | Caller | Required policy above this backend |
 | --- | --- |
@@ -64,9 +121,9 @@ Apple defines [`replaceItemAtURL:`](https://developer.apple.com/documentation/fo
 - `NSFileManagerItemReplacementWithoutDeletingBackupItem` retained the exact displaced bytes; and
 - the tested custom xattr survived options-`0` replacement.
 
-The focused test also demonstrated that reconstructing the URL is mandatory, not stylistic: asking for the next replacement directory through URL state retained from before the previous replacement failed before coordination. Each replacement attempt must therefore start with a newly constructed canonical pathname URL and derive a fresh operation-local file-reference URL from it. Metadata finalization remains required because one xattr on two tested OS releases does not establish all note-owned metadata and date behavior.
+The focused test also demonstrated that reconstructing the URL is mandatory, not stylistic: asking for the next replacement directory through URL state retained from before the previous replacement failed before coordination. Each replacement attempt therefore constructs a fresh destination from the held directory reference and validated leaf, using the relative-file-URL constructor qualified above. Avoid reusing a displaced leaf's reference or resolving the destination to a pathname for the effect. Metadata finalization remains required because one xattr on two tested OS releases does not establish all note-owned metadata and date behavior.
 
-Production code must not depend on that pathname result. It reopens and verifies the destination relative to the rooted-directory descriptor, then generates any later operation-local file-reference URL from the rooted directory and leaf name. The returned URL and `NSFileOriginalItemLocationKey`, when present on error, are candidate evidence only.
+Production code must not depend on that pathname result. It reopens and verifies the destination relative to the rooted-directory descriptor, then constructs later operation-local namespace URLs from the retained directory reference and leaf name. An exact installed-file reference may separately identify a selected item for an API that needs it. The returned URL and `NSFileOriginalItemLocationKey`, when present on error, are candidate evidence only.
 
 ## Target transaction
 
@@ -80,7 +137,7 @@ On the owning store's serialized lane (the provider lane for note projections; l
 2. Open the destination relative to the rooted-directory descriptor with `O_NOFOLLOW` and require a regular file.
 3. Capture the coherent destination snapshot and retained descriptor required by the requested intent.
 4. For conditional replacement, perform the existing initial exact-byte comparison with `expectedData`. Metadata-only differences remain outside the conflict predicate.
-5. Create one operation-local destination file-reference URL and prove that it still identifies the opened destination before giving it to Foundation.
+5. Create one operation-local destination URL relative to the held directory reference and prove that it still names the opened destination before giving it to Foundation. Keep this directory-relative URL for the namespace effect so a moved leaf does not redirect replacement outside the root.
 
 The initial check is an optimization and early failure boundary, not the final conditional-write decision. The displaced file remains the authoritative race witness.
 
@@ -108,6 +165,14 @@ Use replacement options `0` initially. The validated paused-item path preserved 
 
 Do not use `NSFileManagerItemReplacementUsingNewMetadataOnly` unless separate tests prove provider identity and every metadata guarantee below. Conversely, do not delete the APFS note-file backend if options `0` require post-install metadata repair that would weaken APFS's current one-namespace-operation bytes-and-metadata contract. Private metadata/cache and legacy databases have no separate-note metadata requirement and may advance independently after their own permissions and durability tests.
 
+P6.2's [native candidate](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#native-replacement-qualification-in-progress)
+is testing `UsingNewMetadataOnly` after copying preserved metadata into the stage.
+Its explicit mode-0640 witness found default handling installed mode 0600, including
+when the accessor URL was normalized to absolute form. The new-metadata option
+passed the initial native cases. This candidate is still behind the public Swift
+and legacy integration gates above; the completed one-xattr/default-option provider
+result does not qualify the alternate option's complete metadata contract.
+
 ### 3. Coordinated installation
 
 Create one per-operation `NSFileCoordinator`. Coordinate the destination with `NSFileCoordinatorWritingForReplacing` and the staged source with `NSFileCoordinatorWritingForMoving`. Inside the accessor, call `replaceItemAtURL:` exactly once.
@@ -115,20 +180,25 @@ Create one per-operation `NSFileCoordinator`. Coordinate the destination with `N
 - Unconditional replacement and expected-current metadata/database installation use no backup name. The latter nevertheless enforce their separate no-write expected-current precondition immediately before this call.
 - Conditional replacement generates a fresh hidden backup leaf from the same random UUID source used for NV's other unguessable transaction identifiers. Immediately before replacement, check relative to the open root descriptor that the candidate is absent without following symlinks; if occupied, burn that UUID and generate another. Supply the accepted leaf with `NSFileManagerItemReplacementWithoutDeletingBackupItem` so the displaced destination remains available for exact comparison and recovery.
 
+`WithoutDeletingBackupItem` retains the displaced item after success. Backup-name
+safety uses the approved random-identifier assumption above, plus retirement of
+observed occupied candidates. The API-limit experiment records deliberate
+same-name injection separately from the required ordinary target-file races.
+
 The accessor performs only local replacement. It never waits for provider upload, version enumeration, presenter settlement, or any other network-dependent operation.
 
 ### 4. Identity and exact verification
 
 After the accessor returns:
 
-1. Treat the old leaf file-reference URL as expired whether or not it still happens to resolve.
+1. Treat any supplemental old leaf-object reference as expired whether or not it still happens to resolve; the held directory remains the namespace anchor.
 2. Treat Foundation's resulting URL as candidate evidence, not stored authority.
 3. Reopen the destination by leaf through the rooted-directory descriptor.
 4. Prove that the reopened destination and retained stage descriptor identify the same installed filesystem object.
 5. Bracket an exact content read with revision observations and require the requested bytes.
 6. Finalize authoritative note-owned metadata and exact dates if Foundation did not already preserve the staged values, then synchronize the verified descriptor.
 7. Read authoritative xattrs, dates, and other snapshot metadata from that verified descriptor.
-8. Generate a fresh operation-local file-reference URL from the rooted directory and leaf when later Foundation or provider work needs one.
+8. Generate a fresh directory-relative namespace URL for later mutations, or a newly checked installed-file reference for a provider API that requires that exact item.
 
 Each mutable caller verifies its own decoded identity/generation when applicable. Capturing an installed Apple version belongs only to a caller that actually needs that evidence, not every private-state/cache save. Provider upload status is presentation only and remains outside the coordinator accessor and replacement success predicate.
 
@@ -172,7 +242,7 @@ For note projections, retain the existing best-effort root-directory synchroniza
 | ExFAT and limited filesystems | Foundation must be no worse than the documented current best-effort replacement contract and must preserve both byte streams for conditional replacement. The exclusive-create fallback remains unchanged. |
 | Installed descriptor identity | The retained stage descriptor must follow the installed item, and a rooted reopen must identify it. A merely matching pathname, URL, size, mtime, or contents is insufficient. |
 | Permissions and custom xattrs | Establish the exact behavior of options `0` and `UsingNewMetadataOnly`; preserve tested destination permissions and unrelated custom xattrs while applying note-owned metadata. No option is accepted merely because its name sounds appropriate. |
-| Encoding, tags, and dates | Exact `com.apple.TextEncoding`, exact OpenMeta plist including present-empty tags, requested creation/modification dates, and descriptor synchronization remain mandatory. Finder tags and extension hiding remain best effort. |
+| Encoding, tags, and dates | Exact `com.apple.TextEncoding`, exact OpenMeta plist including present-empty tags, requested creation/modification dates in the filesystem's qualified precision, and descriptor synchronization remain mandatory. HFS+/HFSX dates are whole seconds; stage and installed readback must match that representation exactly while history retains the original dates. Final metadata readback remains required even when change timestamps are coarse. Finder tags and extension hiding remain best effort. |
 | Write dispositions | Preserve the exact meanings of not-installed, installed-verified, and installed-needs-reconciliation, including post-install errors and retained recovery filenames. |
 | Recovery artifact naming | Continue exclusive visible conflict-recovery naming. A failed visible rename leaves a hidden, owned artifact and returns reconciliation-required. |
 | Symlinks and special files | Preexisting or racing symlinks, directories, devices, and FIFOs fail closed. The test must prove Foundation does not make NV follow or replace an unintended target. |
@@ -211,6 +281,17 @@ The current `atomic-rollback`, `snapshot-boundary-races`, `snapshot-stress`, `sn
 ### Phase 1 — Add one private Foundation backend
 
 Implement a private replacement helper inside `NVRootedDirectory.m` using the target transaction above. It is not yet selected by ordinary note writes. The helper returns the existing `NVFileWriteResult` shape and reuses existing descriptor write, metadata, snapshot, conflict-preservation, and cleanup helpers.
+
+The [P6.2 cleanup counterexample and replacement](impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#owned-original-source-cleanup)
+also constrain the cleanup wording above: a final public-name identity check
+followed by pathname unlink is not a conditional removal. Capture the actual
+public backup into owned protected storage before comparison/private cleanup,
+or retain it for reconciliation. The qualified source consumer derives a
+persistent protected location from its already durable attempt and preserves
+mismatches; caller-specific ownership, recovery and settlement remain necessary.
+The approved fresh-UUID backup-creation assumption does not waive replacement
+of an observable backup before cleanup. This correction changes the target
+migration contract, not the still-unmigrated legacy Objective-C caller.
 
 Use it first through deterministic tests and the focused API-contract app. Do not create a public installer protocol, operation class, provider adapter, or second staging subsystem.
 

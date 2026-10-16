@@ -23,10 +23,14 @@ public enum PendingReservationRecovery: Sendable {
 
 /// A settled observation keeps its admitted identity after payload release and later Delete.
 public struct PendingSettlement: Sendable {
-    public let snapshot: PendingSnapshotID
-    public let birth: NoteBirth
-    public let operation: OperationID?
-    public let observation: PassivePlatformRecordV1
+    public let record: PendingSettlementV1
+    public var snapshot: PendingSnapshotID { record.reservation.snapshot }
+    public var birth: NoteBirth { record.reservation.birth }
+    public var operation: OperationID? {
+        if case .operation(let id, _, _, _) = record.reservation.effect { id } else { nil }
+    }
+    public var observation: PassivePlatformRecordV1 { record.outcome.observation }
+    fileprivate init(record: PendingSettlementV1) { self.record = record }
 }
 
 /// Store-issued preparation carrying a reserved identity into ordinary history admission.
@@ -246,11 +250,14 @@ extension LocalStoreSession {
             }
             let observation = try revalidate(input, matches)
             let digest = Array(SHA256.hash(data: r.encodedV1()))
+            let settlement = try PendingSettlementV1(scope: input.scope, item: state.id, reservation: r,
+                outcome: .consumed(observation), subsequentSnapshot: state.latest == r.snapshot ? nil : state.latest)
+            let encoded = try settlement.encodedV1()
             try db.transaction {
                 try db.checkPendingGeneration(state)
                 try db.run("INSERT INTO pending_settlements VALUES(?,?,?,?,?,?,?,?)",
                     [.blob(state.id.bytes), .blob(r.snapshot.bytes), .blob(r.id.bytes), r.operationSQL,
-                     .blob(r.birth.bytes), .blob(digest), .integer(Int64(observation.codec)), .blob(observation.bytes)])
+                     .blob(r.birth.bytes), .blob(digest), .integer(1), .blob(encoded)])
                 try db.run("DELETE FROM pending_reservations WHERE reservation_id=?", [.blob(r.id.bytes)])
                 guard state.generation < Int64.max else { throw StorageError.limit }
                 if state.latest == r.snapshot {
@@ -265,15 +272,9 @@ extension LocalStoreSession {
 
     public func pendingSettlement(item: PendingItemID, snapshot: PendingSnapshotID) async throws -> PendingSettlement? {
         guard !closed else { throw StorageError.closed }
+        let selection = selection
         return try await lane.perform { db in
-            let rows = try db.rows("SELECT birth,operation_id,observation_codec,observation FROM pending_settlements WHERE item_id=? AND snapshot_id=?",
-                [.blob(item.bytes), .blob(snapshot.bytes)])
-            guard let row = rows.first else { return nil }
-            let operation: OperationID? = if case .blob(let b) = row[1] { try OperationID(bytes: b) } else { nil }
-            let codec = try row[2].number
-            guard codec > 0, codec <= UInt32.max else { throw StorageError.unsupported }
-            return try PendingSettlement(snapshot: snapshot, birth: NoteBirth(bytes: row[0].bytes), operation: operation,
-                observation: PassivePlatformRecordV1(codec: UInt32(codec), bytes: row[3].bytes))
+            try db.pendingSettlementRecord(item: item, snapshot: snapshot, selection: selection).map { PendingSettlement(record: $0) }
         }
     }
 
@@ -289,6 +290,23 @@ private extension PendingReservationV1 {
 }
 
 extension Database {
+    /// Checks indexed settlement identity against the complete retained decision and captured scope.
+    func pendingSettlementRecord(item: PendingItemID, snapshot: PendingSnapshotID,
+                                 selection: LocalStoreSelection) throws -> PendingSettlementV1? {
+        guard let row = try rows("SELECT reservation_id,operation_id,birth,decision_digest,observation_codec,observation FROM pending_settlements WHERE item_id=? AND snapshot_id=?",
+            [.blob(item.bytes), .blob(snapshot.bytes)]).first else { return nil }
+        guard row[4] == .integer(1) else { throw StorageError.unsupported }
+        let value: PendingSettlementV1
+        do { value = try .decodeV1(row[5].bytes, profile: selection.descriptor.keyID == nil ? .plaintextFiles : .encryptedSegments) }
+        catch CanonicalEncodingError.unsupportedFormat { throw StorageError.unsupported }
+        catch { throw StorageError.integrity }
+        let r = value.reservation
+        guard value.item == item, r.snapshot == snapshot, row[0] == .blob(r.id.bytes), row[1] == r.operationSQL,
+              row[2] == .blob(r.birth.bytes), row[3] == .blob(Array(SHA256.hash(data: r.encodedV1()))) else { throw StorageError.integrity }
+        try checkCapturedPrivateScope(value.scope, selection: selection)
+        if case .projection(let projection) = value.outcome { try checkCapturedPrivateScope(projection.scope, selection: selection) }
+        return value
+    }
     fileprivate func pendingItemRow(_ id: PendingItemID) throws -> [SQLValue]? {
         try rows("SELECT generation,latest,status FROM pending_items WHERE item_id=?", [.blob(id.bytes)]).first
     }

@@ -113,6 +113,422 @@ public enum RepositoryReadResult: Sendable {
     case contents(RepositoryFileContents), unavailable(RepositoryFileFailure)
 }
 
+/// Exact raw attributes retain empty presence and filesystem capability separately.
+public enum ProjectionFileAttribute: Equatable, Sendable {
+    case absent, present([UInt8]), unsupported
+}
+
+/// A filesystem timestamp expressed without floating-point rounding.
+public struct ProjectionFileTime: Equatable, Sendable {
+    public let seconds: Int64
+    public let nanoseconds: UInt32
+    fileprivate init(seconds: Int64, nanoseconds: UInt32) {
+        self.seconds = seconds; self.nanoseconds = nanoseconds
+    }
+}
+
+/// A coherent direct-child body and its raw metadata, issued by the live root owner.
+public struct ProjectionFileSnapshot: Sendable {
+    public let name: ProjectionLeafNameV1
+    public let bytes: [UInt8]
+    public let encoding: ProjectionFileAttribute
+    public let tags: ProjectionFileAttribute
+    public let finderTags: ProjectionFileAttribute
+    public let stamp: ProjectionFileAttribute
+    public let permissions: UInt32
+    public let created: ProjectionFileTime?
+    public let modified: ProjectionFileTime
+    fileprivate let observation: RepositoryEntryObservation
+    fileprivate init(name: ProjectionLeafNameV1, value: ProjectionReadValues, observation: RepositoryEntryObservation) {
+        self.name = name; bytes = value.bytes; encoding = value.encoding
+        tags = value.tags; finderTags = value.finderTags; stamp = value.stamp
+        permissions = value.permissions; created = value.created
+        modified = ProjectionFileTime(seconds: Int64(bitPattern: observation.identity[5]),
+                                      nanoseconds: UInt32(observation.identity[6]))
+        self.observation = observation
+    }
+
+    /// Binds the local file identity and complete raw metadata to an accepted observation.
+    var physicalRecord: PassivePlatformRecordV1 {
+        get throws {
+            try .init(codec: 0x50524601, bytes: physicalWords + Array(SHA256.hash(
+                data: Array("NV projection metadata\0v1\0".utf8) + metadataBytes)))
+        }
+    }
+
+    /// Retains the original local identity and raw metadata for interrupted source accounting.
+    fileprivate var sourceRecord: PassivePlatformRecordV1 {
+        get throws { try .init(codec: 0x50525301, bytes: physicalWords + metadataBytes) }
+    }
+
+    private var physicalWords: [UInt8] {
+        observation.identity.flatMap { sourceInteger($0, width: 8) }
+    }
+
+    private var metadataBytes: [UInt8] {
+        var record = sourceInteger(UInt64(permissions), width: 4)
+        if let created {
+            record += [1] + sourceInteger(UInt64(bitPattern: created.seconds), width: 8)
+                + sourceInteger(UInt64(created.nanoseconds), width: 4)
+        } else { record += [0] }
+        for attribute in [encoding, tags, finderTags, stamp] {
+            switch attribute {
+            case .absent: record += [0]
+            case .unsupported: record += [2]
+            case .present(let bytes): record += [1] + sourceInteger(UInt64(bytes.count), width: 4) + bytes
+            }
+        }
+        return record
+    }
+
+    /// Borrows all buffers for the complete synchronous source operation.
+    @safe
+    fileprivate func withNativeSource<Result>(_ body: (inout NVProjectionRead) -> Result) -> Result {
+        bytes.withUnsafeBufferPointer { data in
+            encoding.withNativeObservation { encoding in
+                tags.withNativeObservation { tags in
+                    finderTags.withNativeObservation { finder in
+                        stamp.withNativeObservation { stamp in
+                            let w = observation.identity
+                            var native = unsafe NVProjectionRead(bytes: .init(mutating: data.baseAddress), count: UInt64(data.count),
+                                words: (w[0],w[1],w[2],w[3],w[4],w[5],w[6],w[7],w[8]),
+                                encoding: encoding, tags: tags, finder_tags: finder, stamp: stamp, permissions: permissions,
+                                has_birth: created == nil ? 0 : 1, birth_seconds: created?.seconds ?? 0,
+                                birth_nanoseconds: created?.nanoseconds ?? 0)
+                            return unsafe body(&native)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+extension ProjectionFileAttribute {
+    @safe
+    fileprivate func withNativeObservation<Result>(_ body: (NVProjectionAttribute) -> Result) -> Result {
+        let state: Int32, bytes: [UInt8]
+        switch self {
+        case .absent: state = 0; bytes = []
+        case .present(let value): state = 1; bytes = value
+        case .unsupported: state = 2; bytes = []
+        }
+        return bytes.withUnsafeBufferPointer { buffer in
+            unsafe body(.init(bytes: .init(mutating: buffer.baseAddress), count: UInt32(buffer.count), state: state))
+        }
+    }
+}
+
+private func sourceInteger(_ value: UInt64, width: Int) -> [UInt8] {
+    (0..<width).reversed().map { UInt8(truncatingIfNeeded: value >> ($0 * 8)) }
+}
+
+/// Shares one immutable descriptor lease across the original command's retry inputs.
+private final class ProjectionSourceLease: Sendable {
+    private let descriptor: Int32
+    fileprivate init(owning descriptor: Int32) { precondition(descriptor >= 0); self.descriptor = descriptor }
+    deinit { _ = close(descriptor) }
+
+    fileprivate func withDescriptor<Result>(_ body: (Int32) throws -> Result) rethrows -> Result {
+        try withExtendedLifetime(self) { try body(descriptor) }
+    }
+}
+
+/// One coherent capture and the descriptor retained by that same read.
+private struct ProjectionSourceRead: Sendable {
+    let file: ProjectionFileSnapshot
+    let lease: ProjectionSourceLease
+}
+
+/// Root-issued source snapshot attached to a still-live, pre-admission local Delete.
+struct CapturedProjectionDeleteSource: Sendable {
+    let input: PreparedProjectionDeletion
+    fileprivate let source: ProjectionFileSnapshot
+    private let lease: ProjectionSourceLease
+    fileprivate init(input: PreparedProjectionDeletion, source: ProjectionFileSnapshot, lease: ProjectionSourceLease) {
+        self.input = input; self.source = source; self.lease = lease
+    }
+    var capturedObservation: PassivePlatformRecordV1 { get throws { try source.sourceRecord } }
+    fileprivate func withDescriptor<Result>(_ body: (Int32) throws -> Result) rethrows -> Result {
+        try lease.withDescriptor(body)
+    }
+    fileprivate func sameCapture(as other: Self) -> Bool { lease === other.lease }
+}
+
+/// Evidence that an attempt ended before creating an owned protected directory.
+struct UncapturedProjectionSource: Sendable {
+    let reserved: ReservedProjectionSource
+    fileprivate init(_ reserved: ReservedProjectionSource) { self.reserved = reserved }
+}
+
+/// Independent current observations and errors from one retained source attempt.
+struct ProjectionSourceEffect: Sendable {
+    let record: ProjectionSourceAttemptV1
+    let source: ProjectionFileReadResult
+    let cleanup: ProjectionCleanupReadResult
+    let reason: RepositoryFileFailure?
+    let storageFailure: StorageError?
+    let directorySyncError: Int32?
+    fileprivate init(record: ProjectionSourceAttemptV1, source: ProjectionFileReadResult,
+                     reason: RepositoryFileFailure?, storageFailure: StorageError? = nil, sync: Int32 = 0,
+                     cleanup: ProjectionCleanupReadResult = .unavailable(.staleContext)) {
+        self.record = record; self.source = source; self.reason = reason
+        self.storageFailure = storageFailure; directorySyncError = sync == 0 ? nil : sync
+        self.cleanup = cleanup
+    }
+}
+
+/// Verified removal of the original authorized source, with fresh observations for accounting.
+struct ProjectionSourceRemovalReceipt: Sendable {
+    let effect: ProjectionSourceEffect
+    fileprivate let reserved: ReservedProjectionSource
+    fileprivate let permission: RepositoryRootPermission
+    fileprivate init(effect: ProjectionSourceEffect, reserved: ReservedProjectionSource, permission: RepositoryRootPermission) {
+        self.effect = effect; self.reserved = reserved; self.permission = permission
+    }
+}
+
+enum ProjectionSourceRemovalResult: Sendable {
+    case removed(ProjectionSourceRemovalReceipt), notRemoved(ProjectionSourceEffect), uncertain(ProjectionSourceEffect)
+}
+
+/// Fresh read-only observations of the source and its retained recovery locations.
+struct ProjectionSourceInspection: Sendable {
+    let source: ProjectionFileReadResult
+    let cleanup: ProjectionCleanupReadResult
+    fileprivate let input: ProjectionSourceRecoveryInput
+    fileprivate let permission: RepositoryRootPermission
+    fileprivate init(source: ProjectionFileReadResult, cleanup: ProjectionCleanupReadResult,
+                     input: ProjectionSourceRecoveryInput, permission: RepositoryRootPermission) {
+        self.source = source; self.cleanup = cleanup; self.input = input; self.permission = permission
+    }
+}
+
+/// Read-only contents at one attempt's nested protected recovery location.
+struct ProjectionCleanupSnapshot: Sendable {
+    let record: ProjectionSourceAttemptV1
+    fileprivate let observation: RepositoryEntryObservation
+    fileprivate let value: ProjectionReadValues
+    var bytes: [UInt8] { value.bytes }
+    var encoding: ProjectionFileAttribute { value.encoding }
+    var tags: ProjectionFileAttribute { value.tags }
+    var finderTags: ProjectionFileAttribute { value.finderTags }
+    var stamp: ProjectionFileAttribute { value.stamp }
+    var permissions: UInt32 { value.permissions }
+    var created: ProjectionFileTime? { value.created }
+    var modified: ProjectionFileTime { .init(seconds: Int64(bitPattern: observation.identity[5]), nanoseconds: UInt32(observation.identity[6])) }
+    fileprivate init(record: ProjectionSourceAttemptV1, observation: RepositoryEntryObservation, value: ProjectionReadValues) {
+        self.record = record; self.observation = observation; self.value = value
+    }
+}
+
+enum ProjectionCleanupReadResult: Sendable {
+    case snapshot(ProjectionCleanupSnapshot), placeholder, unavailable(RepositoryFileFailure)
+}
+
+private enum ProjectionNativeObservation: Sendable {
+    case value(ProjectionReadValues, [UInt64]), placeholder, unavailable(RepositoryFileFailure)
+}
+
+private struct ProjectionSourceRemovalNative: Sendable {
+    var result = NVProjectionCleanupResult()
+    var source: ProjectionNativeObservation = .unavailable(.staleContext)
+    var cleanup: ProjectionNativeObservation = .unavailable(.staleContext)
+}
+
+public enum ProjectionFileReadResult: Sendable {
+    case snapshot(ProjectionFileSnapshot), placeholder, unavailable(RepositoryFileFailure)
+}
+
+private struct ProjectionReadValues: Sendable {
+    let bytes: [UInt8]
+    let encoding, tags, finderTags, stamp: ProjectionFileAttribute
+    let permissions: UInt32
+    let created: ProjectionFileTime?
+}
+
+/// Optional advisory metadata has a separate outcome from the required file contents.
+public enum ProjectionStampWriteResult: Equatable, Sendable {
+    case written, omittedOversized, failed(Int32)
+}
+
+/// A temporary preparation location retained for inspection and later owned cleanup.
+public struct ProjectionStagingResidue: Sendable {
+    fileprivate let directory: URL
+    fileprivate init(directory: URL) { self.directory = directory }
+}
+
+/// Exact physical installation under one live root permission and frozen history input.
+public struct ProjectionCreationReceipt: Sendable {
+    public let file: ProjectionFileSnapshot
+    public let stamp: ProjectionStampWriteResult
+    public let finderTagsError: Int32?
+    public let directorySyncError: Int32?
+    fileprivate let input: PreparedProjectionCreation
+    fileprivate init(file: ProjectionFileSnapshot, input: PreparedProjectionCreation, native: ProjectionCreationNative) {
+        self.file = file; self.input = input
+        stamp = native.effect.stamp_error != 0 ? .failed(native.effect.stamp_error) :
+            (native.omittedStamp ? .omittedOversized : .written)
+        finderTagsError = native.effect.finder_tags_error == 0 ? nil : native.effect.finder_tags_error
+        directorySyncError = native.effect.directory_sync_error == 0 ? nil : native.effect.directory_sync_error
+    }
+}
+
+/// Keeps frozen retry input and temporary material separate from an installation receipt.
+public struct ProjectionCreationFailure: Sendable {
+    public let reason: RepositoryFileFailure
+    public let retry: PreparedProjectionCreation
+    public let residue: ProjectionStagingResidue?
+    public let storageFailure: StorageError?
+    fileprivate init(reason: RepositoryFileFailure, input: PreparedProjectionCreation, native: ProjectionCreationNative,
+                     storageFailure: StorageError? = nil) {
+        self.reason = reason; retry = input; residue = native.stage.map { .init(directory: $0) }
+        self.storageFailure = storageFailure
+    }
+}
+
+public enum ProjectionCreationResult: Sendable {
+    case verified(ProjectionCreationReceipt), notInstalled(ProjectionCreationFailure), uncertain(ProjectionCreationFailure)
+}
+
+private struct ProjectionCreationNative: Sendable {
+    var effect = NVProjectionEffect()
+    var stage: URL?
+    var value: ProjectionReadValues?
+    var words: [UInt64] = []
+    var omittedStamp = false
+}
+
+/// Exact installed and displaced observations from one still-applicable replacement.
+struct ProjectionReplacementReceipt: Sendable {
+    let file, displaced: ProjectionFileSnapshot
+    let sourceMatched: Bool
+    let reservation: ProjectionReplacementAttemptV1
+    let stamp: ProjectionStampWriteResult
+    let finderTagsError, directorySyncError: Int32?
+    fileprivate let input: PreparedProjectionReplacement
+    fileprivate init(file: ProjectionFileSnapshot, displaced: ProjectionFileSnapshot,
+                     reserved: ReservedProjectionReplacement, sourceMatched: Bool, native: ProjectionReplacementNative) {
+        self.file = file; self.displaced = displaced; self.sourceMatched = sourceMatched
+        reservation = reserved.record; input = reserved.input
+        let effect = native.result.installation
+        stamp = effect.stamp_error != 0 ? .failed(effect.stamp_error) : (native.omittedStamp ? .omittedOversized : .written)
+        finderTagsError = effect.finder_tags_error == 0 ? nil : effect.finder_tags_error
+        directorySyncError = effect.directory_sync_error == 0 ? nil : effect.directory_sync_error
+    }
+}
+
+/// Retains exact retry ownership and artifact locations after an incomplete physical operation.
+struct ProjectionReplacementFailure: Sendable {
+    let reason: RepositoryFileFailure
+    let reservation: ProjectionReplacementAttemptV1
+    let residue: ProjectionStagingResidue?
+    let storageFailure: StorageError?
+    fileprivate init(reason: RepositoryFileFailure, reserved: ReservedProjectionReplacement,
+                     native: ProjectionReplacementNative, storageFailure: StorageError? = nil) {
+        self.reason = reason; reservation = reserved.record; residue = native.stage.map { .init(directory: $0) }
+        self.storageFailure = storageFailure
+    }
+}
+
+enum ProjectionReplacementResult: Sendable {
+    case installed(ProjectionReplacementReceipt), notInstalled(ProjectionReplacementFailure), uncertain(ProjectionReplacementFailure)
+}
+
+/// Independently coherent observations of the two retained names under one live recovery attempt.
+/// Later settlement revalidates these observations before changing files or private ownership.
+struct ProjectionReplacementInspection: Sendable {
+    let current, backup: ProjectionFileReadResult
+    fileprivate let input: ProjectionReplacementRecoveryInput
+    fileprivate let permission: RepositoryRootPermission
+    fileprivate init(current: ProjectionFileReadResult, backup: ProjectionFileReadResult,
+                     input: ProjectionReplacementRecoveryInput, permission: RepositoryRootPermission) {
+        self.current = current; self.backup = backup; self.input = input; self.permission = permission
+    }
+}
+
+/// A returned native operation that preserved the destination namespace permits candidate retirement.
+struct UninstalledProjectionReplacement: Sendable {
+    let reserved: ReservedProjectionReplacement
+    fileprivate init(_ reserved: ReservedProjectionReplacement) { self.reserved = reserved }
+}
+
+private struct ProjectionReplacementNative: Sendable {
+    var result = NVProjectionReplacementResult()
+    var stage: URL?
+    var installed, displaced: ProjectionReadValues?
+    var installedWords: [UInt64] = [], displacedWords: [UInt64] = []
+    var omittedStamp = false
+}
+
+/// A durably reserved relocation that returned before capturing its source.
+struct UncapturedProjectionRelocation: Sendable {
+    let reserved: ReservedProjectionRelocation
+    fileprivate init(_ reserved: ReservedProjectionRelocation) { self.reserved = reserved }
+}
+
+/// Verified output plus independently observed original and retained backup.
+struct ProjectionRelocationReceipt: Sendable {
+    let file, displaced: ProjectionFileSnapshot
+    let source: ProjectionFileReadResult
+    let sourceMatched: Bool
+    let reservation: ProjectionReplacementAttemptV1
+    let stamp: ProjectionStampWriteResult
+    let finderTagsError, directorySyncError: Int32?
+    fileprivate let input: PreparedProjectionRelocation
+    private let original: ProjectionSourceRead
+    fileprivate init(file: ProjectionFileSnapshot, displaced: ProjectionFileSnapshot, source: ProjectionFileReadResult,
+                     original: ProjectionSourceRead, reserved: ReservedProjectionRelocation, native: ProjectionRelocationNative) {
+        self.file = file; self.displaced = displaced; self.source = source; self.original = original
+        input = reserved.input; reservation = reserved.record
+        let old = original.file
+        sourceMatched = displaced.observation.identity.prefix(7).elementsEqual(old.observation.identity.prefix(7)) &&
+            displaced.bytes == old.bytes && displaced.permissions == old.permissions && displaced.created == old.created &&
+            displaced.encoding == old.encoding && displaced.tags == old.tags && displaced.finderTags == old.finderTags && displaced.stamp == old.stamp
+        let effect = native.result.replacement.installation
+        stamp = effect.stamp_error != 0 ? .failed(effect.stamp_error) : (native.omittedStamp ? .omittedOversized : .written)
+        finderTagsError = effect.finder_tags_error == 0 ? nil : effect.finder_tags_error
+        directorySyncError = effect.directory_sync_error == 0 ? nil : effect.directory_sync_error
+    }
+}
+
+/// Retained attempt and original descriptor after incomplete relocation work.
+struct ProjectionRelocationFailure: Sendable {
+    let reason: RepositoryFileFailure
+    let reservation: ProjectionReplacementAttemptV1
+    let residue: ProjectionStagingResidue?
+    let storageFailure: StorageError?
+    private let original: ProjectionSourceRead
+    fileprivate init(reason: RepositoryFileFailure, reserved: ReservedProjectionRelocation, original: ProjectionSourceRead,
+                     native: ProjectionRelocationNative, storageFailure: StorageError? = nil) {
+        self.reason = reason; reservation = reserved.record; residue = native.stage.map { .init(directory: $0) }
+        self.original = original; self.storageFailure = storageFailure
+    }
+}
+
+enum ProjectionRelocationResult: Sendable {
+    case installed(ProjectionRelocationReceipt), notInstalled(ProjectionRelocationFailure), uncertain(ProjectionRelocationFailure)
+}
+
+/// Three fresh read-only observations bound to one retained relocation input.
+struct ProjectionRelocationInspection: Sendable {
+    let source, current, backup: ProjectionFileReadResult
+    fileprivate let input: ProjectionRelocationRecoveryInput
+    fileprivate let permission: RepositoryRootPermission
+    fileprivate init(source: ProjectionFileReadResult, current: ProjectionFileReadResult, backup: ProjectionFileReadResult,
+                     input: ProjectionRelocationRecoveryInput, permission: RepositoryRootPermission) {
+        self.source = source; self.current = current; self.backup = backup; self.input = input; self.permission = permission
+    }
+}
+
+private struct ProjectionRelocationNative: Sendable {
+    var result = NVProjectionRelocationResult()
+    var stage: URL?
+    var installed, displaced: ProjectionReadValues?
+    var installedWords: [UInt64] = [], displacedWords: [UInt64] = []
+    var omittedStamp = false
+}
+
 /// Local file residency is separate from successful reading and provider freshness.
 public enum RepositoryResidency: Equatable, Sendable { case materialized, dataless, unknown }
 public enum RepositoryDownloadStatus: Equatable, Sendable { case notDownloaded, downloaded, current, unknown }
@@ -546,6 +962,480 @@ public actor RepositoryRootSession {
         }
     }
 
+    /// Reads a selected note through the coordinated descriptor and publishes its exact metadata.
+    public func readProjection(_ observation: RepositoryEntryObservation, maximumBytes: Int,
+                               using permission: RepositoryRootPermission) async throws -> ProjectionFileReadResult {
+        try await readProjection(observation, maximumBytes: maximumBytes, using: permission, beforeRead: {})
+    }
+
+    /// Binds an accepted physical relationship to its original local Delete before admission.
+    func captureProjectionDeletion(_ input: PreparedProjectionDeletion, source: ProjectionFileSnapshot,
+                                   from store: LocalStoreSession, using permission: RepositoryRootPermission,
+                                   beforeIssue: @escaping @Sendable () async throws -> Void = {}) async throws -> CapturedProjectionDeleteSource {
+        try Task.checkCancellation(); try validate(permission); try validate(source.observation.permission)
+        guard source.name == input.source.output.binding.descriptor.filename, source.bytes == input.bytes,
+              try source.physicalRecord == input.source.physical else { throw RepositoryRootError.wrongContext }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionDeletionCapture(input)
+        let relationship = try await coordinatedTurn { try await lane.matches(input.association.bookmark) }
+        guard relationship == .same else { throw RepositoryRootError.wrongContext }
+        let read: ProjectionSourceRead
+        do { read = try await coordinatedTurn { try await lane.captureProjectionSource(source) } }
+        catch let failure as RootAccessFailure {
+            try validate(permission); invalidate(); throw RepositoryRootError.unavailable(failure.code)
+        }
+        guard read.file.bytes == source.bytes, try read.file.physicalRecord == source.physicalRecord else {
+            throw RepositoryRootError.wrongContext
+        }
+        try validate(permission); try validate(source.observation.permission); try Task.checkCancellation()
+        try await beforeIssue()
+        try await store.checkProjectionDeletionCapture(input)
+        try validate(permission); try Task.checkCancellation()
+        return CapturedProjectionDeleteSource(input: input, source: read.file, lease: read.lease)
+    }
+
+    /// Checks original live file ownership and the exact committed Delete before reserved removal.
+    func validate(_ deletion: AuthorizedProjectionDeletion, from store: LocalStoreSession,
+                  using permission: RepositoryRootPermission) async throws {
+        try Task.checkCancellation(); try validate(permission); try validate(deletion.original.source.observation.permission)
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionDeletion(deletion)
+        let relationship = try await coordinatedTurn { try await lane.matches(deletion.original.input.association.bookmark) }
+        guard relationship == .same else { throw RepositoryRootError.wrongContext }
+        try validate(permission); try Task.checkCancellation()
+        try await store.checkProjectionDeletion(deletion)
+        try validate(permission); try Task.checkCancellation()
+    }
+
+    /// Removes the original still-matching source within one reserved deletion accessor.
+    func removeProjectionSource(_ deletion: AuthorizedProjectionDeletion, from store: LocalStoreSession,
+                                using permission: RepositoryRootPermission, maximumBytes: Int,
+                                reserved: @escaping @Sendable (ProjectionSourceAttemptV1) async throws -> Void = { _ in },
+                                beforeRemoval: @escaping @Sendable () -> Void = {},
+                                afterRemoval: @escaping @Sendable () -> Void = {}) async throws -> ProjectionSourceRemovalResult {
+        try Task.checkCancellation(); try validate(permission); try validate(deletion.original.source.observation.permission)
+        guard maximumBytes >= deletion.original.source.bytes.count else { throw RepositoryRootError.unsupported(EINVAL) }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionDeletion(deletion)
+        let relationship = try await coordinatedTurn { try await lane.matches(deletion.original.input.association.bookmark) }
+        guard relationship == .same else { throw RepositoryRootError.wrongContext }
+        try validate(permission); try Task.checkCancellation()
+        let attempt = try await store.reserveProjectionSource(deletion)
+        try await reserved(attempt.record)
+        try validate(permission); try Task.checkCancellation()
+        try await store.checkProjectionSourceReservation(attempt)
+        try validate(permission); try Task.checkCancellation()
+        let native = await coordinatedTurn {
+            await lane.removeProjectionSource(attempt, maximum: maximumBytes,
+                beforeRemoval: beforeRemoval, afterRemoval: afterRemoval)
+        }
+        if native.result.root_lost != 0 { invalidate() }
+        let sourceName = attempt.record.source.output.binding.descriptor.filename
+        let source = try projectionObservation(native.source, name: sourceName, permission: permission)
+        let cleanup = try cleanupObservation(native.cleanup, record: attempt.record, permission: permission)
+        func effect(_ reason: RepositoryFileFailure? = nil, storage: StorageError? = nil) -> ProjectionSourceEffect {
+            .init(record: attempt.record, source: source, reason: reason, storageFailure: storage,
+                  sync: native.result.directory_sync_error, cleanup: cleanup)
+        }
+        do {
+            try validate(permission); try Task.checkCancellation()
+            try await store.checkProjectionSourceReservation(attempt)
+            try validate(permission); try Task.checkCancellation()
+        } catch { return .uncertain(effect(.staleContext, storage: classify(error))) }
+        switch Int(native.result.outcome) {
+        case NV_PROJECTION_CLEANUP_REMOVED:
+            guard native.result.directory_created == 1 else { return .uncertain(effect(.changed)) }
+            guard case .unavailable(.absent) = source else { return .uncertain(effect(.changed)) }
+            guard case .unavailable(.absent) = cleanup else { return .uncertain(effect(.changed)) }
+            return .removed(.init(effect: effect(), reserved: attempt, permission: permission))
+        case NV_PROJECTION_CLEANUP_NO_EFFECT:
+            if native.result.directory_created == 0 { try await store.retireProjectionSource(.init(attempt)) }
+            return .notRemoved(effect(.init(code: native.result.error)))
+        default: return .uncertain(effect(.init(code: native.result.error)))
+        }
+    }
+
+    /// Rechecks a removal result against its exact original capture before later settlement.
+    func validate(_ receipt: ProjectionSourceRemovalReceipt, for deletion: AuthorizedProjectionDeletion, from store: LocalStoreSession,
+                  using permission: RepositoryRootPermission) async throws {
+        try validate(permission); try validate(receipt.permission)
+        guard receipt.reserved.authorization.deletion == deletion.deletion,
+              receipt.reserved.authorization.original.sameCapture(as: deletion.original) else { throw RepositoryRootError.wrongContext }
+        try validate(deletion.original.source.observation.permission)
+        try await store.checkProjectionSourceReservation(receipt.reserved)
+        try validate(permission)
+    }
+
+    /// Reads the public source and protected recovery child while preserving their durable owner.
+    func inspectProjectionSource(_ input: ProjectionSourceRecoveryInput, from store: LocalStoreSession,
+                                 maximumBytes: Int, using permission: RepositoryRootPermission,
+                                 beforeRead: @escaping @Sendable (String) async throws -> Void = { _ in }) async throws -> ProjectionSourceInspection {
+        try validate(permission); try Task.checkCancellation()
+        guard maximumBytes >= 0 else { throw RepositoryRootError.unsupported(EINVAL) }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionSourceRecovery(input)
+        let relationship = try await coordinatedTurn { try await lane.matches(input.record.root) }
+        guard relationship == .same else { throw RepositoryRootError.wrongContext }
+        let sourceName = input.record.source.output.binding.descriptor.filename
+        try await beforeRead(sourceName.spelling.string)
+        let source = try await inspectProjectionCandidate(sourceName, maximumBytes: maximumBytes, using: permission)
+        try await beforeRead(input.record.cleanupDirectoryName + "/item")
+        let retained = try await coordinatedTurn { try await lane.inspectProjectionCleanup(input.record, maximum: maximumBytes) }
+        let cleanup = try cleanupObservation(retained, record: input.record, permission: permission)
+        try await store.checkProjectionSourceRecovery(input)
+        try validate(permission); try Task.checkCancellation()
+        return .init(source: source, cleanup: cleanup, input: input, permission: permission)
+    }
+
+    func validate(_ inspection: ProjectionSourceInspection, for input: ProjectionSourceRecoveryInput, from store: LocalStoreSession,
+                  using permission: RepositoryRootPermission) async throws {
+        try validate(permission); try validate(inspection.permission)
+        try inspection.input.checkInspection(input)
+        try await store.checkProjectionSourceRecovery(input)
+        try validate(permission)
+    }
+
+    private func projectionObservation(_ value: ProjectionNativeObservation, name: ProjectionLeafNameV1,
+                                       permission: RepositoryRootPermission) throws -> ProjectionFileReadResult {
+        switch value {
+        case .value(let bytes, let words):
+            let observation = try RepositoryEntryObservation(permission: permission, words: words, relative: name.spelling.string)
+            return .snapshot(.init(name: name, value: bytes, observation: observation))
+        case .placeholder: return .placeholder
+        case .unavailable(let failure): return .unavailable(failure)
+        }
+    }
+
+    private func cleanupObservation(_ value: ProjectionNativeObservation, record: ProjectionSourceAttemptV1,
+                                    permission: RepositoryRootPermission) throws -> ProjectionCleanupReadResult {
+        switch value {
+        case .value(let bytes, let words):
+            let observation = try RepositoryEntryObservation(permission: permission, words: words, relative: record.cleanupDirectoryName + "/item")
+            return .snapshot(.init(record: record, observation: observation, value: bytes))
+        case .placeholder: return .placeholder
+        case .unavailable(let failure): return .unavailable(failure)
+        }
+    }
+
+    /// Installs one exact durable frozen output at an exclusively acquired filename.
+    public func createProjection(_ input: PreparedProjectionCreation, from store: LocalStoreSession,
+                                 using permission: RepositoryRootPermission) async throws -> ProjectionCreationResult {
+        try await createProjection(input, from: store, using: permission, staged: { _ in }, beforeInstall: {}, afterInstall: {})
+    }
+
+    /// Holds real stage/namespace boundaries for independently controlled interference.
+    func createProjection(_ input: PreparedProjectionCreation, from store: LocalStoreSession,
+                          using permission: RepositoryRootPermission, staged: @escaping @Sendable (URL) -> Void,
+                          beforeInstall: @escaping @Sendable () -> Void,
+                          afterInstall: @escaping @Sendable () -> Void) async throws -> ProjectionCreationResult {
+        try Task.checkCancellation(); try validate(permission)
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionCreation(input)
+        let relationship = try await coordinatedTurn { try await lane.matches(input.association.bookmark) }
+        guard relationship == .same else { throw RepositoryRootError.wrongContext }
+        try validate(permission); try Task.checkCancellation()
+        let native = await coordinatedTurn {
+            await lane.createProjection(input, staged: staged, beforeInstall: beforeInstall, afterInstall: afterInstall)
+        }
+        if native.effect.root_lost != 0 { invalidate() }
+        do { try validate(permission); try Task.checkCancellation() }
+        catch { return .uncertain(.init(reason: .staleContext, input: input, native: native)) }
+        do { try await store.checkProjectionCreation(input) }
+        catch { return .uncertain(.init(reason: .staleContext, input: input, native: native, storageFailure: classify(error))) }
+        do { try validate(permission); try Task.checkCancellation() }
+        catch { return .uncertain(.init(reason: .staleContext, input: input, native: native)) }
+        switch Int(native.effect.outcome) {
+        case NV_PROJECTION_INSTALLED:
+            guard let value = native.value else { return .uncertain(.init(reason: .changed, input: input, native: native)) }
+            let observation = try RepositoryEntryObservation(permission: permission, words: native.words,
+                relative: input.output.binding.descriptor.filename.spelling.string)
+            let file = ProjectionFileSnapshot(name: input.output.binding.descriptor.filename, value: value, observation: observation)
+            return .verified(.init(file: file, input: input, native: native))
+        case NV_PROJECTION_NO_EFFECT, NV_PROJECTION_STAGED:
+            return .notInstalled(.init(reason: .init(code: native.effect.error), input: input, native: native))
+        default:
+            return .uncertain(.init(reason: .init(code: native.effect.error), input: input, native: native))
+        }
+    }
+
+    /// Fences a physical receipt to its original input, issuing root and current durable owner.
+    public func validate(_ receipt: ProjectionCreationReceipt, for input: PreparedProjectionCreation,
+                         from store: LocalStoreSession, using permission: RepositoryRootPermission) async throws {
+        try validate(permission); try validate(receipt.file.observation.permission)
+        guard receipt.input.attempt == input.attempt else { throw RepositoryRootError.wrongContext }
+        try await store.checkProjectionCreation(input)
+        try validate(permission); try validate(receipt.file.observation.permission)
+    }
+
+    /// Binds a durable backup reservation to one entered replacement and preserves its displaced source.
+    func replaceProjection(_ input: PreparedProjectionReplacement, source: ProjectionFileSnapshot,
+                           from store: LocalStoreSession, using permission: RepositoryRootPermission,
+                           maximumDisplacedBytes: Int,
+                           reserved: @escaping @Sendable (ProjectionReplacementAttemptV1) async throws -> Void = { _ in },
+                           staged: @escaping @Sendable (URL) -> Void = { _ in },
+                           beforeInstall: @escaping @Sendable () -> Void = {},
+                           afterInstall: @escaping @Sendable () -> Void = {}) async throws -> ProjectionReplacementResult {
+        try Task.checkCancellation(); try validate(permission); try validate(source.observation.permission)
+        guard maximumDisplacedBytes >= 0, source.name == input.source.output.binding.descriptor.filename,
+              source.bytes == input.sourceBytes else { throw RepositoryRootError.wrongContext }
+        guard input.source.physical == (try source.physicalRecord) else { throw RepositoryRootError.wrongContext }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionReplacement(input)
+        let relationship = try await coordinatedTurn { try await lane.matches(input.association.bookmark) }
+        guard relationship == .same else { throw RepositoryRootError.wrongContext }
+        try validate(permission); try Task.checkCancellation()
+        let attempt = try await store.reserveProjectionReplacement(input, root: input.association.bookmark,
+            source: source.physicalRecord)
+        // After reservation every interruption retains a discoverable candidate for fresh inspection.
+        try await reserved(attempt.record)
+        try validate(permission); try Task.checkCancellation()
+        try await store.checkProjectionReplacementReservation(attempt)
+        try validate(permission); try Task.checkCancellation()
+        let native = await coordinatedTurn {
+            await lane.replaceProjection(attempt, source: source, maximumDisplacedBytes: maximumDisplacedBytes,
+                staged: staged, beforeInstall: beforeInstall, afterInstall: afterInstall)
+        }
+        if native.result.installation.root_lost != 0 { invalidate() }
+        do { try validate(permission); try Task.checkCancellation() }
+        catch { return .uncertain(.init(reason: .staleContext, reserved: attempt, native: native)) }
+        do { try await store.checkProjectionReplacementReservation(attempt) }
+        catch { return .uncertain(.init(reason: .staleContext, reserved: attempt, native: native, storageFailure: classify(error))) }
+        do { try validate(permission); try Task.checkCancellation() }
+        catch { return .uncertain(.init(reason: .staleContext, reserved: attempt, native: native)) }
+        switch Int(native.result.installation.outcome) {
+        case NV_PROJECTION_INSTALLED:
+            guard let installed = native.installed, let displaced = native.displaced else {
+                return .uncertain(.init(reason: .changed, reserved: attempt, native: native))
+            }
+            let current = try RepositoryEntryObservation(permission: permission, words: native.installedWords,
+                relative: input.output.binding.descriptor.filename.spelling.string)
+            let backup = try RepositoryEntryObservation(permission: permission, words: native.displacedWords,
+                relative: attempt.record.backupName)
+            let backupName = try ProjectionLeafNameV1(ExactUTF8(bytes: Array(attempt.record.backupName.utf8)))
+            return .installed(.init(file: .init(name: input.output.binding.descriptor.filename, value: installed, observation: current),
+                displaced: .init(name: backupName, value: displaced, observation: backup),
+                reserved: attempt, sourceMatched: displaced.bytes == input.sourceBytes, native: native))
+        case NV_PROJECTION_NO_EFFECT, NV_PROJECTION_STAGED:
+            try await store.retireProjectionReplacement(.init(attempt))
+            return .notInstalled(.init(reason: .init(code: native.result.installation.error), reserved: attempt, native: native))
+        default:
+            return .uncertain(.init(reason: .init(code: native.result.installation.error), reserved: attempt, native: native))
+        }
+    }
+
+    /// Captures the live original before reserving and entering its frozen rename/update.
+    func relocateProjection(_ input: PreparedProjectionRelocation, source: ProjectionFileSnapshot,
+                            from store: LocalStoreSession, using permission: RepositoryRootPermission,
+                            maximumDisplacedBytes: Int,
+                            reserved: @escaping @Sendable (ProjectionReplacementAttemptV1) async throws -> Void = { _ in },
+                            staged: @escaping @Sendable (URL) -> Void = { _ in },
+                            beforeInstall: @escaping @Sendable () -> Void = {},
+                            afterInstall: @escaping @Sendable () -> Void = {}) async throws -> ProjectionRelocationResult {
+        try Task.checkCancellation(); try validate(permission); try validate(source.observation.permission)
+        let sourcePhysical = try source.physicalRecord
+        guard maximumDisplacedBytes >= 0, source.name == input.source.output.binding.descriptor.filename,
+              source.bytes == input.sourceBytes, sourcePhysical == input.source.physical else { throw RepositoryRootError.wrongContext }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionRelocation(input)
+        guard try await store.pendingProjectionReplacement(for: input.output.binding.birth) == nil else { throw StorageError.busy }
+        let relationship = try await coordinatedTurn { try await lane.matches(input.association.bookmark) }
+        guard relationship == .same else { throw RepositoryRootError.wrongContext }
+        let captured: ProjectionSourceRead
+        do { captured = try await coordinatedTurn { try await lane.captureProjectionSource(source) } }
+        catch let failure as RootAccessFailure {
+            try validate(permission); invalidate(); throw RepositoryRootError.unavailable(failure.code)
+        }
+        guard captured.file.bytes == source.bytes, try captured.file.physicalRecord == sourcePhysical else { throw RepositoryRootError.wrongContext }
+        try validate(permission); try Task.checkCancellation()
+        let attempt = try await store.reserveProjectionRelocation(input, root: input.association.bookmark, source: captured.file.physicalRecord)
+        try await reserved(attempt.record)
+        try validate(permission); try Task.checkCancellation()
+        try await store.checkProjectionRelocationReservation(attempt)
+        try validate(permission); try Task.checkCancellation()
+        let native = await coordinatedTurn {
+            await lane.relocateProjection(attempt, original: captured, maximumDisplacedBytes: maximumDisplacedBytes,
+                staged: staged, beforeInstall: beforeInstall, afterInstall: afterInstall)
+        }
+        if native.result.replacement.installation.root_lost != 0 { invalidate() }
+        do {
+            try validate(permission); try Task.checkCancellation()
+            try await store.checkProjectionRelocationReservation(attempt)
+            try validate(permission); try Task.checkCancellation()
+        } catch {
+            return .uncertain(.init(reason: .staleContext, reserved: attempt, original: captured, native: native, storageFailure: classify(error)))
+        }
+        switch Int(native.result.replacement.installation.outcome) {
+        case NV_PROJECTION_INSTALLED:
+            guard let installed = native.installed, let displaced = native.displaced else {
+                return .uncertain(.init(reason: .changed, reserved: attempt, original: captured, native: native))
+            }
+            let current: ProjectionFileReadResult
+            do {
+                current = try await inspectProjectionCandidate(source.name, maximumBytes: maximumDisplacedBytes, using: permission)
+                try await store.checkProjectionRelocationReservation(attempt)
+                try validate(permission); try Task.checkCancellation()
+            } catch {
+                return .uncertain(.init(reason: .staleContext, reserved: attempt, original: captured, native: native, storageFailure: classify(error)))
+            }
+            let installedObservation = try RepositoryEntryObservation(permission: permission, words: native.installedWords,
+                relative: input.output.binding.descriptor.filename.spelling.string)
+            let backupName = try ProjectionLeafNameV1(ExactUTF8(bytes: Array(attempt.record.backupName.utf8)))
+            let backupObservation = try RepositoryEntryObservation(permission: permission, words: native.displacedWords, relative: attempt.record.backupName)
+            return .installed(.init(file: .init(name: input.output.binding.descriptor.filename, value: installed, observation: installedObservation),
+                displaced: .init(name: backupName, value: displaced, observation: backupObservation), source: current,
+                original: captured, reserved: attempt, native: native))
+        case NV_PROJECTION_NO_EFFECT, NV_PROJECTION_STAGED:
+            if native.result.source.outcome == NV_PROJECTION_SOURCE_NO_EFFECT {
+                try await store.retireProjectionRelocation(.init(attempt))
+            }
+            return .notInstalled(.init(reason: .init(code: native.result.replacement.installation.error), reserved: attempt, original: captured, native: native))
+        default:
+            return .uncertain(.init(reason: .init(code: native.result.replacement.installation.error), reserved: attempt, original: captured, native: native))
+        }
+    }
+
+    func validate(_ receipt: ProjectionRelocationReceipt, for input: PreparedProjectionRelocation,
+                  from store: LocalStoreSession, using permission: RepositoryRootPermission) async throws {
+        try validate(permission); try validate(receipt.file.observation.permission); try validate(receipt.displaced.observation.permission)
+        guard receipt.input.attempt == input.attempt else { throw RepositoryRootError.wrongContext }
+        try await store.checkProjectionRelocation(input)
+        guard try await store.pendingProjectionReplacement(for: input.output.binding.birth) == receipt.reservation else { throw StorageError.staleCapture }
+        try validate(permission)
+    }
+
+    /// Reads retained names without reconstructing the interrupted operation's move permission.
+    func inspectProjectionRelocation(_ input: ProjectionRelocationRecoveryInput, from store: LocalStoreSession,
+                                     maximumBytes: Int, using permission: RepositoryRootPermission,
+                                     afterRead: @escaping @Sendable () async throws -> Void = {}) async throws -> ProjectionRelocationInspection {
+        try Task.checkCancellation(); try validate(permission)
+        guard maximumBytes >= 0 else { throw RepositoryRootError.wrongContext }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionRelocationRecovery(input)
+        let same = try await coordinatedTurn { try await lane.matches(input.record.root) }
+        guard same == .same, let previous = input.record.transition.source else { throw RepositoryRootError.wrongContext }
+        try validate(permission); try Task.checkCancellation()
+        let source = try await inspectProjectionCandidate(previous.output.binding.descriptor.filename, maximumBytes: maximumBytes, using: permission)
+        let current = try await inspectProjectionCandidate(input.record.transition.output.binding.descriptor.filename, maximumBytes: maximumBytes, using: permission)
+        let backupName = try ProjectionLeafNameV1(ExactUTF8(bytes: Array(input.record.backupName.utf8)))
+        let backup = try await inspectProjectionCandidate(backupName, maximumBytes: maximumBytes, using: permission)
+        try await afterRead()
+        try validate(permission); try Task.checkCancellation()
+        try await store.checkProjectionRelocationRecovery(input)
+        try validate(permission); try Task.checkCancellation()
+        return .init(source: source, current: current, backup: backup, input: input, permission: permission)
+    }
+
+    func validate(_ inspection: ProjectionRelocationInspection, for input: ProjectionRelocationRecoveryInput,
+                  from store: LocalStoreSession, using permission: RepositoryRootPermission) async throws {
+        try validate(permission); try validate(inspection.permission)
+        try inspection.input.checkContext(input)
+        try await store.checkProjectionRelocationRecovery(input)
+        try validate(permission); try validate(inspection.permission)
+    }
+
+    /// Rechecks the root, input and durable reservation before a later physical receipt consumer proceeds.
+    func validate(_ receipt: ProjectionReplacementReceipt, for input: PreparedProjectionReplacement,
+                  from store: LocalStoreSession, using permission: RepositoryRootPermission) async throws {
+        try validate(permission); try validate(receipt.file.observation.permission); try validate(receipt.displaced.observation.permission)
+        guard receipt.input.attempt == input.attempt else { throw RepositoryRootError.wrongContext }
+        try await store.checkProjectionReplacement(input)
+        guard try await store.pendingProjectionReplacement(for: input.output.binding.birth) == receipt.reservation else {
+            throw StorageError.staleCapture
+        }
+        try validate(permission)
+    }
+
+    /// Inspects the retained target and candidate using fresh reads after interruption or restart.
+    func inspectProjectionReplacement(_ input: ProjectionReplacementRecoveryInput, from store: LocalStoreSession,
+                                      maximumBytes: Int, using permission: RepositoryRootPermission,
+                                      afterRead: @escaping @Sendable () async throws -> Void = {}) async throws -> ProjectionReplacementInspection {
+        try Task.checkCancellation(); try validate(permission)
+        guard maximumBytes >= 0 else { throw RepositoryRootError.wrongContext }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        try await store.checkProjectionReplacementRecovery(input)
+        let same = try await coordinatedTurn { try await lane.matches(input.record.root) }
+        guard same == .same else { throw RepositoryRootError.wrongContext }
+        try validate(permission); try Task.checkCancellation()
+        let current = try await inspectProjectionCandidate(input.record.transition.output.binding.descriptor.filename,
+            maximumBytes: maximumBytes, using: permission)
+        let backupName = try ProjectionLeafNameV1(ExactUTF8(bytes: Array(input.record.backupName.utf8)))
+        let backup = try await inspectProjectionCandidate(backupName, maximumBytes: maximumBytes, using: permission)
+        try await afterRead()
+        try validate(permission); try Task.checkCancellation()
+        try await store.checkProjectionReplacementRecovery(input)
+        try validate(permission); try Task.checkCancellation()
+        return ProjectionReplacementInspection(current: current, backup: backup, input: input, permission: permission)
+    }
+
+    /// Maintains the issuing root and durable candidate boundary for consumers of a past inspection.
+    func validate(_ inspection: ProjectionReplacementInspection, for input: ProjectionReplacementRecoveryInput, from store: LocalStoreSession,
+                  using permission: RepositoryRootPermission) async throws {
+        try validate(permission); try validate(inspection.permission)
+        try inspection.input.checkContext(input)
+        try await store.checkProjectionReplacementRecovery(inspection.input)
+        try validate(permission); try validate(inspection.permission)
+    }
+
+    private func inspectProjectionCandidate(_ name: ProjectionLeafNameV1, maximumBytes: Int,
+                                            using permission: RepositoryRootPermission) async throws -> ProjectionFileReadResult {
+        do {
+            let relative = name.spelling.string
+            let words = try await coordinatedTurn { try await lane.observe(relative, beforeRead: {}, beforeCoordination: {}) }
+            try validate(permission); try Task.checkCancellation()
+            let observation = try RepositoryEntryObservation(permission: permission, words: words, relative: relative)
+            guard observation.kind == .regularFile else { return .unavailable(.kindCollision) }
+            guard words[4] == 1 else { return .unavailable(.hardLinked) }
+            guard observation.byteCount <= UInt64(maximumBytes) else { return .unavailable(.sizeLimit) }
+            let value = try await coordinatedTurn {
+                try await lane.readProjection(relative, expected: words, maximum: maximumBytes, beforeRead: {})
+            }
+            try validate(permission); try Task.checkCancellation()
+            guard let value else { return .placeholder }
+            return .snapshot(.init(name: name, value: value, observation: observation))
+        } catch let failure as RootAccessFailure {
+            try validate(permission); invalidate(); throw RepositoryRootError.unavailable(failure.code)
+        } catch RepositoryRootError.unavailable(let code) {
+            try validate(permission); return .unavailable(.init(code: code))
+        }
+    }
+
+    /// Brackets the actual granted read for deterministic native-interference tests.
+    func readProjection(_ observation: RepositoryEntryObservation, maximumBytes: Int,
+                        using permission: RepositoryRootPermission,
+                        beforeRead: @escaping @Sendable () -> Void) async throws -> ProjectionFileReadResult {
+        try Task.checkCancellation(); try validate(permission); try validate(observation.permission)
+        let name = try ProjectionLeafNameV1(ExactUTF8(bytes: Array(observation.relative.utf8)))
+        guard observation.kind == .regularFile else { return .unavailable(.kindCollision) }
+        guard observation.identity[4] == 1 else { return .unavailable(.hardLinked) }
+        guard maximumBytes >= 0,
+              observation.byteCount <= UInt64(maximumBytes) else { return .unavailable(.sizeLimit) }
+        guard !running else { throw RepositoryRootError.busy }
+        running = true; defer { settleTurn() }
+        do {
+            let value = try await coordinatedTurn {
+                try await lane.readProjection(observation.relative, expected: observation.identity,
+                                              maximum: maximumBytes, beforeRead: beforeRead)
+            }
+            try validate(permission)
+            try Task.checkCancellation()
+            guard let value else { return .placeholder }
+            return .snapshot(ProjectionFileSnapshot(name: name, value: value, observation: observation))
+        } catch let failure as RootAccessFailure {
+            try validate(permission); invalidate(); throw RepositoryRootError.unavailable(failure.code)
+        } catch RepositoryRootError.unavailable(let code) {
+            try validate(permission); return .unavailable(RepositoryFileFailure(code: code))
+        }
+    }
+
     /// Reads metadata for one disclosed item while preserving exact generation and root checks.
     public func availability(_ observation: RepositoryEntryObservation,
                              using permission: RepositoryRootPermission) async throws -> RepositoryAvailabilityResult {
@@ -946,6 +1836,53 @@ private actor RootLane {
         if metadataWork != nil { metadataWork!.bodyReads += 1; metadataWork!.bodyBytes += Int(expected[3]) }
         return try root.read(relative, expected: expected)
     }
+    func readProjection(_ relative: String, expected: [UInt64], maximum: Int, beforeRead: @Sendable () -> Void) throws -> ProjectionReadValues? {
+        guard let root else { throw RepositoryRootError.closed }
+        if metadataWork != nil { metadataWork!.bodyReads += 1; metadataWork!.bodyBytes += Int(expected[3]) }
+        return try root.readProjection(relative, expected: expected, maximum: maximum, beforeRead: beforeRead)
+    }
+    func createProjection(_ input: PreparedProjectionCreation, staged: @Sendable (URL) -> Void,
+                          beforeInstall: @Sendable () -> Void, afterInstall: @Sendable () -> Void) -> ProjectionCreationNative {
+        guard let root else {
+            var result = ProjectionCreationNative(); result.effect.error = EBADF; result.effect.root_lost = 1; return result
+        }
+        return root.createProjection(input, staged: staged, beforeInstall: beforeInstall, afterInstall: afterInstall)
+    }
+    func captureProjectionSource(_ source: ProjectionFileSnapshot) throws -> ProjectionSourceRead {
+        guard let root else { throw RepositoryRootError.closed }
+        return try root.captureProjectionSource(source)
+    }
+    func removeProjectionSource(_ reserved: ReservedProjectionSource, maximum: Int,
+                                beforeRemoval: @Sendable () -> Void, afterRemoval: @Sendable () -> Void) -> ProjectionSourceRemovalNative {
+        guard let root else {
+            var result = ProjectionSourceRemovalNative(); result.result.error = EBADF; result.result.root_lost = 1; return result
+        }
+        return root.removeProjectionSource(reserved, maximum: maximum, beforeRemoval: beforeRemoval, afterRemoval: afterRemoval)
+    }
+    func inspectProjectionCleanup(_ record: ProjectionSourceAttemptV1, maximum: Int) throws -> ProjectionNativeObservation {
+        guard let root else { throw RepositoryRootError.closed }
+        return try root.inspectProjectionCleanup(record, maximum: maximum)
+    }
+    func replaceProjection(_ reserved: ReservedProjectionReplacement, source: ProjectionFileSnapshot, maximumDisplacedBytes: Int,
+                           staged: @Sendable (URL) -> Void, beforeInstall: @Sendable () -> Void,
+                           afterInstall: @Sendable () -> Void) -> ProjectionReplacementNative {
+        guard let root else {
+            var result = ProjectionReplacementNative()
+            result.result.installation.error = EBADF; result.result.installation.root_lost = 1; return result
+        }
+        return root.replaceProjection(reserved, source: source, maximumDisplacedBytes: maximumDisplacedBytes,
+            staged: staged, beforeInstall: beforeInstall, afterInstall: afterInstall)
+    }
+    func relocateProjection(_ reserved: ReservedProjectionRelocation, original: ProjectionSourceRead, maximumDisplacedBytes: Int,
+                            staged: @Sendable (URL) -> Void, beforeInstall: @Sendable () -> Void,
+                            afterInstall: @Sendable () -> Void) -> ProjectionRelocationNative {
+        guard let root else {
+            var result = ProjectionRelocationNative()
+            result.result.replacement.installation.error = EBADF; result.result.replacement.installation.root_lost = 1; return result
+        }
+        return root.relocateProjection(reserved, original: original, maximumDisplacedBytes: maximumDisplacedBytes,
+            staged: staged, beforeInstall: beforeInstall, afterInstall: afterInstall)
+    }
     func availability(_ relative: String, expected: [UInt64]) throws -> AvailabilityValues {
         guard let root else { throw RepositoryRootError.closed }
         return try root.availability(relative, expected: expected)
@@ -1198,6 +2135,36 @@ private struct RootPreparedStage: ~Copyable {
     }
 }
 
+/// Keeps the mutable-file stage's descriptor and directory on the root executor.
+@safe
+private struct RootProjectionStage: ~Copyable {
+    private let pointer: OpaquePointer
+    init(_ pointer: OpaquePointer) { unsafe self.pointer = pointer }
+    deinit { unsafe nv_projection_stage_close(pointer) }
+    func install(owner: OpaquePointer, destination: String, input: PreparedProjectionCreation,
+                 metadata: ProjectionOutputMetadata, effect: inout NVProjectionEffect) {
+        unsafe metadata.install(owner: owner, stage: pointer, destination: destination, bytes: input.bytes, effect: &effect)
+    }
+    #if canImport(Darwin)
+    func replace(coordinator: NSFileCoordinator, root: CFURL, stageURL: CFURL, owner: OpaquePointer,
+                 reserved: ReservedProjectionReplacement, expected: [UInt64], metadata: ProjectionOutputMetadata,
+                 result: inout NVProjectionReplacementResult) {
+        unsafe metadata.replace(coordinator: coordinator, root: root, stageURL: stageURL, owner: owner,
+            stage: pointer, reserved: reserved, expected: expected, result: &result)
+    }
+    func relocate(coordinator: NSFileCoordinator, root: CFURL, stageURL: CFURL, owner: OpaquePointer,
+                  reserved: ReservedProjectionRelocation, original: ProjectionSourceRead, maximum: Int,
+                  metadata: ProjectionOutputMetadata, result: inout NVProjectionRelocationResult) {
+        original.lease.withDescriptor { descriptor in
+            original.file.withNativeSource { expected in
+                unsafe metadata.relocate(coordinator: coordinator, root: root, stageURL: stageURL, owner: owner,
+                    stage: pointer, reserved: reserved, expected: &expected, descriptor: descriptor, maximum: maximum, result: &result)
+            }
+        }
+    }
+    #endif
+}
+
 /// Owns an empty stage until its checked descriptor transfers to the repair attempt.
 @safe
 private struct RootPreparedDirectory: ~Copyable {
@@ -1379,6 +2346,354 @@ private final class RootLease {
         guard result == 0 else { throw RepositoryRootError.unavailable(errno) }
         return bytes
     }
+    func readProjection(_ relative: String, expected: [UInt64], maximum: Int, beforeRead: @Sendable () -> Void) throws -> ProjectionReadValues? {
+        // Check known eviction before requesting content access under its separate grant.
+        let resident = try coordinatedRead(relative, metadataOnly: true) { actual in
+            try residencyNative(actual, expected: expected)
+        }
+        if resident == .dataless { return nil }
+        return try coordinatedRead(relative, metadataOnly: false) { actual in
+            beforeRead()
+            return try readProjectionNative(actual, expected: expected, maximum: maximum)
+        }
+    }
+
+    private func readProjectionNative(_ relative: String, expected: [UInt64], maximum: Int) throws -> ProjectionReadValues? {
+        guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+        var output: UnsafeMutablePointer<NVProjectionRead>?
+        let result = expected.withUnsafeBufferPointer {
+            unsafe nv_projection_read(raw, relative, $0.baseAddress, UInt64(maximum), &output)
+        }
+        if result == -2 { throw RootAccessFailure(code: errno) }
+        if result == 1 { return nil }
+        guard result == 0, let output = unsafe output else { throw RepositoryRootError.unavailable(errno) }
+        defer { unsafe nv_projection_read_close(output) }
+        return copyProjectionRead(output)
+    }
+
+    /// Captures a source under coordination and transfers its still-open descriptor with the values.
+    func captureProjectionSource(_ source: ProjectionFileSnapshot) throws -> ProjectionSourceRead {
+        let name = source.name.spelling.string, words = source.observation.identity
+        let resident = try coordinatedRead(name, metadataOnly: true) { actual in try residencyNative(actual, expected: words) }
+        guard resident != .dataless else { throw RepositoryRootError.unavailable(EAGAIN) }
+        return try coordinatedRead(name, metadataOnly: false) { actual in
+            guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+            var output: UnsafeMutablePointer<NVProjectionRead>?, descriptor: Int32 = -1
+            let result = words.withUnsafeBufferPointer {
+                unsafe nv_projection_read_retaining(raw, actual, $0.baseAddress, UInt64(source.bytes.count), &output, &descriptor)
+            }
+            let lease = descriptor >= 0 ? ProjectionSourceLease(owning: descriptor) : nil
+            defer { unsafe nv_projection_read_close(output) }
+            if result == -2 { throw RootAccessFailure(code: errno) }
+            guard result == 0, let output = unsafe output, let lease else { throw RepositoryRootError.unavailable(result == 1 ? EAGAIN : errno) }
+            let file = ProjectionFileSnapshot(name: source.name, value: copyProjectionRead(output), observation: source.observation)
+            return ProjectionSourceRead(file: file, lease: lease)
+        }
+    }
+
+    @safe
+    private func copyProjectionRead(_ output: UnsafeMutablePointer<NVProjectionRead>) -> ProjectionReadValues {
+        let read = unsafe output.pointee
+        let bytes = unsafe Array(UnsafeBufferPointer(start: read.bytes, count: Int(read.count)))
+        let created = unsafe read.has_birth == 0 ? nil : ProjectionFileTime(seconds: read.birth_seconds, nanoseconds: read.birth_nanoseconds)
+        return unsafe ProjectionReadValues(bytes: bytes, encoding: projectionAttribute(read.encoding),
+            tags: projectionAttribute(read.tags), finderTags: projectionAttribute(read.finder_tags),
+            stamp: projectionAttribute(read.stamp), permissions: read.permissions, created: created)
+    }
+
+    func createProjection(_ input: PreparedProjectionCreation, staged: @Sendable (URL) -> Void,
+                          beforeInstall: @Sendable () -> Void, afterInstall: @Sendable () -> Void) -> ProjectionCreationNative {
+        var result = ProjectionCreationNative()
+        do {
+            try Task.checkCancellation()
+            let metadata = try ProjectionOutputMetadata(input)
+            result.omittedStamp = metadata.stamp == nil
+            #if canImport(Darwin)
+            let base = try currentReference()
+            let directory = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                appropriateFor: base as URL, create: true)
+            result.stage = directory
+            let descriptor = unsafe directory.withUnsafeFileSystemRepresentation { path -> Int32 in
+                guard let path = unsafe path else { return -1 }
+                return unsafe open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            }
+            guard descriptor >= 0 else { throw RepositoryRootError.unavailable(errno) }
+            defer { _ = Darwin.close(descriptor) }
+            guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+            guard let created = metadata.prepare(owner: raw, directory: descriptor, leaf: "prepared",
+                bytes: input.bytes, effect: &result.effect) else { return result }
+            let stage = unsafe RootProjectionStage(created)
+            guard result.effect.outcome == NV_PROJECTION_STAGED else { return result }
+            staged(directory)
+            try Task.checkCancellation()
+            try coordinatedWrite(input.output.binding.descriptor.filename.spelling.string) { destination in
+                try Task.checkCancellation()
+                beforeInstall()
+                unsafe stage.install(owner: raw, destination: destination, input: input, metadata: metadata, effect: &result.effect)
+                afterInstall()
+                guard result.effect.outcome == NV_PROJECTION_INSTALLED else { return }
+                result.words = withUnsafeBytes(of: result.effect.installed_words) { unsafe Array($0.bindMemory(to: UInt64.self)) }
+                guard let value = try readProjectionNative(destination, expected: result.words, maximum: input.bytes.count),
+                      value.bytes == input.bytes, projectionMetadataMatches(value, metadata: metadata, effect: result.effect) else {
+                    throw RepositoryRootError.unavailable(ESTALE)
+                }
+                result.value = value
+            }
+            #else
+            throw RepositoryRootError.unsupported(ENOTSUP)
+            #endif
+        } catch {
+            if result.effect.outcome == NV_PROJECTION_INSTALLED { result.effect.outcome = Int32(NV_PROJECTION_UNCERTAIN) }
+            switch error {
+            case let failure as RootAccessFailure: result.effect.error = failure.code; result.effect.root_lost = 1
+            case RepositoryRootError.unavailable(let code), RepositoryRootError.unsupported(let code): result.effect.error = code
+            case is CancellationError: result.effect.error = ECANCELED
+            case RepositoryRootError.closed: result.effect.error = EBADF; result.effect.root_lost = 1
+            #if canImport(Darwin)
+            default: result.effect.error = repositoryCoordinationCode(error as NSError)
+            #else
+            default: result.effect.error = EIO
+            #endif
+            }
+        }
+        return result
+    }
+
+    func replaceProjection(_ reserved: ReservedProjectionReplacement, source: ProjectionFileSnapshot,
+                           maximumDisplacedBytes: Int, staged: @Sendable (URL) -> Void,
+                           beforeInstall: @Sendable () -> Void, afterInstall: @Sendable () -> Void) -> ProjectionReplacementNative {
+        var result = ProjectionReplacementNative()
+        let input = reserved.input
+        do {
+            try Task.checkCancellation()
+            let metadata = try ProjectionOutputMetadata(input, permissions: source.permissions)
+            result.omittedStamp = metadata.stamp == nil
+            #if canImport(Darwin)
+            let name = input.output.binding.descriptor.filename.spelling.string
+            let base = try currentReference()
+            let directory = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                appropriateFor: base as URL, create: true)
+            result.stage = directory
+            let descriptor = unsafe directory.withUnsafeFileSystemRepresentation { path -> Int32 in
+                guard let path = unsafe path else { return -1 }
+                return unsafe open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            }
+            guard descriptor >= 0 else { throw RepositoryRootError.unavailable(errno) }
+            defer { _ = Darwin.close(descriptor) }
+            guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+            let created = try unsafe coordinatedRead(name, metadataOnly: false) { _ in
+                metadata.prepareReplacement(owner: raw, directory: descriptor, expected: source.observation.identity,
+                    input: input, effect: &result.result.installation)
+            }
+            guard let created = unsafe created else { return result }
+            let stage = unsafe RootProjectionStage(created)
+            guard result.result.installation.outcome == NV_PROJECTION_STAGED else { return result }
+            staged(directory)
+            try Task.checkCancellation()
+            beforeInstall()
+            try withCoordinator { coordinator in
+                try Task.checkCancellation()
+                unsafe stage.replace(coordinator: coordinator, root: try currentReference(),
+                    stageURL: directory.appendingPathComponent("prepared") as CFURL, owner: raw, reserved: reserved,
+                    expected: source.observation.identity, metadata: metadata, result: &result.result)
+            }
+            afterInstall()
+            guard result.result.installation.outcome == NV_PROJECTION_INSTALLED else { return result }
+            result.installedWords = withUnsafeBytes(of: result.result.installation.installed_words) { unsafe Array($0.bindMemory(to: UInt64.self)) }
+            result.displacedWords = withUnsafeBytes(of: result.result.backup_words) { unsafe Array($0.bindMemory(to: UInt64.self)) }
+            guard result.result.backup_comparison != NV_PROJECTION_BACKUP_UNCHECKED,
+                  result.result.backup_error == 0,
+                  let installed = try readProjection(name, expected: result.installedWords, maximum: input.bytes.count, beforeRead: {}),
+                  installed.bytes == input.bytes, projectionMetadataMatches(installed, metadata: metadata, effect: result.result.installation),
+                  let displaced = try readProjection(reserved.record.backupName, expected: result.displacedWords,
+                      maximum: maximumDisplacedBytes, beforeRead: {}) else { throw RepositoryRootError.unavailable(ESTALE) }
+            result.installed = installed; result.displaced = displaced
+            #else
+            throw RepositoryRootError.unsupported(ENOTSUP)
+            #endif
+        } catch {
+            if result.result.installation.outcome == NV_PROJECTION_INSTALLED { result.result.installation.outcome = Int32(NV_PROJECTION_UNCERTAIN) }
+            switch error {
+            case let failure as RootAccessFailure: result.result.installation.error = failure.code; result.result.installation.root_lost = 1
+            case RepositoryRootError.unavailable(let code), RepositoryRootError.unsupported(let code): result.result.installation.error = code
+            case is CancellationError: result.result.installation.error = ECANCELED
+            case RepositoryRootError.closed: result.result.installation.error = EBADF; result.result.installation.root_lost = 1
+            #if canImport(Darwin)
+            default: result.result.installation.error = repositoryCoordinationCode(error as NSError)
+            #else
+            default: result.result.installation.error = EIO
+            #endif
+            }
+        }
+        return result
+    }
+
+    func relocateProjection(_ reserved: ReservedProjectionRelocation, original: ProjectionSourceRead,
+                            maximumDisplacedBytes: Int, staged: @Sendable (URL) -> Void,
+                            beforeInstall: @Sendable () -> Void, afterInstall: @Sendable () -> Void) -> ProjectionRelocationNative {
+        var result = ProjectionRelocationNative()
+        let input = reserved.input, source = original.file
+        do {
+            try Task.checkCancellation()
+            let metadata = try ProjectionOutputMetadata(input, permissions: source.permissions)
+            result.omittedStamp = metadata.stamp == nil
+            #if canImport(Darwin)
+            let name = input.output.binding.descriptor.filename.spelling.string
+            let oldName = input.source.output.binding.descriptor.filename.spelling.string
+            let directory = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                appropriateFor: currentReference() as URL, create: true)
+            result.stage = directory
+            let descriptor = unsafe directory.withUnsafeFileSystemRepresentation { path -> Int32 in
+                guard let path = unsafe path else { return -1 }
+                return unsafe open(path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            }
+            guard descriptor >= 0 else { throw RepositoryRootError.unavailable(errno) }
+            defer { _ = Darwin.close(descriptor) }
+            guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+            let created = try unsafe coordinatedRead(oldName, metadataOnly: false) { _ in
+                metadata.prepareRelocation(owner: raw, directory: descriptor, expected: source.observation.identity,
+                    input: input, effect: &result.result.replacement.installation)
+            }
+            guard let created = unsafe created else { return result }
+            let stage = unsafe RootProjectionStage(created)
+            guard result.result.replacement.installation.outcome == NV_PROJECTION_STAGED else { return result }
+            staged(directory)
+            try Task.checkCancellation()
+            beforeInstall()
+            try withCoordinator { coordinator in
+                try Task.checkCancellation()
+                unsafe stage.relocate(coordinator: coordinator, root: try currentReference(),
+                    stageURL: directory.appendingPathComponent("prepared") as CFURL, owner: raw, reserved: reserved,
+                    original: original, maximum: maximumDisplacedBytes, metadata: metadata, result: &result.result)
+            }
+            afterInstall()
+            let effect = result.result.replacement.installation
+            guard effect.outcome == NV_PROJECTION_INSTALLED else { return result }
+            result.installedWords = withUnsafeBytes(of: effect.installed_words) { unsafe Array($0.bindMemory(to: UInt64.self)) }
+            result.displacedWords = withUnsafeBytes(of: result.result.replacement.backup_words) { unsafe Array($0.bindMemory(to: UInt64.self)) }
+            guard result.result.replacement.backup_comparison != NV_PROJECTION_BACKUP_UNCHECKED,
+                  result.result.replacement.backup_error == 0,
+                  let installed = try readProjection(name, expected: result.installedWords, maximum: input.bytes.count, beforeRead: {}),
+                  installed.bytes == input.bytes, projectionMetadataMatches(installed, metadata: metadata, effect: effect),
+                  let displaced = try readProjection(reserved.record.backupName, expected: result.displacedWords,
+                      maximum: maximumDisplacedBytes, beforeRead: {}) else { throw RepositoryRootError.unavailable(ESTALE) }
+            result.installed = installed; result.displaced = displaced
+            #else
+            throw RepositoryRootError.unsupported(ENOTSUP)
+            #endif
+        } catch {
+            if result.result.replacement.installation.outcome == NV_PROJECTION_INSTALLED {
+                result.result.replacement.installation.outcome = Int32(NV_PROJECTION_UNCERTAIN)
+            }
+            switch error {
+            case let failure as RootAccessFailure: result.result.replacement.installation.error = failure.code; result.result.replacement.installation.root_lost = 1
+            case RepositoryRootError.unavailable(let code), RepositoryRootError.unsupported(let code): result.result.replacement.installation.error = code
+            case is CancellationError: result.result.replacement.installation.error = ECANCELED
+            case RepositoryRootError.closed: result.result.replacement.installation.error = EBADF; result.result.replacement.installation.root_lost = 1
+            #if canImport(Darwin)
+            default: result.result.replacement.installation.error = repositoryCoordinationCode(error as NSError)
+            #else
+            default: result.result.replacement.installation.error = EIO
+            #endif
+            }
+        }
+        return result
+    }
+
+    /// Checks fresh raw metadata against the native verifier's exact filesystem representation.
+    private func projectionMetadataMatches(_ value: ProjectionReadValues, metadata: ProjectionOutputMetadata, effect: NVProjectionEffect) -> Bool {
+        let birth: ProjectionFileTime? = effect.installed_has_birth == 0 ? nil :
+            .init(seconds: effect.installed_birth_seconds, nanoseconds: effect.installed_birth_nanoseconds)
+        return value.encoding == .present(metadata.encoding) && value.tags == .present(metadata.tags) &&
+            value.permissions == metadata.permissions && value.created == birth &&
+            (effect.stamp_error != 0 || value.stamp == (metadata.stamp.map { .present($0) } ?? .absent)) &&
+            (effect.finder_tags_error != 0 || value.finderTags == .present(metadata.tags))
+    }
+
+    func removeProjectionSource(_ reserved: ReservedProjectionSource, maximum: Int,
+                                beforeRemoval: @Sendable () -> Void, afterRemoval: @Sendable () -> Void) -> ProjectionSourceRemovalNative {
+        var result = ProjectionSourceRemovalNative()
+        do {
+            try Task.checkCancellation()
+            guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+            let record = reserved.record, source = reserved.authorization.original.source
+            let name = source.name.spelling.string
+            beforeRemoval()
+            #if canImport(Darwin)
+            try withCoordinator { coordinator in
+                let base = try currentReference()
+                reserved.authorization.original.withDescriptor { descriptor in
+                    source.withNativeSource { expected in
+                        unsafe NVAppleRemoveProjectionSource(coordinator, base, raw, name, record.recoveryName, &expected, UInt64(maximum), descriptor, &result.result)
+                    }
+                }
+            }
+            #else
+            reserved.authorization.original.withDescriptor { descriptor in
+                source.withNativeSource { expected in
+                    unsafe nv_projection_remove_source(raw, name, record.recoveryName, &expected, UInt64(maximum), descriptor, &result.result)
+                }
+            }
+            #endif
+            afterRemoval()
+            result.source = try sourceObservation(name, maximum: maximum)
+            result.cleanup = try inspectProjectionCleanup(record, maximum: maximum)
+        } catch {
+            if result.result.outcome != NV_PROJECTION_CLEANUP_NO_EFFECT { result.result.outcome = Int32(NV_PROJECTION_CLEANUP_UNCERTAIN) }
+            switch error {
+            case let failure as RootAccessFailure: result.result.error = failure.code; result.result.root_lost = 1
+            case RepositoryRootError.unavailable(let code), RepositoryRootError.unsupported(let code): result.result.error = code
+            case is CancellationError: result.result.error = ECANCELED
+            case RepositoryRootError.closed: result.result.error = EBADF; result.result.root_lost = 1
+            #if canImport(Darwin)
+            default: result.result.error = repositoryCoordinationCode(error as NSError)
+            #else
+            default: result.result.error = EIO
+            #endif
+            }
+        }
+        return result
+    }
+
+    func inspectProjectionCleanup(_ record: ProjectionSourceAttemptV1, maximum: Int) throws -> ProjectionNativeObservation {
+        let path = record.cleanupDirectoryName + "/item"
+        do {
+            let words = try observeNative(path)
+            guard words[0] == 1 else { return .unavailable(.kindCollision) }
+            guard words[4] == 1 else { return .unavailable(.hardLinked) }
+            let resident = try coordinatedRead(path, metadataOnly: true) { actual in try residencyNative(actual, expected: words) }
+            if resident == .dataless { return .placeholder }
+            return try coordinatedRead(path, metadataOnly: false) { _ in
+                guard let raw = unsafe raw else { throw RepositoryRootError.closed }
+                var output: UnsafeMutablePointer<NVProjectionRead>?
+                let status = unsafe nv_projection_read_cleanup(raw, record.recoveryName, UInt64(maximum), &output)
+                defer { unsafe nv_projection_read_close(output) }
+                if status == -2 { throw RootAccessFailure(code: errno) }
+                if status == 1 { return .placeholder }
+                guard status == 0, let output = unsafe output else { throw RepositoryRootError.unavailable(errno) }
+                let record = unsafe output.pointee
+                let w = unsafe record.words
+                return .value(copyProjectionRead(output), [w.0,w.1,w.2,w.3,w.4,w.5,w.6,w.7,w.8])
+            }
+        } catch RepositoryRootError.unavailable(let code) { return .unavailable(.init(code: code)) }
+    }
+
+    private func sourceObservation(_ name: String, maximum: Int) throws -> ProjectionNativeObservation {
+        do {
+            let words = try observeNative(name)
+            if let value = try readProjection(name, expected: words, maximum: maximum, beforeRead: {}) { return .value(value, words) }
+            return .placeholder
+        } catch RepositoryRootError.unavailable(let code) { return .unavailable(.init(code: code)) }
+    }
+
+    private func projectionAttribute(_ attribute: NVProjectionAttribute) -> ProjectionFileAttribute {
+        switch unsafe attribute.state {
+        case 1: return unsafe .present(Array(UnsafeBufferPointer(start: attribute.bytes, count: Int(attribute.count))))
+        case 2: return .unsupported
+        default: return .absent
+        }
+    }
+
     private func residencyNative(_ relative: String, expected: [UInt64]) throws -> RepositoryResidency {
         guard let raw = unsafe raw else { throw RepositoryRootError.closed }
         var dataless: Int32 = -1

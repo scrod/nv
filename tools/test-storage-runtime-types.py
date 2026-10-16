@@ -219,8 +219,8 @@ func wrong(_ e: HistoryEntry, _ a: ActionV1, _ state: HistoricalNoteState) {
 func wrong(_ c: CapturedActionGroup) { let _ = CommitHandle(session: UUID(), id: UUID(), capture: c) } // expected-error
 ''', "'CommitHandle' initializer is inaccessible due to 'fileprivate' protection level"),
         ('receipt issuer', '''
-func wrong(_ r: AcceptedHistoryReceipt) {
-    let _ = AcceptedHistoryReceipt(session: UUID(), store: r.store, sequence: r.sequence, object: r.object, covered: r.covered) // expected-error
+func wrong(_ r: AcceptedHistoryReceipt, _ c: CapturedActionGroup) {
+    let _ = AcceptedHistoryReceipt(session: UUID(), store: r.store, sequence: r.sequence, object: r.object, capture: c) // expected-error
 }
 ''', "'AcceptedHistoryReceipt' initializer is inaccessible due to 'fileprivate' protection level"),
         ('prepared change issuer', '''

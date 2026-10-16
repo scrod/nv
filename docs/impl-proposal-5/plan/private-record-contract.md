@@ -26,6 +26,74 @@ explicitly supported; nonempty settings use codec 2 and the record below.
 
 ## Encodings
 
+The [P6.1 history/observation contract](phase6/03-history-observation-contract.md)
+adds per-birth accepted/intended descriptions under `private_groups`. Their original
+capture scope survives verified sibling repair. Complementary repair preserves
+unique observation rows and refuses differing rows for the same birth rather than
+choosing a physical observation by timestamp or source order. Decoded descriptions
+remain passive; rooted receipt settlement is a later consumer.
+
+[Captured encoded output](phase6/09-exact-output-contract.md) uses immutable
+1-MiB `projection-data/<birth>/<digest>/<index>` chunks in the same private table. The
+intent and all its chunks commit together. Opening checks complete referenced
+chunk framing/sizes; output use checks the complete byte digest and current
+private owner. Backup/repair preserve the chunk union. The [frozen transition](phase6/13-frozen-output-contract.md)
+owns its output/source independently of newer intentions. Intent switching releases
+only superseded unowned chunks in the same transaction, using that note's owners
+and indexed chunk ranges. Pending settlement transfer remains a separate integration
+gate; the frozen slot stays retained until its remaining owners can be transferred.
+
+The [settlement codec and transfer mapping](phase6/14-settlement-record-contract.md)
+retains the full reservation in the existing pending settlement row. Its consumed
+input and completed projection cases remain distinct. The pure projection transfer
+preserves newer intentions; a rooted consumer must check and atomically publish
+that transfer before releasing frozen ownership.
+
+The [P6.2 replacement reservation](phase6/15-rooted-mutable-files-contract.md#durable-replacement-candidate-reservation)
+stores one exact frozen transition and random backup candidate per unfinished
+replacement or rename/update under `projection-replacement/<birth>`. Equal source/output
+names imply replacement; different names imply relocation. This derived role uses
+the single current v1 layout, with a mandatory source and the existing per-birth slot.
+Distinct live Swift issuers/consumers validate each role. Opening and complete
+backup/repair validate its scope, framing and frozen owner. The record directs
+fresh inspection after interruption; physical installation, candidate retirement
+and artifact settlement remain distinct rooted consumers.
+
+The [original-source reservation](phase6/15-rooted-mutable-files-contract.md#durable-original-source-reservation-and-inspection)
+uses `projection-source/<birth>` with generation 1 and codec 1. Its v1 encoding
+is `NVSRC1\r\n`, UInt16 version 1, capture scope64, association16, attempt16,
+accepted Delete action reference76 (locator56, action index UInt32, action ID16),
+UInt32-length-prefixed `AcceptedProjectionV1`, then root and original-observation
+passive records (UInt32 codec, UInt32 length, bytes). The record is plaintext-profile
+only and uses the existing 64-MiB aggregate ceiling. The exact birth comes from
+the accepted source binding. Opening checks key/birth agreement, capture scope,
+source ownership and the indexed accepted Delete occurrence/membership. Backup
+and complementary repair preserve this required row and its existing byte owners.
+The attempt derives its persistent protected `<recoveryName>.cleanup/item`
+location. Fresh inspection reads the original public filename and that child
+independently; physical removal still requires the original live command and
+descriptor. This adds no encoded field or record version. A native result reports
+whether the attempt exclusively created its directory. Even an empty owned
+directory surviving failure keeps the required record until settlement; only a
+verified no-removal/no-owned-directory candidate can be retired early.
+
+The original-observation codec `0x50525301` stores the nine big-endian UInt64
+physical words, UInt32 mode, a creation-time presence byte (present: Int64 seconds
+as raw bits, UInt32 nanoseconds), then encoding, NV tags, Finder tags and stamp.
+Each attribute uses byte 0 absent, 1 present or 2 unsupported; present includes
+UInt32 length and exact bytes. Modification time is already in the physical words.
+Bodies remain in retained history/private captured-byte owners. The deterministic
+recovery leaf is `.nv-source-<32 lowercase hex attempt bytes>.backup`.
+These passive bytes direct fresh inspection; the original live removal grant
+remains issuer-restricted and expires with its store/root session.
+
+The current `0x50524601` physical observation contains the nine words followed
+by SHA-256 of UTF-8 `NV projection metadata\0v1\0` plus that same metadata suffix
+(permissions through stamp). Its 104 bytes bind accepted-to-captured metadata
+without storing a second raw attribute set. The `0x50525301` original observation
+continues to store the full raw fields for recovery. Both are local passive
+observations, scoped by the enclosing record and live consumer checks.
+
 Settings: `NVSET1\r\n`, UInt16 version 1, UInt32 field count; fields in strictly
 increasing UInt16 key order, each followed by its fixed key-specific value.
 Keys: 1 storage format UInt64 (0…3), 2 secure entry byte boolean, 3 deletion

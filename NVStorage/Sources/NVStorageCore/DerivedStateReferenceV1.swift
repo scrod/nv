@@ -120,31 +120,57 @@ public struct DerivedStateReferenceV1: Equatable, Hashable, Sendable {
                             at enclosing: SegmentLocator,
                             resolve: (SegmentLocator) async throws -> ChangesPayloadV1?) async throws -> ReconstructedDerivedStateV1 {
         try checkLocalBindings(earlierOperations)
-        var byID: [OperationID: IdentifiedOperation] = [:]
-        for operation in history {
-            guard byID.updateValue(operation, forKey: operation.id) == nil else {
-                throw CanonicalEncodingError.invalidOperation
-            }
-        }
         var refs = inputReferences
         if case .merged(let base, _) = kind { refs.append(base) }
-        var loaded: (SegmentLocator, ChangesPayloadV1)?
+        var loaded: [SegmentLocator: ChangesPayloadV1] = [:]
+        var targets: [IdentifiedOperation] = []
         for ref in refs {
             let target: IdentifiedOperation
             switch ref {
             case .earlierLocal(let index): target = earlierOperations[Int(index.rawValue)]
             case .external(let locator, let index, let id):
                 guard locator != enclosing else { throw CanonicalEncodingError.invalidReference }
-                if loaded?.0 != locator {
+                if loaded[locator] == nil {
                     guard let payload = try await resolve(locator) else { throw CanonicalEncodingError.missingDependency }
-                    loaded = (locator, payload)
+                    loaded[locator] = payload
                 }
-                guard let payload = loaded?.1, UInt64(index.rawValue) < UInt64(payload.operations.count) else {
+                guard let payload = loaded[locator], UInt64(index.rawValue) < UInt64(payload.operations.count) else {
                     throw CanonicalEncodingError.invalidReference
                 }
                 target = payload.operations[Int(index.rawValue)].operation
                 guard target.id == id else { throw CanonicalEncodingError.identityMismatch }
             }
+            targets.append(target)
+        }
+        return try reconstructResolved(collection: collection, birth: birth, history: history, targets: targets)
+    }
+
+    /// Reconstructs a standalone claim using exact external occurrences and its complete note ancestry.
+    public func reconstructStandalone(collection: CollectionID, birth: NoteBirth,
+        history: [IdentifiedOperation],
+        resolve: (StoredOperationReferenceV1) throws -> IdentifiedOperation?) throws -> ReconstructedDerivedStateV1 {
+        try checkLocalBindings([])
+        var targets: [IdentifiedOperation] = []
+        for ref in references {
+            guard case .external(let locator, let index, let id) = ref else { throw CanonicalEncodingError.invalidReference }
+            guard let target = try resolve(.init(locator: locator, index: index, id: id)) else {
+                throw CanonicalEncodingError.missingDependency
+            }
+            guard target.id == id else { throw CanonicalEncodingError.identityMismatch }
+            targets.append(target)
+        }
+        return try reconstructResolved(collection: collection, birth: birth, history: history, targets: targets)
+    }
+
+    private func reconstructResolved(collection: CollectionID, birth: NoteBirth, history: [IdentifiedOperation],
+                                     targets: [IdentifiedOperation]) throws -> ReconstructedDerivedStateV1 {
+        var byID: [OperationID: IdentifiedOperation] = [:]
+        for operation in history {
+            guard byID.updateValue(operation, forKey: operation.id) == nil else {
+                throw CanonicalEncodingError.invalidOperation
+            }
+        }
+        for target in targets {
             guard target.effect.targetBirth == birth else { throw CanonicalEncodingError.invalidReference }
             switch target.effect {
             case .create, .importNote, .put, .recoverCopy, .adoptAutomatic: break

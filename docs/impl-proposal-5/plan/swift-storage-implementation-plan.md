@@ -431,6 +431,42 @@ Use [Apple contract validation](../../Apple-API-Contract-Validation.md) AV-15–
 
 ## 10. Phase 6 — Plaintext projection and pending-file recovery
 
+The detailed [Phase 6 implementation and testing plan](phase6-plaintext-reconciliation-plan.md)
+orders record/evidence definitions, mutable-file capability qualification, coherent
+classification, accepted/intended transitions, pending admission/association and
+external deletion/lifecycle composition before connected qualification. It maps
+compiler-enforced boundaries, P6-C01–26 production witnesses and model assumptions,
+and separates reusable P5.7 evidence from new physical-consumer obligations.
+This remains headless work; the actual application callers belong to Phase 7.
+
+Implementation begins with the [P6.1 advisory-stamp record contract](phase6/01-projection-record-contract.md)
+and [codec qualification](phase6/01-projection-record-validation.md), followed by
+[exact filename/descriptor values](phase6/02-projection-descriptor-contract.md)
+and their [qualification](phase6/02-projection-descriptor-validation.md), then
+[history-bound intent and private observations](phase6/03-history-observation-contract.md).
+The latter supplies actual retained-history checks and private intent transactions;
+the [captured filename helper](phase6/04-filename-preparation-contract.md) now adds
+the legacy naming policy. The [standalone history reader](phase6/07-inbound-history-contract.md)
+checks incoming source occurrences and selected ancestry with separate consumer
+fences. The [portable Changes section](phase6/08-portable-projection-contract.md)
+adds exact source dependencies and metadata-only acceptance without echo edits.
+The [local producer](phase6/11-projection-producer-contract.md) binds that acceptance
+to an owned output, unique reserved writer address and exact-byte retry handle.
+Its [retention qualification](phase6/12-projection-retention-validation.md) covers
+accepted Changes tips through authenticated dependencies and final byte checks,
+keeping sequential descriptions from accumulating independent startup leaves.
+The [frozen-output contract](phase6/13-frozen-output-contract.md) retains an exact
+serialized transition across newer intentions and releases superseded unowned
+chunks within the guarded private transaction.
+The [settlement mapping](phase6/14-settlement-record-contract.md) retains complete
+pending decisions after preview release and calculates exact projection-owner
+transfer while preserving newer intentions.
+The [P6.1 completion ledger](phase6/06-completion-ledger.md)
+tracks settlement and platform qualification separately from
+physical receipt issuance. Complete
+filename/descriptor/private-observation definitions before proceeding to the
+physical consumers; passing stamp codecs alone closes neither P6.1 nor Phase 6.
+
 **Implement**
 
 - Reuse the transactional fenced catalog flow for current plaintext inputs, with history/body/stamp arriving independently. Adopt ordinary eligible automatic imports and narrow per-note repair candidates, with missing-history/deletion/copied-provenance exceptions taking precedence. FSEvents only prioritizes inspection.

@@ -54,7 +54,7 @@ The shared campaign contains three kinds of acceleration:
 
 - Native build artifacts. Cold SQLCipher initialization, maintenance controls
   and privacy scenarios execute again using an identical qualified executable.
-- Independent-check evidence. All twelve Python fixture checkers, the schema
+- Independent-check evidence. All registered Python fixture checkers, the schema
   contract suite, three Node fixture modes and two strict C diagnostic checks
   execute as one evidence group. An identical second configuration references
   this group's verified raw logs, retaining an entry for every original command.

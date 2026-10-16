@@ -2,14 +2,41 @@
 """Fresh-process pending/backup/repair recovery with independent SQL and exact-byte observations."""
 import argparse
 import base64
+import hashlib
 import json
 from pathlib import Path
 import re
 import shlex
 import subprocess
+import struct
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def check_settlement(row, initial_payload, latest):
+    """Decode the current settlement framing independently of Swift's record reader."""
+    item, snapshot, reservation, operation, birth, digest, codec, encoded = row
+    assert int(codec) == 1
+    data = bytes.fromhex(encoded)
+    assert data[:10] == b'NVPST1\r\n\0\1'
+    assert data[10:74] == bytes.fromhex(initial_payload)[26:90]
+    assert data[74:90] == bytes.fromhex(item)
+    size = struct.unpack('>I', data[90:94])[0]
+    decision = data[94:94+size]
+    assert decision[:10] == b'NVRSV1\r\n\0\1'
+    assert decision[10:26] == bytes.fromhex(reservation)
+    assert decision[26:42] == bytes.fromhex(snapshot) and decision[42] == 2
+    assert decision[43:59] == bytes.fromhex(birth)
+    assert decision[59:91] == bytes.fromhex(operation)
+    assert hashlib.sha256(decision).hexdigest() == digest.lower()
+    offset = 94 + size
+    assert data[offset] == 1
+    observed_size = struct.unpack('>I', data[offset+1:offset+5])[0]
+    observation = data[offset+5:offset+5+observed_size]
+    platform_size = struct.unpack('>I', observation[4:8])[0]
+    assert len(observation) == 8 + platform_size
+    assert data[offset+5+observed_size:] == b'\1' + bytes.fromhex(latest)
 
 
 def main():
@@ -78,6 +105,9 @@ def main():
                      ('integrated-private-eio', 'integrated-repair-fault', 'private-eio'),
                      ('integrated-repair', 'integrated-repair', 'normal'),
                      ('integrated-activated', 'integrated-repair', 'activated')]
+        if profile == 'public':
+            schedules += [('projection-before', 'projection', (4, 1, -1)), ('projection-after', 'projection', (5, 1, -1)),
+                          ('projection-enospc', 'projection', (1, 1, 13)), ('projection-eio', 'projection', (2, 1, 1034))]
         for name, kind, fault in schedules:
             if args.only and args.only not in name:
                 continue
@@ -95,7 +125,74 @@ def main():
 
             seed = invoke('private-seed')
             before = invoke('private-dump')
-            if kind == 'latest':
+            if kind == 'projection':
+                import hashlib
+                import struct
+
+                def observe():
+                    result = invoke('private-projection-read')
+                    assert len(result['rows']) == 1
+                    generation, codec, raw = result['rows'][0]
+                    assert codec == '1'
+                    data = bytes.fromhex(raw)
+                    assert data[:10] == b'NVPOB1\r\n\0\1' and data[106:108] == b'\0\1'
+                    def blob(offset):
+                        count = struct.unpack_from('>I', data, offset)[0]
+                        return data[offset+4:offset+4+count], offset+4+count
+                    intended, end = blob(108)
+                    assert end == len(data)
+                    count = struct.unpack_from('>I', intended)[0]
+                    output, source = intended[4:4+count], intended[4+count:]
+                    assert source == b'\0' and output[8] == 1
+                    output_generation = struct.unpack_from('>Q', output)[0]
+                    assert int(generation) == output_generation
+                    binding = output[13:]
+                    assert struct.unpack_from('>I', output, 9)[0] == len(binding)
+                    assert binding[:10] == b'NVPBD1\r\n\0\1'
+                    descriptor_size = struct.unpack_from('>I', binding, 42)[0]
+                    descriptor = binding[46:46+descriptor_size]
+                    assert descriptor[:10] == b'NVPRD1\r\n\0\1'
+                    name_size = struct.unpack_from('>I', descriptor, 10)[0]
+                    filename = descriptor[14:14+name_size].decode()
+                    assert descriptor[14+name_size:16+name_size] == b'\0\1'
+                    assert descriptor[-32:] == hashlib.sha256(b'A').digest()
+                    return result, filename
+
+                invoke('private-projection-write', 'Before.txt')
+                baseline, filename = observe()
+                assert filename == 'Before.txt'
+                for _ in range(2):
+                    prior, _ = observe()
+                    old = bytes.fromhex(prior['rows'][0][2])
+                    old_intended = old[112:]
+                    output_size = struct.unpack_from('>I', old_intended)[0]
+                    old_output = old_intended[4:4+output_size]
+                    old_binding = old_output[13:]
+                    old_descriptor_size = struct.unpack_from('>I', old_binding, 42)[0]
+                    old_descriptor = old_binding[46:46+old_descriptor_size]
+                    old_name_size = struct.unpack_from('>I', old_descriptor, 10)[0]
+                    pack = lambda value: struct.pack('>I', len(value)) + value
+                    descriptor = old_descriptor[:10] + pack(b'After.txt') + old_descriptor[14+old_name_size:]
+                    binding = old_binding[:42] + pack(descriptor) + old_binding[46+old_descriptor_size:]
+                    generation = int(prior['rows'][0][0]) + 1
+                    new_output = struct.pack('>QB', generation, 1) + pack(binding)
+                    expected_bytes = old[:106] + b'\0\1' + pack(pack(new_output) + b'\0')
+                    expected_rows = [[str(generation), '1', expected_bytes.hex().upper()]]
+                    killed = fault[2] == -1
+                    result = invoke('private-projection-write', 'After.txt', *fault, code=86 if killed else 0)
+                    if not killed:
+                        assert result['retained'] is False and result['hits'] == 1, result
+                    actual, filename = observe()
+                    allowed = [expected_rows] if name == 'projection-after' else [prior['rows']]
+                    if name == 'projection-eio':
+                        # Failed sync is an ambiguous commit; recovered exact membership settles it.
+                        allowed.append(expected_rows)
+                    assert actual['rows'] in allowed, (name, actual['rows'], allowed)
+                    assert actual['notes'] == baseline['notes']
+                    assert invoke('private-dump') == before
+                invoke('private-projection-write', 'Final.txt')
+                assert observe()[1] == 'Final.txt'
+            elif kind == 'latest':
                 for _ in range(2):
                     killed = fault[2] == -1
                     result = invoke('private-latest', *fault, code=86 if killed else 0)
@@ -130,6 +227,8 @@ def main():
                 settled = invoke('private-dump')
                 assert settled['reservations'] == [] and len(settled['settlements']) == 1, settled
                 assert settled['settlements'][0][1].lower() == seed['birth'] and settled['settlements'][0][2], settled
+                assert len(settled['settlementRecords']) == 1
+                check_settlement(settled['settlementRecords'][0], before['payloads'][0][1], settled['latestSnapshot'])
                 # A crash after settlement and before optional cleanup may retain the now-unreferenced A payload.
                 assert settled['latest'] == 'latest B' and 1 <= len(settled['payloads']) <= 2, settled
                 assert len(settled['payloads']) == 1 or any(row[0].lower() == seed['snapshot'] for row in settled['payloads']), settled
@@ -202,6 +301,8 @@ def main():
             print('PASS:', completed[-1], flush=True)
             (artifacts/'results.json').write_text(json.dumps(completed, indent=2))
     expected_count = 2 * sum(not args.only or args.only in name for name, _, _ in schedules)
+    expected_count += sum(not args.only or args.only in name for name in
+                          ['projection-before', 'projection-after', 'projection-enospc', 'projection-eio'])
     assert expected_count > 0 and len(completed) == expected_count
 
 

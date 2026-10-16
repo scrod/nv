@@ -77,6 +77,7 @@ function ref(r,deps,local,width=32,section='ops') {
 }
 const ops=new Map(), actions=new Map(), pages=[];
 const generalRoots=[];
+const projections=[];
 function pageRange(r) {
   const locator=hex(r.take(56)),offset=r.take(8).readBigUInt64BE(),length=r.take(8).readBigUInt64BE();
   assert(length>0n && offset+length<=(1n<<64n)-1n);return {locator,offset,length};
@@ -135,7 +136,28 @@ for(const o of all.values()) {
       if(actions.has(id)) assert.deepEqual(actions.get(id),action); else actions.set(id,action);
       for(const m of members) assert.equal(ops.get(m).action,id);
       o.actions.push(action);
-    }); r.end();
+    });
+    if(r.p<r.b.length) {
+      assert.equal(r.take(8).toString(),'NVPRJ1\r\n');let previous;
+      const entries=r.list(()=>{
+        const bytes=r.blob();if(previous)assert(Buffer.compare(previous,bytes)<0);previous=bytes;
+        const b=new Reader(bytes);b.magic('NVPBD1\r\n');const collection=hex(b.take(16)),birth=hex(b.take(16));
+        assert.equal(o.bytes[11],0);assert.equal(collection,hex(o.bytes.subarray(16,32)));
+        const d=new Reader(b.blob());d.magic('NVPRD1\r\n');const filename=d.blob();
+        const name=new TextDecoder('utf-8',{fatal:true}).decode(filename);
+        assert(name.length && !name.includes('/') && !name.includes('\0') && !['.','..','nv data','notes & settings','interim note-changes'].includes(name.toLowerCase()));
+        assert.equal(d.take(2).readUInt16BE(),1);const digest=hex(d.take(32));d.end();
+        const inputs=b.list(()=>hex(b.take(56)));assert.deepEqual(inputs,[...new Set(inputs)].sort());
+        inputs.forEach(input=>assert(deps.includes(input)));
+        const start=refs.length,tag=b.b[b.p];assert([1,2,3,4].includes(tag));let claim;
+        if(tag===2) {b.byte();claim=[5,hex(b.take(16)),hex(b.take(32)),ref(b,inputs,[])];}
+        else claim=state(b,inputs,[]);
+        b.end();assert.deepEqual(inputs,[...new Set(refs.slice(start).map(r=>r.locator))].sort());
+        return {object:o.id,collection,birth,filename:hex(filename),digest,state:claim};
+      });
+      assert(entries.length);projections.push(...entries);
+    }
+    r.end();
   } else if(o.kind===3) {
     if(o.payload.subarray(0,8).toString()==='NVGPG1\r\n') {
       r.magic('NVGPG1\r\n');const tag=r.byte();assert(tag<=1);
@@ -366,4 +388,10 @@ for(const [birth,encoded] of report.cells) {
   assert.deepEqual(expected.value,v);
 }
 const dispositions=[...new Set([...actions.values()].filter(a=>a.kind===9).map(a=>a.details.revision))].sort();
+for(const p of projections) {
+  const s=p.state,ids=s[0]===1?[s[1]]:s[0]===5?[s[3]]:s[1];
+  ids.forEach(id=>assert.equal(ops.get(id).birth,s[0]===5?s[1]:p.birth));
+  if(s[0]===5) {assert.equal(automaticKey(s[1],ops.get(s[3]).value),s[2]);assert.equal(uuid(B(s[2])),p.birth);}
+  assert(stateValue(s));
+}
 console.log(JSON.stringify({objects:raw.size,operations:ops.size,actions:actions.size,verified:true,generalSnapshots,notes:[...expectedNotes].map(([birth,c])=>({birth,body:c.value.body,represented:c.represented,heads:c.heads,automatic:c.automatic})),dispositions,retired,actionRecords:[...actions.values()].map(a=>({...a, affected:a.affected.map(e=>({...e,beforeValue:stateValue(e.before),afterValue:stateValue(e.after)}))})),operationRecords:[...ops.values()]}));

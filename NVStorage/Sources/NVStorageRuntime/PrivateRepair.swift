@@ -519,7 +519,18 @@ extension LocalStoreSession {
         objects: [[UInt8]: RepairObjectReference], required: Set<[UInt8]>) async throws {
         let selection = selection
         try await lane.perform { db in
-            let groups = primary.privateTables["private_groups"] ?? []
+            var groups = primary.privateTables["private_groups"] ?? []
+            for source in sources {
+                for group in source.privateTables["private_groups"] ?? [] {
+                    let key = try group[0].bytes
+                    guard key.starts(with: Array("projection/".utf8)) || key.starts(with: Array("projection-data/".utf8)) ||
+                          key.starts(with: Array("projection-replacement/".utf8)) ||
+                          key.starts(with: Array("projection-source/".utf8)) else { continue }
+                    if let prior = groups.first(where: { $0[0] == group[0] }) {
+                        guard prior == group else { throw StorageError.incomplete }
+                    } else { groups.append(group) }
+                }
+            }
             guard let settings = groups.first(where: { $0[0] == .blob(Array("settings".utf8)) }) else { throw StorageError.incomplete }
             _ = try db.decodedSettings(Array(settings.dropFirst()))
             for source in sources {

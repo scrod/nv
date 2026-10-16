@@ -4,6 +4,184 @@ This document records Apple/File Provider behaviors that the implementation and 
 
 No elapsed-time threshold proves freshness, catalog completeness, conflict absence, upload, or root continuity (`WAIT-01`). Tests distinguish documented API contract, observed provider behavior, and application policy. Every inconclusive result fails closed for the operation that needed it.
 
+## P6.2 mutable-destination reference evidence (2026-10-15)
+
+The [rename/update candidate](impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#native-renameupdate-candidate)
+uses the synchronous two-write accessor for the public source/destination, then
+its documented permitted single-write nesting for the owned private stage.
+The installed `NSFileCoordinator.h` explicitly permits that nesting for the
+two-write method; its different single-write nesting restriction is preserved.
+Destination intent is ordinary update (`0`): this exclusive operation preserves
+an occupant rather than replacing a different document. A case-only replacing
+intent control closes the source presenter and is rejected by the test.
+
+For case-equivalent names, the actual framework can retain the editor's old
+capitalization and send a change notification instead of a move callback.
+An independent direct coordinated `renameat` control reproduces that behavior.
+Tests require NV's explicit move call, exact on-disk capitalization, same-file
+lookups through the editor's URL before/after its next save, and preservation
+of the backup. Distinct-name moves still require the final URL and move delivery.
+This is a concrete namespace/API mapping, not evidence that a missing required
+notification, an unrelated URL or a provider identity may be accepted.
+
+The relocation integration additionally observes canonical decomposition in
+Foundation's granted Unicode leaf (`Résumé.txt` requested, its canonically
+decomposed spelling returned by the accessor). Namespace validation accepts canonical
+equivalence while retaining case and the exact issued root reference. Native
+exclusive installation still uses the captured leaf. Independent composed and
+decomposed companions and an unaccented wrong-leaf control distinguish equivalent
+representation from a changed destination. This is adapter representation
+handling, not a permanent file-identity rule or a broader association heuristic.
+
+The [final-public-rename companions](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#final-public-rename-presenter-companions)
+separately check explicit move notices, a peer editor's final URL and its later
+save, with dirty drafts and destination collisions. OS-discovered movement can
+deliver a URL update even when a notification is deliberately omitted; the
+required explicit call is therefore counted independently. These native adapter
+checks preserve the separate logical rename/format/source-accounting gates.
+
+The exclusive-creation bridge obtains Foundation's `itemReplacementDirectory`
+with `.userDomainMask` and the held root reference as `appropriateFor`.
+The installed `NSFileManager.h` contract says that only the supplied URL's volume
+is used and that the returned directory may disappear after application exit.
+The adapter independently checks current-user ownership, private permissions and
+same-volume identity before staging. Its first local APFS witness confirms 0700
+directory permissions and exact file metadata. Durable frozen SQL/history input,
+rather than the temporary directory, supplies restart recovery. Additional
+volume/provider qualification remains explicit.
+See Apple's [temporary replacement directory](https://developer.apple.com/documentation/foundation/filemanager/searchpathdirectory/itemreplacementdirectory)
+and the [production bridge contract](impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md).
+
+The [volume campaign](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#volume-precision-qualification)
+confirmed HFS+/HFSX's documented whole-second date representation. Requiring
+nanoseconds rejected otherwise-correct staged outputs. The approved implementation
+qualifies that representation from the held stage volume and verifies it exactly
+at installation, preserving original dates in logical history. This accords with
+Apple's [filesystem comparison](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/APFS_Guide/VolumeFormatComparison/VolumeFormatComparison.html),
+not a violated API promise. ExFAT's first public creation case still refuses
+installation under the unchanged exact-permission requirement; its retained stage
+and private inputs remain preserved. That separate capability gate remains open.
+
+The [P6.2 capability probes](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md)
+put an uncoordinated namespace change after the last comparison and before the
+actual Foundation replacement. A leaf-object reference follows a file moved
+outside the owned root. Appending a component to a directory reference through
+NSURL/CFURL flattens it to a pathname and can follow a replacement root instead.
+Using `fileURLWithPath:isDirectory:relativeToURL:` with the positively checked
+directory reference preserved both required relationships in the two controlled
+schedules on macOS 11.7.11, 14.8.9 and local macOS 26. This is a correction to
+NV's intended API use, not evidence that Apple violated a contract.
+
+Endpoint and bounded concurrent-reader probes also retained staged body,
+encoding/tags/stamp, exact modification timestamp, open-stage identity and the
+displaced backup on local APFS. They remain capability evidence: production
+failures, supported-volume behavior and provider identity are additional gates.
+See the updated [Foundation migration](Foundation-Safe-Replacement-Migration.md).
+
+The subsequent production-primitive witness adds explicit preservation of mode
+0640. Default metadata handling installed 0600 despite exact preflight/stage
+checks; converting the directory-relative accessor URL to its absolute form did
+not change that observation. `UsingNewMetadataOnly`, after copying the original
+metadata into the stage and applying note-owned values, preserved the requested
+mode in the initial 18-case campaign. The native candidate uses that option;
+provider identity, broader metadata atomicity and supported-volume qualification
+remain prerequisites to its public Swift/legacy integration. See the
+[replacement qualification](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#native-replacement-qualification-in-progress).
+
+The late-backup experiment also found a concrete limit: an independently created
+backup-name occupant between the final absence check and replacement is removed
+on all three macOS versions. This matches the SDK's explicit `backupItemName`
+contract. The user reaffirmed the original fresh-random-name assumption: a new
+UUIDv4 name, descriptor-relative absence check and retirement of any occupied
+candidate. Deliberate injection at that exact private name lies outside the
+assumption. The [recorded observation](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#backup-name-assumption-and-api-limit)
+is an API limit, while target-file races and preservation of actual displaced
+contents remain required checks. Production replacement and volume/provider
+qualification remain separate; this is not an Apple contract violation.
+
+The [P6.2 native source-quarantine candidate](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#native-source-quarantine-qualification)
+uses the existing exclusive-rename capability to preserve the actual item before
+source accounting. Its probes change the source after the last complete read and
+before the move, including an equal-content new inode and metadata-only change.
+An exclusive restoration preserves a newly occupied source name. The resulting
+present/absent/unavailable observations and retained contents remain physical
+evidence. The internal original-Delete consumer commits its source-attempt record
+before entering the single deletion accessor and repeats
+live ownership checks after independently reading both names. The native boundary
+compares raw metadata with the original root-issued snapshot and pins the checked
+inode from the coordinated original capture through the physical effect, using the
+descriptor transferred by that same coherent read. Native preflight verifies
+the caller-owned descriptor; Swift owns its single final close across immutable
+retry copies. Fresh-process recovery reconstructs comparison
+inputs for inspection, not replay. The earlier owned-artifact cleanup candidate
+coordinated the public leaf with `WritingForDeleting`, but a child writer still
+replaced it between the last check and pathname unlink. That candidate deleted
+the replacement. This is the
+documented [pathname-unlink behavior](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/unlink.2.html),
+not an Apple contract violation; real Foundation coordination does not make
+that uncoordinated POSIX schedule conditional. Later observations could not
+recover the lost replacement.
+
+Protected capture preserves the actual public occupant before comparison and
+private cleanup; mismatches restore exclusively or stay retained. A subsequent
+[active-presenter experiment](impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#active-presenter-correction-and-direct-removal-adapter)
+found that separate announced recovery moves can teach a cooperating editor to
+save into the recovery namespace. Original Delete therefore needs one accessor:
+`.forDeleting` on the public source, `0` on the exclusive protected child, and
+capture/compare/removal before return. Temporary preservation names stay private
+implementation details. Genuine public moves still use the documented move
+options and balanced successful
+[`item(at:didMoveTo:)`](https://developer.apple.com/documentation/foundation/nsfilecoordinator/item%28at%3Adidmoveto%3A%29?language=objc)
+notifications. The generic quarantine primitive retains its notification tests;
+that evidence alone does not qualify the old two-step original-Delete consumer.
+
+The SDK also explicitly says ordinary content updates, including temp-file
+replacement, use writing options `0`. `WritingForReplacing` represents replacing
+a document with a different one and can ask its presenter to close. The ordinary
+production replacement now uses `0`. Another observed grant normalization
+requires checking exact components and the system-issued root reference rather
+than literal URL equality; this reuses the existing namespace check. Redirected
+components/roots still fail before the native effect.
+
+Real protocol participants test clean/dirty/refusing/keep-open behavior and later
+saves, alongside direct Foundation controls and incorrect-intent/notification/URL
+mutations. The protected-removal campaign retains public replacement,
+directory-substitution/privacy, synchronization-failure and abrupt-exit checks.
+The adapter's native evidence, its typed Runtime bridge, actual
+`NSDocument` behavior and live provider qualification remain distinct scopes.
+All resulting observations, final lifecycle checks and later source accounting
+are still required. The standalone Foundation companions need normal host
+access; pre-accessor tool-sandbox failures do not establish API violations.
+
+The direct Runtime bridge also has fresh-process tests with a test-only syscall
+interposer: the actual source operation stops at protected-directory sync before
+capture, after capture or after unlink, or receives EIO after creating its
+directory. Recovery uses only surviving storage and ordinary unlock inputs.
+That owned empty directory retains its attempt; exact early retirement requires
+the native exclusive-creation result. This is process/fault qualification, not
+physical power-loss or remote provider durability evidence.
+
+The accepted-to-captured comparison also commits the complete observed metadata,
+rather than relying on coarse stat timestamps to reveal every change. Its
+equal-stat fixtures exercise real attribute/mode/date changes and matching
+companions, with an independent Python stat/encoding/hash oracle. This uses the
+already qualified reader's raw values and introduces no new Apple freshness or
+permanent-identity claim. See the [metadata commitment qualification](impl-proposal-5/plan/phase6/15-rooted-mutable-files-validation.md#accepted-to-captured-metadata-commitment).
+
+## P6.1 text-output encoding evidence (2026-10-15)
+
+The [98-case-per-host encoding experiment](impl-proposal-5/plan/phase6/05-text-encoding-investigation.md)
+compares Swift and legacy NSString output with independent UTF-8/Mac Roman
+oracles. NSString's tested outputs agree across macOS 11/14 Intel and 26 arm64;
+two decomposed-Unicode conversions differ on Linux. Swift's overlay introduces
+additional differences, so it cannot be substituted for the legacy caller based
+on method spelling alone. These are exact-byte reconstruction failures, not an
+Apple API-contract violation claim. The [exact-output preparer](impl-proposal-5/plan/phase6/09-exact-output-contract.md)
+uses the legacy NSString policy and retains non-UTF-8 bytes in private SQLite.
+Its qualification compares production output to the recorded native matrix and
+checks cross-platform recovery without native re-encoding. Physical output/stamp
+installation retains its separate adapter gates.
+
 ## P5.6 repair replacement capability (2026-10-14)
 
 The [repair qualification ledger](impl-proposal-5/plan/phase5/06-repair-replacement-and-copy-validation.md#existing-item-replacement-capability-gap)

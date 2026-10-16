@@ -81,7 +81,7 @@ extension Database {
                     let opened = try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection,
                         protection: protection, expectedLocator: locator)
                     self.countWork { $0.historyEncodedBytes += bytes.count; $0.historyDecodedBytes += opened.payload.count }
-                    return try (locator, ChangesPayloadV1.decodeV1(opened.payload))
+                    return try (locator, ChangesPayloadV1.decodeV1(opened))
                 }
                 for (index, record) in p.actions.enumerated() {
                     let a = record.action

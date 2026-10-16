@@ -438,19 +438,81 @@ An interoperable current representation of a note that can accept external edits
 
 **Projection descriptor**:
 A claim relating a note revision to intended path/format/exact bytes, not proof that any physical installation occurred.
+The [P6.1 descriptor value](docs/impl-proposal-5/plan/phase6/02-projection-descriptor-contract.md)
+retains the exact filename spelling, plaintext format and encoded-byte digest.
+The [P6.1 history binding](docs/impl-proposal-5/plan/phase6/03-history-observation-contract.md)
+adds complete source occurrences for private intended/accepted descriptions.
+The [portable section](docs/impl-proposal-5/plan/phase6/08-portable-projection-contract.md)
+retains these claims in Changes separately from note/action identity, with exact
+accepted-history dependencies. The [complete query](docs/impl-proposal-5/plan/phase6/10-complete-binding-query-contract.md)
+reads checked source history; the [local producer](docs/impl-proposal-5/plan/phase6/11-projection-producer-contract.md)
+freezes an owned output into an exact-byte retry handle and accepts it through the
+durable receive queue. Its receipt records portable history, while rooted receipt
+issuance records actual file completion. Its captured Changes-frontier dependencies
+retain earlier descriptions independently of the binding's note revisions;
+atomic acceptance clears only those checked parents. `ProjectionLeafNameV1`
+validates direct-child structure and reserved names, retaining exact byte equality
+separately from case/normalization collision aliases. Filesystem applicability
+remains a fresh rooted check.
+`ProjectionFilenameV1` selects a leaf from captured extension settings, current
+and other-note names, and directory occupancy using NV's title/suffix policy;
+its [contract](docs/impl-proposal-5/plan/phase6/04-filename-preparation-contract.md)
+keeps name preparation separate from current physical permission.
 
 **Projection stamp**:
 Advisory metadata carried with a separate note file that identifies its claimed NV source revision and exact projected bytes.
+The bounded Swift `ProjectionStampV1` [record contract](docs/impl-proposal-5/plan/phase6/01-projection-record-contract.md)
+also represents complete equal/merged source sets and automatic-preservation provenance.
+Its `ProjectionBytesDigestV1` hashes exact encoded file bytes, while `NoteValueDigest`
+identifies the semantic stored note value. History and current-file validation
+establish whether a parsed stamp applies.
+`CheckedProjectionHistory` is the Runtime's
+[standalone source evidence](docs/impl-proposal-5/plan/phase6/07-inbound-history-contract.md):
+exact accepted occurrences and reconstructed contents, bound to one current-view
+capture. Its consumer rechecks that capture. File bytes, duplicate claimants and
+physical association require their own checks.
+`CheckedProjectionBindingHistory` supplies the same fenced contents for a
+[complete descriptor](docs/impl-proposal-5/plan/phase6/10-complete-binding-query-contract.md),
+including a represented set too large for the optional stamp. Reading a binding
+from an accepted Changes object and validating its source remain distinct from
+verifying a current physical file.
 
 **Projection receipt**:
 Private evidence of a particular locally verified note-file installation or association. Unlike a projection descriptor or stamp, it records a local observation and needs fresh validation before another physical operation.
+`AcceptedProjectionV1` serializes that earlier description; it is a passive record.
+`PreparedProjectionIntent` instead carries Runtime-issued history/current-view
+evidence for recording an intended output. Neither type is a live rooted receipt.
+Its [exact encoded output](docs/impl-proposal-5/plan/phase6/09-exact-output-contract.md)
+uses retained UTF-8 history or private captured-byte chunks. The resolved encoding
+and actual bytes stay together; another platform's encoder cannot regenerate
+an earlier physical-byte observation merely from an encoding identifier.
 _Avoid_: Portable deletion permission, upload receipt
 
 **File observation**:
 An exact locally rooted snapshot whose applicability depends on fresh identity/revision checks.
+`ProjectionFileSnapshot` is the [P6.2 rooted reader's](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md)
+immutable result: exact body, raw attribute presence, permissions and integer
+filesystem times, checked through the same held descriptor and final name.
+Its file-private issuer and contextual consumer checks bind it to that read.
+Subsequent physical effects require their own operation-specific authority and
+fresh verification.
+File dates describe the filesystem's qualified representation of the requested
+logical dates: HFS+/HFSX retains whole seconds and APFS retains nanoseconds.
+Exact stage/install checks use that representation; retained note history keeps
+the original dates. Coarse timestamps are not a substitute for body/metadata
+verification.
 
 **Filesystem identity evidence**:
 Optional locally scoped association evidence, not a note birth or a guaranteed provider-stable identifier.
+
+**Original local Delete permission**:
+Live, operation-specific evidence joining a checked pre-Delete accepted source,
+the root's coherent observation of that exact physical file, and the committing
+owner's receipt for the same captured command. Its [P6.2 issuer and consumers](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#original-local-delete-permission--internal-implementation)
+check the original session, connection and association. Persisted history and
+recovery locations retain contents but cannot reconstruct this permission after
+restart. The remaining durable source reservation and physical-move consumers
+are separate integration gates.
 
 **Accepted-file scan hint**:
 Rebuildable private correspondence between a protocol path, a previously checked file fingerprint and an exact accepted immutable-object ID. Fresh rooted observation plus accepted membership permits skipping an unchanged body read, including across ordinary reopen. Session permissions separately govern the consumer; the hint grants no physical or completeness authority. See [discovery](docs/impl-proposal-5/Protocol.md#immutable-provider-publication-and-reception).
@@ -496,13 +558,98 @@ The accepted projection is the last locally verified output/association receipt,
 **Plausible repair candidate**:
 One live note needing relationship repair that independently matches the external file's active path or exact nonempty active projection bytes. This justifies an association question, not automatic identity assignment. Evidence is never pooled between notes.
 
+**Frozen projection transition**:
+The exact intended output and captured accepted source retained for one unfinished
+per-note file transition. Newer intentions have their own slot. This private owner
+preserves required bytes through restart until checked settlement transfers their
+ownership. It is distinct from a pending external preview and from fresh physical
+permission. See the [ownership contract](docs/impl-proposal-5/plan/phase6/13-frozen-output-contract.md).
+
+A rename/update accounts for the captured original, reserved backup and new
+output independently. With a case-only rename, the old spelling may also reach
+the newly installed output on a case-insensitive filesystem. Source accounting
+therefore checks physical observations and captured identities, rather than
+equating an old spelling's presence with survival of the old file. The
+[rooted relocation contract](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#native-renameupdate-candidate)
+maps this to separate native source and installation results.
+
+**Replacement/relocation attempt record**:
+A private record of the frozen source/output, association and random backup
+candidate selected before a same-name replacement or different-name rename/update. It lets recovery find
+possibly displaced contents; fresh rooted checks establish what actually exists
+and whether any later action is permitted. The
+[P6.2 mapping](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#durable-replacement-candidate-reservation)
+uses one existing per-birth slot for either operation. The source/output names
+determine the operation; distinct live input/reservation/recovery types enforce
+each consumer's role. The passive record remains distinct from an installation
+receipt or completed settlement.
+
+**Physical observation / metadata commitment**:
+The rooted adapter's compact local description of a coherent file: nine physical
+words plus a domain-separated SHA-256 commitment to its permissions, creation
+time and raw encoding/tag/Finder/stamp attributes. Equality checks the captured
+state even when coarse timestamps conceal a metadata change. Live root/session
+and original-operation lifetime checks establish applicability. The complete raw
+observation remains available for recovery; see the [P6.2 layout](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md).
+
+**Live source descriptor lease (P6.2)**:
+The descriptor transferred by an original local Delete or rename/update capture's coherent read.
+One file-private resource owner shares it across immutable command/retry inputs
+until their last release closes it. It pins the captured inode through quarantine;
+the consumer still checks current bytes, metadata, root and operation ownership.
+Root closure invalidates effect permission, and process restart retains only the
+corresponding passive attempt record. See the [live capture contract](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#original-local-delete-permission--internal-implementation)
+and [relocation mapping](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#native-renameupdate-candidate).
+
+**Source-attempt record**:
+A required-private recovery record committed before original-Delete protected capture.
+It binds one random protected-directory key to the accepted source, Delete action,
+root/association and complete original observation. Recovery issues fresh
+read-only inspection inputs from this record; the live removal permission
+expires with its original session. See the [P6.2 mapping](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#durable-original-source-reservation-and-inspection).
+
+**Source quarantine (P6.2)**:
+An exclusive move of a captured source to a reserved recovery filename, followed
+by inspection of the actual moved file. A mismatching item is restored only to
+an available source name; otherwise it stays retained for reconciliation. Its
+physical result is separate from the original local Delete or move permission,
+durable source accounting and eventual cleanup. See the
+[candidate contract](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#native-source-quarantine--candidate-under-qualification).
+This native preservation/public-relocation capability is separate from the
+original-Delete Runtime path, which captures directly into protected storage.
+
+**Owned source-artifact cleanup (P6.2)**:
+The removal of an original live Delete's exact source while preserving a raced
+replacement. One deletion accessor captures the public source directly into a
+protected persistent directory derived from the attempt, compares its actual
+contents and removes only the matching private child. Its receipt carries the
+physical result and independent current observations; the required attempt and
+private byte owners remain for later settlement. Restart supplies fresh
+inspection. Genuine public renames retain move notifications, while temporary
+preservation names stay implementation details so external editors keep their
+correct save destination. The [Runtime consumer](docs/impl-proposal-5/plan/phase6/15-rooted-mutable-files-contract.md#active-presenter-correction-and-direct-removal-adapter)
+uses one removal result instead of an intermediate capture plus cleanup. Its
+receipt binds the original descriptor-lease identity. An attempt that created
+an owned directory retains its record even when failure leaves it empty.
+Ownership/privacy/crash qualification and later source accounting remain distinct.
+
 **Pending-file item / latest pending snapshot**:
+
 A private, nonblocking decision/recovery item and its latest successfully read and validated local file snapshot. New snapshots durably replace old preview inputs; disappearance/read failure does not erase the last readable input. It is not an archive of every external save, an Apple conflict, or committed note history.
 
 **Operation reservation / frozen pending input**:
 Private retry identity allocated before admission, and the exact snapshot an admitted operation must continue to use. A reservation is not consent or a committed command. Frozen inputs are independent of later preview updates; recover against actual durable operations before importing again.
 
 A content-neutral association references existing represented history rather than inventing a note operation. A settled observation records that its Import/repair was handled; later editing/deleting the imported birth does not undo that fact. The [commit/recovery records](docs/impl-proposal-5/Protocol.md#pending-file-commit-and-recovery-records) define storage ownership and release, including old/new reference generations during an uncertain replacement.
+
+**Consumed-input settlement / completed projection settlement**:
+Two private record outcomes. The first retains an admitted input's exact decision
+and host observation after releasing its preview. The second also records the
+accepted output, relationship generation and completed source accounting. Only
+fresh rooted checks permit publishing a completed projection. Both decoded
+records remain passive historical evidence; their subsequent-input link records
+work outstanding at completion, while current pending owners retain actual bytes.
+See the [record mapping](docs/impl-proposal-5/plan/phase6/14-settlement-record-contract.md).
 
 These definitions implement [IMPORT-01](docs/iCloud-Drive-Support-Spec.md#separate-plaintext-files). The [decision, active-state and retention rules](docs/impl-proposal-5/Protocol.md#current-file-decision-matrix) define their precedence, local storage and scope. [ExternalImportPolicyLab](docs/tla/ExternalImportPolicyLab.tla) compares observable signals; [ExternalImportAdmissionLab](docs/tla/ExternalImportAdmissionLab.tla) checks late-history admission; [Verification](docs/impl-proposal-5/Verification.md#external-file-admission-and-pending-recovery--adopted-policy) distinguishes lifecycle checks from production integration.
 

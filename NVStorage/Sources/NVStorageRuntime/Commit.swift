@@ -155,11 +155,18 @@ public struct AcceptedHistoryReceipt: Sendable {
     public let object: SegmentLocator
     public let covered: [CapturedNoteGeneration]
     fileprivate let session: UUID
+    fileprivate let command: UUID
     fileprivate init(session: UUID, store: LocalStoreID, sequence: Int64, object: SegmentLocator,
-                     covered: [CapturedNoteGeneration]) {
-        self.session = session; self.store = store; self.sequence = sequence; self.object = object; self.covered = covered
+                     capture: CapturedActionGroup) {
+        self.session = session; self.store = store; self.sequence = sequence; self.object = object
+        command = capture.id; covered = capture.covered
     }
     func belongs(to snapshot: StoreSnapshot) -> Bool { store == snapshot.store && session == snapshot.session }
+
+    /// Matches the local command whose exact acceptance issued this receipt.
+    func belongs(to capture: CapturedActionGroup) -> Bool {
+        store == capture.store && session == capture.session && command == capture.id && covered == capture.covered
+    }
 }
 
 public enum CommitOutcome: Sendable {
@@ -197,7 +204,7 @@ enum LocalCommitState: Sendable {
     var isRunning: Bool { if case .running = self { true } else { false } }
 }
 private enum SealPreparation: Sendable {
-    case sealed(SealedCommit)
+    case sealed(SealedCommit, (@Sendable () async -> Void)?)
     case committed(Int64, SegmentLocator)
 }
 
@@ -253,21 +260,23 @@ extension LocalStoreSession {
                             writer: writer, sequence: sequence, origin: origin, previous: previous, protection: protection)
                     } catch let cause as CanonicalEncodingError { throw RejectedCaptureEncoding(cause: cause) }
                     db.countWork { $0.envelopeDecodes += 1 }
-                    return .sealed(sealed)
+                    return .sealed(sealed, db.work?.localCommitSealed)
                 }
                 switch preparation {
-                case .sealed(let sealed): commitState = .running(.sealed(capture, sealed))
+                case .sealed(let sealed, let didSeal):
+                    commitState = .running(.sealed(capture, sealed))
+                    await didSeal?()
                 case .committed(let seq, let locator):
                     commitState = .idle
                     return .accepted(AcceptedHistoryReceipt(session: incarnation, store: selection.store,
-                        sequence: seq, object: locator, covered: capture.covered))
+                        sequence: seq, object: locator, capture: capture))
                 }
             }
             guard let sealed = commitState.owned?.sealed else { throw StorageError.integrity }
             let accepted = try await lane.acceptScheduled(sealed.bytes, locator: sealed.locator,
                 selection: selection, protection: protection)
             let receipt = AcceptedHistoryReceipt(session: incarnation, store: selection.store, sequence: accepted,
-                object: sealed.locator, covered: capture.covered)
+                object: sealed.locator, capture: capture)
             previousOrigin = StoredActionReferenceV1(locator: sealed.locator, index: ActionIndex(0), id: capture.action)
             // A materialization failure leaves the independently committed receipt valid.
             try? await lane.catchUp(selection: selection, protection: protection)

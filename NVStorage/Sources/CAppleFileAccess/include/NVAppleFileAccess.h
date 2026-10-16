@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <CoreFoundation/CoreFoundation.h>
 #include "NVRepositoryRoot.h"
+#include "NVAppleProjectionReplacement.h"
 
 NS_ASSUME_NONNULL_BEGIN
 /* Creates a system reference positively bound to the held directory, using the selected path as a candidate. */

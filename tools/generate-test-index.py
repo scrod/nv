@@ -40,6 +40,20 @@ GOVERNING = [
     (r"ReceivedSnapshot|received-snapshot|ReceiveSnapshotAssembly", ["phase4-received-snapshot-plan.md", "phase4-received-snapshot-validation.md"]),
     (r"Retention|retention", ["phase-4-improvements/snapshot-retention-coverage.md", "phase-4-improvements/snapshot-retention-coverage-validation.md"]),
     (r"Private|private-|Pending|Backup|Repair|Copy|Selection|disposal", ["private-record-contract.md", "phase4-private-state-repair-copy-plan.md", "phase4-private-state-repair-copy-validation.md"]),
+    (r"PrivateStateTests|pending(?:Import|Failure|Competing|Changed)|ProjectionStamp|ProjectionDescriptor|ProjectionObservation|ProjectionFilename|ProjectionTextEncoding|projection-(?:stamp|descriptor|observation|filename|encoding)|p61-|ProjectionTransition|ProjectionRecoveryBridge|ExternalFileLifecycle|ExternalAssociation|ExternalRecoveryBridge|PendingReference|SeparateFileDeletion|CurrentVisibleReconciliation|P6-C", ["phase6-plaintext-reconciliation-plan.md", "swift-storage-conformance-testing-strategy.md"]),
+    (r"ProjectionStamp|projection-stamp|p61-stamp", ["phase6/01-projection-record-contract.md", "phase6/01-projection-record-validation.md"]),
+    (r"ProjectionDescriptor|projection-descriptor|p61-descriptor", ["phase6/02-projection-descriptor-contract.md", "phase6/02-projection-descriptor-validation.md"]),
+    (r"ProjectionObservation|projection-observation|p61-(?:intent|observation|repair)|projection-(?:before|after|enospc|eio)", ["phase6/03-history-observation-contract.md", "phase6/03-history-observation-validation.md"]),
+    (r"ProjectionFilename|projectionFilename|projectionIntentRetainsSelectedFilename|projection-filename|p61-filename", ["phase6/04-filename-preparation-contract.md", "phase6/04-filename-preparation-validation.md"]),
+    (r"ProjectionTextEncoding|projection-encoding", ["phase6/05-text-encoding-investigation.md"]),
+    (r"ProjectionHistory|projectionHistory|standaloneDerived|p61-inbound", ["phase6/07-inbound-history-contract.md", "phase6/07-inbound-history-validation.md"]),
+    (r"ProjectionTransport|ProjectionSourceValidation|projectionTransport|projection-transport|p61-transport", ["phase6/08-portable-projection-contract.md", "phase6/08-portable-projection-validation.md"]),
+    (r"ProjectionTextOutput|projectionText|projectionEncoded|projection-output|p61-output", ["phase6/09-exact-output-contract.md", "phase6/09-exact-output-validation.md"]),
+    (r"projectionCompleteBinding|projectionDescriptions|projectionOutput|test-projection-output-process|p61-binding", ["phase6/10-complete-binding-query-contract.md", "phase6/10-complete-binding-query-validation.md"]),
+    (r"ProjectionProducer|projectionProducer|projection-producer|p61-producer|p61-coverage", ["phase6/11-projection-producer-contract.md", "phase6/11-projection-producer-validation.md", "phase6/12-projection-retention-validation.md"]),
+    (r"projectionFrozen|projectionFreeze|projectionByteRelease|projection-output-process|p61-frozen", ["phase6/13-frozen-output-contract.md", "phase6/13-frozen-output-validation.md"]),
+    (r"SettlementRecord|PendingSettlement|pendingSettlement|projectionSettlement|p61-settlement|private-record-fixtures|private-process", ["phase6/14-settlement-record-contract.md", "phase6/14-settlement-record-validation.md"]),
+    (r"ProjectionFileRead|ProjectionFileCreation|ProjectionFiles(?:Read|Create|Replace|Relocate|Source|Cleanup|Presenter|SyncFault)|ProjectionNativeFixtures|ProjectionReplacement|ProjectionRelocation|ProjectionDeletion|ProjectionSource|ProjectionReferenceRace|projectionFileRead|projectionCreation|projectionRelocation|projectionInstallationChecks|projectionDeletion|projectionSource|projection-files-c|projection-(?:read|create)-process|projection-relocation-volumes|p62-(?:read|create|replace|relocate|recovery|source|delete|cleanup|output)", ["phase6/15-rooted-mutable-files-contract.md", "phase6/15-rooted-mutable-files-validation.md"]),
     (r"CurrentRow|CurrentStartup|CurrentMaintenance|current-row|current-maintenance|Maintenance|maintenance|Zstd|zstd|current-fixtures", ["private-current-row-codec.md", "phase4-current-row-locality-maintenance-plan.md", "phase4-current-row-locality-maintenance-validation.md", "zstd-codec-validation.md"]),
     (r"HistoryReader|HistoryTraversal|Traversal|RecoveryWork|traversal|CoalescedRecovery", ["phase-4-improvements/at-most-once-envelope-decoding.md", "phase-4-improvements/recovery-graph-reuse.md", "phase-4-improvements/validation.md"]),
     (r"Verification|verification", ["phase-4-improvements/durable-verification-recovery.md"]),
@@ -100,6 +114,8 @@ def phase(path: str, name: str = "") -> str:
         return "retired proposal 4" if "impl-proposal-4/" in path else "retired exploration"
     if "docs/tla/" in path:
         return "formal / cross-phase"
+    if re.search(r"ProjectionStamp|ProjectionDescriptor|ProjectionObservation|ProjectionFilename|ProjectionFileRead|ProjectionFileCreation|ProjectionFiles(?:Read|Create|Replace|Relocate|Source|Cleanup|Presenter|SyncFault)|ProjectionNativeFixtures|ProjectionReplacement|ProjectionRelocation|ProjectionDeletion|ProjectionSource|ProjectionReferenceRace|ProjectionTextEncoding|ProjectionHistory|projectionFileRead|projectionCreation|projectionRelocation|projectionInstallationChecks|projectionDeletion|projectionSource|projectionHistory|standaloneDerived|projection[- ]|p61-|p62-(?:read|create|replace|relocate|recovery|source|delete|cleanup|output)", text):
+        return "6 (canonical records also qualify 1)"
     if "NVStorageCoreTests" in path:
         if re.search(r"Snapshot|PrivateRecord|Verification|CurrentCell", text):
             return "4 (canonical records also qualify 1)"
@@ -376,6 +392,8 @@ def run_command(path: str, tree: ast.Module | None = None) -> str:
         return f"{'zsh' if 'zsh' in first else 'bash'} {path}"
     if path.endswith(".py"):
         cmd = f"python3 {path}"
+        if path.endswith("check-projection-encoding-observations.py"):
+            cmd += " <host-observations.json>"
         if tree is not None:
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "add_argument":
@@ -898,6 +916,23 @@ def main():
     assert phase("tools/test-storage-apple-repair.py") == "5"
     assert phase("NVStorage/Tests/NVStorageRuntimeTests/CollectionCopySwitchTests.swift") == "5"
     assert phase("tools/test-storage-private-process.py") == "4"
+    assert phase("NVStorage/Tests/NVStorageCoreTests/ProjectionStampTests.swift", "projectionStampRetainsDerivedReconstruction") == "6 (canonical records also qualify 1)"
+    assert phase("tools/test-storage-runtime-mutations.py", "p61-stamp-overflow") == "6 (canonical records also qualify 1)"
+    assert phase("NVStorage/Tests/NVStorageCoreTests/ProjectionDescriptorTests.swift", "projectionLeafRejectsUnsafeNames") == "6 (canonical records also qualify 1)"
+    assert phase("NVStorage/Tests/NVStorageCoreTests/ProjectionFilenameTests.swift") == "6 (canonical records also qualify 1)"
+    assert phase("tests/ProjectionTextEncodingProbe.swift") == "6 (canonical records also qualify 1)"
+    assert phase("tests/ProjectionFilesCreateProbe.c") == "6 (canonical records also qualify 1)"
+    assert phase("tests/ProjectionFilesCreateProcessProbe.c") == "6 (canonical records also qualify 1)"
+    assert phase("tests/ProjectionFilesReplaceProbe.m") == "6 (canonical records also qualify 1)"
+    assert phase("tests/ProjectionFilesPresenterProbe.m") == "6 (canonical records also qualify 1)"
+    assert phase("tests/ProjectionFilesCleanupProbe.c") == "6 (canonical records also qualify 1)"
+    assert phase("tests/ProjectionFilesRelocateProbe.m") == "6 (canonical records also qualify 1)"
+    assert phase("NVStorage/Tests/Support/NVStorageTestSupport/Resources/ProjectionFilesSyncFault.c") == "6 (canonical records also qualify 1)"
+    assert phase("NVStorage/Tests/Support/NVStorageTestSupport/ProjectionNativeFixtures.swift") == "6 (canonical records also qualify 1)"
+    assert phase("tools/test-storage-runtime-mutations.py", "p62-cleanup-final-owner") == "6 (canonical records also qualify 1)"
+    assert phase("NVStorage/Tests/NVStorageRuntimeTests/ProjectionFileCreationTests.swift") == "6 (canonical records also qualify 1)"
+    assert phase("tools/test-projection-create-process.py") == "6 (canonical records also qualify 1)"
+    assert run_command("tools/check-projection-encoding-observations.py") == "python3 tools/check-projection-encoding-observations.py <host-observations.json>"
     r = DataReader(ast.parse('''def main():
     cases = [("restricted", "source", "private"), ("companion", "source", None)]
     count = 0

@@ -2,7 +2,7 @@ import Foundation
 import NVStorageCore
 import Testing
 
-private struct DerivedFixture {
+struct DerivedFixture {
     let graph = MergeGraphFixture()
     let base: IdentifiedOperation
     let left: IdentifiedOperation
@@ -177,6 +177,37 @@ func derivedStateMalformedEncodingAndLocalRebinding(_ equal: Bool) async throws 
     let bytes = try claim.encodedV1(dependencies: deps, earlierOperations: [])
     #expect(bytes != f.literals["merged"])
     #expect(try DerivedStateReferenceV1.decodeV1(bytes, dependencies: deps, earlierOperations: []).state == claim.state)
+}
+
+@Test(arguments: [false, true])
+func standaloneDerivedSourceUsesExactOccurrencesAndAncestry(_ equal: Bool) throws {
+    let f = try DerivedFixture(equal: equal), claim = try f.claim(equal: equal)
+    let resolved = Dictionary(uniqueKeysWithValues: f.history.enumerated().map {
+        (StoredOperationReferenceV1(locator: f.source, index: OperationIndex(UInt32($0.offset)), id: $0.element.id), $0.element)
+    })
+    func check(_ value: DerivedStateReferenceV1, history: [IdentifiedOperation]? = nil,
+               missing: Bool = false, wrong: Bool = false) throws -> ReconstructedDerivedStateV1 {
+        try value.reconstructStandalone(collection: f.graph.collection, birth: f.graph.birth, history: history ?? f.history) {
+            missing ? nil : wrong ? f.base : resolved[$0]
+        }
+    }
+    let checked = try check(claim)
+    #expect(checked.value.value.body.string == (equal ? "A\ngap\nz" : "A\ngap\nZ"))
+    #expect(Set(checked.value.represented) == [f.left.id, f.right.id])
+    #expect(throws: CanonicalEncodingError.missingDependency) { try check(claim, missing: true) }
+    #expect(throws: CanonicalEncodingError.identityMismatch) { try check(claim, wrong: true) }
+    #expect(throws: CanonicalEncodingError.missingDependency) { try check(claim, history: [f.left, f.base]) }
+    let misaddressed = try DerivedStateReferenceV1(kind: claim.kind,
+        inputs: [.external(locator: f.source, index: OperationIndex(0), expectedID: f.left.id), f.ref(2)],
+        result: claim.result, earlierOperations: [])
+    #expect(throws: CanonicalEncodingError.missingDependency) { try check(misaddressed) }
+    let wrongResult = try DerivedStateReferenceV1(kind: claim.kind, inputs: claim.inputReferences,
+        result: NoteValueDigest(bytes: Array(repeating: 90, count: 32)), earlierOperations: [])
+    #expect(throws: CanonicalEncodingError.identityMismatch) { try check(wrongResult) }
+    let local = try DerivedStateReferenceV1(kind: .equal,
+        inputs: [.earlierLocal(index: OperationIndex(1)), .earlierLocal(index: OperationIndex(2))],
+        result: claim.result, earlierOperations: f.history)
+    #expect(throws: CanonicalEncodingError.invalidReference) { try check(local) }
 }
 
 @Test func derivedStateChecksUniqueBaseAndClaimKind() async throws {

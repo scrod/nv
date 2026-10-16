@@ -114,6 +114,99 @@ extension Probe {
                 observation: PassivePlatformRecordV1(codec: 1, bytes: [42]), source: Array(body.utf8), value: value(body))
         }
         switch command {
+        case "private-projection-create":
+            guard args.count == 5 else { throw StorageError.unsupported }
+            let root = try await RepositoryRootSession.open(directory: args[3])
+            let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
+            if args[4] == "prepare" {
+                let association = try await root.association(for: selection,
+                    id: .init(bytes: Array(repeating: 13, count: 16)))
+                try await session.saveLocalAssociation(association, basedOn: session.localAssociation())
+                let intent = try await session.prepareProjectionIntent(for: birth,
+                    filename: .init(ExactUTF8(bytes: Array("Note.txt".utf8))), basedOn: session.snapshot(),
+                    observations: session.projectionObservations(for: birth), requestedEncoding: .init(rawValue: 10))
+                try await session.retainProjectionIntent(intent)
+                _ = try await session.freezeProjectionIntent(observations: session.projectionObservations(for: birth))
+                try output(["prepared": true])
+            } else {
+                let input = try await session.prepareProjectionCreation(observations: session.projectionObservations(for: birth), basedOn: session.snapshot())
+                let result = try await root.createProjection(input, from: session, using: root.permission())
+                switch result {
+                case .verified(let receipt):
+                    if args[4] == "exit-after-install" { _exit(86) }
+                    try await root.validate(receipt, for: input, from: session, using: root.permission())
+                    if args[4] == "install-dates" {
+                        try output(["state": "verified", "bytes": hex(receipt.file.bytes),
+                            "createdSeconds": receipt.file.created?.seconds as Any,
+                            "createdNanoseconds": receipt.file.created?.nanoseconds as Any,
+                            "modifiedSeconds": receipt.file.modified.seconds,
+                            "modifiedNanoseconds": receipt.file.modified.nanoseconds])
+                    } else {
+                        try output(["state": "verified", "bytes": hex(receipt.file.bytes)])
+                    }
+                case .notInstalled(let failure): try output(["state": "notInstalled", "reason": String(describing: failure.reason)])
+                case .uncertain(let failure): try output(["state": "uncertain", "reason": String(describing: failure.reason)])
+                }
+            }
+            await root.close()
+        case "private-projection-write", "private-projection-encoded-write", "private-projection-macroman-write":
+            guard args.count == 4 || args.count == 7 else { throw StorageError.unsupported }
+            let prior = try await session.localAssociation()
+            if prior.value == nil {
+                let association = try LocalAssociationV1(id: LocalAssociationID(bytes: Array(repeating: 13, count: 16)),
+                    scope: .init(collection: selection.descriptor.collection, store: selection.store, descriptor: selection.descriptor.descriptorID),
+                    bookmark: .init(codec: 1, bytes: []))
+                try await session.saveLocalAssociation(association, basedOn: prior)
+            }
+            let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
+            let prepared = try await session.prepareProjectionIntent(for: birth, filename: .init(ExactUTF8(bytes: Array(args[3].utf8))),
+                basedOn: session.snapshot(), observations: session.projectionObservations(for: birth),
+                requestedEncoding: .init(rawValue: command == "private-projection-encoded-write" ? 10 : command == "private-projection-macroman-write" ? 30 : 4))
+            if args.count == 7 { armProbeFault(args, at: 4) }
+            do {
+                try await session.retainProjectionIntent(prepared)
+                try output(["retained": true, "hits": nv_faults_hits()])
+            } catch { try output(["retained": false, "hits": nv_faults_hits(), "error": String(describing: error)]) }
+        case "private-projection-freeze":
+            guard args.count == 3 || args.count == 6 else { throw StorageError.unsupported }
+            let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
+            let prior = try await session.projectionObservations(for: birth)
+            if args.count == 6 { armProbeFault(args, at: 3) }
+            do {
+                let frozen = try await session.freezeProjectionIntent(observations: prior)
+                try output(["retained": true, "generation": frozen.generation, "hits": nv_faults_hits()])
+            } catch { try output(["retained": false, "hits": nv_faults_hits(), "error": String(describing: error)]) }
+        case "private-projection-description":
+            guard args.count == 3 || args.count == 6 else { throw StorageError.unsupported }
+            let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
+            let observed = try await session.projectionObservations(for: birth)
+            guard let intent = observed.value?.intended else { throw StorageError.incomplete }
+            let handle = try await session.prepareProjectionDescription(for: intent.output, observations: observed, basedOn: session.snapshot())
+            if args.count == 6 { nv_faults_arm_on_history_acceptance(Int32(args[3])!, Int32(args[4])!, Int32(args[5])!) }
+            switch try await session.persistProjectionDescription(handle) {
+            case .accepted(let receipt):
+                try output(["accepted": true, "object": hex(receipt.object.segmentID.bytes), "sequence": receipt.sequence, "hits": nv_faults_hits()])
+            case .pending(let retry, let cause):
+                try output(["accepted": false, "object": hex(retry.object.segmentID.bytes), "error": String(describing: cause), "hits": nv_faults_hits()])
+            }
+        case "private-projection-read":
+            let inspector = try Inspector(selection, protection: protection)
+            try output(["rows": inspector.rows("SELECT generation,codec,hex(payload) FROM private_groups WHERE group_key>=X'70726F6A656374696F6E2F' AND group_key<X'70726F6A656374696F6E30' ORDER BY group_key"),
+                        "notes": try await session.snapshot().notes.map { $0.value.body.string }.sorted()])
+        case "private-projection-encoded-read":
+            let birth = try NoteBirth(bytes: Array(repeating: 1, count: 16))
+            let state = try await session.projectionObservations(for: birth)
+            guard let retained = state.value?.intended?.output else { throw StorageError.incomplete }
+            let bytes = try await session.projectionBytes(for: retained, observations: state, basedOn: session.snapshot())
+            let frozenBytes: [UInt8]? = if let frozen = state.value?.frozen {
+                try await session.projectionBytes(for: frozen.output, observations: state, basedOn: session.snapshot())
+            } else { nil }
+            let inspector = try Inspector(selection, protection: protection)
+            try output(["bytes": hex(bytes), "generation": retained.generation,
+                        "frozen": frozenBytes.map(hex) as Any? ?? NSNull(), "privateGeneration": state.generation,
+                        "filename": retained.binding.descriptor.filename.spelling.string,
+                        "private": inspector.rows("SELECT hex(group_key),generation,codec,hex(payload) FROM private_groups WHERE group_key>=X'70726F6A656374696F6E' AND group_key<X'70726F6A656374696F6F' ORDER BY group_key"),
+                        "notes": try await session.snapshot().notes.map { $0.value.body.string }.sorted()])
         case "private-bind-repository":
             guard args.count == 5 else { throw StorageError.unsupported }
             let root = try await RepositoryRootSession.open(directory: args[3])
@@ -245,6 +338,8 @@ extension Probe {
             let inspector = try Inspector(selection, protection: protection)
             try output(["latest": body, "reservations": rows, "settings": hex(try await session.collectionSettings().value.encodedV1()),
                 "settlements": inspector.rows("SELECT hex(snapshot_id),hex(birth),hex(operation_id) FROM pending_settlements ORDER BY item_id,snapshot_id"),
+                "settlementRecords": inspector.rows("SELECT hex(item_id),hex(snapshot_id),hex(reservation_id),hex(operation_id),hex(birth),hex(decision_digest),observation_codec,hex(observation) FROM pending_settlements ORDER BY item_id,snapshot_id"),
+                "latestSnapshot": latest.map { hex($0.bytes) } ?? "",
                 "payloads": inspector.rows("SELECT hex(snapshot_id),hex(encoded) FROM pending_payloads ORDER BY snapshot_id"),
                 "notes": try await session.snapshot().notes.map { ["birth": hex($0.birth.bytes), "body": $0.value.body.string] }])
         default: throw StorageError.unsupported

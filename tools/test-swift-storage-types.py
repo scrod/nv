@@ -50,6 +50,28 @@ func currentClient(_ cell: CurrentNoteCellV1, _ provenance: CurrentNoteProvenanc
     try CurrentNoteCellV1(birth: cell.birth, value: cell.value, represented: cell.represented,
         heads: cell.heads, provenance: provenance, scopeFrontier: cell.scopeFrontier, identity: cell.identity)
 }
+func projectionClient(_ stamp: ProjectionStampV1, _ bytes: [UInt8]) throws {
+    let _: ProjectionBytesDigestV1 = .compute(bytes)
+    let parsed = try ProjectionStampV1.decodeV1(stamp.encodedV1(), profile: .plaintextFiles)
+    let _: ProjectionStampPreparationV1 = try ProjectionStampV1.prepare(profile: .plaintextFiles,
+        collection: parsed.collection, birth: parsed.birth, format: parsed.format,
+        digest: parsed.digest, state: parsed.state)
+}
+func projectionDescriptorClient(_ name: ExactUTF8, _ bytes: [UInt8]) throws {
+    let leaf = try ProjectionLeafNameV1(name)
+    let descriptor = try ProjectionDescriptorV1(profile: .plaintextFiles, filename: leaf,
+        format: .plaintext, digest: .compute(bytes))
+    let _ = try ProjectionDescriptorV1.decodeV1(descriptor.encodedV1(), profile: .plaintextFiles)
+}
+func projectionFilenameClient(_ title: ExactUTF8, _ extensions: FileExtensionGroupV1) throws {
+    let names = try ProjectionFilenameV1(extensions: extensions, current: nil, otherNotes: [], occupied: [])
+    let _: ProjectionLeafNameV1 = try names.filename(for: title)
+}
+func projectionTextClient(_ body: ExactUTF8) throws {
+    let text = PreparedProjectionTextV1.prepare(body, requested: try .init(rawValue: 10))
+    let _: [UInt8] = text.bytes
+    let _: ProjectionEncodingV1 = text.encoding
+}
 func derivedClient(_ bytes: [UInt8], _ table: DependencyLocatorTable, _ history: [IdentifiedOperation],
                    _ collection: CollectionID, _ birth: NoteBirth, _ enclosing: SegmentLocator,
                    _ resolve: (SegmentLocator) async throws -> ChangesPayloadV1?) async throws {
@@ -118,6 +140,67 @@ func wrong() { take(InitialBootstrapValidationV1.self) } // expected-error
 """, "requires that 'InitialBootstrapValidationV1' conform to 'Decodable'"),
     ]
     issuers = [
+        ("filename inventory requires selection", """
+func take(_ name: ProjectionLeafNameV1) {}
+func wrong(_ inventory: ProjectionFilenameV1) { take(inventory) } // expected-error
+""", "cannot convert value of type 'ProjectionFilenameV1' to expected argument type 'ProjectionLeafNameV1'"),
+        ("filename inputs stay encapsulated", """
+func wrong(_ inventory: ProjectionFilenameV1) {
+    let _ = inventory.current // expected-error
+}
+""", "'current' is inaccessible due to 'private' protection level"),
+        ("projection text issuer", """
+func wrong() { _ = PreparedProjectionTextV1(encoding: .utf8, bytes: []) } // expected-error
+""", "'PreparedProjectionTextV1' initializer is inaccessible due to 'private' protection level"),
+        ("projection text bytes are immutable", """
+func wrong(_ text: inout PreparedProjectionTextV1) { text.bytes = [] } // expected-error
+""", "cannot assign to property: 'bytes' is a 'let' constant"),
+        ("projection leaf requires validation", """
+func take(_ name: ProjectionLeafNameV1) {}
+func wrong(_ text: ExactUTF8) { take(text) } // expected-error
+""", "cannot convert value of type 'ExactUTF8' to expected argument type 'ProjectionLeafNameV1'"),
+        ("projection leaf spelling is immutable", """
+func wrong(_ source: ProjectionLeafNameV1, _ text: ExactUTF8) {
+    var leaf = source
+    leaf.spelling = text // expected-error
+}
+""", "cannot assign to property: 'spelling' is a 'let' constant"),
+        ("projection descriptor filename is immutable", """
+func wrong(_ source: ProjectionDescriptorV1, _ name: ProjectionLeafNameV1) {
+    var descriptor = source
+    descriptor.filename = name // expected-error
+}
+""", "cannot assign to property: 'filename' is a 'let' constant"),
+        ("projection description and provenance have separate roles", """
+func take(_ stamp: ProjectionStampV1) {}
+func wrong(_ descriptor: ProjectionDescriptorV1) { take(descriptor) } // expected-error
+""", "cannot convert value of type 'ProjectionDescriptorV1' to expected argument type 'ProjectionStampV1'"),
+        ("projection bytes digest has its own role", """
+func take(_ digest: ProjectionBytesDigestV1) {}
+func wrong(_ digest: NoteValueDigest) { take(digest) } // expected-error
+""", "cannot convert value of type 'NoteValueDigest' to expected argument type 'ProjectionBytesDigestV1'"),
+        ("projection claims require history validation", """
+func take(_ evidence: ReconstructedDerivedStateV1) {}
+func wrong(_ stamp: ProjectionStampV1) { take(stamp) } // expected-error
+""", "cannot convert value of type 'ProjectionStampV1' to expected argument type 'ReconstructedDerivedStateV1'"),
+        ("projection collection is immutable", """
+func wrong(_ source: ProjectionStampV1, _ collection: CollectionID) {
+    var stamp = source
+    stamp.collection = collection // expected-error
+}
+""", "cannot assign to property: 'collection' is a 'let' constant"),
+        ("projection source is immutable", """
+func wrong(_ source: ProjectionStampV1, _ state: ProjectionStateReferenceV1) {
+    var stamp = source
+    stamp.state = state // expected-error
+}
+""", "cannot assign to property: 'state' is a 'let' constant"),
+        ("projection digest is immutable", """
+func wrong(_ source: ProjectionBytesDigestV1, _ bytes: [UInt8]) {
+    var digest = source
+    digest.bytes = bytes // expected-error
+}
+""", "cannot assign to property: 'bytes' is a 'let' constant"),
         ("current provenance has one variant", """
 func wrong(_ derived: DerivedStateReferenceV1, _ automatic: AutomaticSourceReferenceV1) {
     let _: CurrentNoteProvenanceV1 = .derived(derived, automatic) // expected-error
@@ -174,10 +257,19 @@ func wrong(_ c: CollectionID, _ id: CollectionKeyID, _ g: SegmentLocator, _ key:
 }
 """, "extra arguments at positions #5, #6, #7 in call"),
         ("envelope issuer only", """
-func wrong(_ kind: ProviderObjectKind, _ locator: SegmentLocator, _ payload: [UInt8]) {
-    let _ = OpenedObjectV1(kind: kind, locator: locator, payload: payload) // expected-error
+func wrong(_ kind: ProviderObjectKind, _ locator: SegmentLocator, _ payload: [UInt8], _ c: CollectionID, _ p: CollectionProfileV1) {
+    let _ = OpenedObjectV1(kind: kind, locator: locator, payload: payload, collection: c, profile: p) // expected-error
 }
 """, "'OpenedObjectV1' initializer is inaccessible due to 'fileprivate' protection level"),
+        ("checked envelope profile is immutable", """
+func wrong(_ opened: inout OpenedObjectV1) {
+    opened.profile = .plaintextFiles // expected-error
+}
+""", "cannot assign to property: 'profile' is a 'let' constant"),
+        ("projection binding cannot stand in for checked envelope", """
+func take(_ opened: OpenedObjectV1) {}
+func wrong(_ binding: ProjectionBindingV1) { take(binding) } // expected-error
+""", "cannot convert value of type 'ProjectionBindingV1' to expected argument type 'OpenedObjectV1'"),
         ("bootstrap issuer only", """
 func wrong(_ c: InitialBootstrapValidationV1) {
     let _ = InitialBootstrapValidationV1(collection: c.collection, descriptor: c.descriptor, // expected-error

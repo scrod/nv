@@ -206,6 +206,13 @@ History values, deleted-note previews, action labels containing note data, merge
 
 ## External-file admission and pending decisions
 
+The [detailed Swift Phase 6 plan](plan/phase6-plaintext-reconciliation-plan.md)
+connects these requirements to real file operations and private-state consumers,
+with dependency-ordered implementation, independent crash/race observations and
+compiler-boundary checks. Its headless completion precedes the actual app/UI
+adaptations below; existing private-state tests alone do not qualify physical
+association or mutable-file replacement.
+
 Implement the [protocol's decision matrix](Protocol.md#current-file-decision-matrix), not a second UI classifier. Reuse `NotationDirectoryManager`'s detached coherent preparation and atomic publication; separate filesystem reads from live `NoteObject` mutation. Capture root/store/catalog, structural and note/relationship generations, applied history and exact file/metadata snapshot. Prepare the concrete active projection comparisons off-main. Final admission revalidates all captured inputs; stale preparation does not change into another action without re-observation or renewed consent.
 
 Implement the [commit/recovery records and failure table](Protocol.md#pending-file-commit-and-recovery-records) on these same paths. `_commitDirectoryTransaction:` is the live publication boundary, not a disk durability transaction: claim the relationship and enqueue the exact mutation together; publish a completed receipt separately only after its barriers. Reuse the expected-current Local State writer for snapshot references, reservations and atomic receipt/pending settlement. Protect both old/new recoverable metadata references on uncertain completion; do not use note-save best-effort directory sync as that barrier. No second journal or provider metadata directory is introduced.

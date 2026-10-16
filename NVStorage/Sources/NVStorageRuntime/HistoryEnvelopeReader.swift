@@ -7,11 +7,12 @@ struct CheckedEnvelopeRecords: Sendable {
     let sequence: Int64
     let operations: [IdentifiedOperation]
     let actions: [ActionV1]
+    let projections: [ProjectionBindingV1]
     let operationReferences: [OperationID: StoredOperationReferenceV1]
     let actionReferences: [ActionID: StoredActionReferenceV1]
-    private init(locator: SegmentLocator, sequence: Int64, operations: [IdentifiedOperation], actions: [ActionV1],
+    private init(locator: SegmentLocator, sequence: Int64, operations: [IdentifiedOperation], actions: [ActionV1], projections: [ProjectionBindingV1],
                  operationReferences: [OperationID: StoredOperationReferenceV1], actionReferences: [ActionID: StoredActionReferenceV1]) {
-        self.locator = locator; self.sequence = sequence; self.operations = operations; self.actions = actions
+        self.locator = locator; self.sequence = sequence; self.operations = operations; self.actions = actions; self.projections = projections
         self.operationReferences = operationReferences; self.actionReferences = actionReferences
     }
 
@@ -32,7 +33,7 @@ struct CheckedEnvelopeRecords: Sendable {
                 let (payload, decodedBytes) = try await lane.historyWork {
                     let opened = try ObjectEnvelopeV1.open(bytes, collection: selection.descriptor.collection, protection: protection, expectedLocator: locator)
                     guard opened.kind == .changes else { throw StorageError.integrity }
-                    return try (ChangesPayloadV1.decodeV1(opened.payload), opened.payload.count)
+                    return try (ChangesPayloadV1.decodeV1(opened), opened.payload.count)
                 }
                 try await lane.perform { db in db.countWork {
                     $0.historyEncodedBytes += bytes.count; $0.historyDecodedBytes += decodedBytes
@@ -90,7 +91,7 @@ struct CheckedEnvelopeRecords: Sendable {
                     }
                     for ref in operationReferences { try await check(ref, through: through, lane: lane) }
                 }
-                return Self(locator: locator, sequence: sequence, operations: payload.operations.map(\.operation), actions: payload.actions.map(\.action),
+                return Self(locator: locator, sequence: sequence, operations: payload.operations.map(\.operation), actions: payload.actions.map(\.action), projections: payload.projections,
                             operationReferences: operationRefs, actionReferences: actionRefs)
             } catch { try await lane.failRetainedRead(error) }
         }

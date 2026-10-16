@@ -4,10 +4,17 @@ public struct ChangesPayloadV1: Equatable, Sendable {
     public let dependencies: DependencyLocatorTable
     public let operations: [OperationRecordV1]
     public let actions: [ActionRecordV1]
+    public let projections: [ProjectionBindingV1]
     private static let magic = Array("NVCHG1\r\n".utf8)
+    private static let projectionMagic = Array("NVPRJ1\r\n".utf8)
 
     public init(dependencies: DependencyLocatorTable, operations: [OperationRecordV1],
                 actions: [ActionRecordV1]) throws {
+        try self.init(dependencies: dependencies, operations: operations, actions: actions, projections: [])
+    }
+
+    public init(dependencies: DependencyLocatorTable, operations: [OperationRecordV1],
+                actions: [ActionRecordV1], projections: [ProjectionBindingV1]) throws {
         var size: UInt64 = 10 + 4 + 56 * UInt64(dependencies.entries.count) + 4 + 4
         for record in operations {
             size += 4 + record.encodedByteCount
@@ -17,10 +24,21 @@ public struct ChangesPayloadV1: Equatable, Sendable {
             size += 4 + record.encodedByteCount
             guard size <= ObjectLimitsV1.decodedPayloadBytes else { throw CanonicalEncodingError.lengthLimit }
         }
+        if !projections.isEmpty { size += 12 }
+        var previous: [UInt8]?
+        for binding in projections {
+            size += 4 + binding.encodedByteCount
+            guard size <= ObjectLimitsV1.decodedPayloadBytes else { throw CanonicalEncodingError.lengthLimit }
+            let bytes = try binding.encodedV1()
+            if let previous, !previous.lexicographicallyPrecedes(bytes) { throw CanonicalEncodingError.noncanonicalSet }
+            previous = bytes
+            for locator in binding.dependencies.entries { _ = try dependencies.index(of: locator) }
+        }
         guard size <= ObjectLimitsV1.decodedPayloadBytes else { throw CanonicalEncodingError.lengthLimit }
         self.dependencies = dependencies
         self.operations = operations
         self.actions = actions
+        self.projections = projections
         try checkGroups()
     }
 
@@ -42,6 +60,13 @@ public struct ChangesPayloadV1: Equatable, Sendable {
             bytes += bigEndianBytes(UInt32(encoded.count))
             bytes += encoded
             earlierActions.append(record.action)
+        }
+        if !projections.isEmpty {
+            bytes += Self.projectionMagic + bigEndianBytes(UInt32(projections.count))
+            for binding in projections {
+                let encoded = try binding.encodedV1()
+                bytes += bigEndianBytes(UInt32(encoded.count)) + encoded
+            }
         }
         return bytes
     }
@@ -73,8 +98,25 @@ public struct ChangesPayloadV1: Equatable, Sendable {
             actions.append(record)
             earlierActions.append(record.action)
         }
+        var projections: [ProjectionBindingV1] = []
+        if cursor.remaining > 0 {
+            guard bytes.suffix(cursor.remaining).starts(with: projectionMagic) else { throw CanonicalEncodingError.trailingBytes }
+            _ = try cursor.fixedBytes(8)
+            let count = try cursor.count(minimumElementBytes: 4)
+            guard count > 0 else { throw CanonicalEncodingError.noncanonicalSet }
+            for _ in 0..<count { projections.append(try ProjectionBindingV1.decodeV1(cursor.lengthPrefixedBytes(), profile: .plaintextFiles)) }
+        }
         try cursor.requireEnd()
-        return try Self(dependencies: table, operations: records, actions: actions)
+        return try Self(dependencies: table, operations: records, actions: actions, projections: projections)
+    }
+
+    /// Binds portable descriptions to the authenticated collection and provider profile.
+    public static func decodeV1(_ opened: OpenedObjectV1) throws -> Self {
+        guard opened.kind == .changes else { throw CanonicalEncodingError.invalidReference }
+        let payload = try decodeV1(opened.payload)
+        guard payload.projections.isEmpty || opened.profile == .plaintextFiles else { throw CanonicalEncodingError.wrongScope }
+        guard payload.projections.allSatisfy({ $0.collection == opened.collection }) else { throw CanonicalEncodingError.wrongScope }
+        return payload
     }
 
     private func checkGroups() throws {
@@ -244,6 +286,7 @@ public struct ChangesPayloadV1: Equatable, Sendable {
             }
             try Self.verify(check, in: payload)
         }
+        for binding in projections { _ = try binding.validateSource(enclosing: locator, resolve: resolve) }
     }
 
     /// Suspends between dependency reads while sharing exact-reference validation.
@@ -262,6 +305,7 @@ public struct ChangesPayloadV1: Equatable, Sendable {
             }
             try Self.verify(check, in: payload)
         }
+        for binding in projections { _ = try await binding.validateSource(enclosing: locator, resolve: resolve) }
     }
 
     private enum ReferenceCheck {

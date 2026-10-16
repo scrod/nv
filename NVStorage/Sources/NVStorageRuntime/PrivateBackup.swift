@@ -167,6 +167,11 @@ extension LocalStoreSession {
             }
         }
         try await lane.perform { db in
+            try db.validateRequiredPrivateGroups(store: selection.store, descriptor: selection.descriptor)
+            for row in try db.rows("SELECT item_id,snapshot_id FROM pending_settlements ORDER BY item_id,snapshot_id") {
+                _ = try db.pendingSettlementRecord(item: PendingItemID(bytes: row[0].bytes),
+                    snapshot: PendingSnapshotID(bytes: row[1].bytes), selection: selection)
+            }
             guard try db.rows("PRAGMA foreign_key_check").isEmpty,
                   try db.rows("PRAGMA integrity_check") == [[.text("ok")]] else { throw StorageError.integrity }
         }

@@ -239,6 +239,12 @@ final class Inspector {
                 notes = try (1...32).map { index in
                     (try NoteBirth(bytes: Array(repeating: UInt8(index), count: 16)), try value(currentProbeBody(index)))
                 }
+            } else if args[2] == "public-fractional" {
+                let base = try value("A")
+                let dated = try PlaintextNoteValue(title: base.title, body: base.body, labels: base.labels,
+                    created: DisplayDate(secondsSinceReferenceDate: 0.125), modified: DisplayDate(secondsSinceReferenceDate: 1.75))
+                notes = try [(NoteBirth(bytes: Array(repeating: 1, count: 16)), dated),
+                             (NoteBirth(bytes: Array(repeating: 2, count: 16)), value("untouched"))]
             } else {
                 notes = try [(NoteBirth(bytes: Array(repeating: 1, count: 16)), value("A")),
                              (NoteBirth(bytes: Array(repeating: 2, count: 16)), value("untouched"))]

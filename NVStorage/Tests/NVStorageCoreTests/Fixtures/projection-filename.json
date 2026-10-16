@@ -1,0 +1,176 @@
+[
+  {
+    "name": "slash",
+    "title": "Folder/Title",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [],
+    "expected": "Folder:Title.txt"
+  },
+  {
+    "name": "hidden",
+    "title": ".Hidden",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [],
+    "expected": "_Hidden.txt"
+  },
+  {
+    "name": "extension-case",
+    "title": "Note",
+    "extensions": [
+      "txt",
+      "md"
+    ],
+    "current": "Old.MD",
+    "otherNotes": [],
+    "occupied": [
+      "Old.MD"
+    ],
+    "expected": "Note.MD"
+  },
+  {
+    "name": "extension-change",
+    "title": "Note",
+    "extensions": [
+      "txt"
+    ],
+    "current": "Old.rtf",
+    "otherNotes": [],
+    "occupied": [
+      "Old.rtf"
+    ],
+    "expected": "Note.txt"
+  },
+  {
+    "name": "other-format",
+    "title": "Note",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [
+      "Note.rtf"
+    ],
+    "occupied": [],
+    "expected": "Note.1.txt"
+  },
+  {
+    "name": "disk-only",
+    "title": "Note",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [
+      "note.txt"
+    ],
+    "expected": "Note.1.txt"
+  },
+  {
+    "name": "series",
+    "title": "Note",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [
+      "Note.rtf",
+      "Note.1.md"
+    ],
+    "occupied": [
+      "NOTE.2.TXT"
+    ],
+    "expected": "Note.3.txt"
+  },
+  {
+    "name": "title-extension",
+    "title": "Report.draft",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [
+      "Report.draft.txt"
+    ],
+    "expected": "Report.1.txt"
+  },
+  {
+    "name": "case-rename",
+    "title": "case",
+    "extensions": [
+      "txt"
+    ],
+    "current": "Case.txt",
+    "otherNotes": [],
+    "occupied": [
+      "Case.txt"
+    ],
+    "expected": "case.txt"
+  },
+  {
+    "name": "nfd",
+    "title": "Cafe\u0301",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [],
+    "expected": "Cafe\u0301.txt"
+  },
+  {
+    "name": "alias",
+    "title": "Cafe\u0301",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [
+      "Caf\u00e9.txt"
+    ],
+    "expected": "Cafe\u0301.1.txt"
+  },
+  {
+    "name": "extensionless",
+    "title": "Note",
+    "extensions": [
+      ""
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [],
+    "expected": "Note"
+  },
+  {
+    "name": "reserved",
+    "title": "NV Data",
+    "extensions": [
+      ""
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [],
+    "expected": "NV Data.1"
+  },
+  {
+    "name": "trailing-dot",
+    "title": "Note.",
+    "extensions": [
+      "txt"
+    ],
+    "current": null,
+    "otherNotes": [],
+    "occupied": [],
+    "expected": "Note..txt"
+  }
+]
