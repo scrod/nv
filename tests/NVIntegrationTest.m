@@ -4941,7 +4941,9 @@ static void TestInterleavedDirectoryMerge(void) {
 		WriteExternalFile(PlainTextFormat, @"addition after",
 			[directoryPath stringByAppendingPathComponent:@"Z Added.txt"]);
 		WriteExternalFile(PlainTextFormat, @"unsupported",
-			[directoryPath stringByAppendingPathComponent:@"G Unsupported.md"]);
+			[directoryPath stringByAppendingPathComponent:@"G Unsupported.dat"]);
+		WriteExternalFile(PlainTextFormat, @"markdown addition",
+			[directoryPath stringByAppendingPathComponent:@"G Markdown.md"]);
 		WriteExternalFileInPlace(@"changed in place",
 			[directoryPath stringByAppendingPathComponent:@"F Changed.txt"]);
 		REQUIRE([[NSFileManager defaultManager] removeItemAtPath:
@@ -4954,6 +4956,7 @@ static void TestInterleavedDirectoryMerge(void) {
 		REQUIRE(NoteContaining(controller, @"addition before") != nil);
 		REQUIRE(NoteContaining(controller, @"addition between") != nil);
 		REQUIRE(NoteContaining(controller, @"addition after") != nil);
+		REQUIRE(NoteContaining(controller, @"markdown addition") != nil);
 		REQUIRE(NoteContaining(controller, @"unsupported") == nil);
 		REQUIRE([controller deletionCandidateCount] == 2);
 
@@ -4991,7 +4994,7 @@ static void TestDirectoryReconciliation(void) {
 		NSString *importedPath = [directoryPath stringByAppendingPathComponent:importedFilename];
 		WriteExternalFile(PlainTextFormat, @"initial external import", importedPath);
 		WriteExternalFile(PlainTextFormat, @"hidden", [directoryPath stringByAppendingPathComponent:@".Hidden.txt"]);
-		WriteExternalFile(PlainTextFormat, @"unsupported", [directoryPath stringByAppendingPathComponent:@"Ignored.md"]);
+		WriteExternalFile(PlainTextFormat, @"unsupported", [directoryPath stringByAppendingPathComponent:@"Ignored.dat"]);
 		NSString *vanishedFilename = @"Vanished During Fallback.txt";
 		NSString *vanishedPath = [directoryPath stringByAppendingPathComponent:vanishedFilename];
 		WriteExternalFile(PlainTextFormat, @"transient fallback entry", vanishedPath);
