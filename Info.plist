@@ -132,7 +132,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Notational Velocity</string>
 	<key>CFBundleGetInfoString</key>
-	<string>Based on 2.0 β5, Copyright © 2011 Zachary Schneirov, All Rights Reserved.</string>
+	<string>$(MARKETING_VERSION), Copyright © 2026 Zachary Schneirov, All Rights Reserved.</string>
 	<key>CFBundleIconFile</key>
 	<string>Notality</string>
 	<key>CFBundleIdentifier</key>
