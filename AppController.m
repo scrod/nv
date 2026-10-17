@@ -110,6 +110,7 @@
 														   darkEndColor:[NSColor colorWithWhite:0.12 alpha:1.0]];
 
 		isCreatingANote = isFilteringFromTyping = typedStringIsCached = NO;
+		listDimensionBeforeToolbarCollapse = 100.0;
 		typedString = @"";
 
     }
@@ -1912,6 +1913,7 @@ terminateApp:
 		BOOL wasVisible = [toolbar isVisible];
 		if (wasVisible) {
 			//pseudo-collapsing splitviews; the built-in collapsing makes it difficult to handle dragging to hide toolbar
+			listDimensionBeforeToolbarCollapse = [[splitView subviewAtPosition:0] dimension];
 			[[splitView subviewAtPosition:0] setDimension:1.0];
 			[splitView adjustSubviews];
 			[self _collapseToolbar];
@@ -1941,30 +1943,50 @@ terminateApp:
 	return proposedFrameSize;
 }
 
-- (void)_expandToolbar {
-	if (![toolbar isVisible]) {
-		window.titleVisibility = NSWindowTitleHidden;
-		[window setTitle:NSLocalizedString(@"Notation", @"App name")];
-		if (currentNote)
-			[field setStringValue:titleOfNote(currentNote)];
-		[window toggleToolbarShown:nil];
-		if (![splitView isDragging])
-			[[splitView subviewAtPosition:0] setDimension:100.0];
-		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"ToolbarHidden"];
-	}
-	if ([[splitView subviewAtPosition:0] isCollapsed])
-		[[splitView subviewAtPosition:0] expand];
+//showing and hiding the toolbar run through here so that each gesture is the
+//inverse of the last one: the window keeps the frame the user gave it, and the
+//note list and editor absorb the height the titlebar and toolbar hand back
+- (void)_setToolbarVisible:(BOOL)visible {
+	if ([toolbar isVisible] != visible) {
+		NSRect anchoredFrame = [window frame];
 
+		if (visible) {
+			window.titleVisibility = NSWindowTitleHidden;
+			[window setTitle:NSLocalizedString(@"Notation", @"App name")];
+			if (currentNote)
+				[field setStringValue:titleOfNote(currentNote)];
+		} else {
+			window.titleVisibility = NSWindowTitleVisible;
+			if (currentNote)
+				[window setTitle:titleOfNote(currentNote)];
+		}
+
+		//setVisible: is the direct, unanimated form of toggleToolbarShown:, which keeps
+		//the restore below in the same runloop cycle as the change it compensates for
+		[toolbar setVisible:visible];
+
+		//AppKit sizes the window to keep the content view constant across a titlebar or
+		//toolbar change; NV keeps the window constant instead, which holds the frame
+		//steady over any number of toggles and needs no titlebar measurements to do it
+		if (!NSEqualRects(anchoredFrame, [window frame]))
+			[window setFrame:anchoredFrame display:YES];
+
+		[[NSUserDefaults standardUserDefaults] setBool:!visible forKey:@"ToolbarHidden"];
+
+		//lay the list out once, against the settled frame
+		if (visible && ![splitView isDragging])
+			[[splitView subviewAtPosition:0] setDimension:listDimensionBeforeToolbarCollapse];
+	}
+	if (visible && [[splitView subviewAtPosition:0] isCollapsed])
+		[[splitView subviewAtPosition:0] expand];
+}
+
+- (void)_expandToolbar {
+	[self _setToolbarVisible:YES];
 }
 
 - (void)_collapseToolbar {
-	if ([toolbar isVisible]) {
-		window.titleVisibility = NSWindowTitleVisible;
-		if (currentNote)
-			[window setTitle:titleOfNote(currentNote)];
-		[window toggleToolbarShown:nil];
-		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"ToolbarHidden"];
-	}
+	[self _setToolbarVisible:NO];
 }
 
 - (BOOL)splitView:(RBSplitView*)sender shouldResizeWindowForDivider:(NSUInteger)divider

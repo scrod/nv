@@ -56,6 +56,7 @@
 	NSToolbarItem *appTitleItem;
 	TitlebarButton *titleBarButton;
 	NVStrandedKeyResponder *keyRedirector;
+	CGFloat listDimensionBeforeToolbarCollapse;
 	
 	BOOL waitedForUncommittedChanges;
 	BOOL externalEditingTerminationInProgress;
@@ -113,6 +114,7 @@ void outletObjectAwoke(id sender);
 - (void)setEmptyViewState:(BOOL)state;
 - (void)cancelOperation:(id)sender;
 - (void)_setCurrentNote:(NoteObject*)aNote;
+- (void)_setToolbarVisible:(BOOL)visible;
 - (void)_expandToolbar;
 - (void)_collapseToolbar;
 - (void)_forceRegeneratePreviewsForTitleColumn;
